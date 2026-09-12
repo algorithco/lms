@@ -234,7 +234,7 @@ def _generate_certificate(result: Any) -> bool:
         )
         return True
 
-    except Exception as e:
+    except Exception:
         cert.status = Certificate.Status.FAILED
         cert.save(update_fields=["status"])
         logger.exception("PDF generation failed for cert: %s", cert.certificate_number)

@@ -165,14 +165,6 @@ def cleanup_cache_entries() -> dict[str, Any]:
     Django's default cache backend (LocMem) doesn't auto-expire keys.
     This task cleans up dashboard caches that may be stale.
     """
-    patterns_to_clear = [
-        "student_dashboard_*",
-        "teacher_dashboard_*",
-        "test_list_*",
-        "cert_verify_*",
-        "games_hub_etag_*",
-    ]
-
     cleared = 0
 
     # For LocMem cache, we can't iterate keys.

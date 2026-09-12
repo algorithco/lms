@@ -192,8 +192,8 @@ class TestStartTests(LMSBaseTestCase):
         client = self.get_authenticated_client()
 
         # 3 ta attempt yaratish (max_attempts=3)
-        for i in range(3):
-            attempt = TestAttempt.objects.create(
+        for _ in range(3):
+            TestAttempt.objects.create(
                 test=self.test, student=self.student,
                 status=TestAttempt.Status.COMPLETED,
                 score=Decimal("50"), percentage=Decimal("50"),

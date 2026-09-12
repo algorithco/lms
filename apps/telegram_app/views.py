@@ -73,7 +73,6 @@ def tma_auth_view(request: Request) -> Response:
     tg_id = telegram_user["id"]
     first_name = telegram_user.get("first_name", "")
     last_name = telegram_user.get("last_name", "")
-    language = telegram_user.get("language_code", "uz")
 
     try:
         user, is_new_user = get_or_create_telegram_user({
