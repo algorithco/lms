@@ -125,7 +125,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
                 "type": "error",
                 "message": "Noto'g'ri JSON format",
             }))
-        except Exception as exc:
+        except Exception:
             logger.exception("WebSocket receive error: user=%s", getattr(self.user, "id", "?"))
             await self.send(text_data=json.dumps({
                 "type": "error",

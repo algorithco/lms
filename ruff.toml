@@ -1,0 +1,25 @@
+# ============================================================================
+# LMS Platform — minimal Ruff gate (variant A)
+#
+# Philosophy: block ONLY rules that signal real bugs; style/formatting
+# (E501 line-too-long, I001 import order, BLE, S, UP, RUF, ...) is
+# deliberately NOT gated to avoid whole-repo churn. Run those locally with:
+#   ruff check . --select ALL   (advisory only, never CI-blocking)
+#
+# Blocking set:
+#   E9   — runtime errors (E901/E999 syntax errors: code doesn't even import)
+#   F821 — undefined name (NameError at runtime, e.g. missing import)
+#   F841 — unused local variable (dead code / leftover assignments)
+# ============================================================================
+
+[lint]
+select = ["E9", "F821", "F841"]
+
+# Detached prototypes (quiz/, essays/, project/ at repo root + root test
+# scripts): not shipped in Docker (.dockerignore), not wired to config.urls,
+# slated for deletion. Their violations are tracked, not gated.
+[lint.per-file-ignores]
+"quiz/consumers.py" = ["F821"]
+"project/settings_additions.py" = ["F821"]
+"essays/views.py" = ["F841"]
+"test_quiz_ws.py" = ["F841"]

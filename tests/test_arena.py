@@ -353,7 +353,7 @@ class RewardsTests(LMSBaseTestCase):
             services.submit_answer(room, a.id, q.correct_answer, i, time_seconds=5.0)
             services.submit_answer(room, b.id, q.correct_answer, i, time_seconds=5.0)
 
-        summary = services.finish_duel(room.room_code)
+        services.finish_duel(room.room_code)
         self.assertIsNone(room.winner_id, "equal scores must be a draw")
 
         pa = services.get_or_create_profile(a)
