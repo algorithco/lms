@@ -56,3 +56,7 @@ coverage.xml
 # Logs
 *.log
 .aider*
+
+# Generated prod nginx config (built by deploy/init-letsencrypt.sh from
+# nginx-http.conf / nginx-ssl.conf — never commit the live domain version)
+deploy/nginx/nginx.conf

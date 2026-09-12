@@ -55,12 +55,19 @@ for i in $(seq 1 30); do
 done
 
 # 3. Issue the certificate via the certbot image (webroot method)
+# NOTE: requests both DOMAIN and www.DOMAIN. If www DNS is missing, re-run
+# with SKIP_WWW=1. After a --staging test, wipe the staging cert before the
+# real run: docker volume rm lms-platform-prod_certbot_conf
 echo ">>> Requesting Let's Encrypt certificate for ${DOMAIN}"
+DOMAINS=(-d "${DOMAIN}")
+if [[ "${SKIP_WWW:-0}" != "1" ]]; then
+  DOMAINS+=(-d "www.${DOMAIN}")
+fi
 ${COMPOSE} run --rm --entrypoint certbot certbot \
     certonly \
     --webroot -w /var/www/certbot \
     --email "${EMAIL}" \
-    -d "${DOMAIN}" -d "www.${DOMAIN}" \
+    "${DOMAINS[@]}" \
     --rsa-key-size 4096 \
     --agree-tos --no-eff-email \
     --keep-until-expiring \

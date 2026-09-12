@@ -6,7 +6,17 @@ from .base import *  # noqa: F401,F403
 DEBUG = False
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", SECRET_KEY)
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+# Strip whitespace (users often write "a.com, www.a.com") and always allow
+# internal healthcheck hosts (curl 127.0.0.1:8000 + nginx->web) so Docker
+# HEALTHCHECK never 400s even if operator forgets them in .env.prod.
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+for _internal in ("127.0.0.1", "localhost", "web"):
+    if _internal not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_internal)
 
 # HTTPS is terminated at Nginx — tell Django it is behind a proxy so
 # request.is_secure() and SECURE_SSL_REDIRECT behave correctly.
@@ -29,11 +39,15 @@ DATABASES = {
         "NAME": os.environ.get("DB_NAME", "lms_platform"),
         "USER": os.environ.get("DB_USER", "lms_user"),
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "HOST": os.environ.get("DB_HOST", "db"),
         "PORT": os.environ.get("DB_PORT", "5432"),
         "OPTIONS": {
             "connect_timeout": 10,
         },
+        # Reuse DB connections (daphne is long-lived) + probe before reuse
+        # so Postgres restarts/idle closes don't cause 500s.
+        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 
@@ -129,6 +143,54 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Logging — structured console output for `docker compose logs`
+# ---------------------------------------------------------------------------
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "django.db.backends": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "celery": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "daphne": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Sentry — optional (set SENTRY_DSN to enable). No-op when empty so the
+# sentry-sdk dependency in requirements/production.txt is not dead code.
+# ---------------------------------------------------------------------------
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            send_default_pii=False,
+        )
+    except Exception:  # never break boot on observability errors
+        pass
+
+# ---------------------------------------------------------------------------
 # Startup safety net — fail loudly instead of running insecure
 # ---------------------------------------------------------------------------
 from django.core.exceptions import ImproperlyConfigured  # noqa: E402
@@ -149,7 +211,7 @@ if (
         "in production (no placeholders, min 32 chars). Generate one with: "
         "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
     )
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""] or ALLOWED_HOSTS == ["*"]:
+if not ALLOWED_HOSTS or all(h in ("127.0.0.1", "localhost", "web") for h in ALLOWED_HOSTS):
     raise ImproperlyConfigured(
         "DJANGO_ALLOWED_HOSTS must be set explicitly in production "
         "(comma-separated), e.g. example.com,www.example.com."
