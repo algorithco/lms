@@ -9,6 +9,12 @@
     <meta name="color-scheme" content="light dark">
     <title>{% block title %}Ona Tili &amp; Adabiyot{% endblock %}</title>
 
+    <!-- Favicon (OT monogram — static/img/, WhiteNoise manifest-safe) -->
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32x32.png' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+
     <!-- ═══ THEME BOOTSTRAP (no-FOUC — runs synchronously before paint) ═══ -->
     <script>
         (function () {
