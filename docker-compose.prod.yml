@@ -197,6 +197,9 @@ services:
       - "443:443"
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Admin Basic Auth credential (VPS-side secret from setup-admin-auth.sh).
+      # Missing file fails fast at `up` (fail-closed) — see preflight.sh 7/7.
+      - ./deploy/secrets/htpasswd-admin:/etc/nginx/.htpasswd-admin:ro
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
       - certbot_conf:/etc/letsencrypt

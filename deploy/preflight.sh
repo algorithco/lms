@@ -36,7 +36,18 @@ grep -q "__DOMAIN__" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing 
 say "5/6 required CLIs"
 command -v docker >/dev/null || err "docker not installed"
 
-say "6/6 disk + ports"
+say "6/7 admin Basic Auth credential (fail-closed)"
+if test -f deploy/secrets/htpasswd-admin; then
+  aperms=$(stat -c %a deploy/secrets/htpasswd-admin 2>/dev/null || stat -f %Lp deploy/secrets/htpasswd-admin 2>/dev/null || echo "?")
+  test "$aperms" = "600" || err "htpasswd-admin perms=$aperms, want 600"
+  if cmp -s deploy/secrets/htpasswd-admin deploy/secrets/htpasswd-admin.example; then
+    err "htpasswd-admin is still the DISABLED example — run ./deploy/setup-admin-auth.sh on the VPS"
+  fi
+else
+  err "missing deploy/secrets/htpasswd-admin — run ./deploy/setup-admin-auth.sh on the VPS"
+fi
+
+say "7/7 disk + ports"
 df -h / | tail -1
 (ss -tlnp 2>/dev/null | grep -E ':80|:443' || echo "(no 80/443 listener yet — ok pre-install)")
 
