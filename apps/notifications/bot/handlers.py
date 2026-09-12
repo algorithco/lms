@@ -629,6 +629,7 @@ async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYP
     def _get_student_detail():
         from django.contrib.auth import get_user_model
         from django.conf import settings
+        from django.db.models import Avg
         from apps.results.models import Result
         from apps.essays.models import EssaySubmission
 

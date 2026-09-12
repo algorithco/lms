@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 from apps.essays.models import EssaySubmission
 
@@ -31,8 +30,6 @@ class Command(BaseCommand):
     )
 
     def handle(self, *args, **options):
-        now = timezone.now()
-
         # Muddati o'tgan, hali DRAFT holatida (yuborilmagan) submissionlarni topish
         expired_submissions = EssaySubmission.objects.filter(
             status=EssaySubmission.Status.DRAFT,

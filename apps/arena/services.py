@@ -21,12 +21,15 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
+
+if TYPE_CHECKING:  # quoted annotations only (local imports avoid cycles)
+    from .models import ArenaProfile, ArenaRoom
 
 logger = logging.getLogger(__name__)
 

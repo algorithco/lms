@@ -310,7 +310,6 @@ def imlo_check_view(request: HttpRequest) -> HttpResponse:
     # word_index refers to the position in the text words array
     error_position = data.get("error_word_index", 0)
     is_correct_fix = (action == "fix" and word_index == error_position)
-    is_wrong_flag = (action == "flag" and word_index != error_position)
     is_correct = is_correct_fix or (action == "skip")
 
     combo = int(request.POST.get("combo", 0))
@@ -388,7 +387,6 @@ def gazal_check_view(request: HttpRequest) -> HttpResponse:
 
     level = get_object_or_404(GameLevel, id=level_id, game=game)
     data = level.question_data
-    correct_order = data.get("correct_order", [])
     bayt_lines = data.get("bayt_lines", [])
 
     try:
