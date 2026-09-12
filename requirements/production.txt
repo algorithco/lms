@@ -1,0 +1,17 @@
+# ============================================================================
+# LMS Platform — Production Requirements
+# ============================================================================
+-r base.txt
+
+# WSGI server
+gunicorn>=22.0,<23.0
+
+# PDF generation (HTML→PDF alternative)
+weasyprint>=70.0,<71.0
+
+# Monitoring
+sentry-sdk>=2.5,<3.0               # Error tracking
+
+# Caching
+django-redis>=5.4,<6.0             # Redis cache backend
+channels-redis>=4.2,<5.0           # Redis channel layer (WebSockets across workers)

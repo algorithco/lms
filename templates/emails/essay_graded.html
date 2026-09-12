@@ -1,0 +1,88 @@
+{% load i18n_extras %}<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:32px;text-align:center;">
+                            <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;">{% t "em_essay_header" lang %}</h1>
+                            <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">{% t "em_essay_criteria_sub" lang %}</p>
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:32px;">
+                            <h2 style="margin:0 0 8px;color:#1e293b;font-size:18px;">
+                                {{ student_name }}, {% t "em_essay_graded_name" lang %}
+                            </h2>
+                            <p style="margin:0 0 24px;color:#64748b;font-size:14px;">
+                                {% t "em_txt_topic" lang %}: <strong>{{ topic_title }}</strong>
+                            </p>
+
+                            <!-- Score Card -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;padding:24px;margin-bottom:24px;">
+                                <tr>
+                                    <td>
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td width="50%">
+                                                    <p style="margin:0;color:#64748b;font-size:12px;">{% t "em_rubric" lang %}</p>
+                                                    <p style="margin:4px 0 0;color:#6366f1;font-size:24px;font-weight:800;">{{ total_score }}/{{ max_score }}</p>
+                                                </td>
+                                                {% if converted_score %}
+                                                <td width="50%">
+                                                    <p style="margin:0;color:#64748b;font-size:12px;">{% t "em_overall" lang %}</p>
+                                                    <p style="margin:4px 0 0;color:#1e293b;font-size:24px;font-weight:800;">{{ converted_score }}/75</p>
+                                                </td>
+                                                {% endif %}
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {% if summary %}
+                            <!-- Summary -->
+                            <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin-bottom:24px;">
+                                <p style="margin:0 0 4px;color:#475569;font-size:12px;font-weight:600;">{% t "em_summary" lang %}</p>
+                                <p style="margin:0;color:#334155;font-size:14px;line-height:1.6;">{{ summary }}</p>
+                            </div>
+                            {% endif %}
+
+                            <!-- CTA -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ site_url }}/essays/result/" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">
+                                            {% t "em_view_result" lang %}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+                            <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">
+                                © 2026 Ona Tili & Adabiyot. {% t "em_rights" lang %}
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

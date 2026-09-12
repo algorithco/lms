@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static i18n_extras %}
+
+{% block title %}{% t "import_result_title" %} — Ona Tili &amp; Adabiyot{% endblock %}
+
+{% block content %}
+<div class="import-page min-h-screen">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">📥 {% t "import_result_title" %}</h1>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span class="text-2xl">📊</span>
+                </div>
+                <p class="text-3xl font-bold text-blue-600">{{ result.total }}</p>
+                <p class="text-sm text-gray-500">{% t "import_total_rows" %}</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span class="text-2xl">✅</span>
+                </div>
+                <p class="text-3xl font-bold text-green-600">{{ result.created }}</p>
+                <p class="text-sm text-gray-500">{% t "import_created" %}</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+                <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span class="text-2xl">⏭️</span>
+                </div>
+                <p class="text-3xl font-bold text-amber-600">{{ result.skipped }}</p>
+                <p class="text-sm text-gray-500">{% t "import_skipped" %}</p>
+            </div>
+        </div>
+
+        <!-- Errors -->
+        {% if result.errors %}
+        <div class="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
+            <h2 class="text-lg font-semibold text-red-900 mb-3">❌ {% t "import_errors" %} ({{ result.errors|length }})</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-red-200">
+                            <th class="text-left py-2 px-3 text-red-700 font-medium">{% t "import_row" %}</th>
+                            <th class="text-left py-2 px-3 text-red-700 font-medium">{% t "import_error" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for error in result.errors %}
+                        <tr class="border-b border-red-100">
+                            <td class="py-2 px-3 text-red-800">{{ error.row }}</td>
+                            <td class="py-2 px-3 text-red-800">{{ error.error }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Created Users -->
+        {% if result.created_users %}
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-3">✅ {% t "import_created_students" %}</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                {% t "import_created_hint" %}
+            </p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-2 px-3 text-gray-500 font-medium">{% t "import_name" %}</th>
+                            <th class="text-left py-2 px-3 text-gray-500 font-medium">{% t "email" %}</th>
+                            <th class="text-left py-2 px-3 text-gray-500 font-medium">{% t "import_status" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in result.created_users %}
+                        <tr class="border-b border-gray-100">
+                            <td class="py-3 px-3 font-medium text-gray-900">
+                                {{ user.get_full_name }}
+                            </td>
+                            <td class="py-3 px-3 text-gray-600">
+                                {{ user.email }}
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    ✅ {% t "import_created" %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="import-actions flex items-center justify-end gap-3">
+            <a href="{% url 'web:csv-import' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                📥 {% t "import_again" %}
+            </a>
+            <a href="{% url 'web:dashboard' %}" class="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm">
+                {% t "import_back_dashboard" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,946 @@
+{% load i18n_extras %}<!DOCTYPE html>
+<html lang="{% current_language %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ona Tili & Adabiyot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tg: {
+                            bg: '#1a1a2e',
+                            card: '#16213e',
+                            accent: '#0f3460',
+                            highlight: '#e94560',
+                            green: '#00b894',
+                            gold: '#fdcb6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { overscroll-behavior: none; }
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .pulse-glow { animation: pulseGlow 2s infinite; }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); } 50% { box-shadow: 0 0 20px 10px rgba(233, 69, 96, 0.1); } }
+        .card-press:active { transform: scale(0.97); transition: transform 0.1s; }
+        .skeleton { background: linear-gradient(90deg, #16213e 25%, #1a2744 50%, #16213e 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .choice-btn { transition: all 0.15s ease; }
+        .choice-btn.selected { background: rgba(99, 102, 241, 0.3); border-color: #6366f1; }
+        .choice-btn.correct { background: rgba(16, 185, 129, 0.3); border-color: #10b981; }
+        .choice-btn.wrong { background: rgba(239, 68, 68, 0.3); border-color: #ef4444; }
+        .progress-fill { transition: width 0.3s ease; }
+    </style>
+</head>
+<body class="bg-tg-bg min-h-screen text-white">
+
+<script>
+    if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        Telegram.WebApp.setHeaderColor('#1a1a2e');
+        Telegram.WebApp.setBackgroundColor('#1a1a2e');
+    }
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- AUTH SCREEN                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="flex items-center justify-center min-h-screen p-6">
+    <div class="text-center slide-up">
+        <div class="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-tg-highlight to-pink-600 flex items-center justify-center shadow-lg pulse-glow">
+            <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+        </div>
+        <h1 class="text-2xl font-extrabold mb-2">Ona Tili & Adabiyot</h1>
+        <p class="text-sm text-gray-400 mb-8">Ona tili va Adabiyot</p>
+        <button onclick="authenticate()" id="auth-btn"
+                class="w-full py-4 bg-gradient-to-r from-tg-highlight to-pink-600 text-white text-base font-bold rounded-2xl transition-all active:scale-95">
+            Kirish
+        </button>
+        <p id="auth-error" class="text-red-400 text-xs mt-4 hidden"></p>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- MAIN APP SCREEN                                                -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="app-screen" class="hidden">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 bg-tg-bg/90 backdrop-blur-md px-4 py-3 border-b border-white/5">
+        <div class="flex items-center justify-between">
+            <h1 class="text-lg font-bold" id="greeting">Salom!</h1>
+            <span id="user-xp" class="px-3 py-1 rounded-full bg-tg-gold/20 text-tg-gold text-xs font-bold">⚡ 0 XP</span>
+        </div>
+    </header>
+
+    <!-- HOME SCREEN -->
+    <main class="p-4 pb-24" id="screen-home">
+        <div class="grid grid-cols-2 gap-3 mb-6 slide-up">
+            <div class="bg-tg-card rounded-2xl p-4 border border-white/5">
+                <p class="text-[11px] text-gray-400 uppercase font-semibold">{% t "tma_tests" %}</p>
+                <p class="text-2xl font-extrabold text-white mt-1" id="stat-tests">-</p>
+            </div>
+            <div class="bg-tg-card rounded-2xl p-4 border border-white/5">
+                <p class="text-[11px] text-gray-400 uppercase font-semibold">Esse lar</p>
+                <p class="text-2xl font-extrabold text-tg-green mt-1" id="stat-essays">-</p>
+            </div>
+            <div class="bg-tg-card rounded-2xl p-4 border border-white/5">
+                <p class="text-[11px] text-gray-400 uppercase font-semibold">O'tilgan</p>
+                <p class="text-2xl font-extrabold text-tg-green mt-1" id="stat-passed">-</p>
+            </div>
+            <div class="bg-tg-card rounded-2xl p-4 border border-white/5">
+                <p class="text-[11px] text-gray-400 uppercase font-semibold">Sertifikatlar</p>
+                <p class="text-2xl font-extrabold text-tg-gold mt-1" id="stat-certs">-</p>
+            </div>
+        </div>
+
+        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Mavjud testlar</h3>
+        <div id="tests-list" class="space-y-2 mb-6">
+            <div class="skeleton h-16 rounded-2xl"></div>
+        </div>
+
+        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">So'nggi natijalar</h3>
+        <div id="recent-results" class="space-y-2">
+            <div class="skeleton h-16 rounded-2xl"></div>
+        </div>
+    </main>
+
+    <!-- TEST INFO SCREEN (before starting) -->
+    <main class="p-4 pb-24 hidden" id="screen-test-info">
+        <div id="test-info-content"></div>
+    </main>
+
+    <!-- TEST TAKING SCREEN -->
+    <main class="p-4 pb-24 hidden" id="screen-test">
+        <!-- Timer + Progress -->
+        <div class="flex items-center justify-between mb-4">
+            <div id="test-timer" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-tg-card border border-white/5">
+                <span class="text-lg">⏱</span>
+                <span id="timer-display" class="font-mono font-bold text-sm">--:--</span>
+            </div>
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-tg-card border border-white/5">
+                <span id="question-counter" class="text-xs font-bold">1/10</span>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="w-full h-1.5 bg-tg-card rounded-full mb-6">
+            <div id="test-progress" class="progress-fill h-full bg-tg-highlight rounded-full" style="width: 0%"></div>
+        </div>
+
+        <!-- Question -->
+        <div id="question-container" class="mb-6">
+            <p id="question-text" class="text-base font-bold text-white mb-6 leading-relaxed"></p>
+            <div id="choices-container" class="space-y-3"></div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex items-center gap-3">
+            <button id="btn-prev" onclick="prevQuestion()" class="flex-1 py-3 bg-tg-card border border-white/10 text-gray-400 font-semibold rounded-xl text-sm hidden">
+                {% t "tma_prev" %}
+            </button>
+            <button id="btn-next" onclick="nextQuestion()" class="flex-1 py-3 bg-tg-accent text-white font-semibold rounded-xl text-sm">
+                {% t "tma_next" %}
+            </button>
+            <button id="btn-submit" onclick="submitTest()" class="hidden flex-1 py-3 bg-tg-green text-white font-bold rounded-xl text-sm">
+                {% t "tma_submit" %}
+            </button>
+        </div>
+
+        <!-- Question dots -->
+        <div id="question-dots" class="flex flex-wrap justify-center gap-2 mt-6"></div>
+    </main>
+
+    <!-- RESULT SCREEN -->
+    <main class="p-4 pb-24 hidden" id="screen-result">
+        <div id="result-content"></div>
+    </main>
+
+    <!-- ESSAYS LIST SCREEN -->
+    <main class="p-4 pb-24 hidden" id="screen-essays">
+        <h2 class="text-lg font-extrabold mb-4">✍️ Esse mavzulari</h2>
+        <div id="essays-list" class="space-y-2">
+            <div class="skeleton h-16 rounded-2xl"></div>
+        </div>
+    </main>
+
+    <!-- ESSAY WRITE SCREEN -->
+    <main class="p-4 pb-24 hidden" id="screen-essay-write">
+        <div id="essay-write-content"></div>
+    </main>
+
+    <!-- ESSAY RESULT SCREEN -->
+    <main class="p-4 pb-24 hidden" id="screen-essay-result">
+        <div id="essay-result-content"></div>
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-tg-card/95 backdrop-blur-md border-t border-white/5 px-4 py-2 z-30">
+        <div class="flex items-center justify-around">
+            <button onclick="showScreen('home')" class="nav-item flex flex-col items-center py-1 text-tg-highlight">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span class="text-[10px] mt-0.5">Bosh sahifa</span>
+            </button>
+            <button onclick="loadTests(); showScreen('home')" class="nav-item flex flex-col items-center py-1 text-gray-500">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="text-[10px] mt-0.5">{% t "tma_tests" %}</span>
+            </button>
+            <button onclick="loadEssays(); showScreen('essays')" class="nav-item flex flex-col items-center py-1 text-gray-500">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                <span class="text-[10px] mt-0.5">Esselar</span>
+            </button>
+        </div>
+    </nav>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let jwtToken = null;
+let currentTest = null;
+let currentAttempt = null;
+let currentQuestions = [];
+let currentQuestionIndex = 0;
+let userAnswers = {};  // {question_id: [choice_id, ...]}
+let timerInterval = null;
+let remainingSeconds = 0;
+
+// ══════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════
+async function authenticate() {
+    const btn = document.getElementById('auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Tekshirilmoqda...';
+    try {
+        let initData = '';
+        if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initData) {
+            initData = Telegram.WebApp.initData;
+        }
+        if (!initData) {
+            document.getElementById('auth-error').textContent = 'Telegram ichida oching.';
+            document.getElementById('auth-error').classList.remove('hidden');
+            btn.disabled = false; btn.textContent = 'Kirish';
+            return;
+        }
+        const resp = await fetch('/tma/api/auth/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            jwtToken = data.tokens.access;
+            localStorage.setItem('lms_access', jwtToken);
+            localStorage.setItem('lms_refresh', data.tokens.refresh);
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            loadProfile(); loadTests(); loadResults();
+        } else {
+            document.getElementById('auth-error').textContent = data.error || 'Xatolik';
+            document.getElementById('auth-error').classList.remove('hidden');
+            btn.disabled = false; btn.textContent = 'Kirish';
+        }
+    } catch (err) {
+        document.getElementById('auth-error').textContent = 'Tarmoq xatoligi';
+        document.getElementById('auth-error').classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Kirish';
+    }
+}
+
+function apiHeaders() {
+    return { 'Authorization': `Bearer ${jwtToken}`, 'Content-Type': 'application/json' };
+}
+
+// ══════════════════════════════════════════════════════════════
+// SCREENS
+// ══════════════════════════════════════════════════════════════
+function showScreen(name) {
+    ['screen-home', 'screen-test-info', 'screen-test', 'screen-result', 'screen-essays', 'screen-essay-write', 'screen-essay-result'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.remove('hidden');
+
+    // Show/hide bottom nav
+    const nav = document.querySelector('nav');
+    nav.style.display = (name === 'test') ? 'none' : '';
+
+    // Telegram BackButton
+    if (name !== 'home' && window.Telegram && Telegram.WebApp && Telegram.WebApp.BackButton) {
+        Telegram.WebApp.BackButton.show();
+        Telegram.WebApp.BackButton.onClick(() => {
+            if (name === 'test') {
+                if (confirm('Testdan chiqmoqchimisiz? Javoblar saqlanadi.')) {
+                    showScreen('home'); loadTests(); loadResults();
+                }
+            } else if (name === 'test-info') {
+                showScreen('home');
+            } else if (name === 'essay-write') {
+                if (confirm("Esse yozishni to'xtatmoqchimisiz?")) {
+                    clearInterval(essayTimerInterval);
+                    showScreen('essays'); loadEssays();
+                }
+            } else if (name === 'essays') {
+                showScreen('home');
+            } else {
+                showScreen('home');
+            }
+        });
+    } else if (window.Telegram && Telegram.WebApp && Telegram.WebApp.BackButton) {
+        Telegram.WebApp.BackButton.hide();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROFILE & LISTS
+// ══════════════════════════════════════════════════════════════
+async function loadProfile() {
+    try {
+        const resp = await fetch('/tma/api/profile/', { headers: apiHeaders() });
+        const data = await resp.json();
+        document.getElementById('greeting').textContent = `Salom, ${data.user.first_name}!`;
+        document.getElementById('stat-tests').textContent = data.stats.tests_taken || 0;
+        document.getElementById('stat-passed').textContent = data.stats.tests_passed || 0;
+        document.getElementById('stat-essays').textContent = data.stats.essays_written || 0;
+        document.getElementById('stat-certs').textContent = data.stats.certificates || 0;
+        document.getElementById('user-xp').textContent = `⚡ ${data.stats.total_xp || 0} XP`;
+    } catch (err) { console.error('Profile failed:', err); }
+}
+
+async function loadTests() {
+    try {
+        const resp = await fetch('/tma/api/tests/', { headers: apiHeaders() });
+        const data = await resp.json();
+        const container = document.getElementById('tests-list');
+        if (!data.tests || data.tests.length === 0) {
+            container.innerHTML = '<div class="bg-tg-card rounded-2xl p-4 border border-white/5 text-center"><p class="text-gray-500 text-xs">Hali testlar yo\'q</p></div>';
+            return;
+        }
+        const diffColors = { easy: 'bg-green-500/20 text-green-400', medium: 'bg-yellow-500/20 text-yellow-400', hard: 'bg-red-500/20 text-red-400' };
+        const diffLabels = { easy: 'Oson', medium: 'O\'rta', hard: 'Qiyin' };
+        container.innerHTML = data.tests.slice(0, 10).map(t => `
+            <button onclick="showTestInfo(${t.id})" class="w-full text-left bg-tg-card rounded-2xl p-4 border border-white/5 card-press">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center"><span class="text-lg">📝</span></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold truncate">${esc(t.title)}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${diffColors[t.difficulty] || ''}">${diffLabels[t.difficulty] || t.difficulty}</span>
+                            <span class="text-[10px] text-gray-500">${t.total_questions} savol · ${t.time_limit_minutes} daqiqa</span>
+                        </div>
+                    </div>
+                    <span class="text-gray-500 text-sm">→</span>
+                </div>
+            </button>
+        `).join('');
+    } catch (err) { console.error('Tests failed:', err); }
+}
+
+async function loadResults() {
+    try {
+        const resp = await fetch('/tma/api/results/', { headers: apiHeaders() });
+        const data = await resp.json();
+        const container = document.getElementById('recent-results');
+        if (!data.results || data.results.length === 0) {
+            container.innerHTML = '<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-gray-500 text-sm">Hali natijalar yo\'q</p></div>';
+            return;
+        }
+        container.innerHTML = data.results.slice(0, 5).map(r => `
+            <div class="flex items-center justify-between bg-tg-card rounded-2xl p-4 border border-white/5">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${r.is_passed ? 'bg-green-500/20' : 'bg-red-500/20'}">
+                        <span class="text-sm">${r.is_passed ? '✅' : '❌'}</span>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold truncate">${esc(r.test_title)}</p>
+                        <p class="text-[10px] text-gray-500">${r.correct_answers}/${r.total_questions} to'g'ri</p>
+                    </div>
+                </div>
+                <span class="px-3 py-1.5 rounded-xl text-sm font-bold flex-shrink-0 ${r.is_passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${r.percentage}%</span>
+            </div>
+        `).join('');
+    } catch (err) { console.error('Results failed:', err); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST INFO (before starting)
+// ══════════════════════════════════════════════════════════════
+async function showTestInfo(testId) {
+    showScreen('test-info');
+    const container = document.getElementById('test-info-content');
+    container.innerHTML = '<div class="skeleton h-40 rounded-2xl"></div>';
+
+    try {
+        const resp = await fetch(`/tma/api/tests/${testId}/start/`, {
+            method: 'POST', headers: apiHeaders(), body: '{}'
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            container.innerHTML = `<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-red-400">${esc(data.error)}</p></div>`;
+            return;
+        }
+
+        currentTest = data;
+        window._currentTestId = testId;
+        currentAttempt = {
+            id: data.attempt_id,
+            remaining_seconds: data.remaining_seconds,
+        };
+        currentQuestions = data.questions;
+        userAnswers = {};
+
+        // Restore previous answers
+        currentQuestions.forEach(q => {
+            if (q.question_type === 'text' && q.text_answer) {
+                userAnswers[q.id] = {choice_ids: [], text_answer: q.text_answer};
+            } else if (q.selected_choice_ids && q.selected_choice_ids.length > 0) {
+                userAnswers[q.id] = q.selected_choice_ids;
+            }
+        });
+
+        const remaining = data.remaining_seconds ?? (data.time_limit_minutes * 60);
+
+        container.innerHTML = `
+            <div class="bg-tg-card rounded-2xl p-6 border border-white/5 slide-up">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-500/20 flex items-center justify-center">
+                        <span class="text-3xl">📝</span>
+                    </div>
+                    <h2 class="text-xl font-extrabold mb-2">${esc(data.test_title)}</h2>
+                    <p class="text-sm text-gray-400">${esc(data.test_description || '')}</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="text-center p-3 rounded-xl bg-tg-accent/30">
+                        <p class="text-lg font-bold">${data.total_questions}</p>
+                        <p class="text-[10px] text-gray-400">Savollar</p>
+                    </div>
+                    <div class="text-center p-3 rounded-xl bg-tg-accent/30">
+                        <p class="text-lg font-bold">${data.time_limit_minutes}</p>
+                        <p class="text-[10px] text-gray-400">Daqiqa</p>
+                    </div>
+                    <div class="text-center p-3 rounded-xl bg-tg-accent/30">
+                        <p class="text-lg font-bold">100%</p>
+                        <p class="text-[10px] text-gray-400">O'tish</p>
+                    </div>
+                </div>
+
+                <div class="bg-tg-bg rounded-xl p-4 mb-6">
+                    <p class="text-xs text-gray-400 mb-2">⏱ Qolgan vaqt:</p>
+                    <p class="text-2xl font-mono font-bold ${remaining < 300 ? 'text-red-400' : 'text-white'}">${formatTime(remaining)}</p>
+                </div>
+
+                <button onclick="startTest()" class="w-full py-4 bg-tg-highlight text-white font-bold rounded-xl text-base active:scale-95 transition-all">
+                    🚀 Testni boshlash
+                </button>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-red-400">Yuklashda xatolik</p></div>';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST TAKING
+// ══════════════════════════════════════════════════════════════
+function startTest() {
+    currentQuestionIndex = 0;
+    showScreen('test');
+    renderQuestion();
+    startTimer(currentAttempt.remaining_seconds ?? (currentTest.time_limit_minutes * 60));
+}
+
+function renderQuestion() {
+    const q = currentQuestions[currentQuestionIndex];
+    const total = currentQuestions.length;
+
+    document.getElementById('question-text').textContent = `${currentQuestionIndex + 1}. ${q.text}`;
+    document.getElementById('question-counter').textContent = `${currentQuestionIndex + 1}/${total}`;
+    document.getElementById('test-progress').style.width = `${((currentQuestionIndex + 1) / total) * 100}%`;
+
+    // Render choices
+    const container = document.getElementById('choices-container');
+    const answer = userAnswers[q.id] || (q.question_type === 'text' ? {text_answer: ''} : []);
+    const selected = Array.isArray(answer) ? answer : [];
+
+    container.innerHTML = q.question_type === 'text'
+        ? `<textarea class="w-full p-4 rounded-xl bg-tg-card border border-white/10 text-white" rows="3" placeholder="Javobingizni yozing" oninput="setTextAnswer(${q.id}, this.value)">${esc(answer.text_answer || '')}</textarea>`
+        : q.choices.map(c => {
+        const isSelected = selected.includes(c.id);
+        return `
+            <button onclick="selectChoice(${q.id}, ${c.id})" class="choice-btn w-full text-left p-4 rounded-xl border ${isSelected ? 'selected border-indigo-500' : 'border-white/10 bg-tg-card'}">
+                <p class="text-sm font-medium">${esc(c.text)}</p>
+            </button>
+        `;
+    }).join('');
+
+    // Nav buttons
+    document.getElementById('btn-prev').classList.toggle('hidden', currentQuestionIndex === 0);
+    document.getElementById('btn-next').classList.toggle('hidden', currentQuestionIndex === total - 1);
+    document.getElementById('btn-submit').classList.toggle('hidden', currentQuestionIndex !== total - 1);
+
+    // Question dots
+    renderDots();
+}
+
+function renderDots() {
+    const container = document.getElementById('question-dots');
+    container.innerHTML = currentQuestions.map((q, i) => {
+        const value = userAnswers[q.id];
+        const answered = Array.isArray(value)
+            ? value.length > 0
+            : !!(value && value.text_answer && value.text_answer.trim());
+        const active = i === currentQuestionIndex;
+        return `<button onclick="goToQuestion(${i})" class="w-3 h-3 rounded-full transition-all ${active ? 'bg-tg-highlight scale-125' : answered ? 'bg-tg-green' : 'bg-gray-600'}"></button>`;
+    }).join('');
+}
+
+function selectChoice(questionId, choiceId) {
+    if (!userAnswers[questionId]) userAnswers[questionId] = [];
+
+    const question = currentQuestions.find(q => q.id === questionId);
+    // Single choice replaces the selection; multiple choice toggles it.
+    const idx = userAnswers[questionId].indexOf(choiceId);
+    if (question.question_type === 'multiple' && idx > -1) {
+        userAnswers[questionId].splice(idx, 1);
+    } else if (question.question_type === 'multiple') {
+        userAnswers[questionId].push(choiceId);
+    } else {
+        userAnswers[questionId] = [choiceId];
+    }
+
+    // Haptic feedback
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.HapticFeedback) {
+        Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+
+    renderQuestion();
+}
+
+function setTextAnswer(questionId, value) {
+    userAnswers[questionId] = {choice_ids: [], text_answer: value};
+    renderDots();
+}
+
+function nextQuestion() {
+    if (currentQuestionIndex < currentQuestions.length - 1) {
+        currentQuestionIndex++;
+        renderQuestion();
+    }
+}
+
+function prevQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        renderQuestion();
+    }
+}
+
+function goToQuestion(index) {
+    currentQuestionIndex = index;
+    renderQuestion();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════════════════
+function startTimer(seconds) {
+    remainingSeconds = seconds;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        remainingSeconds--;
+        updateTimerDisplay();
+        if (remainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            autoSubmit();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = formatTime(remainingSeconds);
+
+    // Warning colors
+    const timer = document.getElementById('test-timer');
+    if (timer) {
+        if (remainingSeconds <= 60) {
+            timer.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-900/50 border border-red-500/30';
+        } else if (remainingSeconds <= 300) {
+            timer.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-900/30 border border-yellow-500/20';
+        } else {
+            timer.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl bg-tg-card border border-white/5';
+        }
+    }
+}
+
+function formatTime(secs) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function autoSubmit() {
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.HapticFeedback) {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+    }
+    submitTest();
+}
+
+// ══════════════════════════════════════════════════════════════
+// SUBMIT
+// ══════════════════════════════════════════════════════════════
+async function submitTest() {
+    clearInterval(timerInterval);
+
+    // Confirm
+    const unanswered = currentQuestions.filter(q => {
+        const value = userAnswers[q.id];
+        return !value || (Array.isArray(value) ? value.length === 0 : !value.text_answer?.trim());
+    }).length;
+    if (remainingSeconds > 0 && unanswered > 0 && !confirm(`${unanswered} {% t "tma_unanswered_suffix" %}`)) {
+        startTimer(remainingSeconds);
+        return;
+    }
+
+    // Haptic
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.HapticFeedback) {
+        Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+    }
+
+    showScreen('test');
+    document.getElementById('question-container').innerHTML = `
+        <div class="text-center py-12">
+            <div class="animate-spin w-10 h-10 border-3 border-tg-highlight border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p class="text-sm text-gray-400">Baholanmoqda...</p>
+        </div>
+    `;
+
+    try {
+        const resp = await fetch(`/tma/api/tests/${window._currentTestId}/submit/`, {
+            method: 'POST',
+            headers: apiHeaders(),
+            body: JSON.stringify({
+                attempt_id: currentAttempt.id,
+                answers: userAnswers,
+            })
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('Xatolik: ' + data.error);
+            showScreen('home');
+            return;
+        }
+
+        showResult(data);
+    } catch (err) {
+        alert('Tarmoq xatoligi');
+        showScreen('home');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// RESULT
+// ══════════════════════════════════════════════════════════════
+function showResult(data) {
+    showScreen('result');
+    const container = document.getElementById('result-content');
+
+    const passed = data.is_passed;
+    const pct = data.percentage;
+    const correct = data.correct_answers;
+    const total = data.total_questions;
+
+    container.innerHTML = `
+        <div class="text-center slide-up">
+            <div class="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center ${passed ? 'bg-green-500/20' : 'bg-red-500/20'}">
+                <span class="text-5xl">${passed ? '🎉' : '😔'}</span>
+            </div>
+
+            <h2 class="text-2xl font-extrabold mb-2 ${passed ? 'text-green-400' : 'text-red-400'}">
+                ${passed ? '{% t "em_greeting_congrats" %}!' : '{% t "em_greeting_sorry" %}...'}
+            </h2>
+            <p class="text-sm text-gray-400 mb-8">${passed ? '{% t "tma_passed_msg" %}' : '{% t "tma_failed_msg" %}!'}</p>
+
+            <div class="bg-tg-card rounded-2xl p-6 border border-white/5 mb-6">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="text-center">
+                        <p class="text-3xl font-extrabold ${passed ? 'text-green-400' : 'text-red-400'}">${pct}%</p>
+                        <p class="text-[11px] text-gray-400 mt-1">Foiz</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-3xl font-extrabold text-white">${correct}/${total}</p>
+                        <p class="text-[11px] text-gray-400 mt-1">To'g'ri javob</p>
+                    </div>
+                </div>
+                <div class="w-full h-2 bg-tg-bg rounded-full overflow-hidden">
+                    <div class="h-full rounded-full ${passed ? 'bg-green-500' : 'bg-red-500'}" style="width: ${pct}%"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="showScreen('home'); loadTests(); loadResults();" class="flex-1 py-3 bg-tg-card border border-white/10 text-gray-300 font-semibold rounded-xl text-sm">
+                    Bosh sahifa
+                </button>
+                <button onclick="showTestInfo(currentQuestions[0] ? currentQuestions[0].id : 0)" class="flex-1 py-3 bg-tg-highlight text-white font-bold rounded-xl text-sm">
+                    Qayta topshirish
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ESSAYS
+// ══════════════════════════════════════════════════════════════
+async function loadEssays() {
+    try {
+        const resp = await fetch('/tma/api/essays/topics/', { headers: apiHeaders() });
+        const data = await resp.json();
+        const container = document.getElementById('essays-list');
+        if (!data.topics || data.topics.length === 0) {
+            container.innerHTML = '<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-gray-500 text-sm">Hali esse mavzulari yo\'q</p></div>';
+            return;
+        }
+        container.innerHTML = data.topics.map(t => {
+            const lock = t.has_password ? '🔒' : '📝';
+            let status = '🆕 Yangi';
+            if (t.user_status) {
+                if (t.user_status.status === 'graded') status = `✅ ${t.user_status.total_score || 0}/24`;
+                else status = `⏳ ${t.user_status.status}`;
+            }
+            return `
+                <button onclick="startEssay(${t.id})" class="w-full text-left bg-tg-card rounded-2xl p-4 border border-white/5 card-press">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center"><span class="text-lg">${lock}</span></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold truncate">${esc(t.title)}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] text-gray-500">${t.word_limit_min}-${t.word_limit_max} so'z · ${t.time_limit_minutes} daqiqa</span>
+                                <span class="text-[10px] text-tg-green">${status}</span>
+                            </div>
+                        </div>
+                        <span class="text-gray-500 text-sm">→</span>
+                    </div>
+                </button>
+            `;
+        }).join('');
+    } catch (err) { console.error('Essays failed:', err); }
+}
+
+let currentEssayTopic = null;
+let currentSubmissionId = null;
+let essayTimerInterval = null;
+let essayRemainingSeconds = 0;
+
+async function startEssay(topicId) {
+    showScreen('essay-write');
+    const container = document.getElementById('essay-write-content');
+    container.innerHTML = '<div class="skeleton h-40 rounded-2xl"></div>';
+
+    try {
+        const resp = await fetch(`/tma/api/essays/${topicId}/start/`, {
+            method: 'POST', headers: apiHeaders(),
+            body: JSON.stringify({})
+        });
+        const data = await resp.json();
+
+        if (data.error && !data.submission_id) {
+            container.innerHTML = `<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-red-400">${esc(data.error)}</p></div>`;
+            return;
+        }
+
+        currentEssayTopic = data.topic;
+        currentSubmissionId = data.submission_id;
+        essayRemainingSeconds = data.remaining_seconds || (data.topic.time_limit_minutes * 60);
+
+        container.innerHTML = `
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-extrabold">${esc(data.topic.title)}</h2>
+                    <div id="essay-timer" class="px-3 py-1.5 rounded-xl bg-tg-card border border-white/5">
+                        <span class="font-mono font-bold text-sm" id="essay-timer-display">${formatTime(essayRemainingSeconds)}</span>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">${esc(data.topic.description || '')}</p>
+                <div class="flex items-center gap-4 text-[11px] text-gray-500">
+                    <span>📏 ${data.topic.word_limit_min}-${data.topic.word_limit_max} so'z</span>
+                    <span>⏱ ${data.topic.time_limit_minutes} daqiqa</span>
+                    <span id="essay-word-count">0 so'z</span>
+                </div>
+            </div>
+            <textarea id="essay-textarea" class="w-full h-64 p-4 bg-tg-card border border-white/10 rounded-2xl text-sm text-white resize-none focus:outline-none focus:border-tg-highlight" placeholder="Essingizni yozing...">${esc(data.essay_text || '')}</textarea>
+            <div class="flex gap-3 mt-4">
+                <button onclick="showScreen('essays'); loadEssays();" class="flex-1 py-3 bg-tg-card border border-white/10 text-gray-300 font-semibold rounded-xl text-sm">
+                    Bekor qilish
+                </button>
+                <button onclick="submitEssay()" id="btn-essay-submit" class="flex-1 py-3 bg-tg-green text-white font-bold rounded-xl text-sm">
+                    Yuborish ✓
+                </button>
+            </div>
+        `;
+
+        // Word count updater
+        const textarea = document.getElementById('essay-textarea');
+        textarea.addEventListener('input', () => {
+            const words = textarea.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('essay-word-count').textContent = words + ' so\'z';
+        });
+        // Trigger initial count
+        textarea.dispatchEvent(new Event('input'));
+
+        // Start timer
+        startEssayTimer(essayRemainingSeconds);
+    } catch (err) {
+        container.innerHTML = '<div class="bg-tg-card rounded-2xl p-6 border border-white/5 text-center"><p class="text-red-400">Yuklashda xatolik</p></div>';
+    }
+}
+
+function startEssayTimer(seconds) {
+    essayRemainingSeconds = seconds;
+    updateEssayTimerDisplay();
+    essayTimerInterval = setInterval(() => {
+        essayRemainingSeconds--;
+        updateEssayTimerDisplay();
+        if (essayRemainingSeconds <= 0) {
+            clearInterval(essayTimerInterval);
+            submitEssay(); // Auto-submit
+        }
+    }, 1000);
+}
+
+function updateEssayTimerDisplay() {
+    const el = document.getElementById('essay-timer-display');
+    if (el) el.textContent = formatTime(essayRemainingSeconds);
+}
+
+async function submitEssay() {
+    clearInterval(essayTimerInterval);
+    const textarea = document.getElementById('essay-textarea');
+    const text = textarea ? textarea.value.trim() : '';
+
+    if (!text) {
+        alert('Esse matni bo\'sh!');
+        return;
+    }
+
+    const btn = document.getElementById('btn-essay-submit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Baholanmoqda...'; }
+
+    try {
+        const resp = await fetch(`/tma/api/essays/${currentSubmissionId}/submit/`, {
+            method: 'POST', headers: apiHeaders(),
+            body: JSON.stringify({ essay_text: text })
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert(data.error);
+            if (btn) { btn.disabled = false; btn.textContent = 'Yuborish ✓'; }
+            return;
+        }
+
+        showEssayResult(data);
+    } catch (err) {
+        alert('Tarmoq xatoligi');
+        if (btn) { btn.disabled = false; btn.textContent = 'Yuborish ✓'; }
+    }
+}
+
+function showEssayResult(data) {
+    showScreen('essay-result');
+    const container = document.getElementById('essay-result-content');
+    const score = data.total_score || 0;
+    const max = data.max_score || 24;
+    const converted = data.converted_score || 0;
+    const pct = Math.round(score / max * 100);
+
+    let criteriaHtml = '';
+    if (data.criteria && data.criteria.length > 0) {
+        criteriaHtml = data.criteria.map(c => `
+            <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                <span class="text-xs text-gray-400">${esc(c.name)}</span>
+                <span class="text-sm font-bold text-white">${c.score}/2</span>
+            </div>
+        `).join('');
+    }
+
+    container.innerHTML = `
+        <div class="slide-up">
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <span class="text-4xl">${pct >= 50 ? '🎉' : '📝'}</span>
+                </div>
+                <h2 class="text-xl font-extrabold mb-1">Esse baholandi!</h2>
+                <p class="text-sm text-gray-400">${esc(data.summary || '')}</p>
+            </div>
+
+            <div class="bg-tg-card rounded-2xl p-6 border border-white/5 mb-4">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="text-center">
+                        <p class="text-3xl font-extrabold text-tg-highlight">${score}</p>
+                        <p class="text-[11px] text-gray-400">{% t "tma_score_a" %}${max}{% t "tma_score_b" %}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-3xl font-extrabold text-tg-gold">~${converted}/75</p>
+                        <p class="text-[11px] text-gray-400">Umumiy tizim</p>
+                    </div>
+                </div>
+                <div class="w-full h-2 bg-tg-bg rounded-full overflow-hidden">
+                    <div class="h-full rounded-full bg-tg-highlight" style="width: ${pct}%"></div>
+                </div>
+            </div>
+
+            ${criteriaHtml ? `
+            <div class="bg-tg-card rounded-2xl p-4 border border-white/5 mb-4">
+                <p class="text-xs font-bold text-gray-400 uppercase mb-3">12 mezon bahosi</p>
+                ${criteriaHtml}
+            </div>
+            ` : ''}
+
+            <div class="flex gap-3">
+                <button onclick="showScreen('essays'); loadEssays();" class="flex-1 py-3 bg-tg-card border border-white/10 text-gray-300 font-semibold rounded-xl text-sm">
+                    Orqaga
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+}
+
+// Auto-auth
+document.addEventListener('DOMContentLoaded', () => {
+    const stored = localStorage.getItem('lms_access');
+    if (stored) {
+        jwtToken = stored;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        loadProfile(); loadTests(); loadResults();
+    }
+});
+</script>
+</body>
+</html>

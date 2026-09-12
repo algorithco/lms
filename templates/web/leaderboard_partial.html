@@ -1,0 +1,33 @@
+{% for player in leaderboard %}
+<div class="flex items-center justify-between px-6 py-4 transition-colors
+    {% if player.user__id == request.user.id %}bg-brand-50/50{% else %}hover:bg-surface-50{% endif %}">
+    <div class="flex items-center gap-4">
+        <span class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+            {% if forloop.counter == 1 %}bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg
+            {% elif forloop.counter == 2 %}bg-gradient-to-br from-surface-300 to-surface-400 text-white
+            {% elif forloop.counter == 3 %}bg-gradient-to-br from-orange-400 to-orange-500 text-white
+            {% else %}bg-surface-100 text-surface-500{% endif %}">
+            {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}{{ forloop.counter }}{% endif %}
+        </span>
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-purple-500 flex items-center justify-center ring-2 ring-white shadow-sm">
+            <span class="text-white text-xs font-bold">{{ player.user__first_name.0 }}{{ player.user__last_name.0 }}</span>
+        </div>
+        <div>
+            <p class="text-sm font-semibold text-surface-900">{{ player.user__first_name }} {{ player.user__last_name }}
+                {% if player.user__id == request.user.id %}
+                <span class="text-[10px] ml-1 px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">Siz</span>
+                {% endif %}
+            </p>
+            <p class="text-[11px] text-surface-400">{{ player.games_played }} o'yin</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <span class="text-sm font-bold text-brand-600">{{ player.total_xp }} XP</span>
+        <span class="text-sm font-bold text-amber-600">{{ player.total_coins }} 🪙</span>
+    </div>
+</div>
+{% empty %}
+<div class="p-8 text-center text-surface-400 text-sm">
+    Hali hech kim o'ynamagan — birinchi bo'ling! 🎯
+</div>
+{% endfor %}

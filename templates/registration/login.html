@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% load i18n_extras %}
+{% block title %}{% t "login_title" %} — LMS Platform{% endblock %}
+
+{% block auth_content %}
+<div class="relative min-h-screen flex items-center justify-center overflow-hidden py-12 px-4 sm:px-6
+     bg-gradient-to-br from-slate-50 via-white to-emerald-100/70
+     dark:from-[#050B0B] dark:via-[#081311] dark:to-[#0A1616]">
+    <!-- Language Switcher -->
+    <div x-data="{ open: false }" class="absolute top-4 right-4 sm:top-5 sm:right-6 z-50">
+        <button @click="open = !open" @click.away="open = false"
+                class="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-card text-sm font-semibold text-surface-600 dark:text-surface-300 hover:text-emerald-600 transition-colors">
+            {% current_language as lang %}
+            {% if lang == 'uz' %}🇺🇿
+            {% elif lang == 'ru' %}🇷🇺
+            {% else %}🇬🇧{% endif %}
+            <span class="hidden sm:inline">{{ lang|upper }}</span>
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div x-show="open" x-transition
+             class="absolute right-0 mt-2 w-40 bg-white dark:bg-[#0C1818] rounded-xl shadow-lg border border-surface-200 dark:border-[#1A3333] py-1 z-50">
+            <a href="/set-language/uz/" class="flex items-center gap-2 px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-100 {% if lang == 'uz' %}bg-emerald-50 text-emerald-700 font-semibold{% endif %}">
+                🇺🇿 O'zbek
+            </a>
+            <a href="/set-language/ru/" class="flex items-center gap-2 px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-100 {% if lang == 'ru' %}bg-emerald-50 text-emerald-700 font-semibold{% endif %}">
+                🇷🇺 Русский
+            </a>
+            <a href="/set-language/en/" class="flex items-center gap-2 px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-100 {% if lang == 'en' %}bg-emerald-50 text-emerald-700 font-semibold{% endif %}">
+                🇬🇧 English
+            </a>
+        </div>
+    </div>
+    <!-- Glow orbs (landing-page style) -->
+    <div class="pointer-events-none select-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div class="absolute w-80 h-80 rounded-full bg-emerald-400/25 blur-[100px] -top-24 -left-16"></div>
+        <div class="absolute w-72 h-72 rounded-full bg-teal-400/20 blur-[90px] bottom-0 right-0"></div>
+        <div class="absolute w-60 h-60 rounded-full bg-sky-400/15 blur-[80px] top-1/3 right-1/4"></div>
+    </div>
+
+    <div class="relative w-full max-w-md">
+        <!-- Logo & Title -->
+        <div class="text-center fade-up">
+            <a href="{% url 'web:home' %}" class="inline-flex items-center gap-2.5 mb-6 group">
+                <div class="relative">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-glow group-hover:scale-105 transition-transform">
+                        <span class="text-white font-extrabold text-base">OTA</span>
+                    </div>
+                    <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 animate-pulse-ring"></span>
+                </div>
+                <div class="leading-tight text-left">
+                    <span class="block text-lg font-extrabold text-surface-900">Ona Tili & Adabiyot</span>
+                    <span class="block text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">LMS Platform</span>
+                </div>
+            </a>
+            <h2 class="text-[26px] font-black text-surface-900 tracking-tight">{% t "login_title" %}</h2>
+            <p class="mt-2 text-sm text-surface-500">{% t "login_subtitle" %}</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="mt-8 glass-card rounded-[28px] p-7 sm:p-9 shadow-2xl fade-up fade-up-d1 relative overflow-hidden"
+             style="box-shadow:0 24px 70px rgba(2,44,34,.14)">
+            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/80 via-teal-400/50 to-transparent"></div>
+
+            {% if error %}
+            <div class="mb-6 p-3.5 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-2xl flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <p class="text-sm font-medium text-rose-700 dark:text-rose-300">{{ error }}</p>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+
+                <div class="floating">
+                    <input type="email" id="email" name="email" required autofocus placeholder=" "
+                           class="fl-field w-full px-4 pt-6 pb-2.5 rounded-2xl border border-surface-200 dark:border-[#1A3333] bg-white/80 dark:bg-[#0A1616]/80 text-surface-800 dark:text-white placeholder-transparent focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all text-sm">
+                    <label for="email" class="fl-label">{% t "email" %}</label>
+                </div>
+
+                <div class="floating">
+                    <input type="password" id="password" name="password" required placeholder=" "
+                           class="fl-field w-full px-4 pt-6 pb-2.5 rounded-2xl border border-surface-200 dark:border-[#1A3333] bg-white/80 dark:bg-[#0A1616]/80 text-surface-800 dark:text-white placeholder-transparent focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all text-sm">
+                    <label for="password" class="fl-label">{% t "password" %}</label>
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="remember_me" value="1"
+                               class="w-4 h-4 rounded border-surface-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm text-surface-600 dark:text-surface-400">{% t "remember_me" %}</span>
+                    </label>
+                    <a href="{% url 'web:password-reset' %}" class="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-medium transition-colors">
+                        {% t "forgot_password" %}?
+                    </a>
+                </div>
+
+                <button type="submit"
+                        class="btn-glow w-full py-3.5 px-4 text-white font-bold rounded-2xl shadow-lg transition-all duration-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        style="background:linear-gradient(135deg,#059669,#10B981)">
+                    {% t "login" %}
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="relative my-6">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-surface-200/70 dark:border-[#1A3333]"></div>
+                </div>
+                <div class="relative flex justify-center text-xs">
+                    <span class="bg-white dark:bg-[#0C1818] px-3 text-surface-400">{% t "or" %}</span>
+                </div>
+            </div>
+
+            {% if google_auth_enabled %}
+            <a href="{% url 'accounts:google_auth_start' %}" class="ui-button mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-surface-200 bg-white px-4 py-3 font-semibold text-surface-900 dark:bg-surface-800">
+                <span aria-hidden="true" class="font-bold text-emerald-600">G</span>{% t "login_with_google" %}
+            </a>
+            {% endif %}
+
+            <!-- Telegram Login -->
+            <div id="tg-auth-section">
+                <button type="button" id="tg-login-btn" onclick="startTelegramAuth()"
+                   class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#0088cc] hover:bg-[#006daa] text-white font-semibold rounded-2xl transition-all duration-200">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    {% t "login_with_telegram" %}
+                </button>
+
+                <!-- Step 1: Telegram ochildi xabari -->
+                <div id="tg-step1" class="hidden mt-3 p-3 rounded-2xl text-center text-sm bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/25 text-blue-700 dark:text-blue-300">
+                    {% t "telegram_login_step1" %}
+                </div>
+
+                <!-- Step 2: 6-digit code input -->
+                <div id="tg-step2" class="hidden mt-4">
+                    <div class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 rounded-2xl p-4 mb-3">
+                        <p class="text-sm text-emerald-700 dark:text-emerald-300 font-medium mb-1">✅ {% t "telegram_login_step2" %}</p>
+                        <p class="text-xs text-emerald-600 dark:text-emerald-400">{% t "code_hint" %}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="tg-code-input" maxlength="6" pattern="[0-9]{6}"
+                               class="flex-1 px-4 py-3 text-center text-lg font-mono font-bold tracking-[0.3em] rounded-2xl border border-surface-200 dark:border-[#1A3333] bg-white dark:bg-[#0A1616] text-surface-800 dark:text-white focus:ring-2 focus:ring-[#0088cc] focus:border-[#0088cc] outline-none transition-all"
+                               placeholder="000000"
+                               autocomplete="one-time-code"
+                               inputmode="numeric">
+                        <button type="button" id="tg-code-btn" onclick="submitTelegramCode()"
+                                class="px-6 py-3 bg-[#0088cc] hover:bg-[#006daa] text-white font-semibold rounded-2xl transition-all duration-200">
+                            {% t "login" %}
+                        </button>
+                    </div>
+                    <p class="text-xs text-surface-400 mt-2 text-center">{% t "code_expires" %}</p>
+                </div>
+
+                <!-- Status indicator -->
+                <div id="tg-auth-status" class="hidden mt-3 p-3 rounded-2xl text-center text-sm"></div>
+            </div>
+
+            <script>
+            // Client-side status messages — localized via the i18n tag
+            const TG_I18N = {
+                creatingToken: '{% filter escapejs %}{% autoescape off %}{% t "creating_token_js" %}{% endautoescape %}{% endfilter %}',
+                tokenExpired: '{% filter escapejs %}{% autoescape off %}{% t "token_expired_js" %}{% endautoescape %}{% endfilter %}',
+                loginSuccess: '{% filter escapejs %}{% autoescape off %}{% t "login_success_js" %}{% endautoescape %}{% endfilter %}',
+                codeInvalid: '{% filter escapejs %}{% autoescape off %}{% t "code_invalid_js" %}{% endautoescape %}{% endfilter %}',
+                errGeneric: '{% filter escapejs %}{% autoescape off %}{% t "err_generic_js" %}{% endautoescape %}{% endfilter %}',
+                errRetry: '{% filter escapejs %}{% autoescape off %}{% t "err_retry_js" %}{% endautoescape %}{% endfilter %}',
+            };
+
+            let tgAuthPolling = null;
+
+            async function startTelegramAuth() {
+                const btn = document.getElementById('tg-login-btn');
+                const step1 = document.getElementById('tg-step1');
+                const step2 = document.getElementById('tg-step2');
+                const status = document.getElementById('tg-auth-status');
+                
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> ' + TG_I18N.creatingToken;
+                
+                try {
+                    const resp = await fetch('/api/notifications/telegram/auth/start/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        },
+                    });
+                    const data = await resp.json();
+                    
+                    // Open Telegram bot with deep link
+                    window.open(data.deep_link, '_blank');
+                    
+                    // Show step 1: waiting for Telegram
+                    step1.classList.remove('hidden');
+                    step2.classList.add('hidden');
+                    status.classList.add('hidden');
+                    btn.classList.add('hidden');
+                    
+                    // Start polling for verification status
+                    tgAuthPolling = setInterval(() => pollAuthStatus(data.token), 2000);
+                    
+                    // Auto-stop after 10 minutes
+                    setTimeout(() => {
+                        if (tgAuthPolling) {
+                            clearInterval(tgAuthPolling);
+                            step1.classList.add('hidden');
+                            step2.classList.add('hidden');
+                            status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                            status.innerHTML = TG_I18N.tokenExpired;
+                            status.classList.remove('hidden');
+                            btn.classList.remove('hidden');
+                            btn.disabled = false;
+                            btn.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> {% t "login_with_telegram" %}';
+                        }
+                    }, 600000);
+                    
+                } catch (err) {
+                    status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                    status.innerHTML = TG_I18N.errRetry;
+                    status.classList.remove('hidden');
+                    step1.classList.add('hidden');
+                    btn.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> {% t "login_with_telegram" %}';
+                }
+            }
+
+            async function pollAuthStatus(token) {
+                const step1 = document.getElementById('tg-step1');
+                const step2 = document.getElementById('tg-step2');
+                const status = document.getElementById('tg-auth-status');
+                const codeInput = document.getElementById('tg-code-input');
+                
+                try {
+                    const resp = await fetch('/api/notifications/telegram/auth/' + token + '/status/');
+                    const data = await resp.json();
+                    
+                    if (data.status === 'verified') {
+                        // Stop polling — show code input
+                        clearInterval(tgAuthPolling);
+                        
+                        step1.classList.add('hidden');
+                        step2.classList.remove('hidden');
+                        status.classList.add('hidden');
+                        
+                        // Focus code input
+                        if (codeInput) codeInput.focus();
+                    } else if (data.status === 'expired') {
+                        clearInterval(tgAuthPolling);
+                        step1.classList.add('hidden');
+                        step2.classList.add('hidden');
+                        status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                        status.innerHTML = TG_I18N.tokenExpired;
+                        status.classList.remove('hidden');
+                    }
+                } catch (err) {
+                    // Ignore polling errors, keep trying
+                }
+            }
+
+            async function submitTelegramCode() {
+                const codeInput = document.getElementById('tg-code-input');
+                const codeBtn = document.getElementById('tg-code-btn');
+                const status = document.getElementById('tg-auth-status');
+                const step2 = document.getElementById('tg-step2');
+                const code = codeInput.value.trim();
+                
+                if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+                    status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                    status.innerHTML = TG_I18N.codeInvalid;
+                    status.classList.remove('hidden');
+                    return;
+                }
+                
+                codeBtn.disabled = true;
+                codeBtn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+                
+                try {
+                    const resp = await fetch('/api/notifications/telegram/auth/code/login/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        },
+                        body: JSON.stringify({ code: code }),
+                    });
+                    const data = await resp.json();
+                    
+                    if (data.status === 'ok') {
+                        // Success!
+                        step2.classList.add('hidden');
+                        status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-emerald-50 border border-emerald-200 text-emerald-700';
+                        status.innerHTML = TG_I18N.loginSuccess;
+                        status.classList.remove('hidden');
+                        
+                        setTimeout(() => {
+                            window.location.href = data.redirect || '/dashboard/';
+                        }, 500);
+                    } else {
+                        status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                        status.innerHTML = data.error || TG_I18N.errGeneric;
+                        status.classList.remove('hidden');
+                        codeBtn.disabled = false;
+                        codeBtn.innerHTML = '{% t "login" %}';
+                    }
+                } catch (err) {
+                    status.className = 'mt-3 p-3 rounded-2xl text-center text-sm bg-rose-50 border border-rose-200 text-rose-700';
+                    status.innerHTML = TG_I18N.errRetry;
+                    status.classList.remove('hidden');
+                    codeBtn.disabled = false;
+                    codeBtn.innerHTML = '{% t "login" %}';
+                }
+            }
+
+            // Auto-submit when 6 digits entered
+            document.addEventListener('DOMContentLoaded', function() {
+                const codeInput = document.getElementById('tg-code-input');
+                if (codeInput) {
+                    codeInput.addEventListener('input', function() {
+                        if (this.value.length === 6 && /^\d{6}$/.test(this.value)) {
+                            submitTelegramCode();
+                        }
+                    });
+                    // Submit on Enter
+                    codeInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submitTelegramCode();
+                        }
+                    });
+                }
+            });
+            </script>
+
+            <div class="mt-7 text-center">
+                <p class="text-sm text-surface-500 dark:text-surface-400">
+                    {% t "no_account" %}
+                    <a href="{% url 'web:register' %}" class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-semibold transition-colors">{% t "register" %}</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Back to home -->
+        <div class="mt-6 text-center fade-up fade-up-d2">
+            <a href="{% url 'web:home' %}" class="inline-flex items-center gap-1.5 text-sm text-surface-400 dark:text-surface-500 hover:text-emerald-600 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                {% t "back_home" %}
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

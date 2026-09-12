@@ -1,0 +1,433 @@
+"""Regression coverage for product-facing authentication and permissions."""
+from datetime import datetime, timedelta
+from html import unescape
+from pathlib import Path
+import re
+import os
+import subprocess
+import sys
+from urllib.parse import urlsplit
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
+from django.core.cache import cache
+from django.core.files.storage import storages
+from django.test import TestCase, override_settings
+from django.test import Client, SimpleTestCase
+from django.urls import reverse
+from asgiref.sync import async_to_sync
+from channels.testing import WebsocketCommunicator
+
+from apps.accounts.access import is_platform_admin
+from apps.courses.models import Course, StudentGroup
+from apps.tests.models import Test as LmsTest
+from apps.core.translations import TRANSLATIONS, get_user_language, t
+from apps.notifications.models import PushSubscription, TelegramAuthToken
+from rest_framework_simplejwt.tokens import RefreshToken
+import json
+import urllib.parse
+from io import BytesIO
+from apps.accounts.google_auth import _verified_claims
+
+
+User = get_user_model()
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    SITE_URL="https://lms.example.test",
+)
+class PasswordResetFlowTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            email="reset@example.test", password="OldStrongPass123!",
+        )
+
+    def _request_link(self):
+        response = self.client.post(
+            reverse("web:password-reset"), {"email": self.user.email}
+        )
+        self.assertRedirects(response, reverse("web:password-reset-done"))
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        return next(line.strip() for line in body.splitlines() if "/password-reset/" in line)
+
+    def test_unknown_email_has_same_response_and_no_mail(self):
+        response = self.client.post(
+            reverse("web:password-reset"), {"email": "missing@example.test"}
+        )
+        self.assertRedirects(response, reverse("web:password-reset-done"))
+        self.assertEqual(mail.outbox, [])
+
+    def test_token_changes_password_and_cannot_be_reused(self):
+        link = self._request_link()
+        response = self.client.get(urlsplit(link).path)
+        self.assertEqual(response.status_code, 302)
+        confirm_url = response.url
+        weak = self.client.post(confirm_url, {
+            "new_password1": "123", "new_password2": "123",
+        })
+        self.assertEqual(weak.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("OldStrongPass123!"))
+        success = self.client.post(confirm_url, {
+            "new_password1": "NewStrongPass123!",
+            "new_password2": "NewStrongPass123!",
+        })
+        self.assertRedirects(success, reverse("web:password-reset-complete"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewStrongPass123!"))
+        self.assertFalse(self.user.check_password("OldStrongPass123!"))
+        self.assertContains(self.client.get(urlsplit(link).path), t("pr_invalid_title", "uz"))
+
+    def test_token_expires_after_one_hour(self):
+        link = self._request_link()
+        future = datetime.now() + timedelta(hours=1, seconds=2)
+        with patch.object(default_token_generator, "_now", return_value=future):
+            response = self.client.get(urlsplit(link).path)
+        self.assertContains(response, t("pr_invalid_title", "uz"))
+
+    def test_rate_limit_keeps_generic_response(self):
+        for _ in range(4):
+            response = self.client.post(
+                reverse("web:password-reset"), {"email": self.user.email}
+            )
+            self.assertRedirects(response, reverse("web:password-reset-done"))
+        self.assertEqual(len(mail.outbox), 3)
+
+    @override_settings(DEBUG=False, SITE_URL="https://lms.example.test")
+    def test_production_link_uses_trusted_https_origin(self):
+        link = self._request_link()
+        self.assertTrue(link.startswith("https://lms.example.test/password-reset/"))
+
+    def test_email_localized_in_all_three_languages(self):
+        for lang in ("uz", "ru", "en"):
+            cache.clear()
+            mail.outbox.clear()
+            session = self.client.session
+            session["language"] = lang
+            session.save()
+            self._request_link()
+            self.assertIn(t("reset_email_subject", lang), mail.outbox[0].subject)
+            self.assertIn(t("reset_email_body", lang), mail.outbox[0].body)
+            self.assertIn(
+                t("reset_email_action", lang),
+                unescape(mail.outbox[0].alternatives[0].content),
+            )
+
+
+class PlatformAdminPolicyTests(TestCase):
+    def test_staff_flag_alone_does_not_grant_platform_admin(self):
+        staff = User.objects.create_user(
+            email="staff-only@example.test", password="pass", role="teacher", is_staff=True,
+        )
+        self.assertFalse(is_platform_admin(staff))
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(reverse("panel:user-list")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("web:dashboard")).status_code, 200)
+
+    def test_role_admin_and_superuser_reach_panel(self):
+        role_admin = User.objects.create_user(
+            email="role-admin@example.test", password="pass", role="admin",
+        )
+        superuser = User.objects.create_superuser(
+            email="superuser@example.test", password="pass", role="student",
+        )
+        for user in (role_admin, superuser):
+            self.client.force_login(user)
+            self.assertRedirects(self.client.get(reverse("web:dashboard")), reverse("panel:dashboard"))
+            self.assertEqual(self.client.get(reverse("panel:user-list")).status_code, 200)
+
+    def test_inactive_admin_denied(self):
+        user = User.objects.create_user(
+            email="inactive-admin@example.test", password="pass", role="admin",
+            is_active=False,
+        )
+        self.assertFalse(is_platform_admin(user))
+
+    def test_superuser_with_student_role_sees_unpublished_tests(self):
+        teacher = User.objects.create_user(email="test-owner@example.test", password="pass", role="teacher")
+        course = Course.objects.create(teacher=teacher, title="Private course", description="Course")
+        test = LmsTest.objects.create(course=course, title="Private assessment", is_active=False)
+        superuser = User.objects.create_superuser(
+            email="student-superuser@example.test", password="pass", role="student",
+        )
+        self.client.force_login(superuser)
+        self.assertContains(self.client.get(reverse("web:test-list")), test.title)
+        self.assertEqual(self.client.get(f"/api/tests/{test.pk}/").status_code, 200)
+
+    def test_admin_can_manage_other_teachers_group_without_opening_teacher_access(self):
+        teacher = User.objects.create_user(email="group-owner@example.test", password="pass", role="teacher")
+        other_teacher = User.objects.create_user(email="other-teacher@example.test", password="pass", role="teacher")
+        admin = User.objects.create_user(email="groups-admin@example.test", password="pass", role="admin")
+        group = StudentGroup.objects.create(teacher=teacher, name="9-A")
+        self.client.force_login(other_teacher)
+        self.assertEqual(self.client.get(reverse("web:group-detail", args=[group.pk])).status_code, 404)
+        self.client.force_login(admin)
+        self.assertContains(self.client.get(reverse("web:group-list")), "9-A")
+        self.assertEqual(self.client.get(reverse("web:group-detail", args=[group.pk])).status_code, 200)
+
+
+class LanguagePersistenceTests(TestCase):
+    def test_first_visit_uses_uzbek_even_with_foreign_browser_header(self):
+        response = self.client.get(reverse("web:login"), HTTP_ACCEPT_LANGUAGE="ru,en;q=0.9")
+        self.assertContains(response, 'lang="uz"')
+        self.assertContains(response, t("login_title", "uz"))
+
+    def test_language_survives_pages_and_logout(self):
+        user = User.objects.create_user(
+            email="language@example.test", password="StrongPass123!", role="student",
+        )
+        response = self.client.get(
+            reverse("web:set-language", args=["ru"]), HTTP_REFERER="/login/",
+        )
+        self.assertRedirects(response, "/login/")
+        self.assertEqual(response.cookies["language"].value, "ru")
+        self.assertContains(self.client.get(reverse("web:login")), 'lang="ru"')
+        self.client.force_login(user)
+        self.assertContains(self.client.get(reverse("web:test-list")), 'lang="ru"')
+        self.client.get(reverse("web:logout"))
+        self.assertContains(self.client.get(reverse("web:login")), 'lang="ru"')
+
+    def test_account_preference_applies_without_session_choice(self):
+        user = User.objects.create_user(
+            email="english@example.test", password="pass", language="en",
+        )
+        self.client.force_login(user)
+        self.assertContains(self.client.get(reverse("web:test-list")), 'lang="en"')
+
+    def test_language_switch_rejects_external_redirect(self):
+        response = self.client.get(
+            reverse("web:set-language", args=["en"]),
+            HTTP_REFERER="https://evil.example/phish",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+
+    def test_all_literal_template_translation_keys_exist(self):
+        keys = set()
+        for path in Path("templates").rglob("*.html"):
+            keys.update(re.findall(r'{%\s*t\s+"([^"]+)"', path.read_text(encoding="utf-8")))
+        for lang, entries in TRANSLATIONS.items():
+            self.assertFalse(keys - entries.keys(), f"missing {lang}: {keys - entries.keys()}")
+
+
+class PushCsrfTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="push@example.test", password="pass",
+        )
+        self.body = json.dumps({
+            "endpoint": "https://push.example.test/subscription",
+            "p256dh": "public-key", "auth": "auth-key",
+        })
+
+    def test_session_write_requires_csrf_but_valid_csrf_succeeds(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
+        url = reverse("notifications:push-subscribe")
+        self.assertEqual(
+            client.post(url, self.body, content_type="application/json").status_code,
+            403,
+        )
+        self.assertFalse(PushSubscription.objects.exists())
+        client.get(reverse("notifications:push-vapid-key"))
+        response = client.post(
+            url, self.body, content_type="application/json",
+            HTTP_X_CSRFTOKEN=client.cookies["csrftoken"].value,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PushSubscription.objects.count(), 1)
+
+    def test_jwt_write_does_not_need_browser_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+        token = str(RefreshToken.for_user(self.user).access_token)
+        response = client.post(
+            reverse("notifications:push-subscribe"), self.body,
+            content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(response.status_code, 200)
+
+
+class ProductionStorageTests(TestCase):
+    def test_static_storage_uses_manifest_backend(self):
+        from config.settings.base import STORAGES as configured_storages
+        self.assertEqual(
+            configured_storages["staticfiles"]["BACKEND"],
+            "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        )
+
+
+class DashboardEmptyStateTests(TestCase):
+    def test_teacher_with_no_results_sees_action_instead_of_empty_chart(self):
+        teacher = User.objects.create_user(email="empty-teacher@example.test", password="pass", role="teacher")
+        self.client.force_login(teacher)
+        response = self.client.get(reverse("web:dashboard"))
+        self.assertIn(t("no_student_results_hint", "uz").replace("'", "&#x27;"), response.content.decode())
+        self.assertNotContains(response, 'id="activityChart"')
+        self.assertNotContains(response, 'id="essayDistChart"')
+
+
+class TelegramLoginReplayTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            email="telegram-replay@example.test", password="pass", role="student",
+        )
+
+    def _verified_token(self, code="123456"):
+        response = self.client.post(reverse("notifications:tg-auth-start"))
+        self.assertEqual(response.status_code, 200)
+        token = response.json()["token"]
+        TelegramAuthToken.objects.filter(token=token).update(
+            is_verified=True, user=self.user, short_code=code,
+        )
+        return token
+
+    def test_token_is_bound_to_starting_session_post_only_and_single_use(self):
+        token = self._verified_token()
+        status_url = reverse("notifications:tg-auth-status", args=[token])
+        login_url = reverse("notifications:tg-auth-login", args=[token])
+        self.assertEqual(self.client.get(status_url).json()["login_url"], login_url)
+        self.assertEqual(self.client.get(login_url).status_code, 405)
+        other_browser = Client()
+        self.assertEqual(other_browser.get(status_url).status_code, 404)
+        self.assertEqual(other_browser.post(login_url).status_code, 404)
+        self.assertFalse("_auth_user_id" in other_browser.session)
+        self.assertEqual(self.client.post(login_url).status_code, 200)
+        self.assertIsNotNone(TelegramAuthToken.objects.get(token=token).consumed_at)
+        self.assertEqual(self.client.post(login_url).status_code, 404)
+        self.assertEqual(other_browser.post(login_url).status_code, 404)
+
+    def test_short_code_cannot_be_replayed_or_used_for_ambiguous_account(self):
+        token = self._verified_token()
+        url = reverse("notifications:tg-auth-code-login")
+        body = json.dumps({"code": "123456"})
+        second = Client()
+        self.assertEqual(second.post(url, body, content_type="application/json").status_code, 200)
+        self.assertEqual(self.client.post(url, body, content_type="application/json").status_code, 404)
+        self.assertIsNotNone(TelegramAuthToken.objects.get(token=token).consumed_at)
+
+        other = User.objects.create_user(email="telegram-other@example.test", password="pass")
+        TelegramAuthToken.objects.create(token="duplicate-a", user=self.user, is_verified=True, short_code="777777")
+        TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")
+        self.assertEqual(Client().post(url, json.dumps({"code": "777777"}), content_type="application/json").status_code, 404)
+
+
+class GoogleOAuthLinkingTests(TestCase):
+    class TokenResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return b'{"id_token":"signed-token"}'
+
+    def setUp(self):
+        self.existing = User.objects.create_user(
+            email="existing-google@example.test", password="StrongPass123!",
+        )
+
+    @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
+    def test_configured_login_and_link_actions_are_discoverable(self):
+        self.assertContains(self.client.get(reverse("web:login")), t("login_with_google", "uz"))
+        self.client.force_login(self.existing)
+        self.assertContains(self.client.get(reverse("web:test-list")), t("link_google", "uz").replace("'", "&#x27;"), html=False)
+
+    def _callback(self, claims, *, authenticated=False):
+        if authenticated:
+            self.client.force_login(self.existing)
+        start = self.client.get(reverse("accounts:google_auth_start"))
+        self.assertEqual(start.status_code, 302)
+        state = urllib.parse.parse_qs(urllib.parse.urlsplit(start.url).query)["state"][0]
+        nonce = self.client.session["google_oauth_nonce"]
+        claims = dict(claims, nonce=nonce)
+        with patch("urllib.request.urlopen", return_value=self.TokenResponse()), patch(
+            "google.oauth2.id_token.verify_oauth2_token", return_value=claims,
+        ) as verify:
+            response = self.client.get(reverse("accounts:google_auth_callback"), {
+                "code": "authorization-code", "state": state,
+            })
+        self.assertEqual(verify.call_args.args[2], "client-id")
+        return response
+
+    @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
+    def test_existing_email_is_not_silently_linked(self):
+        response = self._callback({
+            "sub": "google-123", "email": self.existing.email, "email_verified": True,
+        })
+        self.assertRedirects(response, reverse("web:login"))
+        self.existing.refresh_from_db()
+        self.assertIsNone(self.existing.google_id)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
+    def test_authenticated_owner_can_link_then_login_by_google_subject(self):
+        self._callback({
+            "sub": "google-123", "email": self.existing.email, "email_verified": True,
+        }, authenticated=True)
+        self.existing.refresh_from_db()
+        self.assertEqual(self.existing.google_id, "google-123")
+        self.client.logout()
+        response = self._callback({
+            "sub": "google-123", "email": "new-address@example.test", "email_verified": True,
+        })
+        self.assertRedirects(response, reverse("web:dashboard"))
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.existing.pk)
+
+    @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
+    def test_unverified_email_and_nonce_mismatch_rejected(self):
+        response = self._callback({
+            "sub": "google-123", "email": self.existing.email, "email_verified": False,
+        })
+        self.assertRedirects(response, reverse("web:login"))
+        self.assertIsNone(self.existing.google_id)
+        with patch("google.oauth2.id_token.verify_oauth2_token", return_value={
+            "sub": "google-123", "email": self.existing.email,
+            "email_verified": True, "nonce": "wrong",
+        }):
+            self.assertIsNone(_verified_claims("signed-token", "client-id", "expected"))
+
+
+class WebSocketOriginTests(SimpleTestCase):
+    @override_settings(ALLOWED_HOSTS=["testserver", "localhost"])
+    def test_untrusted_origin_is_rejected_before_consumer(self):
+        from config.asgi import application
+
+        async def connect_from(origin):
+            communicator = WebsocketCommunicator(
+                application, "/ws/arena/", headers=[(b"origin", origin)],
+            )
+            connected, _ = await communicator.connect()
+            if connected:
+                await communicator.disconnect()
+            return connected
+
+        self.assertFalse(async_to_sync(connect_from)(b"https://evil.example"))
+
+
+class TunneledDevelopmentSettingsTests(SimpleTestCase):
+    def test_public_tunnel_requires_explicit_https_origins_and_restricts_cors(self):
+        env = os.environ.copy()
+        env.update({
+            "DEV_PUBLIC_TUNNEL": "true",
+            "DEV_EXTERNAL_HOSTS": "lms-tunnel.example.test",
+            "DEV_CSRF_TRUSTED_ORIGINS": "https://lms-tunnel.example.test",
+        })
+        completed = subprocess.run(
+            [sys.executable, "-c", "from config.settings.development import ALLOWED_HOSTS, CORS_ALLOW_ALL_ORIGINS, CORS_ALLOWED_ORIGINS, SESSION_COOKIE_SECURE; assert '*' not in ALLOWED_HOSTS; assert CORS_ALLOW_ALL_ORIGINS is False; assert CORS_ALLOWED_ORIGINS == ['https://lms-tunnel.example.test']; assert SESSION_COOKIE_SECURE is True"],
+            env=env, capture_output=True, text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        env["DEV_CSRF_TRUSTED_ORIGINS"] = "http://lms-tunnel.example.test"
+        invalid = subprocess.run(
+            [sys.executable, "-c", "import config.settings.development"],
+            env=env, capture_output=True, text=True,
+        )
+        self.assertNotEqual(invalid.returncode, 0)

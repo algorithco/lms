@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load i18n_extras %}
+{% block title %}{% if test %}{% t "edit" %}{% else %}{% t "panel_new_test" %}{% endif %} — {% t "panel" %}{% endblock %}
+{% block page_title %}{% if test %}{% t "edit" %}{% else %}{% t "panel_new_test" %}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="rise max-w-3xl">
+    <form method="post" class="bg-white dark:bg-transparent rounded-2xl border border-surface-200/60 shadow-card p-6 sm:p-8">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="mb-5 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "th_test_name" %}</label>
+                {{ form.title }}
+                {% if form.title.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.title.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "description" %}</label>
+                {{ form.description }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "th_course" %}</label>
+                {{ form.course }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "module" %}</label>
+                {{ form.module }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "panel_time_limit" %}</label>
+                {{ form.time_limit_minutes }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "panel_max_attempts" %}</label>
+                {{ form.max_attempts }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "panel_pass_percentage" %}</label>
+                {{ form.pass_percentage }}
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "difficulty" %}</label>
+                {{ form.difficulty }}
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">{% t "status_header" %}</label>
+                {{ form.status }}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
+            <label class="flex items-center gap-2.5 p-3 rounded-xl bg-surface-50 dark:bg-surface-100 cursor-pointer">
+                {{ form.shuffle_questions }}
+                <span class="text-xs font-semibold text-surface-700">{% t "panel_shuffle_questions" %}</span>
+            </label>
+            <label class="flex items-center gap-2.5 p-3 rounded-xl bg-surface-50 dark:bg-surface-100 cursor-pointer">
+                {{ form.shuffle_choices }}
+                <span class="text-xs font-semibold text-surface-700">{% t "panel_shuffle_choices" %}</span>
+            </label>
+            <label class="flex items-center gap-2.5 p-3 rounded-xl bg-surface-50 dark:bg-surface-100 cursor-pointer">
+                {{ form.show_results_immediately }}
+                <span class="text-xs font-semibold text-surface-700">{% t "panel_show_results" %}</span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3 mt-8">
+            <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all hover:shadow-glow">
+                {% if test %}{% t "save_changes" %}{% else %}{% t "panel_create_and_questions" %}{% endif %}
+            </button>
+            <a href="{% url 'panel:test-list' %}" class="px-6 py-2.5 rounded-xl bg-surface-100 dark:bg-surface-100 text-surface-600 text-sm font-semibold transition-all hover:bg-surface-200">{% t "cancel" %}</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* Style Django form widgets to match the design system */
+    #id_title, #id_description, #id_course, #id_module, #id_time_limit_minutes,
+    #id_max_attempts, #id_pass_percentage, #id_difficulty, #id_status {
+        width: 100%;
+        padding: 0.65rem 0.9rem;
+        border-radius: 0.75rem;
+        border: 1px solid #E2E8F0;
+        background: transparent;
+        font-size: 0.875rem;
+        color: #0F172A;
+        outline: none;
+        transition: all .2s ease;
+    }
+    #id_title:focus, #id_description:focus, #id_course:focus, #id_module:focus,
+    #id_time_limit_minutes:focus, #id_max_attempts:focus, #id_pass_percentage:focus,
+    #id_difficulty:focus, #id_status:focus {
+        border-color: #10B981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+    html.dark #id_title, html.dark #id_description, html.dark #id_course,
+    html.dark #id_module, html.dark #id_time_limit_minutes, html.dark #id_max_attempts,
+    html.dark #id_pass_percentage, html.dark #id_difficulty, html.dark #id_status {
+        border-color: #1A3333;
+        color: #FFFFFF;
+    }
+    html.dark select#id_status, html.dark select#id_difficulty, html.dark select#id_course, html.dark select#id_module {
+        color-scheme: dark;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,251 @@
+{% load i18n_extras %}
+<!-- SIDEBAR — reusable partial template (included by base.html) -->
+<aside id="sidebar"
+       class="sidebar sidebar-glass text-white flex-shrink-0 flex flex-col fixed h-full z-40 w-[260px]
+              -translate-x-full md:translate-x-0">
+
+    <!-- Logo Area -->
+    <div class="flex items-center h-16 px-5 border-b border-white/5">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-glow">
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+            </div>
+            <div>
+                <span class="text-base font-bold tracking-tight">Ona Tili & Adabiyot</span>
+                <p class="text-[10px] text-surface-400 font-medium tracking-wider uppercase">LMS Platform</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+        <!-- Main Section -->
+        <p class="px-3 text-[10px] font-bold text-surface-500 uppercase tracking-[0.15em] mb-2">{% t "main" %}</p>
+
+        <a href="{% url 'web:dashboard' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if request.resolver_match.url_name == 'dashboard' %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            </div>
+            {% t "dashboard" %}
+        </a>
+
+        <a href="{% url 'web:test-list' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'test' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'test' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+            </div>
+            {% t "tests" %}
+        </a>
+
+        {% if user.is_student %}
+        <a href="{% url 'web:my-results' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if request.resolver_match.url_name == 'my-results' %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if request.resolver_match.url_name == 'my-results' %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="trophy" class="w-4 h-4"></i>
+            </div>
+            {% t "my_results" %}
+        </a>
+
+        <a href="{% url 'web:my-certificates' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if request.resolver_match.url_name == 'my-certificates' %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if request.resolver_match.url_name == 'my-certificates' %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="award" class="w-4 h-4"></i>
+            </div>
+            {% t "my_certificates" %}
+        </a>
+        {% endif %}
+
+        <a href="/games/"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'game' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'game' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="gamepad-2" class="w-4 h-4"></i>
+            </div>
+            {% t "games" %} 🎮
+        </a>
+
+        <a href="/essays/"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'essay' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'essay' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="pen-line" class="w-4 h-4"></i>
+            </div>
+            {% t "essays" %} ✍️
+        </a>
+
+        <a href="/arena/"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'arena' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'arena' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="swords" class="w-4 h-4"></i>
+            </div>
+            {% t "arena" %} ⚔️
+        </a>
+
+        <a href="{% url 'web:essay-leaderboard' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'leaderboard' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'leaderboard' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="trophy" class="w-4 h-4"></i>
+            </div>
+            🏆 {% t "leaderboard" %}
+        </a>
+
+        {% if user.is_teacher or user.is_platform_admin %}
+        <p class="px-3 text-[10px] font-bold text-surface-500 uppercase tracking-[0.15em] mb-2 mt-6">{% t "role_teacher" %}</p>
+
+        <a href="{% url 'web:teacher-dashboard' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if request.resolver_match.url_name == 'teacher-dashboard' %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if request.resolver_match.url_name == 'teacher-dashboard' %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+            {% t "students" %}
+        </a>
+
+        <a href="{% url 'web:group-list' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'group' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'group' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="folder-open" class="w-4 h-4"></i>
+            </div>
+            {% t "groups" %}
+        </a>
+
+        <a href="{% url 'web:analytics' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if request.resolver_match.url_name == 'analytics' %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if request.resolver_match.url_name == 'analytics' %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            </div>
+            {% t "analytics" %}
+        </a>
+        {% endif %}
+
+        {% if user.is_platform_admin %}
+        <a href="{% url 'web:manage-teachers' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'manage-teacher' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'manage-teacher' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="shield" class="w-4 h-4"></i>
+            </div>
+            {% t "manage_teachers" %}
+        </a>
+
+        <a href="{% url 'web:csv-import' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'csv-import' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'csv-import' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+            </div>
+            📥 {% t "csv_import" %}
+        </a>
+
+        <a href="{% url 'web:bulk-test-import' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'bulk-test-import' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'bulk-test-import' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="file-up" class="w-4 h-4"></i>
+            </div>
+            📝 {% t "test_import" %}
+        </a>
+        {% endif %}
+
+        {% if user.is_platform_admin %}
+        <p class="px-3 text-[10px] font-bold text-surface-500 uppercase tracking-[0.15em] mb-2 mt-6">{% t "panel" %}</p>
+
+        <a href="{% url 'panel:dashboard' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'control-panel' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'control-panel' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+            </div>
+            🛡️ {% t "panel_dashboard" %}
+        </a>
+        {% endif %}
+
+        {% if user.is_parent or user.is_platform_admin %}
+        <p class="px-3 text-[10px] font-bold text-surface-500 uppercase tracking-[0.15em] mb-2 mt-6">{% t "parent" %}</p>
+
+        <a href="{% url 'web:parent-portal' %}"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'parent' in request.resolver_match.url_name %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'parent' in request.resolver_match.url_name %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+            👨‍👩‍👧 {% t "children" %}
+        </a>
+        {% endif %}
+    </nav>
+
+    <!-- Subscription -->
+    <div class="px-3 mb-2">
+        <a href="/subscribe/"
+           class="nav-link flex items-center px-3 py-2.5 text-[13px] font-medium rounded-xl
+                  {% if 'subscribe' in request.path %}active{% else %}text-surface-400{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3
+                        {% if 'subscribe' in request.path %}bg-brand-500/20{% else %}bg-white/5{% endif %}">
+                <i data-lucide="crown" class="w-4 h-4"></i>
+            </div>
+            💎 {% t "premium" %}
+        </a>
+    </div>
+
+    <!-- User Profile Card -->
+    <div class="mx-3 mb-4 p-3 rounded-xl bg-white/5 border border-white/5">
+        {% if google_auth_enabled and not user.google_id %}
+        <a href="{% url 'accounts:google_auth_start' %}" class="mb-3 block rounded-lg px-2 py-2 text-xs font-semibold text-emerald-200 hover:bg-white/10">{% t "link_google" %}</a>
+        {% endif %}
+        <div class="flex items-center">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-purple-500 flex items-center justify-center flex-shrink-0 ring-2 ring-white/10">
+                <span class="text-white text-xs font-bold">{{ user.first_name.0 }}{{ user.last_name.0 }}</span>
+            </div>
+            <div class="ml-3 flex-1 min-w-0">
+                <p class="text-[13px] font-semibold text-white truncate">{{ user.get_full_name }}</p>
+                <p class="text-[11px] text-surface-400 truncate">
+                    {% if user.role == 'student' %}
+                        <span class="inline-flex items-center">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5"></span>{% t "role_student" %}
+                        </span>
+                    {% elif user.role == 'teacher' %}
+                        <span class="inline-flex items-center">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>{% t "role_teacher" %}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center">
+                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400 mr-1.5"></span>{% t "role_admin" %}
+                        </span>
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'web:logout' %}"
+               class="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-white/10 transition-colors"
+               title="Chiqish">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+            </a>
+        </div>
+    </div>
+</aside>

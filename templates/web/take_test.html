@@ -1,0 +1,677 @@
+{% extends "base.html" %}
+{% block title %}{{ test.title }} — Test Topshirish{% endblock %}
+{% block page_title %}{{ test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Glassmorphism Topbar ───────────────────────────────────────── */
+    .timer-topbar {
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    }
+
+    /* ── Choice hover & active (emerald) ────────────────────────────── */
+    .choice-group { counter-reset: choice; }
+    .choice-item {
+        transition: all .2s cubic-bezier(.4,0,.2,1);
+        position: relative;
+        counter-increment: choice;
+    }
+    .choice-letter::after { content: counter(choice, upper-alpha); }
+    .choice-item:hover {
+        border-color: #6ee7b7;
+        background: rgba(16,185,129,.05);
+        transform: translateX(4px);
+    }
+    .choice-item.selected {
+        border-color: #10B981;
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        box-shadow: 0 0 0 3px rgba(16,185,129,.14);
+    }
+    html.dark .choice-item.selected { background: rgba(16,185,129,.16); }
+    html.dark .choice-item.selected .choice-letter { background:#10B981; border-color:#10B981; color:#fff; }
+    .choice-item.selected .choice-letter {
+        background: linear-gradient(135deg,#059669,#10B981);
+        border-color: transparent; color: #fff;
+        box-shadow: 0 3px 8px rgba(16,185,129,.35);
+    }
+
+    /* ── Save indicator ─────────────────────────────────────────────── */
+    .save-indicator {
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .save-indicator.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* ── Timer colors ───────────────────────────────────────────────── */
+    .timer-safe { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #065f46; border: 1px solid #a7f3d0; }
+    .timer-warn { background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #92400e; border: 1px solid #fde68a; }
+    .timer-danger { background: linear-gradient(135deg, #fff1f2, #ffe4e6); color: #9f1239; border: 1px solid #fecdd3; animation: timerPulse 1s infinite; }
+
+    /* ── Modal ──────────────────────────────────────────────────────── */
+    .modal-overlay {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(8px);
+    }        /* ── Smooth scroll ──────────────────────────────────────────────── */
+        .question-card { scroll-margin-top: 130px; }
+
+        /* ── Dual-theme surfaces (dark handled by base override + explicit) ── */
+        .exam-pane { background: rgba(255,255,255,.85); border: 1px solid rgba(226,232,240,.9); }
+        html.dark .exam-pane {
+            background: rgba(12,24,24,.72); border-color: rgba(26,51,51,.9);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* ── Reading text typography ───────────────────────────────────── */
+        #exam-column.reading-serif .reading-body,
+        #exam-column.reading-serif .q-textual {
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+        #exam-column.reading-serif .reading-body { font-size: 1.06em; line-height: 1.85; }
+
+        /* ── Question navigator chips ──────────────────────────────────── */
+        .qchip { transition: all .18s ease; }
+        .qchip:hover { transform: translateY(-2px); }
+        .qchip.answered {
+            background: linear-gradient(135deg, #059669, #10B981);
+            color: #fff; box-shadow: 0 4px 12px rgba(16,185,129,.35); border-color: transparent;
+        }
+        .qchip.current { box-shadow: 0 0 0 3px rgba(99,102,241,.25); }
+
+        /* ── Choice letter chip ────────────────────────────────────────── */
+        .choice-letter {
+            width: 30px; height: 30px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 12px; flex-shrink: 0;
+            border: 1px solid currentColor; transition: all .2s ease;
+        }
+
+        /* ── Question divider dots ─────────────────────────────────────── */
+        .q-connector { display: flex; align-items: center; gap: 6px; color: rgba(100,116,139,.35); }
+        .q-connector::before, .q-connector::after { content:''; height:1px; flex:1;
+            background: linear-gradient(90deg, transparent, rgba(100,116,139,.25), transparent); }
+
+        .reading-pane {
+            background: linear-gradient(150deg, rgba(255,255,255,.9), rgba(240,253,250,.72));
+            border: 1px solid rgba(226,232,240,.9);
+        }
+        html.dark .reading-pane {
+            background: linear-gradient(150deg, rgba(10,22,22,.9), rgba(8,20,20,.75));
+            border-color: rgba(26,51,51,.9);
+        }
+
+        .font-pick { transition: all .2s ease; }
+        .font-pick.active {
+            background: #10B981; color: #fff; border-color: #10B981;
+            box-shadow: 0 4px 12px rgba(16,185,129,.3);
+        }
+        html.dark .font-pick.active { background:#10B981; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- GLASSMORPHISM STICKY TOPBAR                                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="timer-topbar" class="timer-topbar sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div class="flex items-center justify-between">
+            <!-- Left: Test info + progress -->
+            <div class="flex items-center gap-4 min-w-0">
+                <a href="{% url 'web:test-list' %}" class="p-2 rounded-xl hover:bg-surface-100 transition-colors flex-shrink-0" title="Testlarga qaytish">
+                    <svg class="w-4 h-4 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                </a>
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-surface-900 truncate">{{ test.title }}</p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span id="answered-count" class="text-[11px] font-semibold text-brand-600">0</span>
+                        <span class="text-[11px] text-surface-400">/{{ attempt.questions|length }} javob berildi</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Timer -->
+            {% if test.has_time_limit %}
+            <div id="timer" class="timer-safe flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-500">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span id="timer-display" class="font-mono font-extrabold text-lg tracking-wider">--:--</span>
+            </div>
+            {% endif %}
+
+            <!-- Right: Submit -->
+            <button onclick="openSubmitModal()"
+                    class="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-glow">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span class="hidden sm:inline">Yakunlash</span>
+            </button>
+        </div>
+    </div>
+    <!-- Progress Bar -->
+    <div class="w-full h-1 bg-surface-100">
+        <div id="progress-bar" class="h-1 bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-500 ease-out" style="width: 0%"></div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SPLIT EXAM ENGINE · LEFT: reading & navigator · RIGHT: question stream  -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="exam-column" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid gap-6 lg:grid-cols-[350px_minmax(0,1fr)] items-start">
+
+    <!-- ── LEFT RAIL ────────────────────────────────────────────────── -->
+    <aside class="space-y-5 lg:sticky lg:top-24">
+
+        <!-- Reading pane (matn rejimi) -->
+        <div class="reading-pane rounded-3xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-extrabold text-surface-900 dark:text-white flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    O'qish matni
+                </p>
+                <!-- Serif / Sans toggle -->
+                <div class="flex items-center gap-1 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
+                    <button type="button" data-font-pick="sans" onclick="setReadingFont('sans')"
+                            class="font-pick text-[10px] font-bold px-2.5 py-1 rounded-lg border border-transparent">Aa</button>
+                    <button type="button" data-font-pick="serif" onclick="setReadingFont('serif')"
+                            class="font-pick text-[10px] font-bold px-2.5 py-1 rounded-lg border border-transparent"
+                            style="font-family:Georgia,serif">Aa</button>
+                </div>
+            </div>
+
+            <div class="reading-body text-[13px] leading-relaxed text-surface-600 dark:text-surface-300">
+                {% if test.description %}
+                <p class="font-semibold text-surface-800 dark:text-surface-200 mb-2">{{ test.title }}</p>
+                <p>{{ test.description }}</p>
+                {% else %}
+                <p class="font-semibold text-surface-800 dark:text-surface-200 mb-2">Sinov haqida</p>
+                <p>
+                    Ushbu sinov milliy sertifikat imtihonlari formatiga moslashtirilgan.
+                    Har bir savol diqqat bilan o'qiladi — javob tanlanganda avtomatik saqlanadi.
+                </p>
+                {% endif %}
+            </div>
+
+            <ul class="mt-5 space-y-2 text-xs text-surface-500 dark:text-surface-400">
+                <li class="flex items-start gap-2"><span class="text-emerald-500 mt-px">✓</span> Javoblar avtomatik saqlanadi</li>
+                <li class="flex items-start gap-2"><span class="text-emerald-500 mt-px">✓</span> Istalgan savoldan boshlang</li>
+                <li class="flex items-start gap-2"><span class="text-emerald-500 mt-px">✓</span> Belgilab qaytib kelishingiz mumkin</li>
+            </ul>
+        </div>
+
+        <!-- Navigator -->
+        <div class="exam-pane rounded-3xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-sm font-extrabold text-surface-900 dark:text-white">Savollar</p>
+                <span id="nav-answered-count" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600">0/{{ attempt.questions|length }}</span>
+            </div>
+            <div class="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-5 gap-2" id="question-chips">
+                {% for question in attempt.questions %}
+                <a href="#question-{{ question.id }}" data-qn="{{ forloop.counter0 }}" data-qid="{{ question.id }}"
+                   class="qchip flex items-center justify-center h-9 rounded-xl text-[11px] font-bold border border-surface-200 text-surface-600 dark:text-surface-300 dark:border-surface-700
+                          {% if question.selected_choice_ids or question.text_answer %}answered{% endif %}">
+                    {{ forloop.counter }}
+                </a>
+                {% endfor %}
+            </div>
+            <div class="mt-5 flex items-center justify-between text-[11px] text-surface-400">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#10B981"></span> Javob berildi</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border" style="border-color:#94a3b8"></span> Javobsiz</span>
+            </div>
+        </div>
+
+        <!-- Exam tips -->
+        <div class="exam-pane rounded-3xl p-6 hidden lg:block">
+            <p class="text-xs font-extrabold uppercase tracking-widest text-emerald-600 mb-4">Maslahatlar</p>
+            <ul class="space-y-3 text-xs text-surface-500 dark:text-surface-400">
+                <li class="flex gap-2.5"><span class="text-base">⏱</span> Vaqt tugashiga 5 daqiqa qolganda timer sariq rangga o'tadi.</li>
+                <li class="flex gap-2.5"><span class="text-base">🔎</span> Qiyin savollarni belgilab, oxirida qaytib keling.</li>
+                <li class="flex gap-2.5"><span class="text-base">🤫</span> Ikki marta o'ylab — bir marta bosing. Javob saqlanadi.</li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- ── RIGHT · QUESTION STREAM ─────────────────────────────────── -->
+    <div class="space-y-4" id="questions-container">
+        {% for question in attempt.questions %}
+        <div class="question-card exam-pane rounded-3xl overflow-hidden"
+             id="question-{{ question.id }}" data-question-id="{{ question.id }}">
+
+            <!-- Question Header -->
+            <div class="px-5 sm:px-6 py-3.5 border-b flex items-center justify-between gap-3" style="border-color:inherit">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-black text-white flex-shrink-0"
+                          style="background:linear-gradient(135deg,#059669,#10B981);box-shadow:0 4px 12px rgba(16,185,129,.3)">
+                        {{ forloop.counter }}
+                    </span>
+                    <div class="min-w-0">
+                        <span class="text-[10px] font-black uppercase tracking-widest
+                            {% if question.question_type == 'single' %}text-blue-500{% elif question.question_type == 'text' %}text-emerald-500{% else %}text-purple-500{% endif %}">
+                            {% if question.question_type == 'single' %}Bitta javob{% elif question.question_type == 'text' %}Matnli javob{% else %}Ko'p javob{% endif %}
+                        </span>
+                        <p class="text-[11px] text-surface-400 font-semibold">{{ question.points }} ball</p>
+                    </div>
+                </div>
+                <!-- Save indicator -->
+                <div id="save-indicator-{{ question.id }}" class="save-indicator flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 flex-shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Saqlandi
+                </div>
+            </div>
+
+            <!-- Context Passage (matnli tahlil savollari uchun) -->
+            {% if question.passage %}
+            <div class="mx-5 sm:mx-6 mt-4 rounded-2xl border border-emerald-200/70 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-500/5 p-4">
+                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-2">📖 Matn</p>
+                <p class="q-textual text-[13px] text-surface-600 dark:text-surface-300 leading-[1.9] whitespace-pre-line">{{ question.passage }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Question Text -->
+            <div class="px-5 sm:px-6 pt-5 pb-2">
+                <p class="q-textual text-surface-900 dark:text-white font-semibold text-[15px] leading-[1.8]">{{ question.text }}</p>
+            </div>
+
+            <!-- Text answer (TEXT_MATCH) -->
+            {% if question.question_type == 'text' %}
+            <div class="px-5 sm:px-6 py-4">
+                <input type="text"
+                       data-text-answer
+                       value="{{ question.text_answer }}"
+                       placeholder="Javobingizni shu yerga yozing…"
+                       class="w-full px-4 py-3.5 rounded-2xl border-2 border-surface-200 dark:border-surface-700 bg-white dark:bg-transparent text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
+                       oninput="saveAnswer({{ attempt.id }}, {{ question.id }}, this, 'text')">
+            </div>
+            {% else %}
+            <!-- Choices -->
+            <div class="choice-group px-5 sm:px-6 py-4 space-y-3">
+                {% for choice in question.choices %}
+                <label class="choice-item flex items-center gap-3.5 p-3.5 border-2 rounded-2xl cursor-pointer
+                              {% if choice.id in question.selected_choice_ids %}selected{% else %}border-surface-200 dark:border-surface-700{% endif %}"
+                       id="choice-{{ choice.id }}"
+                       onclick="handleChoiceClick(event, {{ attempt.id }}, {{ question.id }}, {{ choice.id }}, '{{ question.question_type }}')">
+
+                    <input type="{% if question.question_type == 'single' %}radio{% else %}checkbox{% endif %}"
+                           name="question_{{ question.id }}"
+                           value="{{ choice.id }}"
+                           {% if choice.id in question.selected_choice_ids %}checked{% endif %}
+                           class="hidden"
+                           onchange="saveAnswer({{ attempt.id }}, {{ question.id }}, this, '{{ question.question_type }}')">
+
+                    <!-- Letter chip (A, B, C … auto via CSS counter) -->
+                    <div class="choice-letter text-surface-500 dark:text-surface-300 border-surface-300 dark:border-surface-600"></div>
+
+                    <span class="text-sm text-surface-700 dark:text-surface-200 font-medium leading-relaxed">{{ choice.text }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% if not forloop.last %}<div class="q-connector px-6 text-[10px] font-bold uppercase tracking-widest"><span>{{ forloop.counter }}</span></div>{% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SUBMIT CONFIRMATION MODAL                                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="submit-modal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeSubmitModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-5 transform transition-all">
+            <!-- Icon -->
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-5 shadow-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-surface-900 mb-2">Testni yakunashni xohlaysizmi?</h3>
+                <p class="text-sm text-surface-400" id="modal-summary"></p>
+            </div>
+
+            <!-- Progress visual -->
+            <div class="flex items-center justify-center gap-1" id="modal-dots"></div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3">
+                <button onclick="closeSubmitModal()"
+                        class="flex-1 py-3 px-4 border-2 border-surface-200 text-surface-600 font-semibold rounded-xl hover:bg-surface-50 transition-all">
+                    Bekor qilish
+                </button>
+                <button onclick="submitTest()"
+                        class="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-glow">
+                    Ha, yakunlash
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- RESULT MODAL                                                           -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="result-modal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center space-y-5" id="result-modal-content"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// TIMER
+// ══════════════════════════════════════════════════════════════════════════
+{% if test.has_time_limit %}
+let remaining = {{ attempt.remaining_seconds|default:0 }};
+const timerDisplay = document.getElementById('timer-display');
+const timerEl = document.getElementById('timer');
+
+function updateTimer() {
+    if (remaining <= 0) {
+        timerDisplay.textContent = '00:00';
+        timerEl.className = 'timer-danger flex items-center gap-2 px-4 py-2 rounded-2xl';
+        submitTest();
+        return;
+    }
+
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    // Dynamic color states
+    if (remaining <= 60) {
+        timerEl.className = 'timer-danger flex items-center gap-2 px-4 py-2 rounded-2xl';
+    } else if (remaining <= 300) {
+        timerEl.className = 'timer-warn flex items-center gap-2 px-4 py-2 rounded-2xl';
+    } else {
+        timerEl.className = 'timer-safe flex items-center gap-2 px-4 py-2 rounded-2xl';
+    }
+
+    remaining--;
+    setTimeout(updateTimer, 1000);
+}
+updateTimer();
+{% endif %}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CHOICE CLICK — visual feedback + save
+// ══════════════════════════════════════════════════════════════════════════
+function handleChoiceClick(event, attemptId, questionId, choiceId, questionType) {
+    const card = document.getElementById(`question-${questionId}`);
+    const labels = card.querySelectorAll('.choice-item');
+
+    if (questionType === 'single') {
+        // Deselect all
+        labels.forEach(label => {
+            label.classList.remove('selected');
+            const input = label.querySelector('input');
+            input.checked = false;
+        });
+        // Select clicked
+        const clickedLabel = document.getElementById(`choice-${choiceId}`);
+        clickedLabel.classList.add('selected');
+        clickedLabel.querySelector('input').checked = true;
+    }
+    // For checkbox, let the default toggle happen, then update visuals
+    setTimeout(() => {
+        const clickedLabel = document.getElementById(`choice-${choiceId}`);
+        if (clickedLabel.querySelector('input').checked) {
+            clickedLabel.classList.add('selected');
+        } else {
+            clickedLabel.classList.remove('selected');
+        }
+        // Trigger save
+        const input = clickedLabel.querySelector('input');
+        saveAnswer(attemptId, questionId, input, questionType);
+    }, 10);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// AUTO-SAVE ANSWER
+// ══════════════════════════════════════════════════════════════════════════
+function saveAnswer(attemptId, questionId, input, questionType) {
+    const card = document.getElementById(`question-${questionId}`);
+
+    // Collect selected choices
+    const selectedIds = [];
+    let textAnswer = '';
+    if (questionType === 'text') {
+        textAnswer = input.value;
+        if (!textAnswer.trim()) {
+            // Empty answer still posts so the old value is cleared
+            fetch(`/api/tests/attempts/${attemptId}/save-answer/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ question_id: questionId, choice_ids: [], text_answer: '' })
+            }).catch(() => {});
+            updateProgress();
+            return;
+        }
+    } else if (questionType === 'single') {
+        selectedIds.push(parseInt(input.value));
+    } else {
+        card.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+            selectedIds.push(parseInt(cb.value));
+        });
+    }
+
+    // Update visual state
+    const labels = card.querySelectorAll('.choice-item');
+    labels.forEach(label => {
+        const inp = label.querySelector('input');
+        if (selectedIds.includes(parseInt(inp.value))) {
+            label.classList.add('selected');
+        } else {
+            label.classList.remove('selected');
+        }
+    });
+
+    // Show save indicator
+    const indicator = document.getElementById(`save-indicator-${questionId}`);
+    if (indicator) {
+        indicator.classList.add('show');
+        setTimeout(() => indicator.classList.remove('show'), 2000);
+    }
+
+    // POST to save
+    fetch(`/api/tests/attempts/${attemptId}/save-answer/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ question_id: questionId, choice_ids: selectedIds, text_answer: textAnswer })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.remaining_seconds !== null && data.remaining_seconds !== undefined) {
+            remaining = data.remaining_seconds;
+        }
+        updateProgress();
+    })
+    .catch(err => {
+        console.error('Save failed:', err);
+        showToast('Javob saqlanmadi. Qaytadan urinib ko\'ring.', 'error');
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// PROGRESS BAR
+// ══════════════════════════════════════════════════════════════════════════
+function updateProgress() {
+    const cards = document.querySelectorAll('.question-card');
+    let answered = 0;
+    cards.forEach(card => {
+        const textInput = card.querySelector('input[data-text-answer]');
+        if (card.querySelectorAll('input:checked').length > 0 || (textInput && textInput.value.trim())) answered++;
+    });
+    document.getElementById('answered-count').textContent = answered;
+    const pct = (answered / cards.length) * 100;
+    document.getElementById('progress-bar').style.width = `${pct}%`;
+    updateNavigator();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SUBMIT MODAL
+// ══════════════════════════════════════════════════════════════════════════
+function openSubmitModal() {
+    const cards = document.querySelectorAll('.question-card');
+    let answered = 0;
+    cards.forEach(card => {
+        const textInput = card.querySelector('input[data-text-answer]');
+        if (card.querySelectorAll('input:checked').length > 0 || (textInput && textInput.value.trim())) answered++;
+    });
+
+    const total = cards.length;
+    const unanswered = total - answered;
+
+    document.getElementById('modal-summary').textContent =
+        unanswered === 0
+            ? `Barcha ${total} ta savolga javob berdingiz. Testni yakunashni xohlaysizmi?`
+            : `${answered}/${total} ta savolga javob berdingiz. ${unanswered} ta savol javobsiz qoldi.`;
+
+    // Visual dots
+    const dotsContainer = document.getElementById('modal-dots');
+    dotsContainer.innerHTML = '';
+    cards.forEach(card => {
+        const dot = document.createElement('div');
+        dot.className = `w-3 h-3 rounded-full transition-all ${
+            card.querySelectorAll('input:checked').length > 0
+                ? 'bg-emerald-400' : 'bg-surface-200'
+        }`;
+        dotsContainer.appendChild(dot);
+    });
+
+    document.getElementById('submit-modal').classList.remove('hidden');
+}
+
+function closeSubmitModal() {
+    document.getElementById('submit-modal').classList.add('hidden');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SUBMIT TEST
+// ════════════════════════════════════════════════════════════════════════
+function submitTest() {
+    fetch(`/api/tests/attempts/{{ attempt.id }}/submit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        closeSubmitModal();
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        const r = data.result;
+        const passed = r.is_passed;
+
+        document.getElementById('result-modal-content').innerHTML = `
+            <div class="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg
+                ${passed ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-rose-400 to-rose-600'}">
+                ${passed
+                    ? '<svg class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+                    : '<svg class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'
+                }
+            </div>
+            <h3 class="text-2xl font-extrabold ${passed ? 'text-emerald-600' : 'text-rose-600'}">
+                ${passed ? "O'tdingiz!" : "O'tmadingiz"}
+            </h3>
+            <p class="text-5xl font-black text-surface-900 my-2">${r.percentage}%</p>
+            <div class="grid grid-cols-3 gap-4 py-4">
+                <div class="p-3 rounded-xl bg-emerald-50">
+                    <p class="text-2xl font-bold text-emerald-600">${r.correct_answers}</p>
+                    <p class="text-[11px] text-surface-400 font-medium">To'g'ri</p>
+                </div>
+                <div class="p-3 rounded-xl bg-rose-50">
+                    <p class="text-2xl font-bold text-rose-600">${r.wrong_answers}</p>
+                    <p class="text-[11px] text-surface-400 font-medium">Noto'g'ri</p>
+                </div>
+                <div class="p-3 rounded-xl bg-surface-50">
+                    <p class="text-2xl font-bold text-surface-600">${Math.floor(r.time_taken_seconds/60)}:${String(r.time_taken_seconds%60).padStart(2,'0')}</p>
+                    <p class="text-[11px] text-surface-400 font-medium">Vaqt</p>
+                </div>
+            </div>
+            <a href="/results/${r.attempt_id}/detail/"
+               class="flex items-center justify-center gap-2 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-all hover:shadow-glow">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                Natijalarni ko'rish
+            </a>
+        `;
+        document.getElementById('result-modal').classList.remove('hidden');
+    })
+    .catch(err => {
+        showToast("Test yuborishda xatolik. Qaytadan urinib ko'ring.", 'error');
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// QUESTION NAVIGATOR (left rail chips) + READING FONT PERSISTENCE
+// ══════════════════════════════════════════════════════════════════════════
+function updateNavigator() {
+    const cards = document.querySelectorAll('.question-card');
+    let answered = 0;
+    cards.forEach(card => {
+        const chip = document.querySelector(`#question-chips .qchip[data-qid="${card.dataset.questionId}"]`);
+        const done = card.querySelectorAll('input:checked').length > 0;
+        if (done) answered++;
+        if (chip) chip.classList.toggle('answered', done);
+    });
+    const el = document.getElementById('nav-answered-count');
+    if (el) el.textContent = `${answered}/${cards.length}`;
+}
+
+// Current-question highlight when a chip is clicked
+function markCurrentChip(qid) {
+    document.querySelectorAll('#question-chips .qchip').forEach(c => c.classList.remove('current'));
+    const chip = document.querySelector(`#question-chips .qchip[data-qid="${qid}"]`);
+    if (chip) chip.classList.add('current');
+    setTimeout(() => { if (chip) chip.classList.remove('current'); }, 2600);
+}
+document.querySelectorAll('#question-chips .qchip').forEach(chip => {
+    chip.addEventListener('click', () => markCurrentChip(chip.dataset.qid));
+});
+
+// Reading typography toggle (serif / sans), persisted per user
+function setReadingFont(mode) {
+    const column = document.getElementById('exam-column');
+    if (!column) return;
+    column.classList.toggle('reading-serif', mode === 'serif');
+    document.querySelectorAll('[data-font-pick]').forEach(b => {
+        b.classList.toggle('active', b.dataset.fontPick === mode);
+    });
+    try { localStorage.setItem('lms-reading-font', mode); } catch (e) {}
+}
+(function initFont() {
+    let mode = 'sans';
+    try { mode = localStorage.getItem('lms-reading-font') || 'sans'; } catch (e) {}
+    setReadingFont(mode);
+})();
+
+// Initial progress
+updateProgress();
+</script>
+{% endblock %}

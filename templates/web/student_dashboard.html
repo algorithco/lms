@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Ona Tili & Adabiyot{% endblock %}
+{% load i18n_extras %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- STAT CARDS                                                             -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+
+    <!-- Total Tests -->
+    <div class="rise stat-card stat-gradient-blue rounded-2xl p-5 border border-blue-100/60">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-[11px] font-semibold text-blue-600/80 uppercase tracking-wider">{% t "stat_tests_taken" %}</p>
+                <p class="text-3xl font-extrabold text-blue-900 mt-1">{{ stats.total_tests }}</p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="flex items-center mt-3">
+            <span class="text-[11px] text-blue-500/60">{% t "stat_sub_total_hint" %}</span>
+        </div>
+    </div>
+
+    <!-- Passed -->
+    <div class="rise stat-card stat-gradient-green rounded-2xl p-5 border border-emerald-100/60">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-[11px] font-semibold text-emerald-600/80 uppercase tracking-wider">{% t "stat_tests_passed" %}</p>
+                <p class="text-3xl font-extrabold text-emerald-900 mt-1">{{ stats.passed }}</p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="flex items-center mt-3">
+            {% if stats.total_tests > 0 %}
+            <span class="inline-flex items-center text-[11px] font-semibold text-emerald-600">
+                {{ stats.passed }}/{{ stats.total_tests }}
+            </span>
+            <span class="text-[11px] text-emerald-500/60 ml-1"> {% t "stat_successfully" %}</span>
+            {% else %}
+            <span class="text-[11px] text-emerald-500/60">{% t "hint_take_test" %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Average Score -->
+    <div class="rise stat-card stat-gradient-amber rounded-2xl p-5 border border-amber-100/60">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-[11px] font-semibold text-amber-600/80 uppercase tracking-wider">{% t "average_score" %}</p>
+                <p class="text-3xl font-extrabold text-amber-900 mt-1">{{ stats.avg_percentage }}<span class="text-xl">%</span></p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+            </div>
+        </div>
+        <div class="flex items-center mt-3">
+            <span class="inline-flex items-center text-[11px] font-semibold {% if stats.avg_percentage >= 60 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                {% if stats.avg_percentage >= 70 %}{% t "perf_excellent" %}{% elif stats.avg_percentage >= 50 %}{% t "perf_not_bad" %}{% else %}{% t "perf_more_effort" %}{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Certificates -->
+    <div class="rise stat-card stat-gradient-purple rounded-2xl p-5 border border-purple-100/60">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-[11px] font-semibold text-purple-600/80 uppercase tracking-wider">{% t "certificates" %}</p>
+                <p class="text-3xl font-extrabold text-purple-900 mt-1">{{ stats.certificates }}</p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="flex items-center mt-3">
+            {% if stats.certificates > 0 %}
+            <a href="{% url 'web:my-certificates' %}" class="text-[11px] font-semibold text-purple-600 hover:text-purple-700">
+                {% t "download" %} →
+            </a>
+            {% else %}
+            <span class="text-[11px] text-purple-500/60">{% t "hint_pass_test" %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Essays -->
+    <div class="rise stat-card stat-gradient-rose rounded-2xl p-5 border border-rose-100/60">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-[11px] font-semibold text-rose-600/80 uppercase tracking-wider">{% t "essays" %}</p>
+                <p class="text-3xl font-extrabold text-rose-900 mt-1">{{ essay_stats.total_essays }}</p>
+            </div>
+            <div class="w-11 h-11 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="flex items-center mt-3">
+            {% if essay_stats.graded > 0 %}
+            <span class="inline-flex items-center text-[11px] font-semibold text-rose-600">
+                {{ essay_stats.graded }}/{{ essay_stats.total_essays }} {% t "graded" %}
+            </span>
+            <span class="text-[11px] text-rose-500/60 ml-1">&middot; {{ essay_stats.avg_percentage }}%</span>
+            {% else %}
+            <a href="{% url 'essays:submit-new' %}" class="text-[11px] font-semibold text-rose-600 hover:text-rose-700">
+                {% t "write_essay" %} →
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Game Stats Row -->
+{% if game_stats.games_played > 0 %}
+<div class="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-emerald-50 to-purple-50 dark:bg-none dark:bg-surface-100 rounded-2xl border border-emerald-100/60 dark:border-emerald-500/20">
+    <div class="flex items-center gap-2">
+        <span class="text-lg">🎮</span>
+        <span class="text-sm font-bold text-surface-800">{{ game_stats.games_played }} {% t "games_played_suffix" %}</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="text-lg">⚡</span>
+        <span class="text-sm font-bold text-amber-700">{{ game_stats.total_xp }} XP</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <span class="text-lg">🪙</span>
+        <span class="text-sm font-bold text-yellow-700">{{ game_stats.total_coins }}</span>
+    </div>
+    {% if game_stats.badges_count > 0 %}
+    <div class="flex items-center gap-2">
+        <span class="text-lg">🏆</span>
+        <span class="text-sm font-bold text-purple-700">{{ game_stats.badges_count }} {% t "badges" %}</span>
+    </div>
+    {% endif %}
+    <a href="/games/leaderboard/" class="ml-auto text-xs font-semibold text-brand-600 hover:text-brand-700">Leaderboard →</a>
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- GAMES & ARENA QUICK ACCESS                                              -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
+    <!-- Games Hub -->
+    <a href="/games/" class="group flex items-center gap-4 bg-white rounded-2xl border border-surface-200/60 shadow-card p-5 hover:bg-emerald-50/30 hover:border-emerald-200 transition-all">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg flex-shrink-0">
+            <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <div class="flex-1">
+            <p class="text-base font-bold text-surface-900 group-hover:text-emerald-700 transition-colors">{% t "games" %}</p>
+            <p class="text-xs text-surface-400 mt-0.5">Imlo Minalari, G'azal Puzzle, Lug'at Match</p>
+        </div>
+        <svg class="w-5 h-5 text-surface-300 group-hover:text-emerald-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    </a>
+
+    <!-- Arena 1v1 -->
+    <a href="/arena/" class="group flex items-center gap-4 bg-white rounded-2xl border border-surface-200/60 shadow-card p-5 hover:bg-purple-50/30 hover:border-purple-200 transition-all">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0">
+            <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+        </div>
+        <div class="flex-1">
+            <p class="text-base font-bold text-surface-900 group-hover:text-purple-700 transition-colors">Quiz Arena — 1v1</p>
+            <p class="text-xs text-surface-400 mt-0.5">{% t "arena_realtime_hint" %}</p>
+        </div>
+        <svg class="w-5 h-5 text-surface-300 group-hover:text-purple-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    </a>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- AVAILABLE TESTS                                                        -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="mb-8">
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <h3 class="text-base font-bold text-surface-900">{% t "available_tests" %}</h3>
+            <p class="text-xs text-surface-400 mt-0.5">{% t "available_tests_hint" %}</p>
+        </div>
+        <a href="{% url 'web:test-list' %}" class="text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+            {% t "view_all" %} →
+        </a>
+    </div>
+
+    {% if available_tests %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {% for test in available_tests %}
+        <div class="rise stat-card bg-white rounded-2xl border border-surface-200/60 shadow-card overflow-hidden">
+            <!-- Top gradient accent -->
+            <div class="h-1.5 w-full
+                {% if test.difficulty == 'easy' %}bg-gradient-to-r from-emerald-400 to-emerald-500
+                {% elif test.difficulty == 'medium' %}bg-gradient-to-r from-amber-400 to-orange-400
+                {% else %}bg-gradient-to-r from-rose-400 to-red-500{% endif %}">
+            </div>
+
+            <div class="p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <!-- Difficulty badge -->
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider
+                        {% if test.difficulty == 'easy' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60
+                        {% elif test.difficulty == 'medium' %}bg-amber-50 text-amber-700 ring-1 ring-amber-200/60
+                        {% else %}bg-rose-50 text-rose-700 ring-1 ring-rose-200/60{% endif %}">
+                        <span class="w-1.5 h-1.5 rounded-full
+                            {% if test.difficulty == 'easy' %}bg-emerald-500
+                            {% elif test.difficulty == 'medium' %}bg-amber-500
+                            {% else %}bg-rose-500{% endif %}"></span>
+                        {{ test.get_difficulty_display }}
+                    </span>
+                    <!-- Time -->
+                    <div class="flex items-center gap-1 text-[11px] text-surface-400">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        {{ test.time_limit_minutes }} {% t "minutes_suffix" %}
+                    </div>
+                </div>
+
+                <h4 class="text-sm font-bold text-surface-900 mb-1">{{ test.title }}</h4>
+                <p class="text-xs text-surface-400 mb-4 line-clamp-2">{{ test.description|truncatewords:15 }}</p>
+
+                <!-- Stats row -->
+                <div class="flex items-center gap-4 mb-4 text-[11px] text-surface-500">
+                    <span class="flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01"/>
+                        </svg>
+                        {{ test.total_questions }} {% t "questions_suffix" %}
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        {{ test.pass_percentage }}% {% t "pass_suffix" %}
+                    </span>
+                </div>
+
+                <!-- Course info -->
+                <div class="flex items-center gap-2 mb-4 p-2.5 rounded-xl bg-surface-50">
+                    <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                        <span class="text-brand-700 text-[10px] font-bold">{{ test.course.title.0 }}</span>
+                    </div>
+                    <span class="text-[11px] text-surface-500 truncate">{{ test.course.title }}</span>
+                </div>
+
+                <!-- CTA -->
+                <a href="{% url 'web:take-test' test.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-glow">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {% t "start_test" %}
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl border border-surface-200/60 shadow-card p-12 text-center">
+        <div class="empty-state-float inline-block mb-6">
+            <svg class="w-24 h-24 mx-auto" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="90" fill="#ecfeff" stroke="#a5f3fc" stroke-width="2"/>
+                <rect x="50" y="55" width="100" height="90" rx="10" fill="white" stroke="#67e8f9" stroke-width="2"/>
+                <circle cx="100" cy="88" r="16" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="2"/>
+                <path d="M96 88 L100 92 L106 84" stroke="#0ea5e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="75" y1="112" x2="125" y2="112" stroke="#bae6fd" stroke-width="2" stroke-linecap="round"/>
+                <line x1="80" y1="122" x2="120" y2="122" stroke="#e0f2fe" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h4 class="text-lg font-bold text-surface-900 mb-2">{% t "no_tests_title" %}</h4>
+        <p class="text-sm text-surface-400 max-w-sm mx-auto">
+            {% t "no_tests_hint" %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- RECENT RESULTS                                                         -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="bg-white rounded-2xl border border-surface-200/60 shadow-card mb-8">
+    <div class="p-6 border-b border-surface-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-surface-900">{% t "recent_results" %}</h3>
+                <p class="text-xs text-surface-400 mt-0.5">{% t "recent_results_hint" %}</p>
+            </div>
+            {% if recent_results %}
+            <a href="{% url 'web:my-results' %}" class="text-xs font-semibold text-brand-600 hover:text-brand-700">
+                {% t "view_all" %} →
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if recent_results %}
+    <div class="divide-y divide-surface-100">
+        {% for result in recent_results %}
+        <a href="{% url 'web:result-detail' result.id %}"
+           class="flex items-center justify-between px-6 py-4 hover:bg-brand-50/20 transition-colors group">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
+                    {% if result.is_passed %}bg-emerald-100{% else %}bg-rose-100{% endif %}">
+                    {% if result.is_passed %}
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {% else %}
+                    <svg class="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-surface-900 group-hover:text-brand-700 transition-colors">{{ result.test.title }}</p>
+                    <p class="text-[11px] text-surface-400 mt-0.5">{{ result.course.title }} &middot; {{ result.calculated_at|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-bold
+                        {% if result.is_passed %}bg-emerald-50 text-emerald-700 badge-glow{% else %}bg-rose-50 text-rose-700 badge-glow-rose{% endif %}">
+                        {{ result.percentage }}%
+                    </span>
+                    <p class="text-[11px] text-surface-400 mt-1">{{ result.correct_answers }}/{{ result.total_questions }} {% t "correct_suffix" %}</p>
+                </div>
+                <svg class="w-4 h-4 text-surface-300 group-hover:text-brand-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="p-12 text-center">
+        <div class="empty-state-float inline-block mb-6">
+            <svg class="w-24 h-24 mx-auto" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="90" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
+                <rect x="50" y="50" width="100" height="100" rx="12" fill="white" stroke="#93c5fd" stroke-width="2"/>
+                <circle cx="75" cy="85" r="6" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
+                <circle cx="100" cy="75" r="6" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
+                <circle cx="125" cy="85" r="6" fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
+                <line x1="65" y1="110" x2="135" y2="110" stroke="#bfdbfe" stroke-width="2" stroke-linecap="round"/>
+                <line x1="75" y1="122" x2="125" y2="122" stroke="#e0e7ff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h4 class="text-lg font-bold text-surface-900 mb-2">{% t "no_results_title" %}</h4>
+        <p class="text-sm text-surface-400 mb-6 max-w-sm mx-auto">
+            {% t "no_results_hint" %}
+        </p>
+        <a href="{% url 'web:test-list' %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition-all hover:shadow-glow">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+            </svg>
+            {% t "view_tests" %}
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- RECENT ESSAYS                                                        -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{% if recent_essays %}
+<div class="bg-white rounded-2xl border border-surface-200/60 shadow-card mb-8">
+    <div class="p-6 border-b border-surface-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-surface-900">{% t "recent_essays" %}</h3>
+                <p class="text-xs text-surface-400 mt-0.5">{% t "recent_essays_hint" %}</p>
+            </div>
+            <a href="{% url 'essays:submit-new' %}" class="text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+                {% t "new_essay" %} →
+            </a>
+        </div>
+    </div>
+    <div class="divide-y divide-surface-100">
+        {% for essay in recent_essays %}
+        <a href="{% url 'essays:result' essay.id %}"
+           class="flex items-center justify-between px-6 py-4 hover:bg-rose-50/30 transition-colors group">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
+                    {% if essay.status == 'graded' %}bg-rose-100
+                    {% elif essay.status == 'error' %}bg-rose-100
+                    {% else %}bg-surface-100{% endif %}">
+                    {% if essay.status == 'graded' %}
+                    <svg class="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    {% elif essay.status == 'error' %}
+                    <svg class="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    {% else %}
+                    <svg class="w-5 h-5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-surface-900 group-hover:text-brand-700 transition-colors">
+                        {% if essay.topic %}{{ essay.topic.title }}{% else %}Esse #{{ essay.id }}{% endif %}
+                    </p>                    <p class="text-[11px] text-surface-400 mt-0.5">
+                        {% if essay.status == 'graded' %}{% t "graded" %}{% elif essay.status == 'pending' %}{% t "pending" %}{% elif essay.status == 'error' %}{% t "error" %}{% else %}{{ essay.get_status_display }}{% endif %} &middot; {{ essay.updated_at|date:"d.m.Y H:i" }}
+                        {% if essay.is_off_topic %}<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 ml-1">{% t "off_topic" %}</span>{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    {% if essay.status == 'graded' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-bold
+                        {% if essay.is_passed %}bg-emerald-50 text-emerald-700{% else %}bg-rose-50 text-rose-700{% endif %}">
+                        {{ essay.total_score|floatformat:1 }}/{{ essay.max_score }}
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-surface-300">—</span>
+                    {% endif %}
+                </div>
+                <svg class="w-4 h-4 text-surface-300 group-hover:text-brand-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- QUICK CERTIFICATES                                                     -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+{% if stats.certificates > 0 %}
+<div class="bg-white rounded-2xl border border-surface-200/60 shadow-card">
+    <div class="p-6 border-b border-surface-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-surface-900">{% t "my_certificates" %}</h3>
+                <p class="text-xs text-surface-400 mt-0.5">{% t "my_certificates_hint" %}</p>
+            </div>
+            <a href="{% url 'web:my-certificates' %}" class="text-xs font-semibold text-brand-600 hover:text-brand-700">
+                {% t "view_all" %} →
+            </a>
+        </div>
+    </div>
+    <div class="p-6">
+        <div class="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-brand-50 dark:bg-none dark:bg-surface-100 border border-purple-100/60 dark:border-purple-500/20">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-brand-600 flex items-center justify-center shadow-glow flex-shrink-0">
+                <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-surface-900">{{ stats.certificates }} {% t "count_certificates" %}</p>
+                <p class="text-xs text-surface-400 mt-0.5">{% t "download_pdf_hint" %}</p>
+            </div>
+            <a href="{% url 'web:my-certificates' %}"
+               class="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                {% t "download" %}
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

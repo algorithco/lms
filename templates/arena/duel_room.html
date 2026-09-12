@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}Duel — Arena{% endblock %}
+{% block page_title %}⚔️ Duel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .answer-btn {
+        transition: all 0.15s ease;
+    }
+    .answer-btn:active { transform: scale(0.95); }
+    .answer-btn.correct {
+        background: linear-gradient(135deg, #10b981, #059669) !important;
+        border-color: #10b981 !important;
+        color: white !important;
+    }
+    .answer-btn.wrong {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        border-color: #ef4444 !important;
+        color: white !important;
+    }
+    .answer-btn.disabled { opacity: 0.5; pointer-events: none; }
+    .timer-ring {
+        transition: stroke-dashoffset 1s linear;
+    }
+    .opponent-thinking {
+        animation: thinking 1s infinite;
+    }
+    @keyframes thinking {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+    .score-pop {
+        animation: scorePop 0.4s ease;
+    }
+    @keyframes scorePop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.3); }
+        100% { transform: scale(1); }
+    }
+    .slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="arenaGame()" class="max-w-2xl mx-auto">
+
+    <!-- WAITING STATE -->
+    <div x-show="state === 'waiting'" class="text-center py-12">
+        <div class="text-6xl mb-4 animate-bounce">⚔️</div>
+        <h2 class="text-xl font-extrabold text-surface-900 mb-2">Raqib kutmoqda...</h2>
+        <p class="text-sm text-surface-400" x-text="waitingMessage">Ulanmoqda...</p>
+        <div class="flex items-center justify-center gap-2 mt-4">
+            <div class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
+            <div class="w-2 h-2 rounded-full bg-brand-500 animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-2 h-2 rounded-full bg-brand-500 animate-pulse" style="animation-delay: 0.4s"></div>
+        </div>
+    </div>
+
+    <!-- COUNTDOWN STATE -->
+    <div x-show="state === 'countdown'" class="text-center py-12">
+        <div class="text-8xl font-black text-brand-600" x-text="countdownNum">3</div>
+        <p class="text-lg font-bold text-surface-400 mt-2">Tayyorlaning!</p>
+    </div>
+
+    <!-- PLAYING STATE -->
+    <div x-show="state === 'playing'">
+        <!-- Score Bar -->
+        <div class="flex items-center justify-between bg-white rounded-2xl border border-surface-200/60 shadow-card p-4 mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-purple-500 flex items-center justify-center">
+                    <span class="text-white text-xs font-bold" x-text="myInitials"></span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-surface-900" x-text="myName">Siz</p>
+                    <p class="text-lg font-extrabold text-brand-600 score-pop" x-text="myScore + ' ball'">0 ball</p>
+                    <p class="text-[11px] font-bold text-orange-500" x-show="myStreak >= 2" x-text="'🔥 x' + myStreak"></p>
+                </div>
+            </div>
+
+            <!-- Timer -->
+            <div class="relative w-14 h-14">
+                <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="24" fill="none" stroke="#e2e8f0" stroke-width="4"/>
+                    <circle cx="28" cy="28" r="24" fill="none"
+                            :stroke="timeLeft <= 5 ? '#ef4444' : timeLeft <= 10 ? '#f59e0b' : '#6366f1'"
+                            stroke-width="4" stroke-linecap="round"
+                            :stroke-dasharray="150.8"
+                            :stroke-dashoffset="150.8 - (150.8 * timeLeft / timeLimit)"
+                            class="timer-ring"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-sm font-extrabold" :class="timeLeft <= 5 ? 'text-red-600' : 'text-surface-700'" x-text="timeLeft">15</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 text-right">
+                <div>
+                    <p class="text-sm font-bold text-surface-900" x-text="opponentName">Raqib</p>
+                    <p class="text-lg font-extrabold text-rose-600" x-text="opponentScore + ' ball'">0 ball</p>
+                    <p class="text-[11px] font-bold text-orange-500" x-text="isBotDuel ? '🤖 AI raqib' : ''"></p>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                    <span class="text-white text-xs font-bold" x-text="opponentInitials">?</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="flex items-center gap-2 mb-4">
+            <div class="flex-1 h-2 bg-surface-100 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-all duration-300"
+                     :style="`width: ${((currentQuestion + 1) / totalQuestions) * 100}%`"></div>
+            </div>
+            <span class="text-[11px] font-semibold text-surface-400" x-text="`${currentQuestion + 1}/${totalQuestions}`">1/10</span>
+        </div>
+
+        <!-- Question Card -->
+        <div x-show="currentQuestionData" class="bg-white rounded-3xl border border-surface-200/60 shadow-card overflow-hidden slide-in">
+            <div class="p-6 bg-gradient-to-r from-brand-50 to-indigo-50 border-b border-surface-100">
+                <p class="text-xs font-bold text-brand-600 uppercase tracking-wider">Savol <span x-text="currentQuestion + 1">1</span></p>
+                <p class="text-lg font-bold text-surface-900 mt-2" x-text="currentQuestionData?.question_text || ''">Savol yuklanmoqda...</p>
+            </div>
+
+            <!-- Answer Options -->
+            <div class="p-6 grid grid-cols-2 gap-3">
+                <template x-for="(option, key) in ['a', 'b', 'c', 'd']" :key="key">
+                    <button class="answer-btn p-4 rounded-2xl border-2 text-left font-semibold transition-all"
+                            :class="{
+                                'border-surface-200 hover:border-brand-300 hover:bg-brand-50': !answered && !disabled,
+                                'disabled': disabled,
+                                'correct': answered && selectedAnswer === option && correctAnswer === option,
+                                'wrong': answered && selectedAnswer === option && correctAnswer !== option,
+                                'border-emerald-400 bg-emerald-50': answered && correctAnswer === option && selectedAnswer !== option,
+                            }"
+                            :disabled="answered || disabled"
+                            @click="submitAnswer(option)"
+                            x-text="`${option.toUpperCase()}: ${currentQuestionData?.['option_' + option] || ''}`">
+                    </button>
+                </template>
+            </div>
+
+            <!-- Opponent Status -->
+            <div x-show="!opponentAnswered" class="px-6 pb-4">
+                <div class="flex items-center gap-2 text-xs text-surface-400">
+                    <div class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
+                    <span>Raqib javob bermoqda...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER STATE -->
+    <div x-show="state === 'gameover'" class="text-center py-8">
+        <div class="text-6xl mb-4" x-text="gameResult === 'win' ? '🏆' : gameResult === 'lose' ? '😢' : '🤝'">🏆</div>
+        <h2 class="text-2xl font-extrabold mb-2"
+            :class="gameResult === 'win' ? 'text-emerald-600' : gameResult === 'lose' ? 'text-rose-600' : 'text-surface-600'"
+            x-text="gameResult === 'win' ? 'G\'alaba!' : gameResult === 'lose' ? 'Mag\'lubiyat' : 'Durang'">
+        </h2>
+
+        <!-- Final Scores -->
+        <div class="flex items-center justify-center gap-8 my-6">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-brand-400 to-purple-500 flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white text-lg font-bold" x-text="myInitials"></span>
+                </div>
+                <p class="text-sm font-semibold text-surface-900" x-text="myName">Siz</p>
+                <p class="text-3xl font-extrabold text-brand-600" x-text="myScore">0</p>
+            </div>
+            <div class="text-2xl font-bold text-surface-300">VS</div>
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white text-lg font-bold" x-text="opponentInitials">?</span>
+                </div>
+                <p class="text-sm font-semibold text-surface-900" x-text="opponentName">Raqib</p>
+                <p class="text-3xl font-extrabold text-rose-600" x-text="opponentScore">0</p>
+            </div>
+        </div>
+
+        <!-- Rewards: XP, coins, ELO -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 mb-3">
+            <span class="text-lg">⚡</span>
+            <span class="text-sm font-bold text-amber-700" x-text="`+${xpEarned} XP · +${coinsEarned} 🪙`">+0 XP</span>
+        </div>
+        <p class="text-sm font-bold text-surface-600 mb-6" x-text="ratingChangeText"></p>
+
+        <div class="flex items-center justify-center gap-3">
+            <a href="/arena/" class="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-2xl transition-all">
+                🔄 Qayta o'ynash
+            </a>
+            <a href="/" class="px-6 py-3 bg-surface-100 text-surface-600 text-sm font-semibold rounded-2xl hover:bg-surface-200 transition-colors">
+                🏠 Bosh sahifa
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function arenaGame() {
+    return {
+        state: 'waiting', // waiting, countdown, playing, gameover
+        ws: null,
+        roomCode: '{{ room_code }}',
+        userId: {{ request.user.id }},
+        myName: '{{ request.user.get_full_name }}',
+        myInitials: '{{ request.user.first_name.0 }}{{ request.user.last_name.0 }}',
+        opponentName: '?',
+        opponentInitials: '?',
+        myScore: 0,
+        opponentScore: 0,
+        myStreak: 0,
+        currentQuestion: 0,
+        totalQuestions: 10,
+        currentQuestionData: null,
+        selectedAnswer: null,
+        correctAnswer: null,
+        answered: false,
+        disabled: false,
+        opponentAnswered: false,
+        isBotDuel: {{ is_bot_duel|yesno:"true,false" }},
+        timeLeft: 15,
+        timeLimit: 15,
+        timerInterval: null,
+        countdownNum: 3,
+        gameResult: 'lose',
+        xpEarned: 0,
+        coinsEarned: 0,
+        ratingChange: 0,
+        ratingChangeText: '',
+        waitingMessage: 'Ulanmoqda...',
+        player1Id: null,
+
+        init() {
+            this.connect();
+        },
+
+        connect() {
+            // Tear down any previous socket first so handlers from a stale
+            // connection can never fire on (or send through) the new one.
+            if (this.ws) {
+                this.ws.onopen = this.ws.onmessage = this.ws.onerror = this.ws.onclose = null;
+                try { this.ws.close(); } catch (e) { /* already closing */ }
+            }
+            const ws = new WebSocket('{{ ws_url }}');
+            this.ws = ws;
+
+            // Handlers close over the local `ws`, so each send always targets
+            // the socket whose onopen actually fired (it is OPEN by then) —
+            // no "Still in CONNECTING state" sends from a replaced socket.
+            ws.onopen = () => {
+                this.waitingMessage = 'Xonaga qo\'shilmoqda...';
+                // send join_room (not join_queue) so we rejoin the existing match
+                ws.send(JSON.stringify({ type: 'join_room', room_code: this.roomCode }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                this.handleMessage(data);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+
+            ws.onclose = () => {
+                // Only the current socket may schedule a reconnect
+                if (this.ws === ws && this.state !== 'gameover') {
+                    this.waitingMessage = 'Ulanish uzildi. Qayta ulanmoqda...';
+                    setTimeout(() => this.connect(), 3000);
+                }
+            };
+        },
+
+        handleMessage(data) {
+            switch (data.type) {
+                case 'error':
+                    console.error('Server error:', data.message);
+                    this.waitingMessage = 'Xatolik: ' + data.message;
+                    break;
+
+                case 'queue_update':
+                    this.waitingMessage = data.message;
+                    break;
+
+                case 'room_joined':
+                    // Successfully joined existing room from duel page
+                    this.roomCode = data.room_code;
+                    this.player1Id = data.player1.id;
+                    this.opponentName = this.userId === data.player1.id ? data.player2.name : data.player1.name;
+                    this.opponentInitials = this.opponentName ? this.opponentName.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
+                    this.totalQuestions = data.total_questions;
+                    this.timeLimit = data.time_per_question || 15;
+                    this.waitingMessage = 'Raqibni kutmoqda...';
+                    // If game already started, the server will send the current question
+                    break;
+
+                case 'match_found':
+                    this.roomCode = data.room_code;
+                    this.player1Id = data.player1.id;
+                    this.opponentName = this.userId === data.player1.id ? data.player2.name : data.player1.name;
+                    this.opponentInitials = this.opponentName.split(' ').map(n => n[0]).join('').toUpperCase();
+                    this.totalQuestions = data.total_questions;
+                    this.startCountdown();
+                    break;
+
+                case 'send_question':
+                    this.currentQuestion = data.question_index;
+                    this.currentQuestionData = data.question;
+                    this.timeLimit = data.time_limit;
+                    this.timeLeft = data.time_limit;
+                    this.selectedAnswer = null;
+                    this.correctAnswer = null;
+                    this.answered = false;
+                    this.disabled = false;
+                    this.opponentAnswered = false;
+                    this.state = 'playing';
+                    this.startTimer();
+                    break;
+
+                case 'answer_result':
+                    this.answered = true;
+                    this.correctAnswer = data.correct_answer;
+                    if (data.is_correct) {
+                        this.myScore += data.points;
+                        this.myStreak = data.streak;
+                    } else {
+                        this.myStreak = 0;
+                    }
+                    break;
+
+                case 'live_score_update':
+                    for (const p of data.scores) {
+                        if (p.user_id === this.userId) {
+                            this.myScore = p.score;
+                            this.myStreak = p.streak;
+                        } else {
+                            this.opponentScore = p.score;
+                        }
+                    }
+                    if (data.answered_by !== this.userId) {
+                        this.opponentAnswered = true;
+                    }
+                    break;
+
+                case 'game_over':
+                    this.stopTimer();
+                    const me = data.scores.find(p => p.user_id === this.userId);
+                    this.xpEarned = me ? me.xp_earned : 0;
+                    this.coinsEarned = me ? me.coins_earned : 0;
+                    this.ratingChange = me ? me.rating_change : 0;
+                    this.ratingChangeText = this.ratingChange >= 0
+                        ? `📈 ELO: +${this.ratingChange}`
+                        : `📉 ELO: ${this.ratingChange}`;
+                    if (data.winner_id === this.userId) {
+                        this.gameResult = 'win';
+                    } else if (!data.winner_id || data.winner === 'Durang') {
+                        this.gameResult = 'draw';
+                    } else {
+                        this.gameResult = 'lose';
+                    }
+                    this.state = 'gameover';
+                    break;
+            }
+        },
+
+        startCountdown() {
+            this.state = 'countdown';
+            this.countdownNum = 3;
+            const interval = setInterval(() => {
+                this.countdownNum--;
+                if (this.countdownNum <= 0) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        },
+
+        startTimer() {
+            this.stopTimer();
+            this.timerInterval = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    this.stopTimer();
+                    this.disabled = true;
+                }
+            }, 1000);
+        },
+
+        stopTimer() {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+        },
+
+        submitAnswer(option) {
+            if (this.answered || this.disabled) return;
+
+            this.selectedAnswer = option;
+            this.answered = true;
+            this.stopTimer();
+
+            this.ws.send(JSON.stringify({
+                type: 'submit_answer',
+                room_code: this.roomCode,
+                answer: option,
+                question_index: this.currentQuestion,
+            }));
+        },
+    };
+}
+</script>
+{% endblock %}

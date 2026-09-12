@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load i18n_extras %}
+{% block title %}{% t "essay_topics_title" %} — Ona Tili & Adabiyot{% endblock %}
+{% block page_title %}✍️ {% t "essay_topics_title" %}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <p class="text-sm text-surface-400 dark:text-surface-500">{% t "essay_topics_intro" %}</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    {% for item in topic_data %}
+    {% with topic=item.topic submission=item.submission %}
+    <div class="stat-card bg-white rounded-2xl border border-surface-200/60 shadow-card overflow-hidden">
+        <!-- Category gradient -->
+        <div class="h-2 w-full
+            {% if topic.category == 'ona_tili' %}bg-gradient-to-r from-emerald-400 to-teal-500
+            {% elif topic.category == 'adabiyot' %}bg-gradient-to-r from-brand-400 to-indigo-500
+            {% elif topic.category == 'tarix' %}bg-gradient-to-r from-amber-400 to-orange-500
+            {% else %}bg-gradient-to-r from-surface-400 to-surface-500{% endif %}">
+        </div>
+
+        <div class="p-5">
+            <div class="flex items-start justify-between mb-3">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider
+                    {% if topic.category == 'ona_tili' %}bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60
+                    {% elif topic.category == 'adabiyot' %}bg-brand-50 text-brand-700 ring-1 ring-brand-200/60
+                    {% else %}bg-surface-100 text-surface-600 ring-1 ring-surface-200/60{% endif %}">
+                    {{ topic.get_category_display }}
+                </span>
+                <div class="flex items-center gap-1 text-[11px] text-surface-400">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {{ topic.time_limit_minutes }} {% t "minutes_suffix" %}
+                </div>
+            </div>
+
+            <h4 class="text-sm font-bold text-surface-900 mb-2">{{ topic.title }}</h4>
+            <p class="text-xs text-surface-400 mb-4 line-clamp-3">{{ topic.description|truncatewords:20 }}</p>
+
+            <div class="flex items-center gap-4 text-[11px] text-surface-500 mb-4">
+                <span>📝 {{ topic.word_limit_min }}-{{ topic.word_limit_max }} {% t "words_suffix" %}</span>
+                <span>⏱️ {{ topic.time_limit_minutes }} {% t "minutes_suffix" %}</span>
+                {% if topic.password %}
+                <span class="inline-flex items-center gap-1 text-amber-600 font-semibold">
+                    🔒 {% t "essay_password_protected" %}
+                </span>
+                {% endif %}
+            </div>
+
+            {% if submission %}
+                {# User has already submitted for this topic #}
+                {% if submission.status == 'graded' %}
+                <a href="{% url 'essays:result' submission.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold rounded-xl border border-emerald-200 transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Natijani ko'rish — {{ submission.total_score|stringformat:".1f" }}/{{ submission.max_score }}
+                </a>
+                {% elif submission.status == 'error' %}
+                <a href="{% url 'essays:password-gate' topic.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold rounded-xl border border-red-200 transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    {% t "essay_error_retry" %}
+                </a>
+                {% elif submission.status == 'pending' %}
+                <div class="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl border border-blue-200">
+                    <div class="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    {% t "essay_ai_grading_progress" %}
+                </div>
+                {% elif submission.status == 'draft' %}
+                <a href="{% url 'essays:write' submission.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold rounded-xl border border-amber-200 transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    {% t "essay_continue_writing" %}
+                </a>
+                {% elif submission.status == 'pending_teacher' %}
+                <div class="flex items-center justify-center gap-2 w-full py-2.5 bg-purple-50 text-purple-700 text-sm font-semibold rounded-xl border border-purple-200">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {% t "essay_teacher_reviewing" %}
+                </div>
+                {% else %}
+                <a href="{% url 'essays:password-gate' topic.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-50 hover:bg-surface-100 text-surface-700 text-sm font-semibold rounded-xl border border-surface-200 transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    {% t "essay_rewrite" %}
+                </a>
+                {% endif %}
+            {% else %}
+                {# No submission — show write button #}
+                <a href="{% url 'essays:password-gate' topic.id %}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-glow">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    {% t "cta_write_essay" %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="col-span-full p-12 text-center">
+        <div class="empty-state-float inline-block mb-6">
+            <svg class="w-24 h-24 mx-auto" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="90" fill="#f5f3ff" stroke="#c7d2fe" stroke-width="2"/>
+                <rect x="50" y="50" width="100" height="100" rx="12" fill="white" stroke="#a5b4fc" stroke-width="2"/>
+                <line x1="70" y1="75" x2="130" y2="75" stroke="#c7d2fe" stroke-width="3" stroke-linecap="round"/>
+                <line x1="70" y1="95" x2="120" y2="95" stroke="#c7d2fe" stroke-width="3" stroke-linecap="round"/>
+                <line x1="70" y1="115" x2="110" y2="115" stroke="#c7d2fe" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h4 class="text-lg font-bold text-surface-900 dark:text-white mb-2">{% t "essay_no_topics" %}</h4>
+        <p class="text-sm text-surface-400 dark:text-surface-500">{% t "essay_no_topics_hint" %}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

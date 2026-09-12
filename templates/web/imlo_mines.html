@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Imlo Minalari — O'yinlar{% endblock %}
+{% block page_title %}💣 Imlo Minalari{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mine-word {
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 3px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        font-size: 15px;
+    }
+    .mine-word:hover { transform: scale(1.05); border-color: #c7d2fe; }
+    .mine-word.safe { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .mine-word.danger { background: #fecdd3; border-color: #fca5a5; color: #9f1239; }
+    .mine-word.flagged { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .mine-word.correct-fix { background: #d1fae5; border-color: #34d399; color: #065f46; animation: correctPulse 0.5s; }
+    .mine-word.wrong-flag { background: #fee2e2; border-color: #f87171; color: #991b1b; animation: shake 0.4s; }
+    @keyframes correctPulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    .combo-fire { animation: fireGlow 0.6s ease-in-out; }
+    @keyframes fireGlow { 0% { text-shadow: 0 0 0 rgba(251, 146, 60, 0); } 50% { text-shadow: 0 0 30px rgba(251, 146, 60, 0.6); } 100% { text-shadow: 0 0 0 rgba(251, 146, 60, 0); } }
+    .meme-popup {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+        z-index: 200; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        pointer-events: none;
+    }
+    .meme-popup.show { transform: translate(-50%, -50%) scale(1); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Meme Popup -->
+<div id="meme-popup" class="meme-popup bg-white rounded-3xl shadow-2xl p-6 text-center max-w-xs">
+    <div id="meme-emoji" class="text-6xl mb-3"></div>
+    <p id="meme-text" class="text-lg font-bold text-surface-900"></p>
+</div>
+
+<!-- Stats Bar -->
+<div class="flex items-center justify-between mb-6 bg-white rounded-2xl border border-surface-200/60 shadow-card p-4">
+    <div class="flex items-center gap-6">
+        <div class="text-center">
+            <p class="text-2xl font-extrabold text-brand-600" id="score-display">0</p>
+            <p class="text-[10px] text-surface-400 uppercase font-semibold">XP</p>
+        </div>
+        <div class="text-center">
+            <p class="text-2xl font-extrabold text-amber-600" id="coins-display">0</p>
+            <p class="text-[10px] text-surface-400 uppercase font-semibold">Coins</p>
+        </div>
+        <div class="text-center">
+            <p class="text-2xl font-extrabold text-rose-600" id="combo-display">0</p>
+            <p class="text-[10px] text-surface-400 uppercase font-semibold">Combo</p>
+        </div>
+    </div>
+    <a href="/games/" class="text-xs font-semibold text-brand-600 hover:text-brand-700">← Orqaga</a>
+</div>
+
+<!-- Game Area -->
+<div class="bg-white rounded-3xl border border-surface-200/60 shadow-card overflow-hidden">
+    <!-- Header -->
+    <div class="p-6 bg-gradient-to-r from-rose-50 to-amber-50 border-b border-surface-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold text-surface-900">{{ level.title }}</h2>
+                <p class="text-sm text-surface-400 mt-1">Matndagi <strong>xato yozilgan so'zni</strong> toping! 💣</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs text-surface-400">Vaqt</span>
+                <p class="text-xl font-mono font-bold text-rose-600" id="timer-display">--:--</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Text Area -->
+    <div class="p-8" id="text-container">
+        <div class="text-lg leading-loose text-surface-700" id="mine-text">
+            {% for word in level.question_data.words %}
+            <span class="mine-word"
+                  data-index="{{ forloop.counter0 }}"
+                  onclick="handleWordClick({{ forloop.counter0 }}, '{{ word }}')"
+                  id="word-{{ forloop.counter0 }}">
+                {{ word }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Hint -->
+    {% if level.hint %}
+    <div class="px-8 pb-4">
+        <p class="text-xs text-surface-400 italic">💡 Maslahat: {{ level.hint }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Result Area (HTMX target) -->
+    <div id="result-area" class="px-8 pb-8"></div>
+
+    <!-- Action Buttons -->
+    <div class="px-8 pb-6 flex items-center gap-3">
+        <button onclick="flagMode = !flagMode; this.textContent = flagMode ? '🚩 Flag Rejimi' : '💣 Minani topish'"
+                id="mode-btn"
+                class="px-4 py-2 bg-amber-100 text-amber-700 text-sm font-semibold rounded-xl hover:bg-amber-200 transition-colors">
+            💣 Minani topish
+        </button>
+        <button onclick="nextLevel()"
+                class="px-4 py-2 bg-brand-100 text-brand-700 text-sm font-semibold rounded-xl hover:bg-brand-200 transition-colors">
+            Keyingi level →
+        </button>
+    </div>
+</div>
+
+<!-- Confetti CDN -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const LEVEL_ID = {{ level.id }};
+let combo = 0;
+let totalXP = 0;
+let totalCoins = 0;
+let flagMode = false;
+let answered = new Set();
+
+function handleWordClick(index, word) {
+    if (answered.has(index)) return;
+    answered.add(index);
+
+    const action = flagMode ? 'flag' : 'fix';
+
+    fetch('/games/api/imlo-mina/check/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: `level_id=${LEVEL_ID}&word_index=${index}&action=${action}&combo=${combo}`
+    })
+    .then(r => r.text())
+    .then(html => {
+        document.getElementById('result-area').innerHTML = html;
+    });
+}
+
+function updateStats(xp, coins, newCombo) {
+    totalXP += xp;
+    totalCoins += coins;
+    combo = newCombo;
+    document.getElementById('score-display').textContent = totalXP;
+    document.getElementById('coins-display').textContent = totalCoins;
+    document.getElementById('combo-display').textContent = combo;
+
+    if (combo >= 3) {
+        document.getElementById('combo-display').classList.add('combo-fire');
+        setTimeout(() => document.getElementById('combo-display').classList.remove('combo-fire'), 600);
+    }
+}
+
+function showMeme(emoji, text, isCorrect) {
+    const popup = document.getElementById('meme-popup');
+    document.getElementById('meme-emoji').textContent = emoji;
+    document.getElementById('meme-text').textContent = text;
+    popup.classList.add('show');
+    setTimeout(() => popup.classList.remove('show'), 1500);
+
+    if (isCorrect) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    }
+}
+
+function markWord(index, isCorrect) {
+    const el = document.getElementById(`word-${index}`);
+    if (isCorrect) {
+        el.classList.add('correct-fix');
+    } else {
+        el.classList.add('wrong-flag');
+    }
+}
+
+function nextLevel() {
+    window.location.href = '/games/imlo-mina/?level=' + (LEVEL_ID + 1);
+}
+
+// Timer
+let remaining = {{ level.time_limit_seconds }};
+function updateTimer() {
+    const min = Math.floor(remaining / 60);
+    const sec = remaining % 60;
+    const display = document.getElementById('timer-display');
+    display.textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    if (remaining <= 10) display.classList.add('text-red-600', 'timer-warning');
+    if (remaining <= 0) { showMeme('⏰', 'Vaqt tugadi!', false); return; }
+    remaining--;
+    setTimeout(updateTimer, 1000);
+}
+updateTimer();
+</script>
+{% endblock %}

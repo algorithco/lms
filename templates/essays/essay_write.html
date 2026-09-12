@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+{% load i18n_extras %}
+{% block title %}{{ topic.title }} — {% t "essay_write_title" %}{% endblock %}
+{% block page_title %}✍️ {% t "essay_write_title" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .essay-textarea {
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 15.5px;
+        line-height: 1.9;
+        resize: vertical;
+        min-height: 520px;
+        caret-color: #10B981;
+    }
+    html.dark .essay-textarea { caret-color: #34D399; }
+
+    /* Live word-count zone bar */
+    #word-progress-fill { transition: width .35s cubic-bezier(.4,0,.2,1), background-color .35s ease; }
+
+    /* Autosave pill states */
+    #autosave-indicator .spinner { display: none; }
+    #autosave-indicator.saving  .spinner { display: inline-block; }
+    #autosave-indicator.saving  .autosave-label { color: #94A3B8; }
+    #autosave-indicator.saved   { animation: saveFlash 1.2s ease; }
+    @keyframes saveFlash {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        35%      { box-shadow: 0 0 0 4px rgba(16, 185, 129, .22); }
+    }
+    #autosave-indicator.error .autosave-label { color: #F43F5E; }
+
+    /* Criterion checklist rows */
+    .mezon-row { transition: background-color .2s ease, transform .2s ease; }
+    .mezon-row:hover { transform: translateX(3px); }
+
+    /* Writing surface focus glow */
+    .essay-surface:focus-within {
+        border-color: rgba(16, 185, 129, .55);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, .10), 0 12px 40px rgba(16,185,129,.06);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .mezon-row, #word-progress-fill { transition: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if time_expired %}
+<!-- TIME EXPIRED STATE -->
+<div class="max-w-2xl mx-auto mt-8">
+    <div class="lcard rounded-3xl p-8 text-center shadow-card">
+        <div class="w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-500/15 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-2">{% t "essay_time_up" %}</h3>
+        <p class="text-sm text-surface-500 dark:text-surface-400 mb-5">{% t "essay_time_up_text" %}</p>
+        <div class="flex items-center justify-center gap-3">
+            {% if submission.status == "graded" or submission.status == "ai_evaluated" %}
+            <a href="{% url 'essays:result' submission_id=submission.id %}" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors btn-glow">
+                {% t "essay_view_result" %}
+            </a>
+            {% else %}
+            <a href="{% url 'essays:topics' %}" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors btn-glow">
+                {% t "essay_topics_list" %}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ═══════════════════════════ ACTIVE WRITING ═══════════════════════════ -->
+<div class="max-w-7xl mx-auto">
+    <div class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] items-start">
+
+        <!-- ═══════════════════ LEFT RAIL: prompt + 12-mezon ═══════════════════ -->
+        <aside class="space-y-5 lg:sticky lg:top-24">
+
+            <!-- Prompt card -->
+            <div class="lcard rounded-3xl p-5 shadow-card overflow-hidden relative">
+                <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/70 via-teal-400/40 to-transparent"></div>
+
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25">
+                        {{ topic.get_category_display }}
+                    </span>
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-surface-100 dark:bg-surface-200 text-surface-500">
+                        📝 {{ topic.word_limit_min }}–{{ topic.word_limit_max }} {% t "words_suffix" %}
+                    </span>
+                    {% if topic.time_limit_minutes > 0 %}
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold bg-surface-100 dark:bg-surface-200 text-surface-500">
+                        ⏱ {{ topic.time_limit_minutes }} {% t "essay_min_short" %}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <h3 class="text-[15px] font-extrabold text-surface-900 leading-snug mb-2.5">{{ topic.title }}</h3>
+
+                <div class="flex items-start gap-2.5 text-[13px] leading-relaxed text-surface-600 dark:text-surface-400">
+                    <span class="mt-0.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0">📋</span>
+                    <p>{{ topic.description }}</p>
+                </div>
+
+                <div class="mt-4 flex items-center justify-between px-3 py-2 rounded-xl bg-surface-100/70 dark:bg-white/5 text-[11px] font-semibold text-surface-500">
+                    <span class="flex items-center gap-1.5">⚖️ {% t "essay_24_scale" %}</span>
+                    <span class="flex items-center gap-1.5">🤖 {% t "essay_ai_grades" %}</span>
+                </div>
+            </div>
+
+            <!-- 12-mezon checklist -->
+            <div class="lcard rounded-3xl p-5 shadow-card">
+                <div class="flex items-center justify-between mb-1">
+                    <h4 class="text-sm font-extrabold text-surface-900 flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-[13px] shadow-glow">🎯</span>
+                        {% t "essay_12_criteria" %}
+                    </h4>
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25">{% t "essay_0_2" %}</span>
+                </div>
+                <p class="text-[11px] text-surface-400 dark:text-surface-500 mb-4">{% t "essay_criteria_hint" %}</p>
+
+                {% for group in criteria_groups %}
+                <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-surface-400 mb-1.5 mt-4 first:mt-0
+                    {% if not forloop.first %}border-t border-surface-100 dark:border-surface-200 pt-3{% endif %}">
+                    {{ group.title }}
+                </p>
+                <ul class="space-y-1">
+                    {% for item in group.items %}
+                    <li class="mezon-row flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-emerald-50/60 dark:hover:bg-emerald-500/5">
+                        <span class="w-6 h-6 rounded-lg bg-surface-100 dark:bg-white/10 text-surface-500 dark:text-surface-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                            {{ item.id|stringformat:"02d" }}
+                        </span>
+                        <span class="text-[12.5px] font-medium text-surface-700 dark:text-surface-300 leading-tight flex-1">{{ item.name }}</span>
+                        <svg class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 opacity-0 mezon-check transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endfor %}
+
+                <p class="text-[10.5px] text-surface-400 mt-4 pt-3 border-t border-surface-100 dark:border-surface-200 leading-relaxed">
+                    {% t "essay_watch_tip" %}
+                </p>
+            </div>
+        </aside>
+
+        <!-- ═══════════════════════ RIGHT: writing surface ═══════════════════════ -->
+        <section class="space-y-4 min-w-0">
+
+            <!-- Status strip -->
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <span id="status-text" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider
+                        bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> {% t "essay_status_draft" %}
+                    </span>
+                    {% if topic.time_limit_minutes > 0 %}
+                    <div id="timer" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25 font-mono font-bold text-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span id="timer-display"></span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Autosave indicator -->
+                <div id="autosave-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-100/80 dark:bg-white/5 ring-1 ring-surface-200/60 dark:ring-surface-200">
+                    <span class="spinner w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
+                    <svg class="saved-icon w-3.5 h-3.5 text-emerald-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span class="autosave-label text-[11px] font-semibold text-surface-400">{% t "essay_js_not_saved" %}</span>
+                </div>
+            </div>
+
+            <!-- Editor card -->
+            <div class="essay-surface lcard rounded-3xl overflow-hidden shadow-card transition-all duration-300">
+                <div class="px-5 py-4 border-b border-surface-100 dark:border-surface-200 flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-surface-900 flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-xl bg-surface-100 dark:bg-white/10 flex items-center justify-center text-[13px]">✍️</span>
+                        {% t "essay_text_label" %}
+                    </h3>
+                    <span class="text-[10px] font-semibold text-surface-400 hidden sm:inline">{% t "essay_autosave_note" %}</span>
+                </div>
+
+                <div class="p-4 sm:p-5">
+                    <textarea
+                        id="essay-textarea"
+                        class="essay-textarea w-full p-4 sm:p-5 rounded-2xl bg-surface-50 dark:bg-surface-100/50 text-surface-900 dark:text-white border-2 border-surface-200 dark:border-surface-200 focus:outline-none transition-all"
+                        placeholder="{% t 'essay_write_ph' %}"
+                        oninput="handleInput()"
+                        maxlength="10000"
+                        spellcheck="true"
+                    >{{ submission.essay_text }}</textarea>
+                </div>
+
+                <!-- Footer: live count + zone bar -->
+                <div class="px-5 pb-4">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <div id="word-badge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-colors bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/25">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/>
+                            </svg>
+                            <span id="word-count">{{ word_info.count }}</span>
+                            <span class="text-[10px] font-medium opacity-70">{% t "words_suffix" %} / {{ topic.word_limit_min }}–{{ topic.word_limit_max }}</span>
+                        </div>
+                        <span class="text-[10px] font-semibold text-surface-400" id="word-hint">{% t "essay_target_range" %}</span>
+                    </div>
+                    <div class="w-full h-2 bg-surface-100 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div id="word-progress-fill" class="h-full rounded-full bg-emerald-500 transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <button onclick="saveDraft()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-surface-100/90 dark:bg-white/5 text-surface-600 dark:text-surface-300 text-sm font-bold ring-1 ring-surface-200/70 dark:ring-surface-200 hover:bg-surface-200/80 dark:hover:bg-white/10 transition-all">
+                    💾 {% t "essay_save_draft" %}
+                </button>
+                <button onclick="submitForAI()" id="submit-btn"
+                        class="inline-flex items-center justify-center gap-2 px-7 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-bold rounded-2xl shadow-glow transition-all btn-glow disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none">
+                    🤖 {% t "essay_send_ai" %}
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                </button>
+            </div>
+            <p class="text-center text-[10.5px] text-surface-400 dark:text-surface-500 -mt-1">{% t "essay_gate_prefix" %} {{ topic.word_limit_min }} {% t "essay_gate_suffix" %}</p>
+
+            <!-- Result Area (HTMX / fetch partials) -->
+            <div id="result-area"></div>
+        </section>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// i18n strings for JS (server-rendered per user language)
+const I18N = {
+    writeMore: "{{ essay_js_write_more|escapejs }}",
+    overLimit: "{{ essay_js_over_limit|escapejs }}",
+    inRange: "{{ essay_js_in_range|escapejs }}",
+    needMin: "{{ essay_js_need_min|escapejs }}",
+    words: "{{ words_suffix|escapejs }}",
+    confirmAI: "{{ essay_js_confirm_ai|escapejs }}",
+    analyzing: "{{ essay_js_analyzing|escapejs }}",
+    grading: "{{ essay_js_grading|escapejs }}",
+    saving: "{{ essay_js_saving|escapejs }}",
+    saved: "{{ essay_js_saved|escapejs }}",
+    autosaveOn: "{{ essay_autosave_on|escapejs }}",
+    saveError: "{{ essay_js_save_error|escapejs }}",
+    sendAI: "{{ essay_send_ai|escapejs }}",
+    error: "{{ essay_js_error|escapejs }}",
+};
+
+const SUBMISSION_ID = {{ submission.id }};
+const MIN_WORDS = {{ topic.word_limit_min }};
+const MAX_WORDS = {{ topic.word_limit_max }};
+let remaining = {{ remaining_seconds }};
+let autosaveTimer = null;
+let autoSubmitted = false;  // avtomatik submit bo'lganini tekshirish
+
+// ── Word UI (count badge + zone bar + submit gate) ───────────────────────
+function refreshWordUI() {
+    const ta = document.getElementById('essay-textarea');
+    const text = ta ? ta.value : '';
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0 && /[a-zA-ZА-Яа-яЁё]/.test(w)).length;
+
+    document.getElementById('word-count').textContent = words;
+
+    const badge = document.getElementById('word-badge');
+    const hint = document.getElementById('word-hint');
+    const bar = document.getElementById('word-progress-fill');
+    let pct = Math.min(100, Math.round(words / MAX_WORDS * 100));
+
+    badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-colors ring-1 ';
+    if (words < MIN_WORDS) {
+        badge.className += 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-500/25';
+        hint.textContent = 'Yana ' + (MIN_WORDS - words) + ' so\'z yozing';
+        bar.style.background = '#F59E0B';
+    } else if (words > MAX_WORDS) {
+        badge.className += 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-200 dark:ring-rose-500/25';
+        hint.textContent = I18N.overLimit;
+        bar.style.background = '#F43F5E';
+    } else {
+        badge.className += 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-500/25';
+        hint.textContent = I18N.inRange;
+        bar.style.background = '#10B981';
+    }
+    bar.style.width = pct + '%';
+
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.disabled = words < MIN_WORDS;
+    return words;
+}
+
+function handleInput() {
+    refreshWordUI();
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => autosave(), 2000);
+}
+
+// ── Autosave indicator states ────────────────────────────────────────────
+function autosaveUI(state) {
+    const indicator = document.getElementById('autosave-indicator');
+    if (!indicator) return;
+    indicator.classList.remove('saving', 'saved', 'error');
+    const label = indicator.querySelector('.autosave-label');
+    const icon = indicator.querySelector('.saved-icon');
+    icon.classList.add('hidden');
+    if (state === 'saving') {
+        indicator.classList.add('saving');
+        label.textContent = I18N.saving;
+    } else if (state === 'saved') {
+        indicator.classList.add('saved');
+        icon.classList.remove('hidden');
+        const now = new Date();
+        label.textContent = I18N.saved + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+        clearTimeout(indicator._hide);
+        indicator._hide = setTimeout(() => { if (!indicator.classList.contains('saving')) { icon.classList.add('hidden'); label.textContent = I18N.autosaveOn; } }, 3000);
+    } else if (state === 'error') {
+        indicator.classList.add('error');
+        label.textContent = I18N.saveError;
+    }
+}
+
+function autosave() {
+    const ta = document.getElementById('essay-textarea');
+    const text = ta ? ta.value : '';
+    autosaveUI('saving');
+
+    fetch('/essays/api/autosave/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: `submission_id=${SUBMISSION_ID}&essay_text=${encodeURIComponent(text)}`
+    })
+    .then(r => r.text())
+    .then(html => {
+        // Agar avtomatik submit bo'lgan bo'lsa — natija sahifasiga o'tish
+        if (html.includes('auto-submit-notice')) {
+            autoSubmitted = true;
+            document.getElementById('result-area').innerHTML = html;
+            setTimeout(() => {
+                window.location.href = `/essays/result/${SUBMISSION_ID}/`;
+            }, 2000);
+            return;
+        }
+        autosaveUI('saved');
+    })
+    .catch(() => autosaveUI('error'));
+}
+
+function saveDraft() {
+    autosave();
+}
+
+function submitForAI() {
+    if (autoSubmitted) return;  // allaqachon avtomatik submit bo'lgan
+
+    const ta = document.getElementById('essay-textarea');
+    const text = ta ? ta.value : '';
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+    if (words < MIN_WORDS) {
+        alert(`${I18N.needMin} ${MIN_WORDS} ${I18N.words}. ${words} ${I18N.words}.`);
+        return;
+    }
+
+    if (!confirm(I18N.confirmAI)) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ ' + I18N.analyzing;
+
+    // Avval autosave qilish, keyin submit
+    fetch('/essays/api/autosave/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: `submission_id=${SUBMISSION_ID}&essay_text=${encodeURIComponent(text)}`
+    })
+    .then(() => {
+        return fetch(`/essays/${SUBMISSION_ID}/submit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        });
+    })
+    .then(r => r.text())
+    .then(html => {
+        document.getElementById('result-area').innerHTML = html;
+        // Asinxron baholash: Celery worker ishlayotganda natija sahifasiga o'tamiz
+        const asyncRedirect = document.querySelector('#result-area [data-async-redirect]');
+        if (asyncRedirect) {
+            btn.disabled = true;
+            setTimeout(() => { window.location.href = asyncRedirect.dataset.asyncRedirect; }, 1800);
+            return;
+        }
+        btn.innerHTML = '🤖 ' + I18N.sendAI;
+        btn.disabled = false;
+        refreshWordUI();
+    })
+    .catch(err => {
+        alert(I18N.error);
+        btn.innerHTML = '🤖 ' + I18N.sendAI;
+        btn.disabled = false;
+    });
+}
+
+// ── Timer (server-side remaining_seconds asosida) ────────────────────────
+function updateTimer() {
+    if (remaining <= 0) {
+        document.getElementById('timer-display').textContent = '00:00';
+        document.getElementById('timer').className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-500/25 font-mono font-bold text-sm timer-warning';
+
+        if (!autoSubmitted) {
+            // VAQT TUGADI — avtomatik submit
+            autoSubmitted = true;
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ ' + I18N.grading;
+            submitBtn.className = 'inline-flex items-center justify-center gap-2 px-7 py-3 bg-amber-500 text-white text-sm font-bold rounded-2xl cursor-not-allowed';
+
+            // Matnni avtomatik saqlash va submit qilish
+            const text = document.getElementById('essay-textarea').value;
+            document.getElementById('essay-textarea').readOnly = true;
+
+            fetch('/essays/api/autosave/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: `submission_id=${SUBMISSION_ID}&essay_text=${encodeURIComponent(text)}`
+            })
+            .then(r => r.text())
+            .then(html => {
+                if (html.includes('auto-submit-notice')) {
+                    document.getElementById('result-area').innerHTML = html;
+                    setTimeout(() => {
+                        window.location.href = `/essays/result/${SUBMISSION_ID}/`;
+                    }, 2500);
+                } else {
+                    window.location.href = `/essays/result/${SUBMISSION_ID}/`;
+                }
+            })
+            .catch(() => {
+                window.location.href = `/essays/result/${SUBMISSION_ID}/`;
+            });
+        }
+        return;
+    }
+
+    const min = Math.floor(remaining / 60);
+    const sec = remaining % 60;
+    document.getElementById('timer-display').textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+
+    if (remaining <= 300) {
+        document.getElementById('timer').className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/25 font-mono font-bold text-sm';
+    }
+    if (remaining <= 60) {
+        document.getElementById('timer').className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-500/25 font-mono font-bold text-sm timer-warning';
+    }
+
+    remaining--;
+    setTimeout(updateTimer, 1000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    refreshWordUI();
+
+    if (typeof remaining !== 'undefined' && remaining !== null) {
+        if (remaining > 0) {
+            updateTimer();
+        } else {
+            autoSubmitted = true;
+            var td = document.getElementById('timer-display');
+            var tm = document.getElementById('timer');
+            if (td) td.textContent = '00:00';
+            if (tm) tm.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-500/25 font-mono font-bold text-sm timer-warning';
+
+            var ta = document.getElementById('essay-textarea');
+            if (ta) ta.readOnly = true;
+            var btn = document.getElementById('submit-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ ' + I18N.grading;
+            }
+            setTimeout(() => {
+                window.location.href = `/essays/result/${SUBMISSION_ID}/`;
+            }, 1500);
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+*.egg-info
+dist
+build
+*.egg
+
+# Virtual environments
+venv
+.venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+.backups
+staticfiles
+media
+
+# Environment
+.env
+.env.local
+.env.production
+.env.prod
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+nginx.conf
+
+# Docs
+README.md
+LICENSE
+
+# Tests
+htmlcov
+.coverage
+.pytest_cache
+.mypy_cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+celerybeat-schedule
+celerybeat.pid
+.aider*
+
+# Detached local prototypes and audit artifacts are not part of the app
+essays/
+project/
+quiz/
+test_grading.py
+test_quiz_ws.py
+INTEGRATION_GUIDE.md
+AUDIT_REPORT_*.md

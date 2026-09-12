@@ -1,0 +1,283 @@
+[
+  {
+    "model": "games.game",
+    "pk": 1,
+    "fields": {
+      "name": "Imlo Minalari",
+      "slug": "imlo_mina",
+      "description": "Matndagi xato yozilgan so'zlarni toping! Har bir xato — mina 💣. To'g'ri topsangiz — yashil chiroq, noto'g'ri bossangiz — BUM!",
+      "icon_emoji": "💣",
+      "xp_per_correct": 10,
+      "coins_per_correct": 5,
+      "combo_multiplier": 1.5,
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "games.game",
+    "pk": 2,
+    "fields": {
+      "name": "Navoiy vs Dunyo",
+      "slug": "gazal_puzzle",
+      "description": "Buyuk shoir Alisher Navoiy g'azallarini to'g'ri tartibda joylashtiring. Baytlarni surib tartiblang!",
+      "icon_emoji": "📜",
+      "xp_per_correct": 15,
+      "coins_per_correct": 8,
+      "combo_multiplier": 2.0,
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "games.game",
+    "pk": 3,
+    "fields": {
+      "name": "Eski So'zlar Dueli",
+      "slug": "lugat_match",
+      "description": "Mumtoz va eski o'zbek so'zlarini ularning zamonaviy ma'nolari bilan juftlang. Xotira kuchingizni sinang!",
+      "icon_emoji": "📚",
+      "xp_per_correct": 8,
+      "coins_per_correct": 4,
+      "combo_multiplier": 1.3,
+      "is_active": true,
+      "sort_order": 3
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 1,
+    "fields": {
+      "game": 1,
+      "title": "Boshlang'ich — Oddiy matn",
+      "difficulty": 1,
+      "question_data": {
+        "text": "Bugun ob-havo juda chiroyli edi. Men ertalab turib, derazadan baxrani tomosha qildim. Havo juda serin va namlil edi. Men rohatlanib, parkka borganimda, do'stlarim bilan kuldik va suhbatlashdik.",
+        "words": ["Bugun", "ob-havo", "juda", "chiroyli", "edi.", "Men", "ertalab", "turib,", "derazadan", "baxrani", "tomosha", "qildim.", "Havo", "juda", "serin", "va", "namlil", "edi.", "Men", "rohatlanib,", "parkka", "borganimda,", "do'stlarim", "bilan", "kuldik", "va", "suhbatlashdik."],
+        "error_word_index": 9,
+        "error_word": "baxrani",
+        "correct_word": "dengizni",
+        "explanation": "'Baxrani' emas, 'dengizni' deb yozilishi kerak."
+      },
+      "hint": "Nomi xato yozilgan tabiiy ob'ektni toping.",
+      "time_limit_seconds": 90,
+      "xp_reward": 10,
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 2,
+    "fields": {
+      "game": 1,
+      "title": "O'rta daraja — Xatolar ko'p",
+      "difficulty": 3,
+      "question_data": {
+        "text": "Talaba har kuni maktabga boringan. U fanlarni yaxshi o'qigan va doim shoshqaloqlik bilan javob bergan. O'qituvchisi uni har doim olqishlagan. Lekin bir kuni u juda charchagan edi va uyquda qolib, ertalab kechikkan.",
+        "words": ["Talaba", "har", "kuni", "maktabga", "boringan.", "U", "fanlarni", "yaxshi", "o'qigan", "va", "doim", "shoshqaloqlik", "bilan", "javob", "bergan.", "O'qituvchisi", "uni", "har", "doim", "olqishlagan.", "Lekin", "bir", "kuni", "u", "juda", "charchagan", "edi", "va", "uyquda", "qolib,", "ertalab", "kechikkan."],
+        "error_word_index": 11,
+        "error_word": "shoshqaloqlik",
+        "correct_word": "shoshilmasdan",
+        "explanation": "'Shoshqaloqlik' emas, to'g'ri shakli 'shoshilmasdan' yoki boshqa mos so'z."
+      },
+      "hint": "Harakat bilan bog'liq noto'g'ri yozilgan so'zni toping.",
+      "time_limit_seconds": 75,
+      "xp_reward": 15,
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 3,
+    "fields": {
+      "game": 2,
+      "title": "Navoiy — Madaniy Yodgorlik",
+      "difficulty": 1,
+      "question_data": {
+        "bayt_lines": [
+          "Ey dil, seni sevdim men boshqacha bir his bilan,",
+          "Ne ozor chekmasin sen, sog'inchlik azob bilan.",
+          "Ko'zlarim seni qidirir har qadamimda hozir,",
+          "Yurakim seni so'raydi shirin tushlarimda, yaqin."
+        ],
+        "correct_order": [0, 1, 2, 3],
+        "poet": "Alisher Navoiy",
+        "collection": "Lison ut-Tayr"
+      },
+      "hint": "Har bir bayt bir-biriga mantiqan bog'liq bo'lishi kerak.",
+      "time_limit_seconds": 120,
+      "xp_reward": 20,
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 4,
+    "fields": {
+      "game": 2,
+      "title": "Navoiy — Masnaviy",
+      "difficulty": 2,
+      "question_data": {
+        "bayt_lines": [
+          "Sabr bilan izlasang, toparsan jonon yo'lin,",
+          "Sevgi yo'li qiyin, lekin go'zal o'sha yo'l.",
+          "Bir qadam tashlab, bir qadam yaqinlashasan,",
+          "Orzu qilgan baxtingni asta-sekin kashf etasan."
+        ],
+        "correct_order": [0, 1, 2, 3],
+        "poet": "Alisher Navoiy",
+        "collection": "Xamsa"
+      },
+      "hint": "Sevgi va sabr haqida yozilgan.",
+      "time_limit_seconds": 120,
+      "xp_reward": 25,
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 5,
+    "fields": {
+      "game": 3,
+      "title": "Asosiy so'zlar",
+      "difficulty": 1,
+      "question_data": {
+        "pairs": [
+          {"old": "Elchilik", "new": "Diplomatik vakolatxonasi"},
+          {"old": "Bedor", "new": "Uyqudan uyg'oq"},
+          {"old": "Ashula", "new": "Kuy va qo'shiq"},
+          {"old": "Nafosat", "new": "Go'zallik, noziklik"},
+          {"old": "Zuhd", "new": "Dunyoviy narsalardan voz kechish"}
+        ]
+      },
+      "hint": "Eski so'zning zamonaviy ma'nosini toping.",
+      "time_limit_seconds": 120,
+      "xp_reward": 10,
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "games.gamelevel",
+    "pk": 6,
+    "fields": {
+      "game": 3,
+      "title": "Adabiyot so'zlari",
+      "difficulty": 2,
+      "question_data": {
+        "pairs": [
+          {"old": "Maqola", "new": "Muhokama yoki munozara"},
+          {"old": "Raqabat", "new": "Bir xil narsa uchun kurash"},
+          {"old": "Ifrat", "new": "O'ta darajada ko'p"},
+          {"old": "Tafakkur", "new": "O'ylash, mulohaza qilish"},
+          {"old": "Ijodkor", "new": "Yangi narsa yaratuvchi"}
+        ]
+      },
+      "hint": "Adabiyot va falsafa so'zlari.",
+      "time_limit_seconds": 100,
+      "xp_reward": 12,
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 1,
+    "fields": {
+      "name": "Imlo Ustasi",
+      "badge_type": "imlo_master",
+      "description": "Imlo Minalari o'yinida 50 ta to'g'ri javob berish",
+      "icon_emoji": "✍️",
+      "required_value": 50,
+      "xp_bonus": 100
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 2,
+    "fields": {
+      "name": "G'azal Bilimdon",
+      "badge_type": "gazal_scholar",
+      "description": "G'azal Puzzle o'yinida 30 ta to'g'ri javob berish",
+      "icon_emoji": "📜",
+      "required_value": 30,
+      "xp_bonus": 100
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 3,
+    "fields": {
+      "name": "Lug'at Akademigi",
+      "badge_type": "lugat_academic",
+      "description": "Lug'at Match o'yinida 40 ta to'g'ri javob berish",
+      "icon_emoji": "📚",
+      "required_value": 40,
+      "xp_bonus": 100
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 4,
+    "fields": {
+      "name": "Combo Qirol",
+      "badge_type": "combo_king",
+      "description": "Ketma-ket 10 ta to'g'ri javob berish",
+      "icon_emoji": "👑",
+      "required_value": 10,
+      "xp_bonus": 150
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 5,
+    "fields": {
+      "name": "XP Ovchisi",
+      "badge_type": "xp_hunter",
+      "description": "Jami 1000 XP to'plash",
+      "icon_emoji": "⚡",
+      "required_value": 1000,
+      "xp_bonus": 200
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 6,
+    "fields": {
+      "name": "Tangalar Yig'uvchi",
+      "badge_type": "coin_collector",
+      "description": "Jami 500 tangani yig'ish",
+      "icon_emoji": "🪙",
+      "required_value": 500,
+      "xp_bonus": 100
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 7,
+    "fields": {
+      "name": "Kunlik O'yinchi",
+      "badge_type": "daily_player",
+      "description": "50 ta o'yin o'ynash",
+      "icon_emoji": "🎮",
+      "required_value": 50,
+      "xp_bonus": 75
+    }
+  },
+  {
+    "model": "games.badge",
+    "pk": 8,
+    "fields": {
+      "name": "Tezlik Shaytoni",
+      "badge_type": "speed_demon",
+      "description": "10 soniyada javob berish",
+      "icon_emoji": "⚡",
+      "required_value": 1,
+      "xp_bonus": 50
+    }
+  }
+]

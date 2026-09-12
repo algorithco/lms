@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load i18n_extras %}
+{% block title %}{% if editing %}{{ group.name }} — {% t "gf_edit" %}{% else %}{% t "gf_new_short" %}{% endif %} — Ona Tili & Adabiyot{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{% url 'web:group-list' %}" class="inline-flex items-center gap-1.5 text-sm text-surface-500 hover:text-brand-600 transition-colors mb-4">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            {% t "gf_back" %}
+        </a>
+        <h1 class="text-2xl font-extrabold text-surface-900">
+            {% if editing %}✏️ {{ group.name }} — {% t "gf_edit" %}{% else %}➕ {% t "gf_new" %}{% endif %}
+        </h1>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Group Name -->
+        <div class="bg-white rounded-2xl shadow-card border border-surface-100 p-6">
+            <h2 class="text-lg font-bold text-surface-900 mb-4">📋 {% t "gf_info" %}</h2>
+
+            <div class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-surface-700 mb-1.5">{% t "gf_name_label" %}</label>
+                    <input type="text" id="name" name="name" required
+                           value="{% if editing %}{{ group.name }}{% else %}{{ form_data.name|default:'' }}{% endif %}"
+                           class="w-full px-4 py-3 rounded-xl border border-surface-200 bg-white text-surface-800 placeholder-surface-400 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-sm"
+                           placeholder="{% t "gf_name_ph" %}">
+                </div>
+
+                <div>
+                    <label for="description" class="block text-sm font-semibold text-surface-700 mb-1.5">{% t "gf_desc_label" %}</label>
+                    <textarea id="description" name="description" rows="2"
+                              class="w-full px-4 py-3 rounded-xl border border-surface-200 bg-white text-surface-800 placeholder-surface-400 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-sm"
+                              placeholder="{% t "gf_desc_ph" %}">{% if editing %}{{ group.description }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Selection -->
+        <div class="bg-white rounded-2xl shadow-card border border-surface-100 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-surface-900">👥 {% t "gf_select_students" %}</h2>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-brand-600 font-medium">
+                    <input type="checkbox" id="select-all" class="rounded border-surface-300 text-brand-600 focus:ring-brand-500">
+                    {% t "gf_select_all" %}
+                </label>
+            </div>
+
+            {% if available_students %}
+            <!-- Search -->
+            <div class="mb-4">
+                <input type="text" id="student-search" placeholder="{% t "mt_search_ph" %}"
+                       class="w-full px-4 py-2.5 rounded-xl border border-surface-200 bg-surface-50 text-surface-800 placeholder-surface-400 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all text-sm">
+            </div>
+
+            <!-- Student list -->
+            <div class="max-h-96 overflow-y-auto space-y-2" id="student-list">
+                {% for student in available_students %}
+                <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 cursor-pointer transition-colors student-item">
+                    <input type="checkbox" name="students" value="{{ student.id }}"
+                           {% if group_student_ids and student.id in group_student_ids %}checked{% endif %}
+                           class="w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500 student-checkbox">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {{ student.first_name|truncatechars:1 }}{{ student.last_name|truncatechars:1 }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-surface-800 text-sm truncate">{{ student.get_full_name }}</p>
+                        <p class="text-xs text-surface-500 truncate">{{ student.email }}</p>
+                    </div>
+                    <span class="text-xs text-surface-400 student-status"></span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <!-- Selected count -->
+            <div class="mt-3 text-sm text-surface-500" id="selected-count">
+                <span id="count-num">0</span> {% t "gf_selected_post" %}
+            </div>
+            {% else %}
+            <p class="text-surface-500 text-center py-8">{% t "gf_no_students" %}</p>
+            {% endif %}
+        </div>
+
+        <!-- Submit -->
+        <div class="flex gap-3">
+            <button type="submit"
+                    class="flex-1 py-3 px-6 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md hover:shadow-glow transition-all duration-200">
+                {% if editing %}💾 {% t "save" %}{% else %}✅ {% t "gf_create" %}{% endif %}
+            </button>
+            <a href="{% url 'web:group-list' %}"
+               class="py-3 px-6 bg-surface-100 hover:bg-surface-200 text-surface-700 font-semibold rounded-xl transition-all duration-200">
+                {% t "cancel" %}
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('student-search');
+    const selectAll = document.getElementById('select-all');
+    const items = document.querySelectorAll('.student-item');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    const countEl = document.getElementById('count-num');
+
+    function updateCount() {
+        const checked = document.querySelectorAll('.student-checkbox:checked').length;
+        countEl.textContent = checked;
+    }
+
+    // Search filter
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    // Select all
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => {
+                const item = cb.closest('.student-item');
+                if (item.style.display !== 'none') {
+                    cb.checked = selectAll.checked;
+                }
+            });
+            updateCount();
+        });
+    }
+
+    // Update count on change
+    checkboxes.forEach(cb => cb.addEventListener('change', updateCount));
+    updateCount();
+});
+</script>
+{% endblock %}
