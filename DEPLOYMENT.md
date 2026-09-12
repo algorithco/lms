@@ -198,7 +198,7 @@ docker run --rm -v lms-platform-prod_media_volume:/media -v /opt/backups:/backup
 | `CSRF_TRUSTED_ORIGINS must be set...` | `DJANGO_CSRF_TRUSTED_ORIGINS` ga `https://domen` qo'shing |
 | CSRF 403 (form POST) | `DJANGO_CSRF_TRUSTED_ORIGINS` da domen borligini tekshiring |
 | `DB_PASSWORD must be set...` | Compose `.env.prod` da `DB_PASSWORD` yo'q |
-| 502 Bad Gateway | `docker compose logs web` — daphne ishga tushganini tekshiring |
+| 502 Bad Gateway | `docker compose logs web` — daphne ishga tushganini tekshiring. Agar web recreate'dan keyin 502 to'xtamasa — nginx eski upstream IP'ga yopishgan (1.29+ da `set $upstream_web` + `resolver 127.0.0.11` avtomatik tuzatadi; vaqtincha: `exec nginx nginx -s reload`) |
 | WebSocket ulanmayapti | Nginx `Upgrade` headerlari `nginx.conf` da borligini tekshiring |
 | Bot ishlamayapti | `TELEGRAM_BOT_TOKEN` to'g'riligi; `docker compose logs bot` |
 | Sertifikat muddati | `certbot` xizmati har 12 soatda yangilaydi; nginx config'da `renew` joyi bor |
