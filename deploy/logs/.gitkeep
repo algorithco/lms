@@ -1,0 +1,2 @@
+# Host fail2ban tails nginx file logs here (mounted from the container).
+# Log files themselves are git-ignored (see .gitignore deploy/logs/*.log).

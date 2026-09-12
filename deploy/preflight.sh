@@ -29,9 +29,11 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null
   || err "docker compose config failed"
 
 say "4/6 nginx templates present"
+test -f deploy/nginx/nginx-main.conf || err "missing nginx-main.conf (http-level zones)"
 test -f deploy/nginx/nginx-http.conf || err "missing nginx-http.conf"
 test -f deploy/nginx/nginx-ssl.conf || err "missing nginx-ssl.conf"
 grep -q "__DOMAIN__" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing __DOMAIN__ placeholder"
+grep -q "limit_req_zone" deploy/nginx/nginx-main.conf || err "nginx-main.conf missing limit_req zones"
 
 say "5/6 required CLIs"
 command -v docker >/dev/null || err "docker not installed"

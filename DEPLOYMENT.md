@@ -213,6 +213,40 @@ docker run --rm -v lms-platform-prod_media_volume:/media -v /opt/backups:/backup
 - `PORT` o'zgaruvchisi orqali daphne porti boshqariladi.
 - PostgreSQL va Redis portlari tashqariga **ochilmaydi** (faqat `expose` — ichki tarmoq).
 
+## 🚦 8b. Rate limiting + fail2ban (VPS)
+
+Nginx darajasida (zonalar `deploy/nginx/nginx-main.conf` da, qoidalar
+`nginx-ssl.conf` / `nginx-http.conf` da):
+
+| Zona | Qamrov | Limit |
+|---|---|---|
+| `login` | `/api/auth/*`, `/login`, `/register`, `/password-reset*`, `/tma/api/auth/`, Telegram auth (status-polling'dan tashqari) | 10 req/min + burst 5 → keyin **429** |
+| `admin` | `admin.*` host `location /` (static/media'dan tashqari) | 30 req/min + burst 10 → keyin **429** |
+
+- Umumiy `/` da zona **yo'q** (sinf bitta NAT IP ortida bo'lishi mumkin —
+  umumiy limit sinfni o'ziga DoS qilardi; auth user'lar DRF'da user-bo'yicha
+  cheklangan: anon 30/min, user 100/min).
+- Telegram status-polling (har 2s) ataylab cheklanmagan (token unguessable).
+- Muhim: Cloudflare proxy ON bo'lgani uchun nginx real IP'ni
+  `CF-Connecting-IP` dan oladi (`set_real_ip_from` ro'yxati) — bo'lmasa barcha
+  limitlar Cloudflare IP'lariga yozilib, CDN ban yeydi.
+- Rad etishlar 429 qaytaradi va `deploy/logs/error.log` ga `limiting
+  requests` deb yoziladi — host fail2ban shuni o'qiydi.
+
+VPS'da yoqish:
+
+```bash
+sudo apt install fail2ban
+sudo cp deploy/fail2ban/jail.local /etc/fail2ban/jail.local
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status nginx-limit-req
+./deploy/test-ratelimit.sh https://grandec.uz https://admin.grandec.uz
+# ADMIN_PASS='...' ./deploy/test-ratelimit.sh ...  # staff yo'lini tekshirish
+```
+
+Jonli nginx:1.27 dagi o'lchov (25 login burst): **19×429 / 6 o'tdi**,
+general 10/10 cheklanmadi, admin auth'siz 401.
+
 ## ⚙️ 9. Telegram bot: webhook rejim (ixtiyoriy)
 
 Compose'da bot **long polling** rejimda ishlaydi (`python manage.py run_bot`) —

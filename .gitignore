@@ -64,3 +64,6 @@ deploy/nginx/nginx.conf
 # VPS-side admin Basic Auth credential (created by setup-admin-auth.sh).
 # The .example template stays tracked; the real file must never be committed.
 deploy/secrets/htpasswd-admin
+
+# Host fail2ban log tail (mounted from nginx). Directory stays tracked.
+deploy/logs/*.log
