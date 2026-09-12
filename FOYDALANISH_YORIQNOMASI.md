@@ -2,7 +2,7 @@
 
 > **Platforma**: AI-powered o'qish platformasi (Web + Telegram Bot + Real-time Arena)
 > **Versiya**: v1.1.1 | **Muallif**: Komiljon Roziyev
-> **Repo**: https://github.com/rozievkomiljon/ona-tili
+> **Repo**: https://github.com/algorithco/lms
 
 ---
 
@@ -78,14 +78,14 @@ su - deploy
 ### 2.4. Loyihani klonlash:
 ```bash
 cd /opt
-sudo git clone https://github.com/rozievkomiljon/ona-tili.git lms
+sudo git clone https://github.com/algorithco/lms.git lms
 sudo chown -R deploy:deploy /opt/lms
 cd /opt/lms
 ```
 
 > Repo **private** bo'lsa: GitHub'da `Settings → Developer settings → Personal access tokens → Fine-grained tokens` orqali token yarating va clone paytida undan foydalaning:
 > ```bash
-> git clone https://TOKEN@github.com/rozievkomiljon/ona-tili.git lms
+> git clone https://TOKEN@github.com/algorithco/lms.git lms
 > ```
 
 ### 2.5. Kerakli papkalar va ruxsatlar:
@@ -658,7 +658,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 - **Telegram**: @rozievkomiljon
 - **Instagram**: https://www.instagram.com/rozievkomiljon/
 - **Email**: kruziyev0@gmail.com
-- **Repo**: https://github.com/rozievkomiljon/ona-tili
+- **Repo**: https://github.com/algorithco/lms
 
 ---
 
