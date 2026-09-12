@@ -1,0 +1,115 @@
+# ============================================================================
+# LMS Platform — Auto-deploy to VPS (grandec.uz + admin.grandec.uz)
+#
+# Triggers: build.yml success on main + manual (tag input for rollback).
+# Strategy: VPS pulls prebuilt ghcr.io/algorithco/lms:<tag> (no build on VPS).
+#
+# Required Actions secrets (Settings → Secrets → Actions, environment
+# `production` — values NEVER appear in logs, GitHub masks them automatically):
+#   VPS_HOST         VPS IPv4 (direct IP, not via Cloudflare proxy)
+#   VPS_USER         e.g. deploy
+#   VPS_SSH_KEY      private OpenSSH key for VPS_USER (no passphrase)
+#   VPS_SSH_PORT     e.g. 22 (optional)
+#   GHCR_READ_TOKEN  fine-grained PAT, scope read:packages on algorithco/lms
+#                    (used ONLY at deploy runtime; rotated periodically).
+#   GHCR_USER        PAT owner username (docker login username).
+#
+# GHCR auth design (gap #1 — private image pull):
+#   - Login happens INSIDE the SSH session with a temp DOCKER_CONFIG dir, so
+#     credentials never persist in /root/.docker/config.json on the VPS.
+#   - `set +x` + trap-based `docker logout` + `rm -rf $DOCKER_CONFIG` guarantee
+#     the token is not echoed and not left on disk even on failure.
+#   - PAT is least-privilege (read:packages only). Alternative (not used):
+#     passing GITHUB_TOKEN couples the deploy to one workflow run's lifetime.
+# ============================================================================
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (e.g. sha-abc1234 or latest; rollback = previous sha)"
+        required: false
+        default: latest
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: algorithco/lms
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # Must match build.yml: type=sha,prefix=sha-,format=short (= 7 hex).
+            SHORT_SHA="$(echo '${{ github.event.workflow_run.head_sha }}' | cut -c1-7)"
+            echo "value=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+            # If short/full mismatch ever fails a pull, redeploy via
+            # workflow_dispatch with tag=latest (movable, always exists).
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          IMS_IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          envs: IMS_IMAGE_TAG,GHCR_READ_TOKEN,GHCR_USER
+          script_stop: true
+          script: |
+            set -euo pipefail
+            set +x  # never echo secrets, even on error traces
+            cd /opt/lms
+
+            # --- GHCR login: temp DOCKER_CONFIG only (nothing on disk) ---
+            IMS_IMAGE_TAG="${IMS_IMAGE_TAG:-latest}"
+            REGISTRY="${REGISTRY:-ghcr.io}"
+            IMAGE_NAME="${IMAGE_NAME:-algorithco/lms}"
+            export DOCKER_CONFIG="$(mktemp -d)"
+            cleanup() { docker logout "$REGISTRY" >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"; }
+            trap cleanup EXIT
+            echo "$GHCR_READ_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
+
+            ./deploy/preflight.sh
+            docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+
+            echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
+
+            for i in $(seq 1 30); do
+              if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web curl -fsS http://127.0.0.1:8000/healthz/ >/dev/null 2>&1; then break; fi
+              sleep 4
+              if [ "$i" = "30" ]; then docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 web; exit 1; fi
+            done
+            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check
+            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy
+            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py ai_smoke_test --validate-models || true
+            # Public health (both hosts; admin host exists from Phase 3):
+            curl -fsS https://grandec.uz/healthz/; echo
+            curl -fsS https://admin.grandec.uz/healthz/; echo
+            docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+            # NOTE: rollback = workflow_dispatch with tag=<previous sha from .last_good_tag>

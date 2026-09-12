@@ -21,6 +21,10 @@ services:
   # Django (ASGI — HTTP + WebSocket via daphne)
   # --------------------------------------------------------------------------
   web:
+    # GHCR image for pull-deploys (Phase 4). Local `up -d --build` still works:
+    # compose builds `.` and tags it with this name. Overridden per-deploy via
+    # IMS_IMAGE_TAG (e.g. sha-abc1234); default `latest`.
+    image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
     restart: unless-stopped
     logging: *default-logging
@@ -101,6 +105,7 @@ services:
   #   bu yerda faqat umumiy pool sozlamalari.
   # --------------------------------------------------------------------------
   celery-worker:
+    image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
     restart: unless-stopped
     logging: *default-logging
@@ -128,6 +133,7 @@ services:
   # Celery beat (periodic tasks: timeout checks, daily maintenance, ...)
   # --------------------------------------------------------------------------
   celery-beat:
+    image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
     restart: unless-stopped
     logging: *default-logging
@@ -155,6 +161,7 @@ services:
   # Telegram bot (long polling — production-simple; webhook optional)
   # --------------------------------------------------------------------------
   bot:
+    image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
     restart: unless-stopped
     logging: *default-logging

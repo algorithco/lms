@@ -48,7 +48,7 @@ from the result page (`/essays/result/<id>/`):
 ## 🚀 Production Update (zero-downtime)
 
 ```bash
-cd /opt/ona-tili && git pull origin main
+cd /opt/lms && git pull origin main
 docker compose --env-file .env.prod -f docker-compose.prod.yml build
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 # entrypoint runs migrate + collectstatic on the web container
@@ -108,7 +108,7 @@ Rollback: `git checkout v1.1.1 && docker compose ... up -d --build`
 ## 🚀 Production Update
 
 ```bash
-cd /opt/ona-tili && git pull origin main
+cd /opt/lms && git pull origin main
 docker compose --env-file .env.prod -f docker-compose.prod.yml build
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec web \

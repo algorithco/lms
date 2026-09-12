@@ -106,7 +106,7 @@ nano .env.prod     # ⚠️ BARCHA qiymatlarni to'ldiring (quyida ko'ring)
 ## 🔐 3. SSL sertifikat olish (Let's Encrypt)
 
 ```bash
-cd /opt/lms_platform
+cd /opt/lms
 
 # Domen + email bilan skriptni ishga tushiring
 ./deploy/init-letsencrypt.sh example.com admin@example.com
@@ -130,7 +130,7 @@ Skript nima qiladi:
 ## ▶️ 4. Stackni boshqarish
 
 ```bash
-cd /opt/lms_platform
+cd /opt/lms
 
 # Holat
 docker compose -f docker-compose.prod.yml ps
@@ -186,7 +186,7 @@ docker run --rm -v lms-platform-prod_media_volume:/media -v /opt/backups:/backup
     alpine tar czf /backup/media_$(date +%F).tar.gz -C /media .
 
 # Cron'ga qo'shish (har kuni soat 4:00):
-# 0 4 * * * cd /opt/lms_platform && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U lms_user lms_platform | gzip > /opt/backups/lms_$(date +\%F).sql.gz
+# 0 4 * * * cd /opt/lms && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U lms_user lms_platform | gzip > /opt/backups/lms_$(date +\%F).sql.gz
 ```
 
 ## 🛠️ 7. Muammolar (troubleshooting)
