@@ -189,7 +189,10 @@ services:
   # Nginx (reverse proxy + HTTPS termination + static/media)
   # --------------------------------------------------------------------------
   nginx:
-    image: nginx:1.27-alpine
+    # 1.29-alpine = OpenSSL 3.5+ (REQUIRED: Cloudflare edge offers ONLY the
+    # post-quantum group X25519MLKEM768 to origins; OpenSSL <3.5 cannot
+    # negotiate it -> Cloudflare 525. Do NOT downgrade to 1.27.
+    image: nginx:1.29-alpine
     restart: unless-stopped
     logging: *default-logging
     ports:
