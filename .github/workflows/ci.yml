@@ -63,7 +63,14 @@ jobs:
         run: |
           mypy apps/ --ignore-missing-imports || true
 
-      - name: Run tests
+      - name: Collect static files (before tests — manifest storage needs them)
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+          SECRET_KEY: test-secret-key
+        run: |
+          python manage.py collectstatic --noinput
+
+      - name: Run tests (canonical package only — root legacy scripts excluded)
         env:
           DJANGO_SETTINGS_MODULE: config.settings.development
           SECRET_KEY: test-secret-key
@@ -72,11 +79,4 @@ jobs:
           CELERY_TASK_ALWAYS_EAGER: "True"
         run: |
           python manage.py check
-          python manage.py test --verbosity=2
-
-      - name: Collect static files
-        env:
-          DJANGO_SETTINGS_MODULE: config.settings.development
-          SECRET_KEY: test-secret-key
-        run: |
-          python manage.py collectstatic --noinput || true
+          python manage.py test tests --verbosity=2
