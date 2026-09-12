@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# LMS Platform — cert renew + nginx reload (host cron)
-# Why: the `certbot` container renews files every 12h but nginx only loads
-# certs at startup/reload. Without this, renewed certs sit unused until the
-# next reboot/redeploy (outage at ~90d).
+# LMS Platform — cert renew + nginx reload (RETIRED for grandec.uz)
+# Cloudflare Origin certificates (15y) do not renew — this cron is NOT
+# needed. Kept only for Let's Encrypt domains (compose profile legacy-le).
 #
-# Host crontab (twice daily is the Let's Encrypt recommendation):
+# Host crontab (LE domains only):
 #   0 3,15 * * * cd /opt/lms && ./deploy/renew-reload.sh >>/var/log/lms-renew.log 2>&1
 # ============================================================================
 set -euo pipefail

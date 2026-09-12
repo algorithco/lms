@@ -10,7 +10,7 @@ fail=0
 say() { echo ">>> $*"; }
 err() { echo "!!! $*" >&2; fail=1; }
 
-say "1/6 .env.prod exists + perms"
+say "1/8 .env.prod exists + perms"
 test -f .env.prod || { err "missing .env.prod (cp .env.prod.example .env.prod)"; }
 if test -f .env.prod; then
   ls -l .env.prod
@@ -18,27 +18,28 @@ if test -f .env.prod; then
   test "$perms" = "600" || err ".env.prod perms=$perms, want 600 (chmod 600 .env.prod)"
 fi
 
-say "2/6 no example.com placeholders left"
+say "2/8 no example.com placeholders left"
 if grep -q "example.com\|change-me" .env.prod 2>/dev/null; then
   grep -n "example.com\|change-me" .env.prod || true
   err "replace all example.com/change-me placeholders in .env.prod"
 fi
 
-say "3/6 compose config validates (DB_PASSWORD interpolation, YAML)"
+say "3/8 compose config validates (DB_PASSWORD interpolation, YAML)"
 docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null \
   || err "docker compose config failed"
 
-say "4/6 nginx templates present"
+say "4/8 nginx templates present"
 test -f deploy/nginx/nginx-main.conf || err "missing nginx-main.conf (http-level zones)"
 test -f deploy/nginx/nginx-http.conf || err "missing nginx-http.conf"
 test -f deploy/nginx/nginx-ssl.conf || err "missing nginx-ssl.conf"
-grep -q "__DOMAIN__" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing __DOMAIN__ placeholder"
+grep -q "grandec.uz" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing grandec.uz server names"
 grep -q "limit_req_zone" deploy/nginx/nginx-main.conf || err "nginx-main.conf missing limit_req zones"
+grep -q "origin.pem" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf not wired to Origin cert"
 
-say "5/6 required CLIs"
+say "5/8 required CLIs"
 command -v docker >/dev/null || err "docker not installed"
 
-say "6/7 admin Basic Auth credential (fail-closed)"
+say "6/8 admin Basic Auth credential (fail-closed)"
 if test -f deploy/secrets/htpasswd-admin; then
   aperms=$(stat -c %a deploy/secrets/htpasswd-admin 2>/dev/null || stat -f %Lp deploy/secrets/htpasswd-admin 2>/dev/null || echo "?")
   test "$aperms" = "600" || err "htpasswd-admin perms=$aperms, want 600"
@@ -49,7 +50,17 @@ else
   err "missing deploy/secrets/htpasswd-admin — run ./deploy/setup-admin-auth.sh on the VPS"
 fi
 
-say "7/7 disk + ports"
+say "7/8 Origin TLS files present + 600 (fail-closed)"
+for f in deploy/secrets/origin.pem deploy/secrets/origin.key; do
+  if test -f "$f"; then
+    operms=$(stat -c %a "$f" 2>/dev/null || stat -f %Lp "$f" 2>/dev/null || echo "?")
+    test "$operms" = "600" || err "$f perms=$operms, want 600"
+  else
+    err "missing $f — place Cloudflare Origin files on the VPS (chmod 600)"
+  fi
+done
+
+say "8/8 disk + ports"
 df -h / | tail -1
 (ss -tlnp 2>/dev/null | grep -E ':80|:443' || echo "(no 80/443 listener yet — ok pre-install)")
 

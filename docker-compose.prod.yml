@@ -202,6 +202,10 @@ services:
       # Admin Basic Auth credential (VPS-side secret from setup-admin-auth.sh).
       # Missing file fails fast at `up` (fail-closed) — see preflight.sh 7/7.
       - ./deploy/secrets/htpasswd-admin:/etc/nginx/.htpasswd-admin:ro
+      # Cloudflare Origin TLS (VPS-side secrets, chmod 600, git-ignored).
+      # Missing files fail fast at nginx start (no silent HTTP downgrade).
+      - ./deploy/secrets/origin.pem:/etc/nginx/secrets/origin.pem:ro
+      - ./deploy/secrets/origin.key:/etc/nginx/secrets/origin.key:ro
       # File logs for host fail2ban (alongside `docker logs` via stderr).
       - ./deploy/logs:/var/log/nginx
       - static_volume:/app/staticfiles:ro
@@ -219,10 +223,14 @@ services:
       retries: 3
 
   # --------------------------------------------------------------------------
-  # Let's Encrypt (certbot) — one-shot issuance, renewal loop
+  # Let's Encrypt (certbot) — RETIRED for grandec.uz (Cloudflare Origin cert).
+  # Kept dormant for other domains: profile `legacy-le` means default
+  # `up -d` / deploy never starts it. Run explicitly only if needed:
+  #   docker compose --profile legacy-le up -d certbot
   # --------------------------------------------------------------------------
   certbot:
     image: certbot/certbot:latest
+    profiles: ["legacy-le"]
     restart: unless-stopped
     logging: *default-logging
     volumes:

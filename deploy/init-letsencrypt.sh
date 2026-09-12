@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================================
-# LMS Platform — Let's Encrypt bootstrap
+# LMS Platform — Let's Encrypt bootstrap (RETIRED for grandec.uz)
 #
-# Usage:
+# grandec.uz uses a Cloudflare Origin certificate (15y, VPS-side secret at
+# deploy/secrets/origin.{pem,key}) — this script is NOT used there and must
+# NOT be run (it would overwrite deploy/nginx/nginx.conf). Kept only for
+# other domains / reference. Use --profile legacy-le to start certbot.
+#
+# Original usage (other domains only):
 #   ./deploy/init-letsencrypt.sh example.com admin@example.com [--staging]
 #
 # What it does:
