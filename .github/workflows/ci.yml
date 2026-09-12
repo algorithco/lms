@@ -71,8 +71,11 @@ jobs:
           python manage.py collectstatic --noinput
 
       - name: Run tests (canonical package only — root legacy scripts excluded)
+        # config.settings.test = fast MD5 hasher + throttles OFF. Development
+        # settings here caused PBKDF2 slowness (~188s) and LocMem-throttle
+        # 429s on login -> cascading 401s across the 311-test suite.
         env:
-          DJANGO_SETTINGS_MODULE: config.settings.development
+          DJANGO_SETTINGS_MODULE: config.settings.test
           SECRET_KEY: test-secret-key
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
           CELERY_BROKER_URL: redis://localhost:6379/0
