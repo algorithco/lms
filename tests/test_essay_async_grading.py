@@ -619,3 +619,92 @@ class LLMClientTimeoutTests(AsyncGradingBaseTestCase):
             _get_llm_client(timeout=45.0)
 
         self.assertEqual(mock_openai.call_args.kwargs["timeout"].read, 45)
+
+
+class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
+    """TMA essay-start existing-submission tanlovi deterministik bo'lishi shart.
+
+    Regression: view avval Meta ordering (-updated_at) bo'yicha `.first()`
+    olardi. Autosave har 2 soniyada updated_at'ni yangilagani uchun muddati
+    o'tgan submission ro'yxatda yuqoriga chiqib, hali ishlatish mumkin
+    bo'lgan submission turganida ham 410 "Vaqt tugagan" qaytarardi.
+    Endi muddati o'tmagan submission har doim ustun turadi.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from datetime import timedelta
+
+        from rest_framework.test import APIClient
+
+        self.api = APIClient()
+        self.api.force_authenticate(user=self.student)
+        self.start_url = reverse(
+            "telegram_app:essay-start", kwargs={"topic_id": self.topic.id},
+        )
+        self._expired_at = timezone.now() - timedelta(
+            minutes=self.topic.time_limit_minutes + 1,
+        )
+
+    def _make_verified(self, verified_at, essay_text="matn"):
+        return EssaySubmission.objects.create(
+            student=self.student,
+            topic=self.topic,
+            status=EssaySubmission.Status.DRAFT,
+            essay_text=essay_text,
+            word_count=50,
+            password_verified_at=verified_at,
+        )
+
+    def test_active_preferred_over_later_touched_expired(self) -> None:
+        """Faol submission qaytadi — expired autosave bilan yangilangan bo'lsa ham."""
+        from datetime import timedelta
+
+        active = self._make_verified(timezone.now(), essay_text="faol esse")
+        expired = self._make_verified(self._expired_at, essay_text="eski esse")
+        # Autosave expired'ga keyinroq tekkanini kafolatlash (bir xil
+        # mikrosoniya ichida save() bo'lsa updated_at teng bo'lib qolishi
+        # mumkin — queryset.update bilan aniq keyingi vaqt qo'yamiz).
+        EssaySubmission.objects.filter(id=expired.id).update(
+            essay_text="autosave teginishi",
+            updated_at=timezone.now() + timedelta(seconds=5),
+        )
+        # Shart: expired ro'yxatda (-updated_at bo'yicha) yuqorida.
+        newest_first = list(
+            EssaySubmission.objects.filter(
+                student=self.student, topic=self.topic,
+                password_verified_at__isnull=False,
+            ).values_list("id", flat=True)
+        )
+        self.assertEqual(newest_first[0], expired.id)
+
+        resp = self.api.post(self.start_url)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["submission_id"], active.id)
+
+    def test_all_expired_returns_410_with_latest_id(self) -> None:
+        """Hammasi muddati o'tgan bo'lsa — 410 + eng so'nggi expired id."""
+        from datetime import timedelta
+
+        old = self._make_verified(
+            self._expired_at - timedelta(hours=1), essay_text="juda eski",
+        )
+        latest = self._make_verified(self._expired_at, essay_text="so'nggi eski")
+
+        resp = self.api.post(self.start_url)
+
+        self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp.json()["submission_id"], latest.id)
+        self.assertGreater(old.id, 0)  # fixture ishlatilgani uchun lint o'chmasin
+
+    def test_no_verified_submission_creates_new(self) -> None:
+        """Verified submission bo'lmasa — yangi DRAFT yaratiladi."""
+        resp = self.api.post(self.start_url)
+
+        self.assertEqual(resp.status_code, 200)
+        new_id = resp.json()["submission_id"]
+        self.assertNotEqual(new_id, self.submission.id)
+        created = EssaySubmission.objects.get(id=new_id)
+        self.assertEqual(created.status, EssaySubmission.Status.DRAFT)
+        self.assertIsNotNone(created.password_verified_at)

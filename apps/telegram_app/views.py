@@ -422,15 +422,36 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
         if not topic.check_password(entered):
             return Response({"error": "Noto'g'ri parol"}, status=403)
 
-    # Check existing submission
-    existing = EssaySubmission.objects.filter(
-        student=request.user, topic=topic,
-        password_verified_at__isnull=False,
-    ).first()
+    # Check existing submission — prefer a still-usable (non-expired) one.
+    # Rationale: several verified submissions can exist per topic (a new one
+    # is created after the previous timer expires). Picking Meta ordering
+    # (-updated_at) could return an expired row touched later by autosave
+    # while a usable submission exists → false 410 "Vaqt tugagan".
+    candidates = (
+        EssaySubmission.objects.filter(
+            student=request.user, topic=topic,
+            password_verified_at__isnull=False,
+        )
+        .order_by("-password_verified_at", "-id")
+    )
+    existing = None
+    latest_expired = None
+    for sub in candidates:
+        if not sub.is_expired:
+            existing = sub
+            break
+        if latest_expired is None:
+            latest_expired = sub
+
+    if existing is None:
+        if latest_expired is not None:
+            return Response(
+                {"error": "Vaqt tugagan", "submission_id": latest_expired.id},
+                status=410,
+            )
+        existing = None  # no verified submission yet → create below
 
     if existing:
-        if existing.is_expired:
-            return Response({"error": "Vaqt tugagan", "submission_id": existing.id}, status=410)
         return Response({
             "submission_id": existing.id,
             "topic": {
