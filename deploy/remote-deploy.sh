@@ -46,36 +46,41 @@ echo "$GHCR_READ_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-st
 sed -e "s/__DOMAIN__/grandec.uz/g" deploy/nginx/nginx-ssl.conf > deploy/nginx/nginx.conf
 
 ./deploy/preflight.sh
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+# NOTE: every `docker compose` call ends with `< /dev/null`. This script arrives
+# via `ssh ... 'bash -s'` (stdin = the script itself) and `up`/`exec` would
+# otherwise SLURP the remaining script as their stdin — bash then sees EOF
+# and exits 0, silently skipping everything below (heal/reload/tag/checks).
+# This exact bug shipped green deploys that skipped half the procedure.
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot < /dev/null
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d < /dev/null
 
 # --- Bind-mount inode heal (one-time self-repair): if a past deploy swapped
 # a mounted file's inode (mv/install), the container still sees the orphaned
 # old inode. Compare host vs container inode; force one recreate to re-mount.
 host_inode="$(stat -c %i deploy/nginx/nginx-main.conf)"
-cont_inode="$(docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx stat -c %i /etc/nginx/nginx.conf 2>/dev/null || echo drift)"
+cont_inode="$(docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx stat -c %i /etc/nginx/nginx.conf < /dev/null 2>/dev/null || echo drift)"
 echo ">>> inodes: host=$host_inode container=$cont_inode"
 if [ "$host_inode" != "$cont_inode" ]; then
   echo ">>> nginx mount drift (host=$host_inode container=$cont_inode) — force-recreating once"
-  docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --force-recreate nginx
+  docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --force-recreate nginx < /dev/null
 fi
 
 # --- Reload nginx AFTER up: picks up regenerated conf + fresh upstream IPs.
 # (up -d never recreates nginx for bind-mounted content changes, and plain
 # proxy_pass would pin the old web IP forever.) Zero-downtime by design. ---
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -s reload
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -s reload < /dev/null
 
 echo ">>> writing tag [$IMS_IMAGE_TAG] (pwd=$(pwd))"
 echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
 
 for i in $(seq 1 30); do
-  if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web curl -fsS http://127.0.0.1:8000/healthz/ >/dev/null 2>&1; then break; fi
+  if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web curl -fsS http://127.0.0.1:8000/healthz/ < /dev/null >/dev/null 2>&1; then break; fi
   sleep 4
   if [ "$i" = "30" ]; then docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 web; exit 1; fi
 done
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py ai_smoke_test --validate-models || true
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check < /dev/null
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy < /dev/null
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py ai_smoke_test --validate-models < /dev/null || true
 # Public health: main host must return 200; admin host sits behind
 # Basic Auth by design, so 401 means nginx + auth gate are up
 # (the app itself was already proven healthy via 127.0.0.1 above).
