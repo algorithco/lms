@@ -18,6 +18,7 @@
 - [ ] No secrets committed (`.env`, `.env.prod`, `*.pem`, `*.key`, `htpasswd-admin`)
 - [ ] Migrations included if models changed (`manage.py makemigrations`)
 - [ ] Docs updated (`README.md` / `DEPLOYMENT.md` / `RELEASE_NOTES.md` if needed)
+- [ ] Add `automerge` label if it should merge itself when green (no `CHANGES_REQUESTED`, checks pass)
 
 ## Screenshots / evidence
 

@@ -17,10 +17,24 @@ gh pr create --fill
 
 Merge only when:
 
-1. CI (`test` job) + Security (`gitleaks`, `pip-audit`, `bandit`) are green
+1. CI (`test` job) + Security (`security` job) are green
 2. `CODEOWNERS` approval given, conversations resolved
 3. Branch is up to date with `main`
 4. Squash-merge, delete the branch after merge
+
+## Automerge (no waiting)
+
+Add the `automerge` label and walk away — `.github/workflows/automerge.yml`
+squash-merges + deletes the branch as soon as all gates pass:
+
+- base `main`, not draft, no conflicts, no unresolved `CHANGES_REQUESTED`
+- checks `test` + `security` green on the head SHA
+- your own PRs: your label counts as approval
+- Dependabot PRs: still need 1 human approval first, then they merge themselves
+
+Remove the label any time to stop it. Native GitHub auto-merge is unavailable
+here (needs branch protection = Pro plan), so this workflow is the replacement —
+see [`.github/BRANCH_PROTECTION.md`](./BRANCH_PROTECTION.md).
 
 ## Local guard
 

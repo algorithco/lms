@@ -1,0 +1,107 @@
+# Automerge — squash-merge labeled PRs when quality gates pass.
+#
+# WHY NOT NATIVE AUTO-MERGE:
+# Native auto-merge needs branch protection on main, which needs Pro
+# (private repo on Free plan -> API 403, verified 2026-09-13; repo flag
+# allow_auto_merge stays false). This workflow enforces the same gates in
+# Actions, so it works on any plan. See .github/BRANCH_PROTECTION.md.
+#
+# RULES (all must hold, otherwise the PR is left alone):
+#   base == main, label `automerge`, not draft, open
+#   author is repo owner or dependabot[bot]
+#   checks `test` + `security` == success on the head SHA
+#   no unresolved CHANGES_REQUESTED (latest review per user wins)
+#   dependabot PRs additionally need 1 human APPROVED review
+#   mergeable == MERGEABLE (no conflicts)
+# Then: squash merge + delete head branch.
+#
+# SECURITY: uses pull_request_target (runs BASE code, never executes PR code —
+# only GitHub API reads + merge). Safe for fork/dependabot PRs.
+
+name: Automerge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted]
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Merge eligible PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          OWNER: hamroqulovv
+        run: |
+          set -euo pipefail
+
+          prs=$(gh pr list --repo "$REPO" --state open --base main \
+            --label automerge --json number --jq '.[].number')
+          [ -z "$prs" ] && { echo "No labeled PRs."; exit 0; }
+
+          for PR in $prs; do
+            echo "=== PR #$PR ==="
+            info=$(gh pr view "$PR" --repo "$REPO" --json \
+              isDraft,author,headRefOid,mergeable,mergeStateStatus,reviewDecision)
+
+            draft=$(echo "$info" | jq -r .isDraft)
+            author=$(echo "$info" | jq -r .author.login)
+            sha=$(echo "$info" | jq -r .headRefOid)
+            mergeable=$(echo "$info" | jq -r .mergeable)
+
+            [ "$draft" = "true" ] && { echo "skip: draft"; continue; }
+            if [ "$author" != "$OWNER" ] && [ "$author" != "dependabot[bot]" ]; then
+              echo "skip: author $author not in allowlist"; continue
+            fi
+            if [ "$mergeable" != "MERGEABLE" ]; then
+              echo "skip: mergeable=$mergeable (conflict or computing)"; continue
+            fi
+
+            # Reviews: latest state per user (API returns oldest-first);
+            # block on unresolved change requests.
+            reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+              --jq '[.[] | {user: .user.login, state: .state, at: .submitted_at}]')
+            latest=$(echo "$reviews" | jq '
+              sort_by(.at) | group_by(.user) | map(max_by(.at))')
+            if echo "$latest" | jq -e '
+              map(select(.state=="CHANGES_REQUESTED")) | length > 0
+            ' >/dev/null; then
+              echo "skip: unresolved CHANGES_REQUESTED"; continue
+            fi
+
+            # Dependabot PRs need 1 human approval (owner's own PRs: label == approval).
+            if [ "$author" = "dependabot[bot]" ]; then
+              if ! echo "$latest" | jq -e '
+                map(select(.state=="APPROVED" and .user!="dependabot[bot]")) | length > 0
+              ' >/dev/null; then
+                echo "skip: dependabot PR needs human approval"; continue
+              fi
+            fi
+
+            # Required checks on the head SHA must both be success.
+            checks=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
+              --jq '[.check_runs[] | select(.name=="test" or .name=="security")
+                     | {name, status, conclusion}]')
+            if ! echo "$checks" | jq -e '
+              length == 2 and all(.status=="completed" and .conclusion=="success")
+            ' >/dev/null; then
+              echo "skip: checks not green:"; echo "$checks"; continue
+            fi
+
+            echo "MERGE: #$PR (author=$author sha=$sha)"
+            gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
+          done
