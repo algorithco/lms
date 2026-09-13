@@ -67,51 +67,31 @@ jobs:
             # workflow_dispatch with tag=latest (movable, always exists).
           fi
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
+      - name: Deploy over SSH (native OpenSSH)
+        # No third-party SSH action: appleboy/drone-ssh cannot parse modern
+        # OpenSSH-format ed25519 keys ("ssh: no key found"). The runner's own
+        # client handles every format. Remote procedure is versioned in
+        # deploy/remote-deploy.sh (reviewed via PR like any other code).
         env:
           IMS_IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
           GHCR_USER: ${{ secrets.GHCR_USER }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT }}
-          envs: IMS_IMAGE_TAG,GHCR_READ_TOKEN,GHCR_USER
-          script: |
-            set -euo pipefail
-            set +x  # never echo secrets, even on error traces
-            cd /opt/lms
-
-            # --- GHCR login: temp DOCKER_CONFIG only (nothing on disk) ---
-            IMS_IMAGE_TAG="${IMS_IMAGE_TAG:-latest}"
-            REGISTRY="${REGISTRY:-ghcr.io}"
-            IMAGE_NAME="${IMAGE_NAME:-algorithco/lms}"
-            export DOCKER_CONFIG="$(mktemp -d)"
-            cleanup() { docker logout "$REGISTRY" >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"; }
-            trap cleanup EXIT
-            echo "$GHCR_READ_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
-
-            ./deploy/preflight.sh
-            docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot
-            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
-
-            echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
-
-            for i in $(seq 1 30); do
-              if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web curl -fsS http://127.0.0.1:8000/healthz/ >/dev/null 2>&1; then break; fi
-              sleep 4
-              if [ "$i" = "30" ]; then docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 web; exit 1; fi
-            done
-            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check
-            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy
-            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py ai_smoke_test --validate-models || true
-            # Public health: main host must return 200; admin host sits behind
-            # Basic Auth by design, so 401 means nginx + auth gate are up
-            # (the app itself was already proven healthy via 127.0.0.1 above).
-            curl -fsS https://grandec.uz/healthz/; echo
-            admin_code=$(curl -sS -o /dev/null -w "%{http_code}" https://admin.grandec.uz/healthz/); echo "admin /healthz -> $admin_code"
-            case "$admin_code" in 200|401) ;; *) echo "ERROR: admin host unexpected status $admin_code"; exit 1 ;; esac
-            docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-            # NOTE: rollback = workflow_dispatch with tag=<previous sha from .last_good_tag>
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/lms_deploy_key
+          chmod 600 ~/.ssh/lms_deploy_key
+          ssh-keygen -y -f ~/.ssh/lms_deploy_key >/dev/null # fail fast: key must parse
+          printf 'IMS_IMAGE_TAG=%s\nGHCR_USER=%s\nGHCR_READ_TOKEN=%s\n' \
+            "${IMS_IMAGE_TAG:?}" "${GHCR_USER:?}" "${GHCR_READ_TOKEN:?}" > /tmp/lms_deploy.env
+          chmod 600 /tmp/lms_deploy.env
+          SSH_BASE="-i ~/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
+          # shellcheck disable=SC2086
+          scp -P "${VPS_SSH_PORT:-22}" $SSH_BASE /tmp/lms_deploy.env "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.env"
+          rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key
+          # shellcheck disable=SC2086
+          ssh -p "${VPS_SSH_PORT:-22}" $SSH_BASE "$VPS_USER@$VPS_HOST" 'bash -s' < deploy/remote-deploy.sh
