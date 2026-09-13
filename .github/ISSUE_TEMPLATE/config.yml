@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/algorithco/lms/security/advisories/new
+    about: Do NOT open public issues for security reports. Use private advisory.
