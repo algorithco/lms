@@ -18,16 +18,23 @@ Short form `0.1`, `0.2` = `0.1.0`, `0.2.0` (patch zero).
 
 1. Merge PR to `main` (CI `test` + `security` green, owner approval).
 2. `Release` workflow runs automatically → MINOR bump → pushes tag `v0.N.0`,
-   creates GitHub Release with auto notes, commits `chore(release): v0.N.0 [skip ci]`
-   which updates `VERSION` without re-triggering CI.
-3. First run tags exactly what `VERSION` says (`v0.1.0`); every next push bumps minor.
-4. Manual: `Actions → Release → Run workflow → bump: patch|major` for hotfix/stable.
-5. Rollback: `Deploy → Run workflow → tag: v0.N-1.0` (previous release tag).
+   creates GitHub Release with auto notes, commits `chore(release): v0.N.0`.
+3. The bump commit goes through the FULL pipeline (CI → Build → Deploy), so
+   the new version is baked into a fresh image and goes live. Live always
+   converges to the latest tag (~8 min after a push: two pipeline passes —
+   one for your code, one for the bump). No `[skip ci]`, no loop: the Release
+   job ignores `chore(release)` heads by design.
+4. First run tags exactly what `VERSION` says (`v0.1.0`); every next push bumps minor.
+5. Manual: `Actions → Release → Run workflow → bump: patch|major` for hotfix/stable.
+6. Rollback: `Deploy → Run workflow → tag: v0.N-1.0` (previous release tag).
+
+Why the displayed version can lag the latest tag for a few minutes: `/healthz`
+shows the version BAKED INTO THE RUNNING IMAGE (build time), not the tag.
+A tag alone never reaches production — only a built + deployed image does.
 
 ## Rules
 
 - Never edit `VERSION` by hand in feature PRs — the bot owns it.
 - Never create tags by hand — use the workflow (keeps tag + Release + file in sync).
-- `[skip ci]` on release commits is intentional (tag push already ran CI on the same SHA).
 - The only bot allowed to push to `main` is `github-actions[bot]` for `chore(release)`.
   Everyone else: PR only (see `CONTRIBUTING.md`, `.githooks/pre-push`).
