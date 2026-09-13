@@ -36,7 +36,7 @@ qrcode>=8.2,<9.0                   # Certificate QR codes
 
 # Telegram bot
 httpx>=0.27,<1.0                   # Async HTTP client (for Telegram API)
-python-telegram-bot>=22.0,<23.0    # Telegram Bot API
+python-telegram-bot>=22.8,<23.0    # Telegram Bot API
 
 # AI Essay Grading (Groq API — OpenAI-compatible)
 openai>=2.34,<3.0                  # OpenAI-compatible provider client
