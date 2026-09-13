@@ -32,6 +32,22 @@ Why the displayed version can lag the latest tag for a few minutes: `/healthz`
 shows the version BAKED INTO THE RUNNING IMAGE (build time), not the tag.
 A tag alone never reaches production — only a built + deployed image does.
 
+## RELEASE_PAT (required for convergence)
+
+GitHub silently suppresses ALL workflow runs on pushes made with `GITHUB_TOKEN`.
+The bot therefore pushes the bump commit with a personal token, otherwise the
+new version would never build or deploy. One-time setup:
+
+1. GitHub → Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token.
+2. Repository access: only `algorithco/lms`. Permissions → Contents: Read+Write.
+3. Expiry 90 days (set a reminder; rotate like any credential).
+4. Repo → Settings → Secrets → Actions → New secret: `RELEASE_PAT` = the token.
+
+Without it the workflow still tags + bumps (with a warning), but live lags
+until the next human push. The loop always terminates: the Release job skips
+`chore(release)` heads, so a PAT push can never re-trigger itself.
+
 ## Rules
 
 - Never edit `VERSION` by hand in feature PRs — the bot owns it.

@@ -96,6 +96,9 @@ jobs:
 
       - name: Bump VERSION file
         if: steps.ver.outputs.exists == 'false'
+        env:
+          REPO: ${{ github.repository }}
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         run: |
           set -euo pipefail
           NEXT="${{ steps.ver.outputs.next }}"
@@ -108,4 +111,12 @@ jobs:
           # and actually goes live. Infinite loop is impossible: this job
           # skips when the head commit is chore(release) (see job `if:`).
           git commit -m "chore(release): v$NEXT" || exit 0
+          if [ -n "${RELEASE_PAT:-}" ]; then
+            # Push with a PAT, NOT GITHUB_TOKEN: GitHub silently suppresses
+            # ALL workflow runs on GITHUB_TOKEN pushes, so the bump commit
+            # would never build or deploy (live version would lag forever).
+            git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${REPO}.git"
+          else
+            echo "WARNING: RELEASE_PAT secret missing — bump commit will not trigger a pipeline (see VERSIONING.md)."
+          fi
           git push origin HEAD:main
