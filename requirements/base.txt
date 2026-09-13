@@ -50,5 +50,5 @@ python-decouple>=3.8,<4.0
 
 # Utilities
 python-slugify>=8.0,<9.0           # Slug generation
-python-dateutil>=2.9,<3.0          # Date utilities
+python-dateutil>=2.9.0.post0,<3.0          # Date utilities
 google-auth>=2.0,<3.0             # Verify Google-signed OpenID Connect ID tokens
