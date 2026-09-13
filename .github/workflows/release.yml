@@ -1,0 +1,107 @@
+# Release — automatic SemVer tags from main.
+#
+# Rule (see .github/VERSIONING.md):
+#   push to main      -> MINOR bump  (0.1.0 -> 0.2.0 -> 0.3.0 ...)
+#   dispatch + patch  -> PATCH bump  (0.2.0 -> 0.2.1, hotfix)
+#   dispatch + major  -> MAJOR bump  (0.x -> 1.0.0, stable)
+# First ever release tags current VERSION file (starts 0.1.0).
+#
+# Creates: git tag vX.Y.Z + GitHub Release + VERSION bump commit.
+# Loop guard: skips when head commit is chore(release); bump commit uses [skip ci].
+# Requires: permissions contents:write (tags + releases + VERSION push).
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part to bump
+        required: false
+        default: minor
+        type: choice
+        options: [minor, patch, major]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: "!contains(github.event.head_commit.message, 'chore(release)')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP="${{ inputs.bump }}"
+          else
+            BUMP="minor"
+          fi
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+          CURRENT="$(tr -d ' \r\n' < VERSION)"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+
+          LATEST="$(git tag -l 'v*.*.*' --sort=-v:refname | head -n1 || true)"
+          if [ -z "$LATEST" ]; then
+            # First release ever: tag exactly what VERSION says (0.1.0).
+            NEXT="$CURRENT"
+          else
+            BASE="${LATEST#v}"
+            MAJOR="$(echo "$BASE" | cut -d. -f1)"
+            MINOR="$(echo "$BASE" | cut -d. -f2)"
+            PATCH="$(echo "$BASE" | cut -d. -f3)"
+            case "$BUMP" in
+              major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH+1)) ;;
+            esac
+            NEXT="$MAJOR.$MINOR.$PATCH"
+          fi
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Bump: $BUMP, current file: $CURRENT, latest tag: ${LATEST:-none}, next: $NEXT"
+
+          if git rev-parse "v$NEXT" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag v$NEXT already exists — skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag and create GitHub Release
+        if: steps.ver.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          NEXT="${{ steps.ver.outputs.next }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$NEXT" -m "Release v$NEXT"
+          git push origin "v$NEXT"
+          gh release create "v$NEXT" --title "v$NEXT" --generate-notes
+
+      - name: Bump VERSION file
+        if: steps.ver.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          NEXT="${{ steps.ver.outputs.next }}"
+          echo "$NEXT" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore(release): v$NEXT [skip ci]" || exit 0
+          git push origin HEAD:main
