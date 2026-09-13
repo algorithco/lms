@@ -37,9 +37,6 @@ logger = logging.getLogger(__name__)
 # Auto Login / Register (API)
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
-@api_view(["POST"])
-@permission_classes([AllowAny])
 def _get_client_ip(request: Request) -> str:
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if xff:
@@ -47,6 +44,9 @@ def _get_client_ip(request: Request) -> str:
     return request.META.get("REMOTE_ADDR", "unknown")
 
 
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
 def tma_auth_view(request: Request) -> Response:
     """
     POST /api/telegram/auth/

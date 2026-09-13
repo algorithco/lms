@@ -153,9 +153,11 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
             return JsonResponse({"error": "Noto'g'ri kod yoki kod hali tasdiqlanmagan."}, status=404)
         auth_token = matches[0]
         # Session binding — code must belong to a token started in this browser session
-        # This prevents shoulder-surfed code reuse from a different browser/IP.
-        if request.session.get("telegram_auth_pending") and not _is_pending_for_session(request, auth_token.token):
+        # Prevents shoulder-surfed 6-digit reuse from different browser/IP.
+        if not _is_pending_for_session(request, auth_token.token):
             return JsonResponse({"error": "Kod bu sessiyaga tegishli emas."}, status=403)
+        if not auth_token.phone_verified:
+            return JsonResponse({"error": "Telefon raqami Telegram kontakti orqali tasdiqlanmagan."}, status=403)
         if auth_token.is_expired or not auth_token.user or not auth_token.user.is_active:
             return JsonResponse({"error": "Kod muddati tugagan yoki hisob faol emas."}, status=400)
         if not TelegramAuthToken.objects.filter(
@@ -233,7 +235,8 @@ def telegram_auth_login(request: HttpRequest, token: str) -> JsonResponse:
         except TelegramAuthToken.DoesNotExist:
             return JsonResponse({"status": "error"}, status=404)
         if (auth_token.consumed_at or auth_token.is_expired or not auth_token.is_verified
-                or not auth_token.user or not auth_token.user.is_active):
+                or not auth_token.user or not auth_token.user.is_active
+                or not getattr(auth_token, "phone_verified", False)):
             return JsonResponse({"status": "error"}, status=400)
         if not TelegramAuthToken.objects.filter(
             pk=auth_token.pk, consumed_at__isnull=True,

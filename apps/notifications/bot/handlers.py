@@ -235,7 +235,7 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         parse_mode="Markdown",
     )
 
-    logger.info("TG auth conversation started: token=%s, tg_id=%d", token[:12], tg_user.id if tg_user else 0)
+    logger.info("TG auth conversation started: tg_id=%d", tg_user.id if tg_user else 0)
 
 
 async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -277,10 +277,8 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             one_time_keyboard=True,
         )
         await update.message.reply_text(
-            f"✅ Ism: *{text}*\n\n"
-            "Endi telefon raqamingizni yuboring:\n"
-            "Tugmani bosing yoki raqamni yozing (+998901234567).",
-            parse_mode="Markdown",
+            f"✅ Ism: {text}\n\n"
+            "Endi telefon raqamingizni tasdiqlash uchun tugmani bosing.",
             reply_markup=keyboard,
         )
 
@@ -290,11 +288,15 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
 
         contact = getattr(update.message, "contact", None)
         if contact and contact.phone_number:
-            # Verify contact belongs to the sender — prevents spoofed contact
-            if contact.user_id and contact.user_id != tg_user.id:
+            # Enforce one true number: only Telegram-verified contact is accepted
+            if not contact.user_id or contact.user_id != tg_user.id:
                 await update.message.reply_text(
                     "Kontakt sizga tegishli emas. Iltimos, o'z kontaktingizni yuboring.",
-                    reply_markup=ReplyKeyboardRemove(),
+                    reply_markup=ReplyKeyboardMarkup(
+                        [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+                        resize_keyboard=True,
+                        one_time_keyboard=True,
+                    ),
                 )
                 return
             clean_phone = contact.phone_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
@@ -302,24 +304,25 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
                 await update.message.reply_text(
                     "Noto'g'ri telefon raqam. Iltimos, tugmani qayta bosing.",
-                    reply_markup=ReplyKeyboardRemove(),
+                    reply_markup=ReplyKeyboardMarkup(
+                        [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+                        resize_keyboard=True,
+                        one_time_keyboard=True,
+                    ),
                 )
                 return
         else:
-            if not text:
-                await update.message.reply_text(
-                    "Iltimos, telefon raqamini yuboring yoki tugmani bosing.",
-                )
-                return
-            clean_phone = text.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            phone_verified = False
-            if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
-                await update.message.reply_text(
-                    "Noto'g'ri telefon raqam. Iltimos, qaytadan kiriting "
-                    "(masalan: +998901234567).",
-                    reply_markup=ReplyKeyboardRemove(),
-                )
-                return
+            # Only verified contact allowed — reject typed numbers
+            keyboard = ReplyKeyboardMarkup(
+                [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+                resize_keyboard=True,
+                one_time_keyboard=True,
+            )
+            await update.message.reply_text(
+                "Iltimos, telefon raqamingizni tasdiqlash uchun tugmani bosing:\n📱 Telefonni yuborish",
+                reply_markup=keyboard,
+            )
+            return
 
         full_name = context.user_data.get("auth_name", "")
 
@@ -331,8 +334,24 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             context.user_data.pop("auth_token", None)
             context.user_data.pop("auth_name", None)
             await update.message.reply_text(
-                "Telegram hisobingiz bog'lanishini qayta tasdiqlang yoki administratorga murojaat qiling."
+                "Telegram hisobingiz bog'lanishini qayta tasdiqlang yoki administratorga murojaat qiling.",
+                reply_markup=ReplyKeyboardRemove(),
             )
+            return
+
+        # One true number: verified phone must be unique across accounts
+        def _phone_taken():
+            from apps.accounts.models import Profile
+            return Profile.objects.filter(phone=clean_phone).exclude(user=user).exists()
+
+        if phone_verified and await _run_db(_phone_taken):
+            await update.message.reply_text(
+                "Bu telefon raqami boshqa hisobga bog'langan. Boshqa raqam bilan urinib ko'ring yoki administratorga murojaat qiling.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            context.user_data.pop("auth_state", None)
+            context.user_data.pop("auth_token", None)
+            context.user_data.pop("auth_name", None)
             return
 
         # Save to DB and generate short code (atomic guard against reuse)
