@@ -126,7 +126,7 @@
 
 <!-- Game Stats Row -->
 {% if game_stats.games_played > 0 %}
-<div class="flex items-center gap-4 mb-6 p-4 bg-gradient-to-r from-emerald-50 to-purple-50 dark:bg-none dark:bg-surface-100 rounded-2xl border border-emerald-100/60 dark:border-emerald-500/20">
+<div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-6 p-4 bg-gradient-to-r from-emerald-50 to-purple-50 dark:bg-none dark:bg-surface-100 rounded-2xl border border-emerald-100/60 dark:border-emerald-500/20">
     <div class="flex items-center gap-2">
         <span class="text-lg">🎮</span>
         <span class="text-sm font-bold text-surface-800">{{ game_stats.games_played }} {% t "games_played_suffix" %}</span>
@@ -198,7 +198,7 @@
     </div>
 
     {% if available_tests %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {% for test in available_tests %}
         <div class="rise stat-card bg-white rounded-2xl border border-surface-200/60 shadow-card overflow-hidden">
             <!-- Top gradient accent -->

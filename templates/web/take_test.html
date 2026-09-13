@@ -25,6 +25,10 @@
         background: rgba(16,185,129,.05);
         transform: translateX(4px);
     }
+    @media (pointer: coarse) {
+        .choice-item:hover { transform: none; }
+        .qchip { min-height: 44px; }
+    }
     .choice-item.selected {
         border-color: #10B981;
         background: linear-gradient(135deg, #ecfdf5, #d1fae5);
@@ -120,8 +124,8 @@
 <!-- GLASSMORPHISM STICKY TOPBAR                                           -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <div id="timer-topbar" class="timer-topbar sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div class="flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3">
+        <div class="flex items-center justify-between gap-2">
             <!-- Left: Test info + progress -->
             <div class="flex items-center gap-4 min-w-0">
                 <a href="{% url 'web:test-list' %}" class="p-2 rounded-xl hover:bg-surface-100 transition-colors flex-shrink-0" title="Testlarga qaytish">
@@ -140,17 +144,17 @@
 
             <!-- Center: Timer -->
             {% if test.has_time_limit %}
-            <div id="timer" class="timer-safe flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-500">
+            <div id="timer" class="timer-safe flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-2xl transition-all duration-500 flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <span id="timer-display" class="font-mono font-extrabold text-lg tracking-wider">--:--</span>
+                <span id="timer-display" class="font-mono font-extrabold text-sm sm:text-lg tracking-wider">--:--</span>
             </div>
             {% endif %}
 
             <!-- Right: Submit -->
             <button onclick="openSubmitModal()"
-                    class="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-glow">
+                    class="flex items-center gap-2 px-3 sm:px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-glow flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>
@@ -167,10 +171,10 @@
 <!-- ════════════════════════════════════════════════════════════════════════ -->
 <!-- SPLIT EXAM ENGINE · LEFT: reading & navigator · RIGHT: question stream  -->
 <!-- ════════════════════════════════════════════════════════════════════════ -->
-<div id="exam-column" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid gap-6 lg:grid-cols-[350px_minmax(0,1fr)] items-start">
+<div id="exam-column" class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 grid gap-5 sm:gap-6 lg:grid-cols-[350px_minmax(0,1fr)] items-start">
 
     <!-- ── LEFT RAIL ────────────────────────────────────────────────── -->
-    <aside class="space-y-5 lg:sticky lg:top-24">
+    <aside class="space-y-5 lg:sticky lg:top-24 order-2 lg:order-1">
 
         <!-- Reading pane (matn rejimi) -->
         <div class="reading-pane rounded-3xl p-6">
@@ -218,7 +222,7 @@
             <div class="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-5 gap-2" id="question-chips">
                 {% for question in attempt.questions %}
                 <a href="#question-{{ question.id }}" data-qn="{{ forloop.counter0 }}" data-qid="{{ question.id }}"
-                   class="qchip flex items-center justify-center h-9 rounded-xl text-[11px] font-bold border border-surface-200 text-surface-600 dark:text-surface-300 dark:border-surface-700
+                   class="qchip flex items-center justify-center min-h-[44px] sm:h-9 rounded-xl text-[11px] font-bold border border-surface-200 text-surface-600 dark:text-surface-300 dark:border-surface-700
                           {% if question.selected_choice_ids or question.text_answer %}answered{% endif %}">
                     {{ forloop.counter }}
                 </a>
@@ -242,7 +246,7 @@
     </aside>
 
     <!-- ── RIGHT · QUESTION STREAM ─────────────────────────────────── -->
-    <div class="space-y-4" id="questions-container">
+    <div class="space-y-4 order-1 lg:order-2" id="questions-container">
         {% for question in attempt.questions %}
         <div class="question-card exam-pane rounded-3xl overflow-hidden"
              id="question-{{ question.id }}" data-question-id="{{ question.id }}">

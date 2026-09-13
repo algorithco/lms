@@ -165,7 +165,14 @@
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
         }
-        .table-scroll table { min-width: 640px; }
+        .table-scroll table { min-width: 640px; width: 100%; }
+        @media (max-width: 480px) {
+            .table-scroll table { min-width: 560px; }
+        }
+
+        /* ── Prevent long words/URLs from breaking mobile layout ────────── */
+        main { overflow-wrap: break-word; }
+        img, video, canvas { max-width: 100%; height: auto; }
 
         /* ── 44px touch targets on coarse pointers ──────────────────────── */
         @media (pointer: coarse) {
@@ -590,7 +597,7 @@
 <body class="h-full bg-surface-50 antialiased">
 
     <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-3 max-w-sm w-full"></div>
+    <div id="toast-container" class="fixed top-4 left-4 right-4 sm:left-auto sm:right-5 sm:top-5 sm:max-w-sm sm:w-full z-[100] space-y-3"></div>
 
     {% if user.is_authenticated %}
     <div class="flex h-full">
@@ -618,9 +625,9 @@
                         <i data-lucide="menu" class="w-5 h-5"></i>
                     </button>
 
-                    <!-- Page Title -->
-                    <div class="hidden md:block">
-                        <h1 class="text-lg font-bold text-surface-900 tracking-tight">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <!-- Page Title (truncated on mobile for context) -->
+                    <div class="min-w-0 flex-1 md:flex-none">
+                        <h1 class="text-sm sm:text-base md:text-lg font-bold text-surface-900 tracking-tight truncate">{% block page_title %}Dashboard{% endblock %}</h1>
                     </div>
 
                     <!-- Right side -->
