@@ -2,12 +2,15 @@
 from django.db import connection
 from django.http import JsonResponse
 
+from config.version import get_version
+
 
 def healthz_view(request):
     """Liveness/readiness probe for Docker/Kubernetes healthchecks.
 
     Returns 200 with DB status when the app and database are reachable,
     503 when the database is down (so orchestration can restart us).
+    Includes app version from root VERSION file (see .github/VERSIONING.md).
     """
     try:
         with connection.cursor() as cursor:
@@ -17,4 +20,11 @@ def healthz_view(request):
         db_ok = False
 
     status = 200 if db_ok else 503
-    return JsonResponse({"status": "ok" if db_ok else "unavailable", "db": db_ok}, status=status)
+    return JsonResponse(
+        {
+            "status": "ok" if db_ok else "unavailable",
+            "db": db_ok,
+            "version": get_version(),
+        },
+        status=status,
+    )
