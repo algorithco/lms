@@ -54,6 +54,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 # old inode. Compare host vs container inode; force one recreate to re-mount.
 host_inode="$(stat -c %i deploy/nginx/nginx-main.conf)"
 cont_inode="$(docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx stat -c %i /etc/nginx/nginx.conf 2>/dev/null || echo drift)"
+echo ">>> inodes: host=$host_inode container=$cont_inode"
 if [ "$host_inode" != "$cont_inode" ]; then
   echo ">>> nginx mount drift (host=$host_inode container=$cont_inode) — force-recreating once"
   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --force-recreate nginx
@@ -64,6 +65,7 @@ fi
 # proxy_pass would pin the old web IP forever.) Zero-downtime by design. ---
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -s reload
 
+echo ">>> writing tag [$IMS_IMAGE_TAG] (pwd=$(pwd))"
 echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
 
 for i in $(seq 1 30); do
