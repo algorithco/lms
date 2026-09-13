@@ -4,7 +4,7 @@
 -r base.txt
 
 # Debug toolbar
-django-debug-toolbar>=4.4,<5.0
+django-debug-toolbar>=8.0.0,<9.0
 
 # Testing
 pytest>=8.2,<9.0
@@ -15,7 +15,7 @@ factory-boy>=3.3,<4.0              # Test fixtures
 # Code quality
 ruff>=0.5,<1.0                     # Linter + formatter
 mypy>=1.10,<2.0                    # Type checking
-django-stubs>=5.0,<6.0             # Type stubs for Django
+django-stubs>=6.1.0,<7.0             # Type stubs for Django
 
 # Reload
-django-livereload-server>=0.5,<1.0
+django-livereload-server>=0.5.1,<1.0
