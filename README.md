@@ -138,5 +138,3 @@ Details: [`DEPLOYMENT.md`](./DEPLOYMENT.md) · Changes: [`RELEASE_NOTES.md`](./R
 ## License
 
 GPL-3.0 — free software, derivatives must stay open source. See [`LICENSE`](./LICENSE).
-
-**Author:** Komiljon Roziyev · **Telegram:** @grandEducationBot
