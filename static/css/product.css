@@ -74,8 +74,12 @@ html.dark {
 }
 .import-page .import-dropzone:focus-within { outline: 3px solid var(--ui-focus); outline-offset: 3px; }
 .import-page .import-dropzone input:focus-visible { outline: none; }
-.import-page table { min-width: 36rem; }
-.import-page .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.import-page table { min-width: 36rem; width: 100%; }
+.import-page .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--ui-radius); }
+@media (max-width: 640px) {
+  .import-page table { min-width: 32rem; }
+  .ui-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
 @media (max-width: 480px) {
   .import-page .import-actions { flex-direction: column-reverse; align-items: stretch; }
   .import-page .import-actions > * { text-align: center; justify-content: center; }
