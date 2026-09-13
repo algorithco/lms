@@ -7,7 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-blue)](./LICENSE)
 
 ---
 
@@ -137,6 +137,6 @@ Details: [`DEPLOYMENT.md`](./DEPLOYMENT.md) · Changes: [`RELEASE_NOTES.md`](./R
 
 ## License
 
-MIT — free to use. See [`LICENSE`](./LICENSE) if present.
+GPL-3.0 — free software, derivatives must stay open source. See [`LICENSE`](./LICENSE).
 
 **Author:** Komiljon Roziyev · **Telegram:** @grandEducationBot
