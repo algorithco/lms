@@ -105,18 +105,20 @@ jobs:
           SCP="scp -P ${VPS_SSH_PORT:-22} $SSH_BASE"
           # Versioned config sync: the exact checked-out compose + preflight +
           # nginx templates land on the VPS first, so deploys never run stale
-          # config. VPS-only files (.env.prod, deploy/secrets/*, logs, data,
-          # generated nginx.conf) are never synced — nginx.conf is REGENERATED
-          # on the VPS by remote-deploy.sh from the synced template.
-          # shellcheck disable=SC2086
-          $SSH "mkdir -p /tmp/lms_deploy.d"
+          # config. scp writes DIRECTLY onto final paths (truncate in place,
+          # same inode) — Docker bind mounts follow inodes, so mv/install to
+          # a mounted path would orphan the container's view (see
+          # remote-deploy.sh). VPS-only files (.env.prod, deploy/secrets/*,
+          # logs, data, generated nginx.conf) are never synced — nginx.conf
+          # is REGENERATED on the VPS by remote-deploy.sh from the template.
           # shellcheck disable=SC2086
           $SCP /tmp/lms_deploy.env "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.env"
           # shellcheck disable=SC2086
           $SCP docker-compose.prod.yml "$VPS_USER@$VPS_HOST:/opt/lms/docker-compose.prod.yml"
           # shellcheck disable=SC2086
-          $SCP deploy/preflight.sh deploy/nginx/nginx-main.conf \
-            deploy/nginx/nginx-http.conf deploy/nginx/nginx-ssl.conf \
-            "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.d/"
+          $SCP deploy/preflight.sh "$VPS_USER@$VPS_HOST:/opt/lms/deploy/preflight.sh"
+          # shellcheck disable=SC2086
+          $SCP deploy/nginx/nginx-main.conf deploy/nginx/nginx-http.conf \
+            deploy/nginx/nginx-ssl.conf "$VPS_USER@$VPS_HOST:/opt/lms/deploy/nginx/"
           # shellcheck disable=SC2086
           $SSH 'bash -s' < deploy/remote-deploy.sh
