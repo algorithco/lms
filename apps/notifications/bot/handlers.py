@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 import telegram
 from asgiref.sync import sync_to_async
-from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
 if TYPE_CHECKING:
@@ -216,6 +216,13 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
         return
 
+    if auth_token.consumed_at or auth_token.is_verified:
+        await update.message.reply_text(
+            "❌ Bu token allaqachon ishlatilgan.\n\n"
+            "Iltimos, veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
+        )
+        return
+
     # Store token in context for conversation flow
     context.user_data["auth_token"] = token
     context.user_data["auth_state"] = "awaiting_name"
@@ -249,36 +256,70 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     if not auth_token_str:
         return
 
-    text = update.message.text.strip()
+    text = (update.message.text or "").strip()
     tg_user = update.effective_user
 
     if auth_state == "awaiting_name":
+        if update.message.contact:
+            await update.message.reply_text("Iltimos, avval ism-familiyangizni kiriting.")
+            return
         if len(text) < 3 or len(text) > 100:
             await update.message.reply_text("Iltimos, to'liq ism-familiyani kiriting (3-100 belgi).")
             return
 
-        # Save name and ask for phone
+        # Save name and ask for phone — offer verified share-contact button
         context.user_data["auth_name"] = text
         context.user_data["auth_state"] = "awaiting_phone"
 
+        keyboard = ReplyKeyboardMarkup(
+            [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
         await update.message.reply_text(
             f"✅ Ism: *{text}*\n\n"
-            "Endi telefon raqamingizni kiriting:\n"
-            "(Masalan: +998901234567)",
+            "Endi telefon raqamingizni yuboring:\n"
+            "Tugmani bosing yoki raqamni yozing (+998901234567).",
             parse_mode="Markdown",
+            reply_markup=keyboard,
         )
 
     elif auth_state == "awaiting_phone":
-        # Validate phone — digits only (optional leading '+'), 7-15 digits
+        # Prefer verified contact if shared via Telegram button
         import re as _re
 
-        clean_phone = text.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-        if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
-            await update.message.reply_text(
-                "Noto'g'ri telefon raqam. Iltimos, qaytadan kiriting "
-                "(masalan: +998901234567)."
-            )
-            return
+        contact = getattr(update.message, "contact", None)
+        if contact and contact.phone_number:
+            # Verify contact belongs to the sender — prevents spoofed contact
+            if contact.user_id and contact.user_id != tg_user.id:
+                await update.message.reply_text(
+                    "Kontakt sizga tegishli emas. Iltimos, o'z kontaktingizni yuboring.",
+                    reply_markup=ReplyKeyboardRemove(),
+                )
+                return
+            clean_phone = contact.phone_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            phone_verified = True
+            if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
+                await update.message.reply_text(
+                    "Noto'g'ri telefon raqam. Iltimos, tugmani qayta bosing.",
+                    reply_markup=ReplyKeyboardRemove(),
+                )
+                return
+        else:
+            if not text:
+                await update.message.reply_text(
+                    "Iltimos, telefon raqamini yuboring yoki tugmani bosing.",
+                )
+                return
+            clean_phone = text.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            phone_verified = False
+            if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
+                await update.message.reply_text(
+                    "Noto'g'ri telefon raqam. Iltimos, qaytadan kiriting "
+                    "(masalan: +998901234567).",
+                    reply_markup=ReplyKeyboardRemove(),
+                )
+                return
 
         full_name = context.user_data.get("auth_name", "")
 
@@ -294,20 +335,21 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             )
             return
 
-        # Save to DB and generate short code
+        # Save to DB and generate short code (atomic guard against reuse)
         def _save_and_generate():
             try:
                 at = TelegramAuthToken.objects.get(token=auth_token_str)
             except TelegramAuthToken.DoesNotExist:
                 return None
-            if at.is_expired:
+            if at.is_expired or at.consumed_at or at.is_verified:
                 return None
             at.full_name = full_name
             at.phone_number = clean_phone
+            at.phone_verified = phone_verified
             at.conversation_state = "code_displayed"
             # Generate 6-digit code
             code = at.generate_short_code()
-            at.save(update_fields=["full_name", "phone_number", "conversation_state", "short_code"])
+            at.save(update_fields=["full_name", "phone_number", "phone_verified", "conversation_state", "short_code"])
             return code
 
         code = await _run_db(_save_and_generate)
@@ -338,19 +380,29 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
 
         await _run_db(_verify_token)
 
-        # Update user profile with collected info
+        # Update user profile with collected info + verified phone sync
         if user and full_name:
             name_parts = full_name.split(" ", 1)
             user.first_name = name_parts[0]
             user.last_name = name_parts[1] if len(name_parts) > 1 else ""
             await _run_db(user.save, update_fields=["first_name", "last_name"])
+            if phone_verified and clean_phone:
+                def _sync_phone():
+                    from apps.accounts.models import Profile
+                    profile, _ = Profile.objects.get_or_create(user=user)
+                    # Only overwrite if empty or same verified number
+                    if not profile.phone or profile.phone == clean_phone:
+                        profile.phone = clean_phone
+                        profile.save(update_fields=["phone"])
+                await _run_db(_sync_phone)
 
-        # Show the 6-digit code with visual display
+        # Show the 6-digit code with visual display (remove contact keyboard)
         code_display = "  ".join(code)
+        verified_badge = "✅ tasdiqlangan" if phone_verified else "⚠️ qo'lda kiritilgan"
         await update.message.reply_text(
             f"🎉 *Ma'lumotlar saqlandi!*\n\n"
             f"👤 Ism: *{full_name}*\n"
-            f"📱 Telefon: `{clean_phone}`\n\n"
+            f"📱 Telefon: `{clean_phone}` ({verified_badge})\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n\n"
             f"🔑 *SIZNING KODINGIZ:*\n\n"
             f"`{code_display}`\n\n"
@@ -362,6 +414,7 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             f"3. Tizimga kiring!\n\n"
             f"_Birinchi marta kiryapsizmi? Bot avtomatik hisob yaratadi._",
             parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove(),
         )
 
         # Clear conversation state
@@ -370,8 +423,8 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         context.user_data.pop("auth_name", None)
 
         logger.info(
-            "TG auth code generated: code=%s, user=%s, tg_id=%s",
-            code, full_name, tg_user.id if tg_user else "?",
+            "TG auth code generated: user=%s, tg_id=%s, phone_verified=%s",
+            full_name, tg_user.id if tg_user else "?", phone_verified,
         )
 
 
@@ -1956,9 +2009,10 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("quiz", quiz_handler))
     app.add_handler(CallbackQueryHandler(quiz_callback_handler, pattern=r"^quiz_"))
 
-    # Auth conversation handler — catches text messages during auth flow
+    # Auth conversation handler — catches text/contact during auth flow
     # Must be before generic callback_handler but after command handlers
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auth_conversation_handler))
+    app.add_handler(MessageHandler(filters.CONTACT, auth_conversation_handler))
 
     # Photo handler — payment screenshots
     app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot_handler))

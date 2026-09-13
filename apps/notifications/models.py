@@ -221,6 +221,10 @@ class TelegramAuthToken(models.Model):
         blank=True,
         help_text="Telefon raqami (bot orqali kiritilgan)",
     )
+    phone_verified = models.BooleanField(
+        default=False,
+        help_text="True if phone was shared via Telegram contact (verified)",
+    )
 
     def __str__(self) -> str:
         status = "verified" if self.is_verified else "pending"

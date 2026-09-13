@@ -34,6 +34,13 @@ def _token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _get_client_ip(request: HttpRequest) -> str:
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
 def _is_pending_for_session(request: HttpRequest, token: str) -> bool:
     return _token_digest(token) in request.session.get("telegram_auth_pending", [])
 
@@ -56,7 +63,7 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
     from django.core.cache import cache
 
     # Clean up old tokens for this IP/session (prevent spam)
-    ip = request.META.get("REMOTE_ADDR", "unknown")
+    ip = _get_client_ip(request)
     TelegramAuthToken.objects.filter(
         is_verified=False,
         user__isnull=True,
@@ -69,7 +76,7 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
     throttle_key = f"tgauth-start:{ip}"
     attempts = cache.get(throttle_key, 0)
     if attempts >= 10:
-        logger.warning("Telegram auth start throttled: ip=%s", ip)
+        logger.warning("Telegram auth start throttled")
         return JsonResponse(
             {"error": "Juda ko'p so'rov. Bir ozdan keyin qayta urinib ko'ring."},
             status=429,
@@ -84,7 +91,7 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
 
     deep_link = f"https://t.me/{BOT_USERNAME}?start=auth_{token}"
 
-    logger.info("Telegram auth token created for ip=%s", ip)
+    logger.info("Telegram auth token created")
 
     return JsonResponse({
         "token": token,
@@ -124,11 +131,11 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
     # so failed attempts must be throttled per client (5 minutes window).
     from django.core.cache import cache
 
-    ip = request.META.get("REMOTE_ADDR", "unknown")
+    ip = _get_client_ip(request)
     throttle_key = f"tgauth-code:{ip}"
     attempts = cache.get(throttle_key, 0)
     if attempts >= 15:
-        logger.warning("Telegram auth code login throttled: ip=%s", ip)
+        logger.warning("Telegram auth code login throttled")
         return JsonResponse(
             {"error": "Juda ko'p urinish. 5 daqiqadan keyin qayta urinib ko'ring."},
             status=429,
@@ -145,6 +152,10 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
         if len(matches) != 1:
             return JsonResponse({"error": "Noto'g'ri kod yoki kod hali tasdiqlanmagan."}, status=404)
         auth_token = matches[0]
+        # Session binding — code must belong to a token started in this browser session
+        # This prevents shoulder-surfed code reuse from a different browser/IP.
+        if request.session.get("telegram_auth_pending") and not _is_pending_for_session(request, auth_token.token):
+            return JsonResponse({"error": "Kod bu sessiyaga tegishli emas."}, status=403)
         if auth_token.is_expired or not auth_token.user or not auth_token.user.is_active:
             return JsonResponse({"error": "Kod muddati tugagan yoki hisob faol emas."}, status=400)
         if not TelegramAuthToken.objects.filter(
@@ -155,7 +166,7 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
     login(request, auth_token.user)
     request.session.set_expiry(60 * 60 * 24 * 30)
     _forget_pending(request, auth_token.token)
-    logger.info("Telegram code login: user_id=%s", auth_token.user_id)
+    logger.info("Telegram code login: user_id=%s, phone_verified=%s", auth_token.user_id, getattr(auth_token, "phone_verified", False))
 
     return JsonResponse({
         "status": "ok",
@@ -172,6 +183,15 @@ def telegram_auth_status(request: HttpRequest, token: str) -> JsonResponse:
     GET /api/telegram/auth/<token>/status/
     Response: {"status": "pending"|"verified"|"expired", "user_id": ..., "login_url": ...}
     """
+    from django.core.cache import cache
+
+    ip = _get_client_ip(request)
+    skey = f"tgauth-status:{ip}"
+    cnt = cache.get(skey, 0)
+    if cnt >= 60:
+        return JsonResponse({"status": "throttled", "error": "Juda ko'p so'rov"}, status=429)
+    cache.set(skey, cnt + 1, timeout=60)
+
     if not _is_pending_for_session(request, token):
         return JsonResponse({"status": "invalid"}, status=404)
     try:

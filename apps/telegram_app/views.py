@@ -18,7 +18,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -40,6 +40,13 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
+def _get_client_ip(request: Request) -> str:
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
 def tma_auth_view(request: Request) -> Response:
     """
     POST /api/telegram/auth/
@@ -59,7 +66,25 @@ def tma_auth_view(request: Request) -> Response:
         "is_new_user": false
     }
     """
+    from django.core.cache import cache
+
+    # Throttle credential issuance: 10/min per IP + 20/min per init hash prefix
+    ip = _get_client_ip(request)
+    tkey = f"tma-auth:{ip}"
+    cnt = cache.get(tkey, 0)
+    if cnt >= 10:
+        return Response(
+            {"success": False, "error": "Juda ko'p so'rov. Bir ozdan keyin urinib ko'ring."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    cache.set(tkey, cnt + 1, timeout=60)
+
     init_data = request.data.get("init_data", "")
+    if len(init_data) > 8192:
+        return Response(
+            {"success": False, "error": "initData juda uzun."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Validate Telegram initData
     telegram_user = TelegramMiniAppService.validate_init_data(init_data)
@@ -145,6 +170,7 @@ def tma_index_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_profile_view(request: Request) -> Response:
     """GET /api/telegram/profile/ — Current user profile for TMA."""
     user = request.user
@@ -180,6 +206,7 @@ def tma_profile_view(request: Request) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_arena_view(request: Request) -> Response:
     """
     GET /api/telegram/arena/
@@ -262,6 +289,7 @@ def tma_arena_view(request: Request) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_tests_view(request: Request) -> Response:
     """GET /api/telegram/tests/ — Available tests for TMA."""
     from apps.tests.models import Test
@@ -293,6 +321,7 @@ def tma_tests_view(request: Request) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_results_view(request: Request) -> Response:
     """GET /api/telegram/results/ — User's recent results for TMA."""
     from apps.results.models import Result
@@ -325,6 +354,7 @@ def tma_results_view(request: Request) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_essay_topics_view(request: Request) -> Response:
     """GET /api/telegram/essays/topics/ — Essay topics for TMA."""
     from apps.essays.models import EssayTopic, EssaySubmission
@@ -366,6 +396,7 @@ def tma_essay_topics_view(request: Request) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_essay_submissions_view(request: Request) -> Response:
     """GET /api/telegram/essays/ — User's essay submissions for TMA."""
     from apps.essays.models import EssaySubmission
@@ -400,6 +431,7 @@ def tma_essay_submissions_view(request: Request) -> Response:
 
 @csrf_exempt
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def tma_essay_start_view(request: Request, topic_id: int) -> Response:
     """
     POST /api/telegram/essays/{topic_id}/start/
@@ -498,6 +530,7 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
 
 @csrf_exempt
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
     """
     POST /api/telegram/essays/{submission_id}/submit/
@@ -591,6 +624,7 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 # -----------------------------------------------------------------------
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     """
     GET /api/telegram/essays/{submission_id}/result/
