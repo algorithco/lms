@@ -46,7 +46,7 @@ jobs:
       # GHA cache export requires the buildx driver (default docker driver
       # rejects cache-to). Pinned major version for stability.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build & push
         uses: docker/build-push-action@v7
