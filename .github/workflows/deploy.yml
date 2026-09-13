@@ -8,7 +8,8 @@
 # `production` — values NEVER appear in logs, GitHub masks them automatically):
 #   VPS_HOST         VPS IPv4 (direct IP, not via Cloudflare proxy)
 #   VPS_USER         e.g. deploy
-#   VPS_SSH_KEY      private OpenSSH key for VPS_USER (no passphrase)
+#   VPS_SSH_KEY      BASE64 (single line, no wrapping) of the private OpenSSH
+#                    key for VPS_USER (no passphrase). See step comment why.
 #   VPS_SSH_PORT     e.g. 22 (optional)
 #   GHCR_READ_TOKEN  fine-grained PAT, scope read:packages on algorithco/lms
 #                    (used ONLY at deploy runtime; rotated periodically).
@@ -72,6 +73,11 @@ jobs:
         # OpenSSH-format ed25519 keys ("ssh: no key found"). The runner's own
         # client handles every format. Remote procedure is versioned in
         # deploy/remote-deploy.sh (reviewed via PR like any other code).
+        # NOTE: VPS_SSH_KEY holds BASE64 of the private key (single line).
+        # Multiline secrets get their newlines mangled somewhere between
+        # `gh secret set` (Windows pipe) and the runner ("error in libcrypto"
+        # on an otherwise valid key); base64 has no newlines to corrupt.
+        # Rotate: base64 -w0 ~/.ssh/grandec_deploy | gh secret set VPS_SSH_KEY
         env:
           IMS_IMAGE_TAG: ${{ steps.tag.outputs.value }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -83,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/lms_deploy_key
+          printf '%s' "$VPS_SSH_KEY" | base64 -d > ~/.ssh/lms_deploy_key
           chmod 600 ~/.ssh/lms_deploy_key
           ssh-keygen -y -f ~/.ssh/lms_deploy_key >/dev/null # fail fast: key must parse
           printf 'IMS_IMAGE_TAG=%s\nGHCR_USER=%s\nGHCR_READ_TOKEN=%s\n' \
