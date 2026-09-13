@@ -52,7 +52,11 @@ gh api repos/algorithco/lms/branches/main/protection --jq '{required_checks: .re
 ## Merge settings (Settings → General → Pull Requests)
 
 - [x] Allow squash merging (default), [ ] Allow merge commits, [ ] Allow rebase merging
-- [x] Automatically delete head branches
+- [x] Automatically delete head branches (enabled 2026-09-13 via API — works on Free)
+- [ ] Allow auto-merge → stays OFF: native auto-merge needs branch protection
+  (Pro plan); verified `allow_auto_merge=false` is forced on Free private repos.
+  Replacement: `.github/workflows/automerge.yml` (label `automerge` + green
+  `test`/`security` + reviews OK → squash + delete branch).
 
 ## What CI enforces meanwhile
 
