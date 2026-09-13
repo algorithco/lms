@@ -89,9 +89,11 @@ jobs:
           printf 'IMS_IMAGE_TAG=%s\nGHCR_USER=%s\nGHCR_READ_TOKEN=%s\n' \
             "${IMS_IMAGE_TAG:?}" "${GHCR_USER:?}" "${GHCR_READ_TOKEN:?}" > /tmp/lms_deploy.env
           chmod 600 /tmp/lms_deploy.env
-          SSH_BASE="-i ~/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
+          # Key + env file are shredded on EXIT (success or failure).
+          cleanup_ci() { rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key; }
+          trap cleanup_ci EXIT
+          SSH_BASE="-i $HOME/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
           # shellcheck disable=SC2086
           scp -P "${VPS_SSH_PORT:-22}" $SSH_BASE /tmp/lms_deploy.env "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.env"
-          rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key
           # shellcheck disable=SC2086
           ssh -p "${VPS_SSH_PORT:-22}" $SSH_BASE "$VPS_USER@$VPS_HOST" 'bash -s' < deploy/remote-deploy.sh
