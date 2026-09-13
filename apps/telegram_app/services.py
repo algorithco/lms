@@ -17,14 +17,17 @@ import hmac
 import logging
 import time
 from typing import Any
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qsl
 
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-# TMA data validity period (24 hours)
-TMA_DATA_MAX_AGE = 86400
+# TMA data validity period — 10 minutes (Telegram recommends 24h max, but 10m
+# limits replay window for stolen initData). Must match cache replay TTL.
+TMA_DATA_MAX_AGE = 600
+TMA_REPLAY_CACHE_PREFIX = "tma:hash:"
 
 
 class TelegramMiniAppService:
@@ -96,28 +99,45 @@ class TelegramMiniAppService:
             logger.warning("Hash mismatch: computed=%s, received=%s", computed_hash, received_hash)
             return None
 
-        # Check auth_date (not too old)
-        auth_date = int(parsed.get("auth_date", 0))
+        # Check auth_date (not too old, not from future)
+        try:
+            auth_date = int(parsed.get("auth_date", 0))
+        except (ValueError, TypeError):
+            logger.warning("Invalid auth_date in init_data")
+            return None
         age = time.time() - auth_date
         if auth_date <= 0 or age < -60 or age > TMA_DATA_MAX_AGE:
             logger.warning("initData expired: auth_date=%d, now=%d", auth_date, time.time())
             return None
 
+        # Replay protection — hash may be reused only once per TTL window
+        replay_key = f"{TMA_REPLAY_CACHE_PREFIX}{received_hash}"
+        if cache.get(replay_key):
+            logger.warning("Replay detected for initData hash=%s", received_hash[:8])
+            return None
+
         # Parse user data
         user_data = cls._parse_user(parsed)
+        if not user_data.get("id"):
+            logger.warning("Missing user id in init_data")
+            return None
 
+        cache.set(replay_key, 1, timeout=TMA_DATA_MAX_AGE)
         logger.info("TMA validated: user_id=%s", user_data.get("id"))
         return user_data
 
     @classmethod
     def _parse_init_data(cls, init_data: str) -> dict[str, str]:
-        """Parse URL-encoded initData into dict."""
-        result = {}
-        pairs = init_data.split("&")
-        for pair in pairs:
-            if "=" in pair:
-                key, value = pair.split("=", 1)
-                result[key] = unquote(value)
+        """Parse URL-encoded initData into dict (Telegram uses x-www-form-urlencoded)."""
+        # parse_qsl handles unquote_plus and duplicate keys (last wins) correctly
+        try:
+            pairs = parse_qsl(init_data, keep_blank_values=True, strict_parsing=False)
+        except ValueError:
+            logger.warning("Failed to parse init_data")
+            return {}
+        result: dict[str, str] = {}
+        for key, value in pairs:
+            result[key] = value
         return result
 
     @classmethod
