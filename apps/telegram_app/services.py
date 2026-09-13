@@ -110,9 +110,9 @@ class TelegramMiniAppService:
             logger.warning("initData expired: auth_date=%d, now=%d", auth_date, time.time())
             return None
 
-        # Replay protection — hash may be reused only once per TTL window
+        # Replay protection — hash may be reused only once per TTL window (atomic)
         replay_key = f"{TMA_REPLAY_CACHE_PREFIX}{received_hash}"
-        if cache.get(replay_key):
+        if not cache.add(replay_key, 1, timeout=TMA_DATA_MAX_AGE):
             logger.warning("Replay detected for initData hash=%s", received_hash[:8])
             return None
 
@@ -120,9 +120,8 @@ class TelegramMiniAppService:
         user_data = cls._parse_user(parsed)
         if not user_data.get("id"):
             logger.warning("Missing user id in init_data")
+            cache.delete(replay_key)
             return None
-
-        cache.set(replay_key, 1, timeout=TMA_DATA_MAX_AGE)
         logger.info("TMA validated: user_id=%s", user_data.get("id"))
         return user_data
 
