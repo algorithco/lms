@@ -55,8 +55,10 @@ jobs:
 
           for PR in $prs; do
             echo "=== PR #$PR ==="
-            info=$(gh pr view "$PR" --repo "$REPO" --json \
-              isDraft,author,headRefOid,mergeable,mergeStateStatus,reviewDecision)
+            if ! info=$(gh pr view "$PR" --repo "$REPO" --json \
+              isDraft,author,headRefOid,mergeable,mergeStateStatus); then
+              echo "warn: pr view failed (transient?) — will retry on next event"; continue
+            fi
 
             draft=$(echo "$info" | jq -r .isDraft)
             author=$(echo "$info" | jq -r .author.login)
@@ -73,8 +75,10 @@ jobs:
 
             # Reviews: latest state per user (API returns oldest-first);
             # block on unresolved change requests.
-            reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
-              --jq '[.[] | {user: .user.login, state: .state, at: .submitted_at}]')
+            if ! reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+              --jq '[.[] | {user: .user.login, state: .state, at: .submitted_at}]'); then
+              echo "warn: reviews API failed — will retry on next event"; continue
+            fi
             latest=$(echo "$reviews" | jq '
               sort_by(.at) | group_by(.user) | map(max_by(.at))')
             if echo "$latest" | jq -e '
@@ -93,9 +97,11 @@ jobs:
             fi
 
             # Required checks on the head SHA must both be success.
-            checks=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
+            if ! checks=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
               --jq '[.check_runs[] | select(.name=="test" or .name=="security")
-                     | {name, status, conclusion}]')
+                     | {name, status, conclusion}]'); then
+              echo "warn: check-runs API failed — will retry on next event"; continue
+            fi
             if ! echo "$checks" | jq -e '
               length == 2 and all(.status=="completed" and .conclusion=="success")
             ' >/dev/null; then
