@@ -1,196 +1,142 @@
-# 🎓 LMS Platform — Ona Tili va Adabiyot Ta'lim Platformasi
+# LMS Platform — Uzbek Language & Literature
 
-> O'zbek tili va adabiyoti bo'yicha zamonaviy ta'lim platformasi. Testlar, o'yinlar, AI-asosidagi esse baholash, Telegram bot va boshqa ko'plab imkoniyatlar.
+> Modern learning platform for Uzbek language and literature exam preparation. Timed tests, AI essay grading, gamification, 1v1 quiz arena, certificates, and Telegram integration.
 
-![Django](https://img.shields.io/badge/Django-5.2-092E20?style=flat&logo=django)
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=flat&logo=python)
-![Telegram](https://img.shields.io/badge/Telegram-Bot-0088cc?style=flat&logo=telegram)
-![License](https://img.shields.io/badge/License-MIT-green)
+[![Django](https://img.shields.io/badge/Django-5.2-092E20?style=flat&logo=django)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=flat&logo=python)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat&logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-## ✨ Imkoniyatlar
+---
 
-### 📝 Test Tizimi
-- Avtomatik baholash
-- Taymer bilan test topshirish
-- Savollarni aralashtirish
-- Natijalar tahlili
+## Features
 
-### ✍️ Esse Baholash (AI)
-- **Groq API** orqali AI baholash
-- **12 mezonli** batafsil baholash
-- **75 ballik** shkalaga konvertatsiya
-- Mavzuga moslikni tekshirish
-- O'qituvchi qo'lda tekshirish imkoniyati
+| Area | What you get |
+| ---- | ------------ |
+| **Tests** | Timed exams, single / multiple / text answers, shuffling, auto-grading, attempt limits |
+| **AI Essays** | 12-criteria grading (24 pts → 75 scale), off-topic detection, improved-version generator, teacher review queue |
+| **Games** | Spelling Mines, Ghazal Puzzle, Dictionary Match — XP, coins, badges, streaks, weekly challenges |
+| **Arena** | Real-time 1v1 quiz duels over WebSockets, matchmaking, ELO rating, bot fallback |
+| **Certificates** | PDF with QR verification and HMAC anti-fraud (`LMS-YYYY-XXXXXX`) |
+| **Telegram** | Bot (`/start`, `/results`, `/leaderboard`, `/streak`), Mini App, login, push notifications |
+| **Roles** | Student, teacher, parent, admin — dashboards, groups, analytics (Chart.js), CSV import |
 
-### 🎮 O'yinlar (Gamification)
-- **Imlo Minalari** — imlo xatolarini topish
-- **G'azal Puzzle** — she'rlarni tartibga solish
-- **Lug'at Match** — eski-zamonaviy so'zlarni match qilish
-- **XP, tanga, badgelar** tizimi
-- **Kunlik streak** — har kuni kirish mukofoti
-- **Haftalik challenge'lar**
+Auth: email + password, Google OAuth, Telegram login. API: REST (JWT) + Swagger.
 
-### 🤖 Telegram Bot
-- `/start` — Botni ishga tushirish
-- `/results` — Barcha natijalar (test + esse)
-- `/leaderboard` — Reyting
-- `/streak` — Kunlik streak
-- `/daily` — Kunlik vazifalar
-- `/tests` — Mavjud testlar
-- `/essays` — Esse mavzulari
+---
 
-### 👨‍🏫 O'qituvchi Paneli
-- Dashboard (Chart.js grafiklar)
-- Talabalar guruhlari
-- Esse tekshirish navbati
-- Batafsil statistika
+## Tech Stack
 
-### 🔐 Kirish
-- Email + Parol
-- Telegram orqali kirish
+**Backend:** Django 5.2, DRF + SimpleJWT, Channels + Daphne, Celery + Redis
+**Data:** PostgreSQL 16 (prod) / SQLite (dev), Redis 7
+**Frontend:** Server-rendered Django templates + Tailwind, HTMX, Alpine.js — no build step
+**AI:** OpenRouter / Groq via OpenAI-compatible client with fallback chain
+**Infra:** Docker Compose, Nginx, GHCR, GitHub Actions (CI → Build → Deploy)
 
-## 🚀 O'rnatish
+---
 
-### 1. Repo'ni clone qilish
+## Quickstart
 
 ```bash
-git clone https://github.com/USERNAME/lms-platform.git
-cd lms-platform
-```
+git clone https://github.com/algorithco/lms.git
+cd lms
 
-### 2. Virtual environment yaratish
-
-```bash
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-```
+# Windows: venv\Scripts\activate
+# Linux/macOS: source venv/bin/activate
 
-### 3. Kutubxonalarni o'rnatish
-
-```bash
 pip install -r requirements/development.txt
-```
+cp .env.example .env   # fill SECRET_KEY, GROQ_API_KEY / OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN
 
-### 4. .env faylini yaratish
-
-```bash
-cp .env.example .env
-```
-
-Keyin `.env` faylini oching va quyidagilarni to'ldiring:
-
-```env
-# Django
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-
-# Groq API (esse baholash uchun)
-GROQ_API_KEY=gsk_your-groq-key-here
-
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-```
-
-### 5. Migratsiyalarni ishga tushirish
-
-```bash
 python manage.py migrate
-```
-
-### 6. Superuser yaratish
-
-```bash
 python manage.py createsuperuser
-```
-
-### 7. Fixture'larni yuklash (ixtiyoriy)
-
-```bash
-python manage.py loaddata apps/games/fixtures/initial_data.json
-```
-
-### 8. Serverni ishga tushirish
-
-```bash
+python manage.py loaddata apps/games/fixtures/initial_data.json  # optional
 python manage.py runserver
 ```
 
-### 9. Telegram botni ishga tushirish (alohida terminalda)
+Bot (separate terminal):
 
 ```bash
 python manage.py run_bot
 ```
 
-## 🐳 Docker bilan ishga tushirish
+Docker (full stack: web + db + redis + celery + bot + nginx):
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-## 📁 Loyiha tuzilishi
-
-```
-lms_platform/
-├── apps/
-│   ├── accounts/       # Foydalanuvchilar, auth
-│   ├── courses/        # Kurslar, guruhlar
-│   ├── tests/          # Testlar, savollar
-│   ├── results/        # Natijalar, sertifikatlar
-│   ├── essays/         # Esse baholash (AI)
-│   ├── games/          # O'yinlar, gamification
-│   ├── notifications/  # Telegram bot, email
-│   ├── arena/          # Quiz Arena (1v1)
-│   └── telegram_app/   # Telegram Mini App
-├── config/             # Django sozlamalari
-├── templates/          # HTML shablonlar
-├── static/             # CSS, JS fayllar
-├── requirements/       # Python kutubxonalari
-├── manage.py
-└── .env.example
-```
-
-## 🔧 Sozlamalar
-
-### Groq API (Esse Baholash)
-
-1. **https://console.groq.com** → kirib kiring
-2. API key yarating
-3. `.env` fayliga qo'shing: `GROQ_API_KEY=gsk_...`
-
-### Telegram Bot
-
-1. **@BotFather** ga `/newbot` yuboring
-2. Bot nomini kiriting
-3. Berilgan token'ni `.env` ga qo'shing: `TELEGRAM_BOT_TOKEN=...`
-
-## 🧪 Testlar
-
-```bash
-python manage.py test
-```
-
-## 📊 API Documentation
-
-Server ishga tushgandan keyin:
-- **Swagger UI:** http://localhost:8000/api/docs/
-- **ReDoc:** http://localhost:8000/api/schema/redoc/
-
-## 🤝 Hissa qo'shish
-
-1. Fork qiling
-2. Branch yarating (`git checkout -b feature/amazing-feature`)
-3. Commit qiling (`git commit -m 'Add amazing feature'`)
-4. Push qiling (`git push origin feature/amazing-feature`)
-5. Pull Request oching
-
-## 📄 Litsenziya
-
-MIT License — bepul ishlatish mumkin.
+Open: `http://localhost:8000` · Swagger: `/api/docs/` · ReDoc: `/api/schema/redoc/`
 
 ---
 
-**Muallif:** Komiljon Roziyev
-**Telegram:** @grandEducationBot
+## Configuration
+
+| Key | Purpose |
+| --- | ------- |
+| `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` | Django core |
+| `DATABASE_URL` / `DB_*` | SQLite (dev) or Postgres (prod) |
+| `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `ESSAY_AI_PROVIDER` | AI essay grading |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME` | Bot + Mini App |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google login |
+| `CELERY_BROKER_URL`, `REDIS_URL` | Background jobs, channels, cache |
+
+See `.env.example` and `.env.prod.example` for the full list.
+
+---
+
+## Project Structure
+
+```
+├── apps/            # accounts, courses, tests, results, essays, games,
+│                    # arena, notifications, telegram_app, payments, panel, web, core
+├── config/          # settings, urls, asgi/wsgi, celery
+├── templates/       # server-rendered HTML
+├── static/          # css, js, img (no bundler)
+├── requirements/    # base / development / production
+├── tests/           # integration suite (300+ tests)
+├── deploy/          # nginx, entrypoint, backup, preflight scripts
+└── .github/workflows/  # ci.yml, build.yml, deploy.yml
+```
+
+---
+
+## Testing & Quality
+
+```bash
+python manage.py test tests --verbosity=2
+python manage.py check && python manage.py check --deploy
+ruff check .
+```
+
+---
+
+## Deployment
+
+Production: `grandec.uz` + `admin.grandec.uz` via GHCR image `ghcr.io/algorithco/lms`.
+
+```bash
+# push main → CI green → Build (GHCR sha + latest) → Deploy (SSH pull, no build on VPS)
+curl -fsS https://grandec.uz/healthz/
+```
+
+Details: [`DEPLOYMENT.md`](./DEPLOYMENT.md) · Changes: [`RELEASE_NOTES.md`](./RELEASE_NOTES.md)
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch (`git checkout -b feature/my-feature`)
+3. Commit (`git commit -m 'Add my feature'`)
+4. Push and open a Pull Request
+
+---
+
+## License
+
+MIT — free to use. See [`LICENSE`](./LICENSE) if present.
+
+**Author:** Komiljon Roziyev · **Telegram:** @grandEducationBot
