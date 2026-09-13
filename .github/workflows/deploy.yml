@@ -101,7 +101,22 @@ jobs:
           cleanup_ci() { rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key; }
           trap cleanup_ci EXIT
           SSH_BASE="-i $HOME/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
+          SSH="ssh -p ${VPS_SSH_PORT:-22} $SSH_BASE $VPS_USER@$VPS_HOST"
+          SCP="scp -P ${VPS_SSH_PORT:-22} $SSH_BASE"
+          # Versioned config sync: the exact checked-out compose + preflight +
+          # nginx templates land on the VPS first, so deploys never run stale
+          # config. VPS-only files (.env.prod, deploy/secrets/*, logs, data,
+          # generated nginx.conf) are never synced — nginx.conf is REGENERATED
+          # on the VPS by remote-deploy.sh from the synced template.
           # shellcheck disable=SC2086
-          scp -P "${VPS_SSH_PORT:-22}" $SSH_BASE /tmp/lms_deploy.env "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.env"
+          $SSH "mkdir -p /tmp/lms_deploy.d"
           # shellcheck disable=SC2086
-          ssh -p "${VPS_SSH_PORT:-22}" $SSH_BASE "$VPS_USER@$VPS_HOST" 'bash -s' < deploy/remote-deploy.sh
+          $SCP /tmp/lms_deploy.env "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.env"
+          # shellcheck disable=SC2086
+          $SCP docker-compose.prod.yml "$VPS_USER@$VPS_HOST:/opt/lms/docker-compose.prod.yml"
+          # shellcheck disable=SC2086
+          $SCP deploy/preflight.sh deploy/nginx/nginx-main.conf \
+            deploy/nginx/nginx-http.conf deploy/nginx/nginx-ssl.conf \
+            "$VPS_USER@$VPS_HOST:/tmp/lms_deploy.d/"
+          # shellcheck disable=SC2086
+          $SSH 'bash -s' < deploy/remote-deploy.sh

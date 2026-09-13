@@ -13,6 +13,16 @@ IMS_IMAGE_TAG="${IMS_IMAGE_TAG:-latest}"
 REGISTRY="${REGISTRY:-ghcr.io}"
 IMAGE_NAME="${IMAGE_NAME:-algorithco/lms}"
 
+# --- Install synced versioned config (shipped to /tmp/lms_deploy.d by CI).
+# VPS-only files (.env.prod, deploy/secrets/*, logs, volumes) are untouched.
+if [ -d /tmp/lms_deploy.d ]; then
+  install -m 755 /tmp/lms_deploy.d/preflight.sh deploy/preflight.sh
+  install -m 644 /tmp/lms_deploy.d/nginx-main.conf deploy/nginx/nginx-main.conf
+  install -m 644 /tmp/lms_deploy.d/nginx-http.conf deploy/nginx/nginx-http.conf
+  install -m 644 /tmp/lms_deploy.d/nginx-ssl.conf deploy/nginx/nginx-ssl.conf
+  rm -rf /tmp/lms_deploy.d
+fi
+
 # --- Secrets: source once, shred immediately after login ---
 if [ -f /tmp/lms_deploy.env ]; then
   set -a
@@ -28,9 +38,21 @@ cleanup() { docker logout "$REGISTRY" >/dev/null 2>&1 || true; rm -rf "$DOCKER_C
 trap cleanup EXIT
 echo "$GHCR_READ_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
 
+# --- Config sync: deploy ships versioned config (compose + preflight + nginx
+# templates) via scp before ssh; VPS never drifts. Secrets (.env.prod,
+# deploy/secrets/*) are NEVER synced — they live on the VPS only. ---
+# --- Regenerate the live nginx.conf from template (same substitution as
+# init-letsencrypt.sh) so template fixes actually reach the running nginx. ---
+sed -e "s/__DOMAIN__/grandec.uz/g" deploy/nginx/nginx-ssl.conf > deploy/nginx/nginx.conf
+
 ./deploy/preflight.sh
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+
+# --- Reload nginx AFTER up: picks up regenerated conf + fresh upstream IPs.
+# (up -d never recreates nginx for bind-mounted content changes, and plain
+# proxy_pass would pin the old web IP forever.) Zero-downtime by design. ---
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -s reload
 
 echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
 
