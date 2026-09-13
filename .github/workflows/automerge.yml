@@ -55,22 +55,27 @@ jobs:
 
           for PR in $prs; do
             echo "=== PR #$PR ==="
-            if ! info=$(gh pr view "$PR" --repo "$REPO" --json \
-              isDraft,author,headRefOid,mergeable,mergeStateStatus); then
-              echo "warn: pr view failed (transient?) — will retry on next event"; continue
+            # REST (not GraphQL `gh pr view`): observed 403s on view calls.
+            if ! info=$(gh api "repos/$REPO/pulls/$PR" \
+              --jq '{draft, author: .user.login, sha: .head.sha, branch: .head.ref,
+                     mergeable, state: .mergeable_state}'); then
+              echo "warn: pull API failed — will retry on next event"; continue
             fi
+            echo "pull ok"
 
-            draft=$(echo "$info" | jq -r .isDraft)
-            author=$(echo "$info" | jq -r .author.login)
-            sha=$(echo "$info" | jq -r .headRefOid)
+            draft=$(echo "$info" | jq -r .draft)
+            author=$(echo "$info" | jq -r .author)
+            sha=$(echo "$info" | jq -r .sha)
             mergeable=$(echo "$info" | jq -r .mergeable)
+            mergestate=$(echo "$info" | jq -r .state)
 
             [ "$draft" = "true" ] && { echo "skip: draft"; continue; }
             if [ "$author" != "$OWNER" ] && [ "$author" != "dependabot[bot]" ]; then
               echo "skip: author $author not in allowlist"; continue
             fi
-            if [ "$mergeable" != "MERGEABLE" ]; then
-              echo "skip: mergeable=$mergeable (conflict or computing)"; continue
+            # mergeable=true + state=clean|unstable|has_hooks (null/computing -> retry later).
+            if [ "$mergeable" != "true" ]; then
+              echo "skip: mergeable=$mergeable state=$mergestate (conflict or computing)"; continue
             fi
 
             # Reviews: latest state per user (API returns oldest-first);
@@ -109,5 +114,11 @@ jobs:
             fi
 
             echo "MERGE: #$PR (author=$author sha=$sha)"
-            gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
+            # REST merge (squash) + branch delete — no GraphQL dependency.
+            gh api "repos/$REPO/pulls/$PR/merge" -X PUT \
+              -f merge_method=squash \
+              -f commit_title="Merge pull request #$PR" >/dev/null
+            branch=$(echo "$info" | jq -r .branch)
+            gh api "repos/$REPO/git/refs/heads/$branch" -X DELETE \
+              >/dev/null && echo "deleted branch $branch"
           done
