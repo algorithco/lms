@@ -1,0 +1,28 @@
+# Dependabot — automated dependency updates (free on all plans).
+# https://docs.github.com/en/code-security/dependabot
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Tashkent
+    groups:
+      django-stack:
+        patterns: [django*, djangorestframework*, channels*, celery*]
+      security-tools:
+        patterns: [pip*, setuptools*, wheel*]
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: [ci, dependencies]

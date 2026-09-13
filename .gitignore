@@ -25,6 +25,9 @@ media/
 .env.local
 .env.production
 .env.prod
+.env.prod.*
+!.env.example
+!.env.prod.example
 
 # IDE
 .vscode/
@@ -64,6 +67,13 @@ deploy/nginx/nginx.conf
 # VPS-side admin Basic Auth credential (created by setup-admin-auth.sh).
 # The .example template stays tracked; the real file must never be committed.
 deploy/secrets/htpasswd-admin
+deploy/secrets/*.pem
+deploy/secrets/*.key
+*.pem
+*.key
+id_rsa*
+*.p12
+*.pfx
 
 # Host fail2ban log tail (mounted from nginx). Directory stays tracked.
 deploy/logs/*.log
