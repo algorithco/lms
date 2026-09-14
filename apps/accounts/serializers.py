@@ -160,6 +160,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(
         source="profile.date_of_birth", read_only=True,
     )
+    is_platform_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -167,8 +168,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "id", "email", "first_name", "last_name",
             "role", "phone", "bio", "avatar", "date_of_birth",
             "telegram_chat_id", "created_at",
+            "language", "is_staff", "is_superuser", "is_platform_admin",
         ]
         read_only_fields = fields  # Hammasi read-only
+
+    def get_is_platform_admin(self, obj: Any) -> bool:
+        from apps.accounts.access import is_platform_admin
+        return is_platform_admin(obj)
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
@@ -196,7 +202,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "first_name", "last_name",
+            "first_name", "last_name", "language",
             "phone", "bio", "avatar", "date_of_birth",
         ]
 
@@ -215,6 +221,8 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         instance.last_name = validated_data.get(
             "last_name", instance.last_name,
         )
+        if "language" in validated_data:
+            instance.language = validated_data["language"]
         instance.save()
 
         # Profile maydonlarini yangilash

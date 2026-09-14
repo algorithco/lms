@@ -71,3 +71,7 @@ test_grading.py
 test_quiz_ws.py
 INTEGRATION_GUIDE.md
 AUDIT_REPORT_*.md
+
+# React SPA build artifacts (served separately; never baked into Django image)
+frontend/node_modules
+frontend/dist

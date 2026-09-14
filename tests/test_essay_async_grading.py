@@ -74,9 +74,13 @@ class AsyncGradingFixtureMixin:
             essay_text="Bu test uchun yozilgan yetarlicha uzun esse matni " * 5,
             word_count=50,
         )
+        # The retired HTML submit view (essays:submit) rendered deleted
+        # partial templates — the SPA submits via the TMA JSON endpoint,
+        # which runs the same start_grading() contract (202 processing).
         self.submit_url = reverse(
-            "essays:submit", kwargs={"submission_id": self.submission.id},
+            "telegram_app:essay-submit", kwargs={"submission_id": self.submission.id},
         )
+        self.submit_body = {"essay_text": self.submission.essay_text}
 
     def _join_grading_thread(self, timeout: float = 20.0):
         """start_thread_grading ochgan thread'ni kutib olish (determinizm)."""
@@ -106,9 +110,12 @@ class SubmitImmediateResponseTests(AsyncGradingBaseTestCase):
         """Broker ishlab tursa: task queue qilinadi, view darhol qaytadi."""
         mock_task.delay.return_value = MagicMock()
 
-        resp = self.client.post(self.submit_url)
+        resp = self.client.post(
+            self.submit_url, self.submit_body, content_type="application/json",
+        )
 
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(resp.json()["status"], "processing")
         mock_task.delay.assert_called_once_with(
             self.submission.id, fail_status=EssaySubmission.Status.ERROR,
         )
@@ -124,7 +131,9 @@ class SubmitImmediateResponseTests(AsyncGradingBaseTestCase):
     ) -> None:
         """Request path'da sinxron grade_essay() chaqiruvi bo'lishi MUMKIN EMAS."""
         with patch("apps.essays.services.grade_essay") as mock_grade:
-            self.client.post(self.submit_url)
+            self.client.post(
+                self.submit_url, self.submit_body, content_type="application/json",
+            )
             mock_grade.assert_not_called()
 
 
@@ -148,9 +157,11 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
         mock_task.delay.side_effect = Exception("broker down")
         mock_task.apply.return_value = MagicMock()  # thread'da muvaffaqiyatli
 
-        resp = self.client.post(self.submit_url)
+        resp = self.client.post(
+            self.submit_url, self.submit_body, content_type="application/json",
+        )
 
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 202)
         mock_task.delay.assert_called_once()
         self._join_grading_thread()
 
@@ -172,8 +183,10 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
         mock_task.delay.side_effect = Exception("broker down")
         mock_task.apply.side_effect = Exception("LLM ishlamadi")
 
-        resp = self.client.post(self.submit_url)
-        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(
+            self.submit_url, self.submit_body, content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 202)
 
         thread = self._join_grading_thread()
         self.assertIsNotNone(thread, "Background thread ishga tushmagan")
@@ -460,10 +473,12 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
 
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
             mock_task.delay.return_value = MagicMock()
-            resp = self.client.post(self.submit_url)
+            resp = self.client.post(
+                self.submit_url, self.submit_body, content_type="application/json",
+            )
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotIn("allaqachon", resp.content.decode("utf-8", errors="ignore").lower())
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(resp.json()["status"], "processing")
         mock_task.delay.assert_called_once()
 
         self.submission.refresh_from_db()
@@ -478,12 +493,12 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.submission.save(update_fields=["status", "total_score", "raw_result"])
 
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
-            resp = self.client.post(self.submit_url)
+            resp = self.client.post(
+                self.submit_url, self.submit_body, content_type="application/json",
+            )
 
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(
-            "allaqachon baholangan", resp.content.decode("utf-8", errors="ignore").lower(),
-        )
+        self.assertEqual(resp.json()["status"], "graded")
         mock_task.delay.assert_not_called()  # qayta baholash yuborilmadi
 
     def test_pending_essay_returns_processing_not_error(self) -> None:
@@ -491,11 +506,11 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.submission.status = EssaySubmission.Status.PENDING
         self.submission.save(update_fields=["status"])
 
-        resp = self.client.post(self.submit_url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(
-            "data-async-redirect", resp.content.decode("utf-8", errors="ignore"),
+        resp = self.client.post(
+            self.submit_url, self.submit_body, content_type="application/json",
         )
+        self.assertEqual(resp.status_code, 202)
+        self.assertEqual(resp.json()["status"], "processing")
 
     def test_teacher_reviewed_essay_is_blocked(self) -> None:
         """Ustoz bahosi bor (final_score) → bloklanadi."""
@@ -503,10 +518,11 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.submission.final_score = Decimal("20.0")
         self.submission.save(update_fields=["status", "final_score"])
 
-        resp = self.client.post(self.submit_url)
-        self.assertIn(
-            "allaqachon baholangan", resp.content.decode("utf-8", errors="ignore").lower(),
+        resp = self.client.post(
+            self.submit_url, self.submit_body, content_type="application/json",
         )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "graded")
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     def test_pending_teacher_without_result_is_resubmittable(self) -> None:
@@ -516,9 +532,11 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
 
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
             mock_task.delay.return_value = MagicMock()
-            resp = self.client.post(self.submit_url)
+            resp = self.client.post(
+                self.submit_url, self.submit_body, content_type="application/json",
+            )
 
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 202)
         mock_task.delay.assert_called_once()
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.status, EssaySubmission.Status.PENDING)

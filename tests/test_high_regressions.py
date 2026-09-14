@@ -217,7 +217,9 @@ class TestSubmissionRegressionTests(TestCase):
         page = self.client.get(
             f"/certificates/verify/{certificate.certificate_number}/"
         )
-        self.assertIsNone(page.context["certificate"])
+        # Direct-backend QR landing renders inline HTML (no page templates).
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("topilmadi", page.content.decode())
 
     def test_existing_certificate_checksum_backfill_matches_live_verifier(self):
         import importlib

@@ -23,7 +23,7 @@ from typing import Any
 
 from django.http import FileResponse, Http404
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -215,7 +215,16 @@ def certificate_verify_page_view(request, certificate_number: str):
     Public HTML page for certificate verification.
     No auth required — accessible via QR code scan.
     Checks the stored HMAC against current database state on every request.
+
+    NOTE: In production nginx serves the React SPA for this path first
+    (React Router /certificates/verify/:number); this Django view is the
+    fallback for direct-backend hits (QR scans that bypass nginx). It renders
+    inline HTML on purpose — page templates are retired, so there is no
+    templates/web/verify_certificate.html anymore.
     """
+    from django.http import HttpResponse
+    from django.utils.html import escape
+
     certificate = None
     error = None
 
@@ -235,13 +244,19 @@ def certificate_verify_page_view(request, certificate_number: str):
         error = "Sertifikat topilmadi."
         logger.info("Certificate verify page: not found=%s", certificate_number)
 
-    ctx = {
-        "certificate": certificate,
-        "error": error,
-        "certificate_number": certificate_number,
-    }
-
-    return render(request, "web/verify_certificate.html", ctx)
+    if certificate is not None:
+        body = (
+            f"<h1>{escape(certificate.certificate_number)}</h1>"
+            f"<p>{escape(certificate.student.get_full_name())}</p>"
+            f"<p>{escape(certificate.course.title)}</p>"
+        )
+    else:
+        body = f"<h1>Sertifikat topilmadi</h1><p>{escape(error or '')}</p>"
+    return HttpResponse(
+        f"<!doctype html><html lang='uz'><head><meta charset='utf-8'>"
+        f"<title>{escape(certificate_number)}</title></head>"
+        f"<body>{body}</body></html>"
+    )
 
 
 # -------------------------------------------------------------------

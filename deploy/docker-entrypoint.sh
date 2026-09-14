@@ -47,6 +47,20 @@ else
 
     echo "[entrypoint] Collecting static files ..."
     python manage.py collectstatic --noinput
+
+    # Publish the baked React SPA (/app/spa) to the shared spa_volume mounted
+    # at /app/spa-live (nginx serves it as /app/spa). Fresh copy on every
+    # start so the volume can never serve a stale build after a deploy.
+    # Skipped when there is no baked build (e.g. dev bind-mounts the source
+    # tree over /app, hiding /app/spa — dev UI runs on vite :5173 instead).
+    if [[ -f /app/spa/index.html ]]; then
+        echo "[entrypoint] Publishing SPA to shared volume ..."
+        mkdir -p /app/spa-live
+        find /app/spa-live -mindepth 1 -delete
+        cp -r /app/spa/. /app/spa-live/
+    else
+        echo "[entrypoint] No baked SPA at /app/spa — skipping publish"
+    fi
 fi
 
 echo "[entrypoint] Executing: $*"

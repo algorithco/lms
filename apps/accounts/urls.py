@@ -49,6 +49,35 @@ urlpatterns = [
         name="profile",
     ),
 
+    # -- Password reset (JSON, React SPA) ---------------------------------------
+    path(
+        "password-reset/",
+        views.PasswordResetRequestView.as_view(),
+        name="password_reset_request",
+    ),
+    path(
+        "password-reset/confirm/",
+        views.PasswordResetConfirmAPIView.as_view(),
+        name="password_reset_confirm_api",
+    ),
+
+    # -- Django session bridge (React SPA: WS + session JSON) -------------------
+    path(
+        "session/",
+        views.SessionLoginView.as_view(),
+        name="session_login",
+    ),
+    path(
+        "session/status/",
+        views.SessionStatusView.as_view(),
+        name="session_status",
+    ),
+    path(
+        "session/logout/",
+        views.SessionLogoutView.as_view(),
+        name="session_logout",
+    ),
+
     # -- Telegram -------------------------------------------------------------
     path(
         "telegram/connect/",

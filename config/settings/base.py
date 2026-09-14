@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "apps.arena",          # WebSocket Quiz Arena
     "apps.payments",       # Subscriptions & Payments
     "apps.panel",          # In-app admin panel (/control-panel/)
+    "apps.webapi",         # JSON API for the React SPA (/api/v1/)
 ]
 
 MIDDLEWARE = [
@@ -144,7 +145,12 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Static & Media files
+# Static & Media files.
+# Project CSS/JS moved to the React SPA (frontend/dist, served by nginx from
+# the spa_volume). static/ stays as an (empty) source dir so collectstatic
+# keeps working; admin + DRF assets still come via AppDirectoriesFinder.
+# templates/ keeps transactional email templates only (templates/emails/* +
+# registration/password_reset_email*); all page templates are retired.
 # ---------------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
@@ -174,11 +180,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SITE_URL = env("SITE_URL", default="http://localhost:8000")
 
 # ---------------------------------------------------------------------------
-# Auth Redirects
+# Auth Redirects — SPA paths (server-rendered auth pages are retired).
+# @login_required redirects land on the React login page; the SPA then uses
+# the /api/auth/* JSON endpoints (see frontend/src/lib/api.ts).
 # ---------------------------------------------------------------------------
-LOGIN_URL = "web:login"
-LOGIN_REDIRECT_URL = "web:dashboard"
-LOGOUT_REDIRECT_URL = "web:login"
+LOGIN_URL = "/login"
+LOGIN_REDIRECT_URL = "/dashboard"
+LOGOUT_REDIRECT_URL = "/login"
 
 # ---------------------------------------------------------------------------
 # CORS (Cross-Origin Resource Sharing)

@@ -35,6 +35,10 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      # Baked React SPA (/app/spa) is published here at startup (entrypoint)
+      # for nginx; the mount point must differ from /app/spa itself so the
+      # baked files stay visible to the entrypoint copy step.
+      - spa_volume:/app/spa-live
     depends_on:
       db:
         condition: service_healthy
@@ -213,6 +217,8 @@ services:
       - ./deploy/logs:/var/log/nginx
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
+      # React SPA (published by web at startup) — nginx serves it directly.
+      - spa_volume:/app/spa:ro
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
     depends_on:
@@ -256,6 +262,7 @@ volumes:
   redis_data:
   static_volume:
   media_volume:
+  spa_volume:
   beat_data:
   certbot_conf:
   certbot_www:

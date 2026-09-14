@@ -114,6 +114,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Login — access va refresh token olish."""
+        from apps.accounts.access import is_platform_admin
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -132,6 +134,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     "role": user.role,
                     "full_name": user.get_full_name(),
                     "is_active": user.is_active,
+                    "language": getattr(user, "language", "uz"),
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
+                    "is_platform_admin": is_platform_admin(user),
                 },
             },
             status=status.HTTP_200_OK,
@@ -288,3 +294,241 @@ class TelegramConnectStatusView(APIView):
         from .services.telegram_link import link_challenge_status
         state = link_challenge_status(request.user, token)
         return Response({"status": state})
+
+
+# ---------------------------------------------------------------------------
+# Django Session Bridge (for React SPA: WS arena + session-only JSON views)
+# ---------------------------------------------------------------------------
+# The arena WebSocket consumer uses AuthMiddlewareStack (session cookie only —
+# a JWT in a header cannot authenticate a WebSocket). The old server-rendered
+# /login/ page is gone, so the SPA establishes the Django session through
+# these JSON endpoints instead (same-origin, cookies incl. CSRF).
+class SessionLoginView(APIView):
+    """POST /api/auth/session/ — {email, password} → Django session login."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(
+        summary="Django session ochish (SPA bridge)",
+        description=(
+            "Email va parol orqali Django session (cookie) ochish. "
+            "Arena WebSocket va session-only JSON endpointlar uchun."
+        ),
+        request={"email": "user@example.com", "password": "secret"},
+        responses={200: {"description": "Session ochildi"}},
+        tags=["Auth"],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from django.contrib.auth import authenticate
+        from django.contrib.auth import login as django_login
+        from django.middleware.csrf import get_token
+
+        email = str(request.data.get("email", "")).strip().lower()
+        password = str(request.data.get("password", ""))
+
+        if not email or not password:
+            return Response(
+                {"detail": "Email va parol kiritilishi shart."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = authenticate(request, username=email, password=password)
+        if user is None or not user.is_active:
+            return Response(
+                {"detail": "Noto'g'ri email yoki parol."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        django_login(request, user)
+        # Force the csrftoken cookie so sessionApi() can POST session views.
+        get_token(request)
+
+        return Response(
+            {
+                "ok": True,
+                "user": {
+                    "id": user.pk,
+                    "email": user.email,
+                    "role": user.role,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class SessionStatusView(APIView):
+    """GET /api/auth/session/status/ — Django session holatini tekshirish."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        user = request.user
+        authed = bool(user and user.is_authenticated)
+        return Response(
+            {
+                "authenticated": authed,
+                "user": (
+                    {"id": user.pk, "email": user.email, "role": user.role}
+                    if authed
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class SessionLogoutView(APIView):
+    """POST /api/auth/session/logout/ — Django session'ni yopish."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from django.contrib.auth import logout as django_logout
+
+        django_logout(request)
+        return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Password Reset (JSON, for React SPA)
+# ---------------------------------------------------------------------------
+# The emailed link points at the SPA route /password-reset/confirm/<uid>/<token>/
+# (see registration/password_reset_email.* templates). Same-origin with the SPA
+# after cutover, so {{ protocol }}://{{ domain }} stays correct.
+class PasswordResetRequestView(APIView):
+    """POST /api/auth/password-reset/ — reset havolasini emailga yuborish."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(
+        summary="Parolni tiklash havolasini yuborish",
+        description="Emailga parol tiklash havolasi yuborish (har doim 200).",
+        request={"email": "user@example.com"},
+        responses={200: {"description": "Havola yuborildi (agar email mavjud bo'lsa)"}},
+        tags=["Auth"],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from django.conf import settings
+        from django.contrib.auth.forms import PasswordResetForm
+        from django.contrib.auth.tokens import default_token_generator
+        from django.core.cache import cache
+        from django.core.exceptions import ImproperlyConfigured
+        from django.utils.crypto import salted_hmac
+        from urllib.parse import urlsplit
+
+        from apps.core.translations import get_user_language
+
+        email = str(request.data.get("email", "")).strip().casefold()
+
+        # Same per-IP / per-email throttle as SecurePasswordResetView.
+        ip = request.META.get("REMOTE_ADDR", "unknown")
+        throttled = False
+        for kind, value, limit in (("ip", ip, 20), ("email", email, 3)):
+            digest = salted_hmac("password-reset-rate", f"{kind}:{value}").hexdigest()
+            key = f"password-reset:{kind}:{digest}"
+            if cache.add(key, 1, timeout=3600):
+                count = 1
+            else:
+                count = cache.incr(key)
+            throttled |= count > limit
+
+        if email and not throttled:
+            form = PasswordResetForm({"email": email})
+            if form.is_valid():
+                options = {
+                    "use_https": request.is_secure() or not settings.DEBUG,
+                    "token_generator": default_token_generator,
+                    "email_template_name": "registration/password_reset_email.txt",
+                    "subject_template_name": "registration/password_reset_subject.txt",
+                    "html_email_template_name": "registration/password_reset_email.html",
+                    "request": request,
+                    "extra_email_context": {
+                        "lang": get_user_language(request),
+                    },
+                }
+                if not settings.DEBUG:
+                    site = urlsplit(settings.SITE_URL)
+                    if site.scheme != "https" or not site.netloc or site.path not in ("", "/"):
+                        raise ImproperlyConfigured(
+                            "SITE_URL must be an HTTPS origin for password reset."
+                        )
+                    options["domain_override"] = site.netloc
+                form.save(**options)
+
+        # Generic response — never reveal whether the email exists.
+        return Response(
+            {"ok": True, "message": "Agar email ro'yxatda bo'lsa, havola yuborildi."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmAPIView(APIView):
+    """POST /api/auth/password-reset/confirm/ — yangi parolni saqlash."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(
+        summary="Yangi parolni saqlash",
+        description="uid + token tekshirib, yangi parolni saqlash.",
+        request={
+            "uid": "MQ",
+            "token": "cx...",
+            "new_password1": "secret123",
+            "new_password2": "secret123",
+        },
+        responses={
+            200: {"description": "Parol yangilandi"},
+            400: {"description": "Havola yaroqsiz yoki parol xato"},
+        },
+        tags=["Auth"],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from django.contrib.auth.password_validation import (
+            validate_password as django_validate_password,
+        )
+        from django.contrib.auth.tokens import default_token_generator
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.utils.encoding import force_str
+        from django.utils.http import urlsafe_base64_decode
+
+        uid = str(request.data.get("uid", ""))
+        token = str(request.data.get("token", ""))
+        p1 = str(request.data.get("new_password1", ""))
+        p2 = str(request.data.get("new_password2", ""))
+
+        user = None
+        try:
+            pk = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=pk)
+        except Exception:
+            user = None
+
+        if user is None or not default_token_generator.check_token(user, token):
+            return Response(
+                {"detail": "Havola yaroqsiz yoki muddati tugagan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not p1 or p1 != p2:
+            return Response(
+                {"new_password2": ["Parollar mos kelmaydi."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            django_validate_password(p1, user=user)
+        except DjangoValidationError as e:
+            return Response(
+                {"new_password1": list(e.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(p1)
+        user.save(update_fields=["password"])
+        return Response(
+            {"ok": True, "message": "Parol muvaffaqiyatli yangilandi."},
+            status=status.HTTP_200_OK,
+        )

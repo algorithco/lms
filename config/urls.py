@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/results/", include("apps.results.urls")),
     path("api/certificates/", include("apps.certificates.urls")),
     path("api/notifications/", include("apps.notifications.urls")),
+    path("api/v1/", include("apps.webapi.urls")),  # React SPA API
     # Games API: removed — duplicate of web/games/. Use web-games namespace via web/urls.py
     path("essays/", include("apps.essays.urls")),
     path("arena/", include("apps.arena.urls")),

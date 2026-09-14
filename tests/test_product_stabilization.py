@@ -48,60 +48,92 @@ class PasswordResetFlowTests(TestCase):
 
     def _request_link(self):
         response = self.client.post(
-            reverse("web:password-reset"), {"email": self.user.email}
+            reverse("accounts:password_reset_request"), {"email": self.user.email},
+            content_type="application/json",
         )
-        self.assertRedirects(response, reverse("web:password-reset-done"))
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
         body = mail.outbox[0].body
-        return next(line.strip() for line in body.splitlines() if "/password-reset/" in line)
+        return next(
+            line.strip() for line in body.splitlines()
+            if "/password-reset/confirm/" in line
+        )
+
+    @staticmethod
+    def _split_link(link):
+        parts = urlsplit(link).path.rstrip("/").split("/")
+        return parts[-2], parts[-1]
 
     def test_unknown_email_has_same_response_and_no_mail(self):
         response = self.client.post(
-            reverse("web:password-reset"), {"email": "missing@example.test"}
+            reverse("accounts:password_reset_request"), {"email": "missing@example.test"},
+            content_type="application/json",
         )
-        self.assertRedirects(response, reverse("web:password-reset-done"))
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(mail.outbox, [])
 
     def test_token_changes_password_and_cannot_be_reused(self):
         link = self._request_link()
-        response = self.client.get(urlsplit(link).path)
-        self.assertEqual(response.status_code, 302)
-        confirm_url = response.url
-        weak = self.client.post(confirm_url, {
-            "new_password1": "123", "new_password2": "123",
-        })
-        self.assertEqual(weak.status_code, 200)
+        uid, token = self._split_link(link)
+        url = reverse("accounts:password_reset_confirm_api")
+        weak = self.client.post(
+            url, {"uid": uid, "token": token, "new_password1": "123", "new_password2": "123"},
+            content_type="application/json",
+        )
+        self.assertEqual(weak.status_code, 400)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("OldStrongPass123!"))
-        success = self.client.post(confirm_url, {
-            "new_password1": "NewStrongPass123!",
-            "new_password2": "NewStrongPass123!",
-        })
-        self.assertRedirects(success, reverse("web:password-reset-complete"))
+        success = self.client.post(
+            url, {
+                "uid": uid, "token": token,
+                "new_password1": "NewStrongPass123!",
+                "new_password2": "NewStrongPass123!",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(success.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewStrongPass123!"))
         self.assertFalse(self.user.check_password("OldStrongPass123!"))
-        self.assertContains(self.client.get(urlsplit(link).path), t("pr_invalid_title", "uz"))
+        reused = self.client.post(
+            url, {
+                "uid": uid, "token": token,
+                "new_password1": "AnotherStrong123!",
+                "new_password2": "AnotherStrong123!",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(reused.status_code, 400)
 
     def test_token_expires_after_one_hour(self):
         link = self._request_link()
+        uid, token = self._split_link(link)
         future = datetime.now() + timedelta(hours=1, seconds=2)
         with patch.object(default_token_generator, "_now", return_value=future):
-            response = self.client.get(urlsplit(link).path)
-        self.assertContains(response, t("pr_invalid_title", "uz"))
+            response = self.client.post(
+                reverse("accounts:password_reset_confirm_api"),
+                {
+                    "uid": uid, "token": token,
+                    "new_password1": "NewStrongPass123!",
+                    "new_password2": "NewStrongPass123!",
+                },
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 400)
 
     def test_rate_limit_keeps_generic_response(self):
         for _ in range(4):
             response = self.client.post(
-                reverse("web:password-reset"), {"email": self.user.email}
+                reverse("accounts:password_reset_request"), {"email": self.user.email},
+                content_type="application/json",
             )
-            self.assertRedirects(response, reverse("web:password-reset-done"))
+            self.assertEqual(response.status_code, 200)
         self.assertEqual(len(mail.outbox), 3)
 
     @override_settings(DEBUG=False, SITE_URL="https://lms.example.test")
     def test_production_link_uses_trusted_https_origin(self):
         link = self._request_link()
-        self.assertTrue(link.startswith("https://lms.example.test/password-reset/"))
+        self.assertTrue(link.startswith("https://lms.example.test/password-reset/confirm/"))
 
     def test_email_localized_in_all_three_languages(self):
         for lang in ("uz", "ru", "en"):
@@ -126,8 +158,9 @@ class PlatformAdminPolicyTests(TestCase):
         )
         self.assertFalse(is_platform_admin(staff))
         self.client.force_login(staff)
-        self.assertEqual(self.client.get(reverse("panel:user-list")).status_code, 403)
-        self.assertEqual(self.client.get(reverse("web:dashboard")).status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/panel/users/").status_code, 403)
+        # ...but staff still counts as teacher for the school API.
+        self.assertEqual(self.client.get("/api/v1/school/teacher/").status_code, 200)
 
     def test_role_admin_and_superuser_reach_panel(self):
         role_admin = User.objects.create_user(
@@ -138,8 +171,7 @@ class PlatformAdminPolicyTests(TestCase):
         )
         for user in (role_admin, superuser):
             self.client.force_login(user)
-            self.assertRedirects(self.client.get(reverse("web:dashboard")), reverse("panel:dashboard"))
-            self.assertEqual(self.client.get(reverse("panel:user-list")).status_code, 200)
+            self.assertEqual(self.client.get("/api/v1/panel/users/").status_code, 200)
 
     def test_inactive_admin_denied(self):
         user = User.objects.create_user(
@@ -156,7 +188,8 @@ class PlatformAdminPolicyTests(TestCase):
             email="student-superuser@example.test", password="pass", role="student",
         )
         self.client.force_login(superuser)
-        self.assertContains(self.client.get(reverse("web:test-list")), test.title)
+        titles = [t["title"] for t in self.client.get("/api/tests/").json()["results"]]
+        self.assertIn(test.title, titles)
         self.assertEqual(self.client.get(f"/api/tests/{test.pk}/").status_code, 200)
 
     def test_admin_can_manage_other_teachers_group_without_opening_teacher_access(self):
@@ -165,39 +198,58 @@ class PlatformAdminPolicyTests(TestCase):
         admin = User.objects.create_user(email="groups-admin@example.test", password="pass", role="admin")
         group = StudentGroup.objects.create(teacher=teacher, name="9-A")
         self.client.force_login(other_teacher)
-        self.assertEqual(self.client.get(reverse("web:group-detail", args=[group.pk])).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/school/groups/{group.pk}/").status_code, 404)
         self.client.force_login(admin)
-        self.assertContains(self.client.get(reverse("web:group-list")), "9-A")
-        self.assertEqual(self.client.get(reverse("web:group-detail", args=[group.pk])).status_code, 200)
+        names = [g["name"] for g in self.client.get("/api/v1/school/groups/").json()]
+        self.assertIn("9-A", names)
+        self.assertEqual(self.client.get(f"/api/v1/school/groups/{group.pk}/").status_code, 200)
 
 
 class LanguagePersistenceTests(TestCase):
-    def test_first_visit_uses_uzbek_even_with_foreign_browser_header(self):
-        response = self.client.get(reverse("web:login"), HTTP_ACCEPT_LANGUAGE="ru,en;q=0.9")
-        self.assertContains(response, 'lang="uz"')
-        self.assertContains(response, t("login_title", "uz"))
+    def test_default_language_is_uzbek(self):
+        user = User.objects.create_user(
+            email="default-lang@example.test", password="pass",
+        )
+        self.assertEqual(user.language, "uz")
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(reverse("accounts:profile")).json()["language"], "uz")
 
     def test_language_survives_pages_and_logout(self):
-        user = User.objects.create_user(
+        User.objects.create_user(
             email="language@example.test", password="StrongPass123!", role="student",
         )
         response = self.client.get(
             reverse("web:set-language", args=["ru"]), HTTP_REFERER="/login/",
         )
-        self.assertRedirects(response, "/login/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/login/")
         self.assertEqual(response.cookies["language"].value, "ru")
-        self.assertContains(self.client.get(reverse("web:login")), 'lang="ru"')
-        self.client.force_login(user)
-        self.assertContains(self.client.get(reverse("web:test-list")), 'lang="ru"')
-        self.client.get(reverse("web:logout"))
-        self.assertContains(self.client.get(reverse("web:login")), 'lang="ru"')
 
-    def test_account_preference_applies_without_session_choice(self):
+    def test_account_preference_served_via_profile(self):
         user = User.objects.create_user(
             email="english@example.test", password="pass", language="en",
         )
         self.client.force_login(user)
-        self.assertContains(self.client.get(reverse("web:test-list")), 'lang="en"')
+        self.assertEqual(self.client.get(reverse("accounts:profile")).json()["language"], "en")
+
+    def test_profile_language_update_and_validation(self):
+        user = User.objects.create_user(
+            email="switcher@example.test", password="pass", language="uz",
+        )
+        self.client.force_login(user)
+        response = self.client.patch(
+            reverse("accounts:profile"), {"language": "ru"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["language"], "ru")
+        user.refresh_from_db()
+        self.assertEqual(user.language, "ru")
+        bad = self.client.patch(
+            reverse("accounts:profile"), {"language": "de"},
+            content_type="application/json",
+        )
+        self.assertEqual(bad.status_code, 400)
 
     def test_language_switch_rejects_external_redirect(self):
         response = self.client.get(
@@ -262,13 +314,13 @@ class ProductionStorageTests(TestCase):
 
 
 class DashboardEmptyStateTests(TestCase):
-    def test_teacher_with_no_results_sees_action_instead_of_empty_chart(self):
+    def test_teacher_with_no_results_gets_empty_overview(self):
         teacher = User.objects.create_user(email="empty-teacher@example.test", password="pass", role="teacher")
         self.client.force_login(teacher)
-        response = self.client.get(reverse("web:dashboard"))
-        self.assertIn(t("no_student_results_hint", "uz").replace("'", "&#x27;"), response.content.decode())
-        self.assertNotContains(response, 'id="activityChart"')
-        self.assertNotContains(response, 'id="essayDistChart"')
+        response = self.client.get("/api/v1/school/teacher/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["recent_results"], [])
+        self.assertEqual(response.json()["groups"], [])
 
 
 class TelegramLoginReplayTests(TestCase):
@@ -334,10 +386,11 @@ class GoogleOAuthLinkingTests(TestCase):
         )
 
     @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
-    def test_configured_login_and_link_actions_are_discoverable(self):
-        self.assertContains(self.client.get(reverse("web:login")), t("login_with_google", "uz"))
-        self.client.force_login(self.existing)
-        self.assertContains(self.client.get(reverse("web:test-list")), t("link_google", "uz").replace("'", "&#x27;"), html=False)
+    def test_google_oauth_routes_are_wired(self):
+        # The server-rendered login/test-list pages are retired (SPA owns them);
+        # OAuth start/callback endpoints themselves stay covered below.
+        start = self.client.get(reverse("accounts:google_auth_start"))
+        self.assertEqual(start.status_code, 302)
 
     def _callback(self, claims, *, authenticated=False):
         if authenticated:
@@ -361,7 +414,8 @@ class GoogleOAuthLinkingTests(TestCase):
         response = self._callback({
             "sub": "google-123", "email": self.existing.email, "email_verified": True,
         })
-        self.assertRedirects(response, reverse("web:login"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(urlsplit(response.url).path, reverse("web:login"))
         self.existing.refresh_from_db()
         self.assertIsNone(self.existing.google_id)
         self.assertNotIn("_auth_user_id", self.client.session)
@@ -377,7 +431,8 @@ class GoogleOAuthLinkingTests(TestCase):
         response = self._callback({
             "sub": "google-123", "email": "new-address@example.test", "email_verified": True,
         })
-        self.assertRedirects(response, reverse("web:dashboard"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(urlsplit(response.url).path, reverse("web:dashboard"))
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.existing.pk)
 
     @override_settings(GOOGLE_CLIENT_ID="client-id", GOOGLE_CLIENT_SECRET="client-secret", GOOGLE_REDIRECT_URI="https://lms.example.test/api/auth/google/callback/")
@@ -385,7 +440,8 @@ class GoogleOAuthLinkingTests(TestCase):
         response = self._callback({
             "sub": "google-123", "email": self.existing.email, "email_verified": False,
         })
-        self.assertRedirects(response, reverse("web:login"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(urlsplit(response.url).path, reverse("web:login"))
         self.assertIsNone(self.existing.google_id)
         with patch("google.oauth2.id_token.verify_oauth2_token", return_value={
             "sub": "google-123", "email": self.existing.email,

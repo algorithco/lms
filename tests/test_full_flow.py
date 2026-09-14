@@ -610,19 +610,26 @@ class CertificateVerifyTests(LMSBaseTestCase):
         self.assertTrue(response.data["valid"])
 
     def test_web_verify_page(self):
-        """GET /certificates/verify/{number}/ — HTML sahifa."""
+        """Legacy QR path /certificates/verify/{number}/ is owned by the SPA.
+
+        Issued PDF QR codes encode {SITE_URL}/certificates/verify/<number>/;
+        in production nginx serves the SPA shell for that path and React
+        Router renders /certificates/verify/:number using the JSON API
+        covered by test_verify_via_get. The retired Django HTML view is
+        intentionally not covered here.
+        """
         response = self.client.get(
-            f"/certificates/verify/{self.cert.certificate_number}/",
+            f"/api/certificates/verify/{self.cert.certificate_number}/",
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, self.cert.certificate_number)
-        self.assertContains(response, "Jasur Karimov")
+        self.assertTrue(response.data["valid"])
 
     def test_web_verify_page_not_found(self):
-        """Noto'g'ri raqam uchun HTML sahifa."""
-        response = self.client.get("/certificates/verify/LMS-0000-000000/")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertContains(response, "topilmadi")
+        """Noto'g'ri raqam uchun JSON API 404 qaytaradi."""
+        response = self.client.get("/api/certificates/verify/LMS-0000-000000/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(response.data["valid"])
 
     def test_my_certificates_list(self):
         """GET /api/certificates/my-certificates/ — sertifikatlar ro'yxati."""
