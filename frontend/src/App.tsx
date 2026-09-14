@@ -41,6 +41,7 @@ import TakeTest from './pages/TakeTest';
 import TeacherDashboard from './pages/TeacherDashboard';
 import TestDetail from './pages/TestDetail';
 import Tests from './pages/Tests';
+import Tma from './pages/Tma';
 import VerifyCertificate from './pages/VerifyCertificate';
 
 export default function App() {
@@ -70,7 +71,8 @@ function AnimatedRoutes() {
         <Route path="/password-reset/:uid/:token" element={<PasswordResetConfirm />} />
         <Route path="/password-reset/done" element={<Navigate to="/password-reset" replace />} />
         <Route path="/password-reset/complete" element={<Navigate to="/login" replace />} />
-        {/* TMA is a separate Telegram client — SPA has no shell for it */}
+        {/* Telegram Mini App shell (bot web_app button points at /tma/) */}
+        <Route path="/tma" element={<Tma />} />
         <Route path="/password-reset/confirm/:uid/:token" element={<PasswordResetConfirm />} />
           <Route path="/verify" element={<VerifyCertificate />} />
           <Route path="/verify/:number" element={<VerifyCertificate />} />

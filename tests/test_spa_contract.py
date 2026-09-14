@@ -201,3 +201,17 @@ class TeacherEssaysApiTests(TestCase):
             url, {"criteria_scores": {}}, content_type="application/json",
         )
         self.assertEqual(response.status_code, 403)
+
+
+class TmaRedirectTests(TestCase):
+    """GET /tma/ (bot web_app button) lands on the SPA /tma shell."""
+
+    def test_tma_page_redirects_to_spa(self):
+        response = self.client.get(reverse("telegram_app:index"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/tma")
+
+    def test_tma_redirect_preserves_query_string(self):
+        response = self.client.get(reverse("telegram_app:index") + "?tgWebAppData=abc")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/tma?tgWebAppData=abc")
