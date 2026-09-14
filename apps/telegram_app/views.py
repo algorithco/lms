@@ -14,7 +14,7 @@ import logging
 
 from django.contrib.auth import get_user_model, login
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -157,12 +157,15 @@ def tma_index_view(request: HttpRequest) -> HttpResponse:
     """
     GET /tma/
 
-    Telegram Mini App main page.
-    This page is opened inside Telegram's WebApp browser.
+    The Mini App client moved into the React SPA (route /tma, served by
+    nginx directly). The bot's web_app button still points at /tma/ (which
+    nginx proxies to Django), so redirect there — query string preserved.
+    All data flows through /tma/api/* JSON (JWT).
     """
-    return render(request, "tma/index.html", {
-        "telegram_init_data": request.GET.get("tgWebAppData", ""),
-    })
+    target = "/tma"
+    if request.META.get("QUERY_STRING"):
+        target += "?" + request.META["QUERY_STRING"]
+    return redirect(target)
 
 
 # ---------------------------------------------------------------------------
