@@ -203,15 +203,48 @@ class TeacherEssaysApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
-class TmaRedirectTests(TestCase):
-    """GET /tma/ (bot web_app button) lands on the SPA /tma shell."""
+def _ignore_missing_dir(path):
+    try:
+        path.rmdir()
+    except OSError:
+        pass
 
-    def test_tma_page_redirects_to_spa(self):
+
+class TmaPageTests(TestCase):
+    """GET /tma/ (bot web_app button) serves the SPA shell (no redirect loop)."""
+    def _write_baked_shell(self):
+        from pathlib import Path
+
+        from django.conf import settings
+
+        spa_dir = Path(settings.BASE_DIR) / "spa"
+        spa_dir.mkdir(exist_ok=True)
+        index = spa_dir / "index.html"
+        index.write_text(
+            '<div id="root"></div><script src="/assets/app.js"></script>',
+            encoding="utf-8",
+        )
+        # addCleanup runs LIFO: unlink first, then remove the dir we created.
+        self.addCleanup(_ignore_missing_dir, spa_dir)
+        self.addCleanup(index.unlink, True)
+
+    def test_tma_page_serves_spa_shell(self):
+        self._write_baked_shell()
         response = self.client.get(reverse("telegram_app:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="root"', response.content.decode())
+        self.assertIn("/assets/", response.content.decode())
+
+    def test_tma_page_serves_shell_with_query_string(self):
+        self._write_baked_shell()
+        response = self.client.get(reverse("telegram_app:index") + "?tgWebAppData=abc")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="root"', response.content.decode())
+
+    def test_tma_page_falls_back_to_spa_route_without_baked_build(self):
+        # Dev bind-mount hides /app/spa — old redirect semantics preserved.
+        response = self.client.get(reverse("telegram_app:index"))
+        if response.status_code == 200:
+            self.skipTest("baked SPA shell present in this environment")
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], "/tma")
-
-    def test_tma_redirect_preserves_query_string(self):
-        response = self.client.get(reverse("telegram_app:index") + "?tgWebAppData=abc")
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/tma?tgWebAppData=abc")

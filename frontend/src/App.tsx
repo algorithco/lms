@@ -73,6 +73,7 @@ function AnimatedRoutes() {
         <Route path="/password-reset/complete" element={<Navigate to="/login" replace />} />
         {/* Telegram Mini App shell (bot web_app button points at /tma/) */}
         <Route path="/tma" element={<Tma />} />
+        <Route path="/tma/" element={<Tma />} />
         <Route path="/password-reset/confirm/:uid/:token" element={<PasswordResetConfirm />} />
           <Route path="/verify" element={<VerifyCertificate />} />
           <Route path="/verify/:number" element={<VerifyCertificate />} />
