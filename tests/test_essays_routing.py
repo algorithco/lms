@@ -24,12 +24,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.essays.models import (
-    AIEvaluation,
     EssayCriterionScore,
     EssaySubmission,
     EssayTopic,
 )
-from apps.essays.views import essay_improve_view, essay_result_view
+from apps.essays.views import essay_improve_view
 
 User = get_user_model()
 
@@ -329,9 +328,11 @@ class ConvertedScorePropertyTests(TestCase):
 
 class UnifiedResultViewTests(TestCase):
     """
-    The unified essay_result_view must:
-    - Render 'result.html' for 12-mezon submissions (with criteria)
-    - Render 'essay_result.html' for legacy BMB submissions (with AIEvaluation)
+    The unified essay_result_view must 404 for foreign/missing submissions.
+
+    Template-branch coverage (result.html vs essay_result.html) is retired
+    with the server-rendered pages — the SPA reads the same grading data
+    from the TMA result JSON endpoint (see ResultDataJsonTests below).
     """
 
     def setUp(self) -> None:
@@ -343,119 +344,6 @@ class UnifiedResultViewTests(TestCase):
             role="student",
         )
         self.factory = RequestFactory()
-
-    def _make_request(self, submission_id: int) -> MagicMock:
-        """Create a fake GET request as self.student."""
-        request = self.factory.get(f"/essays/result/{submission_id}/")
-        request.user = self.student
-        return request
-
-    @patch("apps.essays.views.render")
-    def test_new_12mezon_uses_result_template(self, mock_render: MagicMock) -> None:
-        """Submission with EssayCriterionScore → 'result.html' template."""
-        sub = EssaySubmission.objects.create(
-            student=self.student,
-            essay_text="Test essay text.",
-            status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("19.0"),
-            max_score=24,
-        )
-        # Create 12 criteria
-        for i in range(1, 13):
-            EssayCriterionScore.objects.create(
-                submission=sub,
-                criterion_id=i,
-                name=f"Criterion {i}",
-                score=Decimal("1.5"),
-            )
-
-        request = self._make_request(sub.id)
-        essay_result_view(request, submission_id=sub.id)
-
-        mock_render.assert_called_once()
-        args = mock_render.call_args
-        template = args[0][1] if len(args[0]) > 1 else args[1][0]
-        context = args[0][2] if len(args[0]) > 2 else args[1][1]
-
-        self.assertEqual(template, "essays/result.html")
-        self.assertIn("criteria", context)
-        self.assertEqual(len(context["criteria"]), 12)
-        self.assertEqual(context["submission"].id, sub.id)
-
-    @patch("apps.essays.views.render")
-    def test_new_12mezon_max_score_24_uses_result_template(
-        self, mock_render: MagicMock
-    ) -> None:
-        """Even without criteria, max_score=24 → 'result.html' (new system)."""
-        sub = EssaySubmission.objects.create(
-            student=self.student,
-            essay_text="Test essay text.",
-            status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("15.0"),
-            max_score=24,
-            # No EssayCriterionScore created
-        )
-
-        request = self._make_request(sub.id)
-        essay_result_view(request, submission_id=sub.id)
-
-        mock_render.assert_called_once()
-        template = mock_render.call_args[0][1]
-        self.assertEqual(template, "essays/result.html")
-
-    @patch("apps.essays.views.render")
-    def test_legacy_bmb_uses_essay_result_template(self, mock_render: MagicMock) -> None:
-        """Legacy submission (no criteria, max_score != 24) → 'essay_result.html'."""
-        sub = EssaySubmission.objects.create(
-            student=self.student,
-            essay_text="Legacy essay text.",
-            status=EssaySubmission.Status.AI_EVALUATED,
-            total_score=Decimal("22.0"),
-            max_score=30,  # Legacy 30-point BMB
-        )
-        # Create legacy AIEvaluation
-        AIEvaluation.objects.create(
-            submission=sub,
-            criteria_scores={
-                "topic_coverage": 8,
-                "argumentation": 6,
-                "grammar_spelling": 5,
-                "style_vocabulary": 3,
-            },
-            total_score=Decimal("22.00"),
-            feedback_text="Yaxshi esse!",
-        )
-
-        request = self._make_request(sub.id)
-        essay_result_view(request, submission_id=sub.id)
-
-        mock_render.assert_called_once()
-        template = mock_render.call_args[0][1]
-        self.assertEqual(template, "essays/essay_result.html")
-
-    @patch("apps.essays.views.render")
-    def test_result_view_shows_converted_score(self, mock_render: MagicMock) -> None:
-        """12-mezon result view includes converted_score context."""
-        sub = EssaySubmission.objects.create(
-            student=self.student,
-            essay_text="Test essay.",
-            status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("19.0"),
-            max_score=24,
-        )
-        for i in range(1, 13):
-            EssayCriterionScore.objects.create(
-                submission=sub,
-                criterion_id=i,
-                name=f"Criterion {i}",
-                score=Decimal("1.5"),
-            )
-
-        request = self._make_request(sub.id)
-        essay_result_view(request, submission_id=sub.id)
-
-        context = mock_render.call_args[0][2]
-        self.assertEqual(context["submission"].converted_score, 59)
 
     def test_result_view_404_for_other_student(self) -> None:
         """Student A cannot view Student B's submission."""
@@ -515,14 +403,30 @@ class LegacyFlowRoutingTests(TestCase):
         )
 
     def test_password_gate_creates_draft_submission(self) -> None:
-        """Password gate creates a DRAFT submission and redirects to write page."""
+        """TMA start creates a DRAFT submission (password-gate successor)."""
         self.client.login(email="student@test.com", password="testpass123")
-        url = reverse("essays:password-gate", kwargs={"topic_id": self.topic.id})
-        resp = self.client.get(url, follow=True)
+        url = reverse("telegram_app:essay-start", kwargs={"topic_id": self.topic.id})
+        resp = self.client.post(url, {}, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
 
         sub = EssaySubmission.objects.get(student=self.student, topic=self.topic)
         self.assertEqual(sub.status, EssaySubmission.Status.DRAFT)
+        self.assertEqual(resp.json()["submission_id"], sub.id)
+
+    def test_password_protected_topic_rejects_wrong_password(self) -> None:
+        """Password topics still enforce the gate via the JSON API."""
+        self.topic.password = "secret123"
+        self.topic.save()
+        self.client.login(email="student@test.com", password="testpass123")
+        url = reverse("telegram_app:essay-start", kwargs={"topic_id": self.topic.id})
+        denied = self.client.post(
+            url, {"password": "wrong"}, content_type="application/json",
+        )
+        self.assertEqual(denied.status_code, 403)
+        allowed = self.client.post(
+            url, {"password": "secret123"}, content_type="application/json",
+        )
+        self.assertEqual(allowed.status_code, 200)
 
     def test_legacy_submit_requires_post(self) -> None:
         """GET on submit endpoint should return 405 (Method Not Allowed)."""
@@ -562,13 +466,6 @@ class NewFlowRoutingTests(TransactionTestCase):
         for t in threading.enumerate():
             if t.name and t.name.startswith("essay-grade-"):
                 t.join(timeout=timeout)
-
-    def test_submit_new_get_returns_form(self) -> None:
-        """GET on submit-new shows the essay form."""
-        self.client.login(email="student@test.com", password="testpass123")
-        url = reverse("essays:submit-new")
-        resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 200)
 
     @patch("apps.essays.services.grade_essay")
     def test_submit_new_post_redirects_to_result(self, mock_grade: MagicMock) -> None:
@@ -656,10 +553,10 @@ class NewFlowRoutingTests(TransactionTestCase):
         self.assertNotEqual(sub.id, sub2.id)
 
 
-class TemplateContainsScoreTests(TestCase):
+class ResultDataJsonTests(TestCase):
     """
-    Verify that templates render converted_score and 12-criteria correctly.
-    These are end-to-end tests using the Django test client.
+    The SPA result page reads grading data from the TMA result JSON endpoint
+    (replaces TemplateContainsScoreTests — page templates are retired).
     """
 
     def setUp(self) -> None:
@@ -672,13 +569,12 @@ class TemplateContainsScoreTests(TestCase):
         )
         self.client.login(email="student@test.com", password="testpass123")
 
-    def test_result_page_shows_12_criteria(self) -> None:
-        """The result.html page must show all 12 criteria rows."""
+    def _graded_submission(self, total="19.0"):
         sub = EssaySubmission.objects.create(
             student=self.student,
             essay_text="Test essay.",
             status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("19.0"),
+            total_score=Decimal(total),
             max_score=24,
             summary="Yaxshi natija.",
         )
@@ -697,52 +593,54 @@ class TemplateContainsScoreTests(TestCase):
                 name=name,
                 score=Decimal("1.5"),
             )
+        return sub, names
 
-        url = reverse("essays:result", kwargs={"submission_id": sub.id})
-        resp = self.client.get(url)
-        content = resp.content.decode()
+    def test_result_data_shows_12_criteria(self) -> None:
+        """All 12 criterion names, totals and converted score in JSON."""
+        sub, names = self._graded_submission()
+        url = reverse("telegram_app:essay-result", kwargs={"submission_id": sub.id})
+        data = self.client.get(url).json()
 
-        # Check all 12 criterion names appear in the page
-        # Django auto-escapes ' to &#x27; in HTML, so we search with both forms
-        import html as html_module
-        for name in names:
-            escaped_name = html_module.escape(name)
-            self.assertTrue(
-                name in content or escaped_name in content,
-                f"Criterion '{name}' not found in result page",
-            )
-
-        # Check total score display
-        self.assertIn("19.0", content)
-        self.assertIn("24", content)
-
-        # Check converted score display
-        self.assertIn("59", content)  # 19/24*75 ≈ 59
-
-    def test_result_page_shows_score_percentage(self) -> None:
-        """Score percentage bar should be present."""
-        sub = EssaySubmission.objects.create(
-            student=self.student,
-            essay_text="Test essay.",
-            status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("18.0"),
-            max_score=24,
+        self.assertEqual(data["status"], EssaySubmission.Status.GRADED)
+        self.assertEqual(len(data["criteria"]), 12)
+        self.assertEqual(
+            [c["name"] for c in data["criteria"]], names,
         )
-        url = reverse("essays:result", kwargs={"submission_id": sub.id})
-        resp = self.client.get(url)
-        content = resp.content.decode()
-        # 18/24*100 = 75.0%
-        self.assertIn("75.0", content)
+        self.assertEqual(data["total_score"], 19.0)
+        self.assertEqual(data["max_score"], 24)
+        self.assertEqual(data["converted_score"], 59)
 
-    def test_result_page_error_status_shows_error(self) -> None:
-        """Error status submissions should show error message."""
+    def test_result_data_shows_score_percentage(self) -> None:
+        """Score percentage is served for the result page bar."""
+        sub, _ = self._graded_submission(total="18.0")
+        url = reverse("telegram_app:essay-result", kwargs={"submission_id": sub.id})
+        data = self.client.get(url).json()
+        # 18/24*100 = 75.0%
+        self.assertEqual(data["score_percentage"], 75.0)
+
+    def test_result_data_error_status(self) -> None:
+        """Error status submissions report their status (no crash)."""
         sub = EssaySubmission.objects.create(
             student=self.student,
             essay_text="Test essay.",
             status=EssaySubmission.Status.ERROR,
             error_message="Baholashda xatolik",
         )
-        url = reverse("essays:result", kwargs={"submission_id": sub.id})
-        resp = self.client.get(url)
-        content = resp.content.decode()
-        self.assertIn("Baholashda xatolik", content)
+        url = reverse("telegram_app:essay-result", kwargs={"submission_id": sub.id})
+        data = self.client.get(url).json()
+        self.assertEqual(data["status"], EssaySubmission.Status.ERROR)
+
+    def test_result_data_foreign_submission_404(self) -> None:
+        """Student A cannot read Student B's result data."""
+        other = User.objects.create_user(
+            email="other@test.com", password="testpass123", role="student",
+        )
+        sub = EssaySubmission.objects.create(
+            student=other,
+            essay_text="Other essay.",
+            status=EssaySubmission.Status.GRADED,
+            total_score=Decimal("10.0"),
+            max_score=24,
+        )
+        url = reverse("telegram_app:essay-result", kwargs={"submission_id": sub.id})
+        self.assertEqual(self.client.get(url).status_code, 404)

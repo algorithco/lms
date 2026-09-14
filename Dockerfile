@@ -27,6 +27,23 @@ COPY requirements/ /wheels/requirements/
 RUN pip wheel --wheel-dir /wheels/dist -r /wheels/requirements/production.txt
 
 # ----------------------------------------------------------------------------
+# Stage 1b: frontend-builder — build the React SPA.
+# The dist/ output is copied into the runtime image at /app/spa and published
+# to nginx via the spa_volume (see entrypoint + compose). VITE_API_URL is
+# unset on purpose: the SPA uses same-origin relative URLs (nginx serves the
+# SPA and proxies /api/* to Django), so no CORS is needed.
+# ----------------------------------------------------------------------------
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ----------------------------------------------------------------------------
 # Stage 2: runtime
 # ----------------------------------------------------------------------------
 FROM python:3.13-slim
@@ -67,6 +84,10 @@ RUN pip install /wheels/dist/*.whl && rm -rf /wheels
 
 # Project code
 COPY . /app/
+
+# React SPA build (published to the spa_volume at container start so nginx
+# can serve it — see deploy/docker-entrypoint.sh)
+COPY --from=frontend-builder /frontend/dist /app/spa
 
 # Runtime-writable dirs (media uploads); staticfiles is collected at startup
 RUN mkdir -p /app/media /app/staticfiles && \

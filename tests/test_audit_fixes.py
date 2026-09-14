@@ -47,8 +47,11 @@ class TeacherAuthorizationTests(TestCase):
 
     def test_teacher_allowed_into_queue(self) -> None:
         self.client.login(email="teacher@test.com", password="testpass123")
-        response = self.client.get(reverse("essays:teacher-queue"))
+        response = self.client.get("/api/v1/essays/teacher/queue/")
         self.assertEqual(response.status_code, 200)
+        self.assertIn("student_requested", response.json())
+        self.assertIn("pending", response.json())
+        self.assertIn("reviewed", response.json())
 
     def test_student_blocked_from_review_page(self) -> None:
         sub = EssaySubmission.objects.create(
