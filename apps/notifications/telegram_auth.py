@@ -16,8 +16,10 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.db import transaction
 from django.http import HttpRequest, JsonResponse
+from django.middleware.csrf import get_token
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import TelegramAuthToken
@@ -77,6 +79,7 @@ def _jwt_user_payload(user) -> dict:
     }
 
 
+@csrf_exempt
 @require_POST
 def telegram_auth_start(request: HttpRequest) -> JsonResponse:
     """
@@ -84,6 +87,14 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
 
     POST /api/telegram/auth/start/
     Response: {"token": "...", "deep_link": "https://t.me/uz_essaygrader_bot?start=auth_...", "expires_in": 600}
+
+    CSRF-exempt on purpose: the React SPA has no server-rendered page, so a
+    first-time visitor may not hold a csrftoken cookie yet (old login.html
+    rendered {% csrf_token %} inline). Creating an *unverified* token is
+    harmless — it is random, rate-limited per IP (10/10min), and useless
+    without completing the bot conversation. The sensitive steps
+    (status/login/code-login) stay CSRF-protected AND session-bound.
+    get_token() plants the csrftoken cookie for those follow-up POSTs.
     """
     from django.core.cache import cache
 
@@ -118,6 +129,7 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
 
     logger.info("Telegram auth token created")
 
+    get_token(request)  # plant csrftoken cookie for the follow-up POSTs
     return JsonResponse({
         "token": token,
         "deep_link": deep_link,
