@@ -1,0 +1,4 @@
+This directory is intentionally empty: project CSS/JS moved to the React SPA
+(frontend/dist, baked into the image at /app/spa and served by nginx).
+It stays as an (empty) source dir so STATICFILES_DIRS keeps working and
+collectstatic does not emit staticfiles.W004.

@@ -89,8 +89,13 @@ COPY . /app/
 # can serve it — see deploy/docker-entrypoint.sh)
 COPY --from=frontend-builder /frontend/dist /app/spa
 
-# Runtime-writable dirs (media uploads); staticfiles is collected at startup
-RUN mkdir -p /app/media /app/staticfiles && \
+# Runtime-writable dirs (media uploads); staticfiles is collected at startup.
+# /app/spa-live must exist AND be owned by app in the image: fresh named
+# volumes inherit the image dir's ownership on first creation — without this
+# the entrypoint's SPA publish fails with Permission denied and web
+# crash-loops (root-owned volume, app user). /app/static is the (empty)
+# STATICFILES_DIRS source dir (kept via static/.gitkeep) — silences W004.
+RUN mkdir -p /app/media /app/staticfiles /app/spa-live /app/static && \
     chown -R app:app /app && \
     chmod +x /app/deploy/docker-entrypoint.sh
 

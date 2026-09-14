@@ -72,6 +72,7 @@ test_quiz_ws.py
 INTEGRATION_GUIDE.md
 AUDIT_REPORT_*.md
 
-# React SPA build artifacts (served separately; never baked into Django image)
+# React SPA local artifacts (rebuilt in the frontend-builder stage and baked
+# into the image at /app/spa — never copied from the build context)
 frontend/node_modules
 frontend/dist
