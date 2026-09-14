@@ -66,7 +66,7 @@
   "welcome": "Xush kelibsiz",
   "logged_out": "Tizimdan muvaffaqiyatli chiqdingiz.",
   "registered": "Muvaffaqiyatli ro'yxatdan o'tdingiz!",
-  "telegram_login_step1": "Telegram ochildi. Botga tasdiqlang...",
+  "telegram_login_step1": "Botda telefon raqamingizni ulashing — hisobingiz topilsa kod darhol beriladi...",
   "telegram_login_step2": "Telegram'dan tasdiqlandi! Kodni kiriting",
   "code_expires": "Kod 10 daqiqa ichida eskiradi",
   "dashboard": "Boshqaruv paneli",

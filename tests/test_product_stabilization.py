@@ -21,6 +21,15 @@ from asgiref.sync import async_to_sync
 from channels.testing import WebsocketCommunicator
 
 from apps.accounts.access import is_platform_admin
+from apps.accounts.models import Profile
+from apps.accounts.services.telegram_identity import (
+    TelegramAuthAmbiguous,
+    TelegramAuthConflict,
+    TelegramIdentityUnverified,
+    find_users_by_phone,
+    normalize_phone,
+    resolve_bot_auth_user,
+)
 from apps.courses.models import Course, StudentGroup
 from apps.tests.models import Test as LmsTest
 from apps.core.translations import TRANSLATIONS, get_user_language, t
@@ -383,6 +392,109 @@ class TelegramLoginReplayTests(TestCase):
         TelegramAuthToken.objects.create(token="duplicate-a", user=self.user, is_verified=True, short_code="777777")
         TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")
         self.assertEqual(Client().post(url, json.dumps({"code": "777777"}), content_type="application/json").status_code, 404)
+
+
+class TelegramPhoneMatchingTests(TestCase):
+    """Website users must match their existing account by verified phone."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            email="phone-match@example.test", password="pass", role="student",
+        )
+        Profile.objects.filter(user=self.user).update(phone="+998 90 123-45-67")
+
+    def _set_user_fields(self, user, **fields):
+        # Queryset update (NOT user.save()): the post_save profile signal
+        # would otherwise persist a stale in-memory profile over our edit.
+        User.objects.filter(pk=user.pk).update(**fields)
+        user.refresh_from_db()
+
+    def test_normalize_phone(self):
+        self.assertEqual(normalize_phone("+998 90 123-45-67"), "998901234567")
+        self.assertEqual(normalize_phone("998901234567"), "998901234567")
+        self.assertEqual(normalize_phone("short"), "")
+        self.assertEqual(normalize_phone(""), "")
+
+    def test_find_users_by_phone_matches_format_variants(self):
+        found = find_users_by_phone("+998901234567")
+        self.assertEqual([u.pk for u in found], [self.user.pk])
+
+    def test_resolve_by_phone_links_identity(self):
+        user, how = resolve_bot_auth_user(777000111, "+998901234567")
+        self.assertEqual(user.pk, self.user.pk)
+        self.assertEqual(how, "phone")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.telegram_chat_id, 777000111)
+        self.assertIsNotNone(self.user.telegram_identity_verified_at)
+
+    def test_resolve_by_telegram_link_wins(self):
+        from django.utils import timezone
+        self._set_user_fields(
+            self.user, telegram_chat_id=777000111,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        user, how = resolve_bot_auth_user(777000111, "+998901234567")
+        self.assertEqual(user.pk, self.user.pk)
+        self.assertEqual(how, "tg")
+
+    def test_resolve_conflict_when_phone_and_telegram_differ(self):
+        other = User.objects.create_user(email="phone-other@example.test", password="pass")
+        from django.utils import timezone
+        self._set_user_fields(
+            other, telegram_chat_id=777000222,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        with self.assertRaises(TelegramAuthConflict):
+            resolve_bot_auth_user(777000222, "+998901234567")
+
+    def test_resolve_ambiguous_when_phone_shared(self):
+        other = User.objects.create_user(email="phone-dup@example.test", password="pass")
+        Profile.objects.filter(user=other).update(phone="998901234567")
+        with self.assertRaises(TelegramAuthAmbiguous):
+            resolve_bot_auth_user(777000333, "+998901234567")
+
+    def test_resolve_none_for_unknown_number(self):
+        user, how = resolve_bot_auth_user(777000444, "+998907654321")
+        self.assertIsNone(user)
+        self.assertEqual(how, "none")
+
+    def test_resolve_rejects_inactive_account(self):
+        self._set_user_fields(self.user, is_active=False)
+        with self.assertRaises(ValueError):
+            resolve_bot_auth_user(777000555, "+998901234567")
+
+    def test_resolve_rejects_unverified_legacy_link(self):
+        self._set_user_fields(
+            self.user, telegram_chat_id=777000666,
+            telegram_identity_verified_at=None,
+        )
+        with self.assertRaises(TelegramIdentityUnverified):
+            resolve_bot_auth_user(777000666, "+998901234567")
+
+    def test_code_login_returns_phone_matched_existing_user(self):
+        """End-to-end: verified token for the phone-matched user logs THEM in."""
+        from django.utils import timezone
+        self._set_user_fields(
+            self.user, telegram_chat_id=555000111,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        token = TelegramAuthToken.objects.create(
+            token="phone-login-token",
+            user=self.user,
+            is_verified=True,
+            phone_number="+998901234567",
+            phone_verified=True,
+            short_code="654321",
+        )
+        url = reverse("notifications:tg-auth-code-login")
+        body = json.dumps({"code": "654321"})
+        response = Client().post(url, body, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["user"]["email"], "phone-match@example.test")
+        self.assertIn("access", response.json()["tokens"])
+        token.refresh_from_db()
+        self.assertIsNotNone(token.consumed_at)
 
 
 class GoogleOAuthLinkingTests(TestCase):

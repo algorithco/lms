@@ -190,7 +190,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str) -> None:
-    """Handle /start auth_<token> — start conversation to collect name & phone."""
+    """Handle /start auth_<token> — phone first, name only for new numbers."""
     from apps.notifications.models import TelegramAuthToken
 
     token = token_arg.removeprefix("auth_")
@@ -223,27 +223,109 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
         return
 
-    # Store token in context for conversation flow
+    # Store token in context for conversation flow. Phone FIRST: an existing
+    # account is matched by the verified contact number (fast code); only a
+    # genuinely new number is asked for a name afterwards.
     context.user_data["auth_token"] = token
-    context.user_data["auth_state"] = "awaiting_name"
+    context.user_data["auth_state"] = "awaiting_phone"
 
-    # Start conversation: ask for full name
+    # Start conversation: ask for the verified contact number
     await update.message.reply_text(
         "🔐 *Telegram orqali kirish*\n\n"
-        "Iltimos, to'liq ism-familiyangizni kiriting:\n"
-        "(Masalan: Ali Karimov)",
+        "Hisobingizni topish uchun telefon raqamingizni ulashing:",
         parse_mode="Markdown",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        ),
     )
 
     logger.info("TG auth conversation started: tg_id=%d", tg_user.id if tg_user else 0)
+
+
+def _clear_auth_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Drop all Telegram-auth conversation keys."""
+    for key in ("auth_state", "auth_token", "auth_name", "auth_phone"):
+        context.user_data.pop(key, None)
+
+
+def _complete_auth_login(auth_token_str: str, user, full_name: str, clean_phone: str):
+    """Persist verification + mint the 6-digit code. Returns code or None.
+
+    Shared by the fast path (existing account) and the new-account path.
+    Callers must have checked phone uniqueness first.
+    """
+    from django.utils import timezone
+    from apps.accounts.models import Profile
+    from apps.notifications.models import TelegramAuthToken
+
+    try:
+        at = TelegramAuthToken.objects.get(token=auth_token_str)
+    except TelegramAuthToken.DoesNotExist:
+        return None
+    if at.is_expired or at.consumed_at or at.is_verified:
+        return None
+    if user is None or not user.is_active:
+        return None
+    at.full_name = full_name
+    at.phone_number = clean_phone
+    at.phone_verified = True
+    at.conversation_state = "code_displayed"
+    code = at.generate_short_code()
+    at.save(update_fields=[
+        "full_name", "phone_number", "phone_verified",
+        "conversation_state", "short_code",
+    ])
+    at.user = user
+    at.telegram_chat_id = getattr(user, "telegram_chat_id", None)
+    at.is_verified = True
+    at.verified_at = timezone.now()
+    at.save(update_fields=["user", "telegram_chat_id", "is_verified", "verified_at"])
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if not profile.phone or profile.phone == clean_phone:
+        profile.phone = clean_phone
+        profile.save(update_fields=["phone"])
+    return code
+
+
+async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code: str, is_new: bool) -> None:
+    """Deliver the 6-digit website-login code (contact keyboard removed)."""
+    code_display = "  ".join(code)
+    hello = (
+        "🎉 *Ma'lumotlar saqlandi!*\n\n"
+        if is_new else
+        f"🎉 *Xush kelibsiz, {full_name}!*\n\n"
+    )
+    tail = (
+        f"👤 Ism: *{full_name}*\n"
+        f"📱 Telefon: `{clean_phone}` (✅ tasdiqlangan)\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🔑 *SIZNING KODINGIZ:*\n\n"
+        f"`{code_display}`\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"⏰ Kod 10 daqiqa ichida eskiradi.\n\n"
+        f"🌐 Veb-saytda shu kodni kiriting:\n"
+        f"1. \"Telegram orqali kirish\" tugmasini bosing\n"
+        f"2. Kodni kiriting\n"
+        f"3. Tizimga kiring!"
+    )
+    if is_new:
+        tail += "\n\n_Yangi hisob ochildi._"
+    await update.message.reply_text(
+        hello + tail,
+        parse_mode="Markdown",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text messages during Telegram auth conversation.
 
     States:
-        awaiting_name  → user sends their full name
-        awaiting_phone → user sends their phone number → generate code
+        awaiting_phone → verified contact → match account (fast code) or
+                         ask for a name when the number is new
+        awaiting_name  → user sends their full name for a NEW account
     """
     from django.utils import timezone
     from apps.notifications.models import TelegramAuthToken
@@ -260,27 +342,35 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     tg_user = update.effective_user
 
     if auth_state == "awaiting_name":
+        # Name for a NEW account — the verified phone is already stored.
         if update.message.contact:
-            await update.message.reply_text("Iltimos, avval ism-familiyangizni kiriting.")
+            await update.message.reply_text("Iltimos, ism-familiyangizni matn bilan yozing.")
             return
         if len(text) < 3 or len(text) > 100:
             await update.message.reply_text("Iltimos, to'liq ism-familiyani kiriting (3-100 belgi).")
             return
-
-        # Save name and ask for phone — offer verified share-contact button
-        context.user_data["auth_name"] = text
-        context.user_data["auth_state"] = "awaiting_phone"
-
-        keyboard = ReplyKeyboardMarkup(
-            [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        )
-        await update.message.reply_text(
-            f"✅ Ism: {text}\n\n"
-            "Endi telefon raqamingizni tasdiqlash uchun tugmani bosing.",
-            reply_markup=keyboard,
-        )
+        clean_phone = context.user_data.get("auth_phone", "")
+        if not clean_phone:
+            _clear_auth_state(context)
+            await update.message.reply_text(
+                "Sessiya eskirgan. Veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        user = await _get_or_create_user_async(update)
+        if user is None:
+            _clear_auth_state(context)
+            await update.message.reply_text(
+                "Telegram hisobingiz bog'lanishini qayta tasdiqlang yoki administratorga murojaat qiling.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        name_parts = text.split(" ", 1)
+        user.first_name = name_parts[0][:150]
+        user.last_name = (name_parts[1] if len(name_parts) > 1 else "")[:150]
+        await _run_db(user.save, update_fields=["first_name", "last_name"])
+        await _finish_new_account(update, context, auth_token_str, user, text, clean_phone)
+        return
 
     elif auth_state == "awaiting_phone":
         # Prefer verified contact if shared via Telegram button
@@ -300,7 +390,6 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
                 )
                 return
             clean_phone = contact.phone_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            phone_verified = True
             if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
                 await update.message.reply_text(
                     "Noto'g'ri telefon raqam. Iltimos, tugmani qayta bosing.",
@@ -324,127 +413,116 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             )
             return
 
-        full_name = context.user_data.get("auth_name", "")
+        # Match the verified number against existing accounts FIRST — a
+        # website-registered user must log into THEIR account, not get a new
+        # tg_* duplicate. Only a genuinely new number proceeds to name.
+        from apps.accounts.services.telegram_identity import (
+            TelegramAuthAmbiguous,
+            TelegramAuthConflict,
+            TelegramIdentityUnverified,
+            find_users_by_phone,
+            resolve_bot_auth_user,
+        )
+        try:
+            user, _how = await _run_db(resolve_bot_auth_user, tg_user.id, clean_phone)
+        except (TelegramAuthConflict, TelegramAuthAmbiguous, TelegramIdentityUnverified) as exc:
+            _clear_auth_state(context)
+            await update.message.reply_text(str(exc), reply_markup=ReplyKeyboardRemove())
+            return
+        except ValueError as exc:
+            _clear_auth_state(context)
+            await update.message.reply_text(
+                str(exc) or "Hisob faol emas.", reply_markup=ReplyKeyboardRemove()
+            )
+            return
 
-        # An unverified legacy link must not produce a login code. The code
-        # redemption path would otherwise authenticate an unresolved account.
-        user = await _get_or_create_user_async(update)
         if user is None:
-            context.user_data.pop("auth_state", None)
-            context.user_data.pop("auth_token", None)
-            context.user_data.pop("auth_name", None)
+            # New number — remember it and ask for a name to open an account.
+            context.user_data["auth_phone"] = clean_phone
+            context.user_data["auth_state"] = "awaiting_name"
             await update.message.reply_text(
-                "Telegram hisobingiz bog'lanishini qayta tasdiqlang yoki administratorga murojaat qiling.",
+                "Bu raqamda hisob topilmadi.\n\n"
+                "Yangi hisob ochish uchun to'liq ism-familiyangizni yozing:\n"
+                "(Masalan: Ali Karimov)",
                 reply_markup=ReplyKeyboardRemove(),
             )
             return
 
-        # One true number: verified phone must be unique across accounts
-        def _phone_taken():
-            from apps.accounts.models import Profile
-            return Profile.objects.filter(phone=clean_phone).exclude(user=user).exists()
+        # Existing account (Telegram link or phone match): fast code.
+        await _finish_existing_account(
+            update, context, auth_token_str, user,
+            user.get_full_name() or tg_user.first_name or "",
+            clean_phone,
+        )
+        return
 
-        if phone_verified and await _run_db(_phone_taken):
-            await update.message.reply_text(
-                "Bu telefon raqami boshqa hisobga bog'langan. Boshqa raqam bilan urinib ko'ring yoki administratorga murojaat qiling.",
-                reply_markup=ReplyKeyboardRemove(),
-            )
-            context.user_data.pop("auth_state", None)
-            context.user_data.pop("auth_token", None)
-            context.user_data.pop("auth_name", None)
-            return
 
-        # Save to DB and generate short code (atomic guard against reuse)
-        def _save_and_generate():
-            try:
-                at = TelegramAuthToken.objects.get(token=auth_token_str)
-            except TelegramAuthToken.DoesNotExist:
-                return None
-            if at.is_expired or at.consumed_at or at.is_verified:
-                return None
-            at.full_name = full_name
-            at.phone_number = clean_phone
-            at.phone_verified = phone_verified
-            at.conversation_state = "code_displayed"
-            # Generate 6-digit code
-            code = at.generate_short_code()
-            at.save(update_fields=["full_name", "phone_number", "phone_verified", "conversation_state", "short_code"])
-            return code
+async def _finish_existing_account(update, context, auth_token_str, user, full_name, clean_phone) -> None:
+    """Complete bot login for a matched account: uniqueness guard + code."""
+    from apps.accounts.services.telegram_identity import find_users_by_phone
 
-        code = await _run_db(_save_and_generate)
+    tg_user = update.effective_user
 
-        if code is None:
-            await update.message.reply_text(
-                "❌ Token eskirgan yoki topilmadi.\n"
-                "Veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
-            )
-            context.user_data.pop("auth_state", None)
-            context.user_data.pop("auth_token", None)
-            context.user_data.pop("auth_name", None)
-            return
+    def _phone_taken_by_other():
+        return any(u.pk != user.pk for u in find_users_by_phone(clean_phone))
 
-        # Mark token as verified
-        def _verify_token():
-            try:
-                at = TelegramAuthToken.objects.get(token=auth_token_str)
-            except TelegramAuthToken.DoesNotExist:
-                return False
-            if user:
-                at.user = user
-                at.telegram_chat_id = tg_user.id if tg_user else None
-                at.is_verified = True
-                at.verified_at = timezone.now()
-                at.save(update_fields=["user", "telegram_chat_id", "is_verified", "verified_at"])
-            return True
-
-        await _run_db(_verify_token)
-
-        # Update user profile with collected info + verified phone sync
-        if user and full_name:
-            name_parts = full_name.split(" ", 1)
-            user.first_name = name_parts[0]
-            user.last_name = name_parts[1] if len(name_parts) > 1 else ""
-            await _run_db(user.save, update_fields=["first_name", "last_name"])
-            if phone_verified and clean_phone:
-                def _sync_phone():
-                    from apps.accounts.models import Profile
-                    profile, _ = Profile.objects.get_or_create(user=user)
-                    # Only overwrite if empty or same verified number
-                    if not profile.phone or profile.phone == clean_phone:
-                        profile.phone = clean_phone
-                        profile.save(update_fields=["phone"])
-                await _run_db(_sync_phone)
-
-        # Show the 6-digit code with visual display (remove contact keyboard)
-        code_display = "  ".join(code)
-        verified_badge = "✅ tasdiqlangan" if phone_verified else "⚠️ qo'lda kiritilgan"
+    if await _run_db(_phone_taken_by_other):
+        _clear_auth_state(context)
         await update.message.reply_text(
-            f"🎉 *Ma'lumotlar saqlandi!*\n\n"
-            f"👤 Ism: *{full_name}*\n"
-            f"📱 Telefon: `{clean_phone}` ({verified_badge})\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🔑 *SIZNING KODINGIZ:*\n\n"
-            f"`{code_display}`\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"⏰ Kod 10 daqiqa ichida eskiradi.\n\n"
-            f"🌐 Veb-saytda shu kodni kiriting:\n"
-            f"1. \"Telegram orqali kirish\" tugmasini bosing\n"
-            f"2. Kodni kiriting\n"
-            f"3. Tizimga kiring!\n\n"
-            f"_Birinchi marta kiryapsizmi? Bot avtomatik hisob yaratadi._",
-            parse_mode="Markdown",
+            "Bu telefon raqami boshqa hisobga bog'langan. Boshqa raqam bilan urinib ko'ring yoki administratorga murojaat qiling.",
             reply_markup=ReplyKeyboardRemove(),
         )
+        return
 
-        # Clear conversation state
-        context.user_data.pop("auth_state", None)
-        context.user_data.pop("auth_token", None)
-        context.user_data.pop("auth_name", None)
-
-        logger.info(
-            "TG auth code generated: user=%s, tg_id=%s, phone_verified=%s",
-            full_name, tg_user.id if tg_user else "?", phone_verified,
+    code = await _run_db(_complete_auth_login, auth_token_str, user, full_name, clean_phone)
+    if code is None:
+        _clear_auth_state(context)
+        await update.message.reply_text(
+            "❌ Token eskirgan yoki topilmadi.\n"
+            "Veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
         )
+        return
+
+    await _send_auth_code(update, full_name, clean_phone, code, is_new=False)
+    _clear_auth_state(context)
+    logger.info(
+        "TG auth fast code: user_id=%s, tg_id=%s",
+        user.pk, tg_user.id if tg_user else "?",
+    )
+
+
+async def _finish_new_account(update, context, auth_token_str, user, full_name, clean_phone) -> None:
+    """Complete bot login for a just-provisioned account."""
+    from apps.accounts.services.telegram_identity import find_users_by_phone
+
+    tg_user = update.effective_user
+
+    def _phone_taken_by_other():
+        return any(u.pk != user.pk for u in find_users_by_phone(clean_phone))
+
+    if await _run_db(_phone_taken_by_other):
+        _clear_auth_state(context)
+        await update.message.reply_text(
+            "Bu telefon raqami boshqa hisobga bog'langan. Boshqa raqam bilan urinib ko'ring yoki administratorga murojaat qiling.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
+    code = await _run_db(_complete_auth_login, auth_token_str, user, full_name, clean_phone)
+    if code is None:
+        _clear_auth_state(context)
+        await update.message.reply_text(
+            "❌ Token eskirgan yoki topilmadi.\n"
+            "Veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
+        )
+        return
+
+    await _send_auth_code(update, full_name, clean_phone, code, is_new=True)
+    _clear_auth_state(context)
+    logger.info(
+        "TG auth code generated: user=%s, tg_id=%s",
+        full_name, tg_user.id if tg_user else "?",
+    )
 
 
 # ---------------------------------------------------------------------------
