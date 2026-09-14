@@ -157,15 +157,29 @@ def tma_index_view(request: HttpRequest) -> HttpResponse:
     """
     GET /tma/
 
-    The Mini App client moved into the React SPA (route /tma, served by
-    nginx directly). The bot's web_app button still points at /tma/ (which
-    nginx proxies to Django), so redirect there — query string preserved.
+    Serve the React SPA shell directly (HTTP 200, no redirect).
+
+    Why not redirect to /tma: nginx answers bare /tma with a trailing-slash
+    301 (same as /arena), so redirecting /tma/ -> /tma loops forever inside
+    the Telegram webview (ERR_TOO_MANY_REDIRECTS). The shell's asset URLs
+    are absolute (/assets/..., served by nginx site-wide), so it boots fine
+    from any path; the SPA Router owns /tma and /tma/.
     All data flows through /tma/api/* JSON (JWT).
     """
-    target = "/tma"
-    if request.META.get("QUERY_STRING"):
-        target += "?" + request.META["QUERY_STRING"]
-    return redirect(target)
+    from django.conf import settings
+    from pathlib import Path
+
+    spa_index = Path(settings.BASE_DIR) / "spa" / "index.html"
+    try:
+        html = spa_index.read_text(encoding="utf-8")
+    except OSError:
+        # No baked SPA (e.g. dev bind-mount hides /app/spa — dev UI runs on
+        # vite :5173 instead). Fall back to the SPA route.
+        query = request.META.get("QUERY_STRING", "")
+        return redirect(f"/tma?{query}" if query else "/tma")
+    response = HttpResponse(html, content_type="text/html; charset=utf-8")
+    response["Cache-Control"] = "no-cache"
+    return response
 
 
 # ---------------------------------------------------------------------------
