@@ -6,8 +6,8 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { Auth, AuthExpiredError, getTokens, login as apiLogin, logout as apiLogout, register as apiRegister } from '../lib/api';
-import type { AuthUser } from '../lib/api';
+import { Auth, AuthExpiredError, getTokens, login as apiLogin, logout as apiLogout, normalizeUser, register as apiRegister, setTokens } from '../lib/api';
+import type { AuthUser, TokenPair } from '../lib/api';
 import { storeLang } from '../i18n/LangContext';
 import type { AppLang } from '../i18n/LangContext';
 
@@ -16,6 +16,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithTelegram: (tokens: TokenPair, rawUser: Record<string, unknown>) => void;
   register: (payload: {
     email: string;
     password: string;
@@ -124,8 +125,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // Adopt a Telegram bot login: the backend already created the Django
+  // session (same response), so only the JWT pair needs storing.
+  const loginWithTelegram = useCallback((tokens: TokenPair, rawUser: Record<string, unknown>) => {
+    setError(null);
+    setTokens(tokens.access, tokens.refresh);
+    const user = normalizeUser(rawUser);
+    adoptServerLang(user.language);
+    setUser(user);
+  }, []);
+
   return (
-    <Ctx.Provider value={{ user, loading, error, login, register, logout }}>
+    <Ctx.Provider value={{ user, loading, error, login, register, logout, loginWithTelegram }}>
       {children}
     </Ctx.Provider>
   );

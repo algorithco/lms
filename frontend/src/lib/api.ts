@@ -567,6 +567,59 @@ export function arenaSocketUrl(roomCode?: string): string {
   return roomCode ? `${base}${roomCode}/` : base;
 }
 
+export interface TelegramAuthStart {
+  token: string;
+  deep_link: string;
+  expires_in: number;
+}
+
+export type TelegramAuthStatus =
+  | { status: 'pending' }
+  | { status: 'verified'; user_id: number; user_name: string; login_url: string }
+  | { status: 'expired'; error?: string }
+  | { status: 'invalid' | 'throttled'; error?: string };
+
+export interface TelegramAuthLogin {
+  status: string;
+  redirect: string;
+  user_name: string;
+  user: Record<string, unknown>;
+  tokens: TokenPair;
+}
+
+/**
+ * Web login via Telegram bot (mirrors apps/notifications/telegram_auth.py).
+ * Session-cookie bound (same session must start → poll → login), so every
+ * call uses credentials:include. Successful logins return a JWT pair that
+ * the SPA adopts exactly like an email/password login (the Django session
+ * login in the same response additionally powers arena WS + session APIs).
+ */
+export const TelegramAuth = {
+  start: () =>
+    sessionApi<TelegramAuthStart>('/api/notifications/telegram/auth/start/', {
+      method: 'POST',
+    }),
+  status: (token: string) =>
+    sessionApi<TelegramAuthStatus>(
+      `/api/notifications/telegram/auth/${encodeURIComponent(token)}/status/`,
+    ),
+  loginWithToken: (token: string) =>
+    sessionApi<TelegramAuthLogin>(
+      `/api/notifications/telegram/auth/${encodeURIComponent(token)}/login/`,
+      { method: 'POST' },
+    ),
+  loginWithCode: async (code: string) => {
+    const res = await fetch(`${API_BASE}/api/notifications/telegram/auth/code/login/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) await throwForResponse(res, 'Kod noto‘g‘ri yoki eskirgan.');
+    return (await res.json()) as TelegramAuthLogin;
+  },
+};
+
 // ---------------------------------------------------------------------------
 // React SPA API (/api/v1/ — apps/webapi, JWT via api())
 // ---------------------------------------------------------------------------
