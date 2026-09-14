@@ -4,7 +4,7 @@
 -r base.txt
 
 # WSGI server
-gunicorn>=22.0,<23.0
+gunicorn>=26.2.0,<27.0
 
 # PDF generation (HTML→PDF alternative)
 weasyprint>=70.0,<71.0
