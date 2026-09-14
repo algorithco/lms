@@ -486,7 +486,7 @@ export const Push = {
 // without it; arena/session features degrade gracefully.
 // ---------------------------------------------------------------------------
 
-function getCookie(name: string): string | null {
+export function getCookie(name: string): string | null {
   const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return m ? decodeURIComponent(m[1]) : null;
 }
@@ -609,10 +609,15 @@ export const TelegramAuth = {
       { method: 'POST' },
     ),
   loginWithCode: async (code: string) => {
+    // Same-origin session POST: Django CSRF applies. The cookie is planted
+    // by telegram_auth_start (get_token) or any earlier session endpoint.
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const csrf = getCookie('csrftoken');
+    if (csrf) headers['X-CSRFToken'] = csrf;
     const res = await fetch(`${API_BASE}/api/notifications/telegram/auth/code/login/`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ code }),
     });
     if (!res.ok) await throwForResponse(res, 'Kod noto‘g‘ri yoki eskirgan.');
