@@ -354,15 +354,31 @@ class TelegramLoginReplayTests(TestCase):
         self.assertEqual(self.client.post(login_url).status_code, 404)
         self.assertEqual(other_browser.post(login_url).status_code, 404)
 
+    def test_token_login_returns_jwt_pair_for_spa(self):
+        token = self._verified_token()
+        login_url = reverse("notifications:tg-auth-login", args=[token])
+        response = self.client.post(login_url)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["status"], "ok")
+        self.assertIn("access", body["tokens"])
+        self.assertIn("refresh", body["tokens"])
+        self.assertEqual(body["user"]["email"], self.user.email)
+        self.assertIn("role", body["user"])
+
     def test_short_code_cannot_be_replayed_or_used_for_ambiguous_account(self):
         token = self._verified_token()
         url = reverse("notifications:tg-auth-code-login")
         body = json.dumps({"code": "123456"})
         second = Client()
-        self.assertEqual(second.post(url, body, content_type="application/json").status_code, 200)
+        code_response = second.post(url, body, content_type="application/json")
+        self.assertEqual(code_response.status_code, 200)
+        code_body = code_response.json()
+        self.assertIn("access", code_body["tokens"])
+        self.assertIn("refresh", code_body["tokens"])
+        self.assertEqual(code_body["user"]["email"], self.user.email)
         self.assertEqual(self.client.post(url, body, content_type="application/json").status_code, 404)
         self.assertIsNotNone(TelegramAuthToken.objects.get(token=token).consumed_at)
-
         other = User.objects.create_user(email="telegram-other@example.test", password="pass")
         TelegramAuthToken.objects.create(token="duplicate-a", user=self.user, is_verified=True, short_code="777777")
         TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")

@@ -52,6 +52,31 @@ def _forget_pending(request: HttpRequest, token: str) -> None:
     ]
 
 
+def _jwt_pair_for(user) -> dict:
+    """Mint a SimpleJWT pair for *user* (same shape as /api/auth/login/)."""
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    refresh = RefreshToken.for_user(user)
+    return {"access": str(refresh.access_token), "refresh": str(refresh)}
+
+
+def _jwt_user_payload(user) -> dict:
+    """User payload for SPA (mirrors CustomTokenObtainPairView response)."""
+    from apps.accounts.access import is_platform_admin
+
+    return {
+        "id": user.pk,
+        "email": user.email,
+        "role": user.role,
+        "full_name": user.get_full_name(),
+        "is_active": user.is_active,
+        "language": getattr(user, "language", "uz"),
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "is_platform_admin": is_platform_admin(user),
+    }
+
+
 @require_POST
 def telegram_auth_start(request: HttpRequest) -> JsonResponse:
     """
@@ -175,6 +200,8 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
         "status": "ok",
         "redirect": "/dashboard/",
         "user_name": auth_token.user.get_full_name(),
+        "user": _jwt_user_payload(auth_token.user),
+        "tokens": _jwt_pair_for(auth_token.user),
     })
 
 
@@ -257,4 +284,6 @@ def telegram_auth_login(request: HttpRequest, token: str) -> JsonResponse:
         "status": "ok",
         "redirect": "/dashboard/",
         "user_name": auth_token.user.get_full_name(),
+        "user": _jwt_user_payload(auth_token.user),
+        "tokens": _jwt_pair_for(auth_token.user),
     })
