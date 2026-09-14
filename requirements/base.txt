@@ -6,7 +6,7 @@
 Django>=6.1.1,<6.2
 
 # Database
-psycopg2-binary>=2.9,<3.0          # PostgreSQL adapter
+psycopg2-binary>=2.9.13,<3.0          # PostgreSQL adapter
 
 # REST Framework & API docs
 djangorestframework>=3.18.1,<4.0
