@@ -125,6 +125,13 @@ class AuthJWTTests(LMSBaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
+        # Rotation blacklist: old refresh must be rejected
+        reuse = self.client.post(
+            "/api/auth/token/refresh/",
+            {"refresh": tokens["refresh"]},
+            format="json",
+        )
+        self.assertEqual(reuse.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_profile_view(self):
         """GET /api/auth/me/ — profilni ko'rish."""
