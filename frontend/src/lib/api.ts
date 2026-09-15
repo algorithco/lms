@@ -34,6 +34,20 @@ export function clearTokens(): void {
   sessionStorage.removeItem(REFRESH_KEY);
 }
 
+// Cross-tab sync: keep sessionStorage as store, listen for lms_access changes via storage event
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === ACCESS_KEY) {
+      if (e.newValue) sessionStorage.setItem(ACCESS_KEY, e.newValue);
+      else sessionStorage.removeItem(ACCESS_KEY);
+    }
+    if (e.key === REFRESH_KEY) {
+      if (e.newValue) sessionStorage.setItem(REFRESH_KEY, e.newValue);
+      else sessionStorage.removeItem(REFRESH_KEY);
+    }
+  });
+}
+
 let refreshAttempt: Promise<string> | null = null;
 
 async function refreshTokens(): Promise<string> {
@@ -43,11 +57,19 @@ async function refreshTokens(): Promise<string> {
   refreshAttempt = (async () => {
     const { refresh } = getTokens();
     if (!refresh) throw new AuthExpiredError();
-    const res = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!res.ok) {
       clearTokens();
       throw new AuthExpiredError();
@@ -87,6 +109,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       res = await doFetch(access);
     } catch (e) {
       if (e instanceof AuthExpiredError) throw e;
+      throw e;
     }
   }
   if (res.status === 401) {
@@ -364,6 +387,7 @@ export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blo
       res = await doFetch(access);
     } catch (e) {
       if (e instanceof AuthExpiredError) throw e;
+      throw e;
     }
   }
   if (res.status === 401) {
@@ -551,11 +575,27 @@ export async function sessionApi<T>(
   if (csrf && init.method && init.method.toUpperCase() !== 'GET') {
     headers.set('X-CSRFToken', csrf);
   }
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers,
     credentials: 'include',
   });
+  if (res.status === 401) {
+    try {
+      const ok = await probeSession();
+      if (ok) {
+        res = await fetch(`${API_BASE}${path}`, {
+          ...init,
+          headers,
+          credentials: 'include',
+        });
+        if (res.ok) return (await res.json()) as T;
+      }
+    } catch (e) {
+      if (e instanceof AuthExpiredError) throw e;
+    }
+    throw new AuthExpiredError();
+  }
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return (await res.json()) as T;
 }

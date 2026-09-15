@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { Essays } from '../lib/api';
+import { AuthExpiredError, Essays } from '../lib/api';
 import { LockIcon } from '../components/icons';
 
 /**
@@ -103,6 +103,7 @@ function TopicAction({ topic }: { topic: Topic }) {
 
 export default function EssayTopics() {
   const { t } = useLang();
+  const navigate = useNavigate();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -115,12 +116,16 @@ export default function EssayTopics() {
         setTopics(((tj.topics as Topic[]) || []));
         setSubs((((sj.submissions as Submission[]) || []).slice(0, 10)));
       } catch (e) {
+        if (e instanceof AuthExpiredError) {
+          navigate('/login');
+          return;
+        }
         setErr(e instanceof Error ? e.message : 'Failed.');
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [navigate]);
 
   if (loading) return <p className="muted">{t('loading')}</p>;
 
