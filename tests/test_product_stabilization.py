@@ -615,3 +615,38 @@ class TunneledDevelopmentSettingsTests(SimpleTestCase):
             env=env, capture_output=True, text=True,
         )
         self.assertNotEqual(invalid.returncode, 0)
+
+
+class RegisterCsrfTests(TestCase):
+    """POST /api/auth/register/ is JWT-only: a stale Django session must
+    never trigger 403 CSRF Failed (Ro'yxatdan o'tish regression)."""
+
+    def _payload(self, email):
+        return {
+            "email": email,
+            "password": "StrongPass123!",
+            "password_confirm": "StrongPass123!",
+            "first_name": "Brand",
+            "last_name": "New",
+        }
+
+    def test_register_with_active_session_and_csrf_checks_returns_201(self):
+        holder = User.objects.create_user(
+            email="holder@example.test", password="OldStrongPass123!",
+        )
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(holder)
+        response = client.post(
+            reverse("accounts:register"), self._payload("new-one@example.test"),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("tokens", response.json())
+
+    def test_anonymous_register_with_csrf_checks_returns_201(self):
+        client = Client(enforce_csrf_checks=True)
+        response = client.post(
+            reverse("accounts:register"), self._payload("new-two@example.test"),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
