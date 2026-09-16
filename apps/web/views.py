@@ -28,7 +28,8 @@ from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.crypto import salted_hmac
-from django.db.models import Avg, Count, Max, Q, Sum
+from django.db.models import Avg, Case, Count, F, FloatField, Max, Q, Sum, Value, When
+from django.db.models.functions import Coalesce, ExtractHour
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -431,19 +432,42 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
         .order_by("-calculated_at")[:10]
     )
 
-    # --- Essay review queue stats ---
-    pending_essays = EssaySubmission.objects.filter(
+    # --- Assigned groups scoping (Phase 5) ---
+    from apps.courses.models import StudentGroup
+    _graded_statuses = [EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
+    _effective = Coalesce(F("final_score"), F("total_score"))
+
+    if user.is_platform_admin:
+        assigned_student_ids = None  # no scoping for admin
+    else:
+        assigned_student_ids = set(
+            StudentGroup.objects.filter(teacher=user).values_list("students__id", flat=True)
+        )
+        assigned_student_ids.discard(None)
+
+    def _scope_essay_qs(qs):
+        if assigned_student_ids is None:
+            return qs
+        if not assigned_student_ids:
+            return qs.none()
+        return qs.filter(student_id__in=assigned_student_ids)
+
+    # --- Essay review queue stats (scoped to assigned groups) ---
+    pending_base = EssaySubmission.objects.filter(
         status=EssaySubmission.Status.PENDING_TEACHER,
-    ).select_related("student", "topic").order_by("-submitted_at")
+    )
+    pending_base = _scope_essay_qs(pending_base)
+    pending_essays = pending_base.select_related("student", "topic").order_by("-submitted_at")
     pending_count = pending_essays.count()
     pending_essays_list = list(pending_essays[:5])
 
-    # Essay grading stats (all graded essays)
-    essay_raw = EssaySubmission.objects.filter(
-        status=EssaySubmission.Status.GRADED,
-    ).aggregate(
+    # Essay grading stats (GRADED + TEACHER_REVIEWED, effective_score)
+    essay_base_qs = _scope_essay_qs(
+        EssaySubmission.objects.filter(status__in=_graded_statuses)
+    )
+    essay_raw = essay_base_qs.aggregate(
         total_graded=Count("id"),
-        avg_score=Avg("total_score"),
+        avg_score=Avg(Coalesce(F("final_score"), F("total_score"))),
     )
     essay_avg_pct = 0.0
     if essay_raw["avg_score"] is not None:
@@ -453,10 +477,16 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
     student_requested = pending_essays.filter(teacher_review_requested=True)
     student_requested_count = student_requested.count()
 
-    # --- Student Progress (top 10 by attempts) ---
+    # --- Student Progress (top 10 by attempts) — scoped to assigned groups ---
     from apps.accounts.models import User
+    _progress_qs = Result.objects.filter(test_id__in=teacher_test_ids)
+    if assigned_student_ids is not None:
+        if not assigned_student_ids:
+            _progress_qs = _progress_qs.none()
+        else:
+            _progress_qs = _progress_qs.filter(student_id__in=assigned_student_ids)
     student_progress = (
-        Result.objects.filter(test_id__in=teacher_test_ids)
+        _progress_qs
         .values(
             "student__id", "student__first_name", "student__last_name", "student__email",
         )
@@ -469,17 +499,17 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
         .order_by("-total_attempts")[:10]
     )
 
-    # Enrich with essay stats per student
+    # Enrich with essay stats per student (effective_score, includes TEACHER_REVIEWED)
     student_ids = [s["student__id"] for s in student_progress]
     essay_per_student = (
         EssaySubmission.objects.filter(
             student_id__in=student_ids,
-            status=EssaySubmission.Status.GRADED,
+            status__in=_graded_statuses,
         )
         .values("student_id")
         .annotate(
             essay_count=Count("id"),
-            essay_avg=Avg("total_score"),
+            essay_avg=Avg(Coalesce(F("final_score"), F("total_score"))),
         )
     )
     essay_map = {s["student_id"]: s for s in essay_per_student}
@@ -500,11 +530,13 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
             "essay_avg": round(float(essay_data.get("essay_avg", 0) or 0), 1),
         })
 
-    # --- Total unique students ---
-    total_students = (
-        Result.objects.filter(test_id__in=teacher_test_ids)
-        .values("student").distinct().count()
-    )
+    # --- Total unique students (scoped to assigned groups when applicable) ---
+    _total_qs = Result.objects.filter(test_id__in=teacher_test_ids)
+    if assigned_student_ids is not None and assigned_student_ids:
+        _total_qs = _total_qs.filter(student_id__in=assigned_student_ids)
+    elif assigned_student_ids is not None and not assigned_student_ids:
+        _total_qs = _total_qs.none()
+    total_students = _total_qs.values("student").distinct().count()
 
     # --- Chart data: monthly attempts (last 6 months) ---
     from django.db.models.functions import Trunc
@@ -530,14 +562,14 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
     chart_attempts = [d["count"] for d in monthly_attempts]
     chart_passed = [d["passed"] for d in monthly_attempts]
 
-    # --- Chart data: essay score distribution ---
+    # --- Chart data: essay score distribution (scoped, effective_score) ---
     essay_scores = list(
-        EssaySubmission.objects.filter(
-            status=EssaySubmission.Status.GRADED,
-        ).values_list("total_score", flat=True)
+        essay_base_qs.annotate(effective=Coalesce(F("final_score"), F("total_score"))).values_list("effective", flat=True)
     )
     essay_dist = {"low1": 0, "low2": 0, "mid1": 0, "mid2": 0, "high1": 0, "high2": 0}
     for score in essay_scores:
+        if score is None:
+            continue
         s = float(score)
         if s < 4: essay_dist["low1"] += 1
         elif s < 8: essay_dist["low2"] += 1
@@ -570,16 +602,15 @@ def _teacher_dashboard(request: HttpRequest) -> HttpResponse:
         "chart_attempts": chart_attempts,
         "chart_passed": chart_passed,
         "essay_dist": essay_dist,
-        # All graded essays (for teacher to see all results)
+        # All graded essays (for teacher to see all results) — scoped, includes TEACHER_REVIEWED
         "all_graded_essays": list(
-            EssaySubmission.objects.filter(
-                status=EssaySubmission.Status.GRADED,
-            ).select_related("student", "topic")
+            essay_base_qs.select_related("student", "topic")
             .order_by("-graded_at")[:20]
         ),
     }
 
     cache.set(cache_key, ctx, CACHE_DASHBOARD_STATS)
+    # NOTE: cache key variant is per-teacher; invalidate on essay grading via signals if needed.
     return render(request, "web/teacher_dashboard.html", ctx)
 
 
@@ -665,12 +696,12 @@ def analytics_view(request: HttpRequest) -> HttpResponse:
     essay_per_student = (
         EssaySubmission.objects.filter(
             student_id__in=student_ids,
-            status=EssaySubmission.Status.GRADED,
+            status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED],
         )
         .values("student_id")
         .annotate(
             essay_count=Count("id"),
-            essay_avg=Avg("total_score"),
+            essay_avg=Avg(Coalesce(F("final_score"), F("total_score"))),
         )
     )
     essay_map = {s["student_id"]: s for s in essay_per_student}
@@ -708,22 +739,31 @@ def analytics_view(request: HttpRequest) -> HttpResponse:
             elif s <= 80: score_dist["61-80"] += 1
             else: score_dist["81-100"] += 1
 
-    # --- 6. Essay stats ---
-    essay_stats = EssaySubmission.objects.filter(
-        status=EssaySubmission.Status.GRADED,
-    ).aggregate(
+    # --- 6. Essay stats (GRADED + TEACHER_REVIEWED, effective_score, off_topic 35) ---
+    _essay_statuses = [EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
+    _essay_base = EssaySubmission.objects.filter(status__in=_essay_statuses)
+    # Scope to assigned groups for non-admin (consistency with dashboard)
+    if not user.is_platform_admin:
+        _assigned_ids = set(StudentGroup.objects.filter(teacher=user).values_list("students__id", flat=True))
+        _assigned_ids.discard(None)
+        if _assigned_ids:
+            _essay_base = _essay_base.filter(student_id__in=_assigned_ids)
+        elif StudentGroup.objects.filter(teacher=user).exists():
+            _essay_base = _essay_base.none()
+    essay_stats = _essay_base.aggregate(
         total=Count("id"),
-        avg_score=Avg("total_score"),
+        avg_score=Avg(Coalesce(F("final_score"), F("total_score"))),
         off_topic=Count("id", filter=Q(is_off_topic=True)),
     )
 
-    # --- 7. Essay score distribution ---
+    # --- 7. Essay score distribution (effective_score) ---
     essay_score_dist = {"0-4": 0, "4-8": 0, "8-12": 0, "12-16": 0, "16-20": 0, "20-24": 0}
     essay_scores = list(
-        EssaySubmission.objects.filter(status=EssaySubmission.Status.GRADED)
-        .values_list("total_score", flat=True)
+        _essay_base.annotate(effective=Coalesce(F("final_score"), F("total_score"))).values_list("effective", flat=True)
     )
     for score in essay_scores:
+        if score is None:
+            continue
         s = float(score)
         if s < 4: essay_score_dist["0-4"] += 1
         elif s < 8: essay_score_dist["4-8"] += 1
@@ -732,14 +772,14 @@ def analytics_view(request: HttpRequest) -> HttpResponse:
         elif s < 20: essay_score_dist["16-20"] += 1
         else: essay_score_dist["20-24"] += 1
 
-    # --- 8. Hourly activity (last 7 days) ---
+    # --- 8. Hourly activity (last 7 days) — portable ExtractHour ---
     seven_days_ago = timezone.now() - timedelta(days=7)
     hourly_activity = (
         TestAttempt.objects.filter(
             test_id__in=teacher_test_ids,
             completed_at__gte=seven_days_ago,
         )
-        .extra(select={"hour": "EXTRACT(HOUR FROM completed_at)"})
+        .annotate(hour=ExtractHour("completed_at"))
         .values("hour")
         .annotate(count=Count("id"))
         .order_by("hour")
@@ -748,26 +788,34 @@ def analytics_view(request: HttpRequest) -> HttpResponse:
     hour_labels = [f"{int(h['hour']):02d}:00" for h in hourly_activity]
     hour_data = [h["count"] for h in hourly_activity]
 
-    # --- 9. Group stats ---
+    # --- 9. Group stats — fixed N+1, bulk aggregates ---
     from apps.courses.models import StudentGroup
-    groups = StudentGroup.objects.filter(teacher=user).prefetch_related("students")
+    groups = StudentGroup.objects.filter(teacher=user).prefetch_related("students") if not user.is_platform_admin else StudentGroup.objects.all().prefetch_related("students")
+    # Collect all group student ids for bulk query
+    group_ids = list(groups.values_list("id", flat=True))
+    # Prefetch students count already via prefetched relation len
     group_stats = []
     for group in groups:
-        group_student_ids = list(group.students.values_list("id", flat=True))
+        # Use prefetched students to avoid extra count query; fallback to .count() if not prefetched
+        prefetched_students = list(group.students.all())
+        group_student_ids = [s.id for s in prefetched_students]
+        student_count = len(prefetched_students)
         if group_student_ids:
             g_stats = Result.objects.filter(student_id__in=group_student_ids).aggregate(
                 total=Count("id"),
                 avg_pct=Avg("percentage"),
                 passed=Count("id", filter=Q(is_passed=True)),
             )
-            group_stats.append({
-                "id": group.id,
-                "name": group.name,
-                "student_count": group.students.count(),
-                "total_tests": g_stats["total"],
-                "avg_pct": round(float(g_stats["avg_pct"] or 0), 1),
-                "passed": g_stats["passed"],
-            })
+        else:
+            g_stats = {"total": 0, "avg_pct": None, "passed": 0}
+        group_stats.append({
+            "id": group.id,
+            "name": group.name,
+            "student_count": student_count,
+            "total_tests": g_stats["total"],
+            "avg_pct": round(float(g_stats["avg_pct"] or 0), 1),
+            "passed": g_stats["passed"],
+        })
 
     # --- 10. Summary stats ---
     total_students = len(set(student_ids)) if student_ids else 0
@@ -1115,27 +1163,32 @@ def teacher_results_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def essay_leaderboard_view(request: HttpRequest) -> HttpResponse:
     """Esse ballari bo'yicha leaderboard — podium (1/2/3) + top 10."""
-    # Best essay score per student (using effective_score: final_score > total_score)
-    from django.db.models import Max, Case, When, F, Value
-    from decimal import Decimal
+    # Best essay score per student (effective_score: Coalesce(final_score,total_score),
+    # includes TEACHER_REVIEWED, respects is_off_topic -> 35, ordered by effective)
+    target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
+    off_topic_score = getattr(settings, "ESSAY_OFF_TOPIC_SCORE", 35)
+
+    # Effective converted per essay: final_score -> final/24*target, is_off_topic -> 35, else total/24*target
+    # Note: F expressions keep DB-side computation portable.
+    converted_expr = Case(
+        When(final_score__isnull=False, then=F("final_score") * Value(target) / Value(24)),
+        When(is_off_topic=True, then=Value(off_topic_score)),
+        default=F("total_score") * Value(target) / Value(24),
+        output_field=FloatField(),
+    )
 
     student_essay_stats = (
         EssaySubmission.objects.filter(
-            status=EssaySubmission.Status.GRADED,
+            status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED],
         )
         .values(
             "student__id", "student__first_name", "student__last_name",
         )
         .annotate(
-            best_score=Max("total_score"),
-            best_converted=Max(
-                Case(
-                    When(final_score__isnull=False, then=F("final_score")),
-                    default=F("total_score"),
-                )
-            ),
+            best_score=Max(Coalesce(F("final_score"), F("total_score"))),
+            best_converted=Max(converted_expr),
             essay_count=Count("id"),
-            avg_score=Avg("total_score"),
+            avg_score=Avg(Coalesce(F("final_score"), F("total_score"))),
         )
         .order_by("-best_score")[:20]
     )
@@ -1143,8 +1196,11 @@ def essay_leaderboard_view(request: HttpRequest) -> HttpResponse:
     leaderboard = []
     for i, s in enumerate(student_essay_stats, 1):
         best = float(s["best_score"] or 0)
-        target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
-        converted = round(best / 24 * target) if best > 0 else 0
+        # Prefer DB-computed best_converted (handles is_off_topic & final_score)
+        if s.get("best_converted") is not None:
+            converted = int(round(float(s["best_converted"])))
+        else:
+            converted = round(best / 24 * target) if best > 0 else 0
         leaderboard.append({
             "rank": i,
             "name": f"{s['student__first_name']} {s['student__last_name']}",
@@ -1161,7 +1217,7 @@ def essay_leaderboard_view(request: HttpRequest) -> HttpResponse:
     return render(request, "web/essay_leaderboard.html", {
         "podium": podium,
         "rest": rest,
-        "total_essays": EssaySubmission.objects.filter(status=EssaySubmission.Status.GRADED).count(),
+        "total_essays": EssaySubmission.objects.filter(status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]).count(),
         "total_students": len(leaderboard),
     })
 
@@ -1419,37 +1475,46 @@ def group_detail_view(request: HttpRequest, group_id: int) -> HttpResponse:
     from apps.courses.models import StudentGroup
 
     groups = StudentGroup.objects.all() if request.user.is_platform_admin else StudentGroup.objects.filter(teacher=request.user)
-    group = get_object_or_404(groups, id=group_id)
+    group = get_object_or_404(groups.prefetch_related("students"), id=group_id)
     students = group.students.all().order_by("first_name", "last_name")
 
-    # Har bir talaba uchun test va esse natijalarini olish
+    # Phase 5: fix N+1 + string "graded" vs Status enum + effective_score
+    student_ids = list(students.values_list("id", flat=True))
+    _graded = [EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
+    # Bulk test aggregates per student
+    test_aggs = (
+        Result.objects.filter(student_id__in=student_ids)
+        .values("student_id")
+        .annotate(
+            test_count=Count("id"),
+            test_avg=Avg("percentage"),
+            test_passed=Count("id", filter=Q(is_passed=True)),
+        )
+    )
+    test_map = {r["student_id"]: r for r in test_aggs}
+    essay_aggs = (
+        EssaySubmission.objects.filter(student_id__in=student_ids, status__in=_graded)
+        .values("student_id")
+        .annotate(
+            essay_count=Count("id"),
+            essay_avg=Avg(Coalesce(F("final_score"), F("total_score"))),
+        )
+    )
+    essay_map = {r["student_id"]: r for r in essay_aggs}
+
     student_data = []
     for student in students:
-        # Test results
-        test_results = Result.objects.filter(student=student)
-        test_count = test_results.count()
-        test_avg = 0
-        test_passed = 0
-        if test_count > 0:
-            test_avg = round(float(test_results.aggregate(avg=Avg("percentage"))["avg"] or 0), 1)
-            test_passed = test_results.filter(is_passed=True).count()
-
-        # Essay results
-        essay_results = EssaySubmission.objects.filter(student=student, status="graded")
-        essay_count = essay_results.count()
-        essay_avg = 0
-        if essay_count > 0:
-            essay_avg = round(float(essay_results.aggregate(avg=Avg("total_score"))["avg"] or 0), 1)
-
+        t = test_map.get(student.id, {})
+        e = essay_map.get(student.id, {})
         student_data.append({
             "id": student.id,
             "name": student.get_full_name() or student.email,
             "email": student.email,
-            "test_count": test_count,
-            "test_avg": test_avg,
-            "test_passed": test_passed,
-            "essay_count": essay_count,
-            "essay_avg": essay_avg,
+            "test_count": t.get("test_count", 0),
+            "test_avg": round(float(t.get("test_avg") or 0), 1),
+            "test_passed": t.get("test_passed", 0),
+            "essay_count": e.get("essay_count", 0),
+            "essay_avg": round(float(e.get("essay_avg") or 0), 1),
         })
 
     # Saralash: o'rtacha ball bo'yicha

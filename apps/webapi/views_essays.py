@@ -30,7 +30,6 @@ def _pending_for(user):
     if not is_platform_admin(user):
         base = base.filter(
             Q(assigned_reviewer=user)
-            | Q(assigned_reviewer__isnull=True, topic__created_by=user)
             | Q(assigned_reviewer__isnull=True, student__student_groups__teacher=user)
         ).distinct()
     return base

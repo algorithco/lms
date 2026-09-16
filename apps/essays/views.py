@@ -19,6 +19,7 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -44,6 +45,98 @@ logger = logging.getLogger(__name__)
 # Maximum essay length accepted for AI grading (characters).
 # Protects against LLM context/413 errors and DB abuse.
 MAX_ESSAY_LENGTH = 50_000
+
+
+# ---------------------------------------------------------------------------
+# Throttling helpers for Django function views (Phase 6)
+# ---------------------------------------------------------------------------
+# DRF's @throttle_classes is not valid for plain @login_required function
+# views. Use a cache-backed fixed-window throttle that mirrors
+# rest_framework.throttling.ScopedRateThrottle semantics per
+# config/settings/base.py DEFAULT_THROTTLE_RATES.
+
+_THROTTLE_PERIODS: dict[str, int] = {
+    "second": 1, "seconds": 1, "sec": 1, "secs": 1, "s": 1,
+    "minute": 60, "minutes": 60, "min": 60, "mins": 60, "m": 60,
+    "hour": 3600, "hours": 3600, "h": 3600,
+    "day": 86400, "days": 86400, "d": 86400,
+}
+
+
+def _parse_rate(rate: str) -> tuple[int, int]:
+    """Parse '5/minute' or '10/hour' -> (num, period_seconds)."""
+    if not rate or "/" not in rate:
+        raise ValueError(f"Invalid rate: {rate!r}")
+    num_s, period_s = rate.split("/", 1)
+    num = int(num_s.strip())
+    period_key = period_s.strip().lower()
+    period = _THROTTLE_PERIODS.get(period_key)
+    if period is None:
+        raise ValueError(f"Unknown period: {period_s!r}")
+    return num, period
+
+
+_FALLBACK_RATES: dict[str, str] = {
+    "essay-submit": "5/minute",
+    "essay-improve": "10/hour",
+    "user": "100/minute",
+    "anon": "30/minute",
+}
+
+
+def _throttle_check(request: HttpRequest, scope: str) -> HttpResponse | None:
+    """Cache-backed fixed-window throttle. Returns 429 response if throttled."""
+    from django.conf import settings as _settings
+
+    rates = getattr(_settings, "REST_FRAMEWORK", {}).get("DEFAULT_THROTTLE_RATES", {})
+    rate_str = rates.get(scope) or _FALLBACK_RATES.get(scope)
+    if not rate_str:
+        return None
+    try:
+        limit, period = _parse_rate(rate_str)
+    except (ValueError, TypeError):
+        return None
+
+    # Identify actor: authenticated user -> per-user, else per-IP
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False) and getattr(user, "pk", None):
+        key = f"essay_throttle:{scope}:u:{user.pk}"
+    else:
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "anon")
+        key = f"essay_throttle:{scope}:ip:{ip}"
+
+    cnt = cache.get(key, 0)
+    if cnt >= limit:
+        return JsonResponse(
+            {"ok": False, "error": "Juda ko'p so'rov. Bir ozdan keyin urinib ko'ring."},
+            status=429,
+        )
+    # increment with fixed window
+    if cnt == 0:
+        cache.set(key, 1, timeout=period)
+    else:
+        try:
+            cache.incr(key)
+        except ValueError:
+            cache.set(key, cnt + 1, timeout=period)
+    return None
+
+
+def _essay_throttle(scope: str):
+    """Decorator for Django function views — cache-backed ScopedRateThrottle."""
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request: HttpRequest, *args, **kwargs):
+            resp = _throttle_check(request, scope)
+            if resp is not None:
+                return resp
+            return view_func(request, *args, **kwargs)
+
+        return _wrapped
+
+    return decorator
 
 
 def _t(request: HttpRequest, key: str) -> str:
@@ -143,6 +236,7 @@ def essay_write_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 @login_required
+@_essay_throttle("user")
 @require_POST
 def essay_autosave_view(request: HttpRequest) -> HttpResponse:
     """Esse matnini avtomatik saqlash (HTMX).
@@ -231,6 +325,7 @@ def _js_i18n(request) -> dict:
 
 
 @login_required
+@_essay_throttle("essay-submit")
 @require_POST
 def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     """Esseni AI baholash uchun yuborish (qayta yuborish ham ruxsat).
@@ -383,6 +478,7 @@ def essay_detail_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 @login_required
+@_essay_throttle("essay-improve")
 @require_POST
 def essay_improve_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     """
@@ -573,6 +669,11 @@ def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> Http
 @login_required
 def essay_create_view(request: HttpRequest) -> HttpResponse:
     """POST /essays/submit/ grades (legacy flow, tested) — GET serves the SPA shell."""
+    # Throttle only POST (grading) — GET serves SPA shell
+    if request.method == "POST":
+        _resp = _throttle_check(request, "essay-submit")
+        if _resp is not None:
+            return _resp
     if request.method == "GET":
         return serve_spa_shell(request, fallback="/essays")
 
