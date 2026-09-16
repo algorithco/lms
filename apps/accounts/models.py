@@ -12,6 +12,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinLengthValidator
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
 from .managers import UserManager
@@ -108,6 +109,18 @@ class User(AbstractUser):
         help_text=_("Sun'iy AI raqib (Arena bot) hisobi. Real foydalanuvchi emas."),
     )
 
+    # -- Teacher creation permissions (Phase 4) -------------------------------
+    can_create_essay_topic = models.BooleanField(
+        _("esse mavzusi yaratish huquqi"),
+        default=False,
+        help_text=_("O'qituvchiga esse mavzulari yaratishga ruxsat berish. Admin tomonidan boshqariladi."),
+    )
+    can_create_test = models.BooleanField(
+        _("test yaratish huquqi"),
+        default=False,
+        help_text=_("O'qituvchiga testlar yaratish / import qilishga ruxsat berish. Admin tomonidan boshqariladi."),
+    )
+
     # -- Timestamps -----------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
@@ -125,6 +138,16 @@ class User(AbstractUser):
             models.Index(fields=["role"], name="idx_user_role"),
             models.Index(fields=["email"], name="idx_user_email"),
         ]
+        constraints = [
+            models.UniqueConstraint(Lower("email"), name="uniq_user_email_lower"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        else:
+            self.email = ""
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.get_full_name()} <{self.email}>"

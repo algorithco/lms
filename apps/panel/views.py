@@ -14,7 +14,7 @@ from apps.core.translations import get_user_language, t
 from apps.essays.models import EssayTopic
 from apps.tests.models import Question, Test
 
-from .decorators import admin_required
+from .decorators import admin_required, essay_topic_required
 from .forms import ChoiceFormSet, EssayTopicForm, QuestionForm, TestForm
 
 
@@ -206,7 +206,7 @@ def question_delete_view(
 # ---------------------------------------------------------------------------
 # Essay topics CRUD
 # ---------------------------------------------------------------------------
-@admin_required
+@essay_topic_required
 def essay_topic_list_view(request: HttpRequest) -> HttpResponse:
     qs = EssayTopic.objects.select_related("created_by")
     q = request.GET.get("q", "").strip()
@@ -228,7 +228,7 @@ def essay_topic_list_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-@admin_required
+@essay_topic_required
 def essay_topic_create_view(request: HttpRequest) -> HttpResponse:
     form = EssayTopicForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -240,7 +240,7 @@ def essay_topic_create_view(request: HttpRequest) -> HttpResponse:
     return render(request, "panel/essay_topic_form.html", {"form": form, "topic": None})
 
 
-@admin_required
+@essay_topic_required
 def essay_topic_edit_view(request: HttpRequest, topic_id: int) -> HttpResponse:
     topic = get_object_or_404(EssayTopic, id=topic_id)
     form = EssayTopicForm(request.POST or None, instance=topic)
@@ -252,7 +252,7 @@ def essay_topic_edit_view(request: HttpRequest, topic_id: int) -> HttpResponse:
 
 
 @require_POST
-@admin_required
+@essay_topic_required
 def essay_topic_delete_view(request: HttpRequest, topic_id: int) -> HttpResponse:
     topic = get_object_or_404(EssayTopic, id=topic_id)
     topic.delete()

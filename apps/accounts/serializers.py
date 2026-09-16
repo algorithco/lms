@@ -16,7 +16,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken as JWTRefreshToken
 
 from .models import Profile
 
@@ -59,7 +60,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["email"] = user.email
         token["role"] = user.role
         token["full_name"] = user.get_full_name()
-        token["is_active"] = user.is_active
 
         return token
 
@@ -100,6 +100,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "role"]
 
+    def validate_email(self, value: str) -> str:
+        """Case-insensitive uniqueness check — friendly 400 before DB constraint."""
+        email = (value or "").strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Bu email allaqachon ro'yxatdan o'tgan.")
+        return value
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Parollar mos ekanligini tekshirish."""
         requested_role = self.initial_data.get("role")
@@ -117,7 +124,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         # Django password validators ni ishga tushirish
         try:
-            validate_password(password)
+            validate_password(
+                password,
+                user=User(**{k: v for k, v in attrs.items() if k != "password_confirm"}),
+            )
         except DjangoValidationError as e:
             raise serializers.ValidationError(
                 {"password": list(e.messages)}
@@ -167,7 +177,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name",
             "role", "phone", "bio", "avatar", "date_of_birth",
-            "telegram_chat_id", "created_at",
+            "created_at",
             "language", "is_staff", "is_superuser", "is_platform_admin",
         ]
         read_only_fields = fields  # Hammasi read-only
@@ -256,3 +266,29 @@ class ConnectTelegramSerializer(serializers.Serializer):
             "Telegram ID ni qo'lda bog'lab bo'lmaydi. "
             "Telegram botdagi tasdiqlangan bog'lash oqimidan foydalaning."
         )
+
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    """Ensure inactive users cannot refresh — defense-in-depth beyond SIMPLE_JWT."""
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        data = super().validate(attrs)
+        try:
+            refresh = JWTRefreshToken(attrs["refresh"])
+            user_id = refresh.payload.get("user_id") or refresh.payload.get("userId")
+            if user_id is not None:
+                try:
+                    u = User.objects.get(id=user_id)
+                except User.DoesNotExist:
+                    pass
+                else:
+                    if not u.is_active:
+                        from rest_framework_simplejwt.exceptions import InvalidToken
+                        raise InvalidToken("No active account found with the given credentials")
+        except Exception as e:
+            from rest_framework_simplejwt.exceptions import InvalidToken as _Invalid
+            if isinstance(e, _Invalid):
+                raise
+            # let super()'s error surface — ignore decode errors here
+            pass
+        return data

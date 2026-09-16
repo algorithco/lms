@@ -17,6 +17,31 @@ def is_panel_admin(user) -> bool:
     return is_platform_admin(user)
 
 
+def is_essay_topic_creator(user) -> bool:
+    """Phase 4: allow platform admin OR user.can_create_essay_topic."""
+    if is_platform_admin(user):
+        return True
+    return bool(
+        user
+        and getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "can_create_essay_topic", False)
+    )
+
+
+def essay_topic_required(view_func):
+    """Decorator: require login + (platform-admin OR can_create_essay_topic), else 403."""
+
+    @wraps(view_func)
+    @login_required
+    def _wrapped(request: HttpRequest, *args, **kwargs):
+        if not is_essay_topic_creator(request.user):
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
 def admin_required(view_func):
     """Decorator: require login + platform-admin, else raise 403."""
 

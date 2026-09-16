@@ -33,3 +33,32 @@ class IsTeacherOrAdmin(BasePermission):
                 or is_platform_admin(user)
             )
         )
+
+
+def _can_create_essay_topic(user) -> bool:
+    """Phase 4: admin controls essay topic creation (Grande design)."""
+    if is_platform_admin(user):
+        return True
+    return bool(
+        user
+        and getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "can_create_essay_topic", False)
+    )
+
+
+class IsPanelAdminOrEssayCreator(BasePermission):
+    """Allow platform admin OR teacher with can_create_essay_topic flag."""
+
+    message = "Admin access required."
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, "user", None)
+        if _can_create_essay_topic(user):
+            return True
+        # Fallback to IsPanelAdmin check (covers superuser edge)
+        return bool(
+            user
+            and user.is_authenticated
+            and is_panel_admin(user)
+        )
