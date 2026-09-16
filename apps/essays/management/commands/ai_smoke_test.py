@@ -91,15 +91,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--timeout",
             type=float,
-            default=30.0,
-            help="Har bir so'rov uchun HTTP timeout (sekund), default 30.",
+            default=None,
+            help="Har bir so'rov uchun HTTP timeout (sekund), default ESSAY_AI_REQUEST_TIMEOUT.",
         )
 
     def handle(self, *args, **options):
         live: bool = options["live"]
         validate_models: bool = options["validate_models"]
         single_model: str = options["model"].strip()
-        timeout: float = float(options["timeout"])
+        timeout_opt = options.get("timeout")
+        timeout: float = (
+            float(timeout_opt)
+            if timeout_opt is not None
+            else float(getattr(settings, "ESSAY_AI_REQUEST_TIMEOUT", 60.0))
+        )
 
         # ---- 1. Konfiguratsiya hisoboti ---------------------------------
         try:
@@ -120,6 +125,16 @@ class Command(BaseCommand):
         mock_str = "HA (haqiqiy API ishlatilmaydi)" if _is_mock_mode() else "yo'q"
         self.stdout.write(f"Mock mode           : {mock_str}")
         self.stdout.write(f"Request timeout     : {timeout}s")
+        eager = bool(getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False))
+        backoff = getattr(settings, "ESSAY_THREAD_RETRY_BACKOFF", (5.0, 10.0, 15.0))
+        try:
+            backoff_str = ",".join(str(float(b)) for b in backoff)
+        except (TypeError, ValueError):
+            backoff_str = str(backoff)
+        self.stdout.write(
+            f"Eager (thread path) : {'HA — grading background thread da' if eager else 'yoq — Celery worker'}"
+        )
+        self.stdout.write(f"Thread backoff      : {backoff_str}s")
         self.stdout.write("Model zanjiri       :")
         for i, m in enumerate(candidates, 1):
             marker = " (asosiy)" if i == 1 else ""

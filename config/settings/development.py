@@ -55,3 +55,7 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # ---------------------------------------------------------------------------
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode
+
+# Local runserver-only grading tez bo'lishi uchun: thread retry backoff
+# prod'dagi 5/10/15s o'rniga 1/2/3s. Prod (.env.prod) buni override qilmaydi.
+ESSAY_THREAD_RETRY_BACKOFF = (1.0, 2.0, 3.0)

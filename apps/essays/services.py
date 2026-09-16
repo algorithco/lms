@@ -61,6 +61,31 @@ def _provider_key(provider: str) -> str:
     return (getattr(settings, f"{provider.upper()}_API_KEY", "") or "").strip()
 
 
+_PLACEHOLDER_KEY_MARKERS = ("your", "here", "change", "example", "placeholder")
+
+
+def _is_placeholder_key(api_key: str) -> bool:
+    """Detect .env.example placeholder keys (never send them to providers).
+
+    Local .env files copied from .env.example keep values like
+    ``sk-or-v1-your-openrouter-key-here`` / ``gsk_your-groq-key-here``.
+    They pass the prefix guard but always 401 on the live API, costing a
+    full fallback-chain retry before ERROR. Treat them as missing so the
+    user gets a clear ImproperlyConfigured message (or mock mode) instead.
+    """
+    if not api_key:
+        return True
+    lowered = api_key.lower()
+    return any(marker in lowered for marker in _PLACEHOLDER_KEY_MARKERS)
+
+
+def _has_real_key(provider: str) -> bool:
+    """True only for a configured, non-placeholder provider key."""
+    return bool(_provider_key(provider)) and not _is_placeholder_key(
+        _provider_key(provider)
+    )
+
+
 def _resolve_provider() -> str:
     """
     Resolve which AI provider to use and validate its key.
@@ -78,9 +103,9 @@ def _resolve_provider() -> str:
     if configured in VALID_PROVIDERS:
         provider = configured
     elif configured == "auto":
-        if _provider_key("openrouter"):
+        if _has_real_key("openrouter"):
             provider = "openrouter"
-        elif _provider_key("groq"):
+        elif _has_real_key("groq"):
             provider = "groq"
         else:
             raise ImproperlyConfigured(
@@ -95,7 +120,13 @@ def _resolve_provider() -> str:
         )
 
     api_key = _provider_key(provider)
-    if not api_key:
+    if not api_key or _is_placeholder_key(api_key):
+        if api_key and _is_placeholder_key(api_key):
+            raise ImproperlyConfigured(
+                f"{provider.upper()}_API_KEY hali .env.example dagi placeholder "
+                f"qiymat ({api_key[:9]}…). Haqiqiy kalit kiriting yoki "
+                f"lokal test uchun ESSAY_AI_MOCK_MODE=True qiling."
+            )
         raise ImproperlyConfigured(
             f"{provider.upper()}_API_KEY sozlanmagan. "
             f"ESSAY_AI_PROVIDER={provider} uchun .env fayliga "
@@ -398,7 +429,7 @@ def _chat_with_fallback(
 
 def _is_mock_mode() -> bool:
     """Check if we're running in mock mode (no real API key)."""
-    has_key = bool(_provider_key("openrouter") or _provider_key("groq"))
+    has_key = _has_real_key("openrouter") or _has_real_key("groq")
     return not has_key and getattr(settings, "ESSAY_AI_MOCK_MODE", False)
 
 
