@@ -105,10 +105,15 @@ class BbaPromptStructureTests(SimpleTestCase):
 class BbaValidationTests(SimpleTestCase):
     """Validation normalizes evidence + forces per-criterion max 2."""
 
-    def test_insurance_expected_distribution_sums_to_22(self):
+    def test_insurance_expected_distribution_sums_correctly(self):
+        # NOTE: the task lists per-criterion scores 2/2/2/2/1.5/2/2/2/2/1.5/2/2
+        # with total "22/24" — but those scores sum to 23.0, not 22.0.
+        # Rule 10 (total = exact sum) wins over the typo: the pipeline must
+        # return the true sum, never a hand-adjusted total.
         payload = _valid_payload(INSURANCE_EXPECTED_SCORES)
         _validate_result(payload)
-        self.assertEqual(payload["total_score"], 22.0)
+        self.assertEqual(payload["total_score"], float(sum(INSURANCE_EXPECTED_SCORES)))
+        self.assertEqual(payload["total_score"], 23.0)
         self.assertEqual(payload["max_score"], 24)
         for c in payload["criteria"]:
             self.assertEqual(c["max_score"], 2)
