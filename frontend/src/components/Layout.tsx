@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { APP_LANGS, useLang } from '../i18n/LangContext';
 import type { AppLang } from '../i18n/LangContext';
@@ -42,7 +42,10 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { t, lang, setLang } = useLang();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  // No language switcher inside the admin control panel — it is uz-only.
+  const showLangSwitch = !pathname.startsWith('/panel');
 
   const onLogout = async () => {
     await logout();
@@ -59,7 +62,7 @@ export default function Layout() {
   return (
     <div className="app">
       <aside className={`sidebar${open ? ' open' : ''}`}>
-        <Link to="/dashboard" className="side-brand" onClick={close}>
+        <Link to="/" className="side-brand" onClick={close}>
           <img src="/grandec.png" alt="GRANDEC" className="brand-badge" />
           <span>
             <span className="side-brand-name">GRANDEC</span>
@@ -126,19 +129,21 @@ export default function Layout() {
               {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
             </button>
             <div className="spacer" />
-            <span className="lang-switch" role="group" aria-label="Language">
-              {APP_LANGS.map((l: AppLang) => (
-                <button
-                  key={l}
-                  type="button"
-                  className={`btn ghost sm${lang === l ? ' active' : ''}`}
-                  aria-pressed={lang === l}
-                  onClick={() => setLang(l)}
-                >
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </span>
+            {showLangSwitch && (
+              <span className="lang-switch" role="group" aria-label="Language">
+                {APP_LANGS.map((l: AppLang) => (
+                  <button
+                    key={l}
+                    type="button"
+                    className={`btn ghost sm${lang === l ? ' active' : ''}`}
+                    aria-pressed={lang === l}
+                    onClick={() => setLang(l)}
+                  >
+                    {l.toUpperCase()}
+                  </button>
+                ))}
+              </span>
+            )}
             {user && <span className={`role role-${user.role}`}>{user.role}</span>}
             <button className="btn ghost sm" onClick={onLogout}>{t('logout')}</button>
           </div>

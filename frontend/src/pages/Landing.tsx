@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { School } from '../lib/api';
+import { School, landingFor } from '../lib/api';
 import GooeyNav from '../components/GooeyNav';
 import BlurText from '../components/BlurText';
 import DepthCarousel from '../components/DepthCarousel';
@@ -27,8 +28,17 @@ import {
 
 export default function Landing() {
   const { t } = useLang();
+  const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [slide, setSlide] = useState(0);
+  // Logged-in visitors go straight to their home (panel for admins).
+  const startTo = user ? landingFor(user) : '/register';
+  const initials = (user?.full_name || '?')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '?';
 
   // Live platform totals (GET /api/v1/school/public-stats/, AllowAny).
   // Failure is silent by design: the curated showcase chart below stays.
@@ -273,13 +283,39 @@ export default function Landing() {
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-              <Link to="/login" className="landing-login land-muted">{t('login')}</Link>
-              <Link to="/register" className="landing-cta btn-glow">
-                {t('start_free')}
-                <svg className="hide-sm-arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
+              {user ? (
+                <Link
+                  to={startTo}
+                  className="landing-cta btn-glow"
+                  title={user.full_name}
+                  style={{ padding: '6px 12px 6px 6px', gap: 8 }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 28, height: 28, borderRadius: 999, flexShrink: 0,
+                      fontSize: 11, fontWeight: 900, color: '#111111',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'rgba(17,17,17,.12)',
+                    }}
+                  >
+                    {initials}
+                  </span>
+                  <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.full_name}
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" className="landing-login land-muted">{t('login')}</Link>
+                  <Link to="/register" className="landing-cta btn-glow">
+                    {t('start_free')}
+                    <svg className="hide-sm-arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Link>
+                </>
+              )}
               <button className="landing-burger land-muted" aria-label="Menu" onClick={() => setMobileOpen((v) => !v)}>
                 {mobileOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
               </button>
@@ -293,8 +329,8 @@ export default function Landing() {
                     {t(k)}
                   </a>
                 ))}
-                <Link to="/login" className="land-muted" onClick={() => setMobileOpen(false)}>
-                  {t('login')}
+                <Link to={user ? startTo : '/login'} className="land-muted" onClick={() => setMobileOpen(false)}>
+                  {user ? user.full_name : t('login')}
                 </Link>
               </div>
             </div>
@@ -361,7 +397,7 @@ export default function Landing() {
                 </h2>
                 <p className="land-muted" style={{ marginTop: 16, lineHeight: 1.7, maxWidth: 28 * 16 }}>{t('slide1_p')}</p>
                 <div className="cta-row">
-                  <Link to="/register" className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
+                  <Link to={startTo} className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
                     {t('cta_start_course')} →
                   </Link>
                   <a href="#features" className="ghost-cta lpill land-muted">{t('cta_demo')}</a>
@@ -444,7 +480,7 @@ export default function Landing() {
                 </h2>
                 <p className="land-muted" style={{ marginTop: 16, lineHeight: 1.7, maxWidth: 28 * 16 }}>{t('slide2_p')}</p>
                 <div className="cta-row">
-                  <Link to="/register" className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
+                  <Link to={startTo} className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
                     {t('cta_write_essay')} →
                   </Link>
                   <a href="#features" className="ghost-cta lpill land-muted">{t('cta_criteria')}</a>
@@ -512,7 +548,7 @@ export default function Landing() {
                 </h2>
                 <p className="land-muted" style={{ marginTop: 16, lineHeight: 1.7, maxWidth: 28 * 16 }}>{t('slide3_p')}</p>
                 <div className="cta-row">
-                  <Link to="/register" className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
+                  <Link to={startTo} className="landing-cta btn-glow" style={{ padding: '12px 28px' }}>
                     {t('cta_arena')} →
                   </Link>
                   <span className="ghost-cta lpill land-muted"><FlameIcon size={13} /> {t('badge_10wins')}</span>
@@ -702,7 +738,7 @@ export default function Landing() {
             ))}
           </div>
           <div style={{ marginTop: 40, textAlign: 'center' }}>
-            <Link to="/register" className="landing-cta btn-glow" style={{ padding: '14px 32px', fontSize: 16 }}>
+            <Link to={startTo} className="landing-cta btn-glow" style={{ padding: '14px 32px', fontSize: 16 }}>
               {t('cta_free_account')} →
             </Link>
           </div>
