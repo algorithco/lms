@@ -38,6 +38,10 @@ class RegisterView(generics.CreateAPIView):
 
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
+    # JWT-only public endpoint: never enforce SessionAuthentication/CSRF here.
+    # Otherwise a stale `sessionid` cookie (admin login, arena bridge, 2nd
+    # user in same browser) triggers 403 "CSRF Failed" on registration.
+    authentication_classes: list = []
 
     @extend_schema(
         summary="Ro'yxatdan o'tish",
