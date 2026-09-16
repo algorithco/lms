@@ -229,12 +229,14 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/minute",      # Anonymous: 30 requests per minute
         "user": "100/minute",     # Authenticated: 100 requests per minute
-        "test-start": "5/hour",   # Test start: 5 per hour
-        "test-submit": "10/hour", # Test submit: 10 per hour
+        "essay-submit": "5/minute",
+        "essay-improve": "10/hour",
+        "tma-essay-submit": "10/hour",
     },
 }
 
@@ -340,6 +342,13 @@ CELERY_REDIS_MAX_CONNECTIONS = env("CELERY_REDIS_MAX_CONNECTIONS", default=20)
 # Synchronous mode for testing (no Redis needed)
 CELERY_TASK_ALWAYS_EAGER = env("CELERY_TASK_ALWAYS_EAGER", default=False)
 
+# Essay grading: celery beat reap + LLM isolation
+CELERY_TASK_ROUTES = {
+    "essays.grade_submission": {"queue": "essay_grading"},
+    "essays.auto_submit_expired": {"queue": "essay_grading"},
+    "essays.reap_stale_pending": {"queue": "essay_grading"},
+}
+
 # Celery Beat schedule (periodic tasks)
 CELERY_BEAT_SCHEDULE = {
     # Check for timed-out test attempts every 60 seconds
@@ -367,6 +376,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "essays.auto_submit_expired",
         "schedule": 120.0,  # 2 minutes
     },
+    "reap-stale-pending-essays": {
+        "task": "essays.reap_stale_pending",
+        "schedule": 60.0,  # every minute — requeues orphaned PENDING
+        "options": {"queue": "essay_grading"},
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -385,7 +399,7 @@ CHANNEL_LAYERS = {
 # Anti-fraud certificate secret
 CERTIFICATE_SECRET_KEY = env(
     "CERTIFICATE_SECRET_KEY",
-    default=SECRET_KEY[:32],
+    default="",
 )
 
 # ---------------------------------------------------------------------------
@@ -407,10 +421,10 @@ TELEGRAM_API_URL = "https://api.telegram.org"
 # ---------------------------------------------------------------------------
 # Manual payments (card transfer + Telegram receipt verification)
 # ---------------------------------------------------------------------------
-PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="4073 4200 3846 0386")
-PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="Uzum Bank")
-PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="Lobar Mansurova")
-PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="rozievkomiljon")
+PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="")
+PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="")
+PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="")
+PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="")
 
 # Secret token for webhook mode. When set, the /telegram/webhook/ endpoint
 # rejects requests without the X-Telegram-Bot-Api-Secret-Token header.
@@ -499,10 +513,11 @@ OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="LMS Platform")
 ESSAY_AI_MOCK_MODE = env.bool("ESSAY_AI_MOCK_MODE", default=False)
 
 # LLM so'rovi uchun READ timeout (sekund). Connect timeout alohida 10s.
-# Ixcham prompt + qat'iy JSON rejimi bilan 60s yetarli; OpenRouter sekinlashsa
-# _chat_with_fallback model-zanjiri bo'ylab retry qiladi. Task limitlari
-# (soft 200s / hard 240s) bu qiymatdan katta bo'lishi shart.
-ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="60"))
+# Budget: har bir urinish ~timeout, maksimum 3 model × 1 attempt × 2
+# pass (normal+simplified retry) = 6 × timeout. Masalan 35s×6=210s > soft
+# 200s bo'lgani uchun timeout=30 qilib 6×30=180s < soft 200s < hard 240s ni
+# kafolatlaymiz. Task limitlari bundan katta bo'lishi shart.
+ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="30"))
 
 # Background-thread retry backoff (sekund) — runserver-only rejimda
 # (CELERY_TASK_ALWAYS_EAGER=True) grading shu thread'da 3 urinish qiladi.

@@ -71,6 +71,8 @@ jobs:
       - name: Type check with mypy
         run: |
           mypy apps/ --ignore-missing-imports || true
+          # Advisory only: type errors do not block CI yet. Track via mypy
+          # reports, not as required gate.
 
       - name: Collect static files (before tests — manifest storage needs them)
         env:

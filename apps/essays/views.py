@@ -150,7 +150,13 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
     Agar vaqt tugagan bo'lsa → avtomatik submit (auto_submit_essay).
     """
     submission_id = request.POST.get("submission_id")
-    essay_text = request.POST.get("essay_text", "")
+    essay_text = str(request.POST.get("essay_text", "") or "")
+
+    if len(essay_text) > MAX_ESSAY_LENGTH:
+        return JsonResponse(
+            {"ok": False, "error": f"Esse juda uzun ({len(essay_text)}). Maksimal {MAX_ESSAY_LENGTH}."},
+            status=400,
+        )
 
     submission = get_object_or_404(
         EssaySubmission,
@@ -264,12 +270,18 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         })
 
     # Word count validation
-    word_count = WordCounter.count(submission.essay_text)
-    if word_count < submission.topic.word_limit_min:
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": f"Kamida {submission.topic.word_limit_min} so'z kerak. Hozir: {word_count} so'z.",
-        })
+    if submission.topic is not None:
+        min_words = submission.topic.word_limit_min
+        word_count = WordCounter.count(submission.essay_text)
+        if word_count < min_words:
+            return render(request, "essays/submit_result_partial.html", {
+                "success": False,
+                "error": f"Kamida {min_words} so'z kerak. Hozir: {word_count} so'z.",
+            })
+    else:
+        # Topic-less legacy submissions: no min-word contract; only require
+        # non-empty text (already enforced by essay text saving).
+        pass
 
     # AI baholashni fon rejimiga yuklash — grade_essay() 30–90 soniya davom
     # etadigan tashqi LLM chaqiruvi: Celery worker'da, broker tushsa
@@ -500,12 +512,30 @@ def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> Http
 
     # Parse 12 criteria scores from form: score_1, score_2, ..., score_12
     criteria_scores = {}
+    allowed = {0.0, 0.5, 1.0, 1.5, 2.0}
     for cid in range(1, 13):
-        val = request.POST.get(f"score_{cid}", "0")
+        raw = request.POST.get(f"score_{cid}", "0")
+        raw_str = str(raw).strip() if raw is not None else ""
+        if raw_str == "":
+            return render(request, "essays/teacher_review_result_partial.html", {
+                "success": False,
+                "error": f"Mezon #{cid}: ball kiritilmadi.",
+            })
         try:
-            criteria_scores[cid] = float(val)
+            val = float(raw_str)
         except (ValueError, TypeError):
-            criteria_scores[cid] = 0.0
+            return render(request, "essays/teacher_review_result_partial.html", {
+                "success": False,
+                "error": f"Mezon #{cid}: ball noto'g'ri format '{raw_str}'.",
+            })
+        # Reject NaN/inf explicitly.
+        import math
+        if not math.isfinite(val) or val not in allowed:
+            return render(request, "essays/teacher_review_result_partial.html", {
+                "success": False,
+                "error": f"Mezon #{cid}: ball {raw_str} yaroqsiz. Ruxsat: {sorted(allowed)}",
+            })
+        criteria_scores[cid] = val
 
     teacher_comments = request.POST.get("teacher_comments", "")
 
@@ -546,7 +576,8 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
     if request.method == "GET":
         return serve_spa_shell(request, fallback="/essays")
 
-    essay_text = request.POST.get("essay_text", "").strip()
+    essay_text_raw = request.POST.get("essay_text", "")
+    essay_text = str(essay_text_raw or "").strip()
     if not essay_text:
         return JsonResponse(
             {"ok": False, "error": "Esse matni bo'sh bo'lishi mumkin emas."},
@@ -559,10 +590,11 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
         )
 
     # Create pending submission
+    from apps.essays.services import WordCounter as _WC
     submission = EssaySubmission.objects.create(
         student=request.user,
         essay_text=essay_text,
-        word_count=len(essay_text.split()),
+        word_count=_WC.count(essay_text),
         status=EssaySubmission.Status.PENDING,
     )
 

@@ -227,3 +227,16 @@ if not os.environ.get("DB_PASSWORD"):
     raise ImproperlyConfigured(
         "DB_PASSWORD must be set in production (PostgreSQL password)."
     )
+if not CERTIFICATE_SECRET_KEY or len(CERTIFICATE_SECRET_KEY) < 16:
+    raise ImproperlyConfigured(
+        "CERTIFICATE_SECRET_KEY must be set to a random value in production "
+        "(independent from DJANGO_SECRET_KEY)."
+    )
+if os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").lower() in ("1", "true", "yes"):
+    raise ImproperlyConfigured(
+        "CELERY_TASK_ALWAYS_EAGER must not be true in production (would run LLM inline)."
+    )
+if os.environ.get("ESSAY_AI_MOCK_MODE", "").lower() in ("1", "true", "yes"):
+    raise ImproperlyConfigured(
+        "ESSAY_AI_MOCK_MODE must not be true in production."
+    )

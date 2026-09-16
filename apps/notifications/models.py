@@ -35,6 +35,8 @@ class NotificationLog(models.Model):
         COURSE_ENROLLMENT = "course_enrollment", _("Kursga yozilish")
         REMINDER = "reminder", _("Eslatma")
         GENERAL = "general", _("Umumiy")
+        ESSAY_GRADED = "essay_graded", _("Esse baholandi")
+        ESSAY_REVIEW_REQUEST = "essay_review_request", _("Esse tekshirish so'rovi")
 
     # -- Core -----------------------------------------------------------------
     recipient = models.ForeignKey(
@@ -94,6 +96,15 @@ class NotificationLog(models.Model):
         blank=True,
         related_name="notifications",
         verbose_name=_("bog'langan sertifikat"),
+    )
+    related_essay_submission = models.ForeignKey(
+        "essays.EssaySubmission",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+        verbose_name=_("bog'langan esse topshirish"),
+        help_text=_("Essay notification idempotency kaliti sifatida ishlatiladi."),
     )
 
     # -- Timestamps -----------------------------------------------------------

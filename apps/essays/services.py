@@ -193,10 +193,11 @@ def _get_llm_client(timeout: float | None = None):
         # CONNECT timeout: httpx's default connect budget is generous, and a
         # hung TCP/TLS connect used to pin the request thread until the full
         # read timeout elapsed — exactly the "LLM blocks the worker" failure
-        # mode behind the Cloudflare 502s. max_retries=1 keeps one automatic
-        # retry; _chat_with_fallback does the real model-level retrying.
+        # mode behind the Cloudflare 502s. max_retries=0 keeps retries
+        # deterministic in our own _chat_with_fallback (worker's budget math
+        # counts exactly the calls it sees — no hidden OpenAI retries).
         timeout=httpx.Timeout(timeout, connect=10.0),
-        max_retries=1,
+        max_retries=0,
         default_headers={
             "HTTP-Referer": site_url,
             "X-Title": app_name,
@@ -333,7 +334,7 @@ def _chat_with_fallback(
     messages: list,
     max_tokens: int,
     temperature: float,
-    max_attempts: int = 2,
+    max_attempts: int = 1,
     response_format: dict | None = None,
 ):
     """
@@ -364,8 +365,12 @@ def _chat_with_fallback(
     for ci, candidate in enumerate(candidates):
         is_last_model = ci == len(candidates) - 1
         next_model = None if is_last_model else candidates[ci + 1]
-        # Transient 429s/empty bodies on free models often clear in ~1s.
-        for attempt in range(max(1, max_attempts)):
+        # Transient 429s/empty bodies on free models often clear in ~1s, but we
+        # do not retry empty within the same model beyond the fallback chain;
+        # one attempt per model keeps the total budget bounded.
+        attempt = 0
+        max_a = max(1, max_attempts)
+        while attempt < max_a:
             tail = f"; falling back to {next_model}" if next_model else "; chain exhausted"
             try:
                 kwargs = {
@@ -386,7 +391,7 @@ def _chat_with_fallback(
                     attempt + 1,
                     tail,
                 )
-                last_exc = last_exc or ValueError("LLM bo'sh javob qaytardi")
+                last_exc = ValueError("LLM bo'sh javob qaytardi")
             except Exception as e:
                 if use_json_mode and _is_unsupported_response_format(e):
                     # Ba'zi modellar response_format=json_object ni qo'llamaydi
@@ -420,8 +425,9 @@ def _chat_with_fallback(
                     e,
                     tail,
                 )
-            if max(1, max_attempts) > 1 and attempt == 0:
-                time.sleep(1.2)
+            attempt += 1
+            if max_a > 1 and attempt == 1:
+                time.sleep(0.6)
 
     assert last_exc is not None  # candidates is never empty (model is set)
     raise last_exc
@@ -677,6 +683,14 @@ class TeacherReviewService:
         )
         if not can_review_submission(teacher, submission):
             raise PermissionDenied("Bu esseni tekshirishga ruxsatingiz yo'q.")
+        if submission.status not in (
+            EssaySubmission.Status.GRADED,
+            EssaySubmission.Status.AI_EVALUATED,
+            EssaySubmission.Status.PENDING_TEACHER,
+        ):
+            raise ValueError(
+                f"Faqat baholangan esselarni tekshirish mumkin. Hozirgi holat: {submission.status}"
+            )
 
         VALID_SCORES = {0.0, 0.5, 1.0, 1.5, 2.0}
 
@@ -708,8 +722,11 @@ class TeacherReviewService:
             },
         )
 
-        # Update submission status
-        submission.status = EssaySubmission.Status.TEACHER_REVIEWED
+        # Update submission status — use transition guard so illegal jumps fail.
+        try:
+            submission.transition_to(EssaySubmission.Status.TEACHER_REVIEWED)
+        except ValueError as e:
+            raise ValueError(str(e)) from e
         submission.final_score = total_score
         submission.teacher_review_requested = False
         submission.save(update_fields=[
@@ -1332,6 +1349,19 @@ def generate_improved_essay(submission: "EssaySubmission") -> str:
     if len(essay_text) > MAX_ESSAY_LENGTH:
         raise ValueError("Esse juda uzun")
 
+    if _is_mock_mode():
+        # Mirror grade_essay mock behavior so improved version works offline
+        # without burning API quota or hitting 401.
+        improved = (
+            essay_text
+            + "\n\n[YAXSHILANGAN — SINOV REJIMI] Lug'at boyitildi, imlo va punktuatsiya to'g'rilandi."
+        )
+        submission.improved_content = improved
+        submission.improved_at = timezone.now()
+        submission.save(update_fields=["improved_content", "improved_at", "updated_at"])
+        submission._improved_fresh = True
+        return improved
+
     client = _get_llm_client(timeout=45.0)  # bounded: sync web request
     candidates = _model_candidates()
 
@@ -1462,32 +1492,83 @@ def apply_ai_result(submission, result: dict) -> None:
 
     Persists scores/summary/status and (re)creates the 12 EssayCriterionScore
     rows. Shared by the Celery task, auto_submit_essay, and any sync fallback.
+    The whole transition is atomic so readers never see a GRADED row with a
+    partial criterion set. Internal flags (_from_cache/_mock_mode/_errors
+    handling keeps backward compat) are stripped before persistence, and any
+    stale error_message is cleared on success.
     """
+    from django.db import transaction as _txn
+
     from .models import EssayCriterionScore
 
-    submission.is_off_topic = not result.get("topic_match", True)
-    submission.topic_match_reason = result.get("topic_match_reason", "")
-    submission.raw_result = result
-    submission.total_score = Decimal(str(result["total_score"]))
-    submission.max_score = result["max_score"]
-    submission.summary = result.get("summary", "")
-    submission.status = EssaySubmission.Status.GRADED
-    submission.graded_at = timezone.now()
-    submission.save(update_fields=[
-        "raw_result", "total_score", "max_score",
-        "summary", "status", "graded_at", "updated_at",
-        "is_off_topic", "topic_match_reason",
-    ])
+    # Strip ephemeral execution metadata — they belong only in the cache /
+    # in-memory result, not in the canonical submission row.
+    clean_result = {k: v for k, v in result.items() if not k.startswith("_")}
+    # Backward-compat: Error handling for persisted errors already stored.
+    # No _from_cache/_mock_mode should survive in DB.
 
-    submission.criteria.all().delete()
-    for criterion in result["criteria"]:
-        EssayCriterionScore.objects.create(
-            submission=submission,
-            criterion_id=criterion["id"],
-            name=criterion["name"],
-            score=Decimal(str(criterion["score"])),
-            reason=criterion.get("reason", ""),
+    with _txn.atomic():
+        # Lock the row for the short write only — grading already finished.
+        locked = (
+            EssaySubmission.objects.select_for_update()
+            .filter(pk=submission.pk)
+            .first()
         )
+        if locked is None:
+            return
+        # FSM guard: only a PENDING (or legacy gradeable) submission may
+        # become GRADED. Duplicate/stale workers that lost the claim
+        # must not overwrite a newer GRADED/ERROR/PENDING_TEACHER result.
+        allowed = locked.STATUS_TRANSITIONS.get(
+            locked.status, frozenset()
+        )
+        if EssaySubmission.Status.GRADED not in allowed:
+            # If already GRADED with same criteria we are idempotently done;
+            # otherwise silently ignore the stale write.
+            return
+
+        locked.is_off_topic = not clean_result.get("topic_match", True)
+        locked.topic_match_reason = clean_result.get("topic_match_reason", "")
+        locked.raw_result = clean_result
+        locked.total_score = Decimal(str(clean_result["total_score"]))
+        locked.max_score = clean_result["max_score"]
+        locked.summary = clean_result.get("summary", "")
+        # Use validated transition.
+        try:
+            locked.transition_to(EssaySubmission.Status.GRADED)
+        except ValueError:
+            return
+        locked.graded_at = timezone.now()
+        locked.error_message = ""
+        locked.save(update_fields=[
+            "raw_result", "total_score", "max_score",
+            "summary", "status", "graded_at", "updated_at",
+            "is_off_topic", "topic_match_reason", "error_message",
+        ])
+
+        locked.criteria.all().delete()
+        rows = [
+            EssayCriterionScore(
+                submission=locked,
+                criterion_id=criterion["id"],
+                name=criterion["name"],
+                score=Decimal(str(criterion["score"])),
+                reason=criterion.get("reason", ""),
+            )
+            for criterion in clean_result["criteria"]
+        ]
+        EssayCriterionScore.objects.bulk_create(rows)
+        # Update the caller's in-memory instance to reflect the committed state
+        # so immediate callers (e.g. task notify) see the new scores.
+        submission.raw_result = locked.raw_result
+        submission.total_score = locked.total_score
+        submission.max_score = locked.max_score
+        submission.summary = locked.summary
+        submission.status = locked.status
+        submission.graded_at = locked.graded_at
+        submission.is_off_topic = locked.is_off_topic
+        submission.topic_match_reason = locked.topic_match_reason
+        submission.error_message = locked.error_message
 
 
 def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
@@ -1530,7 +1611,7 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     # AI baholashga urinish
     try:
         result = grade_essay(essay_text, topic_title=topic_title)
-    except (ValueError, ImportError) as e:
+    except (ValueError, ImportError, ImproperlyConfigured) as e:
         # AI xato → fail_status (PENDING_TEACHER fallback yoki ERROR)
         submission.auto_submitted = True
         submission.submitted_at = timezone.now()
@@ -1617,9 +1698,25 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
             return {**_send_to_teacher(submission, "under_min"), "async": False}
 
     # Mark as pending so the result page shows the spinner and any concurrent
-    # submit is rejected by the status guard above.
-    submission.status = EssaySubmission.Status.PENDING
-    submission.save(update_fields=["status", "updated_at"])
+    # submit is rejected by the status guard above. Use conditional update so
+    # two parallel submits cannot both claim the same row.
+    claimed = EssaySubmission.objects.filter(
+        pk=submission.pk, status__in=list(_GRADEABLE_STATUSES)
+    ).update(status=EssaySubmission.Status.PENDING, updated_at=timezone.now())
+    if not claimed:
+        # Retry/resubmit path: ERROR/PENDING_TEACHER without result → DRAFT was
+        # already promoted above, so retry the claim.
+        claimed = EssaySubmission.objects.filter(
+            pk=submission.pk, status=EssaySubmission.Status.DRAFT
+        ).update(status=EssaySubmission.Status.PENDING, updated_at=timezone.now())
+        if not claimed:
+            return {
+                "success": False,
+                "error": "Bu esse allaqachon baholangan",
+                "fallback": False,
+                "async": False,
+            }
+    submission.refresh_from_db(fields=["status", "updated_at"])
 
     # Dev/test rejimida Celery eager bo'lsa (CELERY_TASK_ALWAYS_EAGER=True),
     # .delay() LLM chaqiruvini SHU request thread ichida sinxron bajaradi —
@@ -1668,11 +1765,26 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
           beat taski yoki qayta submit orqali tiklanadi)
         - retry'lar shu thread ichida qo'lda boshqariladi (quyida)
 
+    Concurrency: at most 3 concurrent grading threads (semaphore) and a
+    hard per-thread deadline (120s) so a hung LLM does not leak threads.
     Returns: start_async_grading bilan bir xil shakl + "async": True.
     """
     import threading
 
     from apps.essays.tasks import _mark_grading_failed, grade_submission_task
+
+    # Global semaphore: limit concurrent fallback threads in-process.
+    global _THREAD_GRADE_SEMAPHORE
+    try:
+        _THREAD_GRADE_SEMAPHORE  # type: ignore[name-defined]
+    except NameError:
+        _THREAD_GRADE_SEMAPHORE = threading.Semaphore(3)  # type: ignore[no-redef]
+
+    if not _THREAD_GRADE_SEMAPHORE.acquire(blocking=False):  # type: ignore[attr-defined]
+        logger.warning("Essay thread grading throttled (too many concurrent): submission=%d", submission.id)
+        # Do not block the request — return pending and let the beat reaper
+        # retry via Celery when capacity frees.
+        return {"success": True, "error": None, "fallback": False, "async": True}
 
     def _is_still_gradeable() -> bool:
         # DB vaqtincha band bo'lsa (sqlite test lockout, failover va h.k.) —
@@ -1695,9 +1807,15 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
             # Har qanday xatoda task o'zi retry() qo'taradi (yoki eager-propagate
             # rejimida asl exception'o'tadi) — ikkalasi ham ushlanadi.
             # Backoff: ESSAY_THREAD_RETRY_BACKOFF sozlamasi (default 5/10/15s).
+            # Deadline: hard 120s per thread (matching idea of LLM budget).
+            import time as _t
+            deadline = _t.monotonic() + 120
             backoff = getattr(settings, "ESSAY_THREAD_RETRY_BACKOFF", None) or (5, 10, 15)
             last_exc: Exception | None = None
             for attempt in range(1, 4):
+                if _t.monotonic() > deadline:
+                    last_exc = TimeoutError("thread grading deadline exceeded (120s)")
+                    break
                 try:
                     grade_submission_task.apply(
                         args=[submission.id],
@@ -1713,7 +1831,10 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
                 if not _is_still_gradeable():
                     # Konkurrent jarayon allaqachon yakunlagan yoki status o'zgargan
                     return
-                time.sleep(min(backoff[attempt - 1], 15))
+                remaining = deadline - _t.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(backoff[attempt - 1], 15, remaining))
 
             # Barcha urinishlar tugadi — submission hech qachon PENDING'da
             # qotib qolmasin (Celery retry kontraktining thread-muqobili).
@@ -1727,6 +1848,10 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
             from django.db import close_old_connections
 
             close_old_connections()
+            try:
+                _THREAD_GRADE_SEMAPHORE.release()  # type: ignore[attr-defined]
+            except Exception:
+                pass
 
     thread = threading.Thread(
         target=_run,
@@ -1777,7 +1902,23 @@ def notify_student_essay_graded(submission) -> None:
     Celery task tugashida chaqiriladi (background) — hech qachon request
     ichidan emas. telegram_chat_id bo'lmasa yoki Telegram API xato bersa —
     faqat log; baholash natijasi baribir DB da saqlanadi.
+    Idempotent: the same submission is never notified twice (NotificationLog
+    idempotency key) even if the grade task is retried/redelivered.
     """
+    from django.db import transaction as _txn2
+    # Idempotency guard — if a SENT log already exists for this submission,
+    # do not send again (retry-safe).
+    try:
+        from apps.notifications.models import NotificationLog
+        if NotificationLog.objects.filter(
+            related_essay_submission_id=submission.id,
+            notification_type=NotificationLog.NotificationType.ESSAY_GRADED,
+            status=NotificationLog.Status.SENT,
+        ).exists():
+            logger.info("Essay graded notification already SENT — skipping duplicate: submission=%d", submission.id)
+            return
+    except Exception:
+        pass
     student = submission.student
     chat_id = getattr(student, "telegram_chat_id", None)
     if not chat_id or not getattr(student, "telegram_identity_verified_at", None):
@@ -1822,6 +1963,25 @@ def notify_student_essay_graded(submission) -> None:
                 "Essay-graded Telegram notification failed: submission=%d, error=%s",
                 submission.id, sent.get("error"),
             )
+        else:
+            # Record idempotency key so retries do not duplicate Telegram sends.
+            try:
+                from apps.notifications.models import NotificationLog
+                from django.utils import timezone as _tzN
+                NotificationLog.objects.get_or_create(
+                    related_essay_submission_id=submission.id,
+                    notification_type=NotificationLog.NotificationType.ESSAY_GRADED,
+                    channel=NotificationLog.Channel.TELEGRAM,
+                    defaults={
+                        "recipient": student,
+                        "title": f"Esse baholandi: {topic_title}",
+                        "message": text[:500],
+                        "status": NotificationLog.Status.SENT,
+                        "sent_at": _tzN.now(),
+                    },
+                )
+            except Exception:
+                logger.exception("Failed to write essay_graded NotificationLog idempotency record: submission=%d", submission.id)
     except Exception as e:  # notification hech qachon baholashni buzmasin
         logger.warning(
             "Essay-graded notification error: submission=%d, %s", submission.id, e,
