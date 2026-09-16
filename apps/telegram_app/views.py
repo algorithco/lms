@@ -17,10 +17,11 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .services import TelegramMiniAppService
@@ -548,7 +549,9 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([ScopedRateThrottle])
 def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
+    # throttle_scope wired via function attribute below
     """
     POST /api/telegram/essays/{submission_id}/submit/
 
@@ -600,9 +603,13 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
             status=200,
         )
 
-    essay_text = request.data.get("essay_text", "").strip()
+    essay_text = str(request.data.get("essay_text", "") or "").strip()
     if not essay_text:
         return Response({"error": "Esse matni bo'sh"}, status=400)
+
+    from apps.essays.views import MAX_ESSAY_LENGTH as _MAXLEN
+    if len(essay_text) > _MAXLEN:
+        return Response({"error": f"Esse juda uzun ({len(essay_text)}). Maksimal {_MAXLEN}."}, status=400)
 
     # Save text (grading background'da shu matn ustida ishlaydi)
     submission.essay_text = essay_text
@@ -634,6 +641,9 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
         },
         status=202,
     )
+
+
+tma_essay_submit_view.throttle_scope = "tma-essay-submit"  # type: ignore[attr-defined]
 
 
 # -----------------------------------------------------------------------
@@ -673,7 +683,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "id": submission.id,
         "topic_title": submission.topic.title if submission.topic else "",
         "status": submission.status,
-        "total_score": float(submission.total_score) if submission.total_score else None,
+        "total_score": float(submission.total_score) if submission.total_score is not None else None,
         "max_score": submission.max_score,
         "converted_score": submission.converted_score,
         "score_percentage": submission.score_percentage,
@@ -681,7 +691,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "word_count": submission.word_count,
         "is_off_topic": submission.is_off_topic,
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,
-        "final_score": float(submission.final_score) if submission.final_score else None,
+        "final_score": float(submission.final_score) if submission.final_score is not None else None,
         "criteria": [
             {
                 "id": c.criterion_id,

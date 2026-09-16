@@ -18,10 +18,16 @@ if test -f .env.prod; then
   test "$perms" = "600" || err ".env.prod perms=$perms, want 600 (chmod 600 .env.prod)"
 fi
 
-say "2/8 no example.com placeholders left"
-if grep -q "example.com\|change-me" .env.prod 2>/dev/null; then
-  grep -n "example.com\|change-me" .env.prod || true
-  err "replace all example.com/change-me placeholders in .env.prod"
+say "2/8 no placeholders left (including AI keys)"
+if grep -qE "example\.com|change-me|changeme|your-super-secret|your-openrouter|gsk_your|placeholder" .env.prod 2>/dev/null; then
+  grep -nE "example\.com|change-me|changeme|your-super-secret|your-openrouter|gsk_your|placeholder" .env.prod || true
+  err "replace placeholder values in .env.prod (example.com/change-me/your-/gsk_your/sk-or-v1-your-)"
+fi
+if grep -q "ESSAY_AI_MOCK_MODE=True" .env.prod 2>/dev/null; then
+  err ".env.prod must not have ESSAY_AI_MOCK_MODE=True in production"
+fi
+if grep -q "CELERY_TASK_ALWAYS_EAGER=True" .env.prod 2>/dev/null; then
+  err ".env.prod must not have CELERY_TASK_ALWAYS_EAGER=True in production"
 fi
 
 say "3/8 compose config validates (DB_PASSWORD interpolation, YAML)"

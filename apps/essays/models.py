@@ -117,6 +117,9 @@ class EssayTopic(models.Model):
         verbose_name = _("Esse mavzusi")
         verbose_name_plural = _("Esse mavzulari")
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["is_active"], name="idx_essaytopic_active"),
+        ]
 
     def __str__(self) -> str:
         return self.title
@@ -158,6 +161,41 @@ class EssaySubmission(models.Model):
         AI_EVALUATED = "ai_evaluated", _("AI baholadi")
         PENDING_TEACHER = "pending_teacher", _("Ustoz tekshirishi kutilmoqda")
         TEACHER_REVIEWED = "teacher_reviewed", _("Ustoz bahosi tayyor")
+
+    # Central status-transition policy (single source of truth).
+    # Every status change must go through transition_to() or an atomic
+    # conditional update honouring this map — never assign .status blindly.
+    STATUS_TRANSITIONS: dict[str, frozenset[str]] = {
+        Status.DRAFT: frozenset({Status.PENDING, Status.PENDING_TEACHER, Status.GRADED, Status.ERROR}),
+        Status.PENDING: frozenset({
+            Status.GRADED, Status.ERROR, Status.PENDING_TEACHER,
+        }),
+        Status.ERROR: frozenset({Status.DRAFT}),
+        Status.PENDING_TEACHER: frozenset({
+            Status.DRAFT, Status.TEACHER_REVIEWED,
+        }),
+        Status.GRADED: frozenset({
+            Status.PENDING_TEACHER, Status.TEACHER_REVIEWED,
+        }),
+        Status.AI_EVALUATED: frozenset({
+            Status.PENDING_TEACHER, Status.TEACHER_REVIEWED,
+        }),
+        Status.TEACHER_REVIEWED: frozenset(),
+    }
+
+    def transition_to(self, new_status: str) -> None:
+        """Validate and assign a new status (caller still saves).
+
+        Raises:
+            ValueError: when the transition is not in STATUS_TRANSITIONS.
+        """
+        allowed = self.STATUS_TRANSITIONS.get(self.status, frozenset())
+        if new_status not in allowed:
+            raise ValueError(
+                f"Esse holatini {self.status!r} dan {new_status!r} ga "
+                f"o'tkazib bo'lmaydi."
+            )
+        self.status = new_status
 
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -315,7 +353,18 @@ class EssaySubmission(models.Model):
                 fields=["status", "auto_submitted", "password_verified_at"],
                 name="idx_essay_auto_submit",
             ),
+            # Teacher review queue lookups
+            models.Index(
+                fields=["assigned_reviewer", "status"],
+                name="idx_essay_reviewer_status",
+            ),
+            models.Index(
+                fields=["teacher_review_requested", "status"],
+                name="idx_essay_reviewreq_status",
+            ),
+            models.Index(fields=["graded_at"], name="idx_essay_graded_at"),
         ]
+        constraints = []
 
     def __str__(self) -> str:
         topic_title = self.topic.title if self.topic else "(no topic)"
@@ -339,6 +388,16 @@ class EssaySubmission(models.Model):
         """Foydalanilishi kerak bo'lgan ball: o'qituvchi bali (agar bor) yoki AI bali."""
         if self.final_score is not None:
             return self.final_score
+        if self.total_score is None:
+            return None
+        if self.status in (
+            self.Status.GRADED,
+            self.Status.AI_EVALUATED,
+            self.Status.TEACHER_REVIEWED,
+        ):
+            # NOTE: explicit status check — Decimal("0") is falsy but a real
+            # 0/24 grade must stay 0, not become None (ungraded).
+            return self.total_score
         return self.total_score if self.total_score else None
 
     @property
@@ -493,9 +552,14 @@ class TeacherReview(models.Model):
     )
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="essay_reviews",
         verbose_name=_("tekshirgan o'qituvchi"),
+        help_text=_(
+            "O'qituvchi o'chirilganda tarix saqlanib qoladi (SET_NULL)."
+        ),
     )
     criteria_scores = models.JSONField(
         _("ustoz mezon ballari (JSON)"),
@@ -521,7 +585,8 @@ class TeacherReview(models.Model):
         verbose_name_plural = _("Ustoz baholari")
 
     def __str__(self) -> str:
-        return f"{self.teacher}: {self.submission} — {self.final_score}/24"
+        teacher = self.teacher or "—"
+        return f"{teacher}: {self.submission} — {self.final_score}/24"
 
 
 # ---------------------------------------------------------------------------

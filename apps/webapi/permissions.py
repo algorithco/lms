@@ -30,7 +30,6 @@ class IsTeacherOrAdmin(BasePermission):
             and user.is_authenticated
             and (
                 getattr(user, "role", None) == "teacher"
-                or getattr(user, "is_staff", False)
                 or is_platform_admin(user)
             )
         )

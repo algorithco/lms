@@ -137,12 +137,21 @@ def teacher_submit_review_view(request, submission_id: int):
             status=400,
         )
     criteria_scores: dict[int, float] = {}
+    allowed_scores = {0.0, 0.5, 1.0, 1.5, 2.0}
+    import math as _math
     for cid in range(1, 13):
-        val = raw_scores.get(cid, raw_scores.get(str(cid), 0))
+        raw = raw_scores.get(cid, raw_scores.get(str(cid), None))
+        if raw is None:
+            return Response({"detail": f"Mezon #{cid}: ball kiritilmadi."}, status=400)
+        if isinstance(raw, bool):
+            return Response({"detail": f"Mezon #{cid}: ball noto'g'ri."}, status=400)
         try:
-            criteria_scores[cid] = float(val)
+            val = float(str(raw).strip() if isinstance(raw, str) else raw)
         except (ValueError, TypeError):
-            criteria_scores[cid] = 0.0
+            return Response({"detail": f"Mezon #{cid}: ball noto'g'ri format '{raw}'."}, status=400)
+        if not _math.isfinite(val) or val not in allowed_scores:
+            return Response({"detail": f"Mezon #{cid}: ball {raw} yaroqsiz. Ruxsat: {sorted(allowed_scores)}"}, status=400)
+        criteria_scores[cid] = val
 
     try:
         review = TeacherReviewService.submit_review(
@@ -177,6 +186,9 @@ def teacher_edit_submission_view(request, submission_id: int):
     essay_text = request.data.get("essay_text", None)
     if not isinstance(essay_text, str) or not essay_text.strip():
         return Response({"detail": "essay_text must be a non-empty string."}, status=400)
+    from apps.essays.views import MAX_ESSAY_LENGTH as _MAXLEN2
+    if len(essay_text) > _MAXLEN2:
+        return Response({"detail": f"esse juda uzun ({len(essay_text)}). Maksimal {_MAXLEN2}."}, status=400)
     submission.essay_text = essay_text
     submission.word_count = WordCounter.count(essay_text)
     submission.save(update_fields=["essay_text", "word_count", "updated_at"])
