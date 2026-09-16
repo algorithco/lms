@@ -16,7 +16,7 @@ Models:
 from decimal import Decimal
 
 from django.conf import settings
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.hashers import check_password, identify_hasher, make_password
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +24,20 @@ from django.utils.translation import gettext_lazy as _
 
 # Valid criterion IDs for the 12-mezon grading rubric
 VALID_CRITERION_IDS = set(range(1, 13))  # {1, 2, ..., 12}
+
+
+def is_password_hashed(value: str) -> bool:
+    """True when `value` already looks like a Django password hash.
+
+    Uses identify_hasher() so every configured hasher (pbkdf2, argon2,
+    bcrypt, scrypt — and md5 in the test settings) is recognized. A plain
+    new password never parses as a hash, so it gets hashed on save.
+    """
+    try:
+        identify_hasher(value)
+    except ValueError:
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +123,7 @@ class EssayTopic(models.Model):
 
     def save(self, *args, **kwargs):
         """Parolni hash qilib saqlash (agar yangi qo'shilgan bo'lsa)."""
-        if self.password and not self.password.startswith(("pbkdf2_", "argon2", "bcrypt", "sha256")):
+        if self.password and not is_password_hashed(self.password):
             self.password = make_password(self.password)
         super().save(*args, **kwargs)
 

@@ -1,7 +1,8 @@
 """Access control for the in-app admin panel.
 
 A user is an administrator for the panel when they are authenticated AND
-(they are Django staff OR their platform role is 'admin').
+active AND (they are a Django superuser OR their platform role is 'admin').
+Plain ``is_staff`` alone grants nothing here — it only gates Django /admin/.
 """
 from functools import wraps
 
@@ -17,7 +18,7 @@ def is_panel_admin(user) -> bool:
 
 
 def admin_required(view_func):
-    """Decorator: require login + staff/admin role, else raise 403."""
+    """Decorator: require login + platform-admin, else raise 403."""
 
     @wraps(view_func)
     @login_required
@@ -30,7 +31,7 @@ def admin_required(view_func):
 
 
 class AdminRequiredMixin:
-    """Mixin for class-based views: login + staff/admin role."""
+    """Mixin for class-based views: login + platform-admin."""
 
     def dispatch(self, request, *args, **kwargs):
         if not is_panel_admin(request.user):
