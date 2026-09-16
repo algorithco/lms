@@ -3,7 +3,8 @@ import type { FormEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { TeacherEssays, canReviewEssays } from '../lib/api';
+import { TeacherEssays, canReviewEssays, isPlatformAdmin } from '../lib/api';
+import { PencilIcon } from '../components/icons';
 import type { TeacherEssayDetail } from '../lib/api';
 
 const SCORE_STEPS = [0, 0.5, 1, 1.5, 2];
@@ -19,6 +20,11 @@ export default function EssayTeacherReview() {
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Platform-admin whole-essay edit.
+  const [editingText, setEditingText] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [textBusy, setTextBusy] = useState(false);
+  const [textSaved, setTextSaved] = useState(false);
 
   useEffect(() => {
     TeacherEssays.detail(id)
@@ -39,6 +45,33 @@ export default function EssayTeacherReview() {
   }, [id, t]);
 
   const total = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+
+  const isAdmin = isPlatformAdmin(user);
+
+  const startTextEdit = () => {
+    if (!data) return;
+    setDraftText(data.submission.essay_text);
+    setTextSaved(false);
+    setEditingText(true);
+  };
+
+  const saveText = async () => {
+    if (!data || !draftText.trim()) return;
+    setTextBusy(true);
+    setErr(null);
+    try {
+      const updated = await TeacherEssays.updateText(id, draftText);
+      setData((d) =>
+        d ? { ...d, submission: { ...d.submission, ...updated } } : d,
+      );
+      setEditingText(false);
+      setTextSaved(true);
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : 'Failed.');
+    } finally {
+      setTextBusy(false);
+    }
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,7 +113,35 @@ export default function EssayTeacherReview() {
 
       <div className="card">
         <strong>{t('tr_essay_text')}</strong>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{submission.essay_text}</p>
+        {!editingText ? (
+          <>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{submission.essay_text}</p>
+            {isAdmin && (
+              <button className="btn sm ghost" onClick={startTextEdit}>
+                <PencilIcon size={13} className="ico" /> {t('tr_edit_text')}
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <textarea
+              rows={12}
+              style={{ width: '100%', marginTop: 8 }}
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+            />
+            <p className="muted small">{t('tr_edit_text_hint')}</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn primary sm" disabled={textBusy || !draftText.trim()} onClick={() => void saveText()}>
+                {textBusy ? '…' : t('save_changes')}
+              </button>
+              <button className="btn sm" onClick={() => setEditingText(false)}>
+                {t('cancel')}
+              </button>
+            </div>
+          </>
+        )}
+        {textSaved && <p className="ok">{t('tr_text_saved')}</p>}
       </div>
 
       {saved !== null && (

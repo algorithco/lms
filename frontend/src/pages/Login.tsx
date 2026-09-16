@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { TelegramAuth, ensureSession } from '../lib/api';
+import { TelegramAuth, ensureSession, landingFor } from '../lib/api';
 import { ArrowLeftIcon } from '../components/icons';
 import Particles from '../components/Particles';
 
@@ -37,8 +37,8 @@ export default function Login() {
   const adoptTelegramLogin = (tokens: { access: string; refresh: string }, user: Record<string, unknown>) => {
     stopPolling();
     setTgPhase('done');
-    loginWithTelegram(tokens, user);
-    navigate('/dashboard');
+    const adopted = loginWithTelegram(tokens, user);
+    navigate(landingFor(adopted));
   };
 
   const pollStatus = async (token: string) => {
@@ -131,10 +131,10 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       // Best-effort Django session for arena WS + session endpoints.
       ensureSession(email, password).catch(() => false);
-      navigate('/dashboard');
+      navigate(landingFor(user));
     } catch {
       /* error shown from context */
     } finally {
