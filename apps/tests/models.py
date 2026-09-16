@@ -133,7 +133,16 @@ class Test(models.Model):
 
     @property
     def total_questions(self) -> int:
+        # When the queryset annotates total_questions (TestListView),
+        # Django sets it via the property setter below — return that
+        # annotated value instead of firing an extra COUNT query.
+        if hasattr(self, "_annotated_total_questions"):
+            return self._annotated_total_questions  # type: ignore[attr-defined]
         return self.questions.count()
+
+    @total_questions.setter
+    def total_questions(self, value: int) -> None:
+        self._annotated_total_questions = int(value)  # type: ignore[attr-defined]
 
     @property
     def total_points(self) -> int:

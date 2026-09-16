@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { Panel } from '../lib/api';
+import { Panel, type PanelDashboardResponse } from '../lib/api';
 import { num, str } from '../lib/billingPanelGames';
 import {
   CreditCardIcon,
@@ -24,27 +24,25 @@ import {
  */
 export default function PanelDashboard() {
   const { t } = useLang();
-  const [d, setD] = useState<Record<string, unknown> | null>(null);
+  const [d, setD] = useState<PanelDashboardResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     Panel.dashboard()
-      .then((r) => setD(r as unknown as Record<string, unknown>))
+      .then((r) => setD(r))
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Failed.'));
   }, []);
 
-  if (err) return <p className="error">{err}</p>;
-  if (!d) return <p className="muted">{t('loading')}</p>;
+  if (err) return <p className="error" role="alert">{err}</p>;
+  if (!d) return <p className="muted" role="status" aria-live="polite">{t('loading')}</p>;
 
-  const tests = (d.tests ?? {}) as Record<string, number>;
-  const users = (d.users ?? {}) as Record<string, number>;
-  const attempts = (d.attempts ?? {}) as Record<string, number>;
-  const essays = (d.essays ?? {}) as Record<string, number>;
-  const roles = ((d.role_breakdown ?? []) as { key: string; count: number }[]).filter(
-    (r) => r && typeof r.key === 'string',
-  );
-  const recentTests = ((d.recent_tests ?? []) as Record<string, unknown>[]).slice(0, 5);
-  const recentTopics = ((d.recent_topics ?? []) as Record<string, unknown>[]).slice(0, 5);
+  const tests = d.tests ?? { total: 0, published: 0, draft: 0, archived: 0 };
+  const users = d.users ?? { total: 0, active: 0, blocked: 0 };
+  const attempts = d.attempts ?? { total: 0, today: 0 };
+  const essays = d.essays ?? { total: 0, awaiting_review: 0 };
+  const roles = (d.role_breakdown ?? []).filter((r) => r && typeof r.key === 'string');
+  const recentTests = (d.recent_tests ?? []).slice(0, 5);
+  const recentTopics = (d.recent_topics ?? []).slice(0, 5);
 
   return (
     <div>
@@ -105,8 +103,8 @@ export default function PanelDashboard() {
       </div>
 
       <h2>{t('panel_platform')}</h2>
-      <div className="grid">
-        <div className="card stat stat-gradient-blue">
+      <div className="grid grid-4-xl">
+        <div className="card stat admin-stat-gradient-blue">
           <span className="stat-label">{t('tests')}</span>
           <span className="stat-value">{num(tests.total)}</span>
           <span className="muted small">
@@ -115,12 +113,12 @@ export default function PanelDashboard() {
           </span>
           <Link to="/panel/tests">{t('view_all')} →</Link>
         </div>
-        <div className="card stat stat-gradient-green">
+        <div className="card stat admin-stat-gradient-green">
           <span className="stat-label">{t('questions')}</span>
           <span className="stat-value">{num(d.questions)}</span>
           <span className="muted small">{t('panel_all_questions_hint')}</span>
         </div>
-        <div className="card stat stat-gradient-amber">
+        <div className="card stat admin-stat-gradient-amber">
           <span className="stat-label">{t('essay_topics')}</span>
           <span className="stat-value">{num(d.essay_topics)}</span>
           <span className="muted small">
@@ -128,7 +126,7 @@ export default function PanelDashboard() {
           </span>
           <Link to="/panel/topics">{t('view_all')} →</Link>
         </div>
-        <div className="card stat stat-gradient-purple">
+        <div className="card stat admin-stat-gradient-purple">
           <span className="stat-label">{t('users')}</span>
           <span className="stat-value">{num(users.total)}</span>
           <span className="muted small">
@@ -136,7 +134,7 @@ export default function PanelDashboard() {
           </span>
           <Link to="/panel/users">{t('view_all')} →</Link>
         </div>
-        <div className="card stat">
+        <div className="card stat admin-stat-gradient-green">
           <span className="stat-label"><TargetIcon size={15} className="ico" /> {t('panel_attempts_total')}</span>
           <span className="stat-value">{num(attempts.total)}</span>
           <span className="muted small">
@@ -144,7 +142,7 @@ export default function PanelDashboard() {
           </span>
           <Link to="/analytics">{t('view_all')} →</Link>
         </div>
-        <div className="card stat">
+        <div className="card stat admin-stat-gradient-purple">
           <span className="stat-label"><CreditCardIcon size={15} className="ico" /> {t('panel_subscriptions')}</span>
           <span className="stat-value">{num(d.active_subscriptions)}</span>
           <span className="muted small">

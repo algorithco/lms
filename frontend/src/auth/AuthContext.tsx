@@ -34,7 +34,7 @@ const Ctx = createContext<AuthState | null>(null);
 let cachedPassword: string | null = null;
 
 /** Public SPA paths where an expired session must NOT force a /login bounce. */
-const PUBLIC_PREFIXES = ['/login', '/register', '/password-reset', '/verify', '/certificates/verify', '/essay-leaderboard'];
+const PUBLIC_PREFIXES = ['/login', '/register', '/password-reset', '/verify', '/certificates/verify'];
 
 function isProtectedPath(pathname: string): boolean {
   if (pathname === '/') return false;

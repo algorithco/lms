@@ -10,6 +10,7 @@
   "role_student": "O'quvchi",
   "role_teacher": "O'qituvchi",
   "role_admin": "Admin",
+  "role_parent": "Ota-ona",
   "login": "Kirish",
   "register": "Ro'yxatdan o'tish",
   "logout": "Tizimdan chiqish",

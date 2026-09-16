@@ -68,6 +68,9 @@ const extraUz: Record<string, string> = {
   panel_topic_password_remove: 'Parolni o‘chirish',
   panel_topic_password_remove_confirm: 'Bu mavzudagi parol o‘chirilsinmi?',
   panel_topic_password_keep_hint: "Bo'sh qoldirilsa — joriy parol saqlanadi. O'chirish uchun jadvaldagi tugmani bosing.",
+  difficulty_easy: 'Oson',
+  difficulty_medium: "O'rtacha",
+  difficulty_hard: 'Qiyin',
   // Teacher review: admin whole-essay edit.
   tr_edit_text: 'Matnni tahrirlash',
   tr_edit_text_hint: 'Faqat admin matnni o‘zgartira oladi. Ballar o‘zgarmaydi — kerak bo‘lsa qayta baholang.',

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLang } from '../i18n/LangContext';
 import { School } from '../lib/api';
-import { FolderOpenIcon, XIcon } from '../components/icons';
+import { FolderOpenIcon, UsersIcon, XIcon } from '../components/icons';
 import type { GroupMember, SchoolGroup } from '../lib/school';
 import { errMessage, getGroupDetail } from '../lib/school';
 
@@ -24,6 +24,7 @@ export default function Groups() {
   const [search, setSearch] = useState('');
   const [found, setFound] = useState<GroupMember[]>([]);
   const [searching, setSearching] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const searchTimer = useRef<number | null>(null);
 
   const load = useCallback(async () => {
@@ -33,6 +34,8 @@ export default function Groups() {
       setGroups(list);
     } catch (e: unknown) {
       setErr(errMessage(e));
+    } finally {
+      setLoadingGroups(false);
     }
   }, []);
 
@@ -80,7 +83,7 @@ export default function Groups() {
     e.preventDefault();
     if (editing === null) return;
     try {
-      await School.updateGroup(editing, { name: editName.trim(), description: editDesc });
+      await School.updateGroup(editing, { name: editName.trim(), description: editDesc.trim() });
       setEditing(null);
       flash(t('grp_updated'));
       await load();
@@ -189,7 +192,9 @@ export default function Groups() {
       </form>
 
       {/* List — parity with group_list.html cards + empty state. */}
-      {groups.length === 0 ? (
+      {loadingGroups ? (
+        <p className="muted" role="status" aria-live="polite">{t('loading')}</p>
+      ) : groups.length === 0 ? (
         <div className="card" style={{ marginTop: 16 }}>
           <h3>{t('td_no_groups')}</h3>
           <p className="muted">{t('td_no_groups_hint')}</p>
@@ -223,13 +228,13 @@ export default function Groups() {
                   <>
                     <strong>{g.name}</strong>
                     <p className="muted small">
-                      👥 {g.student_count ?? students.length} {t('an_talaba_full')}
+                      <UsersIcon size={12} className="ico" /> {g.student_count ?? students.length} {t('an_talaba_full')}
                       {g.teacher_name ? ` · ${g.teacher_name}` : ''}
                     </p>
                     {g.description ? <p className="muted small">{g.description}</p> : null}
-                    <div className="flex -space-x-2 muted small" aria-hidden>
+                    <div style={{display:'flex', marginLeft:'-8px'}} className="muted small" aria-hidden>
                       {students.slice(0, 5).map((s) => (
-                        <span key={s.id} title={s.full_name}>
+                        <span key={s.id} title={s.full_name} style={{marginLeft:'8px'}}>
                           {(s.first_name || s.full_name || '?').slice(0, 1)}·
                         </span>
                       ))}

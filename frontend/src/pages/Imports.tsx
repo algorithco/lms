@@ -30,7 +30,8 @@ export default function Imports() {
   const [passPct, setPassPct] = useState('60');
   const [tResult, setTResult] = useState<TestImportResult | null>(null);
 
-  const [busy, setBusy] = useState(false);
+  const [busyStudents, setBusyStudents] = useState(false);
+  const [busyTest, setBusyTest] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -57,7 +58,7 @@ export default function Imports() {
       setErr(g ?? t('import_no_file'));
       return;
     }
-    setBusy(true);
+    setBusyStudents(true);
     setErr(null);
     setSResult(null);
     try {
@@ -70,7 +71,7 @@ export default function Imports() {
     } catch (e2: unknown) {
       setErr(errMessage(e2));
     } finally {
-      setBusy(false);
+      setBusyStudents(false);
     }
   };
 
@@ -89,7 +90,7 @@ export default function Imports() {
       setErr(t('import_select_course'));
       return;
     }
-    setBusy(true);
+    setBusyTest(true);
     setErr(null);
     setTResult(null);
     try {
@@ -114,7 +115,7 @@ export default function Imports() {
     } catch (e2: unknown) {
       setErr(errMessage(e2));
     } finally {
-      setBusy(false);
+      setBusyTest(false);
     }
   };
 
@@ -132,8 +133,8 @@ export default function Imports() {
             </tr>
           </thead>
           <tbody>
-            {errors.map((row, i) => (
-              <tr key={i}>
+            {errors.map((row) => (
+              <tr key={row.row}>
                 <td>{row.row}</td>
                 <td>{row.message}</td>
               </tr>
@@ -175,7 +176,7 @@ export default function Imports() {
           {sfile && <p className="muted small">📄 {sfile.name}</p>}
           <p className="muted small">{t('import_file_type')}</p>
           <div className="row">
-            <button className="btn primary" disabled={busy}>
+            <button className="btn primary" disabled={busyStudents}>
               📥 {t('import_submit')}
             </button>
             <button
@@ -277,7 +278,7 @@ export default function Imports() {
           </label>
           {tfile && <p className="muted small">📄 {tfile.name}</p>}
           <div className="row">
-            <button className="btn primary" disabled={busy}>
+            <button className="btn primary" disabled={busyTest}>
               📝 {t('import_submit')}
             </button>
             <button

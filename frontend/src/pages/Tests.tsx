@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { api, type Paginated } from '../lib/api';
-import { listTestsPage, type TestListItem } from '../lib/testing';
+import { listTestsPage, num, type TestListItem } from '../lib/testing';
 import { CheckIcon, ClockIcon, HashIcon } from '../components/icons';
 
 const PAGE_SIZE = 20;
@@ -141,11 +141,11 @@ export default function Tests() {
               <span className="muted small">{String(item.description).slice(0, 120)}</span>
             )}
             <span className="muted small">
-              <HashIcon size={12} className="ico" /> {Number(item.total_questions ?? 0)} {t('questions_suffix')}
+              <HashIcon size={12} className="ico" /> {num(item.total_questions, 0)} {t('questions_suffix')}
               {' · '}
-              {t('pass_suffix')}: {Number(item.pass_percentage ?? 0)}%
+              {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
               {' · '}
-              {t('th_attempts')}: {Number(item.max_attempts ?? 0) === 0 ? '∞' : Number(item.max_attempts ?? 0)}
+              {t('th_attempts')}: {num(item.max_attempts, 0) === 0 ? '∞' : num(item.max_attempts, 0)}
             </span>
             {item.course_title && (
               <span className="muted small">

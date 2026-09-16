@@ -168,10 +168,10 @@ export default function MySubscription() {
               </tr>
             </thead>
             <tbody>
-              {history.map((h, i) => {
+              {history.map((h: Record<string, unknown>) => {
                 const key = paymentStatusKey(h.status);
                 return (
-                  <tr key={str(h.id, String(i))}>
+                  <tr key={`${h.id ?? h.created_at ?? Math.random().toString(36).slice(2)}`}>
                     <td>
                       {str(h.plan_name)}
                       <br />

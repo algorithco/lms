@@ -151,6 +151,11 @@ export function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : 'Failed.';
 }
 
+export function num(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? (n as number) : fallback;
+}
+
 /** Trigger a client-side download (used for sample CSV templates). */
 export function downloadCsv(filename: string, content: string): void {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });

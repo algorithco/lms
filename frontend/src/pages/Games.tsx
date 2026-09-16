@@ -178,12 +178,12 @@ export default function Games() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => {
+              {rows.map((r: Record<string, unknown>) => {
                 const mine =
                   meId !== null && num(r.user__id, -1) === meId ? ` · ${t('panel_you')}` : '';
                 return (
-                  <tr key={i}>
-                    <td>{i + 1}</td>
+                  <tr key={String(r.user__id ?? r.id ?? Math.random().toString(36).slice(2))}>
+                    <td>{num(r.rank, 0) || 1}</td>
                     <td>
                       {str(r.user__first_name)} {str(r.user__last_name)}
                       {mine}
