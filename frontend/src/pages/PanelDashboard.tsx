@@ -39,7 +39,7 @@ export default function PanelDashboard() {
   const tests = d.tests ?? { total: 0, published: 0, draft: 0, archived: 0 };
   const users = d.users ?? { total: 0, active: 0, blocked: 0 };
   const attempts = d.attempts ?? { total: 0, today: 0 };
-  const essays = d.essays ?? { total: 0, awaiting_review: 0 };
+  const essays = d.essays ?? { total: 0, pending_ai: 0, awaiting_review: 0 };
   const roles = (d.role_breakdown ?? []).filter((r) => r && typeof r.key === 'string');
   const recentTests = (d.recent_tests ?? []).slice(0, 5);
   const recentTopics = (d.recent_topics ?? []).slice(0, 5);
@@ -68,8 +68,12 @@ export default function PanelDashboard() {
             <span className="stat-label">{t('panel_new_users')}</span>
           </div>
           <div>
+            <span className="stat-value">{num(essays.pending_ai)}</span>
+            <span className="stat-label">{t('panel_essays_pending_ai')}</span>
+          </div>
+          <div>
             <span className="stat-value">{num(essays.awaiting_review)}</span>
-            <span className="stat-label">{t('panel_essays_pending')}</span>
+            <span className="stat-label">{t('panel_essays_awaiting_review')}</span>
           </div>
           <div>
             <span className="stat-value">{num(d.pending_payments)}</span>
