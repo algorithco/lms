@@ -4,64 +4,29 @@ Payments views — subscription management, payment processing.
 from __future__ import annotations
 
 import logging
-import secrets
-from decimal import Decimal
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import PaymentHistory, SubscriptionPlan, UserSubscription
+from .models import SubscriptionPlan, UserSubscription
+from apps.core.spa import serve_spa_shell
 
 logger = logging.getLogger(__name__)
 
 
-@login_required
 def subscription_plans_view(request: HttpRequest) -> HttpResponse:
-    """Obuna rejalarini ko'rish sahifasi."""
-    plans = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order")
-
-    # Foydalanuvchining joriy obunasi
-    user_sub = getattr(request.user, "subscription", None)
-
-    ctx = {
-        "plans": plans,
-        "user_subscription": user_sub,
-    }
-    return render(request, "payments/plans.html", ctx)
+    """GET /subscribe/ — SPA shell (React Router owns /subscribe/)."""
+    return serve_spa_shell(request, fallback="/")
 
 
-@login_required
 def subscribe_view(request: HttpRequest, plan_id: int) -> HttpResponse:
-    """Obuna sotib olish — Telegram manual to'lov ko'rsatmalari.
-
-    To'lov kartaga o'tkazma orqali: foydalanuvchi kartaga pul o'tkazadi,
-    chek screenshot'ini Telegram orqali admin(@rozievkomiljon)ga yuboradi,
-    admin tekshirib obunani faollashtiradi.
-    """
-    plan = get_object_or_404(SubscriptionPlan, id=plan_id, is_active=True)
-
-    if plan.price_monthly <= 0:
-        # Bepul reja — to'lov talab qilinmaydi
-        messages.info(request, "Bepul reja uchun to'lov talab qilinmaydi.")
-        return redirect("payments:plans")
-
-    from apps.core.translations import t as translate, get_user_language
-
-    ctx = {
-        "plan": plan,
-        "payment_card": settings.PAYMENT_CARD_NUMBER,
-        "payment_card_bank": settings.PAYMENT_CARD_BANK,
-        "payment_card_holder": settings.PAYMENT_CARD_HOLDER,
-        "payment_admin_username": settings.PAYMENT_ADMIN_USERNAME,
-        "telegram_bot_name": settings.TELEGRAM_BOT_NAME,
-        "copied_label": translate("pay_copied", get_user_language(request)),
-    }
-    return render(request, "payments/subscribe.html", ctx)
+    """GET /subscribe/<id>/subscribe/ — SPA shell (manual card flow lives in React)."""
+    get_object_or_404(SubscriptionPlan, id=plan_id, is_active=True)
+    return serve_spa_shell(request, fallback=f"/subscribe/{plan_id}")
 
 
 @login_required
@@ -80,15 +45,8 @@ def payment_cancel_view(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def my_subscription_view(request: HttpRequest) -> HttpResponse:
-    """Mening obunam sahifasi."""
-    user_sub = getattr(request.user, "subscription", None)
-    payment_history = PaymentHistory.objects.filter(user=request.user)[:10]
-
-    ctx = {
-        "user_subscription": user_sub,
-        "payment_history": payment_history,
-    }
-    return render(request, "payments/my_subscription.html", ctx)
+    """GET /subscribe/my/ — SPA shell (React Router owns /my-subscription)."""
+    return serve_spa_shell(request, fallback="/my-subscription")
 
 
 @require_POST

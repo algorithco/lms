@@ -248,3 +248,94 @@ class TmaPageTests(TestCase):
             self.skipTest("baked SPA shell present in this environment")
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], "/tma")
+
+
+class LegacyPageShellTests(TestCase):
+    """Retired HTML pages (payments/essays/arena) serve the SPA shell.
+
+    Regression for grandec.uz/subscribe/ → Server Error (500): the page
+    templates were removed in the SPA cutover, so render() raised
+    TemplateDoesNotExist. Page views now answer with spa/index.html
+    (prod, baked) or a SPA-route redirect (dev, unbaked) — never 500.
+    """
+
+    def setUp(self):
+        from apps.arena.models import ArenaRoom
+        from apps.payments.models import SubscriptionPlan
+
+        self.student = User.objects.create_user(
+            email="shell-student@test.com", password="testpass123", role="student",
+        )
+        self.teacher = User.objects.create_user(
+            email="shell-teacher@test.com", password="testpass123", role="teacher",
+        )
+        self.topic = EssayTopic.objects.create(
+            title="Shell mavzu", description="Tavsif", created_by=self.teacher,
+        )
+        self.sub = EssaySubmission.objects.create(
+            student=self.student,
+            topic=self.topic,
+            essay_text="Esse matni " * 30,
+            status=EssaySubmission.Status.DRAFT,
+        )
+        self.plan = SubscriptionPlan.objects.create(
+            name="Pro", plan_type="pro", description="Pro reja",
+            price_monthly=Decimal("49000"), is_active=True,
+        )
+        self.room = ArenaRoom.objects.create(
+            room_code="SHELL01", player1=self.student,
+        )
+        self.pages = [
+            reverse("payments:plans"),
+            reverse("payments:subscribe", args=[self.plan.id]),
+            reverse("payments:my-subscription"),
+            reverse("essays:topics"),
+            reverse("essays:password-gate", args=[self.topic.id]),
+            reverse("essays:write", args=[self.sub.id]),
+            reverse("essays:result", args=[self.sub.id]),
+            reverse("essays:submit-new"),
+            reverse("arena:lobby"),
+            reverse("arena:room", args=[self.room.room_code]),
+        ]
+
+    def _write_baked_shell(self):
+        from pathlib import Path
+
+        from django.conf import settings
+
+        spa_dir = Path(settings.BASE_DIR) / "spa"
+        spa_dir.mkdir(exist_ok=True)
+        index = spa_dir / "index.html"
+        index.write_text(
+            '<div id="root"></div><script src="/assets/app.js"></script>',
+            encoding="utf-8",
+        )
+        self.addCleanup(_ignore_missing_dir, spa_dir)
+        self.addCleanup(index.unlink, True)
+
+    def test_pages_serve_shell_when_baked(self):
+        self._write_baked_shell()
+        self.client.force_login(self.student)
+        for url in self.pages:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('id="root"', response.content.decode())
+
+    def test_pages_never_500_without_baked_build(self):
+        self.client.force_login(self.student)
+        for url in self.pages:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertIn(response.status_code, (200, 302))
+
+    def test_bogus_ids_still_404(self):
+        self.client.force_login(self.student)
+        self.assertEqual(
+            self.client.get(
+                reverse("payments:subscribe", args=[99999])
+            ).status_code, 404,
+        )
+        self.assertEqual(
+            self.client.get(reverse("arena:room", args=["NOPE00"])).status_code, 404,
+        )
