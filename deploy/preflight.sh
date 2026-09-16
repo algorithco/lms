@@ -19,9 +19,14 @@ if test -f .env.prod; then
 fi
 
 say "2/8 no placeholders left (including AI keys)"
-if grep -qE "example\.com|change-me|changeme|your-super-secret|your-openrouter|gsk_your|placeholder" .env.prod 2>/dev/null; then
-  grep -nE "example\.com|change-me|changeme|your-super-secret|your-openrouter|gsk_your|placeholder" .env.prod || true
-  err "replace placeholder values in .env.prod (example.com/change-me/your-/gsk_your/sk-or-v1-your-)"
+if grep -qE "example\.com|change-me|changeme|your-super-secret|your-openrouter|placeholder" .env.prod 2>/dev/null; then
+  grep -nE "example\.com|change-me|changeme|your-super-secret|your-openrouter|placeholder" .env.prod || true
+  err "replace placeholder values in .env.prod (example.com/change-me/your-)"
+fi
+# GROQ placeholder is allowed when ESSAY_AI_PROVIDER!=groq (auto with openrouter key).
+if grep -q "ESSAY_AI_PROVIDER=groq" .env.prod 2>/dev/null && grep -q "gsk_your" .env.prod 2>/dev/null; then
+  grep -n "gsk_your" .env.prod || true
+  err "replace GROQ placeholder when ESSAY_AI_PROVIDER=groq"
 fi
 if grep -q "ESSAY_AI_MOCK_MODE=True" .env.prod 2>/dev/null; then
   err ".env.prod must not have ESSAY_AI_MOCK_MODE=True in production"
