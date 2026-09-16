@@ -63,6 +63,7 @@ async function refreshTokens(): Promise<string> {
     try {
       res = await fetch(`${API_BASE}/api/auth/token/refresh/`, {
         method: 'POST',
+        credentials: 'omit',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh }),
         signal: controller.signal,
@@ -253,6 +254,7 @@ export async function register(payload: {
 }): Promise<{ user: AuthUser; tokens: TokenPair }> {
   const res = await fetch(`${API_BASE}/api/auth/register/`, {
     method: 'POST',
+    credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
@@ -268,6 +270,7 @@ export async function login(
 ): Promise<{ user: AuthUser; tokens: TokenPair }> {
   const res = await fetch(`${API_BASE}/api/auth/login/`, {
     method: 'POST',
+    credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
@@ -309,6 +312,7 @@ export async function logout(): Promise<void> {
     if (access && refresh) {
       await fetch(`${API_BASE}/api/auth/logout/`, {
         method: 'POST',
+        credentials: 'omit',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${access}`,
@@ -347,6 +351,7 @@ export const Auth = {
   requestPasswordReset: async (email: string) => {
     const res = await fetch(`${API_BASE}/api/auth/password-reset/`, {
       method: 'POST',
+      credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
@@ -360,6 +365,7 @@ export const Auth = {
   }) => {
     const res = await fetch(`${API_BASE}/api/auth/password-reset/confirm/`, {
       method: 'POST',
+      credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
