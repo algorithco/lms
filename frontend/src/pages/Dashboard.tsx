@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { Certificates, Results, Tests } from '../lib/api';
+import { AuthExpiredError, Certificates, Results, Tests } from '../lib/api';
 import { num, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
 import {
   AwardIcon,
@@ -23,6 +23,7 @@ interface Stats {
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useLang();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats | null>(null);
   const [available, setAvailable] = useState<TestListItem[]>([]);
   const [testCount, setTestCount] = useState<number | null>(null);
@@ -31,26 +32,50 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<ResultListItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [s, tlist, c, r] = await Promise.all([
-          Results.stats().catch(() => null),
-          Tests.list().catch(() => null),
-          Certificates.mine().catch(() => null),
-          Results.mine().catch(() => null),
+        const results = await Promise.allSettled([
+          Results.stats(),
+          Tests.list(),
+          Certificates.mine(),
+          Results.mine(),
         ]);
         if (cancelled) return;
-        setStats((s ?? null) as Stats | null);
+        for (const item of results) {
+          if (item.status === 'rejected' && item.reason instanceof AuthExpiredError) {
+            navigate('/login');
+            return;
+          }
+        }
+        const [sR, tR, cRes, rRes] = results;
+        const s = sR.status === 'fulfilled' ? (sR.value as unknown as Stats) : null;
+        const tlist = tR.status === 'fulfilled' ? (tR.value as unknown as { count: number; results: TestListItem[] }) : null;
+        const cVal = cRes.status === 'fulfilled' ? (cRes.value as unknown as { count: number; results: CertListItem[] }) : null;
+        const rVal = rRes.status === 'fulfilled' ? (rRes.value as unknown as { results: ResultListItem[] }) : null;
+        const failed = results.filter((x) => x.status === 'rejected');
+        if (failed.length > 0 && !s && !tlist && !cVal && !rVal) {
+          const first = failed[0] as PromiseRejectedResult;
+          throw first.reason as Error;
+        }
+        if (failed.length > 0) {
+          const msgs = failed.map((x) => (x as PromiseRejectedResult).reason?.message ?? '').filter(Boolean);
+          if (msgs.length) setErr(msgs[0]);
+        }
+        setStats(s ?? null);
         setTestCount(tlist ? tlist.count : null);
         setAvailable(((tlist?.results ?? []) as TestListItem[]).slice(0, 6));
-        setCertCount(c ? c.count : null);
-        setCerts(((c?.results ?? []) as CertListItem[]).slice(0, 3));
-        setRecent(((r?.results ?? []) as ResultListItem[]).slice(0, 5));
+        setCertCount(cVal ? cVal.count : null);
+        setCerts(((cVal?.results ?? []) as CertListItem[]).slice(0, 3));
+        setRecent(((rVal?.results ?? []) as ResultListItem[]).slice(0, 5));
       } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : t('err_retry_js'));
+        if (!cancelled) {
+          if (e instanceof AuthExpiredError) navigate('/login');
+          else setErr(e instanceof Error ? e.message : t('err_retry_js'));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -58,8 +83,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [t, navigate, tick]);
 
   const avg = stats ? num(stats.average_percentage, 0) : null;
 
@@ -68,8 +92,15 @@ export default function Dashboard() {
       <h1>
         {t('welcome')}, {user?.full_name}
       </h1>
-      {err && <p className="error">{err}</p>}
-      {loading && <p className="muted">{t('loading')}</p>}
+      {err && (
+        <p className="error" role="alert">
+          {err}{' '}
+          <button className="btn sm ghost" onClick={() => { setErr(null); setLoading(true); setTick((x) => x + 1); }}>
+            {t('retry')}
+          </button>
+        </p>
+      )}
+      {loading && <p className="muted" role="status" aria-live="polite">{t('loading')}</p>}
 
       {/* Stat cards — parity with legacy student_dashboard.html. */}
       <div className="grid">
@@ -78,7 +109,7 @@ export default function Dashboard() {
             <FileTextIcon size={13} className="ico" /> {t('stat_tests_taken')}
           </span>
           <span className="stat-value">
-            {stats ? Number(stats.total_tests_taken ?? 0) : '…'}
+            {stats ? num(stats.total_tests_taken, 0) : '…'}
           </span>
           <span className="muted small">{t('stat_sub_total_hint')}</span>
           <Link to="/tests">{t('tests')} →</Link>
@@ -88,11 +119,11 @@ export default function Dashboard() {
             <TrophyIcon size={13} className="ico" /> {t('stat_tests_passed')}
           </span>
           <span className="stat-value">
-            {stats ? Number(stats.total_passed ?? 0) : '…'}
+            {stats ? num(stats.total_passed, 0) : '…'}
           </span>
           <span className="muted small">
             {stats
-              ? `${Number(stats.total_passed ?? 0)}/${Number(stats.total_tests_taken ?? 0)} ${t('stat_successfully')}`
+              ? `${num(stats.total_passed, 0)}/${num(stats.total_tests_taken, 0)} ${t('stat_successfully')}`
               : t('hint_take_test')}
           </span>
           <Link to="/results">{t('my_results')} →</Link>
@@ -141,7 +172,7 @@ export default function Dashboard() {
           {available.map((item) => (
             <Link key={item.id} to={`/tests/${item.id}`} className="card link-card">
               <div className="toolbar" style={{ marginBottom: 8 }}>
-                <span className="badge blue">{String(item.difficulty ?? '—')}</span>
+                <span className="badge blue">{t(`difficulty_${item.difficulty ?? ''}`) !== `difficulty_${item.difficulty ?? ''}` ? t(`difficulty_${item.difficulty ?? ''}`) : String(item.difficulty ?? '—')}</span>
                 {(item.time_limit_minutes ?? 0) > 0 && (
                   <span className="badge amber">
                     <ClockIcon size={12} className="ico" /> {item.time_limit_minutes}{' '}
@@ -188,7 +219,7 @@ export default function Dashboard() {
               {recent.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <Link to="/results">
+                    <Link to={`/results/${r.id}`}>
                       {String(r.test_title ?? r.test ?? `#${r.id}`)}
                     </Link>
                     <div className="muted small">{String(r.course_title ?? '')}</div>

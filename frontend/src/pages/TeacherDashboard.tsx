@@ -20,6 +20,7 @@ export default function TeacherDashboard() {
   const [activity, setActivity] = useState<AnalyticsData | null>(null);
   const [board, setBoard] = useState<EssayBoard | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -27,10 +28,10 @@ export default function TeacherDashboard() {
     // published_tests, active_topics, recent_results.
     School.teacher()
       .then((r) => {
-        if (alive) setData(r as unknown as TeacherOverview);
+        if (alive) { setData(r as unknown as TeacherOverview); setLoading(false); }
       })
       .catch((e: unknown) => {
-        if (alive) setErr(errMessage(e));
+        if (alive) { setErr(errMessage(e)); setLoading(false); }
       });
     // GET /api/v1/school/analytics/?days=14 — activity strip for the dashboard.
     School.analytics(14)
@@ -65,12 +66,14 @@ export default function TeacherDashboard() {
     return [...seen.values()].sort((a, b) => a.full_name.localeCompare(b.full_name));
   }, [groups]);
 
+  if (loading && !err) return <p className="muted" role="status" aria-live="polite">{t('loading')}</p>;
+
   return (
     <div>
       <h1>
         <UsersIcon size={24} className="ico" /> {t('teacher_dashboard')}
       </h1>
-      {err && <p className="error">{err}</p>}
+      {err && <p className="error" role="alert">{err}</p>}
 
       {/* Stat cards — parity with teacher_dashboard.html stat cards that the
           /teacher/ endpoint exposes (students, published tests, essay topics). */}
@@ -99,7 +102,7 @@ export default function TeacherDashboard() {
 
       {/* Analytics quick link — mirrors the legacy detailed-analytics banner. */}
       <Link to="/analytics" className="card" style={{ display: 'block', marginTop: 16 }}>
-        <strong>📊 {t('detailed_analytics')}</strong>
+        <strong><UsersIcon size={14} className="ico" /> {t('detailed_analytics')}</strong>
         <p className="muted small">{t('detailed_analytics_hint')}</p>
       </Link>
 
@@ -121,7 +124,7 @@ export default function TeacherDashboard() {
 
       {/* Groups + students lists — parity with group_list.html cards. */}
       <h2>{t('groups')}</h2>
-      {data && groups.length === 0 ? (
+      {groups.length === 0 ? (
         <div className="card">
           <p className="muted">{t('td_no_groups_hint')}</p>
           <Link className="btn primary sm" to="/groups">
@@ -135,7 +138,7 @@ export default function TeacherDashboard() {
               <strong>{g.name}</strong>
               {g.description ? <p className="muted small">{g.description}</p> : null}
               <p className="muted small">
-                👥 {g.student_count ?? (g.students ?? []).length} {t('an_talaba_full')}
+                <UsersIcon size={12} className="ico" /> {g.student_count ?? (g.students ?? []).length} {t('an_talaba_full')}
               </p>
               <ul className="muted small">
                 {(g.students ?? []).slice(0, 5).map((s) => (
@@ -157,7 +160,7 @@ export default function TeacherDashboard() {
       <h2>
         {t('td_students_list')} ({students.length})
       </h2>
-      {data && students.length === 0 ? (
+      {students.length === 0 ? (
         <p className="muted">{t('gf_no_students')}</p>
       ) : (
         <div className="table-wrap">
@@ -190,7 +193,7 @@ export default function TeacherDashboard() {
       {/* Submissions — recent_results from /teacher/. */}
       <h2>{t('recent_student_results')}</h2>
       <p className="muted small">{t('latest_submissions_hint')}</p>
-      {data && recent.length === 0 ? (
+      {recent.length === 0 ? (
         <p className="muted">{t('no_student_results_hint')}</p>
       ) : (
         <div className="table-wrap">
@@ -205,8 +208,8 @@ export default function TeacherDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recent.map((r, i) => (
-                <tr key={i}>
+              {recent.map((r) => (
+                <tr key={`${r.student}-${r.test}-${r.date}`}>
                   <td>{r.student}</td>
                   <td>{r.test}</td>
                   <td>{r.percentage}%</td>
@@ -226,14 +229,14 @@ export default function TeacherDashboard() {
       {/* Essay queue links — essay UI lives in other streams; link out. */}      <h2>{t('teacher_queue')}</h2>
       <div className="grid">
         <div className="card">
-          <strong>✍️ {t('essay_topics')}</strong>
+          <strong>{t('essay_topics')}</strong>
           <p className="muted small">{t('td_queue_hint')}</p>
           <Link className="btn primary sm" to="/teacher/essays">
             {t('td_open_queue')} →
           </Link>
         </div>
         <div className="card">
-          <strong>🏆 {t('lb_essay_title')}</strong>
+          <strong>{t('lb_essay_title')}</strong>
           <p className="muted small">
             {board ? `${board.total_essays} ${t('lb_total_essays')} · ${board.total_students} ${t('lb_graded_students')}` : t('loading')}
           </p>

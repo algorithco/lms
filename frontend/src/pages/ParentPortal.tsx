@@ -3,7 +3,7 @@ import { useLang } from '../i18n/LangContext';
 import { School } from '../lib/api';
 import { UsersIcon } from '../components/icons';
 import type { ParentChild, ParentOverview } from '../lib/school';
-import { errMessage } from '../lib/school';
+import { errMessage, num } from '../lib/school';
 
 export default function ParentPortal() {
   const { t } = useLang();
@@ -37,7 +37,7 @@ export default function ParentPortal() {
     const passedCount = all.filter((r) => r.is_passed).length;
     const avg =
       all.length > 0
-        ? Math.round((all.reduce((a, r) => a + Number(r.percentage ?? 0), 0) / all.length) * 10) / 10
+        ? Math.round((all.reduce((a, r) => a + num(r.percentage, 0), 0) / all.length) * 10) / 10
         : 0;
     return { results: all.length, passed: passedCount, avg };
   }, [children]);
@@ -141,8 +141,8 @@ export default function ParentPortal() {
                             </tr>
                           </thead>
                           <tbody>
-                            {results.map((r, i) => (
-                              <tr key={i}>
+{results.map((r) => (
+                            <tr key={`${r.test}-${r.date}`}>
                                 <td>{r.test}</td>
                                 <td>
                                   <b className={r.is_passed ? '' : 'error'}>{r.percentage}%</b>

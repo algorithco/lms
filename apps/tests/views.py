@@ -67,7 +67,7 @@ class TestListView(generics.ListAPIView):
         from django.db.models import Count
         user = self.request.user
         qs = Test.objects.select_related("course").annotate(
-            total_questions_count=Count("questions"),
+            total_questions=Count("questions"),
         )
 
         if is_platform_admin(user):

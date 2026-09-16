@@ -313,7 +313,7 @@ def public_stats_view(request):
 def _csv_guard(csv_file):
     if not csv_file:
         return "CSV faylni tanlang."
-    if not csv_file.name.endswith(".csv"):
+    if not csv_file.name.lower().endswith(".csv"):
         return "Faqat CSV fayllar qabul qilinadi."
     if csv_file.size > 5 * 1024 * 1024:
         return "CSV fayl hajmi 5 MB dan oshmasligi kerak."

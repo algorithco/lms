@@ -161,9 +161,9 @@ export interface AuthUser {
   is_platform_admin?: boolean;
 }
 
-/** Platform admin = superuser or role==admin (mirrors apps/accounts/access.py). */
+/** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
 export function isPlatformAdmin(u: AuthUser | null | undefined): boolean {
-  if (!u) return false;
+  if (!u || u.is_active === false) return false;
   return u.is_platform_admin === true || u.is_superuser === true || u.role === 'admin';
 }
 
@@ -711,8 +711,23 @@ export const Games = {
     }>(`/api/v1/games/${slug}/check/`, { method: 'POST', body: JSON.stringify(payload) }),
 };
 
+export interface PanelDashboardResponse {
+  tests: { total: number; published: number; draft: number; archived: number };
+  questions: number;
+  essay_topics: number;
+  users: { total: number; active: number; blocked: number };
+  new_users_today: number;
+  attempts: { total: number; today: number };
+  essays: { total: number; awaiting_review: number };
+  pending_payments: number;
+  active_subscriptions: number;
+  role_breakdown: { key: string; count: number }[];
+  recent_tests: Record<string, unknown>[];
+  recent_topics: Record<string, unknown>[];
+}
+
 export const Panel = {
-  dashboard: () => api<Record<string, unknown>>('/api/v1/panel/dashboard/'),
+  dashboard: () => api<PanelDashboardResponse>('/api/v1/panel/dashboard/'),
   tests: (q = '', status = '') =>
     api<{ results: Record<string, unknown>[]; statuses: { value: string; label: string }[] }>(
       `/api/v1/panel/tests/?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`,
