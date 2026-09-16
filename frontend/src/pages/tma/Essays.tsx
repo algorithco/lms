@@ -198,8 +198,13 @@ export default function Essays({
                     <div>
                       <b>{c.name}</b>
                       {!!c.reason && <small>{c.reason}</small>}
+                      {!!c.errors?.length && (
+                        <small style={{ display: 'block', opacity: 0.8 }}>
+                          {c.errors.map((e) => `“${e}”`).join(' · ')}
+                        </small>
+                      )}
                     </div>
-                    <b>{c.score}</b>
+                    <b>{c.score}<small style={{ opacity: 0.6 }}>/{c.max_score ?? 2}</small></b>
                   </div>
                 ))}
               </div>

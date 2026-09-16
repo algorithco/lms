@@ -30,7 +30,9 @@ interface Criterion {
   id: number;
   name: string;
   score: number;
+  max_score?: number;
   reason: string;
+  errors?: string[];
 }
 
 interface Result {
@@ -244,8 +246,18 @@ export default function EssayResult() {
             {res.criteria.map((c) => (
               <div key={c.id} className="card">
                 <strong>{c.name}</strong>
-                <p className="stat-value">{c.score}</p>
+                <p className="stat-value">
+                  {c.score}
+                  <small className="muted"> / {c.max_score ?? 2}</small>
+                </p>
                 <p className="muted small">{c.reason}</p>
+                {!!c.errors?.length && (
+                  <ul className="muted small" style={{ marginTop: 4, paddingLeft: 18 }}>
+                    {c.errors.map((e, i) => (
+                      <li key={i}>“{e}”</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>

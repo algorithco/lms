@@ -787,10 +787,11 @@ def _validate_result(result: dict) -> None:
     Checks:
         1. 'criteria' key exists and is a list of exactly 12 items
         2. Each criterion has 'id', 'name', 'score'
-           ('reason' ixtiyoriy — normalize bosqichida "" bilan to'ldiriladi,
-           chunki ba'zi modellar reason yozmaydi)
+            ('reason'/'errors' ixtiyoriy — normalize bosqichida "" / []
+            bilan to'ldiriladi, chunki ba'zi modellar ularni yozmaydi)
         3. Each score is in {0, 0.5, 1, 1.5, 2}
-        4. 'total_score' and 'max_score' are present
+        4. 'total_score' and 'max_score' are present (recomputed, never trusted)
+        5. Optional 'errors' is normalized to a short list of evidence snippets
     """
     if not isinstance(result, dict):
         raise ValueError("Result must be a dict")
@@ -838,6 +839,28 @@ def _validate_result(result: dict) -> None:
             raise ValueError(f"Criterion #{i} reason must be text")
         if len(c["name"]) > 300 or len(c.get("reason", "")) > 4000:
             raise ValueError(f"Criterion #{i} text is too long")
+
+        # Optional evidence snippets ("errors"): model topgan xatolarning
+        # esse matnidan qisqa iqtiboslari. Noto'g'ri tip kelda — bo'sh ro'yxat;
+        # har bir element matnga aylantirilib, 200 belgigacha qisqartiriladi,
+        # jami 6 tadan ko'pi saqlanmaydi (DB raw_result JSON shishmasligi uchun).
+        raw_errors = c.get("errors", [])
+        if not isinstance(raw_errors, list):
+            raw_errors = []
+        errors: list[str] = []
+        for e in raw_errors[:6]:
+            if isinstance(e, str):
+                snippet = e.strip()
+            else:
+                try:
+                    snippet = str(e).strip()
+                except Exception:
+                    continue
+            if snippet:
+                errors.append(snippet[:200])
+        c["errors"] = errors
+        # Har bir mezon maksimumi qat'iy 2 (BBA rubrikasi).
+        c["max_score"] = 2
 
     criterion_ids = [c["id"] for c in criteria]
     if set(criterion_ids) != VALID_CRITERION_IDS or len(set(criterion_ids)) != 12:
@@ -1060,10 +1083,11 @@ def _grade_via_llm(client, candidates: list[str], user_message: str, system_prom
         )
         raise ValueError("LLM javobini JSON formatida parse qilib bo'lmadi")
 
-    # --- Normalize: ba'zi modellar 'reason' yozmaydi → "" bilan to'ldirish ---
+    # --- Normalize: ba'zi modellar 'reason'/'errors' yozmaydi → "" / [] bilan to'ldirish ---
     for c in result.get("criteria", []):
         if isinstance(c, dict):
             c.setdefault("reason", "")
+            c.setdefault("errors", [])
 
     # --- Validate structure ---
     try:
@@ -1106,7 +1130,7 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
     model = _get_ai_model()
     mock_mode = _is_mock_mode()
     provider = "mock" if mock_mode else _resolve_provider()
-    prompt_version = getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v2")
+    prompt_version = getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v3")
     prompt_material = "|".join([
         ESSAY_GRADING_SYSTEM_PROMPT,
         ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
