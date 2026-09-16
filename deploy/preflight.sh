@@ -39,6 +39,22 @@ say "3/8 compose config validates (DB_PASSWORD interpolation, YAML)"
 docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null \
   || err "docker compose config failed"
 
+# Worker must consume EVERY routed queue. CELERY_TASK_ROUTES sends essay
+# grading to "essay_grading"; a worker without -Q only drains the default
+# "celery" queue and all grading silently starves (2026-09-16 outage).
+say "3b/8 celery worker consumes the essay_grading queue"
+worker_cmd=$(docker compose --env-file .env.prod -f docker-compose.prod.yml config 2>/dev/null \
+  | awk '/celery-worker:/{f=1} f&&/^      command:/{print; exit}')
+if echo "$worker_cmd" | grep -q 'celery.*worker'; then
+  echo "$worker_cmd"
+  echo "$worker_cmd" | grep -q -- '-Q' \
+    || err "celery worker has no -Q flag: routed queues (essay_grading) would starve"
+  echo "$worker_cmd" | grep -q -- 'essay_grading' \
+    || err "celery worker -Q does not include essay_grading (routed grading tasks would starve)"
+else
+  err "could not read celery-worker command from compose config"
+fi
+
 say "4/8 nginx templates present"
 test -f deploy/nginx/nginx-main.conf || err "missing nginx-main.conf (http-level zones)"
 test -f deploy/nginx/nginx-http.conf || err "missing nginx-http.conf"

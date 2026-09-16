@@ -31,6 +31,16 @@ $COMPOSE exec -T web python manage.py migrate --check
 $COMPOSE exec -T web python manage.py check --deploy
 $COMPOSE exec -T web python manage.py ai_smoke_test --validate-models || true
 
+# Post-start topology gate: the worker must be consuming the routed
+# essay_grading queue, not only the default "celery" queue (2026-09-16
+# grading outage: tasks sat unconsumed because the worker had no -Q flag).
+echo ">>> Celery active queues"
+queues=$($COMPOSE exec -T celery-worker celery -A config inspect active_queues 2>/dev/null \
+  | grep -o '"name": "[^"]*"' || true)
+echo "$queues"
+echo "$queues" | grep -q 'essay_grading' \
+  || echo "WARNING: celery worker is NOT consuming 'essay_grading' queue — grading tasks will starve!"
+
 echo ">>> Health + topology"
 curl -fsS "https://${DOMAIN}/healthz/" || curl -fsS http://127.0.0.1/healthz/ || true
 echo
