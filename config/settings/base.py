@@ -504,6 +504,29 @@ ESSAY_AI_MOCK_MODE = env.bool("ESSAY_AI_MOCK_MODE", default=False)
 # (soft 200s / hard 240s) bu qiymatdan katta bo'lishi shart.
 ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="60"))
 
+# Background-thread retry backoff (sekund) — runserver-only rejimda
+# (CELERY_TASK_ALWAYS_EAGER=True) grading shu thread'da 3 urinish qiladi.
+# Prod default 5,10,15s; local tezlik uchun .env'da 1,2,3 ga tushiring.
+# Development settings buni avtomatik tezlashtiradi.
+def _parse_thread_backoff(raw: str) -> tuple:
+    try:
+        parts = [float(p.strip()) for p in str(raw).split(",") if p.strip()]
+        parts = [p for p in parts if p > 0]
+        if len(parts) >= 3:
+            return (parts[0], parts[1], parts[2])
+        if parts:
+            while len(parts) < 3:
+                parts.append(parts[-1])
+            return (parts[0], parts[1], parts[2])
+    except (TypeError, ValueError):
+        pass
+    return (5.0, 10.0, 15.0)
+
+
+ESSAY_THREAD_RETRY_BACKOFF = _parse_thread_backoff(
+    env("ESSAY_THREAD_RETRY_BACKOFF", default="5,10,15")
+)
+
 # ---------------------------------------------------------------------------
 # Google OAuth
 # ---------------------------------------------------------------------------

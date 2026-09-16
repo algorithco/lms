@@ -307,7 +307,7 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
         {"status": "pending", "poll_after": 3}                  — baholanmoqda
         {"status": "graded", "result_url": "/essays/result/7/"} — tayyor
         {"status": "pending_teacher", ...}                      — o'qituvchiga yuborildi
-        {"status": "error", "error": "...", "result_url": ...}  — xatolik
+        {"status": "error", "error": "...", "result_url": ..., "can_retry": true} — xatolik
     """
     submission = get_object_or_404(
         EssaySubmission, id=submission_id, student=request.user,
@@ -321,6 +321,7 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
 
     if status == EssaySubmission.Status.PENDING:
         data["poll_after"] = 3
+        data["message"] = "AI baholash fonda davom etmoqda. Sahifa avtomatik yangilanadi."
     elif status in (
         EssaySubmission.Status.GRADED,
         EssaySubmission.Status.AI_EVALUATED,
@@ -336,6 +337,9 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
     elif status == EssaySubmission.Status.ERROR:
         data["result_url"] = f"/essays/result/{submission.id}/"
         data["error"] = submission.error_message or "Baholashda xatolik."
+        # Placeholder kalit / timeout'dan keyin natija saqlanmagan bo'lsa —
+        # frontend "qayta urinish" tugmasini ko'rsatishi mumkin.
+        data["can_retry"] = not essay_has_grade_result(submission)
 
     return JsonResponse(data)
 
