@@ -15,15 +15,15 @@ interface AuthState {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithTelegram: (tokens: TokenPair, rawUser: Record<string, unknown>) => void;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithTelegram: (tokens: TokenPair, rawUser: Record<string, unknown>) => AuthUser;
   register: (payload: {
     email: string;
     password: string;
     password_confirm: string;
     first_name: string;
     last_name: string;
-  }) => Promise<void>;
+  }) => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
 
@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cachedPassword = password;
       adoptServerLang(user.language);
       setUser(user);
+      return user;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login failed.');
       throw e;
@@ -111,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cachedPassword = payload.password;
         adoptServerLang(user.language);
         setUser(user);
+        return user;
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Registration failed.');
         throw e;
@@ -133,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = normalizeUser(rawUser);
     adoptServerLang(user.language);
     setUser(user);
+    return user;
   }, []);
 
   return (

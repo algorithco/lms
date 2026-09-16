@@ -27,6 +27,8 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.access import is_platform_admin
 
+from apps.core.spa import serve_spa_shell
+
 from .models import EssayCriterionScore, EssaySubmission, EssayTopic, TeacherReview
 from .services import (
     TeacherReviewService,
@@ -77,30 +79,8 @@ def teacher_required(view_func):
 
 @login_required
 def essay_topics_view(request: HttpRequest) -> HttpResponse:
-    """Essse mavzulari ro'yxati — har bir mavzu uchun foydalanuvchi submission'i bilan."""
-    topics = list(EssayTopic.objects.filter(is_active=True).order_by("-created_at"))
-
-    # User's submissions per topic — ONE grouped query instead of an N+1
-    # per-topic lookup. Keeps the latest submission per topic.
-    subs_by_topic: dict = {}
-    if topics and request.user.is_authenticated:
-        user_subs = (
-            EssaySubmission.objects.filter(
-                student=request.user, topic__in=topics
-            )
-            .order_by("topic_id", "-updated_at")
-        )
-        for s in user_subs:
-            subs_by_topic.setdefault(s.topic_id, s)
-
-    topic_data = [
-        {"topic": topic, "submission": subs_by_topic.get(topic.id)}
-        for topic in topics
-    ]
-
-    return render(request, "essays/topic_list.html", {
-        "topic_data": topic_data,
-    })
+    """GET /essays/ — SPA shell (React Router owns /essays/)."""
+    return serve_spa_shell(request, fallback="/")
 
 
 # ---------------------------------------------------------------------------
@@ -109,42 +89,9 @@ def essay_topics_view(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def essay_password_gate_view(request: HttpRequest, topic_id: int) -> HttpResponse:
-    """
-    Parol kiritish formasi.
-
-    To'g'ri parol → submission yaratish (started_at=now) → write sahifasiga redirect.
-    Noto'g'ri parol → xato xabar bilan formaga qaytish.
-    """
-    from django.contrib import messages
-    from django.utils import timezone
-
-    topic = get_object_or_404(EssayTopic, id=topic_id, is_active=True)
-
-    # Agar parol o'rnatilmagan bo'lsa → to'g'ridan-to'g'ri write sahifasiga
-    if not topic.password:
-        return _ensure_submission_and_redirect(request, topic)
-
-    # Mavjud submission (parol allaqachon tasdiqlangan)
-    existing = EssaySubmission.objects.filter(
-        student=request.user,
-        topic=topic,
-        password_verified_at__isnull=False,
-    ).first()
-
-    if existing and not existing.is_expired:
-        return redirect("essays:write", submission_id=existing.id)
-
-    if request.method == "POST":
-        entered_password = request.POST.get("password", "")
-
-        if topic.check_password(entered_password):
-            return _ensure_submission_and_redirect(request, topic)
-        else:
-            messages.error(request, "Noto'g'ri parol. Qaytadan urinib ko'ring.")
-
-    return render(request, "essays/password_gate.html", {
-        "topic": topic,
-    })
+    """GET /essays/<id>/start/ — SPA shell (password gate lives in React)."""
+    get_object_or_404(EssayTopic, id=topic_id, is_active=True)
+    return serve_spa_shell(request, fallback="/essays")
 
 
 def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> HttpResponse:
@@ -186,79 +133,9 @@ def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> 
 
 @login_required
 def essay_write_view(request: HttpRequest, submission_id: int) -> HttpResponse:
-    """Esse yozish sahifasi — real-time word counter + server-side timer bilan.
-
-    Agar vaqt tugagan va essay hali yuborilmagan bo'lsa → avtomatik submit.
-    """
-    submission = get_object_or_404(
-        EssaySubmission.objects.select_related("topic"),
-        id=submission_id,
-        student=request.user,
-    )
-    topic = submission.topic
-
-    # Parol tasdiqlanmagan → password gate ga qaytarish
-    if topic and topic.password and not submission.password_verified_at:
-        return redirect("essays:password-gate", topic_id=topic.id)
-
-    # Vaqt tugagan + essay hali draft bo'lsa → avtomatik submit (LLM chaqiruvi
-    # Celery worker'ga yuklanadi — web thread bloklanmaydi)
-    time_expired = submission.is_expired if submission.password_verified_at else False
-    if (
-        time_expired
-        and submission.status == EssaySubmission.Status.DRAFT
-        and submission.essay_text.strip()
-    ):
-        result = start_grading(submission)
-        if result["success"] or result["fallback"]:
-            return redirect("essays:result", submission_id=submission.id)
-
-    word_info = WordCounter.get_word_status(submission.essay_text, topic) if topic else {"count": 0, "status": "ok", "min": 0, "max": 0}
-
-    # 12-mezon rubrikasi (yozuv oynasi yonidagi nazorat ro'yxati uchun)
-    names = EssayCriterionScore.CRITERION_NAMES
-    criteria_groups = [
-        {
-            "key": "content",
-            "title": "Mazmun va tuzilish",
-            "items": [
-                {"id": cid, "name": names[cid]}
-                for cid in range(1, 7)
-            ],
-        },
-        {
-            "key": "language",
-            "title": "Til me'yorlari",
-            "items": [
-                {"id": cid, "name": names[cid]}
-                for cid in range(7, 13)
-            ],
-        },
-    ]
-
-    return render(request, "essays/essay_write.html", {
-        "topic": topic,
-        "submission": submission,
-        "word_info": word_info,
-        "criteria_groups": criteria_groups,
-        "time_expired": time_expired,
-        "remaining_seconds": submission.remaining_seconds,
-        **_js_i18n(request),
-        "essay_js_write_more": _t(request, "essay_js_write_more"),
-        "essay_js_over_limit": _t(request, "essay_js_over_limit"),
-        "essay_js_in_range": _t(request, "essay_js_in_range"),
-        "essay_js_need_min": _t(request, "essay_js_need_min"),
-        "essay_js_confirm_ai": _t(request, "essay_js_confirm_ai"),
-        "essay_js_analyzing": _t(request, "essay_js_analyzing"),
-        "essay_js_grading": _t(request, "essay_js_grading"),
-        "essay_js_saving": _t(request, "essay_js_saving"),
-        "essay_js_saved": _t(request, "essay_js_saved"),
-        "essay_autosave_on": _t(request, "essay_autosave_on"),
-        "essay_js_save_error": _t(request, "essay_js_save_error"),
-        "essay_send_ai": _t(request, "essay_send_ai"),
-        "essay_js_error": _t(request, "essay_js_error"),
-        "words_suffix": _t(request, "words_suffix"),
-    })
+    """GET /essays/write/<id>/ — SPA shell (React Router owns /essays/write/:id)."""
+    get_object_or_404(EssaySubmission, id=submission_id, student=request.user)
+    return serve_spa_shell(request, fallback=f"/essays/write/{submission_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -469,32 +346,9 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
 
 @login_required
 def essay_result_view(request: HttpRequest, submission_id: int) -> HttpResponse:
-    """Baholash natijasini ko'rish — 12 mezon YOKI eski 30 ballik BMB."""
-    submission = get_object_or_404(
-        EssaySubmission.objects.select_related("student", "topic"),
-        id=submission_id,
-        student=request.user,
-    )
-
-    # Check which grading system was used
-    criteria = list(submission.criteria.all().order_by("criterion_id"))
-    use_new_system = len(criteria) > 0 or submission.max_score == 24
-
-    if use_new_system:
-        # 12-mezon (24 ball) system
-        return render(request, "essays/result.html", {
-            "submission": submission,
-            "criteria": criteria,
-        })
-    else:
-        # Legacy 30-point BMB system
-        ai_eval = getattr(submission, "ai_evaluation", None)
-        teacher_rev = getattr(submission, "teacher_review", None)
-        return render(request, "essays/essay_result.html", {
-            "submission": submission,
-            "ai_eval": ai_eval,
-            "teacher_review": teacher_rev,
-        })
+    """GET /essays/result/<id>/ — SPA shell (React Router owns /essays/result/:id)."""
+    get_object_or_404(EssaySubmission, id=submission_id, student=request.user)
+    return serve_spa_shell(request, fallback=f"/essays/result/{submission_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -503,8 +357,9 @@ def essay_result_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
 @login_required
 def essay_detail_view(request: HttpRequest, submission_id: int) -> HttpResponse:
-    """Baholash natijasini ko'rish — essay_result_view ga yo'naltirish."""
-    return essay_result_view(request, submission_id)
+    """GET essay detail — SPA shell (alias of the result route)."""
+    get_object_or_404(EssaySubmission, id=submission_id, student=request.user)
+    return serve_spa_shell(request, fallback=f"/essays/result/{submission_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -605,46 +460,8 @@ def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpR
 @login_required
 @teacher_required
 def teacher_essay_queue_view(request: HttpRequest) -> HttpResponse:
-    """Ustozlar uchun esse tekshirish navbati."""
-    from django.db.models import Q
-    base_pending = EssaySubmission.objects.filter(
-        status=EssaySubmission.Status.PENDING_TEACHER,
-    ).select_related("student", "topic", "assigned_reviewer")
-    if not is_platform_admin(request.user):
-        base_pending = base_pending.filter(
-            Q(assigned_reviewer=request.user)
-            | Q(
-                assigned_reviewer__isnull=True,
-                topic__created_by=request.user,
-            )
-            | Q(
-                assigned_reviewer__isnull=True,
-                student__student_groups__teacher=request.user,
-            )
-        ).distinct()
-
-    # Student-requested reviews (priority — o'quvchi e'tiroz bildirgan)
-    student_requested = base_pending.filter(
-        teacher_review_requested=True,
-    ).order_by("-teacher_review_requested_at")
-
-    # Regular pending (not student-requested)
-    pending = base_pending.filter(
-        teacher_review_requested=False,
-    ).order_by("-submitted_at")
-
-    # Already reviewed by this teacher
-    reviewed = (
-        TeacherReview.objects.filter(teacher=request.user)
-        .select_related("submission", "submission__student", "submission__topic")
-        .order_by("-reviewed_at")[:20]
-    )
-
-    return render(request, "essays/teacher_queue.html", {
-        "student_requested_submissions": student_requested,
-        "pending_submissions": pending,
-        "reviewed_submissions": reviewed,
-    })
+    """GET /essays/teacher/queue/ — SPA shell (React owns /teacher/essays)."""
+    return serve_spa_shell(request, fallback="/teacher/essays")
 
 
 # ---------------------------------------------------------------------------
@@ -654,35 +471,13 @@ def teacher_essay_queue_view(request: HttpRequest) -> HttpResponse:
 @login_required
 @teacher_required
 def teacher_review_view(request: HttpRequest, submission_id: int) -> HttpResponse:
-    """Bitta esseni tahrirlash va baholash — 12 mezon tizimi."""
-    submission = get_object_or_404(
-        EssaySubmission.objects.select_related(
-            "student", "topic", "assigned_reviewer",
-        ),
-        id=submission_id,
-    )
+    """GET /essays/teacher/<id>/review/ — SPA shell."""
+    submission = get_object_or_404(EssaySubmission, id=submission_id)
     if not can_review_submission(request.user, submission):
         raise PermissionDenied
-
-    # 12-mezon AI criteria (from EssayCriterionScore)
-    ai_criteria = list(submission.criteria.all().order_by("criterion_id"))
-    existing_review = getattr(submission, "teacher_review", None)
-
-    # Parse existing teacher review scores (stored as {"1": 1.5, "2": 2.0, ...})
-    existing_scores = {}
-    if existing_review and existing_review.criteria_scores:
-        for k, v in existing_review.criteria_scores.items():
-            try:
-                existing_scores[int(k)] = float(v)
-            except (ValueError, TypeError):
-                pass
-
-    return render(request, "essays/teacher_essay_review.html", {
-        "submission": submission,
-        "ai_criteria": ai_criteria,
-        "existing_review": existing_review,
-        "existing_scores": existing_scores,
-    })
+    return serve_spa_shell(
+        request, fallback=f"/teacher/essays/{submission_id}/review"
+    )
 
 
 @login_required
@@ -743,63 +538,48 @@ def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> Http
 
 @login_required
 def essay_create_view(request: HttpRequest) -> HttpResponse:
-    """
-    Esse yuborish formasi (12-mezon baholash tizimi).
+    """POST /essays/submit/ grades (legacy flow, tested) — GET serves the SPA shell."""
+    if request.method == "GET":
+        return serve_spa_shell(request, fallback="/essays")
 
-    GET: Formani ko'rsatish.
-    POST: Esseni qabul qilish, AI baholash va natijani ko'rsatish.
-    """
-    from django.contrib import messages
-
-    if request.method == "POST":
-        essay_text = request.POST.get("essay_text", "").strip()
-
-        if not essay_text:
-            messages.error(request, "Esse matni bo'sh bo'lishi mumkin emas.")
-            return render(request, "essays/submit.html", _js_i18n(request))
-
-        if len(essay_text) > MAX_ESSAY_LENGTH:
-            messages.error(
-                request,
-                f"Esse juda uzun ({len(essay_text):,} belgi). "
-                f"Maksimal {MAX_ESSAY_LENGTH:,} belgi qabul qilinadi.",
-            )
-            return render(request, "essays/submit.html", {**_js_i18n(request), "essay_text": essay_text})
-
-
-        # Create pending submission
-        submission = EssaySubmission.objects.create(
-            student=request.user,
-            essay_text=essay_text,
-            word_count=len(essay_text.split()),
-            status=EssaySubmission.Status.PENDING,
+    essay_text = request.POST.get("essay_text", "").strip()
+    if not essay_text:
+        return JsonResponse(
+            {"ok": False, "error": "Esse matni bo'sh bo'lishi mumkin emas."},
+            status=400,
+        )
+    if len(essay_text) > MAX_ESSAY_LENGTH:
+        return JsonResponse(
+            {"ok": False, "error": f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi."},
+            status=400,
         )
 
-        logger.info(
-            "Essay submission created: id=%d, student=%d, word_count=%d",
-            submission.id, request.user.id, submission.word_count,
+    # Create pending submission
+    submission = EssaySubmission.objects.create(
+        student=request.user,
+        essay_text=essay_text,
+        word_count=len(essay_text.split()),
+        status=EssaySubmission.Status.PENDING,
+    )
+
+    logger.info(
+        "Essay submission created: id=%d, student=%d, word_count=%d",
+        submission.id, request.user.id, submission.word_count,
+    )
+
+    # --- AI baholashni fon rejimiga yuklash ---
+    # (grade_essay() sekin tashqi LLM chaqiruvi; Celery yoki background
+    # thread'da bajariladi — web thread hech qachon LLM'ni kutmaydi)
+    result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
+
+    if result["fallback"] and not result.get("async"):
+        return JsonResponse(
+            {"ok": False, "error": result.get("error") or "Esse o'qituvchiga yuborildi."},
+            status=502,
         )
 
-        # --- AI baholashni fon rejimiga yuklash ---
-        # (grade_essay() sekin tashqi LLM chaqiruvi; Celery yoki background
-        # thread'da bajariladi — web thread hech qachon LLM'ni kutmaydi)
-        result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
-
-        if result["fallback"] and not result.get("async"):
-            messages.error(
-                request,
-                result.get("error") or "Esse o'qituvchiga yuborildi.",
-            )
-            return render(request, "essays/submit.html", {
-                **_js_i18n(request),
-                "essay_text": essay_text,
-            })
-
-        # Redirect to result page (PENDING spinner → auto-refresh → natija)
-        return redirect("essays:result", submission_id=submission.id)
-
-    # GET: show empty form
-    return render(request, "essays/submit.html", _js_i18n(request))
+    # Redirect to result page (PENDING spinner → auto-refresh → natija)
+    return redirect("essays:result", submission_id=submission.id)
 
 
 # NOTE: essay_detail_view is defined above (line ~381) as a redirect to

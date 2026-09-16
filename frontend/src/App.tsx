@@ -79,10 +79,13 @@ function AnimatedRoutes() {
           <Route path="/verify/:number" element={<VerifyCertificate />} />
           {/* Legacy Django URL parity: /certificates/verify/<number>/ */}
           <Route path="/certificates/verify/:number" element={<VerifyCertificate />} />
-          <Route path="/essay-leaderboard" element={<EssayLeaderboard />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
+            {/* Ratings live inside the app shell so the sidebar/topbar
+                (and the way back) never disappear. The API already
+                requires auth, so a shell-less public route only 401'd. */}
+            <Route path="/essay-leaderboard" element={<EssayLeaderboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/:id" element={<TestDetail />} />

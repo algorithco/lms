@@ -3,13 +3,24 @@ import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Panel } from '../lib/api';
 import { num, str } from '../lib/billingPanelGames';
-import { ShieldCheckIcon } from '../components/icons';
+import {
+  CreditCardIcon,
+  FileTextIcon,
+  PenLineIcon,
+  ScrollTextIcon,
+  ShieldCheckIcon,
+  TargetIcon,
+  UsersIcon,
+} from '../components/icons';
 
 /**
- * Admin dashboard — parity with templates/panel/dashboard.html.
- * Backend: GET /api/v1/panel/dashboard/ → { tests{total,published,draft,
- * archived}, questions, essay_topics, users{total,active,blocked},
- * role_breakdown[{key,count}], recent_tests[], recent_topics[] }.
+ * Admin control panel home — deliberately distinct from the student
+ * Dashboard: admin hero banner, platform-wide live stats, quick actions
+ * for every management area, then inventory tables.
+ * Backend: GET /api/v1/panel/dashboard/ → { tests{...}, questions,
+ * essay_topics, users{...}, new_users_today, attempts{total,today},
+ * essays{total,awaiting_review}, pending_payments, active_subscriptions,
+ * role_breakdown[], recent_tests[], recent_topics[] }.
  */
 export default function PanelDashboard() {
   const { t } = useLang();
@@ -27,6 +38,8 @@ export default function PanelDashboard() {
 
   const tests = (d.tests ?? {}) as Record<string, number>;
   const users = (d.users ?? {}) as Record<string, number>;
+  const attempts = (d.attempts ?? {}) as Record<string, number>;
+  const essays = (d.essays ?? {}) as Record<string, number>;
   const roles = ((d.role_breakdown ?? []) as { key: string; count: number }[]).filter(
     (r) => r && typeof r.key === 'string',
   );
@@ -35,9 +48,63 @@ export default function PanelDashboard() {
 
   return (
     <div>
-      <h1>
-        <ShieldCheckIcon size={24} className="ico" /> {t('panel_dashboard')}
-      </h1>
+      <div className="card admin-hero">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="admin-hero-badge">
+            <ShieldCheckIcon size={28} className="ico" />
+          </span>
+          <div>
+            <h1 style={{ margin: 0 }}>{t('panel_dashboard')}</h1>
+            <p className="muted" style={{ margin: '4px 0 0' }}>
+              {t('panel_admin_hero_sub')}
+            </p>
+          </div>
+        </div>
+        <div className="admin-hero-stats">
+          <div>
+            <span className="stat-value">{num(attempts.today)}</span>
+            <span className="stat-label">{t('panel_attempts_today')}</span>
+          </div>
+          <div>
+            <span className="stat-value">{num(d.new_users_today)}</span>
+            <span className="stat-label">{t('panel_new_users')}</span>
+          </div>
+          <div>
+            <span className="stat-value">{num(essays.awaiting_review)}</span>
+            <span className="stat-label">{t('panel_essays_pending')}</span>
+          </div>
+          <div>
+            <span className="stat-value">{num(d.pending_payments)}</span>
+            <span className="stat-label">{t('panel_payments_pending')}</span>
+          </div>
+        </div>
+      </div>
+
+      <h2>{t('panel_quick_actions')}</h2>
+      <div className="grid">
+        <Link className="card stat admin-action" to="/panel/tests/new">
+          <span className="stat-label"><FileTextIcon size={15} className="ico" /> {t('panel_action_new_test')}</span>
+          <span className="muted small">{t('panel_action_new_test_hint')}</span>
+        </Link>
+        <Link className="card stat admin-action" to="/panel/topics">
+          <span className="stat-label"><PenLineIcon size={15} className="ico" /> {t('panel_action_new_topic')}</span>
+          <span className="muted small">{t('panel_action_new_topic_hint')}</span>
+        </Link>
+        <Link className="card stat admin-action" to="/teacher/essays">
+          <span className="stat-label"><ScrollTextIcon size={15} className="ico" /> {t('panel_action_review_essays')}</span>
+          <span className="muted small">
+            {t('panel_essays_pending')}: {num(essays.awaiting_review)}
+          </span>
+        </Link>
+        <Link className="card stat admin-action" to="/panel/users">
+          <span className="stat-label"><UsersIcon size={15} className="ico" /> {t('panel_action_manage_users')}</span>
+          <span className="muted small">
+            {t('panel_active')}: {num(users.active)} · {t('panel_blocked')}: {num(users.blocked)}
+          </span>
+        </Link>
+      </div>
+
+      <h2>{t('panel_platform')}</h2>
       <div className="grid">
         <div className="card stat stat-gradient-blue">
           <span className="stat-label">{t('tests')}</span>
@@ -56,7 +123,9 @@ export default function PanelDashboard() {
         <div className="card stat stat-gradient-amber">
           <span className="stat-label">{t('essay_topics')}</span>
           <span className="stat-value">{num(d.essay_topics)}</span>
-          <span className="muted small">{t('panel_topics_hint')}</span>
+          <span className="muted small">
+            {t('panel_essays_total')}: {num(essays.total)}
+          </span>
           <Link to="/panel/topics">{t('view_all')} →</Link>
         </div>
         <div className="card stat stat-gradient-purple">
@@ -66,6 +135,21 @@ export default function PanelDashboard() {
             {t('panel_active')}: {num(users.active)} · {t('panel_blocked')}: {num(users.blocked)}
           </span>
           <Link to="/panel/users">{t('view_all')} →</Link>
+        </div>
+        <div className="card stat">
+          <span className="stat-label"><TargetIcon size={15} className="ico" /> {t('panel_attempts_total')}</span>
+          <span className="stat-value">{num(attempts.total)}</span>
+          <span className="muted small">
+            {t('panel_attempts_today')}: {num(attempts.today)}
+          </span>
+          <Link to="/analytics">{t('view_all')} →</Link>
+        </div>
+        <div className="card stat">
+          <span className="stat-label"><CreditCardIcon size={15} className="ico" /> {t('panel_subscriptions')}</span>
+          <span className="stat-value">{num(d.active_subscriptions)}</span>
+          <span className="muted small">
+            {t('panel_payments_pending')}: {num(d.pending_payments)}
+          </span>
         </div>
       </div>
 

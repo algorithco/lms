@@ -94,6 +94,14 @@ ChoiceFormSet = forms.inlineformset_factory(
 # Essay Topic
 # ---------------------------------------------------------------------------
 class EssayTopicForm(forms.ModelForm):
+    # Empty = keep the existing password (write-only, never shown).
+    # Non-empty = set a new one (hashed by EssayTopic.save()).
+    password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        help_text="Bo'sh qoldirilsa — joriy parol saqlanadi.",
+    )
+
     class Meta:
         model = EssayTopic
         fields = [
@@ -106,6 +114,7 @@ class EssayTopicForm(forms.ModelForm):
             "sample_outline",
             "grammar_strictness",
             "national_cert_scale",
+            "password",
             "is_active",
         ]
         widgets = {
@@ -123,3 +132,16 @@ class EssayTopicForm(forms.ModelForm):
                 "Maksimal so'zlar soni minimaldan katta bo'lishi kerak.",
             )
         return cleaned
+
+    def save(self, commit=True):
+        # Empty password field = keep the stored hash (ModelForm would
+        # otherwise overwrite it with ""). A typed value is hashed by
+        # EssayTopic.save().
+        if not (self.cleaned_data.get("password") or "").strip():
+            if self.instance.pk:
+                self.instance.password = EssayTopic.objects.values_list(
+                    "password", flat=True
+                ).get(pk=self.instance.pk)
+            else:
+                self.instance.password = ""
+        return super().save(commit)

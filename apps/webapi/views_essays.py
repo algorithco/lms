@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 from apps.accounts.access import is_platform_admin
 from apps.essays.models import EssayCriterionScore, EssaySubmission
-from apps.essays.services import TeacherReviewService, can_review_submission
+from apps.essays.services import TeacherReviewService, WordCounter, can_review_submission
 
 
 def _require_teacher(user) -> None:
@@ -160,4 +160,27 @@ def teacher_submit_review_view(request, submission_id: int):
         "ok": True,
         "final_score": float(review.final_score),
         "reviewed_at": review.reviewed_at.isoformat(),
+    })
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def teacher_edit_submission_view(request, submission_id: int):
+    """Platform-admin-only: edit a student's whole essay text.
+
+    Recomputes word_count. Scores are left untouched on purpose — submit a
+    review afterwards if the new text needs re-grading.
+    """
+    if not is_platform_admin(request.user):
+        raise PermissionDenied("Faqat platforma adminlari uchun.")
+    submission = get_object_or_404(EssaySubmission, id=submission_id)
+    essay_text = request.data.get("essay_text", None)
+    if not isinstance(essay_text, str) or not essay_text.strip():
+        return Response({"detail": "essay_text must be a non-empty string."}, status=400)
+    submission.essay_text = essay_text
+    submission.word_count = WordCounter.count(essay_text)
+    submission.save(update_fields=["essay_text", "word_count", "updated_at"])
+    return Response({
+        **_submission_card(submission),
+        "essay_text": submission.essay_text,
     })

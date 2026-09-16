@@ -432,3 +432,139 @@ class PanelUserManagementTests(LMSBaseTestCase):
         self.client.logout()
         ok = self.client.login(email="extra@test.com", password="testpass123")
         self.assertFalse(ok)
+
+
+class PanelDashboardExtendedTests(LMSBaseTestCase):
+    """Dashboard carries live platform aggregates for the admin home."""
+
+    def test_dashboard_extended_keys(self):
+        data = self.get_authenticated_client(email="admin@test.com").get(
+            f"{PANEL}/dashboard/"
+        ).data
+        for key in (
+            "new_users_today", "attempts", "essays",
+            "pending_payments", "active_subscriptions",
+        ):
+            self.assertIn(key, data)
+        self.assertIn("today", data["attempts"])
+        self.assertIn("awaiting_review", data["essays"])
+
+
+class PanelTopicPasswordTests(LMSBaseTestCase):
+    """Admins can see, set and clear essay topic passwords."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = self.get_authenticated_client(email="admin@test.com")
+        self.topic = EssayTopic.objects.create(
+            title="Parolli mavzu",
+            description="tavsif",
+            category="ona_tili",
+            created_by=self.admin_user,
+        )
+
+    def test_has_password_flag(self):
+        data = self.client.get(
+            reverse("webapi:panel-topic-detail", args=[self.topic.id])
+        ).data
+        self.assertFalse(data["has_password"])
+        self.assertNotIn("password", data)
+
+    def test_set_password(self):
+        response = self.client.patch(
+            reverse("webapi:panel-topic-detail", args=[self.topic.id]),
+            {"password": "maxfiy123"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.topic.refresh_from_db()
+        self.assertTrue(self.topic.check_password("maxfiy123"))
+        self.assertTrue(
+            self.client.get(
+                reverse("webapi:panel-topic-detail", args=[self.topic.id])
+            ).data["has_password"]
+        )
+
+    def test_clear_password_with_empty_string(self):
+        self.topic.password = "maxfiy123"
+        self.topic.save()
+        response = self.client.patch(
+            reverse("webapi:panel-topic-detail", args=[self.topic.id]),
+            {"password": ""},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.topic.refresh_from_db()
+        self.assertFalse(self.topic.password)
+        self.assertTrue(self.topic.check_password("istalgan"))
+
+    def test_password_omitted_keeps_existing(self):
+        self.topic.password = "maxfiy123"
+        self.topic.save()
+        response = self.client.patch(
+            reverse("webapi:panel-topic-detail", args=[self.topic.id]),
+            {"title": "Yangi sarlavha"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.topic.refresh_from_db()
+        self.assertTrue(self.topic.check_password("maxfiy123"))
+
+
+class TeacherEssayEditTests(LMSBaseTestCase):
+    """PATCH /api/v1/essays/teacher/<id>/edit/ — platform-admin only."""
+
+    def setUp(self):
+        super().setUp()
+        from apps.essays.models import EssaySubmission
+
+        topic = EssayTopic.objects.create(
+            title="Tahrirlanadigan mavzu",
+            description="tavsif",
+            category="ona_tili",
+            created_by=self.admin_user,
+        )
+        self.submission = EssaySubmission.objects.create(
+            student=self.student,
+            topic=topic,
+            essay_text="Eski matn shu yerda.",
+            word_count=4,
+            status=EssaySubmission.Status.GRADED,
+        )
+
+    def _url(self):
+        return reverse("webapi:essays-teacher-edit", args=[self.submission.id])
+
+    def test_admin_can_edit_text(self):
+        response = self.get_authenticated_client(email="admin@test.com").patch(
+            self._url(), {"essay_text": "Yangi tahrirlangan matn keldi."}, format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.essay_text, "Yangi tahrirlangan matn keldi.")
+        self.assertEqual(self.submission.word_count, 4)
+        self.assertEqual(response.data["essay_text"], "Yangi tahrirlangan matn keldi.")
+
+    def test_empty_text_rejected(self):
+        response = self.get_authenticated_client(email="admin@test.com").patch(
+            self._url(), {"essay_text": "   "}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_teacher_forbidden(self):
+        response = self.get_authenticated_client(email="teacher@test.com").patch(
+            self._url(), {"essay_text": "Ustoz urinishi."}, format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_student_forbidden(self):
+        response = self.get_authenticated_client(email="student@test.com").patch(
+            self._url(), {"essay_text": "O'quvchi urinishi."}, format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_rejected(self):
+        from rest_framework.test import APIClient
+
+        response = APIClient().patch(self._url(), {"essay_text": "x"}, format="json")
+        self.assertIn(response.status_code, (401, 403))

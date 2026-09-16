@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useLang } from '../i18n/LangContext';
 import { Panel } from '../lib/api';
 import { num, str } from '../lib/billingPanelGames';
+import { AwardIcon, LockIcon } from '../components/icons';
 
 interface TopicForm {
   title: string;
@@ -120,6 +121,18 @@ export default function PanelTopics() {
     }
   };
 
+  const removePassword = async (id: number | string) => {
+    if (!window.confirm(t('panel_topic_password_remove_confirm'))) return;
+    try {
+      // Empty string clears the stored hash (backend treats "" as clear,
+      // omitted key as keep).
+      await Panel.updateTopic(id, { password: '' });
+      load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed.');
+    }
+  };
+
   const set =
     (k: keyof TopicForm) =>
     (e: { target: { value: string; checked?: boolean; type?: string } }) => {
@@ -222,6 +235,7 @@ export default function PanelTopics() {
               placeholder={t('panel_topic_password_hint')}
               autoComplete="new-password"
             />
+            <small className="muted">{t('panel_topic_password_keep_hint')}</small>
           </label>
           <label style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <input
@@ -229,7 +243,7 @@ export default function PanelTopics() {
               checked={form.national_cert_scale}
               onChange={set('national_cert_scale')}
             />
-            🎓 {t('panel_national_cert_scale')}
+            <AwardIcon size={13} className="ico" /> {t('panel_national_cert_scale')}
           </label>
           <p className="muted small">{t('panel_national_cert_hint')}</p>
           <div className="row">
@@ -277,7 +291,12 @@ export default function PanelTopics() {
                     <br />
                     <small className="muted">
                       {str(x.description).slice(0, 100)}
-                      {x.national_cert_scale ? ` · 🎓 ${t('panel_national_cert')}` : ''}
+                      {x.national_cert_scale ? (
+                        <>
+                          {' · '}
+                          <AwardIcon size={12} className="ico" /> {t('panel_national_cert')}
+                        </>
+                      ) : ''}
                     </small>
                   </td>
                   <td>
@@ -291,12 +310,24 @@ export default function PanelTopics() {
                   <td>
                     <span className={`badge ${x.is_active ? 'green' : ''}`}>
                       {x.is_active ? t('panel_active') : t('status_inactive')}
-                    </span>
+                    </span>{' '}
+                    {x.has_password ? (
+                      <span className="badge" title={t('panel_topic_password_set_hint')}>
+                        <LockIcon size={12} className="ico" /> {t('panel_topic_password_set')}
+                      </span>
+                    ) : null}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn sm ghost" onClick={() => startEdit(x)}>
                       {t('edit')}
                     </button>{' '}
+                    {x.has_password ? (
+                      <>
+                        <button className="btn sm ghost" onClick={() => void removePassword(x.id as number)}>
+                          {t('panel_topic_password_remove')}
+                        </button>{' '}
+                      </>
+                    ) : null}
                     <button className="btn sm danger" onClick={() => remove(x.id as number)}>
                       {t('delete')}
                     </button>

@@ -167,6 +167,11 @@ export function isPlatformAdmin(u: AuthUser | null | undefined): boolean {
   return u.is_platform_admin === true || u.is_superuser === true || u.role === 'admin';
 }
 
+/** Where to land after sign-in: admins get the control panel, everyone else the student dashboard. */
+export function landingFor(u: AuthUser | null | undefined): string {
+  return isPlatformAdmin(u) ? '/panel' : '/dashboard';
+}
+
 /** School/teacher area access (mirrors webapi IsTeacherOrAdmin: teacher/staff/platform-admin). */
 export function canTeach(u: AuthUser | null | undefined): boolean {
   if (!u) return false;
@@ -898,6 +903,12 @@ export const TeacherEssays = {
       `/api/v1/essays/teacher/${id}/review/`,
       { method: 'POST', body: JSON.stringify(payload) },
     ),
+  // Platform-admin only: edit the whole essay text (word_count recomputed).
+  updateText: (id: number | string, essay_text: string) =>
+    api<TeacherEssayCard & { essay_text: string }>(`/api/v1/essays/teacher/${id}/edit/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ essay_text }),
+    }),
 };
 
 export const ArenaLobby = {

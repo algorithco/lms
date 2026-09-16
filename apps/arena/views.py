@@ -15,9 +15,11 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import F, Window
 from django.db.models.functions import RowNumber
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+
+from apps.core.spa import serve_spa_shell
 
 from . import services
 from .models import ArenaPlayer, ArenaProfile, ArenaRoom
@@ -91,67 +93,15 @@ def _my_stats(user) -> dict:
 # Pages
 # ---------------------------------------------------------------------------
 
-@login_required
 def arena_lobby_view(request: HttpRequest) -> HttpResponse:
-    """Arena lobby — queue, custom rooms, live leaderboard, my stats."""
-    active_rooms = (
-        ArenaRoom.objects.filter(status__in=[ArenaRoom.Status.WAITING, ArenaRoom.Status.STARTED])
-        .select_related("player1", "player2", "bot_user")
-        [:10]
-    )
-
-    user_matches = (
-        ArenaPlayer.objects.filter(player=request.user)
-        .select_related("room", "room__player1", "room__player2", "room__winner")
-        .order_by("-room__created_at")[:5]
-    )
-
-    # My pending custom-room invites
-    my_invites = (
-        ArenaRoom.objects.filter(
-            player1=request.user,
-            mode=ArenaRoom.Mode.CUSTOM,
-            status=ArenaRoom.Status.WAITING,
-        )
-        .order_by("-created_at")
-    )
-
-    protocol = "wss" if request.is_secure() else "ws"
-    return render(request, "arena/lobby.html", {
-        "active_rooms": active_rooms,
-        "user_matches": user_matches,
-        "my_invites": my_invites,
-        "my_stats": _my_stats(request.user),
-        "leaderboard": _leaderboard_rows(10),
-        "queue_count": ArenaRoom.objects.filter(
-            status=ArenaRoom.Status.WAITING, mode=ArenaRoom.Mode.QUEUE
-        ).count(),
-        "bot_fallback_seconds": int(services._bot_fallback_seconds()),
-        "ws_url": f"{protocol}://{request.get_host()}/ws/arena/",
-    })
+    """GET /arena/ — SPA shell (React Router owns /arena/)."""
+    return serve_spa_shell(request, fallback="/")
 
 
-@login_required
 def arena_room_view(request: HttpRequest, room_code: str) -> HttpResponse:
-    """Duel room — real-time WebSocket game."""
-    room = get_object_or_404(
-        ArenaRoom.objects.select_related("player1", "player2", "bot_user"),
-        room_code=room_code,
-    )
-
-    # Only participants may enter
-    if request.user.id not in (room.player1_id, room.player2_id):
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("Bu xonaning ishtirokchisi emassiz.")
-
-    protocol = "wss" if request.is_secure() else "ws"
-    return render(request, "arena/duel_room.html", {
-        "room": room,
-        "room_code": room_code,
-        "is_bot_duel": room.mode == ArenaRoom.Mode.BOT,
-        "my_stats": _my_stats(request.user),
-        "ws_url": f"{protocol}://{request.get_host()}/ws/arena/{room_code}/",
-    })
+    """GET /arena/<room_code>/ — SPA shell (React Router owns /arena/:code)."""
+    get_object_or_404(ArenaRoom, room_code=room_code)
+    return serve_spa_shell(request, fallback=f"/arena/{room_code}")
 
 
 # ---------------------------------------------------------------------------

@@ -180,3 +180,43 @@ a.land-foot-muted:hover { color: #d1fae5; }
   .f-dance-3 { animation: none !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* Admin control panel — distinct identity vs the student dashboard */
+.admin-hero {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(161, 98, 7, 0.28));
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  margin-bottom: 8px;
+}
+.admin-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #facc15, #a16207);
+  color: #0a0a0a;
+  flex-shrink: 0;
+}
+.admin-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.admin-hero-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.admin-action {
+  text-decoration: none;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.admin-action:hover {
+  transform: translateY(-2px);
+  border-color: rgba(250, 204, 21, 0.5);
+}
