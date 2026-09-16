@@ -115,7 +115,9 @@ export interface TmaEssayCriterion {
   id: number;
   name: string;
   score: number;
+  max_score?: number;
   reason?: string;
+  errors?: string[];
 }
 
 export interface TmaEssayResult {

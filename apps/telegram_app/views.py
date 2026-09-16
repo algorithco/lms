@@ -658,6 +658,16 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         return Response({"error": "Submission topilmadi"}, status=404)
 
     criteria = list(submission.criteria.all().order_by("criterion_id"))
+    # Evidence snippets ("errors") live in raw_result JSON (no DB column) —
+    # merge them by criterion id so the UI can show deduction proof.
+    raw_errors_by_id: dict[int, list] = {}
+    try:
+        for rc in (submission.raw_result or {}).get("criteria", []):
+            if isinstance(rc, dict) and isinstance(rc.get("id"), int):
+                errs = rc.get("errors", [])
+                raw_errors_by_id[rc["id"]] = errs if isinstance(errs, list) else []
+    except (AttributeError, TypeError):
+        raw_errors_by_id = {}
 
     response = {
         "id": submission.id,
@@ -673,7 +683,14 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,
         "final_score": float(submission.final_score) if submission.final_score else None,
         "criteria": [
-            {"id": c.criterion_id, "name": c.name, "score": float(c.score), "reason": c.reason}
+            {
+                "id": c.criterion_id,
+                "name": c.name,
+                "score": float(c.score),
+                "max_score": 2,
+                "reason": c.reason,
+                "errors": raw_errors_by_id.get(c.criterion_id, []),
+            }
             for c in criteria
         ],
     }
