@@ -48,4 +48,5 @@ urlpatterns = [
     path("essays/teacher/queue/", views_essays.teacher_queue_view, name="essays-teacher-queue"),
     path("essays/teacher/<int:submission_id>/", views_essays.teacher_submission_view, name="essays-teacher-detail"),
     path("essays/teacher/<int:submission_id>/review/", views_essays.teacher_submit_review_view, name="essays-teacher-review"),
+    path("essays/teacher/<int:submission_id>/edit/", views_essays.teacher_edit_submission_view, name="essays-teacher-edit"),
 ]

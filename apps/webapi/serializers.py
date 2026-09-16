@@ -86,6 +86,7 @@ class EssayTopicSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(
         source="created_by.get_full_name", read_only=True, default=""
     )
+    has_password = serializers.SerializerMethodField()
 
     class Meta:
         model = EssayTopic
@@ -93,10 +94,13 @@ class EssayTopicSerializer(serializers.ModelSerializer):
             "id", "title", "description", "category",
             "word_limit_min", "word_limit_max", "time_limit_minutes",
             "sample_outline", "grammar_strictness", "national_cert_scale",
-            "password", "is_active", "created_by", "created_by_name",
-            "created_at",
+            "password", "has_password", "is_active", "created_by",
+            "created_by_name", "created_at",
         ]
         extra_kwargs = {"password": {"write_only": True, "required": False}}
+
+    def get_has_password(self, obj: EssayTopic) -> bool:
+        return bool(obj.password)
 
 
 class UserAdminSerializer(serializers.ModelSerializer):

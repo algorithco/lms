@@ -8,8 +8,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from apps.accounts.models import User
-from apps.essays.models import EssayTopic
-from apps.tests.models import Choice, Question, Test
+from apps.essays.models import EssaySubmission, EssayTopic
+from apps.payments.models import PaymentRequest, UserSubscription
+from apps.tests.models import Choice, Question, Test, TestAttempt
 
 from .permissions import IsPanelAdmin
 from .serializers import (
@@ -40,6 +41,27 @@ def dashboard_view(request):
         .annotate(c=Count("id"))
         .values_list("role", "c")
     )
+    today = timezone.localdate()
+    now = timezone.now()
+    attempts = TestAttempt.objects.aggregate(
+        total=Count("id"),
+        today=Count("id", filter=Q(started_at__date=today)),
+    )
+    essays = EssaySubmission.objects.aggregate(
+        total=Count("id"),
+        awaiting_review=Count(
+            "id",
+            filter=Q(
+                status__in=[
+                    EssaySubmission.Status.PENDING,
+                    EssaySubmission.Status.PENDING_TEACHER,
+                ]
+            ),
+        ),
+    )
+    payments = PaymentRequest.objects.aggregate(
+        pending=Count("id", filter=Q(status=PaymentRequest.Status.PENDING)),
+    )
     recent_tests = (
         Test.objects.select_related("course").order_by("-created_at")[:5]
     )
@@ -49,6 +71,13 @@ def dashboard_view(request):
         "questions": Question.objects.count(),
         "essay_topics": EssayTopic.objects.count(),
         "users": users,
+        "new_users_today": User.objects.filter(date_joined__date=today).count(),
+        "attempts": attempts,
+        "essays": essays,
+        "pending_payments": payments["pending"],
+        "active_subscriptions": UserSubscription.objects.filter(
+            status=UserSubscription.Status.ACTIVE, expires_at__gt=now,
+        ).count(),
         "role_breakdown": [
             {"key": key, "count": role_counts.get(key, 0)}
             for key in ("student", "teacher", "parent", "admin")
