@@ -223,8 +223,8 @@ def _games_hub_etag(request, *args, **kwargs) -> str:
     return etag
 
 
-@condition(etag_func=_games_hub_etag)
 @login_required
+@condition(etag_func=_games_hub_etag)
 def games_index_view(request: HttpRequest) -> HttpResponse:
     """Games hub — all available games with user stats."""
     games = Game.objects.filter(is_active=True).order_by("sort_order")
@@ -301,7 +301,14 @@ def imlo_check_view(request: HttpRequest) -> HttpResponse:
     """Check imlo answer via HTMX — returns partial HTML."""
     game = get_object_or_404(Game, slug=Game.GameType.IMLO_MINA, is_active=True)
     level_id = request.POST.get("level_id")
-    word_index = request.POST.get("word_index", type=int)
+    raw_word_index = request.POST.get("word_index", "")
+    try:
+        word_index = int(raw_word_index)
+    except (TypeError, ValueError):
+        return HttpResponse(
+            "Noto'g'ri so'z tanlandi.",
+            status=400,
+        )
     action = request.POST.get("action")  # "fix" or "flag"
 
     level = get_object_or_404(GameLevel, id=level_id, game=game)
@@ -312,7 +319,10 @@ def imlo_check_view(request: HttpRequest) -> HttpResponse:
     is_correct_fix = (action == "fix" and word_index == error_position)
     is_correct = is_correct_fix or (action == "skip")
 
-    combo = int(request.POST.get("combo", 0))
+    try:
+        combo = max(0, int(request.POST.get("combo", 0)))
+    except (TypeError, ValueError):
+        combo = 0
     if is_correct:
         combo += 1
     else:
@@ -396,7 +406,10 @@ def gazal_check_view(request: HttpRequest) -> HttpResponse:
 
     is_correct = submitted_order == list(range(len(bayt_lines)))
 
-    combo = int(request.POST.get("combo", 0))
+    try:
+        combo = max(0, int(request.POST.get("combo", 0)))
+    except (TypeError, ValueError):
+        combo = 0
     if is_correct:
         combo += 1
     else:
@@ -481,7 +494,10 @@ def lugat_check_view(request: HttpRequest) -> HttpResponse:
         idx2 = int(card2_id.replace("old_", ""))
         is_match = idx1 == idx2
 
-    combo = int(request.POST.get("combo", 0))
+    try:
+        combo = max(0, int(request.POST.get("combo", 0)))
+    except (TypeError, ValueError):
+        combo = 0
     if is_match:
         combo += 1
     else:

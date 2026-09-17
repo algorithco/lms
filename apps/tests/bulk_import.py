@@ -151,10 +151,18 @@ class BulkTestImportService:
                 from apps.accounts.access import is_platform_admin
 
                 is_admin = is_platform_admin(created_by)
-                if not is_admin and not (
+                can_create_test = bool(
+                    created_by
+                    and getattr(created_by, "is_authenticated", False)
+                    and getattr(created_by, "is_active", False)
+                    and getattr(created_by, "can_create_test", False)
+                )
+                is_teacher_owner = bool(
                     created_by and created_by.is_authenticated and created_by.is_active
                     and created_by.role == "teacher" and course.teacher_id == created_by.pk
-                ):
+                )
+                # Phase 4: admin controls test creation — allow if admin OR can_create_test OR owns course
+                if not is_admin and not can_create_test and not is_teacher_owner:
                     raise PermissionError("Bu kursga test import qilishga ruxsat yo'q.")
 
                 test = Test.objects.create(

@@ -42,6 +42,7 @@ class RegisterView(generics.CreateAPIView):
     # Otherwise a stale `sessionid` cookie (admin login, arena bridge, 2nd
     # user in same browser) triggers 403 "CSRF Failed" on registration.
     authentication_classes: list = []
+    throttle_scope = "login"
 
     @extend_schema(
         summary="Ro'yxatdan o'tish",
@@ -93,6 +94,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """POST /api/auth/login/ — Email + password orqali JWT token olish."""
 
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_scope = "login"
 
     @extend_schema(
         summary="Tizimga kirish (JWT)",
@@ -153,6 +155,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 # ---------------------------------------------------------------------------
 class CustomTokenRefreshView(TokenRefreshView):
     """POST /api/auth/token/refresh/ — Refresh token yangilash."""
+
+    from .serializers import CustomTokenRefreshSerializer
+
+    serializer_class = CustomTokenRefreshSerializer  # type: ignore[assignment]
 
     @extend_schema(
         summary="Token yangilash",
@@ -312,6 +318,7 @@ class SessionLoginView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes: list = []
+    throttle_scope = "login"
 
     @extend_schema(
         summary="Django session ochish (SPA bridge)",

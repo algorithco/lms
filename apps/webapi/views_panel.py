@@ -12,7 +12,7 @@ from apps.essays.models import EssaySubmission, EssayTopic
 from apps.payments.models import PaymentRequest, UserSubscription
 from apps.tests.models import Choice, Question, Test, TestAttempt
 
-from .permissions import IsPanelAdmin
+from .permissions import IsPanelAdmin, IsPanelAdminOrEssayCreator
 from .serializers import (
     EssayTopicSerializer,
     QuestionAdminSerializer,
@@ -49,14 +49,14 @@ def dashboard_view(request):
     )
     essays = EssaySubmission.objects.aggregate(
         total=Count("id"),
+        # Semantics split (v0.48.0): "pending_ai" = still being AI-graded
+        # (worker queue health signal), "awaiting_review" = PENDING_TEACHER
+        # only (matches the teacher queue definition — avoids the
+        # "admin 21 pending vs empty teacher queue" confusion).
+        pending_ai=Count("id", filter=Q(status=EssaySubmission.Status.PENDING)),
         awaiting_review=Count(
             "id",
-            filter=Q(
-                status__in=[
-                    EssaySubmission.Status.PENDING,
-                    EssaySubmission.Status.PENDING_TEACHER,
-                ]
-            ),
+            filter=Q(status=EssaySubmission.Status.PENDING_TEACHER),
         ),
     )
     payments = PaymentRequest.objects.aggregate(
@@ -206,7 +206,7 @@ def question_detail_view(request, test_id: int, question_id: int):
 # Essay topics
 # ---------------------------------------------------------------------------
 @api_view(["GET", "POST"])
-@permission_classes([IsPanelAdmin])
+@permission_classes([IsPanelAdminOrEssayCreator])
 def topics_view(request):
     if request.method == "POST":
         ser = EssayTopicSerializer(data=request.data)
@@ -228,7 +228,7 @@ def topics_view(request):
 
 
 @api_view(["GET", "PATCH", "DELETE"])
-@permission_classes([IsPanelAdmin])
+@permission_classes([IsPanelAdminOrEssayCreator])
 def topic_detail_view(request, topic_id: int):
     topic = get_object_or_404(EssayTopic, id=topic_id)
     if request.method == "DELETE":
@@ -296,6 +296,17 @@ def user_block_view(request, user_id: int):
     target = get_object_or_404(User, id=user_id)
     if target == request.user:
         return Response({"detail": "You cannot block yourself."}, status=400)
+    was_active = target.is_active
     target.is_active = not target.is_active
     target.save(update_fields=["is_active"])
+    # Revoke all refresh tokens when deactivating — 7-day OutstandingToken would otherwise stay valid
+    if was_active and not target.is_active:
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+
+            for tok in OutstandingToken.objects.filter(user=target):
+                BlacklistedToken.objects.get_or_create(token=tok)
+        except Exception:
+            # token_blacklist must stay non-fatal for the admin action
+            pass
     return Response(UserAdminSerializer(target).data)

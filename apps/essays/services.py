@@ -29,6 +29,7 @@ from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
 import hashlib
+import threading
 
 import httpx
 
@@ -41,6 +42,10 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Module-level semaphore for background thread grading (Phase 6 fix:
+# previously lazy-initialized inside function -> race/thread-unsafe).
+_THREAD_GRADE_SEMAPHORE = threading.Semaphore(3)
 
 # ---------------------------------------------------------------------------
 # AI provider resolution (OpenRouter / Groq — OpenAI-compatible APIs)
@@ -577,7 +582,13 @@ def _find_reviewer_for_student(student):
 
 
 def can_review_submission(user, submission: EssaySubmission) -> bool:
-    """Object-level authorization for reading or grading an essay."""
+    """Object-level authorization for reading or grading an essay.
+
+    Strict group isolation: teacher may review only if they teach at least
+    one group containing the student (or are the assigned reviewer).
+    Topic creator does NOT grant review rights alone — admin can grant
+    explicit can_create_* flags for creation, not review.
+    """
     from apps.accounts.access import is_platform_admin
 
     if not user or not user.is_authenticated or not user.is_active:
@@ -588,9 +599,20 @@ def can_review_submission(user, submission: EssaySubmission) -> bool:
         return False
     if submission.assigned_reviewer_id:
         return submission.assigned_reviewer_id == user.id
-    if submission.topic_id and submission.topic.created_by_id == user.id:
-        return True
     return submission.student.student_groups.filter(teacher=user).exists()
+
+
+def _escape_markdown(text: str) -> str:
+    """Escape Telegram Markdown special chars to prevent injection (*, _, [, `)."""
+    if not text:
+        return ""
+    return (
+        text.replace("\\", "\\\\")
+        .replace("*", "\\*")
+        .replace("_", "\\_")
+        .replace("[", "\\[")
+        .replace("`", "\\`")
+    )
 
 
 def _notify_reviewer(submission, reviewer):
@@ -604,8 +626,8 @@ def _notify_reviewer(submission, reviewer):
     try:
         from apps.notifications.services.telegram_service import TelegramService
 
-        student_name = submission.student.get_full_name() or submission.student.email
-        topic_name = submission.topic.title if submission.topic else "Mavzu yo'q"
+        student_name = _escape_markdown(submission.student.get_full_name() or submission.student.email)
+        topic_name = _escape_markdown(submission.topic.title if submission.topic else "Mavzu yo'q")
 
         # Determine if it's student-requested
         is_student_request = submission.teacher_review_requested
@@ -619,7 +641,7 @@ def _notify_reviewer(submission, reviewer):
         )
 
         if is_student_request and submission.teacher_review_reason:
-            text += f"💬 Sabab: {submission.teacher_review_reason}\n"
+            text += f"💬 Sabab: {_escape_markdown(submission.teacher_review_reason)}\n"
 
         text += f"\n🔗 Tekshirish: /essays/teacher/{submission.id}/review/"
 
@@ -797,6 +819,10 @@ class TeacherReviewService:
 ALLOWED_SCORES = {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")}
 
 
+ALLOWED_TOP_KEYS = {"criteria", "total_score", "max_score", "summary", "topic_match", "topic_match_reason"}
+ALLOWED_CRITERION_KEYS = {"id", "name", "score", "reason", "errors", "max_score"}
+
+
 def _validate_result(result: dict) -> None:
     """
     Validate the parsed JSON result from LLM.
@@ -809,9 +835,15 @@ def _validate_result(result: dict) -> None:
         3. Each score is in {0, 0.5, 1, 1.5, 2}
         4. 'total_score' and 'max_score' are present (recomputed, never trusted)
         5. Optional 'errors' is normalized to a short list of evidence snippets
+        6. No unknown keys at top level or per-criterion (strict schema)
     """
     if not isinstance(result, dict):
         raise ValueError("Result must be a dict")
+
+    # Strict unknown key rejection (Phase 6) — ignore ephemeral _-prefixed keys
+    unknown_top = {k for k in result.keys() if not k.startswith("_")} - ALLOWED_TOP_KEYS
+    if unknown_top:
+        raise ValueError(f"Unknown top-level keys: {sorted(unknown_top)}")
 
     criteria = result.get("criteria")
     if not isinstance(criteria, list) or len(criteria) != 12:
@@ -822,6 +854,10 @@ def _validate_result(result: dict) -> None:
     for i, c in enumerate(criteria, 1):
         if not isinstance(c, dict):
             raise ValueError(f"Criterion #{i} must be a dict")
+
+        unknown_crit = {k for k in c.keys() if not k.startswith("_")} - ALLOWED_CRITERION_KEYS
+        if unknown_crit:
+            raise ValueError(f"Criterion #{i} unknown keys: {sorted(unknown_crit)}")
 
         for field in ("id", "name", "score"):
             if field not in c:
@@ -1148,11 +1184,14 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
     mock_mode = _is_mock_mode()
     provider = "mock" if mock_mode else _resolve_provider()
     prompt_version = getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v3")
+    # Rubric digest must NOT include essay text (Phase 6) — hash only
+    # prompts + version + canonical criterion ids. Essay text varies per
+    # submission and would otherwise make the digest unique per essay.
     prompt_material = "|".join([
         ESSAY_GRADING_SYSTEM_PROMPT,
         ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
-        build_grading_message(essay_text, topic_title),
         ",".join(str(i) for i in sorted(VALID_CRITERION_IDS)),
+        prompt_version,
     ])
     rubric_digest = hashlib.sha256(prompt_material.encode("utf-8")).hexdigest()
 
@@ -1174,17 +1213,30 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
         created_at__gte=timezone.now() - timedelta(days=cache_lifetime_days),
     ).first()
     if cached is not None:
-        # Cache hit — increment hit_count atomically and return cached result
-        EssayGradingCache.objects.filter(pk=cached.pk).update(
-            hit_count=F("hit_count") + 1,
-        )
-        result = cached.raw_result.copy()
-        result["_from_cache"] = True
-        logger.info(
-            "Essay grading cache HIT: hash=%s, score=%s/%s, hit_count=%d",
-            text_hash[:12], cached.total_score, cached.max_score, cached.hit_count + 1,
-        )
-        return result
+        # Re-validate cached result before return (Phase 6) — cache may
+        # contain stale/poisoned data from before strict validation.
+        import copy as _copy
+        try:
+            _validate_result(_copy.deepcopy(cached.raw_result))
+        except ValueError as _ve:
+            logger.warning(
+                "Invalid cached essay result discarded: hash=%s, error=%s",
+                text_hash[:12], _ve,
+            )
+            EssayGradingCache.objects.filter(pk=cached.pk).delete()
+            cached = None
+        else:
+            # Cache hit — increment hit_count atomically and return cached result
+            EssayGradingCache.objects.filter(pk=cached.pk).update(
+                hit_count=F("hit_count") + 1,
+            )
+            result = _copy.deepcopy(cached.raw_result)
+            result["_from_cache"] = True
+            logger.info(
+                "Essay grading cache HIT: hash=%s, score=%s/%s, hit_count=%d",
+                text_hash[:12], cached.total_score, cached.max_score, cached.hit_count + 1,
+            )
+            return result
 
     logger.info(
         "Starting essay grading: model=%s, text_length=%d, hash=%s, mock=%s",
@@ -1523,8 +1575,10 @@ def apply_ai_result(submission, result: dict) -> None:
             locked.status, frozenset()
         )
         if EssaySubmission.Status.GRADED not in allowed:
-            # If already GRADED with same criteria we are idempotently done;
-            # otherwise silently ignore the stale write.
+            logger.warning(
+                "FSM drop: submission=%d status=%s cannot transition to GRADED — stale worker ignored",
+                locked.pk, locked.status,
+            )
             return
 
         locked.is_off_topic = not clean_result.get("topic_match", True)
@@ -1536,7 +1590,11 @@ def apply_ai_result(submission, result: dict) -> None:
         # Use validated transition.
         try:
             locked.transition_to(EssaySubmission.Status.GRADED)
-        except ValueError:
+        except ValueError as _ve:
+            logger.warning(
+                "FSM transition failed: submission=%d %s -> GRADED: %s",
+                locked.pk, locked.status, _ve,
+            )
             return
         locked.graded_at = timezone.now()
         locked.error_message = ""
@@ -1769,18 +1827,9 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
     hard per-thread deadline (120s) so a hung LLM does not leak threads.
     Returns: start_async_grading bilan bir xil shakl + "async": True.
     """
-    import threading
-
     from apps.essays.tasks import _mark_grading_failed, grade_submission_task
 
-    # Global semaphore: limit concurrent fallback threads in-process.
-    global _THREAD_GRADE_SEMAPHORE
-    try:
-        _THREAD_GRADE_SEMAPHORE  # type: ignore[name-defined]
-    except NameError:
-        _THREAD_GRADE_SEMAPHORE = threading.Semaphore(3)  # type: ignore[no-redef]
-
-    if not _THREAD_GRADE_SEMAPHORE.acquire(blocking=False):  # type: ignore[attr-defined]
+    if not _THREAD_GRADE_SEMAPHORE.acquire(blocking=False):
         logger.warning("Essay thread grading throttled (too many concurrent): submission=%d", submission.id)
         # Do not block the request — return pending and let the beat reaper
         # retry via Celery when capacity frees.

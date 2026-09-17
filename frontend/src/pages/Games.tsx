@@ -182,7 +182,13 @@ export default function Games() {
                 const mine =
                   meId !== null && num(r.user__id, -1) === meId ? ` · ${t('panel_you')}` : '';
                 return (
-                  <tr key={String(r.user__id ?? r.id ?? Math.random().toString(36).slice(2))}>
+                  <tr
+                    key={String(
+                      r.user__id ??
+                        r.id ??
+                        `${str(r.user__first_name, '')}-${str(r.user__last_name, '')}`,
+                    )}
+                  >
                     <td>{num(r.rank, 0) || 1}</td>
                     <td>
                       {str(r.user__first_name)} {str(r.user__last_name)}

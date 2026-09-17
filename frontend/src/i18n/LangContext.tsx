@@ -50,6 +50,8 @@ const extraUz: Record<string, string> = {
   panel_attempts_today: 'Bugungi urinishlar',
   panel_attempts_total: 'Jami urinishlar',
   panel_essays_pending: 'Tekshiruv kutilmoqda',
+  panel_essays_pending_ai: 'AI baholamoqda',
+  panel_essays_awaiting_review: 'Tekshiruv kutilmoqda',
   panel_essays_total: 'Jami esselar',
   panel_new_users: 'Yangi foydalanuvchilar',
   panel_payments_pending: "Kutilayotgan to'lovlar",
