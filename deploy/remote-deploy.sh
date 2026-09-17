@@ -80,7 +80,14 @@ for i in $(seq 1 30); do
 done
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check < /dev/null
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy < /dev/null
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py ai_smoke_test --validate-models < /dev/null || true
+# Smoke test is advisory-only (informational model-catalog check): bound it
+# with `timeout` so a stalled provider response (e.g. /models body that never
+# finishes — seen twice as a 4+ min hang ending in SSH broken pipe, exit 255)
+# can never kill the deploy. `|| true` already swallows a failed validation;
+# the timeout converts a hang into the same non-blocking outcome. -e
+# PYTHONUNBUFFERED streams progress lines instead of losing them in the pipe
+# buffer when something does stall.
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T -e PYTHONUNBUFFERED=1 web timeout 180 python manage.py ai_smoke_test --validate-models < /dev/null || true
 # Public health: main host must return 200; admin host sits behind
 # Basic Auth by design, so 401 means nginx + auth gate are up
 # (the app itself was already proven healthy via 127.0.0.1 above).
