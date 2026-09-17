@@ -92,7 +92,7 @@ class TokenRevokeOnDeactivateTests(LMSBaseTestCase):
     def test_blacklist_created_on_deactivate(self):
         from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
-        tokens = self.get_jwt_tokens(email="student@test.com", password="testpass123")
+        self.get_jwt_tokens(email="student@test.com", password="testpass123")
         # OutstandingToken must exist after login
         self.assertTrue(OutstandingToken.objects.filter(user=self.student).exists())
         admin_client = self.get_authenticated_client(email="admin@test.com")
