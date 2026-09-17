@@ -170,8 +170,9 @@ export default function MySubscription() {
             <tbody>
               {history.map((h: Record<string, unknown>) => {
                 const key = paymentStatusKey(h.status);
+                const rowKey = h.id ?? h.created_at ?? `${str(h.plan_name)}-${str(h.amount)}-${str(h.status)}`;
                 return (
-                  <tr key={`${h.id ?? h.created_at ?? Math.random().toString(36).slice(2)}`}>
+                  <tr key={String(rowKey)}>
                     <td>
                       {str(h.plan_name)}
                       <br />

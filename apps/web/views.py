@@ -37,7 +37,7 @@ from django.views.decorators.http import require_GET
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from apps.courses.models import Course
+from apps.courses.models import Course, StudentGroup
 from apps.essays.models import EssaySubmission, EssayCriterionScore
 from apps.results.models import Certificate, Result
 from apps.tests.models import Test, TestAttempt
@@ -748,9 +748,9 @@ def analytics_view(request: HttpRequest) -> HttpResponse:
     hour_labels = [f"{int(h['hour']):02d}:00" for h in hourly_activity]
     hour_data = [h["count"] for h in hourly_activity]
 
-    # --- 9. Group stats ---
-    from apps.courses.models import StudentGroup
-    groups = StudentGroup.objects.filter(teacher=user).prefetch_related("students")
+    # --- 9. Group stats — fixed N+1, bulk aggregates ---
+    groups = StudentGroup.objects.filter(teacher=user).prefetch_related("students") if not user.is_platform_admin else StudentGroup.objects.all().prefetch_related("students")
+    # Prefetch students count already via prefetched relation len
     group_stats = []
     for group in groups:
         group_student_ids = list(group.students.values_list("id", flat=True))

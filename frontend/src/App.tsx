@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Layout from './components/Layout';
@@ -6,43 +6,48 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import ParentRoute from './components/ParentRoute';
 import TeacherRoute from './components/TeacherRoute';
-import Analytics from './pages/Analytics';
-import Arena from './pages/Arena';
-import Dashboard from './pages/Dashboard';
-import DuelRoom from './pages/DuelRoom';
-import EssayLeaderboard from './pages/EssayLeaderboard';
-import EssayResult from './pages/EssayResult';
-import EssayTeacherQueue from './pages/EssayTeacherQueue';
-import EssayTeacherReview from './pages/EssayTeacherReview';
-import EssayTopics from './pages/EssayTopics';
-import EssayWrite from './pages/EssayWrite';
-import Games from './pages/Games';
-import PlayGame from './pages/PlayGame';
-import Groups from './pages/Groups';
-import Imports from './pages/Imports';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import MySubscription from './pages/MySubscription';
-import PanelDashboard from './pages/PanelDashboard';
-import PanelQuestions from './pages/PanelQuestions';
-import PanelTestForm from './pages/PanelTestForm';
-import PanelTests from './pages/PanelTests';
-import PanelTopics from './pages/PanelTopics';
-import PanelUsers from './pages/PanelUsers';
-import ParentPortal from './pages/ParentPortal';
-import PasswordReset from './pages/PasswordReset';
-import PasswordResetConfirm from './pages/PasswordResetConfirm';
-import MyCertificates from './pages/MyCertificates';
-import Plans from './pages/Plans';
-import Register from './pages/Register';
-import Results from './pages/Results';
-import Subscribe from './pages/Subscribe';
-import TakeTest from './pages/TakeTest';
-import TeacherDashboard from './pages/TeacherDashboard';
-import TestDetail from './pages/TestDetail';
-import Tests from './pages/Tests';
-import Tma from './pages/Tma';
-import VerifyCertificate from './pages/VerifyCertificate';
+import type { ComponentType } from 'react';
+
+// Keep the public/auth shell small. Feature pages load only when visited,
+// avoiding a full LMS bundle on the landing page.
+const lazyPage = (load: () => Promise<{ default: ComponentType }>) => lazy(load);
+const Analytics = lazyPage(() => import('./pages/Analytics'));
+const Arena = lazyPage(() => import('./pages/Arena'));
+const Dashboard = lazyPage(() => import('./pages/Dashboard'));
+const DuelRoom = lazyPage(() => import('./pages/DuelRoom'));
+const EssayLeaderboard = lazyPage(() => import('./pages/EssayLeaderboard'));
+const EssayResult = lazyPage(() => import('./pages/EssayResult'));
+const EssayTeacherQueue = lazyPage(() => import('./pages/EssayTeacherQueue'));
+const EssayTeacherReview = lazyPage(() => import('./pages/EssayTeacherReview'));
+const EssayTopics = lazyPage(() => import('./pages/EssayTopics'));
+const EssayWrite = lazyPage(() => import('./pages/EssayWrite'));
+const Games = lazyPage(() => import('./pages/Games'));
+const PlayGame = lazyPage(() => import('./pages/PlayGame'));
+const Groups = lazyPage(() => import('./pages/Groups'));
+const Imports = lazyPage(() => import('./pages/Imports'));
+const Landing = lazyPage(() => import('./pages/Landing'));
+const Login = lazyPage(() => import('./pages/Login'));
+const MySubscription = lazyPage(() => import('./pages/MySubscription'));
+const PanelDashboard = lazyPage(() => import('./pages/PanelDashboard'));
+const PanelQuestions = lazyPage(() => import('./pages/PanelQuestions'));
+const PanelTestForm = lazyPage(() => import('./pages/PanelTestForm'));
+const PanelTests = lazyPage(() => import('./pages/PanelTests'));
+const PanelTopics = lazyPage(() => import('./pages/PanelTopics'));
+const PanelUsers = lazyPage(() => import('./pages/PanelUsers'));
+const ParentPortal = lazyPage(() => import('./pages/ParentPortal'));
+const PasswordReset = lazyPage(() => import('./pages/PasswordReset'));
+const PasswordResetConfirm = lazyPage(() => import('./pages/PasswordResetConfirm'));
+const MyCertificates = lazyPage(() => import('./pages/MyCertificates'));
+const Plans = lazyPage(() => import('./pages/Plans'));
+const Register = lazyPage(() => import('./pages/Register'));
+const Results = lazyPage(() => import('./pages/Results'));
+const Subscribe = lazyPage(() => import('./pages/Subscribe'));
+const TakeTest = lazyPage(() => import('./pages/TakeTest'));
+const TeacherDashboard = lazyPage(() => import('./pages/TeacherDashboard'));
+const TestDetail = lazyPage(() => import('./pages/TestDetail'));
+const Tests = lazyPage(() => import('./pages/Tests'));
+const Tma = lazyPage(() => import('./pages/Tma'));
+const VerifyCertificate = lazyPage(() => import('./pages/VerifyCertificate'));
 
 export default function App() {
   return (
@@ -60,7 +65,8 @@ function AnimatedRoutes() {
   const { pathname } = useLocation();
   return (
     <div key={pathname} className="page-enter">
-      <Routes>
+      <Suspense fallback={<p className="route-loading" role="status">Yuklanmoqda…</p>}>
+        <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -173,7 +179,8 @@ function AnimatedRoutes() {
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </div>
   );
 }
