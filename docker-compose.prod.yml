@@ -125,7 +125,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=200
+    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=200 -Q celery,essay_grading
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME | grep -q 'pong'"]
       interval: 30s

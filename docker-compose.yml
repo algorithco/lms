@@ -61,7 +61,7 @@ services:
   # Celery worker (no HTTP server — disable image HEALTHCHECK inheritance)
   celery:
     build: .
-    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=500
+    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=500 -Q celery,essay_grading
     volumes:
       - .:/app
     env_file:
