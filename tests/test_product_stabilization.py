@@ -6,8 +6,9 @@ import re
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 from urllib.parse import urlsplit
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -17,6 +18,7 @@ from django.core.files.storage import storages
 from django.test import TestCase, override_settings
 from django.test import Client, SimpleTestCase
 from django.urls import reverse
+from django.utils import timezone
 from asgiref.sync import async_to_sync
 from channels.testing import WebsocketCommunicator
 
@@ -34,6 +36,7 @@ from apps.courses.models import Course, StudentGroup
 from apps.tests.models import Test as LmsTest
 from apps.core.translations import TRANSLATIONS, get_user_language, t
 from apps.notifications.models import PushSubscription, TelegramAuthToken
+from apps.notifications.bot.handlers import _handle_auth_token
 from rest_framework_simplejwt.tokens import RefreshToken
 import json
 import urllib.parse
@@ -363,6 +366,7 @@ class TelegramLoginReplayTests(TestCase):
         self.assertEqual(self.client.post(login_url).status_code, 404)
         self.assertEqual(other_browser.post(login_url).status_code, 404)
 
+
     def test_token_login_returns_jwt_pair_for_spa(self):
         token = self._verified_token()
         login_url = reverse("notifications:tg-auth-login", args=[token])
@@ -392,6 +396,40 @@ class TelegramLoginReplayTests(TestCase):
         TelegramAuthToken.objects.create(token="duplicate-a", user=self.user, is_verified=True, short_code="777777")
         TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")
         self.assertEqual(Client().post(url, json.dumps({"code": "777777"}), content_type="application/json").status_code, 404)
+
+
+class TelegramBotLoginUXTests(TestCase):
+    def test_already_linked_account_does_not_require_phone_share(self):
+        user = User.objects.create_user(
+            email="linked-bot@example.test",
+            password=None,
+            first_name="Linked",
+            last_name="User",
+            telegram_chat_id=99887766,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        token = TelegramAuthToken.objects.create(token="linked-bot-token")
+        message = SimpleNamespace(reply_text=AsyncMock())
+        update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=99887766,
+                first_name="Linked",
+                last_name="User",
+            ),
+            message=message,
+        )
+        context = SimpleNamespace(user_data={})
+
+        async_to_sync(_handle_auth_token)(update, context, f"auth_{token.token}")
+
+        token.refresh_from_db()
+        self.assertTrue(token.is_verified)
+        self.assertEqual(token.user_id, user.pk)
+        self.assertFalse(token.phone_verified)
+        self.assertEqual(token.phone_number, "")
+        reply = message.reply_text.await_args.args[0]
+        self.assertIn("Telegram hisobingiz tasdiqlandi", reply)
+        self.assertNotIn("Telefonni yuborish", reply)
 
 
 class TelegramPhoneMatchingTests(TestCase):
