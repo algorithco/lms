@@ -607,7 +607,7 @@ export async function sessionApi<T>(
     }
     throw new AuthExpiredError();
   }
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  if (!res.ok) await throwForResponse(res, `Request failed (${res.status})`);
   return (await res.json()) as T;
 }
 

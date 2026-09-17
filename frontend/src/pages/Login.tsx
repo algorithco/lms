@@ -20,6 +20,7 @@ export default function Login() {
   // -- Telegram bot login (mirrors old login.html flow) --------------------
   const [tgPhase, setTgPhase] = useState<TgPhase>('idle');
   const [tgToken, setTgToken] = useState<string | null>(null);
+  const [tgDeepLink, setTgDeepLink] = useState<string | null>(null);
   const [tgCode, setTgCode] = useState('');
   const [tgError, setTgError] = useState<string | null>(null);
   const [tgBusy, setTgBusy] = useState(false);
@@ -63,18 +64,30 @@ export default function Login() {
     stopPolling();
     setTgError(null);
     setTgBusy(true);
+    // Reserve the popup synchronously in the click handler. Opening it after
+    // awaiting the API call is blocked by many browsers as an unsolicited
+    // popup, which made the Telegram button appear to do nothing.
+    const telegramWindow = window.open('', '_blank');
     try {
       const data = await TelegramAuth.start();
       if (!data.deep_link || !data.deep_link.startsWith('https://t.me/')) {
         throw new Error('Bad deep link');
       }
       setTgToken(data.token);
+      setTgDeepLink(data.deep_link);
       setTgPhase('waiting');
-      window.open(data.deep_link, '_blank', 'noopener,noreferrer');
+      if (telegramWindow && !telegramWindow.closed) {
+        telegramWindow.opener = null;
+        telegramWindow.location.href = data.deep_link;
+        telegramWindow.focus();
+      }
       pollRef.current = window.setInterval(() => void pollStatus(data.token), 2000);
     } catch {
+      // Close only the blank popup we created for this attempt.
+      if (telegramWindow && !telegramWindow.closed) telegramWindow.close();
       setTgPhase('idle');
       setTgToken(null);
+      setTgDeepLink(null);
       setTgError(t('code_invalid_js'));
     } finally {
       setTgBusy(false);
@@ -123,6 +136,7 @@ export default function Login() {
     stopPolling();
     setTgPhase('idle');
     setTgToken(null);
+    setTgDeepLink(null);
     setTgCode('');
     setTgError(null);
   };
@@ -213,6 +227,17 @@ export default function Login() {
             <div>
               <p className="muted small">{t('telegram_login_step1')}</p>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                {tgDeepLink && (
+                  <a
+                    className="btn"
+                    href={tgDeepLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    Open Telegram
+                  </a>
+                )}
                 <button className="btn" disabled={tgBusy} onClick={() => void confirmTelegramDone()}>
                   {tgBusy ? '…' : t('submit')}
                 </button>

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import telegram
 from asgiref.sync import sync_to_async
+from django.db import transaction
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
@@ -190,7 +191,13 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str) -> None:
-    """Handle /start auth_<token> — phone first, name only for new numbers."""
+    """Handle /start auth_<token>.
+
+    A verified Telegram link is already sufficient to identify an existing
+    account, so do not make those users share their phone again.  Phone
+    sharing remains required only when the account has to be matched by its
+    website profile phone (or when a new account is being created).
+    """
     from apps.notifications.models import TelegramAuthToken
 
     token = token_arg.removeprefix("auth_")
@@ -220,6 +227,44 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         await update.message.reply_text(
             "❌ Bu token allaqachon ishlatilgan.\n\n"
             "Iltimos, veb-saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
+        )
+        return
+
+    # Fast path for users who have already completed the signed Telegram link
+    # challenge.  This is both safer and much less confusing than asking an
+    # already-linked user for a phone number that may not be present on their
+    # Telegram account.
+    from apps.accounts.models import Profile
+    from apps.accounts.services.telegram_identity import (
+        TelegramIdentityUnverified,
+        resolve_bot_auth_user,
+        normalize_phone,
+    )
+    try:
+        linked_user, how = await _run_db(resolve_bot_auth_user, tg_user.id, "")
+    except TelegramIdentityUnverified as exc:
+        await update.message.reply_text(str(exc))
+        return
+    except ValueError as exc:
+        await update.message.reply_text(str(exc) or "Hisob faol emas.")
+        return
+
+    if linked_user is not None and how == "tg":
+        def _linked_profile_phone():
+            try:
+                return normalize_phone(linked_user.profile.phone)
+            except Profile.DoesNotExist:
+                return ""
+
+        profile_phone = await _run_db(_linked_profile_phone)
+        context.user_data["auth_token"] = token
+        await _finish_existing_account(
+            update,
+            context,
+            token,
+            linked_user,
+            linked_user.get_full_name() or tg_user.first_name or "Telegram user",
+            profile_phone,
         )
         return
 
@@ -260,38 +305,52 @@ def _complete_auth_login(auth_token_str: str, user, full_name: str, clean_phone:
     from apps.accounts.models import Profile
     from apps.notifications.models import TelegramAuthToken
 
-    try:
-        at = TelegramAuthToken.objects.get(token=auth_token_str)
-    except TelegramAuthToken.DoesNotExist:
-        return None
-    if at.is_expired or at.consumed_at or at.is_verified:
-        return None
     if user is None or not user.is_active:
         return None
-    at.full_name = full_name
-    at.phone_number = clean_phone
-    at.phone_verified = True
-    at.conversation_state = "code_displayed"
-    code = at.generate_short_code()
-    at.save(update_fields=[
-        "full_name", "phone_number", "phone_verified",
-        "conversation_state", "short_code",
-    ])
-    at.user = user
-    at.telegram_chat_id = getattr(user, "telegram_chat_id", None)
-    at.is_verified = True
-    at.verified_at = timezone.now()
-    at.save(update_fields=["user", "telegram_chat_id", "is_verified", "verified_at"])
-    profile, _ = Profile.objects.get_or_create(user=user)
-    if not profile.phone or profile.phone == clean_phone:
-        profile.phone = clean_phone
-        profile.save(update_fields=["phone"])
+
+    # Lock the token so a duplicate Telegram update cannot replace a code
+    # after the first update has already verified it.
+    with transaction.atomic():
+        try:
+            at = TelegramAuthToken.objects.select_for_update().get(
+                token=auth_token_str,
+            )
+        except TelegramAuthToken.DoesNotExist:
+            return None
+        if at.is_expired or at.consumed_at or at.is_verified:
+            return None
+
+        has_verified_phone = bool(clean_phone)
+        at.full_name = full_name
+        at.phone_number = clean_phone if has_verified_phone else ""
+        at.phone_verified = has_verified_phone
+        at.conversation_state = "code_displayed"
+        code = at.generate_short_code()
+        at.user = user
+        at.telegram_chat_id = getattr(user, "telegram_chat_id", None)
+        at.is_verified = True
+        at.verified_at = timezone.now()
+        at.save(update_fields=[
+            "full_name", "phone_number", "phone_verified",
+            "conversation_state", "short_code", "user",
+            "telegram_chat_id", "is_verified", "verified_at",
+        ])
+
+        profile, _ = Profile.objects.get_or_create(user=user)
+        if has_verified_phone and (not profile.phone or profile.phone == clean_phone):
+            profile.phone = clean_phone
+            profile.save(update_fields=["phone"])
     return code
 
 
 async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code: str, is_new: bool) -> None:
     """Deliver the 6-digit website-login code (contact keyboard removed)."""
     code_display = "  ".join(code)
+    identity_line = (
+        f"📱 Telefon: `{clean_phone}` (✅ tasdiqlangan)"
+        if clean_phone
+        else "🔗 Telegram hisobingiz tasdiqlandi"
+    )
     hello = (
         "🎉 *Ma'lumotlar saqlandi!*\n\n"
         if is_new else
@@ -299,7 +358,7 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
     )
     tail = (
         f"👤 Ism: *{full_name}*\n"
-        f"📱 Telefon: `{clean_phone}` (✅ tasdiqlangan)\n\n"
+        f"{identity_line}\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🔑 *SIZNING KODINGIZ:*\n\n"
         f"`{code_display}`\n\n"

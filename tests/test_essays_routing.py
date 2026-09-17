@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
 
@@ -428,6 +429,25 @@ class LegacyFlowRoutingTests(TestCase):
         )
         self.assertEqual(allowed.status_code, 200)
 
+    def test_unlimited_topic_can_resume_after_a_long_delay(self) -> None:
+        """time_limit_minutes=0 disables expiry for both start and submit."""
+        self.topic.time_limit_minutes = 0
+        self.topic.save(update_fields=["time_limit_minutes"])
+        self.client.login(email="student@test.com", password="testpass123")
+        url = reverse("telegram_app:essay-start", kwargs={"topic_id": self.topic.id})
+        first = self.client.post(url, {}, content_type="application/json")
+        self.assertEqual(first.status_code, 200)
+
+        submission = EssaySubmission.objects.get(student=self.student, topic=self.topic)
+        submission.password_verified_at = timezone.now() - timedelta(days=30)
+        submission.save(update_fields=["password_verified_at"])
+
+        resumed = self.client.post(url, {}, content_type="application/json")
+        self.assertEqual(resumed.status_code, 200)
+        self.assertEqual(resumed.json()["submission_id"], submission.id)
+        submission.refresh_from_db()
+        self.assertFalse(submission.is_expired)
+
     def test_legacy_submit_requires_post(self) -> None:
         """GET on submit endpoint should return 405 (Method Not Allowed)."""
         sub = EssaySubmission.objects.create(
@@ -629,6 +649,7 @@ class ResultDataJsonTests(TestCase):
         url = reverse("telegram_app:essay-result", kwargs={"submission_id": sub.id})
         data = self.client.get(url).json()
         self.assertEqual(data["status"], EssaySubmission.Status.ERROR)
+        self.assertEqual(data["error"], "Baholashda xatolik")
 
     def test_result_data_foreign_submission_404(self) -> None:
         """Student A cannot read Student B's result data."""

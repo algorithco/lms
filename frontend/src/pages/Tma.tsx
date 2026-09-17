@@ -15,6 +15,12 @@ const BOT_USERNAME = 'uz_essaygrader_bot';
 
 type Boot = 'boot' | 'outside' | 'authing' | 'ready' | 'error';
 type Tab = 'home' | 'essays';
+type TmaAuthResponse = {
+  success: boolean;
+  user?: Record<string, unknown>;
+  tokens?: { access: string; refresh: string };
+  error?: string;
+};
 
 /**
  * Dedicated Telegram Mini App (routes /tma + /tma/, public).
@@ -30,6 +36,10 @@ export default function Tma() {
   const [tab, setTab] = useState<Tab>('home');
   const [activeTestId, setActiveTestId] = useState<number | null>(null);
   const backHandlerRef = useRef<(() => void) | null>(null);
+  // React StrictMode intentionally re-runs effects in development. Share the
+  // in-flight request so the same Telegram initData is never submitted twice
+  // (the backend correctly rejects replayed initData).
+  const authRequestRef = useRef<Promise<TmaAuthResponse> | null>(null);
 
   const setBackHandler = useCallback((fn: (() => void) | null) => {
     backHandlerRef.current = fn;
@@ -77,21 +87,24 @@ export default function Tma() {
       }
       setBoot('authing');
       try {
-        const res = await fetch('/tma/api/auth/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ init_data: initData }),
-        });
-        const data = (await res.json()) as {
-          success: boolean;
-          user?: Record<string, unknown>;
-          tokens?: { access: string; refresh: string };
-          error?: string;
-        };
-        if (!res.ok || !data.success || !data.tokens || !data.user) {
-          throw new Error(data.error || 'Telegram auth failed');
+        if (!authRequestRef.current) {
+          authRequestRef.current = fetch('/tma/api/auth/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData }),
+          }).then(async (res) => {
+            const data = (await res.json()) as TmaAuthResponse;
+            if (!res.ok || !data.success || !data.tokens || !data.user) {
+              throw new Error(data.error || 'Telegram auth failed');
+            }
+            return data;
+          });
         }
+        const data = await authRequestRef.current;
         if (cancelled) return;
+        // Keep the validated values local so TypeScript can preserve the
+        // narrowing across the shared promise boundary.
+        if (!data.tokens || !data.user) throw new Error('Telegram auth failed');
         loginWithTelegram(data.tokens, data.user);
         const prof = await TmaApi.profile();
         if (cancelled) return;
