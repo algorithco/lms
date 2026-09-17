@@ -64,7 +64,10 @@ services:
   # without -Q never consumes that queue (essays stuck PENDING).
   celery:
     build: .
+    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=500 -Q celery,essay_grading
+
     command: celery -A config worker -l info -Q celery,essay_grading --concurrency=2 -O fair --max-tasks-per-child=500
+
     volumes:
       - .:/app
     env_file:

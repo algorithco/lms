@@ -76,6 +76,13 @@ export default function EssayWrite() {
   const start = useCallback(
     async (pw = '') => {
       setErr(null);
+      // on initial GET (no password submitted yet) do NOT show the
+      // "Noto'g'ri parol" error or password form — the password gate
+      // must only appear after an actual incorrect password attempt.
+      if (!pw && submissionId === null) {
+        setNeedPassword(false);
+        return;
+      }
       try {
         const res = (await Essays.start(id, pw)) as {
           submission_id: number;
@@ -130,7 +137,7 @@ export default function EssayWrite() {
         setErr(msg);
       }
     },
-    [id, navigate],
+    [id, navigate, submissionId],
   );
 
   useEffect(() => {
