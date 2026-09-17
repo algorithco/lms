@@ -43,8 +43,12 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml config >/dev/null
 # grading to "essay_grading"; a worker without -Q only drains the default
 # "celery" queue and all grading silently starves (2026-09-16 outage).
 say "3b/8 celery worker consumes the essay_grading queue"
+# NOTE: `docker compose config` indents service keys with 2 spaces and their
+# attributes (e.g. `command:`) with 4 spaces — never hardcode 6 spaces here
+# (that pattern never matched and failed every deploy). This parser tolerates
+# any indent and stops at the next service so it cannot leak into neighbours.
 worker_cmd=$(docker compose --env-file .env.prod -f docker-compose.prod.yml config 2>/dev/null \
-  | awk '/celery-worker:/{f=1} f&&/^      command:/{print; exit}')
+  | awk '/celery-worker:/{f=1; next} f && /^  [A-Za-z0-9_-]+:/{exit} f && /^[[:space:]]*command:/{print; exit}')
 if echo "$worker_cmd" | grep -q 'celery.*worker'; then
   echo "$worker_cmd"
   echo "$worker_cmd" | grep -q -- '-Q' \
