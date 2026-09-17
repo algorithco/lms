@@ -13,9 +13,10 @@ class UserAdmin(BaseUserAdmin):
     model = User
     list_display = (
         "email", "first_name", "last_name", "role",
+        "can_create_essay_topic", "can_create_test",
         "is_active", "is_staff", "created_at",
     )
-    list_filter = ("role", "is_active", "is_staff")
+    list_filter = ("role", "is_active", "is_staff", "can_create_essay_topic", "can_create_test")
     search_fields = ("email", "first_name", "last_name")
     ordering = ("-created_at",)
 
@@ -28,6 +29,7 @@ class UserAdmin(BaseUserAdmin):
             "Permissions",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
         ),
+        ("Teacher creation permissions", {"fields": ("can_create_essay_topic", "can_create_test")}),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
     readonly_fields = ("telegram_identity_verified_at",)

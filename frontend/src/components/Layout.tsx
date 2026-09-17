@@ -86,7 +86,7 @@ export default function Layout() {
           </Section>
           {isTeacher && (
             <Section title={t('role_teacher')}>
-              <NavLink to="/teacher" className={linkClass} onClick={close}><UsersIcon size={16} className="ico" /> {t('students')}</NavLink>
+              <NavLink to="/teacher" end className={linkClass} onClick={close}><UsersIcon size={16} className="ico" /> {t('students')}</NavLink>
               <NavLink to="/groups" className={linkClass} onClick={close}><FolderOpenIcon size={16} className="ico" /> {t('groups')}</NavLink>
               <NavLink to="/analytics" className={linkClass} onClick={close}><BarChartIcon size={16} className="ico" /> {t('analytics')}</NavLink>
               <NavLink to="/import" className={linkClass} onClick={close}><UploadIcon size={16} className="ico" /> CSV</NavLink>
@@ -97,7 +97,7 @@ export default function Layout() {
           )}
           {isAdmin && (
             <Section title={t('panel')}>
-              <NavLink to="/panel" className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> {t('panel_dashboard')}</NavLink>
+              <NavLink to="/panel" end className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> {t('panel_dashboard')}</NavLink>
               <NavLink to="/panel/users" className={linkClass} onClick={close}><UserPlusIcon size={16} className="ico" /> {t('manage_teachers')}</NavLink>
             </Section>
           )}

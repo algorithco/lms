@@ -718,7 +718,7 @@ export interface PanelDashboardResponse {
   users: { total: number; active: number; blocked: number };
   new_users_today: number;
   attempts: { total: number; today: number };
-  essays: { total: number; awaiting_review: number };
+  essays: { total: number; pending_ai: number; awaiting_review: number };
   pending_payments: number;
   active_subscriptions: number;
   role_breakdown: { key: string; count: number }[];

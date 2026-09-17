@@ -234,9 +234,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/minute",      # Anonymous: 30 requests per minute
         "user": "100/minute",     # Authenticated: 100 requests per minute
+        "test-start": "5/hour",   # Test start: 5 per hour
+        "test-submit": "10/hour", # Test submit: 10 per hour
         "essay-submit": "5/minute",
         "essay-improve": "10/hour",
         "tma-essay-submit": "10/hour",
+        "login": "5/min",
     },
 }
 
@@ -318,6 +321,11 @@ SIMPLE_JWT = {
 
     # Custom token claims
     "TOKEN_OBTAIN_SERIALIZER": "apps.accounts.serializers.CustomTokenObtainPairSerializer",
+    "TOKEN_REFRESH_SERIALIZER": "apps.accounts.serializers.CustomTokenRefreshSerializer",
+
+    # Explicit inactive-user blocking (defense-in-depth, default is True)
+    "CHECK_USER_IS_ACTIVE": True,
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
 }
 
 # ---------------------------------------------------------------------------
