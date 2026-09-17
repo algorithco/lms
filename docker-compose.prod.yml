@@ -125,7 +125,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A config worker -l info --concurrency=2 -O fair --max-tasks-per-child=200 -Q celery,essay_grading
     # -Q celery,essay_grading: CELERY_TASK_ROUTES sends essays.grade_submission,
     # essays.auto_submit_expired and essays.reap_stale_pending to the
     # "essay_grading" queue. A worker without -Q consumes ONLY the default
