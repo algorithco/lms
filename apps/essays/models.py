@@ -438,6 +438,11 @@ class EssaySubmission(models.Model):
     @property
     def is_expired(self) -> bool:
         """Vaqt tugaganmi (server-side)."""
+        # A zero-minute limit means the essay is unlimited. Keep
+        # remaining_seconds at zero for clients so they do not show a fake
+        # countdown, but do not treat that value as an expired submission.
+        if self.topic and self.topic.time_limit_minutes <= 0:
+            return False
         return self.remaining_seconds <= 0
 
     @property

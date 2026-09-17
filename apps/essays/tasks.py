@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
+from django.core.exceptions import ImproperlyConfigured
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +164,7 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
         # text without the min-word / PENDING_TEACHER contract.
         try:
             result_llm = grade_essay(essay_text or "", topic_title="")
-        except (ValueError, ImportError) as exc:
+        except (ValueError, ImportError, ImproperlyConfigured) as exc:
             # Handle ImproperlyConfigured as well (not an ImportError).
             from django.core.exceptions import ImproperlyConfigured as _IC
             if isinstance(exc, _IC):
@@ -217,7 +218,7 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     # Normal topic-based path: LLM outside txn.
     try:
         result_llm2 = grade_essay(essay_text or "", topic_title=topic_title)
-    except (ValueError, ImportError) as ie:
+    except (ValueError, ImportError, ImproperlyConfigured) as ie:
         from django.core.exceptions import ImproperlyConfigured as _IC2
         if isinstance(ie, _IC2):
             # Config errors are fatal — do not Celery-retry; record fail_status.

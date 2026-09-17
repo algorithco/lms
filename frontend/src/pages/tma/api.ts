@@ -129,6 +129,7 @@ export interface TmaEssayResult {
   converted_score?: number | null;
   score_percentage?: number | null;
   summary?: string;
+  error?: string | null;
   word_count?: number;
   is_off_topic?: boolean;
   graded_at?: string | null;

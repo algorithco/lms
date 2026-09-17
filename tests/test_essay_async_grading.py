@@ -201,6 +201,27 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
 class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
     """Baholash tugagach Telegram bildirishnomasi."""
 
+    @patch("apps.essays.services.grade_essay")
+    def test_invalid_ai_configuration_finishes_without_retry(
+        self, mock_grade: MagicMock,
+    ) -> None:
+        """Provider configuration errors must not leave a submission pending."""
+        from django.core.exceptions import ImproperlyConfigured
+
+        mock_grade.side_effect = ImproperlyConfigured("AI kalit sozlanmagan")
+        from apps.essays.tasks import grade_submission_task
+
+        grade_submission_task.apply(
+            args=[self.submission.id],
+            kwargs={"fail_status": EssaySubmission.Status.PENDING_TEACHER},
+        )
+
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.PENDING_TEACHER)
+        self.assertTrue(self.submission.auto_submitted)
+        self.assertIsNotNone(self.submission.submitted_at)
+        self.assertIn("AI kalit", self.submission.error_message)
+
     def test_grade_task_notifies_student_on_graded(self) -> None:
         """Task GRADED qilganda NotificationLog (telegram) yoziladi."""
         from apps.essays.tasks import grade_submission_task

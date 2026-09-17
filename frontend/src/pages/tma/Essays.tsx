@@ -96,22 +96,26 @@ export default function Essays({
       const data = await TmaApi.essayStart(topicId, pw);
       setSession(data);
       setText(data.essay_text || '');
-      setRemaining(data.remaining_seconds ?? data.topic.time_limit_minutes * 60);
+      const timeLimitMinutes = Number(data.topic.time_limit_minutes ?? 0);
+      const hasTimeLimit = timeLimitMinutes > 0;
+      setRemaining(hasTimeLimit ? Number(data.remaining_seconds ?? timeLimitMinutes * 60) : 0);
       setPasswordFor(null);
       setPassword('');
       setView('write');
       stopTimers();
-      timerRef.current = window.setInterval(() => {
-        setRemaining((prev) => {
-          if (prev <= 1) {
-            stopTimers();
-            hapticNotify('warning');
-            void submitEssay();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      if (hasTimeLimit) {
+        timerRef.current = window.setInterval(() => {
+          setRemaining((prev) => {
+            if (prev <= 1) {
+              stopTimers();
+              hapticNotify('warning');
+              void submitEssay();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
     } catch (e) {
       setError(tmaErrorMessage(e, t('tma_loading_error')));
     } finally {
@@ -181,7 +185,13 @@ export default function Essays({
             <p className="tma-muted">{t('tma_grading')}</p>
           </div>
         ) : (
-          <div className="tma-card" style={{ marginBottom: 16 }}>
+          <>
+          {result.status === 'error' && (
+            <div className="tma-card" style={{ marginBottom: 16, color: '#f87171' }}>
+              {result.error || t('tma_loading_error')}
+            </div>
+          )}
+          {result.status !== 'error' && <div className="tma-card" style={{ marginBottom: 16 }}>
             <div className="tma-center" style={{ marginBottom: 12 }}>
               <p style={{ fontSize: 36, fontWeight: 800, margin: 0, color: 'var(--tma-hl)' }}>{score}</p>
               <p className="tma-sub">
@@ -209,7 +219,8 @@ export default function Essays({
                 ))}
               </div>
             )}
-          </div>
+          </div>}
+          </>
         )}
         <button className="tma-btn tma-btn-card" onClick={exitToTopics}>
           {t('tma_back')}
