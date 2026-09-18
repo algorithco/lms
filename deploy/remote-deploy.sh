@@ -53,6 +53,10 @@ sed -e "s/__DOMAIN__/grandec.uz/g" deploy/nginx/nginx-ssl.conf > deploy/nginx/ng
 # This exact bug shipped green deploys that skipped half the procedure.
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull web celery-worker celery-beat bot < /dev/null
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d < /dev/null
+# The bot has no source bind-mount in production. Recreate it explicitly after
+# pulling so a previously running container cannot keep the old handler code
+# (or an old process) alive when the image tag is reused.
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps --force-recreate bot < /dev/null
 
 # --- Bind-mount inode heal (one-time self-repair): if a past deploy swapped
 # a mounted file's inode (mv/install), the container still sees the orphaned

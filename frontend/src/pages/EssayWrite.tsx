@@ -148,10 +148,12 @@ export default function EssayWrite() {
     let cancelled = false;
     (async () => {
       try {
-        const subsRes = (await Essays.submissions()) as { submissions?: Array<{ id: number; topic_id: number }> };
+        const subsRes = (await Essays.submissions()) as {
+          submissions?: Array<{ id: number; topic_id?: number | null }>;
+        };
         const submissions = subsRes.submissions ?? [];
         const asSubmission = submissions.find((s) => String(s.id) === String(id));
-        const topicIdToStart = asSubmission ? asSubmission.topic_id : id;
+        const topicIdToStart = asSubmission?.topic_id ?? id;
         if (!cancelled) {
           // Initialize unprotected topics and discover protected topics. The
           // second argument suppresses the expected initial missing-password 403.
@@ -202,9 +204,9 @@ export default function EssayWrite() {
   };
 
   const doSubmit = useCallback(
-    async (sid: number, value: string): Promise<boolean> => {
+    async (sid: number, value: string, autoSubmit = false): Promise<boolean> => {
       try {
-        await Essays.submit(sid, value);
+        await Essays.submit(sid, value, autoSubmit);
         return true;
       } catch {
         return false;
@@ -248,7 +250,7 @@ export default function EssayWrite() {
     autoSubmitDone.current = true;
     setTimeUp(true);
     (async () => {
-      await doSubmit(submissionId, text);
+      await doSubmit(submissionId, text, true);
       clearLocalDraft(id);
       navigate(`/essays/result/${submissionId}`, { replace: true });
     })();

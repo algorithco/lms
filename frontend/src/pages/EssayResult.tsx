@@ -144,7 +144,12 @@ export default function EssayResult() {
   const sendReview = async () => {
     setReviewBusy(true);
     setReviewErr(null);
-    const r = await requestTeacherReview(id, reason.trim());
+    const sessionOk = user
+      ? await ensureSession(user.email, getCachedPassword() ?? '')
+      : false;
+    const r = sessionOk
+      ? await requestTeacherReview(id, reason.trim())
+      : { ok: false };
     setReviewBusy(false);
     if (r.ok) {
       setReviewSent(true);

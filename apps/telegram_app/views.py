@@ -380,10 +380,26 @@ def tma_essay_topics_view(request: Request) -> Response:
     topics = EssayTopic.objects.filter(is_active=True).order_by("-created_at")
 
     # User's submissions per topic
-    user_subs = {
-        s.topic_id: s
-        for s in EssaySubmission.objects.filter(student=request.user)
-    }
+    user_subs = {}
+    for submission in EssaySubmission.objects.filter(
+        student=request.user,
+    ).select_related("topic"):
+        current = user_subs.get(submission.topic_id)
+        if current is None:
+            user_subs[submission.topic_id] = submission
+            continue
+        # Keep the same selection semantics as the start endpoint: a usable
+        # submission wins over an expired one, even when the expired row was
+        # touched later by autosave. Within the same bucket, the most recently
+        # updated row is the one the student should see.
+        if (
+            (current.is_expired and not submission.is_expired)
+            or (
+                current.is_expired == submission.is_expired
+                and submission.updated_at > current.updated_at
+            )
+        ):
+            user_subs[submission.topic_id] = submission
 
     return Response({
         "topics": [
@@ -429,6 +445,7 @@ def tma_essay_submissions_view(request: Request) -> Response:
         "submissions": [
             {
                 "id": s.id,
+                "topic_id": s.topic_id,
                 "topic_title": s.topic.title if s.topic else "",
                 "status": s.status,
                 "total_score": float(s.total_score) if s.total_score is not None else None,
@@ -617,7 +634,11 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 
     # Time check
     if submission.password_verified_at and submission.is_expired:
-        return Response({"error": "Vaqt tugagan"}, status=410)
+        # The browser countdown can race the server clock by a few seconds.
+        # Keep ordinary late submits rejected, but let the explicit client
+        # timeout path persist the final text and enter background grading.
+        if request.data.get("auto_submit") is not True or submission.status != EssaySubmission.Status.DRAFT:
+            return Response({"error": "Vaqt tugagan"}, status=410)
 
     # Word count check
     min_words = submission.topic.word_limit_min if submission.topic else 50
@@ -630,7 +651,14 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 
     # AI baholashni FONDA boshlash — broker (Celery) ishlab tursa worker'da,
     # aks holda background thread'da. Request hech qachon LLM'ni kutmaydi.
-    start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
+    start_grading(
+        submission,
+        fail_status=(
+            EssaySubmission.Status.PENDING_TEACHER
+            if request.data.get("auto_submit") is True
+            else EssaySubmission.Status.ERROR
+        ),
+    )
 
     return Response(
         {

@@ -854,10 +854,10 @@ export const Essays = {
       method: 'POST',
       body: JSON.stringify(password ? { password } : {}),
     }),
-  submit: (submissionId: number | string, essay_text: string) =>
+  submit: (submissionId: number | string, essay_text: string, autoSubmit = false) =>
     api<Record<string, unknown>>(`/tma/api/essays/${submissionId}/submit/`, {
       method: 'POST',
-      body: JSON.stringify({ essay_text }),
+      body: JSON.stringify({ essay_text, ...(autoSubmit ? { auto_submit: true } : {}) }),
     }),
   result: (submissionId: number | string) =>
     api<Record<string, unknown>>(`/tma/api/essays/${submissionId}/result/`),

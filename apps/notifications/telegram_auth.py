@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import TelegramAuthToken
+from .models import TELEGRAM_AUTH_TOKEN_TTL, TelegramAuthToken
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +104,8 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
         is_verified=False,
         user__isnull=True,
     ).filter(
-        # Tokens older than 5 minutes that are not verified
-        created_at__lt=timezone.now() - timezone.timedelta(minutes=5),
+        # Do not delete a pending token before the bot's advertised lifetime.
+        created_at__lt=timezone.now() - TELEGRAM_AUTH_TOKEN_TTL,
     ).delete()
 
     # Rate limit token creation (per IP, rolling 10 minutes)

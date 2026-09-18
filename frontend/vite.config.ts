@@ -1,7 +1,9 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const DJANGO = 'http://localhost:8000'
+// Use an explicit IPv4 loopback address so the proxy works when Node resolves
+// `localhost` to ::1 but Django is listening on 127.0.0.1 only.
+const DJANGO = 'http://127.0.0.1:8000'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -15,10 +17,13 @@ export default defineConfig({
     proxy: {
       // Same-origin in dev: React uses relative URLs, Vite forwards to Daphne.
       '/api': { target: DJANGO, changeOrigin: true },
-      '/essays': { target: DJANGO, changeOrigin: true },
-      '/arena': { target: DJANGO, changeOrigin: true },
-      '/subscribe': { target: DJANGO, changeOrigin: true },
-      '/tma': { target: DJANGO, changeOrigin: true },
+      // React owns the client routes under these prefixes. Proxy only their
+      // Django API subpaths; proxying the whole prefix breaks deep links in
+      // dev because Django's unbaked SPA fallback redirects back to itself.
+      '/essays/api': { target: DJANGO, changeOrigin: true },
+      '/arena/api': { target: DJANGO, changeOrigin: true },
+      '/subscribe/api': { target: DJANGO, changeOrigin: true },
+      '/tma/api': { target: DJANGO, changeOrigin: true },
       '/media': { target: DJANGO, changeOrigin: true },
       '/static': { target: DJANGO, changeOrigin: true },
       // NOTE: /login, /logout and /password-reset* are intentionally NOT

@@ -17,6 +17,9 @@ DOMAIN=$(grep -E '^SITE_URL=' .env.prod | cut -d= -f2 | sed 's#https\?://##; s#/
 
 echo ">>> Building + starting stack (web first for migrate/collectstatic)"
 $COMPOSE up -d --build
+# The bot has no source bind-mount in production. Force-recreate it so a
+# previously running container cannot retain an old handler after a rebuild.
+$COMPOSE up -d --no-deps --force-recreate bot
 echo ">>> Waiting for web healthy (migrate+collectstatic can take 30-60s)"
 for i in $(seq 1 30); do
   if $COMPOSE exec -T web curl -fsS http://127.0.0.1:8000/healthz/ >/dev/null 2>&1; then
