@@ -256,7 +256,8 @@ def home_view(request: HttpRequest) -> HttpResponse:
     """Landing page — not authenticated users see this."""
     if request.user.is_authenticated:
         return redirect("web:dashboard")
-    return render(request, "web/home.html")
+    from apps.core.spa import serve_spa_shell
+    return serve_spa_shell(request, fallback="/")
 
 
 # ---------------------------------------------------------------------------
