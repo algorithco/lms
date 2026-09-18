@@ -63,6 +63,7 @@ export default function EssayWrite() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [restored, setRestored] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
+  const [startedTopicId, setStartedTopicId] = useState<number | string | null>(null);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSubmitDone = useRef(false);
 
@@ -74,17 +75,11 @@ export default function EssayWrite() {
   const zone = wordZone(words, minWords, maxWords);
 
   const start = useCallback(
-    async (pw = '') => {
+    async (topicId: number | string, pw = '', showPasswordError = true) => {
       setErr(null);
-      // on initial GET (no password submitted yet) do NOT show the
-      // "Noto'g'ri parol" error or password form — the password gate
-      // must only appear after an actual incorrect password attempt.
-      if (!pw && submissionId === null) {
-        setNeedPassword(false);
-        return;
-      }
+      setStartedTopicId(topicId);
       try {
-        const res = (await Essays.start(id, pw)) as {
+        const res = (await Essays.start(topicId, pw)) as {
           submission_id: number;
           topic: TopicInfo;
           remaining_seconds: number;
@@ -99,7 +94,7 @@ export default function EssayWrite() {
           setRestored(false);
         } else {
           // Resume the local draft when the server has nothing saved yet.
-          const local = loadLocalDraft(id);
+          const local = loadLocalDraft(String(topicId));
           if (local) {
             setText(local);
             setRestored(true);
@@ -133,16 +128,46 @@ export default function EssayWrite() {
         // Password gate: backend answers 403 for missing/wrong password.
         if (status === 403 || String(msg).toLowerCase().includes('parol')) {
           setNeedPassword(true);
+          // A protected topic legitimately returns 403 on the initial start
+          // request when no password has been submitted yet. Keep the gate
+          // visible, but only show the error after an actual user attempt.
+          if (showPasswordError) setErr(msg);
+          return;
         }
         setErr(msg);
       }
     },
-    [id, navigate, submissionId],
+    [navigate],
   );
 
   useEffect(() => {
-    start();
-  }, [start]);
+    // The URL param `id` can be either a topic_id (from topics page) or a
+    // submission_id (direct link / notification). We first fetch the user's
+    // submissions to see if `id` matches a submission_id. If so, we use its
+    // topic_id to start/resume. Otherwise we treat `id` as a topic_id.
+    let cancelled = false;
+    (async () => {
+      try {
+        const subsRes = (await Essays.submissions()) as {
+          submissions?: Array<{ id: number; topic_id?: number | null }>;
+        };
+        const submissions = subsRes.submissions ?? [];
+        const asSubmission = submissions.find((s) => String(s.id) === String(id));
+        const topicIdToStart = asSubmission?.topic_id ?? id;
+        if (!cancelled) {
+          // Initialize unprotected topics and discover protected topics. The
+          // second argument suppresses the expected initial missing-password 403.
+          await start(topicIdToStart, '', false);
+        }
+      } catch {
+        if (!cancelled) {
+          // Fallback: treat `id` as topic_id directly.
+          await start(id, '', false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id, start]);
 
   // Server autosave (debounced, best-effort) + local draft (always).
   const queueAutosave = useCallback(
@@ -179,9 +204,9 @@ export default function EssayWrite() {
   };
 
   const doSubmit = useCallback(
-    async (sid: number, value: string): Promise<boolean> => {
+    async (sid: number, value: string, autoSubmit = false): Promise<boolean> => {
       try {
-        await Essays.submit(sid, value);
+        await Essays.submit(sid, value, autoSubmit);
         return true;
       } catch {
         return false;
@@ -225,7 +250,7 @@ export default function EssayWrite() {
     autoSubmitDone.current = true;
     setTimeUp(true);
     (async () => {
-      await doSubmit(submissionId, text);
+      await doSubmit(submissionId, text, true);
       clearLocalDraft(id);
       navigate(`/essays/result/${submissionId}`, { replace: true });
     })();
@@ -273,7 +298,7 @@ export default function EssayWrite() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
-            <button className="btn primary" onClick={() => start(password)}>
+            <button className="btn primary" onClick={() => void start(startedTopicId ?? id, password, true)}>
               {t('essay_confirm_start')}
             </button>
           </div>

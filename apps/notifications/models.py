@@ -4,9 +4,15 @@ Notifications app — Telegram Bot integration and notification logging.
 Models:
     NotificationLog — audit trail for every notification sent.
 """
+from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+
+# The website, bot, and status endpoint must all use the same lifetime.
+TELEGRAM_AUTH_TOKEN_TTL = timedelta(minutes=10)
 
 
 # ---------------------------------------------------------------------------
@@ -244,8 +250,7 @@ class TelegramAuthToken(models.Model):
     @property
     def is_expired(self) -> bool:
         from django.utils import timezone
-        from datetime import timedelta
-        return timezone.now() > self.created_at + timedelta(minutes=10)
+        return timezone.now() > self.created_at + TELEGRAM_AUTH_TOKEN_TTL
 
     def generate_short_code(self) -> str:
         """Generate a unique 6-digit code."""

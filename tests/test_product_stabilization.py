@@ -36,7 +36,7 @@ from apps.courses.models import Course, StudentGroup
 from apps.tests.models import Test as LmsTest
 from apps.core.translations import TRANSLATIONS, get_user_language, t
 from apps.notifications.models import PushSubscription, TelegramAuthToken
-from apps.notifications.bot.handlers import _handle_auth_token
+from apps.notifications.bot.handlers import _handle_auth_token, start_handler
 from rest_framework_simplejwt.tokens import RefreshToken
 import json
 import urllib.parse
@@ -342,6 +342,17 @@ class TelegramLoginReplayTests(TestCase):
             email="telegram-replay@example.test", password="pass", role="student",
         )
 
+    def test_pending_token_is_not_deleted_before_advertised_expiry(self):
+        token = TelegramAuthToken.objects.create(token="pending-six-minutes")
+        TelegramAuthToken.objects.filter(pk=token.pk).update(
+            created_at=timezone.now() - timedelta(minutes=6),
+        )
+
+        response = self.client.post(reverse("notifications:tg-auth-start"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(TelegramAuthToken.objects.filter(pk=token.pk).exists())
+
     def _verified_token(self, code="123456"):
         response = self.client.post(reverse("notifications:tg-auth-start"))
         self.assertEqual(response.status_code, 200)
@@ -399,6 +410,65 @@ class TelegramLoginReplayTests(TestCase):
 
 
 class TelegramBotLoginUXTests(TestCase):
+    def test_website_deep_link_reaches_bot_and_completes_status(self):
+        user = User.objects.create_user(
+            email="deep-link@example.test",
+            password=None,
+            first_name="Deep",
+            last_name="Link",
+            telegram_chat_id=99887767,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        start = self.client.post(reverse("notifications:tg-auth-start"))
+        self.assertEqual(start.status_code, 200)
+        body = start.json()
+        payload = urllib.parse.parse_qs(urlsplit(body["deep_link"]).query)["start"][0]
+        self.assertEqual(payload, f"auth_{body['token']}")
+
+        message = SimpleNamespace(reply_text=AsyncMock())
+        update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=user.telegram_chat_id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+            ),
+            message=message,
+        )
+        context = SimpleNamespace(args=[payload], user_data={})
+        async_to_sync(start_handler)(update, context)
+
+        auth_token = TelegramAuthToken.objects.get(token=body["token"])
+        self.assertTrue(auth_token.is_verified)
+        status_url = reverse("notifications:tg-auth-status", args=[body["token"]])
+        status = self.client.get(status_url)
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()["status"], "verified")
+
+    def test_plain_start_shows_normal_instructions(self):
+        user = User.objects.create_user(
+            email="plain-start@example.test",
+            password=None,
+            first_name="Plain",
+            telegram_chat_id=99887768,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        message = SimpleNamespace(reply_text=AsyncMock())
+        update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=user.telegram_chat_id,
+                first_name=user.first_name,
+                last_name="",
+            ),
+            message=message,
+        )
+        context = SimpleNamespace(args=[], user_data={})
+
+        async_to_sync(start_handler)(update, context)
+
+        reply = message.reply_text.await_args.args[0]
+        self.assertIn("Ona Tili & Adabiyot", reply)
+        self.assertNotIn("Noto'g'ri yoki eskirgan token", reply)
+
     def test_already_linked_account_does_not_require_phone_share(self):
         user = User.objects.create_user(
             email="linked-bot@example.test",

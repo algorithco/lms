@@ -20,6 +20,7 @@ ichida yozilgan qatorlarni ko'ra olmaydi (yoki sqlite lock'ga tushadi).
 from __future__ import annotations
 
 import threading
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -397,6 +398,43 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         self.assertEqual(data["poll_after"], 3)
 
     @patch("apps.essays.services.start_grading")
+    def test_tma_auto_submit_persists_final_text_after_server_expiry(
+        self, mock_start: MagicMock,
+    ) -> None:
+        """The countdown race must not lose the final browser text."""
+        self.submission.password_verified_at = timezone.now() - timedelta(
+            minutes=self.topic.time_limit_minutes + 1,
+        )
+        self.submission.save(update_fields=["password_verified_at"])
+        mock_start.return_value = {"success": True, "async": True, "mode": "celery"}
+
+        final_text = "Server expiry auto submit text " * 10
+        resp = self.api.post(
+            self.tma_url,
+            {"essay_text": final_text, "auto_submit": True},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, 202)
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.essay_text, final_text.strip())
+        mock_start.assert_called_once()
+
+    def test_tma_late_manual_submit_remains_rejected(self) -> None:
+        """The explicit timeout path must not weaken the normal deadline."""
+        self.submission.password_verified_at = timezone.now() - timedelta(
+            minutes=self.topic.time_limit_minutes + 1,
+        )
+        self.submission.save(update_fields=["password_verified_at"])
+
+        resp = self.api.post(
+            self.tma_url,
+            {"essay_text": "Late manual submit " * 10},
+        )
+
+        self.assertEqual(resp.status_code, 410)
+
+    @patch("apps.essays.services.start_grading")
     def test_tma_resubmit_after_error_requeues_grading(
         self, mock_start: MagicMock,
     ) -> None:
@@ -747,3 +785,33 @@ class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
         created = EssaySubmission.objects.get(id=new_id)
         self.assertEqual(created.status, EssaySubmission.Status.DRAFT)
         self.assertIsNotNone(created.password_verified_at)
+
+    def test_submission_list_includes_topic_id_for_write_deep_links(self) -> None:
+        """The SPA needs topic_id to resume /essays/write/<submission-id>."""
+        submission = self._make_verified(timezone.now(), essay_text="deep link essay")
+        url = reverse("telegram_app:essay-submissions")
+
+        resp = self.api.get(url)
+
+        self.assertEqual(resp.status_code, 200)
+        row = next(item for item in resp.json()["submissions"] if item["id"] == submission.id)
+        self.assertEqual(row["topic_id"], self.topic.id)
+
+    def test_topics_screen_prefers_active_submission_over_later_expired_autosave(self) -> None:
+        """The topic CTA must not send an active essay to an old result."""
+        from datetime import timedelta
+
+        active = self._make_verified(timezone.now(), essay_text="active essay")
+        expired = self._make_verified(
+            self._expired_at,
+            essay_text="expired essay",
+        )
+        EssaySubmission.objects.filter(pk=expired.pk).update(
+            updated_at=timezone.now() + timedelta(seconds=5),
+        )
+
+        url = reverse("telegram_app:essay-topics")
+        data = self.api.get(url).json()
+
+        row = next(item for item in data["topics"] if item["id"] == self.topic.id)
+        self.assertEqual(row["user_status"]["submission_id"], active.id)
