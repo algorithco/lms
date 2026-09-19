@@ -20,6 +20,7 @@ import re
 import time
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -1524,6 +1525,60 @@ _GRADEABLE_STATUSES = frozenset({
 })
 
 
+def expire_overdue_pending_grading(submission) -> bool:
+    """Turn an orphaned ``PENDING`` grading job into a terminal real error.
+
+    A successful queue publish does not prove that a worker will consume the
+    task. An unavailable worker or a misconfigured queue previously left this
+    status unchanged forever while every client kept polling.
+    ``grading_started_at`` is never refreshed by the stale-job reaper, so it
+    provides a stable deadline even when requeue attempts touch ``updated_at``.
+
+    Returns ``True`` only when this call makes the terminal transition. The
+    row is locked and rechecked so a concurrently persisted real grade always
+    wins and is never overwritten.
+    """
+    if submission.status != EssaySubmission.Status.PENDING:
+        return False
+
+    timeout_seconds = max(
+        1, int(getattr(settings, "ESSAY_GRADING_PENDING_TIMEOUT_SECONDS", 720))
+    )
+    now = timezone.now()
+    started_at = submission.grading_started_at or submission.updated_at
+    if started_at is None or started_at > now - timedelta(seconds=timeout_seconds):
+        return False
+
+    with transaction.atomic():
+        locked = (
+            EssaySubmission.objects.select_for_update()
+            .filter(pk=submission.pk)
+            .first()
+        )
+        if locked is None or locked.status != EssaySubmission.Status.PENDING:
+            return False
+        started_at = locked.grading_started_at or locked.updated_at
+        if started_at is None or started_at > now - timedelta(seconds=timeout_seconds):
+            return False
+        locked.status = EssaySubmission.Status.ERROR
+        locked.error_message = (
+            "AI baholash belgilangan vaqt ichida yakunlanmadi. "
+            "Navbat yoki AI xizmati ishlamayotgan bo'lishi mumkin; "
+            "iltimos, qayta urinib ko'ring."
+        )
+        locked.save(update_fields=["status", "error_message", "updated_at"])
+
+    submission.status = locked.status
+    submission.error_message = locked.error_message
+    submission.updated_at = locked.updated_at
+    logger.error(
+        "Essay grading timed out while pending: submission=%d, started_at=%s",
+        submission.pk,
+        started_at,
+    )
+    return True
+
+
 def essay_has_grade_result(submission) -> bool:
     """Submission to'liq baholangani: baho/izoh bazaga yozilganmi.
 
@@ -1789,15 +1844,24 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
     # Mark as pending so the result page shows the spinner and any concurrent
     # submit is rejected by the status guard above. Use conditional update so
     # two parallel submits cannot both claim the same row.
+    grading_started_at = timezone.now()
     claimed = EssaySubmission.objects.filter(
         pk=submission.pk, status__in=list(_GRADEABLE_STATUSES)
-    ).update(status=EssaySubmission.Status.PENDING, updated_at=timezone.now())
+    ).update(
+        status=EssaySubmission.Status.PENDING,
+        grading_started_at=grading_started_at,
+        updated_at=grading_started_at,
+    )
     if not claimed:
         # Retry/resubmit path: ERROR/PENDING_TEACHER without result → DRAFT was
         # already promoted above, so retry the claim.
         claimed = EssaySubmission.objects.filter(
             pk=submission.pk, status=EssaySubmission.Status.DRAFT
-        ).update(status=EssaySubmission.Status.PENDING, updated_at=timezone.now())
+        ).update(
+            status=EssaySubmission.Status.PENDING,
+            grading_started_at=grading_started_at,
+            updated_at=grading_started_at,
+        )
         if not claimed:
             return {
                 "success": False,
@@ -1805,7 +1869,9 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
                 "fallback": False,
                 "async": False,
             }
-    submission.refresh_from_db(fields=["status", "updated_at"])
+    submission.refresh_from_db(
+        fields=["status", "grading_started_at", "updated_at"]
+    )
 
     # Dev/test rejimida Celery eager bo'lsa (CELERY_TASK_ALWAYS_EAGER=True),
     # .delay() LLM chaqiruvini SHU request thread ichida sinxron bajaradi —
@@ -1861,10 +1927,13 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
     from apps.essays.tasks import _mark_grading_failed, grade_submission_task
 
     if not _THREAD_GRADE_SEMAPHORE.acquire(blocking=False):
-        logger.warning("Essay thread grading throttled (too many concurrent): submission=%d", submission.id)
-        # Do not block the request — return pending and let the beat reaper
-        # retry via Celery when capacity frees.
-        return {"success": True, "error": None, "fallback": False, "async": True}
+        # The broker is already unavailable (this is its fallback path), so
+        # there is no durable queue to drain later. Leaving the row PENDING
+        # here made the UI spin forever whenever all thread slots were busy.
+        error = RuntimeError("AI baholash navbati band. Iltimos, qayta urinib ko'ring.")
+        _mark_grading_failed(submission.id, error)
+        logger.warning("Essay thread grading throttled: submission=%d", submission.id)
+        return {"success": False, "error": str(error), "fallback": False, "async": False}
 
     def _is_still_gradeable() -> bool:
         # DB vaqtincha band bo'lsa (sqlite test lockout, failover va h.k.) —

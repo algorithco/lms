@@ -49,6 +49,7 @@ interface Result {
   criteria: Criterion[];
   graded_at?: string | null;
   poll_after?: number;
+  error?: string | null;
 }
 
 export default function EssayResult() {
@@ -202,6 +203,7 @@ export default function EssayResult() {
       {res.status === 'error' && (
         <div className="card">
           <p className="error">{t('essay_error')}</p>
+          {res.error && <p className="muted">{res.error}</p>}
           <Link className="btn primary sm" to="/essays">
             {t('essay_error_retry')}
           </Link>

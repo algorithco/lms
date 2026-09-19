@@ -251,6 +251,16 @@ class EssaySubmission(models.Model):
         blank=True,
         default="",
     )
+    grading_started_at = models.DateTimeField(
+        _("AI baholash boshlangan vaqt"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_(
+            "AI grading dispatch vaqti. PENDING holati cheksiz qolmasligi "
+            "uchun ishlatiladi."
+        ),
+    )
     is_off_topic = models.BooleanField(
         _("mavzudan chetda"),
         default=False,

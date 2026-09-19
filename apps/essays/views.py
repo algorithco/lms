@@ -36,6 +36,7 @@ from .services import (
     WordCounter,
     can_review_submission,
     essay_has_grade_result,
+    expire_overdue_pending_grading,
     start_grading,
 )
 
@@ -385,6 +386,12 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     # 502/524 timeout'lari uchun sabab qolmaydi.
     result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
 
+    if not result.get("success"):
+        return render(request, "essays/submit_result_partial.html", {
+            "success": False,
+            "error": result.get("error") or "AI baholash boshlanmadi.",
+        })
+
     if result["fallback"] and not result.get("async"):
         # Bo'sh / kam so'zli matn → o'qituvchiga yuborildi (defensive —
         # word-count validation yuqorida allaqachon o'tgan)
@@ -419,6 +426,7 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
     submission = get_object_or_404(
         EssaySubmission, id=submission_id, student=request.user,
     )
+    expire_overdue_pending_grading(submission)
 
     status = submission.status
     data: dict[str, Any] = {
@@ -708,6 +716,12 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
     # (grade_essay() sekin tashqi LLM chaqiruvi; Celery yoki background
     # thread'da bajariladi — web thread hech qachon LLM'ni kutmaydi)
     result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
+
+    if not result.get("success"):
+        return render(request, "essays/submit_result_partial.html", {
+            "success": False,
+            "error": result.get("error") or "AI baholash boshlanmadi.",
+        })
 
     if result["fallback"] and not result.get("async"):
         return JsonResponse(

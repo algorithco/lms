@@ -200,6 +200,25 @@ class RecoverStaleEssaysTests(TestCase):
         fresh.refresh_from_db()
         self.assertEqual(fresh.status, EssaySubmission.Status.PENDING)
 
+    @override_settings(ESSAY_GRADING_PENDING_TIMEOUT_SECONDS=60)
+    def test_reaper_terminalizes_overdue_pending_without_queueing_again(self) -> None:
+        """An unavailable worker must produce a terminal error, not requeue forever."""
+        stale = self._make_pending(stale_minutes=30)
+        EssaySubmission.objects.filter(pk=stale.pk).update(
+            grading_started_at=timezone.now() - timedelta(minutes=2),
+        )
+
+        from apps.essays.tasks import grade_submission_task, reap_stale_pending_essays
+
+        with patch.object(grade_submission_task, "delay") as mock_delay:
+            result = reap_stale_pending_essays.apply().result
+
+        self.assertEqual(result["expired"], 1)
+        mock_delay.assert_not_called()
+        stale.refresh_from_db()
+        self.assertEqual(stale.status, EssaySubmission.Status.ERROR)
+        self.assertIn("belgilangan vaqt", stale.error_message)
+
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     def test_dry_run_changes_nothing(self) -> None:
         stale = self._make_pending(stale_minutes=30)

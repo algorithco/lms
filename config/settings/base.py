@@ -525,6 +525,13 @@ ESSAY_AI_MOCK_MODE = env.bool("ESSAY_AI_MOCK_MODE", default=False)
 # soft limit. A model that rejects JSON mode can require a second HTTP call.
 ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="30"))
 
+# A queued grading job must eventually become a visible result or a visible
+# error. This is longer than the Celery retry budget, but finite: an
+# unconsumed queue/worker outage must never make the result page poll forever.
+ESSAY_GRADING_PENDING_TIMEOUT_SECONDS = int(
+    env("ESSAY_GRADING_PENDING_TIMEOUT_SECONDS", default="720")
+)
+
 # Background-thread retry backoff (sekund) — runserver-only rejimda
 # (CELERY_TASK_ALWAYS_EAGER=True) grading shu thread'da 3 urinish qiladi.
 # Prod default 5,10,15s; local tezlik uchun .env'da 1,2,3 ga tushiring.
