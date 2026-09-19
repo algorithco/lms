@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 logger = logging.getLogger(__name__)
@@ -323,13 +324,33 @@ def reap_stale_pending_essays(self) -> dict:
     from django.utils import timezone
 
     from apps.essays.models import EssaySubmission
+    from apps.essays.services import expire_overdue_pending_grading
+
+    # The normal stale requeue path updates ``updated_at`` for deduplication;
+    # it must not be allowed to renew the absolute pending deadline forever.
+    timeout_seconds = max(
+        1, int(getattr(settings, "ESSAY_GRADING_PENDING_TIMEOUT_SECONDS", 720))
+    )
+    deadline = timezone.now() - timedelta(seconds=timeout_seconds)
+    overdue = list(
+        EssaySubmission.objects.filter(
+            status=EssaySubmission.Status.PENDING,
+            grading_started_at__isnull=False,
+            grading_started_at__lte=deadline,
+        ).values_list("id", flat=True)[:20]
+    )
+    expired = 0
+    for sid in overdue:
+        pending = EssaySubmission.objects.filter(pk=sid).first()
+        if pending is not None and expire_overdue_pending_grading(pending):
+            expired += 1
 
     threshold = timezone.now() - timedelta(minutes=10)
     batch = list(
         EssaySubmission.objects.filter(
             status=EssaySubmission.Status.PENDING,
             updated_at__lte=threshold,
-        ).values_list("id", flat=True)[:20]
+        ).exclude(pk__in=overdue).values_list("id", flat=True)[:20]
     )
     requeued = 0
     for sid in batch:
@@ -358,7 +379,7 @@ def reap_stale_pending_essays(self) -> dict:
             logger.exception("Stale reaper failed for %s", sid)
     if requeued:
         logger.info("Reaped %d stale PENDING essays", requeued)
-    return {"requeued": requeued, "scanned": len(batch)}
+    return {"requeued": requeued, "expired": expired, "scanned": len(batch)}
 
 
 @shared_task(
@@ -378,6 +399,7 @@ def auto_submit_expired_essays(self) -> dict:
     Har 2 daiqada Celery Beat orqali chaqiriladi.
     """
     from django.db import transaction
+    from django.utils import timezone
 
     from apps.essays.models import EssaySubmission
     from apps.essays.services import auto_submit_essay
@@ -417,7 +439,11 @@ def auto_submit_expired_essays(self) -> dict:
                 ):
                     continue
                 locked.auto_submitted = True
-                locked.save(update_fields=["auto_submitted", "updated_at"])
+                locked.status = EssaySubmission.Status.PENDING
+                locked.grading_started_at = timezone.now()
+                locked.save(update_fields=[
+                    "auto_submitted", "status", "grading_started_at", "updated_at",
+                ])
             # Enqueue grading outside txn.
             from apps.essays.tasks import grade_submission_task
             try:
@@ -432,9 +458,13 @@ def auto_submit_expired_essays(self) -> dict:
                         .filter(pk=submission.pk)
                         .first()
                     )
-                    if fb is not None and fb.status == EssaySubmission.Status.DRAFT:
+                    if fb is not None and fb.status == EssaySubmission.Status.PENDING:
+                        fb.status = EssaySubmission.Status.DRAFT
                         fb.auto_submitted = False
-                        fb.save(update_fields=["auto_submitted", "updated_at"])
+                        fb.grading_started_at = None
+                        fb.save(update_fields=[
+                            "status", "auto_submitted", "grading_started_at", "updated_at",
+                        ])
                 logger.warning("Auto-submit enqueue failed: id=%d %s", submission.pk, exc)
 
         except Exception as e:

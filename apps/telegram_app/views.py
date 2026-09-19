@@ -651,7 +651,7 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 
     # AI baholashni FONDA boshlash — broker (Celery) ishlab tursa worker'da,
     # aks holda background thread'da. Request hech qachon LLM'ni kutmaydi.
-    start_grading(
+    dispatch = start_grading(
         submission,
         fail_status=(
             EssaySubmission.Status.PENDING_TEACHER
@@ -659,6 +659,11 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
             else EssaySubmission.Status.ERROR
         ),
     )
+    if not dispatch.get("success"):
+        return Response(
+            {"status": "error", "error": dispatch.get("error") or "AI baholash boshlanmadi."},
+            status=503,
+        )
 
     return Response(
         {
@@ -687,6 +692,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     Get essay grading result.
     """
     from apps.essays.models import EssaySubmission
+    from apps.essays.services import expire_overdue_pending_grading
 
     try:
         submission = EssaySubmission.objects.get(
@@ -695,6 +701,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     except EssaySubmission.DoesNotExist:
         return Response({"error": "Submission topilmadi"}, status=404)
 
+    expire_overdue_pending_grading(submission)
     criteria = list(submission.criteria.all().order_by("criterion_id"))
     # Evidence snippets ("errors") live in raw_result JSON (no DB column) —
     # merge them by criterion id so the UI can show deduction proof.

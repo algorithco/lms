@@ -225,6 +225,28 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
         self.assertIsNotNone(self.submission.submitted_at)
         self.assertIn("AI kalit", self.submission.error_message)
 
+    @override_settings(
+        ESSAY_AI_PROVIDER="openrouter",
+        OPENROUTER_API_KEY="",
+        GROQ_API_KEY="",
+        ESSAY_AI_MOCK_MODE=False,
+    )
+    def test_real_unconfigured_provider_finishes_with_real_error(self) -> None:
+        """No fake grade: provider configuration failure reaches DB as ERROR."""
+        from apps.essays.tasks import grade_submission_task
+
+        self.submission.status = EssaySubmission.Status.PENDING
+        self.submission.save(update_fields=["status"])
+        grade_submission_task.apply(
+            args=[self.submission.id],
+            kwargs={"fail_status": EssaySubmission.Status.ERROR},
+        )
+
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.ERROR)
+        self.assertIn("OPENROUTER_API_KEY", self.submission.error_message)
+        self.assertEqual(self.submission.criteria.count(), 0)
+
     def test_temporary_provider_failure_retries_without_marking_error(self) -> None:
         import openai
         from celery.exceptions import Retry
@@ -401,6 +423,20 @@ class StatusEndpointTests(AsyncGradingBaseTestCase):
         self.assertEqual(data["status"], "pending")
         self.assertEqual(data["poll_after"], 3)
 
+    @override_settings(ESSAY_GRADING_PENDING_TIMEOUT_SECONDS=60)
+    def test_overdue_pending_becomes_terminal_error(self) -> None:
+        """A lost queue message must never leave polling on PENDING forever."""
+        self.submission.status = EssaySubmission.Status.PENDING
+        self.submission.grading_started_at = timezone.now() - timedelta(minutes=2)
+        self.submission.save(update_fields=["status", "grading_started_at"])
+
+        data = self.client.get(self.status_url).json()
+        self.assertEqual(data["status"], "error")
+        self.assertTrue(data["can_retry"])
+        self.assertIn("belgilangan vaqt", data["error"])
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.ERROR)
+
     def test_graded_returns_result_url(self) -> None:
         self.submission.status = EssaySubmission.Status.GRADED
         self.submission.total_score = Decimal("18.0")
@@ -479,6 +515,19 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         data = self.api.get(result_url).json()
         self.assertEqual(data["status"], "pending")
         self.assertEqual(data["poll_after"], 3)
+
+    @override_settings(ESSAY_GRADING_PENDING_TIMEOUT_SECONDS=60)
+    def test_tma_result_resolves_overdue_pending_to_error(self) -> None:
+        self.submission.status = EssaySubmission.Status.PENDING
+        self.submission.grading_started_at = timezone.now() - timedelta(minutes=2)
+        self.submission.save(update_fields=["status", "grading_started_at"])
+
+        result_url = reverse(
+            "telegram_app:essay-result", kwargs={"submission_id": self.submission.id},
+        )
+        data = self.api.get(result_url).json()
+        self.assertEqual(data["status"], "error")
+        self.assertIn("belgilangan vaqt", data["error"])
 
     @patch("apps.essays.services.start_grading")
     def test_tma_auto_submit_persists_final_text_after_server_expiry(

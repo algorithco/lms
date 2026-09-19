@@ -169,8 +169,16 @@ export default function Essays({
         }
         hapticNotify('success');
       }
-    } catch {
-      /* keep polling */
+    } catch (e) {
+      // A failed poll is not evidence that grading is still running. Stop the
+      // spinner and show the actual transport/API failure instead of trapping
+      // the student on an endless "AI baholamoqda" screen.
+      const message = tmaErrorMessage(e, t('tma_loading_error'));
+      setResult((previous) => previous
+        ? { ...previous, status: 'error', error: message }
+        : previous);
+      setGrading(false);
+      stopTimers();
     }
   };
 
