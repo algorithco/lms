@@ -19,7 +19,9 @@ ichida yozilgan qatorlarni ko'ra olmaydi (yoki sqlite lock'ga tushadi).
 """
 from __future__ import annotations
 
+import json
 import threading
+from copy import deepcopy
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
@@ -222,6 +224,87 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
         self.assertTrue(self.submission.auto_submitted)
         self.assertIsNotNone(self.submission.submitted_at)
         self.assertIn("AI kalit", self.submission.error_message)
+
+    def test_temporary_provider_failure_retries_without_marking_error(self) -> None:
+        import openai
+        from celery.exceptions import Retry
+        from apps.essays.tasks import grade_submission_task
+
+        failure = openai.RateLimitError(
+            "429 temporarily busy", response=MagicMock(status_code=429, headers={}), body=None,
+        )
+        with patch("apps.essays.services.grade_essay", side_effect=failure):
+            with self.assertRaises(Retry):
+                grade_submission_task.apply(
+                    args=[self.submission.id],
+                    kwargs={"fail_status": EssaySubmission.Status.ERROR},
+                )
+
+        self.submission.refresh_from_db()
+        self.assertNotEqual(self.submission.status, EssaySubmission.Status.ERROR)
+        self.assertEqual(self.submission.error_message, "")
+
+    def test_valid_long_model_label_does_not_fail_database_save(self) -> None:
+        from apps.essays.models import EssayCriterionScore
+        from apps.essays.services import _validate_result
+        from apps.essays.tasks import grade_submission_task
+
+        result = deepcopy(MOCK_GRADE)
+        result["criteria"][0]["name"] = "Uslub bo'yicha batafsil nom " * 10
+        _validate_result(result)
+
+        with patch("apps.essays.services.grade_essay", return_value=result):
+            grade_submission_task.apply(
+                args=[self.submission.id],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
+            )
+
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.GRADED)
+        self.assertEqual(self.submission.error_message, "")
+        self.assertEqual(self.submission.criteria.count(), 12)
+        self.assertEqual(
+            self.submission.criteria.get(criterion_id=1).name,
+            EssayCriterionScore.CRITERION_NAMES[1],
+        )
+
+    @override_settings(
+        ESSAY_AI_PROVIDER="openrouter",
+        OPENROUTER_API_KEY="sk-or-v1-testopenrouterkey00000000000000000000000",
+        ESSAY_AI_MODEL="primary",
+        OPENROUTER_FALLBACK_MODELS=["fallback"],
+        ESSAY_AI_MOCK_MODE=False,
+    )
+    def test_task_falls_back_from_bad_json_and_saves_real_valid_grade(self) -> None:
+        from apps.essays.models import EssayCriterionScore
+        from apps.essays.tasks import grade_submission_task
+
+        bad = MagicMock()
+        bad.choices[0].message.content = '{"criteria": ['
+        good = MagicMock()
+        payload = deepcopy(MOCK_GRADE)
+        payload["criteria"][0]["name"] = "Uslub bo'yicha batafsil nom " * 10
+        good.choices[0].message.content = json.dumps(payload)
+        llm_client = MagicMock()
+        llm_client.chat.completions.create.side_effect = [bad, good]
+
+        with patch("apps.essays.services._get_llm_client", return_value=llm_client):
+            grade_submission_task.apply(
+                args=[self.submission.id],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
+            )
+
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.GRADED)
+        self.assertEqual(self.submission.total_score, Decimal("18.0"))
+        self.assertEqual(self.submission.error_message, "")
+        self.assertEqual(self.submission.criteria.count(), 12)
+        self.assertEqual(
+            self.submission.criteria.get(criterion_id=1).name,
+            EssayCriterionScore.CRITERION_NAMES[1],
+        )
+        calls = llm_client.chat.completions.create.call_args_list
+        self.assertEqual([call.kwargs["model"] for call in calls], ["primary", "fallback"])
 
     def test_grade_task_notifies_student_on_graded(self) -> None:
         """Task GRADED qilganda NotificationLog (telegram) yoziladi."""
