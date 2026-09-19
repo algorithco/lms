@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from django.test import SimpleTestCase
 
+from apps.essays.models import EssayCriterionScore
 from apps.essays.prompts import (
     ESSAY_GRADING_SYSTEM_PROMPT,
     ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
@@ -145,3 +146,17 @@ class BbaValidationTests(SimpleTestCase):
         payload = _valid_payload([1] * 12)
         _validate_result(payload)
         self.assertEqual(payload["total_score"], 12.0)
+
+    def test_verbose_model_label_uses_database_safe_rubric_name(self):
+        payload = _valid_payload([1.5] * 12)
+        payload["criteria"][0]["name"] = "Uslub va boshqa izohlar " * 10
+
+        _validate_result(payload)
+
+        for criterion in payload["criteria"]:
+            self.assertEqual(
+                criterion["name"],
+                EssayCriterionScore.CRITERION_NAMES[criterion["id"]],
+            )
+            self.assertLessEqual(len(criterion["name"]), 100)
+        self.assertEqual(payload["total_score"], 18.0)

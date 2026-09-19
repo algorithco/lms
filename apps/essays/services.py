@@ -32,8 +32,10 @@ import hashlib
 import threading
 
 import httpx
+from billiard.exceptions import SoftTimeLimitExceeded
 
 from .models import (
+    EssayCriterionScore,
     EssayGradingCache,
     EssaySubmission,
     EssayTopic,
@@ -274,7 +276,7 @@ def _is_transient_ai_error(e: Exception) -> bool:
     """
     import openai
 
-    if isinstance(e, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)):
+    if isinstance(e, (TimeoutError, openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)):
         return True
     status = getattr(e, "status_code", None)
     if isinstance(status, int) and status >= 500:
@@ -341,6 +343,8 @@ def _chat_with_fallback(
     temperature: float,
     max_attempts: int = 1,
     response_format: dict | None = None,
+    deadline: float | None = None,
+    request_timeout: float | None = None,
 ):
     """
     Try each model in sequence: ``model`` first, then every entry of
@@ -386,6 +390,14 @@ def _chat_with_fallback(
                 }
                 if use_json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 1:
+                        raise TimeoutError("AI grading request budget exhausted")
+                    effective_timeout = min(request_timeout or remaining, remaining)
+                    kwargs["timeout"] = httpx.Timeout(
+                        effective_timeout, connect=min(10.0, effective_timeout),
+                    )
                 response = client.chat.completions.create(**kwargs)
                 content = response.choices[0].message.content if response.choices else None
                 if content and content.strip():
@@ -398,6 +410,10 @@ def _chat_with_fallback(
                 )
                 last_exc = ValueError("LLM bo'sh javob qaytardi")
             except Exception as e:
+                if isinstance(e, SoftTimeLimitExceeded):
+                    # Celery's task deadline is not a model failure. Let the
+                    # task retry instead of converting it into a fatal 400.
+                    raise
                 if use_json_mode and _is_unsupported_response_format(e):
                     # Ba'zi modellar response_format=json_object ni qo'llamaydi
                     # (400 "Unsupported parameter: 'response_format'") — bu
@@ -890,8 +906,12 @@ def _validate_result(result: dict) -> None:
             raise ValueError(f"Criterion #{i} name must be non-empty text")
         if not isinstance(c.get("reason", ""), str):
             raise ValueError(f"Criterion #{i} reason must be text")
-        if len(c["name"]) > 300 or len(c.get("reason", "")) > 4000:
-            raise ValueError(f"Criterion #{i} text is too long")
+        if len(c.get("reason", "")) > 4000:
+            raise ValueError(f"Criterion #{i} reason is too long")
+        # The model's label is not part of its grade. Persist the canonical
+        # rubric label: EssayCriterionScore.name is varchar(100) in Postgres,
+        # while a verbose model-generated label can be arbitrarily longer.
+        c["name"] = EssayCriterionScore.CRITERION_NAMES[criterion_id]
 
         # Optional evidence snippets ("errors"): model topgan xatolarning
         # esse matnidan qisqa iqtiboslari. Noto'g'ri tip kelda — bo'sh ro'yxat;
@@ -1084,75 +1104,96 @@ def _compute_text_hash(
     return hashlib.sha256(combined.encode("utf-8")).hexdigest()
 
 
-def _grade_via_llm(client, candidates: list[str], user_message: str, system_prompt: str) -> tuple[dict, str]:
+def _grade_via_llm(
+    client,
+    candidates: list[str],
+    user_message: str,
+    system_prompt: str,
+    simplified_prompt: str | None = None,
+    *,
+    deadline: float | None = None,
+    request_timeout: float | None = None,
+) -> tuple[dict, str]:
     """
-    One full grading attempt: chat call (with fallback-model retry across
-    ``candidates``) → extract → clean → parse JSON → validate.
+    Try each model until one returns a complete, valid rubric result.
 
     Uses strict JSON mode (response_format=json_object), low temperature and
-    a compact token budget. Returns ``(validated_result, model_used)``. Raises
-    ValueError on any failure (API error, empty reply, unparsable JSON,
-    invalid structure) — the caller may retry with a simpler prompt.
+    Fallback models use the simpler prompt. With a single configured model,
+    retry that model once with the simpler prompt. A nonempty but malformed
+    response must not stop the fallback chain or be saved as a grade.
     """
-    try:
-        response, model_used = _chat_with_fallback(
-            client,
-            candidates[0],
-            candidates[1:],
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            # Qat'iy JSON rejimi + past temperature + keng token budjeti:
-            # model fikrlash matni yozmaydi, 12 mezonlik JSON yarmida
-            # kesilmaydi ("Unterminated string" xatosining oldi olinadi).
-            max_tokens=3000,
-            temperature=0.1,
-            response_format={"type": "json_object"},
-        )
-    except Exception as e:
-        error_str = str(e).lower()
-        if "413" in error_str or "too large" in error_str or "rate" in error_str:
-            logger.error("AI provider rate/TPM limit exceeded: model=%s", candidates)
-            raise ValueError(
-                "Esse juda uzun yoki tizim band. "
-                "Iltimos, matnni biroz qisqartirib qayta yuboring."
-            ) from e
-        logger.error("AI provider API call failed: %s", e)
-        raise ValueError(f"API xatolik: {e}") from e
+    attempts = [
+        (model, system_prompt if index == 0 else simplified_prompt or system_prompt)
+        for index, model in enumerate(candidates)
+    ]
+    if len(candidates) == 1 and simplified_prompt:
+        attempts.append((candidates[0], simplified_prompt))
 
-    # --- Extract text from response ---
-    raw_text = response.choices[0].message.content or ""
-    if not raw_text.strip():
-        logger.error("Empty response from LLM")
-        raise ValueError("LLM bo'sh javob qaytardi")
+    last_error: Exception | None = None
+    for model, prompt in attempts:
+        try:
+            response, model_used = _chat_with_fallback(
+                client,
+                model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                max_tokens=3000,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+                deadline=deadline,
+                request_timeout=request_timeout,
+            )
+        except Exception as exc:
+            if isinstance(exc, SoftTimeLimitExceeded):
+                raise
+            error_str = str(exc).lower()
+            if _is_transient_ai_error(exc):
+                # Keep the provider exception type so the Celery task retries
+                # after the whole model chain has a temporary outage.
+                last_error = exc
+                logger.warning("AI grading model %s failed temporarily; trying next candidate: %s", model, exc)
+                continue
+            if "413" in error_str or "too large" in error_str:
+                last_error = ValueError(
+                    "Esse juda uzun yoki tizim band. "
+                    "Iltimos, matnni biroz qisqartirib qayta yuboring."
+                )
+            else:
+                last_error = ValueError(f"API xatolik: {exc}")
+            if (
+                _is_invalid_model_error(exc)
+                or (isinstance(exc, ValueError) and str(exc) == "LLM bo'sh javob qaytardi")
+            ):
+                logger.warning("AI grading model %s failed; trying next candidate: %s", model, exc)
+                continue
+            logger.error("AI provider API call failed: model=%s, error=%s", model, exc)
+            raise last_error from exc
 
-    # --- Parse JSON (thinking text, code fences, `\'` escapes, truncation) ---
-    result = parse_llm_json(raw_text)
-    if result.get("_parse_failed"):
-        logger.error(
-            "Failed to parse LLM JSON (first 500 chars): %s",
-            raw_text[:500],
-        )
-        raise ValueError("LLM javobini JSON formatida parse qilib bo'lmadi")
+        raw_text = response.choices[0].message.content or ""
+        result = parse_llm_json(raw_text)
+        if result.get("_parse_failed"):
+            last_error = ValueError("LLM javobini JSON formatida parse qilib bo'lmadi")
+            logger.warning("AI grading model %s returned invalid JSON (first 500 chars): %s", model, raw_text[:500])
+            continue
 
-    # --- Normalize: ba'zi modellar 'reason'/'errors' yozmaydi → "" / [] bilan to'ldirish ---
-    for c in result.get("criteria", []):
-        if isinstance(c, dict):
-            c.setdefault("reason", "")
-            c.setdefault("errors", [])
+        for criterion in result.get("criteria", []) if isinstance(result.get("criteria"), list) else []:
+            if isinstance(criterion, dict):
+                criterion.setdefault("reason", "")
+                criterion.setdefault("errors", [])
+        try:
+            _validate_result(result)
+        except ValueError as exc:
+            last_error = ValueError(f"LLM javob formati noto'g'ri: {exc}")
+            logger.warning(
+                "AI grading model %s returned invalid rubric (error=%s, first 500 chars): %s",
+                model, exc, raw_text[:500],
+            )
+            continue
+        return result, model_used
 
-    # --- Validate structure ---
-    try:
-        _validate_result(result)
-    except ValueError as e:
-        logger.error(
-            "Validation failed (error=%s, first 500 chars): %s",
-            e, raw_text[:500],
-        )
-        raise ValueError(f"LLM javob formati noto'g'ri: {e}") from e
-
-    return result, model_used
+    raise last_error or ValueError("AI grading model chain is empty")
 
 
 def grade_essay(essay_text: str, topic_title: str = "") -> dict:
@@ -1269,35 +1310,25 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
 
         return result
 
-    # --- Call OpenRouter API via OpenAI SDK ---
-    # Attempt 1: primary model (fallback-model retry inside for transient
-    # errors). Attempt 2 (only on failure): candidate order reversed, so the
-    # fallback model grades from scratch. Free models occasionally return
-    # malformed JSON or ≠12 criteria; one clean re-grade fixes transient
-    # quirks without ever accepting a malformed result.
-    client = _get_llm_client()
+    # Share a 170s budget across the model chain. The primary model may use
+    # the configured 60s timeout, while later calls use only the time left.
+    # Celery's soft limit is 200s; a model may require a second call without
+    # JSON mode.
+    candidates = _model_candidates()
+    if not candidates:
+        raise ImproperlyConfigured("AI grading model sozlanmagan")
+    configured_timeout = float(getattr(settings, "ESSAY_AI_REQUEST_TIMEOUT", 30.0))
+    if configured_timeout <= 0:
+        raise ImproperlyConfigured("ESSAY_AI_REQUEST_TIMEOUT musbat bo'lishi kerak")
+    client = _get_llm_client(timeout=configured_timeout)
     user_message = build_grading_message(essay_text, topic_title)
 
-    candidates = _model_candidates()
-    try:
-        result, model = _grade_via_llm(client, candidates, user_message, ESSAY_GRADING_SYSTEM_PROMPT)
-    except ValueError as first_err:
-        # Parse/validation failure (≠12 criteria, malformed JSON, thinking text,
-        # truncated reply, …): one re-grade with a SIMPLIFIED prompt and reversed
-        # candidate order. Ixcham prompt bepul modellar uchun toza JSON qaytarish
-        # ancha oson — birinchi urinishdagi transient quirk'lar shu bilan hal
-        # bo'ladi, lekin buzilgan natija HECH QACHON qabul qilinmaydi.
-        if len(candidates) > 1:
-            logger.warning(
-                "Grading attempt 1 failed (%s) — retrying with simplified prompt + reversed candidate order",
-                first_err,
-            )
-            result, model = _grade_via_llm(
-                client, list(reversed(candidates)), user_message,
-                ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
-            )
-        else:
-            raise
+    result, model = _grade_via_llm(
+        client, candidates, user_message,
+        ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
+        deadline=time.monotonic() + 170.0,
+        request_timeout=configured_timeout,
+    )
 
     # --- Ensure topic_match fields exist (backward-compatible) ---
     result.setdefault("topic_match", True)

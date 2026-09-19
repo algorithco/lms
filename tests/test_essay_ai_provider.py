@@ -14,6 +14,7 @@ called, and provider resolution never hits the network.
 """
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ImproperlyConfigured
@@ -23,9 +24,11 @@ from apps.essays.services import (
     _chat_with_fallback,
     _get_ai_model,
     _get_llm_client,
+    _grade_via_llm,
     _is_mock_mode,
     _model_candidates,
     _resolve_provider,
+    grade_essay,
     parse_llm_json,
 )
 
@@ -366,6 +369,169 @@ class JsonParsingTests(TestCase):
 
     def test_empty_returns_parse_failed(self):
         self.assertTrue(parse_llm_json("").get("_parse_failed"))
+
+
+class GradingResponseFallbackTests(TestCase):
+    def test_invalid_json_tries_next_model_and_keeps_real_scores(self):
+        client = MagicMock()
+        bad = MagicMock()
+        bad.choices[0].message.content = '{"criteria": ['
+        good = MagicMock()
+        good.choices[0].message.content = json.dumps({
+            "criteria": [
+                {"id": i, "name": f"Criterion {i}", "score": 1.5, "reason": "izoh"}
+                for i in range(1, 13)
+            ],
+            "total_score": 0,
+            "max_score": 24,
+            "summary": "Haqiqiy model javobi.",
+        })
+        client.chat.completions.create.side_effect = [bad, good]
+
+        result, used_model = _grade_via_llm(
+            client, ["primary", "fallback"], "essay", "normal prompt", "simple prompt",
+        )
+
+        self.assertEqual(used_model, "fallback")
+        self.assertEqual(result["total_score"], 18.0)
+        calls = client.chat.completions.create.call_args_list
+        self.assertEqual([call.kwargs["model"] for call in calls], ["primary", "fallback"])
+        self.assertEqual(calls[1].kwargs["messages"][0]["content"], "simple prompt")
+
+    def test_all_invalid_responses_raise_without_a_grade(self):
+        client = MagicMock()
+        bad = MagicMock()
+        bad.choices[0].message.content = '{"criteria": ['
+        client.chat.completions.create.return_value = bad
+
+        with self.assertRaisesRegex(ValueError, "JSON formatida"):
+            _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
+
+        self.assertEqual(client.chat.completions.create.call_count, 2)
+
+    def test_invalid_rubric_tries_next_model(self):
+        client = MagicMock()
+        invalid = MagicMock()
+        invalid.choices[0].message.content = json.dumps({
+            "criteria": [{"id": 1, "name": "Uslub", "score": 2}],
+            "summary": "To'liq emas.",
+        })
+        valid = MagicMock()
+        valid.choices[0].message.content = json.dumps({
+            "criteria": [
+                {"id": i, "name": f"Criterion {i}", "score": 2, "reason": "izoh"}
+                for i in range(1, 13)
+            ],
+            "summary": "To'liq baho.",
+        })
+        client.chat.completions.create.side_effect = [invalid, valid]
+
+        result, used_model = _grade_via_llm(
+            client, ["primary", "fallback"], "essay", "normal", "simple",
+        )
+
+        self.assertEqual(used_model, "fallback")
+        self.assertEqual(result["total_score"], 24.0)
+
+    @override_settings(
+        ESSAY_AI_PROVIDER="openrouter",
+        OPENROUTER_API_KEY=OR_KEY,
+        ESSAY_AI_MODEL="primary",
+        OPENROUTER_FALLBACK_MODELS=["fallback"],
+    )
+    def test_invalid_chain_does_not_cache_or_invent_a_grade(self):
+        from apps.essays.models import EssayGradingCache
+
+        client = MagicMock()
+        bad = MagicMock()
+        bad.choices[0].message.content = '{"criteria": ['
+        client.chat.completions.create.return_value = bad
+        with patch("apps.essays.services._get_llm_client", return_value=client):
+            with self.assertRaisesRegex(ValueError, "JSON formatida"):
+                grade_essay("Bu haqiqiy baho olinmagan esse matni")
+
+        self.assertEqual(EssayGradingCache.objects.count(), 0)
+
+    def test_authentication_error_stops_before_fallback(self):
+        import openai
+
+        client = MagicMock()
+        client.chat.completions.create.side_effect = openai.AuthenticationError(
+            "401 invalid key", response=MagicMock(status_code=401, headers={}), body=None,
+        )
+        with self.assertRaisesRegex(ValueError, "API xatolik"):
+            _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
+        self.assertEqual(client.chat.completions.create.call_count, 1)
+
+    def test_all_rate_limited_models_remain_retryable(self):
+        import openai
+
+        client = MagicMock()
+        client.chat.completions.create.side_effect = openai.RateLimitError(
+            "429 temporarily busy", response=MagicMock(status_code=429, headers={}), body=None,
+        )
+        with self.assertRaises(openai.RateLimitError):
+            _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
+        self.assertEqual(client.chat.completions.create.call_count, 2)
+
+    def test_celery_soft_limit_is_not_converted_to_permanent_error(self):
+        from billiard.exceptions import SoftTimeLimitExceeded
+
+        client = MagicMock()
+        client.chat.completions.create.side_effect = SoftTimeLimitExceeded()
+        with self.assertRaises(SoftTimeLimitExceeded):
+            _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
+        self.assertEqual(client.chat.completions.create.call_count, 1)
+
+    @override_settings(
+        ESSAY_AI_PROVIDER="openrouter",
+        OPENROUTER_API_KEY=OR_KEY,
+        ESSAY_AI_MODEL="primary",
+        OPENROUTER_FALLBACK_MODELS=["fallback-one", "fallback-two"],
+        ESSAY_AI_REQUEST_TIMEOUT=60,
+    )
+    def test_grade_request_uses_shared_deadline(self):
+        from time import monotonic
+
+        valid = {
+            "criteria": [
+                {"id": i, "name": f"Criterion {i}", "score": 1, "reason": "izoh"}
+                for i in range(1, 13)
+            ],
+            "total_score": 12,
+            "max_score": 24,
+            "summary": "Haqiqiy model javobi.",
+        }
+        before = monotonic()
+        with (
+            patch("apps.essays.services._get_llm_client") as get_client,
+            patch("apps.essays.services._grade_via_llm", return_value=(valid, "primary")) as grader,
+        ):
+            result = grade_essay("Sinov uchun esse matni")
+        after = monotonic()
+
+        self.assertEqual(result["total_score"], 12)
+        get_client.assert_called_once_with(timeout=60)
+        self.assertEqual(grader.call_args.kwargs["request_timeout"], 60)
+        deadline = grader.call_args.kwargs["deadline"]
+        self.assertGreaterEqual(deadline, before + 170)
+        self.assertLessEqual(deadline, after + 170)
+
+    def test_model_request_timeout_uses_remaining_budget(self):
+        client = MagicMock()
+        ok = MagicMock()
+        ok.choices[0].message.content = '{"ok": true}'
+        client.chat.completions.create.return_value = ok
+
+        with patch("apps.essays.services.time.monotonic", return_value=100.0):
+            _chat_with_fallback(
+                client, "primary", messages=[], max_tokens=5, temperature=0,
+                deadline=145.0, request_timeout=60.0,
+            )
+
+        timeout = client.chat.completions.create.call_args.kwargs["timeout"]
+        self.assertEqual(timeout.read, 45.0)
+        self.assertEqual(timeout.connect, 10.0)
 
 
 class ResponseFormatTests(TestCase):

@@ -521,10 +521,8 @@ OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="LMS Platform")
 ESSAY_AI_MOCK_MODE = env.bool("ESSAY_AI_MOCK_MODE", default=False)
 
 # LLM so'rovi uchun READ timeout (sekund). Connect timeout alohida 10s.
-# Budget: har bir urinish ~timeout, maksimum 3 model × 1 attempt × 2
-# pass (normal+simplified retry) = 6 × timeout. Masalan 35s×6=210s > soft
-# 200s bo'lgani uchun timeout=30 qilib 6×30=180s < soft 200s < hard 240s ni
-# kafolatlaymiz. Task limitlari bundan katta bo'lishi shart.
+# Grading shares a deadline across fallback models inside the task's 200s
+# soft limit. A model that rejects JSON mode can require a second HTTP call.
 ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="30"))
 
 # Background-thread retry backoff (sekund) — runserver-only rejimda
