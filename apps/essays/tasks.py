@@ -83,7 +83,10 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     try:
         with transaction.atomic():
             submission = (
-                EssaySubmission.objects.select_for_update()
+                # ``topic`` is nullable, so ``select_related`` creates a LEFT
+                # OUTER JOIN. PostgreSQL cannot lock the nullable side of that
+                # join; lock only the submission row that this claim protects.
+                EssaySubmission.objects.select_for_update(of=("self",))
                 .select_related("topic")
                 .filter(pk=submission_id)
                 .first()
@@ -144,7 +147,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
         try:
             with transaction.atomic():
                 locked = (
-                    EssaySubmission.objects.select_for_update()
+                    # Keep the concurrent-worker guard while avoiding a
+                    # PostgreSQL FOR UPDATE on nullable ``topic``.
+                    EssaySubmission.objects.select_for_update(of=("self",))
                     .select_related("topic")
                     .filter(pk=submission_id)
                     .first()

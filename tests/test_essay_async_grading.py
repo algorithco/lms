@@ -24,8 +24,10 @@ import threading
 from copy import deepcopy
 from datetime import timedelta
 from decimal import Decimal
+from unittest import skipUnless
 from unittest.mock import MagicMock, patch
 
+from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -138,6 +140,47 @@ class SubmitImmediateResponseTests(AsyncGradingBaseTestCase):
                 self.submit_url, self.submit_body, content_type="application/json",
             )
             mock_grade.assert_not_called()
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL lock regression test")
+class PostgreSQLFullAIGradingLockRegressionTests(
+    AsyncGradingFixtureMixin, TransactionTestCase,
+):
+    """Exercise submit -> worker -> persisted grade on PostgreSQL.
+
+    ``EssaySubmission.topic`` is nullable. The worker nevertheless loads it
+    for the rubric check while claiming the submission, which must lock only
+    the submission row rather than the nullable side of that outer join.
+    """
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
+    def test_submit_then_worker_grades_nullable_topic_join_safely(self) -> None:
+        from apps.essays.tasks import grade_submission_task
+
+        self.client.force_login(self.student)
+        with patch.object(grade_submission_task, "delay") as mock_enqueue:
+            response = self.client.post(
+                self.submit_url, self.submit_body, content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 202)
+        mock_enqueue.assert_called_once_with(
+            self.submission.id, fail_status=EssaySubmission.Status.ERROR,
+        )
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.PENDING)
+
+        with patch("apps.essays.services.grade_essay", return_value=MOCK_GRADE):
+            result = grade_submission_task.apply(
+                args=[self.submission.id],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
+            ).get()
+
+        self.assertEqual(result["status"], "ok")
+        self.submission.refresh_from_db()
+        self.assertEqual(self.submission.status, EssaySubmission.Status.GRADED)
+        self.assertEqual(self.submission.total_score, Decimal("18.0"))
+        self.assertEqual(self.submission.criteria.count(), 12)
 
 
 class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
