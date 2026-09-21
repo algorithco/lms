@@ -11,7 +11,7 @@ psycopg2-binary>=2.9.13,<3.0          # PostgreSQL adapter
 # REST Framework & API docs
 djangorestframework>=3.18.1,<4.0
 djangorestframework-simplejwt>=5.5.1,<6.0
-drf-spectacular>=0.27,<1.0         # OpenAPI / Swagger
+drf-spectacular>=0.30.0,<1.0         # OpenAPI / Swagger
 django-filter>=26.1,<27.0          # QuerySet filtering
 
 # CORS
