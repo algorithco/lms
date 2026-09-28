@@ -153,3 +153,56 @@ class ParserTests(SimpleTestCase):
             ["7423424205", "5636907095"],
         )
         self.assertEqual(wd.parse_chat_ids(""), [])
+
+
+class RepeatTests(SimpleTestCase):
+    def test_new_resend_resolved_cycle(self):
+        now = 100000.0
+        new, resend, resolved = wd.update_active({}, {"disk"}, now)
+        self.assertEqual((new, resend, resolved), (["disk"], [], []))
+        active = {"disk": {"first": now, "last": now, "count": 1}}
+        # still active 20s later → silent (repeat is 50s)
+        new, resend, resolved = wd.update_active(active, {"disk"}, now + 20)
+        self.assertEqual((new, resend, resolved), ([], [], []))
+        # still active 60s later → resend
+        new, resend, resolved = wd.update_active(active, {"disk"}, now + 60)
+        self.assertEqual((new, resend, resolved), ([], ["disk"], []))
+        # condition gone → resolved
+        new, resend, resolved = wd.update_active(active, set(), now + 70)
+        self.assertEqual((new, resend, resolved), ([], [], ["disk"]))
+
+    def test_format_status_contains_key_lines(self):
+        m = base_metrics(
+            load15=1.5, cpu_pct=12.0, mem_avail_mb=3000.0, disk_pct=33.0,
+            conns_established=41, ssh_failed_10m=2, banned_now=7,
+            delta_429=0, delta_5xx=1, unhealthy_containers=[],
+            cert_days_left=500.0,
+            healthz={"status": "ok", "db": True, "version": "0.60.0"},
+            public_listeners=[22, 80, 443],
+        )
+        text = wd.format_status(m, base_thresholds())
+        for needle in ("load15: 1.5", "cpu: 12%", "mem avail: 3000MB",
+                       "disk: 33%", "bans: 7", "v0.60.0", "OK"):
+            self.assertIn(needle, text)
+
+    def test_cpu_percent(self):
+        prev = [1000, 0, 2000, 5000, 500, 0, 0, 0, 0, 0]
+        cur = [1100, 0, 2100, 5050, 500, 0, 0, 0, 0, 0]
+        pct = wd.cpu_percent(prev, cur)
+        self.assertIsNotNone(pct)
+        self.assertAlmostEqual(pct, 80.0, places=0)
+
+    def test_parse_running_for(self):
+        self.assertEqual(wd.parse_running_for("25 minutes ago"), 1500)
+        self.assertEqual(wd.parse_running_for("3 hours ago"), 10800)
+        self.assertIsNone(wd.parse_running_for("Up 3 hours"))
+
+    def test_parse_healthz(self):
+        good = wd.parse_healthz('{"status": "ok", "db": true, "version": "1"}')
+        self.assertEqual(good["status"], "ok")
+        self.assertIsNone(wd.parse_healthz("not json"))
+        self.assertIsNone(wd.parse_healthz('{"nope": 1}'))
+
+    def test_count_established(self):
+        ss = "tcp ESTAB 0 0 1.1.1.1:443 2.2.2.2:1\ntcp TIME-WAIT 0 0 1.1.1.1:80 3.3.3.3:2\n"
+        self.assertEqual(wd.count_established(ss), 1)

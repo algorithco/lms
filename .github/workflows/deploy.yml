@@ -120,6 +120,8 @@ jobs:
           # shellcheck disable=SC2086
           $SCP deploy/vps_watchdog.py "$VPS_USER@$VPS_HOST:/opt/lms/deploy/vps_watchdog.py"
           # shellcheck disable=SC2086
+          $SCP deploy/vps-watchdog.service "$VPS_USER@$VPS_HOST:/opt/lms/deploy/vps-watchdog.service"
+          # shellcheck disable=SC2086
           $SCP deploy/nginx/nginx-main.conf deploy/nginx/nginx-http.conf \
             deploy/nginx/nginx-ssl.conf "$VPS_USER@$VPS_HOST:/opt/lms/deploy/nginx/"
           # shellcheck disable=SC2086
