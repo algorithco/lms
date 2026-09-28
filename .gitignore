@@ -67,6 +67,7 @@ deploy/nginx/nginx.conf
 # VPS-side admin Basic Auth credential (created by setup-admin-auth.sh).
 # The .example template stays tracked; the real file must never be committed.
 deploy/secrets/htpasswd-admin
+deploy/secrets/watchdog.env
 deploy/secrets/*.pem
 deploy/secrets/*.key
 *.pem
