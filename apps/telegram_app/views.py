@@ -692,7 +692,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     Get essay grading result.
     """
     from apps.essays.models import EssaySubmission
-    from apps.essays.services import expire_overdue_pending_grading
+    from apps.essays.services import essay_has_grade_result, expire_overdue_pending_grading
 
     try:
         submission = EssaySubmission.objects.get(
@@ -716,6 +716,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
 
     response = {
         "id": submission.id,
+        "topic_id": submission.topic_id,
         "topic_title": submission.topic.title if submission.topic else "",
         "status": submission.status,
         "total_score": float(submission.total_score) if submission.total_score is not None else None,
@@ -724,6 +725,11 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "score_percentage": submission.score_percentage,
         "summary": submission.summary,
         "error": submission.error_message if submission.status == EssaySubmission.Status.ERROR else None,
+        "can_retry": (
+            submission.status == EssaySubmission.Status.ERROR
+            and not essay_has_grade_result(submission)
+        ),
+        "essay_text": submission.essay_text,
         "word_count": submission.word_count,
         "is_off_topic": submission.is_off_topic,
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,

@@ -46,6 +46,9 @@ interface Result {
   word_count: number;
   is_off_topic: boolean;
   topic_title: string;
+  topic_id?: number | null;
+  essay_text?: string;
+  can_retry?: boolean;
   criteria: Criterion[];
   graded_at?: string | null;
   poll_after?: number;
@@ -72,6 +75,11 @@ export default function EssayResult() {
   const [reviewSent, setReviewSent] = useState(false);
   const [reviewErr, setReviewErr] = useState<string | null>(null);
 
+  // One-click retry for failed grading (status=error).
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryErr, setRetryErr] = useState<string | null>(null);
+  const [pollNonce, setPollNonce] = useState(0);
+
   useEffect(() => {
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -92,7 +100,7 @@ export default function EssayResult() {
       stop = true;
       clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, pollNonce]);
 
   const loadImproved = useCallback(async () => {
     if (improved !== null || improvedBusy) return;
@@ -159,6 +167,29 @@ export default function EssayResult() {
     }
   };
 
+  const retryGrading = async () => {
+    if (!res || retryBusy) return;
+    setRetryBusy(true);
+    setRetryErr(null);
+    try {
+      const text = (res.essay_text ?? '').trim();
+      if (!text) {
+        setRetryErr(t('essay_js_error'));
+        setRetryBusy(false);
+        return;
+      }
+      await Essays.submit(id, text);
+      // Backend re-queues grading (ERROR without result → PENDING).
+      // Switch to polling UI immediately and restart the poll loop.
+      setRes({ ...res, status: 'pending' });
+      setPollNonce((n) => n + 1);
+    } catch (e) {
+      setRetryErr(e instanceof Error ? e.message : t('essay_js_error'));
+    } finally {
+      setRetryBusy(false);
+    }
+  };
+
   if (err) return <p className="error">{err}</p>;
   if (!res) return <p className="muted">{t('loading')}</p>;
 
@@ -204,9 +235,25 @@ export default function EssayResult() {
         <div className="card">
           <p className="error">{t('essay_error')}</p>
           {res.error && <p className="muted">{res.error}</p>}
-          <Link className="btn primary sm" to="/essays">
-            {t('essay_error_retry')}
-          </Link>
+          {retryErr && <p className="error">{retryErr}</p>}
+          <div className="toolbar">
+            <button
+              className="btn primary sm"
+              disabled={retryBusy || !(res.essay_text ?? '').trim()}
+              onClick={retryGrading}
+            >
+              {retryBusy ? t('loading') : t('essay_error_retry')}
+            </button>
+            {res.topic_id ? (
+              <Link className="btn sm" to={`/essays/write/${res.topic_id}`}>
+                {t('essay_continue_writing')}
+              </Link>
+            ) : (
+              <Link className="btn sm" to="/essays">
+                {t('essay_back_topics')}
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
