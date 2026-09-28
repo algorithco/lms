@@ -82,7 +82,9 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx ngi
 # only). This block NEVER fails the deploy — worst case the previous daemon
 # keeps running and the next deploy retries. ---
 if [ -f deploy/vps_watchdog.py ] && [ -f deploy/vps-watchdog.service ]; then
-  sudo -n cp deploy/vps-watchdog.service /etc/systemd/system/vps-watchdog.service < /dev/null || true
+  # NOTE: absolute source path — sudoers matches commands literally, a
+  # relative path would be denied (Sep 2026: silent non-fatal skip).
+  sudo -n cp /opt/lms/deploy/vps-watchdog.service /etc/systemd/system/vps-watchdog.service < /dev/null || true
   sudo -n systemctl daemon-reload < /dev/null || true
   sudo -n systemctl enable --now vps-watchdog < /dev/null || true
   (crontab -l 2>/dev/null | grep -v vps_watchdog || true) | crontab - < /dev/null || true
