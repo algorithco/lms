@@ -74,6 +74,18 @@ fi
 # proxy_pass would pin the old web IP forever.) Zero-downtime by design. ---
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx nginx -s reload < /dev/null
 
+# --- VPS watchdog (Telegram alerts): versioned script+unit arrive via deploy
+# sync above; secrets (watchdog.env) stay VPS-only. The daemon supersedes the
+# legacy */5 cron — remove it so alerts never double-send. All guarded so a
+# watchdog failure can never fail the deploy. ---
+if [ -f deploy/vps_watchdog.py ] && [ -f deploy/vps-watchdog.service ]; then
+  cp deploy/vps-watchdog.service /etc/systemd/system/vps-watchdog.service
+  systemctl daemon-reload < /dev/null || true
+  systemctl enable --now vps-watchdog < /dev/null || true
+  (crontab -l 2>/dev/null | grep -v vps_watchdog || true) | crontab - < /dev/null || true
+  systemctl is-active --quiet vps-watchdog && echo ">>> watchdog service active" || echo ">>> watchdog service NOT active (non-fatal)"
+fi
+
 echo ">>> writing tag [$IMS_IMAGE_TAG] (pwd=$(pwd))"
 echo "$IMS_IMAGE_TAG" > .last_good_tag.tmp && mv .last_good_tag.tmp .last_good_tag
 
