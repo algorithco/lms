@@ -76,14 +76,19 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T nginx ngi
 
 # --- VPS watchdog (Telegram alerts): versioned script+unit arrive via deploy
 # sync above; secrets (watchdog.env) stay VPS-only. The daemon supersedes the
-# legacy */5 cron — remove it so alerts never double-send. All guarded so a
-# watchdog failure can never fail the deploy. ---
+# legacy */5 cron — remove it so alerts never double-send. Deploys run as the
+# unprivileged `deploy` user, so systemd steps go through the scoped NOPASSWD
+# rule in /etc/sudoers.d/vps-watchdog (host-provisioned, service lifecycle
+# only). This block NEVER fails the deploy — worst case the previous daemon
+# keeps running and the next deploy retries. ---
 if [ -f deploy/vps_watchdog.py ] && [ -f deploy/vps-watchdog.service ]; then
-  cp deploy/vps-watchdog.service /etc/systemd/system/vps-watchdog.service
-  systemctl daemon-reload < /dev/null || true
-  systemctl enable --now vps-watchdog < /dev/null || true
+  sudo -n cp deploy/vps-watchdog.service /etc/systemd/system/vps-watchdog.service < /dev/null || true
+  sudo -n systemctl daemon-reload < /dev/null || true
+  sudo -n systemctl enable --now vps-watchdog < /dev/null || true
   (crontab -l 2>/dev/null | grep -v vps_watchdog || true) | crontab - < /dev/null || true
-  systemctl is-active --quiet vps-watchdog && echo ">>> watchdog service active" || echo ">>> watchdog service NOT active (non-fatal)"
+  sudo -n systemctl is-active --quiet vps-watchdog < /dev/null \
+    && echo ">>> watchdog service active" \
+    || echo ">>> watchdog service NOT active (non-fatal, keeps previous)"
 fi
 
 echo ">>> writing tag [$IMS_IMAGE_TAG] (pwd=$(pwd))"
