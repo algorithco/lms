@@ -97,18 +97,23 @@ def parse_cert_notafter(openssl_out: str) -> float | None:
 
 
 def parse_public_listeners(ss_out: str) -> list[int]:
-    """Ports bound on all interfaces (0.0.0.0 / :: / *) from `ss -tlnH`."""
+    """Ports bound on all interfaces (0.0.0.0 / :: / [::] / *) from `ss -tlnH`.
+
+    The local address column shifts when extra columns (e.g. process info
+    with -p) are present, so scan for the first address-like token instead
+    of assuming a fixed index.
+    """
     ports: set[int] = set()
     for line in (ss_out or "").splitlines():
         parts = line.split()
-        if len(parts) < 4:
-            continue
-        addr = parts[3]
-        if not (addr.startswith("0.0.0.0:") or addr.startswith(":::") or addr.startswith("*:")):
-            continue
-        port = addr.rsplit(":", 1)[-1].rstrip("]")
-        if port.isdigit():
-            ports.add(int(port))
+        for token in parts[2:]:
+            host, _, port = token.rpartition(":")
+            if not port.isdigit():
+                continue
+            if "." in host or "[" in host or host == "*":
+                if host.strip("[]") in ("0.0.0.0", "::", "*"):
+                    ports.add(int(port))
+                break
     return sorted(ports)
 
 
