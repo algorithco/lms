@@ -10,8 +10,9 @@ containers cannot see fail2ban, host listeners or host auth logs):
 Secrets live in /opt/lms/deploy/secrets/watchdog.env (chmod 600, NEVER in
 git — see deploy/secrets/watchdog.env.example):
     WATCHDOG_BOT_TOKEN=123456:AA...   # dedicated admin bot (@BotFather)
-    WATCHDOG_CHAT_ID=123456789        # admin chat (message the bot once, then
-                                      # curl https://api.telegram.org/bot<TOKEN>/getUpdates)
+    WATCHDOG_CHAT_ID=111,222          # comma-separated admin chats (each admin
+                                      # messages the bot once, then read the id
+                                      # via curl .../bot<TOKEN>/getUpdates)
 
 Without WATCHDOG_CHAT_ID the script prints setup instructions and exits 0.
 Every alert has a 60-minute cooldown (state in /var/tmp/vps_watchdog.state.json)
@@ -212,6 +213,18 @@ def evaluate(metrics: dict, thresholds: dict, state: dict, now: float) -> list[t
     return [(k, t) for k, t in alerts if not cooled(k)]
 
 
+def parse_chat_ids(raw: str) -> list[str]:
+    """Comma-separated admin chat ids (whitespace tolerant, order kept)."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for part in (raw or "").split(","):
+        chat = part.strip()
+        if chat and chat not in seen:
+            seen.add(chat)
+            out.append(chat)
+    return out
+
+
 def send_telegram(token: str, chat_id: str, text: str, timeout: int = 20) -> bool:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     body = urllib.parse.urlencode(
@@ -295,13 +308,14 @@ def load_secrets_env(path: str = "/opt/lms/deploy/secrets/watchdog.env") -> None
 def main() -> int:
     load_secrets_env()
     token = os.environ.get("WATCHDOG_BOT_TOKEN", "")
-    chat_id = os.environ.get("WATCHDOG_CHAT_ID", "")
-    if not token or not chat_id:
+    chat_ids = parse_chat_ids(os.environ.get("WATCHDOG_CHAT_ID", ""))
+    if not token or not chat_ids:
         print(
             "watchdog: WATCHDOG_BOT_TOKEN/WATCHDOG_CHAT_ID not set.\n"
-            "  1. Message the admin bot once (/start).\n"
+            "  1. Each admin messages the admin bot once (/start).\n"
             "  2. curl https://api.telegram.org/bot<TOKEN>/getUpdates\n"
-            "  3. Put token+chat id in /opt/lms/deploy/secrets/watchdog.env (600)."
+            "  3. Put token + comma-separated chat ids in "
+            "/opt/lms/deploy/secrets/watchdog.env (600)."
         )
         return 0
     thresholds = {k: threshold(k) for k in DEFAULTS}
@@ -324,7 +338,7 @@ def main() -> int:
         lines += [f"- {text}" for _, text in alerts]
         if context:
             lines.append("(" + ", ".join(context) + ")")
-        ok = send_telegram(token, chat_id, "\n".join(lines))
+        ok = all(send_telegram(token, cid, "\n".join(lines)) for cid in chat_ids)
         if not ok:
             return 1
         state.setdefault("alert_at", {}).update({k: now for k, _ in alerts})

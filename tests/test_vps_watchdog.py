@@ -141,3 +141,15 @@ class ParserTests(SimpleTestCase):
             '1.2.3.4 - - [28/Sep/2026:14:00:03 +0500] "GET /api/y HTTP/1.1" 502 0 "-" "-"\n'
         )
         self.assertEqual(wd.count_nginx_codes(sample), (1, 1))
+
+    def test_parse_chat_ids(self):
+        self.assertEqual(wd.parse_chat_ids("7423424205"), ["7423424205"])
+        self.assertEqual(
+            wd.parse_chat_ids("7423424205,5636907095"),
+            ["7423424205", "5636907095"],
+        )
+        self.assertEqual(
+            wd.parse_chat_ids(" 7423424205 , 5636907095,7423424205 "),
+            ["7423424205", "5636907095"],
+        )
+        self.assertEqual(wd.parse_chat_ids(""), [])
