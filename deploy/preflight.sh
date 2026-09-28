@@ -77,7 +77,9 @@ command -v docker >/dev/null || err "docker not installed"
 say "6/8 admin Basic Auth credential (fail-closed)"
 if test -f deploy/secrets/htpasswd-admin; then
   aperms=$(stat -c %a deploy/secrets/htpasswd-admin 2>/dev/null || stat -f %Lp deploy/secrets/htpasswd-admin 2>/dev/null || echo "?")
-  test "$aperms" = "600" || err "htpasswd-admin perms=$aperms, want 600"
+  # 644 by design (see setup-admin-auth.sh): container nginx workers run as a
+  # foreign uid, so 600 breaks the admin host with nginx 500 (EACCES).
+  test "$aperms" = "644" || err "htpasswd-admin perms=$aperms, want 644"
   if cmp -s deploy/secrets/htpasswd-admin deploy/secrets/htpasswd-admin.example; then
     err "htpasswd-admin is still the DISABLED example — run ./deploy/setup-admin-auth.sh on the VPS"
   fi

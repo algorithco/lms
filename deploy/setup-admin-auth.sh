@@ -36,7 +36,11 @@ else
     # apr1 (Apache MD5) — nginx:alpine'ning openssl'i tushunadi, htpasswd shart emas
     HASH="$(openssl passwd -apr1 "$PASSWORD")"
     printf '%s:%s\n' "$AUTH_USER" "$HASH" > "$AUTH_FILE"
-    chmod 600 "$AUTH_FILE"
+    # 644 (not 600): the nginx WORKER inside the container runs as uid `nginx`,
+    # which shares nothing with host uids — with 600 every admin-host request
+    # dies with 500 (open() EACCES, Sep 2026). The hash is of a 24-byte random
+    # password (uncrackable in practice) on a single-tenant host.
+    chmod 644 "$AUTH_FILE"
     echo "created: $AUTH_FILE (600)"
     echo ""
     echo "================ ADMIN BASIC AUTH ================"
