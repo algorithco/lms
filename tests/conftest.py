@@ -16,10 +16,70 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.courses.models import Category, Course
+from apps.games.models import Badge, Game
 from apps.tests.models import Choice, Question, Test, TestAttempt
 from apps.results.models import Result, Certificate
 
 User = get_user_model()
+
+
+def _ensure_arena_badges() -> None:
+    """Ensure arena badges and the arena_duel game exist in the test database.
+    
+    The data migration 0005_arena_badges_and_game should create these, but in the
+    test environment it doesn't always run correctly. This helper ensures they exist.
+    """
+    # Create arena_duel game if missing
+    if not Game.objects.filter(slug="arena_duel").exists():
+        Game.objects.create(
+            name="Quiz Arena Dueli",
+            slug="arena_duel",
+            description="1v1 real-time quiz duel — ELO reyting, kombo va tezlik bonuslari.",
+            icon_emoji="⚔️",
+            xp_per_correct=10,
+            coins_per_correct=5,
+            is_active=False,
+            sort_order=4,
+        )
+
+    # Create arena badges if missing
+    badges = [
+        {
+            "badge_type": "duel_winner_10",
+            "name": "10 G'alaba Streak",
+            "description": "Arena'da 10 ta duel g'alabasi",
+            "icon_emoji": "🏆",
+            "required_value": 10,
+            "xp_bonus": 300,
+        },
+        {
+            "badge_type": "night_owl",
+            "name": "Tungi Boyqush",
+            "description": "Kechasi (00:00-05:59) duel g'alaba qozonish",
+            "icon_emoji": "🦉",
+            "required_value": 1,
+            "xp_bonus": 100,
+        },
+        {
+            "badge_type": "essay_master",
+            "name": "Esse Ustasi",
+            "description": "5 ta esse AI tomonidan baholanishi",
+            "icon_emoji": "✍️",
+            "required_value": 5,
+            "xp_bonus": 200,
+        },
+        {
+            "badge_type": "arena_elite",
+            "name": "Arena Elitasi",
+            "description": "1200+ ELO reytingga erishish",
+            "icon_emoji": "👑",
+            "required_value": 1200,
+            "xp_bonus": 250,
+        },
+    ]
+
+    for b in badges:
+        Badge.objects.get_or_create(badge_type=b["badge_type"], defaults=b)
 
 
 class LMSBaseTestCase(TestCase):
@@ -32,6 +92,7 @@ class LMSBaseTestCase(TestCase):
     """
 
     def setUp(self) -> None:
+        _ensure_arena_badges()
         # -- Users -----------------------------------------------------------
         self.student = User.objects.create_user(
             email="student@test.com",

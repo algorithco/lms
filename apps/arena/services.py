@@ -58,9 +58,14 @@ REWARD_DRAW = (15, 6)
 PERFORMANCE_BONUS = (5, 2)  # extra XP/coins when best_streak >= 5
 
 ARENA_GAME_SLUG = "arena_duel"
-BOT_EMAIL = "arena.bot@lms.local"
 BOT_DISPLAY_NAME = "Arena Bot"
 BOT_ACCURACY = 0.7  # probability a bot answers correctly
+
+
+def _get_bot_email() -> str:
+    """Get the bot email from settings with a sensible default."""
+    from django.conf import settings
+    return getattr(settings, "ARENA_BOT_EMAIL", "arena.bot@lms.local")
 
 # Elo windows used when searching for an opponent
 MATCH_WINDOWS = [150, 400, 100_000]
@@ -127,10 +132,10 @@ def get_bot_user():
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
-    bot = User.objects.filter(email=BOT_EMAIL).first()
+    bot = User.objects.filter(email=_get_bot_email()).first()
     if bot is None:
         bot = User.objects.create_user(
-            email=BOT_EMAIL,
+            email=_get_bot_email(),
             password=secrets.token_urlsafe(16),
             first_name=BOT_DISPLAY_NAME,
             last_name="",
