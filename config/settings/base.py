@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     "drf_spectacular",       # OpenAPI / Swagger docs
     "corsheaders",           # CORS for API consumers
     "django_filters",        # queryset filtering in DRF
-    "storages",              # S3 / cloud file storage
 
     # Local apps (models register here)
     "apps.accounts",
@@ -425,6 +424,12 @@ TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 # Bot username (without @) — used for deep links, CTAs and auth widgets.
 TELEGRAM_BOT_NAME = env("TELEGRAM_BOT_NAME", default="uz_essaygrader_bot")
 TELEGRAM_API_URL = "https://api.telegram.org"
+
+# ---------------------------------------------------------------------------
+# Arena Bot
+# ---------------------------------------------------------------------------
+# Email for the Arena AI opponent bot account. Created automatically if missing.
+ARENA_BOT_EMAIL = env("ARENA_BOT_EMAIL", default="arena.bot@lms.local")
 
 # ---------------------------------------------------------------------------
 # Manual payments (card transfer + Telegram receipt verification)
