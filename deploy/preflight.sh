@@ -70,6 +70,12 @@ test -f deploy/nginx/nginx-ssl.conf || err "missing nginx-ssl.conf"
 grep -q "grandec.uz" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing grandec.uz server names"
 grep -q "limit_req_zone" deploy/nginx/nginx-main.conf || err "nginx-main.conf missing limit_req zones"
 grep -q "origin.pem" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf not wired to Origin cert"
+# Unknown-Host catch-alls: without an explicit default_server, nginx serves
+# our site to ANY parked/mistyped domain pointing at this IP (2026-10-06:
+# skolis.cz showed the GRANDEC SPA) and could pass HTTP-01 challenges for it.
+grep -q "listen 80 default_server" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing port-80 catch-all (unknown Hosts would be served our site)"
+grep -q "return 444" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf catch-all must close unknown-Host connections (444)"
+grep -q "ssl_reject_handshake on" deploy/nginx/nginx-ssl.conf || err "nginx-ssl.conf missing 443 handshake reject for unknown SNI"
 
 say "5/8 required CLIs"
 command -v docker >/dev/null || err "docker not installed"
