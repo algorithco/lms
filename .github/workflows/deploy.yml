@@ -55,7 +55,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4 # remote-deploy.sh is piped to VPS via stdin
+      - uses: actions/checkout@v7 # remote-deploy.sh is piped to VPS via stdin
 
       - name: Resolve image tag
         id: tag
