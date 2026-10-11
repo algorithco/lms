@@ -94,3 +94,16 @@ jobs:
         run: |
           python manage.py check
           python manage.py test tests --verbosity=2
+
+      - name: Coverage (report + regression floor)
+        # pytest-cov is in requirements/development.txt. Floor 50 is a
+        # starting regression gate (not a quality target) — raise once CI
+        # reports a stable baseline above it.
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          SECRET_KEY: test-secret-key
+          DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_TASK_ALWAYS_EAGER: "True"
+        run: |
+          pytest tests --cov=apps --cov-report=term --cov-report=xml --cov-fail-under=50 -q

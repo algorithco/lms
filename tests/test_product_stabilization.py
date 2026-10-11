@@ -15,6 +15,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.core.cache import cache
 from django.core.files.storage import storages
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.test import Client, SimpleTestCase
 from django.urls import reverse
@@ -405,8 +406,10 @@ class TelegramLoginReplayTests(TestCase):
         self.assertIsNotNone(TelegramAuthToken.objects.get(token=token).consumed_at)
         other = User.objects.create_user(email="telegram-other@example.test", password="pass")
         TelegramAuthToken.objects.create(token="duplicate-a", user=self.user, is_verified=True, short_code="777777")
-        TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")
-        self.assertEqual(Client().post(url, json.dumps({"code": "777777"}), content_type="application/json").status_code, 404)
+        # DB-level uniqueness (uniq_tgauth_short_code_active) now prevents the
+        # ambiguous duplicate state entirely — stronger than the 404 fallback.
+        with self.assertRaises(IntegrityError):
+            TelegramAuthToken.objects.create(token="duplicate-b", user=other, is_verified=True, short_code="777777")
 
 
 class TelegramBotLoginUXTests(TestCase):

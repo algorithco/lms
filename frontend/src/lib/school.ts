@@ -68,7 +68,6 @@ export interface ParentChild {
   name: string;
   email: string;
   relationship: string;
-  is_approved: boolean;
   results: ChildResult[];
 }
 

@@ -68,53 +68,9 @@ def generate_certificate_task(
                 "certificate_number": None,
             }
 
-        # Certificate allaqachon mavjudmi?
-        cert, created = Certificate.objects.get_or_create(
-            result=result,
-            defaults={
-                "student": result.student,
-                "test": result.test,
-                "course": result.course,
-            },
-        )
+        from apps.certificates.services.generation import generate_certificate as _gen
 
-        if cert.status == Certificate.Status.GENERATED and cert.file:
-            logger.info(
-                "Certificate already generated: %s",
-                cert.certificate_number,
-            )
-            return {
-                "status": "already_exists",
-                "certificate_number": cert.certificate_number,
-                "file_size": cert.file.size if cert.file else None,
-            }
-
-        # Verify URL generatsiya
-        base_url = getattr(settings, "SITE_URL", "http://localhost:8000")
-        verify_url = f"{base_url}/certificates/verify/{cert.certificate_number}/"
-
-        # PDF generatsiya qilish
-        from apps.results.services.pdf_service import generate_certificate_pdf
-
-        pdf_bytes = generate_certificate_pdf(
-            certificate_number=cert.certificate_number,
-            student_full_name=result.student.get_full_name(),
-            course_title=result.course.title,
-            test_title=result.test.title,
-            percentage=float(result.percentage),
-            issued_at=cert.issued_at,
-            verify_url=verify_url,
-        )
-
-        # PDF faylni modelga saqlash
-        from django.core.files.base import ContentFile
-
-        filename = f"{cert.certificate_number}.pdf"
-        cert.file.save(filename, ContentFile(pdf_bytes), save=False)
-        cert.status = Certificate.Status.GENERATED
-        cert.save(update_fields=["file", "status"])
-        from apps.certificates.services.anti_fraud import generate_and_store_checksum
-        generate_and_store_checksum(cert)
+        cert, generated = _gen(result)
 
         file_size = cert.file.size if cert.file else 0
         logger.info(
@@ -123,7 +79,7 @@ def generate_certificate_task(
         )
 
         return {
-            "status": "completed",
+            "status": "completed" if generated else "already_exists",
             "certificate_number": cert.certificate_number,
             "file_size": file_size,
         }
@@ -140,12 +96,8 @@ def generate_certificate_task(
         logger.exception(
             "Certificate generation failed: result_id=%d", result_id,
         )
-        # Mark certificate as failed if it exists
-        try:
-            cert = Certificate.objects.get(result_id=result_id)
-            cert.status = Certificate.Status.FAILED
-            cert.save(update_fields=["status"])
-        except Certificate.DoesNotExist:
-            pass
+        from apps.certificates.services.generation import mark_failed as _mark_failed
+
+        _mark_failed(result_id)
 
         raise self.retry(exc=exc)

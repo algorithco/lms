@@ -10,7 +10,10 @@ from rest_framework.response import Response
 from apps.accounts.models import User
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.payments.models import PaymentRequest, UserSubscription
-from apps.tests.models import Choice, Question, Test, TestAttempt
+from apps.tests.models import (
+    Choice, ExamSection, GapBlank, MatchingOption, MatchingPair,
+    MatchingPrompt, Question, ReadingPassage, Test, TestAttempt,
+)
 
 from .permissions import IsPanelAdmin, IsPanelAdminOrEssayCreator
 from .serializers import (
@@ -159,6 +162,68 @@ def _save_choices(question: Question, choices: list | None) -> None:
         )
 
 
+def _save_gaps(question: Question, gaps: list | None) -> None:
+    """Replace gap blanks. Shape: [{position: int, answers: [str, ...]}]."""
+    if gaps is None:
+        return
+    question.gap_blanks.all().delete()
+    for g in gaps:
+        try:
+            pos = int(g.get("position", 0))
+        except (TypeError, ValueError):
+            continue
+        for answer in g.get("answers", []) or []:
+            text = str(answer or "").strip()[:200]
+            if text:
+                GapBlank.objects.create(
+                    question=question, position=pos, answer_text=text,
+                )
+
+
+def _save_matching(question: Question, payload: dict | None) -> None:
+    """Replace matching data. Prompts/options by position; pairs link them.
+
+    Shape: {prompts: [{text, position}], options: [{text, position}],
+            pairs: [{prompt_position, option_position}]}.
+    """
+    if payload is None:
+        return
+    MatchingPair.objects.filter(prompt__question=question).delete()
+    question.matching_prompts.all().delete()
+    question.matching_options.all().delete()
+    prompts = {}
+    for i, p in enumerate(payload.get("prompts", []) or []):
+        text = str(p.get("text", "")).strip()
+        if not text:
+            continue
+        try:
+            pos = int(p.get("position", i))
+        except (TypeError, ValueError):
+            pos = i
+        prompts[pos] = MatchingPrompt.objects.create(
+            question=question, text=text, position=pos,
+        )
+    options = {}
+    for i, o in enumerate(payload.get("options", []) or []):
+        text = str(o.get("text", "")).strip()
+        if not text:
+            continue
+        try:
+            pos = int(o.get("position", i))
+        except (TypeError, ValueError):
+            pos = i
+        options[pos] = MatchingOption.objects.create(
+            question=question, text=text, position=pos,
+        )
+    for pair in payload.get("pairs", []) or []:
+        try:
+            prompt = prompts[int(pair.get("prompt_position"))]
+            option = options[int(pair.get("option_position"))]
+        except (TypeError, ValueError, KeyError):
+            continue
+        MatchingPair.objects.create(prompt=prompt, correct_option=option)
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsPanelAdmin])
 def questions_view(request, test_id: int):
@@ -176,6 +241,9 @@ def questions_view(request, test_id: int):
             question.choices.all().delete()
         else:
             _save_choices(question, request.data.get("choices"))
+        _save_gaps(question, request.data.get("gaps"))
+        if isinstance(request.data.get("matching"), dict):
+            _save_matching(question, request.data.get("matching"))
         return Response(QuestionAdminSerializer(question).data, status=201)
     questions = test.questions.prefetch_related("choices").order_by("position")
     return Response({
@@ -199,7 +267,46 @@ def question_detail_view(request, test_id: int, question_id: int):
         saved.choices.all().delete()
     elif "choices" in request.data:
         _save_choices(saved, request.data.get("choices"))
+    if "gaps" in request.data:
+        _save_gaps(saved, request.data.get("gaps"))
+    if isinstance(request.data.get("matching"), dict):
+        _save_matching(saved, request.data.get("matching"))
     return Response(QuestionAdminSerializer(saved).data)
+
+
+# ---------------------------------------------------------------------------
+# Exam sections & reading passages (Milliy Sertifikat content)
+# ---------------------------------------------------------------------------
+@api_view(["GET", "POST"])
+@permission_classes([IsPanelAdmin])
+def sections_view(request, test_id: int):
+    from .serializers import ExamSectionSerializer
+
+    test = get_object_or_404(Test, id=test_id)
+    if request.method == "POST":
+        ser = ExamSectionSerializer(data={**request.data, "test": test.id})
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        section = ser.save()
+        return Response(ExamSectionSerializer(section).data, status=201)
+    sections = test.sections.order_by("order")
+    return Response({"results": ExamSectionSerializer(sections, many=True).data})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsPanelAdmin])
+def passages_view(request, test_id: int):
+    from .serializers import ReadingPassageSerializer
+
+    test = get_object_or_404(Test, id=test_id)
+    if request.method == "POST":
+        ser = ReadingPassageSerializer(data={**request.data, "test": test.id})
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        passage = ser.save()
+        return Response(ReadingPassageSerializer(passage).data, status=201)
+    passages = test.passages.order_by("order")
+    return Response({"results": ReadingPassageSerializer(passages, many=True).data})
 
 
 # ---------------------------------------------------------------------------

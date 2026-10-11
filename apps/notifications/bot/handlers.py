@@ -8,6 +8,21 @@ Commands:
     /tests    — Available tests list
     /results  — Recent test results
     /essays   — Essay topics
+    /essay    — Submit an essay (text or image/OCR)
+    /plans    — Commercial plans (START / PRO)
+    /buy      — Purchase a plan with Telegram Stars
+    /myplan   — Current subscription status
+    /limits   — Remaining commercial allowances
+    /paysupport — Payment support
+    /cancel   — Abandon the current interactive flow
+
+Teacher commands (group-scoped; a teacher only ever sees their own groups):
+    /groups           — My assigned groups
+    /attendance       — Take today's attendance for a group
+    /attendance_report— Attendance statistics for a group
+    /students         — Assigned students with attendance percentages
+    /essay_results    — Group essay results (aggregate header + paged rows)
+    /group_report     — Combined attendance + essay report for a group
 
 Inline Keyboards:
     - Main menu actions
@@ -16,13 +31,18 @@ Inline Keyboards:
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
+from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING
 
 import telegram
 from asgiref.sync import sync_to_async
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
+
+from apps.accounts.access import is_platform_admin
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
@@ -30,6 +50,16 @@ if TYPE_CHECKING:
     from apps.accounts.models import User
 
 logger = logging.getLogger(__name__)
+
+
+async def _require_private_chat(update: Update) -> bool:
+    """Prevent personal tuition and student report details entering group chats."""
+    chat = getattr(update, "effective_chat", None)
+    if chat is None or getattr(chat, "type", None) == "private":
+        return True
+    await send_reply(update, "Shaxsiy moliyaviy va o'quvchi hisobotlari faqat bot bilan shaxsiy chatda ochiladi.")
+    return False
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -379,13 +409,15 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
 
 
 async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle text messages during Telegram auth conversation.
+    """Handle text messages during Telegram auth or essay submission."""
+    essay_state = context.user_data.get("bot_essay_state")
+    if essay_state == "awaiting_text":
+        await _handle_bot_essay_text(update, context)
+        return
+    if essay_state == ESSAY_OCR_EDIT_STATE:
+        await _handle_ocr_corrected_text(update, context)
+        return
 
-    States:
-        awaiting_phone → verified contact → match account (fast code) or
-                         ask for a name when the number is new
-        awaiting_name  → user sends their full name for a NEW account
-    """
     from django.utils import timezone
     from apps.notifications.models import TelegramAuthToken
 
@@ -603,7 +635,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/essays — Esse mavzulari\n"
         "/leaderboard — *Reyting* (eng yaxshilar)\n"
         "/streak — *Kunlik streak* (kirishlar)\n"
-        "/daily — *Kunlik vazifalar*\n\n"
+        "/daily — *Kunlik vazifalar*\n"
+        "/mytuition — Kurs to'lovlari (o'quvchi / tasdiqlangan ota-ona)\n\n"
         "🌐 *Web platforma:*\n"
         "Barcha funksiyalar to'liq ishlashi uchun "
         "veb-saytda tizimga kiring."
@@ -1120,6 +1153,1243 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 # ---------------------------------------------------------------------------
+# /essay_submit — submit free-form essay directly to the canonical grader
+# ---------------------------------------------------------------------------
+
+async def essay_submit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Start the bot essay flow; /essay_submit <text> also submits directly."""
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi.")
+        return
+
+    supplied_text = " ".join(context.args or []).strip()
+    if supplied_text:
+        await _submit_bot_essay(update, context, supplied_text)
+        return
+
+    context.user_data["bot_essay_state"] = "awaiting_text"
+    await send_reply(
+        update,
+        "Esse matningizni keyingi xabarda yuboring. 50 000 belgigacha qabul qilinadi.\n"
+        "Bekor qilish uchun /cancel_essay yuboring.",
+    )
+
+
+async def _handle_bot_essay_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    text = (getattr(update.message, "text", "") or "").strip()
+    if not text:
+        await send_reply(update, "Matnli esse yuboring yoki /cancel_essay bilan bekor qiling.")
+        return
+    await _submit_bot_essay(update, context, text)
+
+
+async def _submit_bot_essay(update: Update, context: ContextTypes.DEFAULT_TYPE, essay_text: str) -> None:
+    """Submit a free-form TEXT essay through the canonical cached grader."""
+    from apps.payments.models import SubscriptionUsage
+
+    await _submit_essay_with_quota(
+        update, context, essay_text, kind=SubscriptionUsage.Kind.TEXT_ESSAY,
+    )
+
+
+def _update_identity(update, text: str = "") -> str:
+    """Stable per-delivery identifier for the essay idempotency key.
+
+    ``update_id`` is the real Telegram value and is always present on a genuine
+    update, so production always keys on it. The remaining branches keep a
+    repeatable identity for lightweight update doubles / future transports:
+    they must never fall back to ``id(update)``, because two *distinct*
+    deliveries in one process could then share a key and the second essay would
+    silently replay the first reservation instead of being charged.
+    """
+    update_id = getattr(update, "update_id", None)
+    if update_id is not None:
+        return str(update_id)
+    message = getattr(update, "message", None)
+    message_id = getattr(message, "message_id", None)
+    if message_id is not None:
+        return f"m{message_id}"
+    query = getattr(update, "callback_query", None)
+    query_id = getattr(query, "id", None)
+    if query_id:
+        return f"c{query_id}"
+    # Last resort: the essay content itself. Distinct essays stay distinct, and
+    # a redelivery of the very same essay still replays instead of double
+    # charging.
+    digest = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+    return f"t{digest[:24]}"
+
+
+async def _submit_essay_with_quota(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    essay_text: str,
+    *,
+    kind: str,
+    idempotency_key: str | None = None,
+) -> None:
+    """Persist and queue an essay, charging the commercial allowance once.
+
+    The order mirrors the platform-wide essay pipeline: validate → reserve
+    quota atomically → create the submission → start grading → commit. The
+    reservation is RELEASED when no fresh grading job was delivered (duplicate
+    text, provider dispatch failure), so a student is never charged for a
+    submission that was not accepted, while an internal AI retry on an already
+    queued submission can never be charged twice.
+    """
+    from apps.essays.models import EssaySubmission
+    from apps.essays.services import WordCounter, start_grading
+    from apps.essays.views import MAX_ESSAY_LENGTH
+    from apps.payments.entitlements import (
+        QuotaDenied,
+        commit_usage,
+        enforce_essay_quota,
+        release_usage,
+    )
+    from apps.payments.models import SubscriptionUsage as _Usage
+
+    kind_label = "rasmli" if kind == _Usage.Kind.IMAGE_ESSAY else "matnli"
+
+    if len(essay_text) > MAX_ESSAY_LENGTH:
+        _clear_essay_state(context)
+        await send_reply(update, f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi.")
+        return
+    if not essay_text.strip():
+        await send_reply(update, "Esse matni bo'sh bo'lmasligi kerak.")
+        return
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        _clear_essay_state(context)
+        await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+        return
+
+    # -- 1. Atomic allowance reservation, before anything is persisted ------
+    # The key is derived from the Telegram update identity: Telegram delivers
+    # updates at least once with a stable update_id, so a redelivered update
+    # replays the existing reservation instead of charging the student twice.
+    telegram_id = getattr(update.effective_user, "id", 0)
+    key = idempotency_key or (
+        f"bot:{kind}:{telegram_id}:{_update_identity(update, essay_text)}"
+    )
+    try:
+        reservation = await _run_db(
+            enforce_essay_quota, user, kind,
+            idempotency_key=key, source="telegram_bot",
+        )
+    except QuotaDenied as exc:
+        _clear_essay_state(context)
+        await send_reply(update, exc.message, reply_markup=_essay_denied_keyboard())
+        return
+
+    def _create_and_queue():
+        existing = EssaySubmission.objects.filter(
+            student=user,
+            topic__isnull=True,
+            essay_text=essay_text,
+            status__in=(EssaySubmission.Status.PENDING, EssaySubmission.Status.GRADED),
+        ).order_by("-id").first()
+        if existing:
+            return existing, None, "existing"
+
+        submission = EssaySubmission.objects.create(
+            student=user,
+            topic=None,
+            essay_text=essay_text,
+            word_count=WordCounter.count(essay_text),
+            status=EssaySubmission.Status.DRAFT,
+            # Provenance for teacher group reporting (WEB / TELEGRAM / TMA).
+            source=EssaySubmission.Source.TELEGRAM,
+        )
+        result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
+        return submission, result, "submitted"
+
+    submission, result, state = await _run_db(_create_and_queue)
+    _clear_essay_state(context)
+
+    if state == "existing":
+        # Nothing new was queued for grading, so the allowance is not spent.
+        await _run_db(release_usage, reservation)
+        label = (
+            "allaqachon qabul qilingan"
+            if submission.status == EssaySubmission.Status.PENDING
+            else f"allaqachon baholangan: {submission.total_score}/{submission.max_score}"
+        )
+        await send_reply(
+            update,
+            f"Bu bir xil {kind_label} esse {label}. Yangi matnni tahrir "
+            f"qilsangizgina yangi baho olinadi.",
+            reply_markup=_result_keyboard(submission.id),
+        )
+        return
+
+    if not result or not result.get("success"):
+        await _run_db(release_usage, reservation)
+        await send_reply(
+            update,
+            "Baholash navbatga qo'yilmadi: "
+            f"{(result or {}).get('error', 'qayta urinib ko‘ring')}.",
+        )
+        return
+
+    # The grading job was accepted: the allowance is consumed exactly once,
+    # even though the AI evaluation itself is still running asynchronously.
+    await _run_db(commit_usage, reservation)
+
+    await send_reply(
+        update,
+        "✅ Esse qabul qilindi. Baholash boshlandi.\n"
+        "Bir xil matnning tasdiqlangan bahosi boshqa hisoblar uchun ham "
+        "qayta ishlatiladi.",
+        reply_markup=_result_keyboard(submission.id),
+    )
+
+
+async def cancel_essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    _clear_essay_state(context)
+    await send_reply(update, "Esse yuborish bekor qilindi.")
+
+
+# ---------------------------------------------------------------------------
+# Commercial plans, quotas and Telegram Stars payments
+# ---------------------------------------------------------------------------
+
+#: Interactive states for the essay flows (kept in ``context.user_data``).
+ESSAY_CHOICE_STATE = "awaiting_choice"
+ESSAY_IMAGE_PAGES_STATE = "awaiting_image_pages"
+ESSAY_OCR_CONFIRM_STATE = "awaiting_ocr_confirm"
+ESSAY_OCR_EDIT_STATE = "awaiting_ocr_text"
+
+_ESSAY_STATE_KEYS = ("bot_essay_state", "essay_pages", "essay_ocr_text")
+
+
+def _clear_essay_state(context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Drop every key used by the essay flows. True when something was set."""
+    cleared = False
+    for key in _ESSAY_STATE_KEYS:
+        if context.user_data.pop(key, None) is not None:
+            cleared = True
+    return cleared
+
+
+def _site_url() -> str:
+    from django.conf import settings as _settings
+    return getattr(_settings, "SITE_URL", "http://localhost:8000").rstrip("/")
+
+
+def _result_keyboard(submission_id: int) -> InlineKeyboardMarkup:
+    """Link the student to their OWN result page — never anyone else's."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            "📄 Natijani ko'rish",
+            url=f"{_site_url()}/essays/result/{submission_id}/",
+        )],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+    ])
+
+
+def _essay_denied_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
+        [InlineKeyboardButton("🌐 Obuna sahifasi", url=f"{_site_url()}/subscribe/")],
+    ])
+
+
+def _pages_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Yana sahifa", callback_data="cb_pages_more")],
+        [
+            InlineKeyboardButton("📤 Tekshirishga yuborish", callback_data="cb_pages_done"),
+            InlineKeyboardButton("❌ Bekor qilish", callback_data="cb_pages_cancel"),
+        ],
+    ])
+
+
+def _ocr_confirm_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data="cb_ocr_confirm")],
+        [
+            InlineKeyboardButton("✏️ Tahrirlash", callback_data="cb_ocr_edit"),
+            InlineKeyboardButton("🔄 Qayta yuborish", callback_data="cb_ocr_retry"),
+        ],
+    ])
+
+
+def _plan_quota_line(plan) -> str:
+    """Compact Uzbek summary of a plan's essay quota configuration."""
+
+    def bucket(limit, unlimited: bool, noun: str) -> str:
+        if unlimited:
+            return f"{noun}: cheklanmagan"
+        if limit is None:
+            return f"{noun}: sozlanmagan"
+        return f"{noun}: {limit}/hafta"
+
+    return " · ".join([
+        bucket(plan.image_essay_weekly_limit, plan.is_unlimited_image_essays, "Rasmli"),
+        bucket(plan.text_essay_weekly_limit, plan.is_unlimited_text_essays, "Matnli"),
+    ])
+
+
+# ---------------------------------------------------------------------------
+# /essay — pick the submission channel
+# ---------------------------------------------------------------------------
+
+async def essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/essay — ask how the student wants to submit the essay."""
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi. /start ni bosing.")
+        return
+    _clear_essay_state(context)
+    context.user_data["bot_essay_state"] = ESSAY_CHOICE_STATE
+    await send_reply(
+        update,
+        "✍️ *Esse topshirish*\n\nEsenni qanday yuborasiz?",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⌨️ Matn orqali", callback_data="cb_essay_text")],
+            [InlineKeyboardButton("🖼 Rasm orqali", callback_data="cb_essay_image")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]),
+    )
+
+
+async def _handle_essay_text_choice(update, context) -> None:
+    """Switch to the text-essay flow."""
+    context.user_data["bot_essay_state"] = "awaiting_text"
+    await send_reply(
+        update,
+        "Esse matnini keyingi xabarda yuboring (50 000 belgigacha).\n"
+        "Bekor qilish uchun /cancel yuboring.",
+    )
+
+
+async def _handle_essay_image_choice(update, context) -> None:
+    """Switch to the image-essay flow (page collection)."""
+    from django.conf import settings as _settings
+
+    max_pages = int(getattr(_settings, "ESSAY_IMAGE_MAX_PAGES", 10))
+    _clear_essay_state(context)
+    context.user_data["bot_essay_state"] = ESSAY_IMAGE_PAGES_STATE
+    context.user_data["essay_pages"] = []
+    await send_reply(
+        update,
+        "🖼 Esse sahifalarini rasm ko'rinishida yuboring "
+        f"(maksimal {max_pages} sahifa).\n\n"
+        "Bir nechta sahifani ketma-ket yuborishingiz mumkin. "
+        "Tugagach «Tekshirishga yuborish» tugmasini bosing.",
+        reply_markup=_pages_keyboard(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Image essays — page collection, OCR and confirmation
+# ---------------------------------------------------------------------------
+
+async def essay_image_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Collect essay page images while the image-essay flow is active.
+
+    Registered in a LOWER handler group than the payment-screenshot handler, so
+    when this flow is not active it returns immediately and lets that handler
+    receive its own photos.
+    """
+    if context.user_data.get("bot_essay_state") != ESSAY_IMAGE_PAGES_STATE:
+        return
+    message = update.message
+    if message is None:
+        return
+
+    from django.conf import settings as _settings
+
+    max_pages = int(getattr(_settings, "ESSAY_IMAGE_MAX_PAGES", 10))
+    max_bytes = int(getattr(_settings, "ESSAY_IMAGE_MAX_BYTES", 10 * 1024 * 1024))
+
+    file_id = ""
+    file_size = 0
+    if message.photo:
+        largest = message.photo[-1]
+        file_id, file_size = largest.file_id, largest.file_size or 0
+    elif message.document:
+        document = message.document
+        if not (document.mime_type or "").lower().startswith("image/"):
+            await send_reply(update, "Faqat rasm (JPEG/PNG) yuborishingiz mumkin.")
+            return
+        file_id, file_size = document.file_id, document.file_size or 0
+    if not file_id:
+        return
+
+    if file_size and file_size > max_bytes:
+        await send_reply(
+            update,
+            f"Rasm hajmi juda katta ({file_size // 1024} KB). "
+            f"Maksimal {max_bytes // (1024 * 1024)} MB.",
+            reply_markup=_pages_keyboard(),
+        )
+        return
+
+    pages = context.user_data.setdefault("essay_pages", [])
+    if len(pages) >= max_pages:
+        await send_reply(
+            update,
+            f"Bitta essening maksimal sahifa soni: {max_pages}. "
+            "Iltimos, «Tekshirishga yuborish» yoki «Bekor qilish»ni tanlang.",
+            reply_markup=_pages_keyboard(),
+        )
+        return
+
+    # One multi-page essay is ONE image-essay submission, not one per photo.
+    pages.append(file_id)
+    await send_reply(
+        update,
+        f"✅ {len(pages)} ta sahifa qabul qilindi.",
+        reply_markup=_pages_keyboard(),
+    )
+
+
+async def _handle_pages_more(update, context) -> None:
+    """Prompt for the next page without ending the flow."""
+    if context.user_data.get("bot_essay_state") != ESSAY_IMAGE_PAGES_STATE:
+        await send_reply(update, "Rasm yuborish bosqichi faol emas. /essay ni bosing.")
+        return
+    count = len(context.user_data.get("essay_pages") or [])
+    await send_reply(
+        update,
+        f"Keyingi sahifani yuboring. Hozir: {count} ta sahifa.",
+        reply_markup=_pages_keyboard(),
+    )
+
+
+async def _handle_pages_cancel(update, context) -> None:
+    """Abandon the image-essay flow (no quota is consumed)."""
+    _clear_essay_state(context)
+    await send_reply(
+        update,
+        "Rasmli esse yuborish bekor qilindi.",
+        reply_markup=_main_menu_keyboard(),
+    )
+
+
+async def _handle_pages_done(update, context) -> None:
+    """Transcribe the collected pages, then ask the student to confirm."""
+    import asyncio
+
+    from apps.essays.ocr import (
+        OCRFailed,
+        OCRUnavailable,
+        OCRValidationError,
+        extract_text,
+    )
+
+    pages = list(context.user_data.get("essay_pages") or [])
+    if not pages:
+        await send_reply(
+            update,
+            "Avval kamida bitta sahifa rasm yuboring.",
+            reply_markup=_pages_keyboard(),
+        )
+        return
+
+    await send_reply(update, "🔍 Rasmlar tahlil qilinmoqda, biroz kuting...")
+
+    # Downloads are I/O and OCR is CPU/HTTP bound, so neither blocks the loop.
+    try:
+        raw_pages = []
+        for file_id in pages:
+            telegram_file = await context.bot.get_file(file_id)
+            raw_pages.append(bytes(await telegram_file.download_as_bytearray()))
+        result = await asyncio.to_thread(extract_text, raw_pages)
+    except OCRUnavailable as exc:
+        # No OCR provider configured: never fabricate text, never charge quota.
+        await send_reply(update, str(exc), reply_markup=_pages_keyboard())
+        return
+    except OCRValidationError as exc:
+        await send_reply(
+            update, f"Rasm qabul qilinmadi: {exc}", reply_markup=_pages_keyboard(),
+        )
+        return
+    except OCRFailed as exc:
+        await send_reply(
+            update,
+            f"{exc}\nQayta urinib ko'ring yoki esseni matn ko'rinishida yuboring (/essay).",
+            reply_markup=_pages_keyboard(),
+        )
+        return
+    except Exception:
+        logger.exception(
+            "Unexpected OCR failure for chat=%s", getattr(update.effective_chat, "id", None),
+        )
+        await send_reply(
+            update,
+            "Rasmdan matn ajratishda kutilmagan xatolik. Keyinroq urinib ko'ring.",
+            reply_markup=_pages_keyboard(),
+        )
+        return
+
+    preview = result.text if len(result.text) <= 1200 else result.text[:1200] + "\n…"
+    warning = ""
+    if result.is_probably_incomplete:
+        warning = (
+            "\n⚠️ Rasmdan juda kam matn aniqlandi. Iltimos, matnni tekshirib, "
+            "kerak bo'lsa tahrirlang.\n"
+        )
+    context.user_data["essay_ocr_text"] = result.text
+    context.user_data["bot_essay_state"] = ESSAY_OCR_CONFIRM_STATE
+    await send_reply(
+        update,
+        "Rasmdan quyidagi matn aniqlandi:\n\n"
+        f"{preview}\n"
+        f"{warning}\n"
+        "Tasdiqlasangiz, esse baholashga yuboriladi.",
+        reply_markup=_ocr_confirm_keyboard(),
+    )
+
+
+async def _handle_ocr_confirm(update, context) -> None:
+    """Grade the CONFIRMED OCR text as one image essay."""
+    from apps.payments.models import SubscriptionUsage
+
+    text = (context.user_data.get("essay_ocr_text") or "").strip()
+    if not text:
+        await send_reply(update, "Matn topilmadi. /essay bilan qaytadan boshlang.")
+        return
+    await _submit_essay_with_quota(
+        update, context, text, kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
+    )
+
+
+async def _handle_ocr_edit(update, context) -> None:
+    """Ask for a corrected transcription before grading."""
+    context.user_data["bot_essay_state"] = ESSAY_OCR_EDIT_STATE
+    await send_reply(
+        update,
+        "Tuzatilgan esse matnini keyingi xabarda yuboring. "
+        "/cancel bilan bekor qilish mumkin.",
+    )
+
+
+async def _handle_ocr_retry(update, context) -> None:
+    """Discard the pages and start the image flow over."""
+    from django.conf import settings as _settings
+
+    max_pages = int(getattr(_settings, "ESSAY_IMAGE_MAX_PAGES", 10))
+    _clear_essay_state(context)
+    context.user_data["bot_essay_state"] = ESSAY_IMAGE_PAGES_STATE
+    context.user_data["essay_pages"] = []
+    await send_reply(
+        update,
+        f"🖼 Sahifalarni qaytadan yuboring (maksimal {max_pages} sahifa).",
+        reply_markup=_pages_keyboard(),
+    )
+
+
+async def _handle_ocr_corrected_text(update, context) -> None:
+    """Text state handler for a manually corrected OCR transcription."""
+    from apps.payments.models import SubscriptionUsage
+
+    text = (getattr(update.message, "text", "") or "").strip()
+    if not text:
+        await send_reply(
+            update,
+            "Matn bo'sh. Iltimos, esse matnini yuboring yoki /cancel ni bosing.",
+        )
+        return
+    await _submit_essay_with_quota(
+        update, context, text, kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
+    )
+
+
+# ---------------------------------------------------------------------------
+# /plans and /buy — Telegram Stars checkout
+# ---------------------------------------------------------------------------
+
+async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/plans — list purchasable plans with their Telegram Stars prices."""
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi. /start ni bosing.")
+        return
+
+    def _load():
+        from apps.payments.models import SubscriptionPlan
+        return list(
+            SubscriptionPlan.objects.filter(is_active=True, is_public=True)
+            .exclude(plan_type=SubscriptionPlan.PlanType.TEACHER_SPONSORED)
+            .order_by("sort_order", "price_monthly")
+        )
+
+    plans = await _run_db(_load)
+    if not plans:
+        await send_reply(update, "Hozircha tariflar mavjud emas. Keyinroq urinib ko'ring.")
+        return
+
+    lines = ["💎 *Grandec tariflari*", ""]
+    buttons = []
+    for plan in plans:
+        price = int(plan.price_monthly or 0)
+        lines.append(f"📦 *{plan.name}* — {price:,} so'm / {plan.duration_days} kun")
+        lines.append(f"   {_plan_quota_line(plan)}")
+        stars_price = plan.telegram_stars_price
+        if stars_price:
+            lines.append(f"   💫 Narx: *{stars_price} Stars*")
+            buttons.append([InlineKeyboardButton(
+                f"💫 {plan.name} — {stars_price} Stars",
+                callback_data=f"tg_buy_{plan.id}",
+            )])
+        else:
+            lines.append(
+                "   ⚠️ Telegram orqali sotuv sozlanmagan "
+                "(administrator Stars narxini kiritishi kerak)."
+            )
+        lines.append("")
+
+    lines.append("To'lov *Telegram Stars* orqali amalga oshiriladi.")
+    buttons.append([InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits")])
+    buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
+    await send_reply(
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/buy [start|pro|plan_id] — start a Telegram Stars purchase."""
+    from apps.payments.models import SubscriptionPlan
+
+    args = [a for a in (context.args or []) if a]
+    if not args:
+        await plans_handler(update, context)
+        return
+
+    token = args[0].strip().lower()
+
+    def _resolve():
+        queryset = SubscriptionPlan.objects.filter(is_active=True, is_public=True)
+        if token.isdigit():
+            return queryset.filter(id=int(token)).first()
+        return queryset.filter(plan_type=token).first()
+
+    plan = await _run_db(_resolve)
+    if plan is None:
+        await send_reply(update, "Reja topilmadi. /plans ni bosing.")
+        return
+    await _send_stars_invoice(update, context, plan)
+
+
+async def _tg_buy_callback(update, context, plan_id: int) -> None:
+    """Handle a tg_buy_<plan_id> button — send the Stars invoice."""
+    from apps.payments.models import SubscriptionPlan
+
+    plan = await _run_db(
+        lambda: SubscriptionPlan.objects.filter(id=plan_id, is_active=True).first()
+    )
+    if plan is None:
+        await send_reply(update, "Reja topilmadi.")
+        return
+    await _send_stars_invoice(update, context, plan)
+
+
+async def _send_stars_invoice(update, context, plan) -> None:
+    """Create an internal order and hand Telegram a Stars invoice for it."""
+    from telegram import LabeledPrice
+
+    from apps.payments import stars
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi. /start ni bosing.")
+        return
+
+    try:
+        order = await _run_db(stars.create_order, user, plan)
+    except ValueError as exc:
+        # e.g. no Stars price configured yet, or the plan is not sellable.
+        await send_reply(update, f"❌ {exc}")
+        return
+
+    chat_id = getattr(update.effective_chat, "id", None) or update.effective_user.id
+    try:
+        await context.bot.send_invoice(
+            chat_id=chat_id,
+            title=f"Grandec {plan.name}",
+            description=(plan.description or f"Grandec {plan.name} obuna")[:255],
+            payload=order.payload,
+            provider_token="",  # Telegram Stars requires an empty token
+            currency=stars.STARS_CURRENCY,
+            prices=[LabeledPrice(
+                label=f"Grandec {plan.name}", amount=order.amount_stars,
+            )],
+        )
+    except Exception:
+        logger.exception("Failed to send Stars invoice for order %s", order.payload)
+        await _run_db(stars.cancel_order, order)
+        await send_reply(
+            update,
+            "To'lov hisob-fakturasini yuborib bo'lmadi. Keyinroq urinib ko'ring "
+            "yoki /paysupport orqali bog'laning.",
+        )
+        return
+
+    await _run_db(stars.mark_invoice_sent, order)
+
+
+async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Answer a Telegram Stars pre-checkout query. Never activates access."""
+    from apps.payments import stars
+
+    query = update.pre_checkout_query
+    if query is None:
+        return
+    ok, error, _order = await _run_db(
+        stars.validate_pre_checkout,
+        payload=query.invoice_payload,
+        currency=query.currency,
+        total_amount=query.total_amount,
+    )
+    try:
+        if ok:
+            await query.answer(ok=True)
+        else:
+            await query.answer(
+                ok=False,
+                error_message=(error or "To'lovni tasdiqlab bo'lmadi.")[:200],
+            )
+    except Exception:
+        logger.exception(
+            "pre_checkout answer failed for payload=%s", query.invoice_payload,
+        )
+
+
+def _payment_summary(subscription) -> dict:
+    """Read the paid subscription's plan name safely (inside the sync layer)."""
+    if subscription is None:
+        return {}
+    plan = subscription.plan
+    return {
+        "plan_name": plan.name if plan else "",
+        "expires_at": (
+            subscription.expires_at.strftime("%d.%m.%Y")
+            if subscription.expires_at else ""
+        ),
+    }
+
+
+async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Activate a subscription from a verified Telegram Stars payment."""
+    from apps.payments import stars
+
+    message = update.message
+    payment = getattr(message, "successful_payment", None) if message else None
+    if payment is None:
+        return
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        logger.warning(
+            "successful_payment for an unresolvable user (payload=%s)",
+            payment.invoice_payload,
+        )
+        return
+
+    ok, text, subscription = await _run_db(
+        stars.activate_from_successful_payment,
+        payload=payment.invoice_payload,
+        currency=payment.currency,
+        total_amount=payment.total_amount,
+        telegram_payment_charge_id=payment.telegram_payment_charge_id,
+        provider_payment_charge_id=payment.provider_payment_charge_id or "",
+        raw={
+            "invoice_payload": payment.invoice_payload,
+            "currency": payment.currency,
+            "total_amount": payment.total_amount,
+        },
+    )
+
+    if not ok:
+        await send_reply(update, f"❌ {text}\nYordam uchun /paysupport ni bosing.")
+        return
+
+    summary = await _run_db(_payment_summary, subscription)
+    lines = [f"✅ {text}"]
+    if summary.get("plan_name"):
+        lines.append(f"📦 Reja: *{summary['plan_name']}*")
+    if summary.get("expires_at"):
+        lines.append(f"⏰ Amal qiladi: {summary['expires_at']}")
+    lines.append("")
+    lines.append("Limitlaringizni /limits buyrug'i orqali ko'rishingiz mumkin.")
+    await send_reply(
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=_main_menu_keyboard(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# /myplan, /limits, /paysupport, /cancel
+# ---------------------------------------------------------------------------
+
+_SOURCE_LABELS = {
+    "override": "Admin kvota ustunligi",
+    "sponsored": "Ustoz guruhi (homiylik)",
+    "subscription": "To'langan obuna",
+    "default": "Bepul / standart",
+}
+
+
+async def myplan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/myplan — show the effective plan and where the entitlement comes from."""
+    from django.utils import timezone
+
+    from apps.payments.entitlements import get_effective_entitlement
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi. /start ni bosing.")
+        return
+
+    def _load():
+        entitlement = get_effective_entitlement(user)
+        return {
+            "source": entitlement.source,
+            "plan_name": entitlement.plan_name,
+            "is_sponsored": entitlement.is_sponsored,
+            "expires_at": entitlement.expires_at,
+        }
+
+    data = await _run_db(_load)
+    lines = [
+        "💎 *Sizning tarifingiz*",
+        "",
+        f"📦 Tarif: *{data['plan_name']}*",
+        f"🔖 Manba: {_SOURCE_LABELS.get(data['source'], data['source'])}",
+    ]
+    if data["expires_at"]:
+        days = max(0, (data["expires_at"] - timezone.now()).days)
+        lines.append(f"⏰ Tugash: {data['expires_at']:%d.%m.%Y} ({days} kun)")
+    if data["is_sponsored"]:
+        lines.append("🎁 Ustoz homiyligi — to'lov talab qilinmaydi.")
+    lines.append("")
+    lines.append("Batafsil limitlar: /limits")
+    await send_reply(
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits")],
+            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]),
+    )
+
+
+async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/mytuition — private tuition overview for a student or verified parent."""
+    from apps.tuition.services import children_tuition_overview, student_tuition_overview
+
+    if not await _require_private_chat(update):
+        return
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+        return
+
+    def _overview():
+        if user.role == "parent":
+            children = children_tuition_overview(user)
+            return [{**child, "is_child": True} for child in children]
+        if user.role == "student":
+            return [{**student_tuition_overview(user, limit=8), "is_child": False}]
+        return []
+
+    rows = await _run_db(_overview)
+    if not rows:
+        await send_reply(update, "Siz uchun ko'rish mumkin bo'lgan kurs to'lovi topilmadi.")
+        return
+    lines = ["💳 *Kurs to'lovlari*", ""]
+    for row in rows:
+        name = row.get("student_name", "")
+        if row["is_child"]:
+            # Never send any child data unless the canonical link is approved.
+            lines.append(f"*{name}*")
+        lines.append(f"Tasdiqlangan: {_format_uzs(row.get('confirmed_paid_uzs', 0))} so'm")
+        lines.append(f"Qoldiq: {_format_uzs(row.get('outstanding_uzs', 0))} so'm")
+        for invoice in row.get("invoices", [])[:8]:
+            lines.append(
+                f"• {invoice['period_label']}: {invoice['status_label']} · "
+                f"qoldiq {_format_uzs(invoice['balance_uzs'])} so'm"
+            )
+        lines.append("")
+    lines.append("_Platforma tarifi va kurs to'lovi alohida majburiyatlardir._")
+    await send_reply(update, "\n".join(lines), parse_mode="Markdown")
+
+
+async def course_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/course_payment — private own/open invoice status; parents use /mytuition."""
+    from apps.tuition.models import CourseInvoice
+
+    if not await _require_private_chat(update):
+        return
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+        return
+    if user.role != "student":
+        await send_reply(update, "Bu buyruq faqat o'quvchining shaxsiy hisoblari uchun.")
+        return
+
+    def _load():
+        return list(CourseInvoice.objects.filter(student_id=user.pk).select_related(
+            "policy", "course",
+        ).order_by("-billing_period_start", "-pk")[:12])
+
+    invoices = await _run_db(_load)
+    if not invoices:
+        await send_reply(update, "Siz uchun kurs hisob-fakturasi mavjud emas.")
+        return
+    lines = ["💳 *Kurs to'lovlari*", ""]
+    for invoice in invoices:
+        lines.append(
+            f"• {invoice.period_label}: {invoice.status_label} · "
+            f"qoldiq {_format_uzs(invoice.balance_uzs)} so'm"
+            + (" (to'lov tasdig'i kutilmoqda)" if invoice.awaiting_confirmation else "")
+        )
+    await send_reply(update, "\n".join(lines), parse_mode="Markdown")
+
+
+async def payment_history_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/payment_history — this linked user's private course-payment history."""
+    from apps.tuition.models import CoursePayment
+
+    if not await _require_private_chat(update):
+        return
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+        return
+
+    def _load():
+        if user.role == "parent":
+            from apps.accounts.models import ParentStudentLink
+            child_ids = ParentStudentLink.objects.filter(
+                parent=user, is_approved=True, student__is_active=True,
+            ).values_list("student_id", flat=True)
+            return list(CoursePayment.objects.filter(student_id__in=child_ids).select_related(
+                "invoice", "student",
+            ).order_by("-created_at")[:20])
+        if user.role != "student":
+            return []
+        return list(CoursePayment.objects.filter(student_id=user.pk).select_related(
+            "invoice",
+        ).order_by("-created_at")[:20])
+
+    payments = await _run_db(_load)
+    if not payments:
+        await send_reply(update, "To'lovlar tarixi bo'sh.")
+        return
+    lines = ["🧾 *Kurs to'lovlari tarixi*", ""]
+    for payment in payments:
+        period = payment.invoice.period_label if payment.invoice_id else "Hisobga biriktirilmagan"
+        student_name = (
+            f"{payment.student.get_full_name() or payment.student.email} · "
+            if user.role == "parent" else ""
+        )
+        lines.append(
+            f"• {student_name}{period}: {_format_uzs(payment.amount_uzs)} so'm · "
+            f"{payment.get_status_display()}"
+        )
+    await send_reply(update, "\n".join(lines), parse_mode="Markdown")
+
+
+async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/payment_proof <invoice_id> <amount> [reference] records a private claim."""
+    if not await _require_private_chat(update):
+        return
+
+    from apps.tuition.models import CourseInvoice, PaymentMethod
+    from django.db import IntegrityError
+    from apps.tuition import services as tuition_services
+    user = await _get_or_create_user_async(update)
+    if not user or user.role not in ("student", "parent"):
+        await send_reply(update, "Hisobni aniqlab bo'lmadi yoki buyruq faqat o'quvchi va tasdiqlangan ota-onalar uchun.")
+        return
+    args = [value.strip() for value in (context.args or [])]
+    if len(args) < 2:
+        await send_reply(update, "Format: /payment_proof <hisob_id> <summa> [to'lov_raqami]")
+        return
+    try:
+        invoice_id = int(args[0])
+        amount = Decimal(args[1].replace(",", "."))
+        reference = " ".join(args[2:])[:120]
+        if amount <= 0:
+            raise ValueError
+    except (ValueError, InvalidOperation):
+        await send_reply(update, "Hisob raqami yoki summa noto'g'ri.")
+        return
+
+    def _submit():
+        from apps.accounts.models import ParentStudentLink
+
+        student_id = user.pk
+        if user.role == "parent":
+            student_id = ParentStudentLink.objects.filter(
+                parent=user, is_approved=True, student__is_active=True,
+            ).values_list("student_id", flat=True).first()
+            if student_id is None:
+                return None, "Tasdiqlangan farzand hisobiga to'lov bog'lanmadi."
+        invoice = CourseInvoice.objects.filter(pk=invoice_id, student_id=student_id).select_related(
+            "policy", "student",
+        ).first()
+        if invoice is None:
+            return None, "Hisob-faktura topilmadi."
+        try:
+            payment = tuition_services.register_payment(
+                student=invoice.student, invoice=invoice, amount=amount,
+                method=PaymentMethod.CARD, reference=reference,
+                submitted_by=user,
+            )
+        except tuition_services.TuitionError as exc:
+            return None, str(exc)
+        return payment, None
+
+    try:
+        payment, error = await _run_db(_submit)
+    except IntegrityError:
+        await send_reply(update, "Bu to'lov raqami avval yuborilgan.")
+        return
+    if error:
+        await send_reply(update, f"To'lov dalilini qabul qilib bo'lmadi: {error}")
+        return
+    await send_reply(
+        update,
+        f"✅ {payment.pk}-raqamli to'lov da'vosi qabul qilindi, tasdiqlash kutilmoqda. "
+        "Bu tasdiqlanmaguncha to'lov hisoblanmaydi.",
+    )
+
+
+async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/weekly_report [group_id] [history] — authorized private teacher reports."""
+    if not await _require_private_chat(update):
+        return
+
+    from apps.attendance.services import teacher_groups
+    from apps.weekly_reports import delivery as report_delivery
+    from apps.weekly_reports.models import WeeklyGroupReport
+
+    user = await _get_or_create_user_async(update)
+    if not user or not await _run_db(_is_teacher_account, user):
+        await send_reply(update, "Bu buyruq faqat o'qituvchilar va administratorlar uchun.")
+        return
+    args = [value.strip() for value in (context.args or [])]
+    group_id = None
+    if args and args[0].isdigit():
+        group_id = int(args.pop(0))
+    include_history = bool(args and args[0].lower() in ("history", "tarix"))
+    can_view_history = is_platform_admin(user) or await _run_db(
+        user.has_perm, "weekly_reports.view_weeklygroupreport",
+    )
+    include_history = include_history and can_view_history
+
+    def _load():
+        groups = teacher_groups(user)
+        qs = WeeklyGroupReport.objects.filter(group__in=groups).select_related("group")
+        if group_id:
+            qs = qs.filter(group_id=group_id)
+        if not include_history:
+            qs = qs.filter(is_current=True)
+        return list(qs.order_by("-period_start", "-version")[:20])
+
+    reports = await _run_db(_load)
+    if not reports:
+        await send_reply(update, "Sizga tegishli haftalik hisobot topilmadi.")
+        return
+    lines = ["📊 *Haftalik hisobotlar*", ""]
+    for report in reports:
+        summary = await _run_db(report_delivery.visible_summary, report, user)
+        attendance = summary.get("attendance", {})
+        essays = summary.get("essays", {})
+        tests = summary.get("tests", {})
+        lines.append(
+            f"*{report.group.name} · {report.period_label} (v{report.version})*\n"
+            f"Davomat: {attendance.get('attendance_percentage', '—')}% · "
+            f"Kechikdi: {attendance.get('late', 0)} · "
+            f"Sababsiz yo'qlik: {attendance.get('unexcused_absences', 0)}\n"
+            f"Esse: {essays.get('graded', 0)} baholangan / {essays.get('pending_ai', 0)} kutilmoqda · "
+            f"Test: {tests.get('completed_attempts', 0)} yakunlangan"
+        )
+        finance = summary.get("finance")
+        if finance:
+            lines.append(
+                f"Moliya jami qoldiq: {_format_uzs(finance.get('outstanding_uzs', 0))} so'm"
+            )
+    await send_reply(update, "\n".join(lines)[:4000], parse_mode="Markdown")
+
+
+async def group_payments_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/group_payments <group_id> — aggregate-only for explicit finance readers."""
+    if not await _require_private_chat(update):
+        return
+
+    from apps.accounts.access import is_platform_admin
+    from apps.tuition import services as tuition_services
+    from apps.tuition.permissions import can_view_tuition
+    from apps.courses.models import StudentGroup
+
+    user = await _get_or_create_user_async(update)
+    if not user or not await _run_db(_is_teacher_account, user):
+        await send_reply(update, "Bu buyruq faqat vakolatli xodimlar uchun.")
+        return
+    if not can_view_tuition(user):
+        await send_reply(update, "To'lovlarni ko'rish uchun alohida moliyaviy ruxsat kerak.")
+        return
+    args = [value.strip() for value in (context.args or [])]
+    if len(args) != 1 or not args[0].isdigit():
+        await send_reply(update, "Format: /group_payments <guruh_id>")
+        return
+
+    def _load():
+        groups = StudentGroup.objects.filter(pk=int(args[0]))
+        if not is_platform_admin(user):
+            groups = groups.filter(teacher=user)
+        group = groups.first()
+        if group is None:
+            return None, None
+        period_start, period_end = tuition_services.month_bounds(tuition_services.today())
+        return group, tuition_services.group_finance_summary(group, period_start, period_end)
+
+    group, summary = await _run_db(_load)
+    if group is None:
+        await send_reply(update, "Guruh topilmadi.")
+        return
+    await send_reply(
+        update,
+        f"💳 *{group.name} — umumiy to'lovlar*\n"
+        f"To'langan: {summary.get('paid_count', 0)} · "
+        f"To'lanmagan: {summary.get('unpaid_count', 0)} · "
+        f"Qoldiq: {_format_uzs(summary.get('outstanding_uzs', 0))} so'm",
+        parse_mode="Markdown",
+    )
+
+
+def _format_uzs(value) -> str:
+    return f"{int(value or 0):,}".replace(",", " ")
+
+
+async def limits_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/limits — server-calculated remaining allowances and cooldown."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.payments.entitlements import (
+        cooldown_seconds_remaining,
+        format_duration,
+        get_remaining_limits,
+    )
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi. /start ni bosing.")
+        return
+
+    data = await _run_db(get_remaining_limits, user)
+    cooldown = await _run_db(cooldown_seconds_remaining, user)
+
+    def bucket_line(key: str, label: str) -> str:
+        bucket = data[key]
+        if bucket["unlimited"]:
+            return f"• {label}: Cheklanmagan"
+        if bucket["limit"] is None:
+            return f"• {label}: administrator sozlamagan"
+        return f"• {label}: {bucket['remaining']}/{bucket['limit']} qoldi"
+
+    lines = [f"📊 *Limitlaringiz* — {data['plan_name']}", ""]
+    lines.append(bucket_line("image_essay", "Rasmli esse"))
+    lines.append(bucket_line("text_essay", "Matnli esse"))
+    lines.append(bucket_line("test", "Testlar"))
+
+    if cooldown > 0:
+        until = timezone.localtime(timezone.now() + timedelta(seconds=cooldown))
+        lines.append("")
+        lines.append(
+            f"⏳ Keyingi matnli esse: *{until:%H:%M}* "
+            f"({format_duration(cooldown)}dan keyin)"
+        )
+
+    lines.append("")
+    lines.append(
+        f"🔄 Davr: {str(data['period_start'])[:10]} — {str(data['period_end'])[:10]}"
+    )
+    lines.append("")
+    lines.append("Barcha raqamlar serverda hisoblanadi.")
+    await send_reply(
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]),
+    )
+
+
+async def paysupport_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/paysupport — payment support information."""
+    from django.conf import settings as _settings
+
+    admin_username = getattr(_settings, "PAYMENT_ADMIN_USERNAME", "")
+    lines = [
+        "🆘 *To'lov bo'yicha yordam*",
+        "",
+        "• Bot ichidagi xaridlar *Telegram Stars* (XTR) orqali amalga "
+        "oshiriladi — summa Telegram hisobingizdan yechiladi.",
+        "• To'lov tasdiqlangach obuna avtomatik faollashadi.",
+        "• To'lovlar tarixini Telegram → Sozlamalar → To'lovlar "
+        "bo'limidan ko'rishingiz mumkin.",
+        "• Xato yechilgan to'lov yoki obuna bo'yicha savollar uchun "
+        "biz bilan bog'laning.",
+    ]
+    if admin_username:
+        lines.append(f"👤 Administrator: @{admin_username.lstrip('@')}")
+    lines.append(f"🌐 Obuna sahifasi: {_site_url()}/subscribe/")
+    lines.append("")
+    lines.append("Murojaatda to'lov vaqti va summasini yozib yuboring.")
+    await send_reply(update, "\n".join(lines), parse_mode="Markdown")
+
+
+async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cancel — safely abandon whatever interactive flow is in progress."""
+    cleared = []
+    if _clear_essay_state(context):
+        cleared.append("esse yuborish")
+    if context.user_data.pop("payment_state", None):
+        cleared.append("to'lov")
+    context.user_data.pop("selected_plan_id", None)
+    if context.user_data.get("auth_state"):
+        _clear_auth_state(context)
+        cleared.append("kirish")
+
+    if cleared:
+        await send_reply(
+            update,
+            "✅ Bekor qilindi: " + ", ".join(cleared) + ".",
+            reply_markup=_main_menu_keyboard(),
+        )
+    else:
+        await send_reply(
+            update,
+            "Bekor qilinadigan amal yo'q.",
+            reply_markup=_main_menu_keyboard(),
+        )
+
+
+# ---------------------------------------------------------------------------
 # /essays
 # ---------------------------------------------------------------------------
 
@@ -1262,6 +2532,30 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _dispatch_handler(update, context, arena_handler)
     elif data == "menu_premium":
         await _dispatch_handler(update, context, premium_handler)
+    elif data == "cb_plans":
+        await _dispatch_handler(update, context, plans_handler)
+    elif data == "cb_limits":
+        await _dispatch_handler(update, context, limits_handler)
+    elif data == "cb_essay_text":
+        await _handle_essay_text_choice(update, context)
+    elif data == "cb_essay_image":
+        await _handle_essay_image_choice(update, context)
+    elif data == "cb_pages_more":
+        await _handle_pages_more(update, context)
+    elif data == "cb_pages_done":
+        await _handle_pages_done(update, context)
+    elif data == "cb_pages_cancel":
+        await _handle_pages_cancel(update, context)
+    elif data == "cb_ocr_confirm":
+        await _handle_ocr_confirm(update, context)
+    elif data == "cb_ocr_edit":
+        await _handle_ocr_edit(update, context)
+    elif data == "cb_ocr_retry":
+        await _handle_ocr_retry(update, context)
+    elif data.startswith("tg_buy_"):
+        plan_id = _safe_callback_int(data, prefix="tg_buy_")
+        if plan_id is not None:
+            await _tg_buy_callback(update, context, plan_id)
     elif data.startswith("buy_plan_"):
         plan_id = _safe_callback_int(data, prefix="buy_plan_")
         if plan_id is not None:
@@ -1278,6 +2572,80 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         student_id = _safe_callback_int(data, prefix="student_result_")
         if student_id is not None:
             await _dispatch_handler(update, context, lambda u, c: _show_student_detail(u, c, student_id))
+    # -- Teacher groups, attendance and group reports ------------------------
+    # Ordering matters: the more specific prefixes are tested first.
+    elif data == "tgrplist":
+        await _dispatch_handler(update, context, groups_handler)
+    elif data.startswith("tgrp_"):
+        group_id = _safe_callback_int(data, prefix="tgrp_")
+        if group_id is not None:
+            await _group_card_callback(update, context, group_id)
+    elif data.startswith("tatt_"):
+        group_id = _safe_callback_int(data, prefix="tatt_")
+        if group_id is not None:
+            await _attendance_callback(update, context, group_id)
+    elif data.startswith("tmk_"):
+        parsed = _parse_mark_callback(data)
+        if parsed:
+            await _mark_callback(update, context, *parsed)
+    elif data.startswith("tall_"):
+        session_id = _safe_callback_int(data, prefix="tall_")
+        if session_id is not None:
+            await _all_present_callback(update, context, session_id)
+    elif data.startswith("tfinabs_"):
+        session_id = _safe_callback_int(data, prefix="tfinabs_")
+        if session_id is not None:
+            await _finalize_callback(update, context, session_id, True)
+    elif data.startswith("tfin_"):
+        session_id = _safe_callback_int(data, prefix="tfin_")
+        if session_id is not None:
+            await _finalize_callback(update, context, session_id, False)
+    elif data.startswith("trptw_"):
+        group_id = _safe_callback_int(data, prefix="trptw_")
+        if group_id is not None:
+            await _attendance_report_callback(update, context, group_id, 7)
+    elif data.startswith("trptm_"):
+        group_id = _safe_callback_int(data, prefix="trptm_")
+        if group_id is not None:
+            await _attendance_report_callback(update, context, group_id, 30)
+    elif data.startswith("trpt_"):
+        group_id = _safe_callback_int(data, prefix="trpt_")
+        if group_id is not None:
+            await _attendance_report_callback(update, context, group_id)
+    elif data.startswith("tstu_"):
+        group_id = _safe_callback_int(data, prefix="tstu_")
+        if group_id is not None:
+            await _students_callback(update, context, group_id)
+    elif data.startswith("terspend_"):
+        group_id = _safe_callback_int(data, prefix="terspend_")
+        if group_id is not None:
+            await _essay_results_callback(update, context, group_id, state="pending")
+    elif data.startswith("tersp_"):
+        parts = data[len("tersp_"):].split("_")
+        try:
+            group_id, offset = int(parts[0]), int(parts[1])
+        except (IndexError, TypeError, ValueError):
+            logger.warning("Malformed essay page callback: %r", data)
+        else:
+            await _essay_results_callback(
+                update, context, group_id, offset=max(0, offset),
+            )
+    elif data.startswith("ters_"):
+        group_id = _safe_callback_int(data, prefix="ters_")
+        if group_id is not None:
+            await _essay_results_callback(update, context, group_id)
+    elif data.startswith("tgreport_"):
+        group_id = _safe_callback_int(data, prefix="tgreport_")
+        if group_id is not None:
+            await _group_report_callback(update, context, group_id)
+    elif data.startswith(("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")):
+        report_id = _safe_report_callback_id(data)
+        if report_id is not None:
+            section = next(
+                prefix for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")
+                if data.startswith(prefix)
+            )
+            await _weekly_report_detail_callback(update, context, report_id, section)
     else:
         # Unknown callback data — acknowledge so the client stops spinning
         await query.edit_message_text("😕 Bu tugma endi ishlamaydi. /start ni bosing.")
@@ -1500,89 +2868,32 @@ async def daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # ---------------------------------------------------------------------------
 
 async def premium_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /premium command — show subscription plans, card number, and payment flow."""
-    user = await _get_or_create_user_async(update)
-    if not user:
-        await send_reply(update, "Xatolik yuz berdi.")
-        return
+    """/premium — legacy alias for /plans.
 
-    def _get_sub_info():
-        from apps.payments.models import UserSubscription, SubscriptionPlan
+    Grandec sells digital access, and Telegram's digital-goods rules require
+    Telegram Stars for purchases made inside Telegram, so every purchase entry
+    point routes to /plans. /plans issues an XTR invoice when a plan has a
+    Stars price and otherwise states that Telegram sales are not configured —
+    it never falls back to a card transfer.
+    """
+    await plans_handler(update, context)
 
-        user_sub = getattr(user, "subscription", None)
-        plans = list(SubscriptionPlan.objects.filter(is_active=True, plan_type__in=["premium", "family"]).order_by("sort_order"))
 
-        return {
-            "has_sub": user_sub is not None and user_sub.is_active,
-            "plan_name": user_sub.plan.name if user_sub and user_sub.is_active else None,
-            "expires_at": user_sub.expires_at if user_sub else None,
-            "days_remaining": user_sub.days_remaining if user_sub else 0,
-            "plans": plans,
-        }
-
-    data = await _run_db(_get_sub_info)
-
-    if data["has_sub"]:
-        text = (
-            f"💎 *Sizning obunangiz*\n\n"
-            f"📦 Reja: *{data['plan_name']}*\n"
-            f"⏰ Qolgan: *{data['days_remaining']} kun*\n\n"
-            f"Barcha premium imkoniyatlar ochiq!"
-        )
-        await send_reply(update, text, parse_mode="Markdown")
-    else:
-        # Narxlarni ko'rsatish
-        lines = [
-            "💎 *PREMIUM OBUNA*\n",
-            "Sizga quyidagi imkoniyatlar ochiladi:\n",
-            "✅ Cheksiz testlar (kuniga 5 ta emas)",
-            "✅ Cheksiz esselar (haftasiga 2 ta emas)",
-            "✅ Batafsil tahlil va statistika",
-            "✅ PDF sertifikatlar",
-            "✅ Ustuvor qo'llab-quvvatlash",
-            "",
-            "━━━━━━━━━━━━━━━━━━━━",
-            "💰 *NARXLAR:*\n",
-        ]
-
-        buttons_rows = []
-        for plan in data["plans"]:
-            price = int(plan.price_monthly) if plan.price_monthly else 0
-            yearly = int(plan.price_yearly) if plan.price_yearly else 0
-            lines.append(f"📦 *{plan.name}* — {price:,} so'm/oy")
-            if yearly > 0:
-                lines.append(f"   💡 Yillik: {yearly:,} so'm (tejamkor!)")
-            lines.append("")
-            buttons_rows.append([
-                InlineKeyboardButton(
-                    f"💳 {plan.name} — {price:,} so'm",
-                    callback_data=f"buy_plan_{plan.id}"
-                )
-            ])
-
-        lines.extend([
-            "━━━━━━━━━━━━━━━━━━━━",
-            "💳 *TO'LOV USULI:*",
-            "Karta raqamiga pul o'tkazing,",
-            "keyin screenshot'ni menga yuboring.",
-            "",
-            "Admin tekshirgandan keyin",
-            "obunangiz faollashtiriladi.",
-        ])
-
-        buttons_rows.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-
-        text = "\n".join(lines)
-        await send_reply(update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons_rows))
+# NOTE: the historical card-transfer helpers (buy_plan_callback,
+# payment_screenshot_handler, approve/reject_payment_callback) are still
+# registered and tested because the website's admin-verified receipt flow and
+# the payment-approval pipeline use them. They are no longer reachable as a
+# Telegram *purchase* path: /plans and /buy are Stars-only, so the
+# ``buy_plan_<id>`` callback that armed the screenshot flow is never emitted.
 
 
 # Payment card details — from settings (PAYMENT_CARD_*) with safe fallbacks
 from django.conf import settings as _django_settings
 
-PAYMENT_CARD = getattr(_django_settings, "PAYMENT_CARD_NUMBER", "4073 4200 3846 0386")
-PAYMENT_CARD_BANK = getattr(_django_settings, "PAYMENT_CARD_BANK", "Uzum Bank")
-PAYMENT_CARD_HOLDER = getattr(_django_settings, "PAYMENT_CARD_HOLDER", "Lobar Mansurova")
-PAYMENT_ADMIN_USERNAME = getattr(_django_settings, "PAYMENT_ADMIN_USERNAME", "rozievkomiljon")
+PAYMENT_CARD = getattr(_django_settings, "PAYMENT_CARD_NUMBER", "")
+PAYMENT_CARD_BANK = getattr(_django_settings, "PAYMENT_CARD_BANK", "")
+PAYMENT_CARD_HOLDER = getattr(_django_settings, "PAYMENT_CARD_HOLDER", "")
+PAYMENT_ADMIN_USERNAME = getattr(_django_settings, "PAYMENT_ADMIN_USERNAME", "")
 
 
 async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, plan_id: int) -> None:
@@ -1605,6 +2916,11 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         return
 
     price = int(plan.price_monthly)
+    if not PAYMENT_CARD or not PAYMENT_CARD_BANK or not PAYMENT_CARD_HOLDER:
+        await query.edit_message_text(
+            "To'lov vaqtincha mavjud emas. Administrator bilan bog'laning."
+        )
+        return
 
     # Store selected plan in context for screenshot verification
     context.user_data["selected_plan_id"] = plan_id
@@ -2119,6 +3435,871 @@ async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 
 # ---------------------------------------------------------------------------
+# Teacher groups, attendance and group essay reports
+# ---------------------------------------------------------------------------
+
+#: Emoji used on the per-student marking buttons. The keyboard row order must
+#: stay identical to the numbered roster in the message body, so the teacher
+#: can read the list and tap the matching row.
+_STATUS_EMOJI = {
+    "present": "✅",
+    "late": "⏰",
+    "excused": "📄",
+    "absent": "❌",
+}
+_STATUS_LEGEND = "✅ Keldi · ⏰ Kechikdi · 📄 Sababli · ❌ Kelmadi"
+
+#: How many students a single marking keyboard shows per message.
+_ATTENDANCE_PAGE_SIZE = 25
+#: How many essay rows a single results message shows.
+_ESSAY_PAGE_SIZE = 10
+
+
+def _is_teacher_account(user) -> bool:
+    """Teachers and platform admins may use the group commands."""
+    from apps.accounts.access import is_platform_admin
+
+    if user is None:
+        return False
+    if getattr(user, "role", None) == "teacher":
+        return True
+    return is_platform_admin(user)
+
+
+async def _teacher_from_update(update: Update):
+    """Resolve the linked teacher account, or reply and return ``None``.
+
+    Authorization always goes through the canonical Grandec account linked to
+    the Telegram identity — never through anything the sender typed.
+    """
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+        return None
+    if not await _run_db(_is_teacher_account, user):
+        await send_reply(
+            update,
+            "Bu buyruq faqat o'qituvchilar uchun. "
+            "Agar siz o'qituvchi bo'lsangiz, administrator bilan bog'laning.",
+        )
+        return None
+    return user
+
+
+async def _load_managed_group(user, group_id: int):
+    """Fetch a group the user may manage, or ``None`` (never another teacher's)."""
+    from apps.attendance.services import teacher_groups
+
+    return await _run_db(lambda: teacher_groups(user).filter(pk=group_id).first())
+
+
+def _group_list_keyboard(groups, callback_prefix: str = "tgrp_") -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(f"🏫 {g.name}", callback_data=f"{callback_prefix}{g.id}")]
+        for g in groups
+    ]
+    rows.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _attendance_keyboard(session, rows) -> InlineKeyboardMarkup:
+    """One status row per student, in the same order as the numbered roster."""
+    keyboard = []
+    for row in rows[:_ATTENDANCE_PAGE_SIZE]:
+        student_id = row["student_id"]
+        keyboard.append([
+            InlineKeyboardButton(
+                _STATUS_EMOJI[status],
+                callback_data=f"tmk_{session.id}_{student_id}_{status}",
+            )
+            for status in ("present", "late", "excused", "absent")
+        ])
+    keyboard.append([
+        InlineKeyboardButton("✅ Hammasi keldi", callback_data=f"tall_{session.id}"),
+    ])
+    keyboard.append([
+        InlineKeyboardButton("💾 Yakunlash", callback_data=f"tfin_{session.id}"),
+        InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{session.group_id}"),
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def _attendance_text(session, rows, data) -> str:
+    lines = [
+        f"🗓 *{data['group_name']}* — {data['lesson_date']} {data['time_label']}",
+        "",
+        f"👥 {data['roster_size']} o'quvchi · ✅ {data['present']} · "
+        f"⏰ {data['late']} · 📄 {data['excused']} · ❌ {data['absent']}",
+    ]
+    if data["unmarked"]:
+        lines.append(f"⚠️ Belgilanmagan: {data['unmarked']}")
+    lines.append("")
+    for index, row in enumerate(rows[:_ATTENDANCE_PAGE_SIZE], 1):
+        emoji = _STATUS_EMOJI.get(row["status"], "➖") if row["marked"] else "➖"
+        lines.append(f"{index}. {row['name']} — {emoji} {row['status_label']}")
+    if len(rows) > _ATTENDANCE_PAGE_SIZE:
+        lines.append("")
+        lines.append(
+            f"_(Qolgan {len(rows) - _ATTENDANCE_PAGE_SIZE} o'quvchi panel orqali "
+            "belgilanadi.)_"
+        )
+    lines.append("")
+    lines.append(_STATUS_LEGEND)
+    return "\n".join(lines)
+
+
+async def _render_attendance(update: Update, context, session) -> None:
+    """Re-render the register with current statuses and live counts."""
+    from apps.attendance.services import roster, summary
+
+    rows = await _run_db(roster, session)
+    data = await _run_db(summary, session)
+    await edit_or_reply(
+        update,
+        _attendance_text(session, rows, data),
+        parse_mode="Markdown",
+        reply_markup=_attendance_keyboard(session, rows),
+    )
+
+
+async def groups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/groups — the teacher's assigned groups."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(
+            update,
+            "🏫 Sizga hali guruh biriktirilmagan. Administrator bilan bog'laning.",
+            reply_markup=_main_menu_keyboard(),
+        )
+        return
+    lines = ["🏫 *Guruhlaringiz*", ""]
+    for index, group in enumerate(groups, 1):
+        count = await _run_db(lambda g=group: g.students.filter(is_active=True).count())
+        lines.append(f"{index}. *{group.name}* — {count} o'quvchi")
+    lines.append("")
+    lines.append("Guruhni tanlang 👇")
+    await send_reply(
+        update, "\n".join(lines), parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups),
+    )
+
+
+async def _send_group_card(update: Update, context, user, group) -> None:
+    """Group overview: roster, today's attendance, essay counts."""
+    from apps.attendance.services import summary, today_session
+    from apps.essays.group_reports import group_essay_summary
+
+    count = await _run_db(lambda: group.students.filter(is_active=True).count())
+    session = await _run_db(today_session, group)
+    if session is not None:
+        data = await _run_db(summary, session)
+        attendance_line = (
+            f"✅ {data['present']} · ⏰ {data['late']} · 📄 {data['excused']} · "
+            f"❌ {data['absent']}" + (
+                f" · ⚠️ belgilanmagan: {data['unmarked']}"
+                if data["unmarked"] else ""
+            )
+        )
+    else:
+        attendance_line = "Bugun davomat olinmagan."
+    essays = await _run_db(group_essay_summary, group)
+
+    text = (
+        f"🏫 *{group.name}*\n\n"
+        f"👥 O'quvchilar: *{count}*\n"
+        f"🗓 Bugungi davomat: {attendance_line}\n"
+        f"📝 Esse — baholangan: *{essays['graded']}*, kutilmoqda: "
+        f"*{essays['pending']}*, topshirilmagan: *{essays['not_submitted']}*"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🗓 Davomat olish", callback_data=f"tatt_{group.id}")],
+        [InlineKeyboardButton("📊 Davomat hisoboti", callback_data=f"trpt_{group.id}")],
+        [InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}")],
+        [InlineKeyboardButton("👥 O'quvchilar", callback_data=f"tstu_{group.id}")],
+        [InlineKeyboardButton("📈 Guruh hisoboti", callback_data=f"tgreport_{group.id}")],
+        [InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")],
+    ])
+    await edit_or_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def attendance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/attendance — choose a group, then take the register."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(update, "🏫 Sizga guruh biriktirilmagan.")
+        return
+
+    await send_reply(
+        update,
+        "🗓 *Qaysi guruh uchun davomat olasiz?*",
+        parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups, callback_prefix="tatt_"),
+    )
+
+
+async def _start_attendance(update: Update, context, user, group) -> None:
+    """Create (idempotently) today's register and render the marking keyboard."""
+    from apps.attendance.services import AttendanceError, create_session
+
+    # A redelivered callback must not open a second register for the same
+    # group/day: the key is derived from the update identity.
+    update_id = getattr(update, "update_id", None) or getattr(
+        getattr(update, "callback_query", None), "id", None,
+    )
+    key = f"tatt:{getattr(update.effective_user, 'id', 0)}:{update_id}" if update_id else None
+    try:
+        session, _created = await _run_db(
+            lambda: create_session(
+                group=group, teacher=user, actor=user, idempotency_key=key,
+            )
+        )
+    except AttendanceError as exc:
+        await send_reply(update, exc.messages[0] if exc.messages else "Xatolik.")
+        return
+    except PermissionDenied:
+        await send_reply(update, "Bu guruh sizga tegishli emas.")
+        return
+
+    from apps.attendance.models import AttendanceSession
+
+    if session.status == AttendanceSession.Status.FINALIZED:
+        await edit_or_reply(
+            update,
+            f"ℹ️ *{group.name}* uchun bugungi davomat allaqachon yakunlangan.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("📊 Hisobot", callback_data=f"trpt_{group.id}"),
+            ], [
+                InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
+            ]]),
+        )
+        return
+
+    await _render_attendance(update, context, session)
+
+
+async def _mark_student(update: Update, context, user, session_id: int,
+                        student_id: int, status: str) -> None:
+    """Apply one status tap and re-render the register."""
+    from apps.attendance.models import AttendanceRecord
+    from apps.attendance.services import (
+        AttendanceError,
+        get_session_for_user,
+        mark,
+    )
+
+    if status not in dict(AttendanceRecord.Status.choices):
+        await send_reply(update, "Noma'lum davomat holati.")
+        return
+    try:
+        session = await _run_db(get_session_for_user, user, session_id)
+        student = await _run_db(
+            lambda: session.group.students.filter(pk=student_id).first()
+        )
+        if student is None:
+            await send_reply(update, "O'quvchi topilmadi.")
+            return
+        await _run_db(mark, session, student, status, actor=user)
+    except AttendanceError as exc:
+        await send_reply(update, exc.messages[0] if exc.messages else "Xatolik.")
+        return
+    except PermissionDenied:
+        await send_reply(update, "Bu davomat darsi sizga tegishli emas.")
+        return
+    await _render_attendance(update, context, session)
+
+
+async def _mark_all_present(update: Update, context, user, session_id: int) -> None:
+    from apps.attendance.services import get_session_for_user, mark_all_present
+
+    try:
+        session = await _run_db(get_session_for_user, user, session_id)
+        await _run_db(mark_all_present, session, actor=user)
+    except PermissionDenied:
+        await send_reply(update, "Bu davomat darsi sizga tegishli emas.")
+        return
+    await _render_attendance(update, context, session)
+
+
+async def _finalize_attendance(update: Update, context, user, session_id: int,
+                               mark_unmarked_absent: bool = False) -> None:
+    """Finalize a register, refusing to invent absences without confirmation."""
+    from apps.attendance.services import (
+        AttendanceError,
+        finalize_and_notify,
+        get_session_for_user,
+    )
+
+    try:
+        session = await _run_db(get_session_for_user, user, session_id)
+        result = await _run_db(
+            lambda: finalize_and_notify(
+                session, actor=user,
+                mark_unmarked_as_absent=mark_unmarked_absent,
+                reason="Bot orqali yakunlandi",
+            )
+        )
+    except AttendanceError as exc:
+        await send_reply(update, exc.messages[0] if exc.messages else "Xatolik.")
+        return
+    except PermissionDenied:
+        await send_reply(update, "Bu davomat darsi sizga tegishli emas.")
+        return
+
+    if not result.get("ok"):
+        # Never silently classify an unmarked student as absent.
+        unmarked = result.get("unmarked", [])
+        names = ", ".join(entry["name"] for entry in unmarked[:20])
+        await edit_or_reply(
+            update,
+            "⚠️ *Davomat yakunlanmadi*\n\n"
+            f"Belgilanmagan o'quvchilar ({len(unmarked)}):\n{names}\n\n"
+            "Avval ularni belgilang yoki ularni kelmadi deb tasdiqlang.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    "Belgilanmaganlarni kelmadi deb belgilash",
+                    callback_data=f"tfinabs_{session.id}",
+                )],
+                [InlineKeyboardButton(
+                    "Orqaga", callback_data=f"tatt_{session.group_id}",
+                )],
+            ]),
+        )
+        return
+
+    text = (
+        f"✅ *{result['group_name']} — Davomat yakunlandi*\n\n"
+        f"🗓 {result['lesson_date']} {result['time_label']}\n"
+        f"👥 {result['roster_size']} o'quvchi:\n"
+        f"• ✅ {result['present']} keldi\n"
+        f"• ⏰ {result['late']} kechikdi\n"
+        f"• 📄 {result['excused']} sababli\n"
+        f"• ❌ {result['absent']} kelmadi"
+    )
+    await edit_or_reply(
+        update, text, parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 Hisobot", callback_data=f"trpt_{session.group_id}")],
+            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{session.group_id}")],
+        ]),
+    )
+
+
+async def attendance_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/attendance_report — choose a group for attendance statistics."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(update, "🏫 Sizga guruh biriktirilmagan.")
+        return
+    await send_reply(
+        update,
+        "📊 *Qaysi guruh hisoboti kerak?*",
+        parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups, callback_prefix="trpt_"),
+    )
+
+
+async def _send_attendance_report(update: Update, context, user, group, days: int | None) -> None:
+    from apps.attendance.services import group_attendance_report
+
+    if days:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        end = timezone.localdate()
+        start = end - timedelta(days=days)
+        report = await _run_db(
+            lambda: group_attendance_report(group, start=start, end=end)
+        )
+    else:
+        report = await _run_db(group_attendance_report, group)
+
+    percentage = (
+        f"{report['attendance_percentage']}%"
+        if report["attendance_percentage"] is not None else "—"
+    )
+    text = (
+        f"📊 *{report['group_name']} — davomat hisoboti*\n"
+        f"_{report['start']} — {report['end']}_\n\n"
+        f"👥 O'quvchilar: *{report['roster_size']}*\n"
+        f"🗓 Darslar: *{report['finalized_sessions']}* yakunlangan"
+        + (f", {report['pending_sessions']} yakunlanmagan\n"
+           if report["pending_sessions"] else "\n")
+        + f"📈 Davomat: *{percentage}*\n\n"
+        f"✅ Keldi: *{report['present']}*\n"
+        f"⏰ Kechikdi: *{report['late']}*\n"
+        f"📄 Sababli: *{report['excused']}*\n"
+        f"❌ Kelmadi (sababsiz): *{report['unexcused_absent']}*\n\n"
+        "_Yakunlanmagan davomat darslari kelmaganlik deb hisoblanmaydi._"
+    )
+    await edit_or_reply(
+        update, text, parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🗓 Haftalik", callback_data=f"trptw_{group.id}")],
+            [InlineKeyboardButton("🗓 Oylik", callback_data=f"trptm_{group.id}")],
+            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+        ]),
+    )
+
+
+async def students_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/students — choose a group to list its students."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(update, "🏫 Sizga guruh biriktirilmagan.")
+        return
+    await send_reply(
+        update,
+        "👥 *Qaysi guruh o'quvchilari?*",
+        parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups, callback_prefix="tstu_"),
+    )
+
+
+async def _send_students(update: Update, context, user, group) -> None:
+    from apps.attendance.services import student_attendance_report
+
+    students = await _run_db(
+        lambda: list(group.students.filter(is_active=True).order_by("first_name", "last_name"))
+    )
+    if not students:
+        await edit_or_reply(update, f"🏫 *{group.name}* da o'quvchi yo'q.", parse_mode="Markdown")
+        return
+    lines = [f"👥 *{group.name} — o'quvchilar* ({len(students)})", ""]
+    for index, student in enumerate(students, 1):
+        report = await _run_db(student_attendance_report, student, group=group)
+        percentage = (
+            f"{report['attendance_percentage']}%"
+            if report["attendance_percentage"] is not None else "—"
+        )
+        lines.append(
+            f"{index}. {report['name']} — davomat: *{percentage}* "
+            f"(❌ {report['absent']})"
+        )
+    lines.append("")
+    lines.append("_Davomat ko'rsatkichi faqat yakunlangan darslar bo'yicha._")
+    await edit_or_reply(
+        update, "\n".join(lines), parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
+        ]]),
+    )
+
+
+
+async def essay_results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/essay_results — choose a group for its essay results."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.essays.group_reports import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(update, "🏫 Sizga guruh biriktirilmagan.")
+        return
+    await send_reply(
+        update,
+        "📝 *Qaysi guruh esse natijalari?*",
+        parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups, callback_prefix="ters_"),
+    )
+
+
+async def _send_essay_results(update: Update, context, user, group, *,
+                              state: str | None = None, offset: int = 0) -> None:
+    """Page of essay result rows. Aggregate header, never a full essay dump."""
+    from apps.essays.group_reports import group_essay_results, group_essay_summary
+
+    summary = await _run_db(group_essay_summary, group)
+    data = await _run_db(
+        lambda: group_essay_results(
+            group, state=state, limit=_ESSAY_PAGE_SIZE, offset=offset,
+        )
+    )
+
+    header = (
+        f"📝 *{group.name} — Esse natijalari*\n\n"
+        f"✅ Baholangan: *{summary['graded']}*\n"
+        f"⏳ Kutilmoqda: *{summary['pending']}*\n"
+        f"📭 Topshirilmagan: *{summary['not_submitted']}*"
+    )
+    if summary.get("average_ai_score") is not None:
+        header += f"\n📈 O'rtacha AI ball: *{summary['average_ai_score']}*"
+
+    lines = [header, ""]
+    if not data["results"]:
+        lines.append("Bu filtr bo'yicha natija yo'q.")
+    for row in data["results"]:
+        score = (
+            f"{row['effective_score']}/{row['max_score']}"
+            if row["effective_score"] is not None else "—"
+        )
+        lines.append(
+            f"• *{row['student_name']}* — {row['topic_title']}\n"
+            f"  {row['source_label']} · {row['status_label']} · {score}"
+        )
+        if row["teacher_review_required"]:
+            lines.append("  ⚠️ O'qituvchi tekshiruvi kerak")
+    lines.append("")
+    lines.append(f"_Ko'rsatilgan: {data['shown']} / {data['total']}_")
+
+    keyboard_rows = [
+        # Link to the authenticated panel (the same route the main menu uses)
+        # rather than dumping essays and detailed feedback into the chat.
+        [InlineKeyboardButton("📋 To'liq hisobot", url=f"{_site_url()}/dashboard/")],
+        [InlineKeyboardButton("⏳ Baholanmaganlar", callback_data=f"terspend_{group.id}")],
+    ]
+    nav = []
+    if offset > 0:
+        nav.append(InlineKeyboardButton(
+            "⬅️ Oldingi", callback_data=f"tersp_{group.id}_{max(0, offset - _ESSAY_PAGE_SIZE)}",
+        ))
+    if offset + _ESSAY_PAGE_SIZE < data["total"]:
+        nav.append(InlineKeyboardButton(
+            "➡️ Keyingi", callback_data=f"tersp_{group.id}_{offset + _ESSAY_PAGE_SIZE}",
+        ))
+    if nav:
+        keyboard_rows.append(nav)
+    keyboard_rows.append([InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")])
+    await edit_or_reply(
+        update, "\n".join(lines), parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard_rows),
+    )
+
+
+
+async def group_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    "/group_report — choose a group for a combined performance report."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.essays.group_reports import teacher_groups
+
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(update, "🏫 Sizga guruh biriktirilmagan.")
+        return
+    await send_reply(
+        update,
+        "📈 *Qaysi guruh hisoboti?*",
+        parse_mode="Markdown",
+        reply_markup=_group_list_keyboard(groups, callback_prefix="tgreport_"),
+    )
+
+
+async def _send_group_report(update: Update, context, user, group) -> None:
+    from apps.attendance.services import group_attendance_report
+    from apps.essays.group_reports import group_essay_summary, overdue_assignments
+
+    attendance = await _run_db(group_attendance_report, group)
+    essays = await _run_db(group_essay_summary, group)
+    overdue = await _run_db(overdue_assignments, user)
+    overdue = [row for row in overdue if row["group_name"] == group.name]
+    percentage = (
+        f"{attendance['attendance_percentage']}%"
+        if attendance["attendance_percentage"] is not None else "—"
+    )
+    text = (
+        f"📈 *{group.name} — guruh hisoboti*\n"
+        f"_{attendance['start']} — {attendance['end']}_\n\n"
+        f"👥 O'quvchilar: *{attendance['roster_size']}*\n"
+        f"📊 Davomat: *{percentage}* ({attendance['finalized_sessions']} dars)"
+        + (f" · yakunlanmagan: {attendance['pending_sessions']}"
+           if attendance["pending_sessions"] else "")
+        + "\n\n"
+        f"📝 *Esse*\n"
+        f"✅ Baholangan: *{essays['graded']}*\n"
+        f"⏳ Kutilmoqda: *{essays['pending']}*\n"
+        f"⚠️ Xatolik: *{essays['failed']}*\n"
+        f"📭 Topshirilmagan: *{essays['not_submitted']}*"
+    )
+    if essays.get("average_ai_score") is not None:
+        text += f"\n📈 O'rtacha AI ball: *{essays['average_ai_score']}*"
+    if overdue:
+        text += "\n\n⏰ *Muddati o'tgan topshiriqlar*\n"
+        for row in overdue[:5]:
+            text += f"• {row['topic_title']} — {row['not_submitted']} topshirilmagan\n"
+    await edit_or_reply(
+        update, text, parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 Davomat hisoboti", callback_data=f"trpt_{group.id}")],
+            [InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}")],
+            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+        ]),
+    )
+
+
+def _parse_mark_callback(data: str) -> tuple[int, int, str] | None:
+    """Parse ``tmk_<session_id>_<student_id>_<status>``.
+
+    The status is a word, not an integer, so the generic integer parser cannot
+    be reused. A malformed payload returns ``None`` instead of raising.
+    """
+    from apps.attendance.models import AttendanceRecord
+
+    parts = data[len("tmk_"):].split("_")
+    if len(parts) != 3:
+        logger.warning("Malformed attendance callback: %r", data)
+        return None
+    session_raw, student_raw, status = parts
+    try:
+        session_id, student_id = int(session_raw), int(student_raw)
+    except (TypeError, ValueError):
+        logger.warning("Malformed attendance callback: %r", data)
+        return None
+    if status not in dict(AttendanceRecord.Status.choices):
+        logger.warning("Unknown attendance status in callback: %r", data)
+        return None
+    return session_id, student_id, status
+
+
+async def _group_card_callback(update: Update, context, group_id: int) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _send_group_card(update, context, user, group)
+
+
+async def _attendance_callback(update: Update, context, group_id: int) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _start_attendance(update, context, user, group)
+
+
+async def _mark_callback(update: Update, context, session_id: int,
+                         student_id: int, status: str) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    await _mark_student(update, context, user, session_id, student_id, status)
+
+
+async def _all_present_callback(update: Update, context, session_id: int) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    await _mark_all_present(update, context, user, session_id)
+
+
+async def _finalize_callback(update: Update, context, session_id: int,
+                             mark_unmarked_absent: bool = False) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    await _finalize_attendance(
+        update, context, user, session_id,
+        mark_unmarked_absent=mark_unmarked_absent,
+    )
+
+
+async def _attendance_report_callback(update: Update, context, group_id: int,
+                                      days: int | None = None) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _send_attendance_report(update, context, user, group, days)
+
+
+async def _students_callback(update: Update, context, group_id: int) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _send_students(update, context, user, group)
+
+
+async def _essay_results_callback(update: Update, context, group_id: int, *,
+                                  state: str | None = None,
+                                  offset: int = 0) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _send_essay_results(update, context, user, group, state=state, offset=offset)
+
+
+async def _group_report_callback(update: Update, context, group_id: int) -> None:
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if group is None:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+    await _send_group_report(update, context, user, group)
+
+
+async def _weekly_report_detail_callback(update: Update, context,
+                                         report_id: int, section: str) -> None:
+    """Show a private section of a stored weekly report to its authorized teacher."""
+    from apps.accounts.access import is_platform_admin
+    from apps.weekly_reports import delivery as report_delivery
+    from apps.weekly_reports.models import WeeklyGroupReport
+
+    user = await _get_or_create_user_async(update)
+    if not user or not await _run_db(_is_teacher_account, user):
+        await edit_or_reply(update, "Bu hisobotni ko'rish huquqingiz yo'q.")
+        return
+
+    report = await _run_db(
+        lambda: WeeklyGroupReport.objects.filter(pk=report_id)
+        .select_related("group").first(),
+    )
+    if report is None or not await _run_db(
+        lambda: is_platform_admin(user) or report.group.teacher_id == user.pk,
+    ):
+        await edit_or_reply(update, "Hisobot topilmadi yoki sizga tegishli emas.")
+        return
+
+    summary = report.summary or {}
+    include_finance = await _run_db(report_delivery._may_see_finance, user)
+    if section == "wr_fin_":
+        if not include_finance:
+            await edit_or_reply(update, "Kurs to'lovlarini ko'rish huquqingiz yo'q.")
+            return
+        visible = {"finance": summary.get("finance")}
+        title = "💳 Kurs to'lovlari"
+        labels = {
+            "policy_configured": "Siyosat sozlangan",
+            "period_invoices": "Hisob-fakturalar",
+            "paid_count": "To'langan o'quvchilar",
+            "partial_count": "Qisman to'langan o'quvchilar",
+            "unpaid_count": "To'lanmagan o'quvchilar",
+            "overdue_count": "Muddati o'tgan o'quvchilar",
+            "billed_uzs": "Hisoblangan summa (so'm)",
+            "confirmed_paid_uzs": "Tasdiqlangan to'lovlar (so'm)",
+            "outstanding_uzs": "Qoldiq (so'm)",
+        }
+        block = visible.get("finance") or {}
+        lines = [title, "", f"Guruh: {report.group.name}", f"Davr: {report.period_label}"]
+        lines.extend(f"{label}: {block.get(key, '—')}" for key, label in labels.items())
+    else:
+        title_map = {
+            "wr_att_": ("📋 Davomat tafsilotlari", "attendance"),
+            "wr_ess_": ("📝 Esse natijalari", "essays"),
+            "wr_tst_": ("🧪 Test natijalari", "tests"),
+        }
+        if section == "wr_full_":
+            title = "📄 Haftalik to'liq hisobot"
+            block_keys = ("attendance", "essays", "tests")
+            if include_finance and summary.get("finance") is not None:
+                block_keys += ("finance",)
+        elif section in title_map:
+            title, block = title_map[section]
+            block_keys = (block,)
+        else:
+            await edit_or_reply(update, "Hisobot bo'limi topilmadi.")
+            return
+        lines = [title, "", f"Guruh: {report.group.name}", f"Davr: {report.period_label}"]
+        for key in block_keys:
+            block = summary.get(key)
+            if block is not None:
+                lines.extend(["", _weekly_section_text(key, block)])
+    await edit_or_reply(
+        update, "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 Asosiy hisobot", callback_data=f"wr_full_{report.pk}"),
+            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{report.group_id}"),
+        ]]),
+    )
+
+
+def _weekly_section_text(section: str, values: dict) -> str:
+    """Render persisted aggregate values without any student identifiers."""
+    titles = {
+        "attendance": "📋 Davomat", "essays": "📝 Esse natijalari",
+        "tests": "🧪 Test natijalari", "finance": "💳 Kurs to'lovlari",
+    }
+    lines = [titles.get(section, section)]
+    labels = {
+        "attendance": {
+            "active_students": "Faol o'quvchilar", "finalized_lessons": "Yakunlangan darslar",
+            "unfinished_lessons": "Yakunlanmagan darslar", "present": "Keldi",
+            "late": "Kechikdi", "excused_absences": "Sababli yo'qlik",
+            "unexcused_absences": "Sababsiz yo'qlik",
+            "attendance_percentage": "Davomat foizi", "follow_up_count": "Davomat bo'yicha kuzatuv",
+        },
+        "essays": {
+            "assigned_essays": "Biriktirilgan esselar", "expected_submissions": "Kutilayotgan topshiriqlar",
+            "submitted_students": "Topshirgan o'quvchilar", "missing_submissions": "Topshirilmagan",
+            "graded": "Baholangan", "pending_ai": "AI baholash kutilmoqda",
+            "teacher_reviewed": "O'qituvchi tekshirgan", "grading_failed": "Baholash xatosi",
+            "average_raw_score": "O'rtacha xom ball", "score_distribution": "Ball taqsimoti",
+        },
+        "tests": {
+            "assigned_tests": "Biriktirilgan testlar", "completed_attempts": "Yakunlangan urinishlar",
+            "incomplete_attempts": "Yakunlanmagan urinishlar", "pending_grading": "Baholash kutilmoqda",
+            "average_practice_percentage": "O'rtacha mashq foizi",
+            "needs_support_count": "Qo'shimcha yordam kerak",
+        },
+        "finance": {
+            "policy_configured": "Siyosat sozlangan", "paid_count": "To'langan o'quvchilar",
+            "partial_count": "Qisman to'langan o'quvchilar", "unpaid_count": "To'lanmagan o'quvchilar",
+            "overdue_count": "Muddati o'tgan o'quvchilar", "billed_uzs": "Hisoblangan so'm",
+            "confirmed_paid_uzs": "Tasdiqlangan so'm", "outstanding_uzs": "Qoldiq so'm",
+        },
+    }
+    for key, label in labels.get(section, {}).items():
+        value = values.get(key)
+        if value is not None:
+            lines.append(f"{label}: {value}")
+    return "\n".join(lines)
+
+
+def _safe_report_callback_id(data: str) -> int | None:
+    for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_"):
+        if data.startswith(prefix):
+            raw = data[len(prefix):]
+            if raw.isdecimal():
+                return int(raw)
+            logger.warning("Malformed weekly report callback: %r", data)
+            return None
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Safe parsing of callback payloads
 # ---------------------------------------------------------------------------
 
@@ -2150,12 +4331,51 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("tests", tests_handler))
     app.add_handler(CommandHandler("results", results_handler))
     app.add_handler(CommandHandler("essays", essays_handler))
+    app.add_handler(CommandHandler("essay_submit", essay_submit_handler))
+    app.add_handler(CommandHandler("cancel_essay", cancel_essay_handler))
     app.add_handler(CommandHandler("leaderboard", leaderboard_handler))
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))
     app.add_handler(CommandHandler("premium", premium_handler))
+    # Teacher group management, attendance and group reports
+    app.add_handler(CommandHandler("groups", groups_handler))
+    app.add_handler(CommandHandler("attendance", attendance_handler))
+    app.add_handler(CommandHandler("attendance_report", attendance_report_handler))
+    app.add_handler(CommandHandler("students", students_handler))
+    app.add_handler(CommandHandler("essay_results", essay_results_handler))
+    app.add_handler(CommandHandler("group_report", group_report_handler))
+    app.add_handler(CommandHandler("plans", plans_handler))
+    app.add_handler(CommandHandler("buy", buy_handler))
+    app.add_handler(CommandHandler("myplan", myplan_handler))
+    app.add_handler(CommandHandler("mytuition", mytuition_handler))
+    app.add_handler(CommandHandler("course_payment", course_payment_handler))
+    app.add_handler(CommandHandler("payment_history", payment_history_handler))
+    app.add_handler(CommandHandler("payment_proof", payment_proof_handler))
+    app.add_handler(CommandHandler("weekly_report", weekly_report_handler))
+    app.add_handler(CommandHandler("group_payments", group_payments_handler))
+    app.add_handler(CommandHandler("limits", limits_handler))
+    app.add_handler(CommandHandler("paysupport", paysupport_handler))
+    app.add_handler(CommandHandler("cancel", cancel_handler))
+    app.add_handler(CommandHandler("essay", essay_handler))
     app.add_handler(CommandHandler("arena", arena_handler))
     app.add_handler(CommandHandler("arena_join", arena_join_handler))
+
+    # Telegram Stars payments — registered before the generic message handlers
+    # so a paid update can never be swallowed by the text/photo routers.
+    from telegram.ext import PreCheckoutQueryHandler
+    app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
+    app.add_handler(
+        MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler)
+    )
+
+    # Essay page images. A lower group keeps the payment-screenshot handler
+    # working: each handler no-ops when its own flow is not active.
+    app.add_handler(
+        MessageHandler(
+            filters.PHOTO | filters.Document.ALL, essay_image_message_handler,
+        ),
+        group=-1,
+    )
 
     # Arena callbacks (must be before generic callback_handler)
     app.add_handler(CallbackQueryHandler(arena_callback_handler, pattern=r"^arena_"))
@@ -2232,10 +4452,31 @@ async def post_init(app) -> None:
         BotCommand("profile", "Shaxsiy profil"),
         BotCommand("tests", "Mavjud testlar"),
         BotCommand("essays", "Esse mavzulari"),
+        BotCommand("essay_submit", "Esseni botda topshirish"),
+        BotCommand("cancel_essay", "Esse yuborishni bekor qilish"),
         BotCommand("leaderboard", "Reyting"),
         BotCommand("streak", "Kunlik streak"),
         BotCommand("daily", "Kunlik vazifalar"),
+        BotCommand("essay", "Esse topshirish (matn/rasm)"),
+        BotCommand("plans", "Tariflar va narxlar"),
+        BotCommand("buy", "Tarif sotib olish (Telegram Stars)"),
+        BotCommand("myplan", "Mening platforma tarifim"),
+        BotCommand("mytuition", "Kurs to'lovlari"),
+        BotCommand("course_payment", "Mening to'lov holatim"),
+        BotCommand("payment_history", "To'lovlar tarixi"),
+        BotCommand("payment_proof", "To'lov dalilini yuborish"),
+        BotCommand("weekly_report", "Haftalik guruh hisobotlari"),
+        BotCommand("group_payments", "Guruh bo'yicha jami to'lovlar"),
+        BotCommand("limits", "Qolgan limitingiz"),
+        BotCommand("paysupport", "To'lov bo'yicha yordam"),
+        BotCommand("cancel", "Joriy amalni bekor qilish"),
         BotCommand("premium", "Premium obuna"),
+        BotCommand("groups", "🏫 Guruhlarim (o'qituvchi)"),
+        BotCommand("attendance", "🗓 Davomat olish"),
+        BotCommand("attendance_report", "📊 Davomat hisoboti"),
+        BotCommand("students", "👥 Guruh o'quvchilari"),
+        BotCommand("essay_results", "📝 Guruh esse natijalari"),
+        BotCommand("group_report", "📈 Guruh hisoboti"),
         BotCommand("arena", "⚔️ 1v1 Arena — ELO reyting"),
         BotCommand("arena_join", "Invite kod bilan xonaga qo'shilish"),
     ])

@@ -1,11 +1,17 @@
 """
 Bulk Test Import Service — Testlarni CSV fayldan import qilish.
 
-Supports:
+Supports (explicit contract):
     - CSV with columns: question, choice_a, choice_b, choice_c, choice_d, correct, points
     - Auto-create test and questions
-    - Multiple question types (single choice)
-    - Validation and error reporting
+    - SINGLE choice questions only (one correct answer)
+
+NOT supported (rejected, never silently converted):
+    - gap_fill / matching / written / text question types
+    - a `type` column or any unknown column
+
+Rationale: silent type conversion once produced fake MCQ-written questions
+(see deleted create_mock_test.py). Unknown input must fail loudly.
 """
 from __future__ import annotations
 
@@ -83,6 +89,22 @@ class BulkTestImportService:
                 "test_id": None,
                 "questions_created": 0,
                 "errors": [{"row": 0, "error": f"Kerakli ustunlar yo'q: {', '.join(missing)}"}],
+            }
+
+        unknown = set(reader.fieldnames or []) - cls.VALID_COLUMNS
+        if unknown:
+            return {
+                "success": False,
+                "test_id": None,
+                "questions_created": 0,
+                "errors": [{
+                    "row": 0,
+                    "error": (
+                        "Qo'llab-quvvatlanmaydigan ustunlar: "
+                        f"{', '.join(sorted(unknown))}. Faqat SINGLE savollar "
+                        "import qilinadi (gap_fill/matching/written emas)."
+                    ),
+                }],
             }
 
         questions_data = []

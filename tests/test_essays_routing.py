@@ -34,6 +34,15 @@ from apps.essays.views import essay_improve_view
 User = get_user_model()
 
 
+@override_settings(
+    # The improved-essay service resolves the provider/model for its rewrite
+    # cache identity before the (mocked) LLM call, so a real-looking provider
+    # configuration is required for the unit test to reach the mocked chain.
+    ESSAY_AI_PROVIDER="openrouter",
+    OPENROUTER_API_KEY="sk-or-v1-improve-test000000000000000000000000000",
+    ESSAY_AI_MODEL="improve-test-model",
+    OPENROUTER_AI_MODEL="improve-test-model",
+)
 class ImprovedEssayEndpointTests(TestCase):
     """
     POST /essays/result/<id>/improve/ — AI yaxshilangan versiya endpointi.

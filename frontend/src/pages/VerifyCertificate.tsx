@@ -80,9 +80,13 @@ export default function VerifyCertificate() {
   // download the PDF with the JWT Bearer header via apiBlob (a plain <a>
   // href could not send it). Teachers/admins or strangers get no button —
   // the backend download view enforces ownership anyway.
+  //
+  // Only students may read the certificate list at all (MyCertificatesView is
+  // [IsAuthenticated, IsStudent]); this page is public and also opened by
+  // staff, so asking for it as anyone else is a guaranteed 403.
   useEffect(() => {
     setCertId(null);
-    if (!out?.valid || !user || !out.certificate_number) return;
+    if (!out?.valid || !user || user.role !== 'student' || !out.certificate_number) return;
     Certificates.mine()
       .then((page) => {
         const match = page.results.find(

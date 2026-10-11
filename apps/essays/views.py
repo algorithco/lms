@@ -29,6 +29,13 @@ from django.views.decorators.http import require_POST
 from apps.accounts.access import is_platform_admin
 
 from apps.core.spa import serve_spa_shell
+from apps.payments.entitlements import (
+    QuotaDenied,
+    commit_usage,
+    enforce_essay_quota,
+    release_usage,
+)
+from apps.payments.models import SubscriptionUsage
 
 from .models import EssayCriterionScore, EssaySubmission, EssayTopic, TeacherReview
 from .services import (
@@ -211,6 +218,7 @@ def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> 
         topic=topic,
         status=EssaySubmission.Status.DRAFT,
         password_verified_at=timezone.now(),
+        source=EssaySubmission.Source.WEB,
     )
 
     logger.info(
@@ -270,8 +278,36 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
         submission.word_count = WordCounter.count(essay_text)
         submission.save(update_fields=["essay_text", "word_count", "updated_at"])
 
+        # --- Tijoriy kvota (TEXT_ESSAY) -------------------------------------
+        # Vaqt tugab avtomatik yuborilgan esse ham baholash xizmatidir, shuning
+        # uchun u ham limitdan o'tadi. Limit tugagan bo'lsa AI chaqirilmaydi,
+        # lekin o'quvchining matni YO'QOLMAYDI — qoralama holida saqlanib
+        # qoladi va limiti yangilanganda qayta yuborilishi mumkin.
+        try:
+            reservation = enforce_essay_quota(
+                request.user,
+                SubscriptionUsage.Kind.TEXT_ESSAY,
+                idempotency_key=f"essay:{submission.pk}",
+                source="website-autosubmit",
+            )
+        except QuotaDenied as exc:
+            return _quota_denied_response(request, exc, "essays/autosave_result_partial.html", {
+                "time_expired": True,
+                "auto_submitted": False,
+                "quota_denied": True,
+                "error": exc.message,
+                "submission": submission,
+            })
+
         # Avtomatik baholash — sekin LLM chaqiruvi fonda (Celery yoki thread)
         result = start_grading(submission)
+
+        if not result.get("success"):
+            # Navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
+            release_usage(reservation)
+        else:
+            # Baholash qabul qilindi → limit bir marta sarflandi.
+            commit_usage(reservation)
 
         if result["fallback"]:
             # AI xato yoki bo'sh matn → o'qituvchiga yuborildi
@@ -314,6 +350,33 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Student: Submit for AI Grading
 # ---------------------------------------------------------------------------
+
+def _quota_denied_response(request, exc, template_name: str, context: dict, *, status: int = 429):
+    """Render the legacy quota-denial partial, degrading to JSON.
+
+    The Grandec SPA no longer serves these HTML fragments — it submits essays
+    through the JSON API — and the ``essays/*_partial.html`` templates are not
+    present in this deployment. A quota denial is user-visible information and
+    must not turn into a 500, so when the partial is unavailable we answer with
+    the same payload as JSON and an explicit status code.
+    """
+    from django.template import TemplateDoesNotExist
+
+    try:
+        return render(request, template_name, context, status=status)
+    except TemplateDoesNotExist:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": context.get("error", exc.message),
+                "quota_denied": True,
+                "code": exc.code,
+                "retry_after": exc.retry_after_seconds,
+                "remaining": exc.remaining,
+            },
+            status=status,
+        )
+
 
 def _js_i18n(request) -> dict:
     """JS i18n bundle for the standalone submit form (request user's language)."""
@@ -379,6 +442,29 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         # non-empty text (already enforced by essay text saving).
         pass
 
+    # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
+    # Limit FAQAT haqiqiy yangi baholash ishi uchun sarflanadi: yuqoridagi
+    # "allaqachon baholangan" va "PENDING" shoxobchalari hech narsa
+    # sarflamasdan qaytadi, ichki AI retry (error/pending_teacher → qayta
+    # baholash) esa bir xil idempotentlik kaliti tufayli ikkinchi marta
+    # hisoblanmaydi. Kalit kanaldan qat'i nazar bir xil — bitta submission
+    # qaysi yo'l (veb yoki TMA) orqali yuborilsa ham faqat bir marta
+    # sarflanadi.
+    try:
+        reservation = enforce_essay_quota(
+            request.user,
+            SubscriptionUsage.Kind.TEXT_ESSAY,
+            idempotency_key=f"essay:{submission.pk}",
+            source="website",
+        )
+    except QuotaDenied as exc:
+        return _quota_denied_response(request, exc, "essays/submit_result_partial.html", {
+            "success": False,
+            "error": exc.message,
+            "quota_denied": True,
+            "retry_after": exc.retry_after_seconds,
+        }, status=429)
+
     # AI baholashni fon rejimiga yuklash — grade_essay() 30–90 soniya davom
     # etadigan tashqi LLM chaqiruvi: Celery worker'da, broker tushsa
     # background thread'da. Har ikkala holatda ham request DARHOL qaytadi
@@ -387,10 +473,17 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
 
     if not result.get("success"):
+        # Baholash navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
+        release_usage(reservation)
         return render(request, "essays/submit_result_partial.html", {
             "success": False,
             "error": result.get("error") or "AI baholash boshlanmadi.",
         })
+
+    # Baholash qabul qilindi va navbatga qo'yildi → limit bir marta sarflandi.
+    # Natija hali tayyor bo'lmasa ham xizmat ko'rsatildi, shuning uchun
+    # ichki AI qayta urinishida qo'shimcha limit olinmaydi.
+    commit_usage(reservation)
 
     if result["fallback"] and not result.get("async"):
         # Bo'sh / kam so'zli matn → o'qituvchiga yuborildi (defensive —
@@ -432,6 +525,11 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
     data: dict[str, Any] = {
         "status": status,
         "submission_id": submission.id,
+        # Grading provenance for the UI ("Saqlangan AI baholash natijasi
+        # qo'llandi"). Only ever describes THIS student's own grade: no other
+        # account's id, timestamp or comments are exposed.
+        "grading_source": submission.grading_source,
+        "cached": submission.grading_source == EssaySubmission.GradingSource.CACHE,
     }
 
     if status == EssaySubmission.Status.PENDING:
@@ -705,6 +803,7 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
         essay_text=essay_text,
         word_count=_WC.count(essay_text),
         status=EssaySubmission.Status.PENDING,
+        source=EssaySubmission.Source.WEB,
     )
 
     logger.info(

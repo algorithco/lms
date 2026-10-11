@@ -522,31 +522,48 @@ class ArenaAPITests(LMSBaseTestCase):
         response = self.client.get("/arena/api/leaderboard/")
         self.assertEqual(response.status_code, 302)  # login_required redirect
 
-    def test_post_apis_work_in_real_browser_without_csrf_token(self):
+    def test_post_apis_require_csrf_for_session(self):
         """
-        The lobby JS posts create/join/queue via fetch() without a CSRF token.
+        Session POSTs require CSRF (frontend sessionApi sends X-CSRFToken).
 
-        Django's test client skips CSRF by default, so the views must be
-        explicitly csrf_exempt — otherwise every browser POST gets a 403.
-        An enforce_csrf_checks=True client simulates the real browser.
+        Verifies secure behavior: without token → 403; with token → 201/200.
+        JWT-only clients bypass CSRF via Authorization header (covered by
+        TMA tests), but browser sessions must present the token.
         """
-        self.client = type(self.client)(enforce_csrf_checks=True)
-        self.client.login(email="student@test.com", password="testpass123")
+        from django.middleware.csrf import get_token
 
-        resp = self.client.post("/arena/api/rooms/create/")
+        csrf_client = type(self.client)(enforce_csrf_checks=True)
+        csrf_client.login(email="student@test.com", password="testpass123")
+        # Real browser without token → 403 (secure fail-closed).
+        resp = csrf_client.post("/arena/api/rooms/create/")
+        self.assertEqual(resp.status_code, 403)
+
+        # Same session with CSRF token → works. vapid-key plants the cookie
+        # via get_token() (public, no auth needed for the plant itself).
+        csrf_client.get("/api/notifications/push/vapid-key/")
+        csrftoken = csrf_client.cookies.get("csrftoken")
+        self.assertIsNotNone(csrftoken, "CSRF cookie must be planted for session clients")
+        csrf_value = csrftoken.value  # type: ignore[union-attr]
+
+        resp = csrf_client.post("/arena/api/rooms/create/", HTTP_X_CSRFTOKEN=csrf_value)
         self.assertEqual(resp.status_code, 201, resp.content[:200])
         code = resp.json()["room_code"]
 
-        # A different user joins via the invite code
-        self.client.login(email="teacher@test.com", password="testpass123")
-        resp2 = self.client.post(
+        # A different user joins via the invite code (with their own token).
+        csrf_client.login(email="teacher@test.com", password="testpass123")
+        csrf_client.get("/api/notifications/push/vapid-key/")
+        csrftoken2 = csrf_client.cookies.get("csrftoken")
+        self.assertIsNotNone(csrftoken2)
+        csrf_value2 = csrftoken2.value  # type: ignore[union-attr]
+        resp2 = csrf_client.post(
             "/arena/api/rooms/join/",
             {"code": code},
-            format="json",
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_value2,
         )
         self.assertEqual(resp2.status_code, 200, resp2.content[:200])
 
-        resp3 = self.client.post("/arena/api/queue/")
+        resp3 = csrf_client.post("/arena/api/queue/", HTTP_X_CSRFTOKEN=csrf_value2)
         self.assertEqual(resp3.status_code, 200, resp3.content[:200])
 
 

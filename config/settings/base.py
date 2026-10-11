@@ -27,6 +27,9 @@ if env_file.exists():
 # ---------------------------------------------------------------------------
 # Core Django
 # ---------------------------------------------------------------------------
+# SECURITY: development-only fallback. Production MUST set DJANGO_SECRET_KEY
+# (config/settings/production.py raises ImproperlyConfigured on placeholders,
+# short keys, or missing values). Never use this default outside local dev.
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me-in-production-!@#$%^&*()")
 DEBUG = env("DEBUG", default=False)
 ALLOWED_HOSTS = env("ALLOWED_HOSTS", default=[])
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
     # Local apps (models register here)
     "apps.accounts",
     "apps.courses",
+    "apps.attendance",      # Attendance, classroom observations, group notices
     "apps.tests",            # "tests" is reserved in Python; app label below
     "apps.results",
     "apps.certificates",
@@ -61,7 +65,9 @@ INSTALLED_APPS = [
     "apps.essays",         # Essay writing & AI grading
     "apps.telegram_app",   # Telegram Mini App
     "apps.arena",          # WebSocket Quiz Arena
-    "apps.payments",       # Subscriptions & Payments
+    "apps.payments",       # Subscriptions & Payments (platform plans)
+    "apps.tuition",        # Course tuition billing (separate from subscriptions)
+    "apps.weekly_reports",  # Automated weekly academic reports
     "apps.panel",          # In-app admin panel (/control-panel/)
     "apps.webapi",         # JSON API for the React SPA (/api/v1/)
 ]
@@ -115,6 +121,12 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+
+# SQLite must not use persistent connections: Channels async + server threads
+# with CONN_MAX_AGE>0 on SQLite cause "database is locked" errors.
+# Engine-specific override (production Postgres keeps its persistent setting).
+if DATABASES["default"].get("ENGINE", "").endswith("sqlite3"):
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
 
 # ---------------------------------------------------------------------------
 # Custom User Model  (must be set BEFORE first migration)
@@ -378,6 +390,37 @@ CELERY_BEAT_SCHEDULE = {
         "task": "core.daily_maintenance",
         "schedule": crontab(hour=3, minute=0),
     },
+    # Automated weekly academic reports. The default is Monday 09:00 for the
+    # completed previous week; an administrator can change the day/hour in
+    # Django admin (WeeklyReportSettings), which the generator re-reads on
+    # every run. crontab() is evaluated in CELERY_TIMEZONE (= Asia/Tashkent),
+    # so the numbers below mean local wall-clock time.
+    "weekly-reports-generate-and-send": {
+        "task": "weekly_reports.generate_and_send",
+        # Poll the singleton settings row frequently. The task checks its
+        # administrator-configured weekday/time and remembers completion, so
+        # changes apply without replacing the process-wide Beat crontab.
+        "schedule": crontab(minute="*/5"),
+    },
+    # Missed-job recovery: retry deliveries that failed while Telegram was
+    # unreachable. Delivery rows are dedup-keyed, so this can never double-send.
+    "weekly-reports-retry-deliveries": {
+        "task": "weekly_reports.retry_deliveries",
+        "schedule": crontab(minute="*/30"),
+    },
+    # Course tuition: generate the month's invoices and run the reminder ladder.
+    "tuition-generate-monthly-invoices": {
+        "task": "tuition.generate_monthly_invoices",
+        "schedule": crontab(minute=5, hour=2, day_of_month=1),
+    },
+    "tuition-send-payment-reminders": {
+        "task": "tuition.send_payment_reminders",
+        "schedule": crontab(minute=0, hour=10),
+    },
+    "tuition-mark-overdue-invoices": {
+        "task": "tuition.mark_overdue_invoices",
+        "schedule": crontab(minute=15, hour=0),
+    },
     # Auto-submit expired essays every 2 minutes
     "auto-submit-expired-essays": {
         "task": "essays.auto_submit_expired",
@@ -438,6 +481,52 @@ PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="")
 PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="")
 PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="")
 PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="")
+
+# ---------------------------------------------------------------------------
+# Commercial subscription quotas (canonical service: apps.payments.entitlements)
+# ---------------------------------------------------------------------------
+# Weekly quota windows reset on this weekday at 00:00 in the quota timezone.
+# 0 = Monday (ISO weekday), matching "Monday 00:00 Asia/Tashkent".
+SUBSCRIPTION_QUOTA_RESET_WEEKDAY = env.int(
+    "SUBSCRIPTION_QUOTA_RESET_WEEKDAY", default=0,
+)
+SUBSCRIPTION_QUOTA_TIMEZONE = env(
+    "SUBSCRIPTION_QUOTA_TIMEZONE", default="Asia/Tashkent",
+)
+# Platform fallback used only when neither a plan row, a sponsorship nor an
+# administrator override specifies a value. All default to None (= no enforced
+# quota) so that introducing commercial plans cannot silently restrict what an
+# existing student could already do. Administrators opt in per plan row.
+SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT = env(
+    "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT", default=None,
+    cast=lambda v: int(v) if str(v).strip() else None,
+)
+SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT = env(
+    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT", default=None,
+    cast=lambda v: int(v) if str(v).strip() else None,
+)
+SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS = env(
+    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS", default=None,
+    cast=lambda v: int(v) if str(v).strip() else None,
+)
+SUBSCRIPTION_DEFAULT_TEST_LIMIT = env(
+    "SUBSCRIPTION_DEFAULT_TEST_LIMIT", default=None,
+    cast=lambda v: int(v) if str(v).strip() else None,
+)
+# Maximum pages a single multi-page image essay may contain (one submission).
+ESSAY_IMAGE_MAX_PAGES = env.int("ESSAY_IMAGE_MAX_PAGES", default=10)
+# Per-image upload size ceiling for Telegram photo/document essays (bytes).
+ESSAY_IMAGE_MAX_BYTES = env.int("ESSAY_IMAGE_MAX_BYTES", default=10 * 1024 * 1024)
+
+# ---------------------------------------------------------------------------
+# OCR / handwriting extraction (see apps/essays/ocr.py)
+# ---------------------------------------------------------------------------
+# Empty means "no OCR engine configured" — image essays then report a clear
+# unavailability instead of producing empty text. Set to "openrouter_vision"
+# (and fill ESSAY_OCR_VISION_MODEL) to enable multimodal transcription.
+ESSAY_OCR_PROVIDER = env("ESSAY_OCR_PROVIDER", default="")
+ESSAY_OCR_VISION_MODEL = env("ESSAY_OCR_VISION_MODEL", default="")
+ESSAY_OCR_TIMEOUT = env.int("ESSAY_OCR_TIMEOUT", default=120)
 
 # Secret token for webhook mode. When set, the /telegram/webhook/ endpoint
 # rejects requests without the X-Telegram-Bot-Api-Secret-Token header.
@@ -559,6 +648,41 @@ def _parse_thread_backoff(raw: str) -> tuple:
 ESSAY_THREAD_RETRY_BACKOFF = _parse_thread_backoff(
     env("ESSAY_THREAD_RETRY_BACKOFF", default="5,10,15")
 )
+
+# ---------------------------------------------------------------------------
+# Shared (cross-account) AI essay grading cache
+# ---------------------------------------------------------------------------
+# Dedicated HMAC key for cache fingerprints. Empty falls back to SECRET_KEY.
+# The fingerprint is an internal cache key only - never an authorization token.
+ESSAY_CACHE_FINGERPRINT_KEY = env("ESSAY_CACHE_FINGERPRINT_KEY", default="")
+
+# Only these assessment scopes may reuse one AI grade across accounts.
+# Supervised / restricted / high-stakes assessments stay per student.
+ESSAY_CACHE_ALLOWED_SCOPES = [
+    s.strip()
+    for s in env("ESSAY_CACHE_ALLOWED_SCOPES", default="practice").split(",")
+    if s.strip()
+]
+
+# How long one worker may hold the single grading lease for a cache key.
+ESSAY_CACHE_LEASE_SECONDS = int(env("ESSAY_CACHE_LEASE_SECONDS", default="300"))
+
+# How long a duplicate submission waits for the leader's result before its
+# Celery task retries (it becomes the next leader once the lease expires).
+ESSAY_CACHE_WAIT_SECONDS = int(env("ESSAY_CACHE_WAIT_SECONDS", default="200"))
+
+# Bounded retry delay after a failed leader, so followers do not stampede.
+ESSAY_CACHE_RETRY_DELAY_SECONDS = int(env("ESSAY_CACHE_RETRY_DELAY_SECONDS", default="30"))
+
+# Grading prompt/rubric cache version - bump to invalidate old evaluations.
+ESSAY_GRADING_CACHE_VERSION = env("ESSAY_GRADING_CACHE_VERSION", default="v3")
+
+# How long a validated AI evaluation stays reusable.
+ESSAY_GRADING_CACHE_DAYS = int(env("ESSAY_GRADING_CACHE_DAYS", default="30"))
+
+# Scoring/conversion version - part of the cache key, so a scoring change
+# never silently reuses an evaluation produced under the old conversion.
+ESSAY_SCORING_VERSION = env("ESSAY_SCORING_VERSION", default="v1")
 
 # ---------------------------------------------------------------------------
 # Google OAuth

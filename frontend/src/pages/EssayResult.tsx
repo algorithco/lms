@@ -37,6 +37,9 @@ interface Criterion {
 
 interface Result {
   status: string;
+  /** Provenance of this student's own grade (never another account's data). */
+  grading_source?: 'ai' | 'cache' | 'mock' | string;
+  cached?: boolean;
   total_score: number | null;
   max_score: number;
   converted_score: number | null;
@@ -209,9 +212,9 @@ export default function EssayResult() {
         )}
       </p>
 
-      {pending && (
+      {pending && res.status !== 'draft' && (
         <div className="card">
-          <p>{t('essay_ai_grading_progress')}</p>
+          <p>{t('essay_grading_pending')}</p>
           <div className="progress">
             <div style={{ width: '45%' }} />
           </div>
@@ -220,6 +223,7 @@ export default function EssayResult() {
 
       {res.status === 'pending_teacher' && !reviewSent && (
         <div className="card">
+          <strong>{t('essay_grading_recheck')}</strong>
           <p>{t('essay_teacher_reviewing')}</p>
         </div>
       )}
@@ -233,6 +237,7 @@ export default function EssayResult() {
 
       {res.status === 'error' && (
         <div className="card">
+          <strong className="error">{t('essay_grading_failed')}</strong>
           <p className="error">{t('essay_error')}</p>
           {res.error && <p className="muted">{res.error}</p>}
           {retryErr && <p className="error">{retryErr}</p>}
@@ -269,6 +274,13 @@ export default function EssayResult() {
       {done && (
         <>
           {res.is_off_topic && <p className="error">{t('off_topic')}</p>}
+          <h2>{t('essay_grading_graded')}</h2>
+          {res.cached && (
+            <p className="muted small">{t('essay_grading_cached')}</p>
+          )}
+          {res.grading_source === 'mock' && (
+            <p className="muted small">{t('essay_grading_mock')}</p>
+          )}
           <div className="grid">
             <div className="card stat">
               <span className="stat-label">

@@ -34,6 +34,8 @@ export interface ResultListItem {
   max_score?: string | number;
   percentage?: string | number;
   is_passed?: boolean;
+  certificate_status?: string;
+  grading_status?: string;
   time_taken_seconds?: number;
   calculated_at?: string;
   [key: string]: unknown;
@@ -97,7 +99,14 @@ export function draftKey(attemptId: string): string {
 
 export type DraftMap = Record<
   number,
-  { choices: number[]; text: string; updatedAt: number }
+  {
+    choices: number[];
+    text: string;
+    gaps?: Record<string, string>;
+    matching?: Record<string, number | null>;
+    written?: string;
+    updatedAt: number;
+  }
 >;
 
 export function loadDraft(attemptId: string): DraftMap {

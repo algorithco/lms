@@ -9,6 +9,10 @@ import os
 from celery import Celery
 
 # Set the default Django settings module for the 'celery' program.
+# Respects the deployed environment: production compose sets
+# DJANGO_SETTINGS_MODULE=config.settings.production, so setdefault never
+# overrides it. The development fallback keeps local `celery -A config worker`
+# simple without extra env setup.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
 
 app = Celery("lms_platform")

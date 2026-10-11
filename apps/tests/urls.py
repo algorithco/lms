@@ -8,6 +8,7 @@ Endpoints:
     GET  /api/tests/attempts/{id}/               — Attempt status + timer + javoblar
     POST /api/tests/attempts/{id}/save-answer/   — Javob auto-save
     POST /api/tests/attempts/{id}/submit/        — Testni yakunlash
+    POST /api/tests/attempts/{id}/finalize/     — Kutilayotgan yozma bahoni yakunlash
 """
 from django.urls import path
 
@@ -48,5 +49,10 @@ urlpatterns = [
         "attempts/<int:attempt_id>/submit/",
         views.SubmitAttemptView.as_view(),
         name="submit-attempt",
+    ),
+    path(
+        "attempts/<int:attempt_id>/finalize/",
+        views.FinalizeAttemptView.as_view(),
+        name="finalize-attempt",
     ),
 ]

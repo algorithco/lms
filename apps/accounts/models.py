@@ -15,6 +15,8 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.validators import validate_image_upload
+
 from .managers import UserManager
 
 
@@ -191,6 +193,7 @@ class Profile(models.Model):
         upload_to="avatars/%Y/%m/",
         blank=True,
         null=True,
+        validators=[validate_image_upload],
     )
     phone = models.CharField(
         _("telefon raqam"),

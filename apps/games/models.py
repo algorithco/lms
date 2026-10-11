@@ -152,13 +152,17 @@ class UserGameScore(models.Model):
         related_name="user_scores",
         verbose_name=_("o'yin"),
     )
-
     # -- Cumulative stats ---------------------------------------------------
     total_xp = models.PositiveIntegerField(_("umumiy XP"), default=0)
     total_coins = models.PositiveIntegerField(_("umumiy coins"), default=0)
     games_played = models.PositiveIntegerField(_("o'ynalgan o'yinlar"), default=0)
     correct_answers = models.PositiveIntegerField(_("to'g'ri javoblar"), default=0)
     wrong_answers = models.PositiveIntegerField(_("noto'g'ri javoblar"), default=0)
+    current_streak = models.PositiveIntegerField(
+        _("joriy streak"),
+        default=0,
+        help_text=_("Joriy ketma-ket to'g'ri javoblar zanjiri."),
+    )
     best_streak = models.PositiveIntegerField(
         _("eng yaxshi streak"),
         default=0,
@@ -205,6 +209,31 @@ class UserGameScore(models.Model):
         if total == 0:
             return 0.0
         return round(self.correct_answers / total * 100, 1)
+
+
+class UserGameCompletion(models.Model):
+    """One-time reward ledger for a level or individual level item."""
+
+    score = models.ForeignKey(
+        UserGameScore,
+        on_delete=models.CASCADE,
+        related_name="completions",
+    )
+    level = models.ForeignKey(
+        GameLevel,
+        on_delete=models.CASCADE,
+        related_name="completions",
+    )
+    challenge_key = models.CharField(max_length=80, default="level")
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["score", "level", "challenge_key"],
+                name="uniq_user_game_level_challenge",
+            ),
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -473,53 +502,64 @@ class DailyStreak(models.Model):
         """
         Streak ni yangilash — har kirishda chaqiriladi.
 
+        Concurrency-safe: row is locked via select_for_update inside a
+        transaction; counters use F() expressions. Streak rewards credit
+        exactly ONE UserGameScore row (earliest) so multi-game users do not
+        receive multiplied bonuses.
+
         Returns: {"new_streak": int, "reward_claimed": str|None, "xp_earned": int}
         """
+        from django.db import transaction
         from django.utils import timezone
         from django.db.models import F
 
-        today = timezone.now().date()
-        result = {"new_streak": self.current_streak, "reward_claimed": None, "xp_earned": 0}
+        with transaction.atomic():
+            locked = DailyStreak.objects.select_for_update().get(pk=self.pk)
+            today = timezone.now().date()
+            result = {"new_streak": locked.current_streak, "reward_claimed": None, "xp_earned": 0}
 
-        if self.last_login_date == today:
-            # Already logged in today
-            return result
+            if locked.last_login_date == today:
+                # Already logged in today
+                self.current_streak = locked.current_streak
+                self.best_streak = locked.best_streak
+                self.last_login_date = locked.last_login_date
+                self.total_logins = locked.total_logins
+                return result
 
-        if self.last_login_date == today - timezone.timedelta(days=1):
-            # Consecutive day — streak continues
-            self.current_streak += 1
-        else:
-            # Streak broken — start new
-            self.current_streak = 1
+            if locked.last_login_date == today - timezone.timedelta(days=1):
+                new_streak = locked.current_streak + 1
+            else:
+                new_streak = 1
 
-        self.last_login_date = today
-        self.total_logins += 1
+            DailyStreak.objects.filter(pk=self.pk).update(
+                current_streak=new_streak,
+                last_login_date=today,
+                total_logins=F("total_logins") + 1,
+                best_streak=new_streak if new_streak > locked.best_streak else locked.best_streak,
+            )
 
-        if self.current_streak > self.best_streak:
-            self.best_streak = self.current_streak
+            # Check streak rewards
+            streak_rewards = {
+                3: ("3_day", 30, 15, "reward_3claimed"),
+                7: ("7_day", 75, 35, "reward_7claimed"),
+                14: ("14_day", 150, 75, "reward_14claimed"),
+                30: ("30_day", 500, 250, "reward_30claimed"),
+            }
 
-        # Check streak rewards
-        streak_rewards = {
-            3: ("3_day", 30, 15, "reward_3claimed"),
-            7: ("7_day", 75, 35, "reward_7claimed"),
-            14: ("14_day", 150, 75, "reward_14claimed"),
-            30: ("30_day", 500, 250, "reward_30claimed"),
-        }
-
-        if self.current_streak in streak_rewards:
-            reward_key, xp, coins, field = streak_rewards[self.current_streak]
-            if not getattr(self, field):
-                setattr(self, field, True)
+            if new_streak in streak_rewards and not getattr(locked, streak_rewards[new_streak][3]):
+                reward_key, xp, coins, field = streak_rewards[new_streak]
+                DailyStreak.objects.filter(pk=self.pk).update(**{field: True})
                 result["reward_claimed"] = reward_key
                 result["xp_earned"] = xp
 
-                # Award XP/coins to all game scores
-                from django.db.models import F
-                UserGameScore.objects.filter(user=self.user).update(
-                    total_xp=F("total_xp") + xp,
-                    total_coins=F("total_coins") + coins,
-                )
+                # Credit exactly one game-score row (earliest) — never all rows.
+                target = UserGameScore.objects.filter(user_id=self.user_id).order_by("id").first()
+                if target is not None:
+                    UserGameScore.objects.filter(pk=target.pk).update(
+                        total_xp=F("total_xp") + xp,
+                        total_coins=F("total_coins") + coins,
+                    )
 
-        self.save()
-        result["new_streak"] = self.current_streak
-        return result
+            self.refresh_from_db()
+            result["new_streak"] = self.current_streak
+            return result

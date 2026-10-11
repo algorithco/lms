@@ -72,14 +72,21 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     from apps.essays.services import (
         _GRADEABLE_STATUSES,
         apply_ai_result,
+        distribute_cached_grade,
         grade_essay,
+        grading_context_for_submission,
         notify_student_essay_graded,
+        stamp_grading_cache_key,
     )
 
     # --- Phase A: short claim txn ---------------------------------------
     essay_text: str | None = None
     topic_title = ""
     topic_none = False
+    # Shared-cache context/key for this submission (computed without any AI
+    # call, so a completed leader can finish the submissions waiting on it).
+    cache_context: dict | None = None
+    cache_key = ""
     try:
         with transaction.atomic():
             submission = (
@@ -100,6 +107,18 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             essay_text = (submission.essay_text or "").strip()
             topic_none = submission.topic is None
             topic_title = submission.topic.title if submission.topic else ""
+            if essay_text and submission.status in _GRADEABLE_STATUSES:
+                try:
+                    cache_context = grading_context_for_submission(submission)
+                    cache_key = stamp_grading_cache_key(submission)
+                except Exception:
+                    # Never let cache bookkeeping block grading itself.
+                    logger.exception(
+                        "Could not prepare grading cache context: submission=%d",
+                        submission_id,
+                    )
+                    cache_context = None
+                    cache_key = ""
             # Empty/under-min are inline fallbacks — persist inside this short
             # txn (no LLM needed) and return; no second txn required.
             if not essay_text:
@@ -169,7 +188,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
         # submit-new form (no topic): legacy behavior grades any non-empty
         # text without the min-word / PENDING_TEACHER contract.
         try:
-            result_llm = grade_essay(essay_text or "", topic_title="")
+            result_llm = grade_essay(
+                essay_text or "", topic_title="", cache_context=cache_context,
+            )
         except (ValueError, ImportError, ImproperlyConfigured) as exc:
             # Handle ImproperlyConfigured as well (not an ImportError).
             from django.core.exceptions import ImproperlyConfigured as _IC
@@ -213,9 +234,19 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                 )
                 if sub3 is None or sub3.status not in _GRADEABLE_STATUSES:
                     return {"status": "not_gradeable", "current": getattr(sub3, "status", None)}
-                apply_ai_result(sub3, result_llm)
-                notify_student_essay_graded(sub3)
-                return {"status": "graded", "total_score": str(sub3.total_score)}
+                apply_ai_result(sub3, result_llm, cache_key=cache_key)
+                if sub3.status == EssaySubmission.Status.GRADED:
+                    sub3.auto_submitted = True
+                    from django.utils import timezone as _tz3
+                    sub3.submitted_at = _tz3.now()
+                    sub3.save(update_fields=["auto_submitted", "submitted_at", "updated_at"])
+                    notify_student_essay_graded(sub3)
+                graded = sub3.status == EssaySubmission.Status.GRADED
+                score = str(sub3.total_score)
+            if graded and cache_key:
+                # Complete any other account waiting on the same evaluation.
+                distribute_cached_grade(cache_key, exclude_submission_id=submission_id)
+            return {"status": "graded", "total_score": score}
         except Exception as exc:
             if self.request.retries >= self.max_retries:
                 _mark_grading_failed(submission_id, exc)
@@ -223,7 +254,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
 
     # Normal topic-based path: LLM outside txn.
     try:
-        result_llm2 = grade_essay(essay_text or "", topic_title=topic_title)
+        result_llm2 = grade_essay(
+            essay_text or "", topic_title=topic_title, cache_context=cache_context,
+        )
     except (ValueError, ImportError, ImproperlyConfigured) as ie:
         from django.core.exceptions import ImproperlyConfigured as _IC2
         if isinstance(ie, _IC2):
@@ -286,7 +319,7 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             )
             if subc is None or subc.status not in _GRADEABLE_STATUSES:
                 return {"status": "not_gradeable", "current": getattr(subc, "status", None)}
-            apply_ai_result(subc, result_llm2)
+            apply_ai_result(subc, result_llm2, cache_key=cache_key)
             subc.auto_submitted = True
             from django.utils import timezone as _tz3
             subc.submitted_at = _tz3.now()
@@ -294,7 +327,10 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             # Re-check graded state after apply.
             if subc.status == EssaySubmission.Status.GRADED:
                 notify_student_essay_graded(subc)
-            return {"status": "ok", "result": {"success": True}}
+        if cache_key:
+            # Complete any other account waiting on the same evaluation.
+            distribute_cached_grade(cache_key, exclude_submission_id=submission_id)
+        return {"status": "ok", "result": {"success": True}}
     except Exception as exc:
         if self.request.retries >= self.max_retries:
             _mark_grading_failed(submission_id, exc)

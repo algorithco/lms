@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, getTokens } from '../lib/api';
 import data from './translations.json';
@@ -7,14 +7,14 @@ export type AppLang = 'uz' | 'ru' | 'en';
 export const APP_LANGS: AppLang[] = ['uz', 'ru', 'en'];
 const LANG_KEY = 'lms_lang';
 
-// Uzbek is the only shipped dictionary — ru/en fall back to uz strings until
-// their dictionaries land. The lang state itself is fully wired: persisted
-// locally, synced to the profile (PATCH /api/auth/me/), and therefore honored
-// by backend emails and locale-aware views.
-const dict = (data as { uz: Record<string, string> }).uz;
+// All three dictionaries from translations.json
+const dicts: Record<AppLang, Record<string, string>> = {
+  uz: (data as { uz: Record<string, string> }).uz,
+  ru: (data as { ru: Record<string, string> }).ru,
+  en: (data as { en: Record<string, string> }).en,
+};
 
 // Frontend-only supplement for keys the backend dictionary lacks.
-// Professional Uzbek copy in the same tone as the backend strings.
 const extraUz: Record<string, string> = {
   an_passed_count: "O'tganlar",
   an_platform_growth: "Platforma o'sishi",
@@ -45,7 +45,6 @@ const extraUz: Record<string, string> = {
   panel_edit_test: 'Testni tahrirlash',
   panel_pass_pct: "O'tish foizi (%)",
   panel_test_list: "Testlar ro'yxati",
-  // Admin control panel: hero, live stats, quick actions.
   panel_admin_hero_sub: 'Platforma boshqaruvi — statistika, kontent va foydalanuvchilar bir joyda.',
   panel_attempts_today: 'Bugungi urinishlar',
   panel_attempts_total: 'Jami urinishlar',
@@ -64,7 +63,6 @@ const extraUz: Record<string, string> = {
   panel_action_new_topic_hint: 'Mavzu yaratish va parol qo‘yish',
   panel_action_review_essays: 'Esselarni tekshirish',
   panel_action_manage_users: 'Foydalanuvchilar',
-  // Essay topic password management.
   panel_topic_password_set: 'Parolli',
   panel_topic_password_set_hint: 'Bu mavzu parol bilan himoyalangan',
   panel_topic_password_remove: 'Parolni o‘chirish',
@@ -73,11 +71,9 @@ const extraUz: Record<string, string> = {
   difficulty_easy: 'Oson',
   difficulty_medium: "O'rtacha",
   difficulty_hard: 'Qiyin',
-  // Teacher review: admin whole-essay edit.
   tr_edit_text: 'Matnni tahrirlash',
   tr_edit_text_hint: 'Faqat admin matnni o‘zgartira oladi. Ballar o‘zgarmaydi — kerak bo‘lsa qayta baholang.',
   tr_text_saved: 'Matn saqlandi',
-  // Dedicated Telegram Mini App copy (old tma/index.html parity, uz-only).
   tma_home: 'Bosh sahifa',
   tma_essays_tab: 'Esselar',
   tma_essays_title: 'Esse mavzulari',
@@ -113,8 +109,9 @@ const extraUz: Record<string, string> = {
   tma_write_hint: 'Essingizni yozing...',
 };
 
-export function translate(key: string): string {
-  return extraUz[key] ?? dict[key] ?? key;
+export function translate(key: string, lang: AppLang): string {
+  // Try the selected language first, then fall back to Uzbek
+  return dicts[lang]?.[key] ?? extraUz[key] ?? dicts.uz[key] ?? key;
 }
 
 function readStoredLang(): AppLang {
@@ -146,7 +143,15 @@ const Ctx = createContext<LangState | null>(null);
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<AppLang>(readStoredLang);
-  const t = useCallback((key: string) => translate(key), []);
+  const langRef = useRef(lang);
+  langRef.current = lang;
+
+  const t = useCallback((key: string) => translate(key, langRef.current), []);
+
+  // Update document.documentElement.lang when language changes
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const setLang = useCallback(
     (next: AppLang) => {

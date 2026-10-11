@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { AuthExpiredError, Certificates, Results, Tests } from '../lib/api';
+import { AuthExpiredError, Certificates, Results, School, Tests, Tuition, type TuitionOverview, type WeeklyReportRow } from '../lib/api';
 import { num, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
 import {
   AwardIcon,
@@ -10,6 +10,7 @@ import {
   FileTextIcon,
   TrophyIcon,
 } from '../components/icons';
+import UsageLimits from '../components/UsageLimits';
 
 interface Stats {
   total_tests_taken?: number;
@@ -33,6 +34,21 @@ export default function Dashboard() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [tuition, setTuition] = useState<TuitionOverview | null>(null);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReportRow[]>([]);
+  // This dashboard is the landing page for every role (teachers and admins are
+  // routed here too), but certificates are student-only on the server
+  // (MyCertificatesView is [IsAuthenticated, IsStudent]). Requesting a list the
+  // viewer may not read produced a blocking "You do not have permission to
+  // perform this action." banner for staff, so the call is skipped instead.
+  const isStudent = user?.role === 'student';
+
+  useEffect(() => {
+    let alive = true;
+    Tuition.mine().then((value) => { if (alive) setTuition(value); }).catch(() => {});
+    School.myWeeklyReports().then(({ results }) => { if (alive) setWeeklyReports(results); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +57,7 @@ export default function Dashboard() {
         const results = await Promise.allSettled([
           Results.stats(),
           Tests.list(),
-          Certificates.mine(),
+          isStudent ? Certificates.mine() : Promise.resolve(null),
           Results.mine(),
         ]);
         if (cancelled) return;
@@ -83,7 +99,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [t, navigate, tick]);
+  }, [t, navigate, tick, isStudent]);
 
   const avg = stats ? num(stats.average_percentage, 0) : null;
 
@@ -101,6 +117,32 @@ export default function Dashboard() {
         </p>
       )}
       {loading && <p className="muted" role="status" aria-live="polite">{t('loading')}</p>}
+
+      {/* Platform subscription remains separate from course tuition. */}
+      <UsageLimits />
+      {tuition && (tuition.invoices.length > 0 || tuition.outstanding_uzs > 0) && (
+        <section className="card" aria-label="Course tuition">
+          <h2>💳 {t('tuition_title')}</h2>
+          <p className="muted">{t('tuition_confirmed')}: {Number(tuition.confirmed_paid_uzs).toLocaleString()} so'm · {t('tuition_outstanding')}: {Number(tuition.outstanding_uzs).toLocaleString()} so'm</p>
+          <div className="table-wrap"><table className="data">
+            <thead><tr><th>{t('tuition_period')}</th><th>{t('tuition_status')}</th><th>{t('tuition_amount')}</th><th>{t('tuition_paid')}</th><th>{t('tuition_outstanding')}</th><th>{t('tuition_deadline')}</th><th>{t('tuition_payment_instructions')}</th></tr></thead>
+            <tbody>{tuition.invoices.map((invoice) => <tr key={invoice.id}>
+              <td>{invoice.period_label}</td><td>{invoice.status_label}{invoice.awaiting_confirmation ? ` · ${t('tuition_pending')}` : ''}</td>
+              <td>{Number(invoice.amount_due_uzs).toLocaleString()} so'm</td><td>{Number(invoice.paid_amount_uzs).toLocaleString()} so'm</td>
+              <td>{Number(invoice.balance_uzs).toLocaleString()} so'm</td><td>{invoice.due_date}</td><td>{invoice.payment_instructions || '—'}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>
+      )}
+      {weeklyReports.length > 0 && (
+        <section className="card" aria-label="Weekly academic reports">
+          <h2>📊 {t('weekly_reports_title')}</h2>
+          {weeklyReports.map((report) => <article key={report.id}>
+            <h3>{report.period_label}</h3>
+            <p className="muted">{t('weekly_attendance')}: {String((report.summary.attendance as Record<string, unknown> | undefined)?.attendance_percentage ?? '—')}% · {t('weekly_essays')}: {String((report.summary.essays as Record<string, unknown> | undefined)?.graded ?? 0)} · {t('weekly_tests')}: {String((report.summary.tests as Record<string, unknown> | undefined)?.completed_attempts ?? 0)}</p>
+          </article>)}
+        </section>
+      )}
 
       {/* Stat cards — parity with legacy student_dashboard.html. */}
       <div className="grid">
@@ -144,16 +186,18 @@ export default function Dashboard() {
           </span>
           <Link to="/results">{t('recent_results')} →</Link>
         </div>
-        <div className="card stat stat-gradient-purple">
-          <span className="stat-label">
-            <AwardIcon size={13} className="ico" /> {t('certificates')}
-          </span>
-          <span className="stat-value">{certCount ?? '…'}</span>
-          <span className="muted small">
-            {t('count_certificates')} · {t('download_pdf_hint')}
-          </span>
-          <Link to="/certificates">{t('my_certificates')} →</Link>
-        </div>
+        {isStudent && (
+          <div className="card stat stat-gradient-purple">
+            <span className="stat-label">
+              <AwardIcon size={13} className="ico" /> {t('certificates')}
+            </span>
+            <span className="stat-value">{certCount ?? '…'}</span>
+            <span className="muted small">
+              {t('count_certificates')} · {t('download_pdf_hint')}
+            </span>
+            <Link to="/certificates">{t('my_certificates')} →</Link>
+          </div>
+        )}
       </div>
 
       {/* Available tests preview (legacy: first 6 active tests). */}
@@ -238,7 +282,7 @@ export default function Dashboard() {
       )}
 
       {/* Certificates preview (legacy: quick certificates block). */}
-      {certs.length > 0 && (
+      {isStudent && certs.length > 0 && (
         <>
           <h2>{t('my_certificates')}</h2>
           <p className="muted">{t('my_certificates_hint')}</p>

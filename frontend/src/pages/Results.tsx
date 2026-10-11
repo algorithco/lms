@@ -20,12 +20,27 @@ interface QuestionDetail {
   explanation?: string;
 }
 
+interface SectionScoreItem {
+  section_code: string;
+  section_name: string;
+  earned: string | number;
+  maximum: string | number;
+  weight: string | number;
+}
+
 interface ResultDetailData extends ResultListItem {
   total_questions?: number;
   correct_answers?: number;
   wrong_answers?: number;
   unanswered?: number;
   question_details?: QuestionDetail[];
+  grading_status?: string;
+  certificate_status?: string;
+  objective_score?: string | number;
+  writing_score?: string | number;
+  scoring_version?: string;
+  rubric_version?: string;
+  section_scores?: SectionScoreItem[];
   certificate_info?: {
     certificate_number: string;
     status: string;
@@ -165,10 +180,19 @@ export default function Results() {
                     style={{ color: r.is_passed ? undefined : 'var(--danger)' }}
                   >
                     {pct}%
+                    {r.certificate_status === 'rules_unverified' && (
+                      <span className="muted small"> {t('raw_score_not_official')}</span>
+                    )}
                   </p>
-                  <span className={`badge ${r.is_passed ? 'green' : 'rose'}`}>
-                    {r.is_passed ? t('status_passed') : t('status_failed')}
-                  </span>
+                  {r.grading_status === 'pending_grading' ? (
+                    <span className="badge blue">{t('take_pending_title')}</span>
+                  ) : r.certificate_status === 'rules_unverified' ? (
+                    <span className="badge blue">{t('raw_score_not_official')}</span>
+                  ) : (
+                    <span className={`badge ${r.is_passed ? 'green' : 'rose'}`}>
+                      {r.is_passed ? t('status_passed') : t('status_failed')}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="progress" style={{ margin: '8px 0' }}>
@@ -227,11 +251,46 @@ export default function Results() {
 function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const { t } = useLang();
   const pct = num(detail.percentage, 0);
+  const pending = detail.grading_status === 'pending_grading';
+  const unverified = detail.certificate_status === 'rules_unverified';
   return (
     <div>
-      <h3>
-        {detail.is_passed ? t('rd_passed_msg') : t('rd_failed_msg')} — {pct}%
-      </h3>
+      {pending ? (
+        <>
+          <h3>{t('take_pending_title')}</h3>
+          <p className="muted">{t('take_pending_msg')}</p>
+          <p className="muted small">
+            {t('take_objective_done')} · {t('take_writing_pending')}
+          </p>
+        </>
+      ) : unverified ? (
+        <>
+          <h3>
+            {t('take_rules_unverified_title')} — {pct}%
+          </h3>
+          <p className="muted">{t('take_rules_unverified_msg')}</p>
+          <p className="badge blue">{t('raw_score_not_official')}</p>
+        </>
+      ) : (
+        <h3>
+          {detail.is_passed ? t('rd_passed_msg') : t('rd_failed_msg')} — {pct}%
+        </h3>
+      )}
+      {(detail.section_scores ?? []).length > 0 && (
+        <>
+          <h4>{t('exam_sections')}</h4>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {(detail.section_scores ?? []).map((s) => (
+              <div key={s.section_code || s.section_name} className="toolbar">
+                <span className="badge blue">
+                  {s.section_name || s.section_code}: {String(s.earned)}/
+                  {String(s.maximum)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="toolbar">
         <span className="badge green">
           {t('rd_correct')}: {Number(detail.correct_answers ?? 0)}
@@ -249,6 +308,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       <p className="muted small">
         {t('rd_time_spent')}: {formatDuration(detail.time_taken_seconds)}
       </p>
+      {unverified && <p className="badge blue">{t('raw_score_not_official')}</p>}
       {detail.certificate_info && (
         <p className="muted small">
           {t('mc_number')} {detail.certificate_info.certificate_number} (

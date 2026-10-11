@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { translate, useLang } from '../../i18n/LangContext';
+import { useLang } from '../../i18n/LangContext';
 import { TmaApi, tmaErrorMessage } from './api';
 import type { TmaEssayResult, TmaEssayStart, TmaEssayTopic } from './api';
 import { countWords, formatClock, hapticNotify } from './telegram';
@@ -184,22 +184,31 @@ export default function Essays({
 
   if (view === 'result' && result) {
     const score = result.total_score ?? 0;
+    // Grading provenance from GET /tma/api/essays/<id>/result/ (the backend
+    // reports grading_source/cached for THIS student's own grade only).
+    // Narrowed locally because TmaEssayResult does not declare them yet.
+    const provenance = result as TmaEssayResult & {
+      grading_source?: string;
+      cached?: boolean;
+    };
     return (
       <div className="tma-slide">
         <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 16px' }}>{result.topic_title}</h2>
         {grading || result.status === 'pending' ? (
           <div className="tma-center" style={{ padding: '24px 0' }}>
             <div className="tma-spin" />
-            <p className="tma-muted">{t('tma_grading')}</p>
+            <p className="tma-muted">{t('essay_grading_pending')}</p>
           </div>
         ) : (
           <>
           {result.status === 'error' && (
             <div className="tma-card" style={{ marginBottom: 16, color: '#f87171' }}>
+              <b style={{ display: 'block', marginBottom: 4 }}>{t('essay_grading_failed')}</b>
               {result.error || t('tma_loading_error')}
             </div>
           )}
           {result.status !== 'error' && <div className="tma-card" style={{ marginBottom: 16 }}>
+            <p className="tma-h3" style={{ marginBottom: 4 }}>{t('essay_grading_graded')}</p>
             <div className="tma-center" style={{ marginBottom: 12 }}>
               <p style={{ fontSize: 36, fontWeight: 800, margin: 0, color: 'var(--tma-hl)' }}>{score}</p>
               <p className="tma-sub">
@@ -207,6 +216,12 @@ export default function Essays({
                 {typeof result.score_percentage === 'number' ? ` · ${Math.round(result.score_percentage)}%` : ''}
               </p>
             </div>
+            {provenance.cached && (
+              <p className="tma-sub" style={{ marginTop: 8 }}>{t('essay_grading_cached')}</p>
+            )}
+            {provenance.grading_source === 'mock' && (
+              <p className="tma-sub" style={{ marginTop: 8 }}>{t('essay_grading_mock')}</p>
+            )}
             {!!result.summary && <p className="tma-muted">{result.summary}</p>}
             {!!result.criteria?.length && (
               <div style={{ marginTop: 12 }}>
@@ -293,7 +308,7 @@ export default function Essays({
                       <span className="tma-sub">
                         {item.word_limit_min}-{item.word_limit_max} {t('tma_words')} · {item.time_limit_minutes} daqiqa
                       </span>
-                      <StatusBadge topic={item} />
+                      <StatusBadge topic={item} t={t} />
                     </div>
                   </div>
                   <span style={{ color: '#6b7280', fontSize: 14 }}>→</span>
@@ -326,9 +341,9 @@ export default function Essays({
   );
 }
 
-function StatusBadge({ topic }: { topic: TmaEssayTopic }) {
+function StatusBadge({ topic, t }: { topic: TmaEssayTopic; t: (key: string) => string }) {
   const st = topic.user_status;
-  if (!st) return <span className="tma-sub">🆕 {translate('tma_new')}</span>;
+  if (!st) return <span className="tma-sub">🆕 {t('tma_new')}</span>;
   if (st.status === 'graded') {
     return <span style={{ fontSize: 10, color: 'var(--tma-green)' }}>✅ {st.total_score ?? 0}/24</span>;
   }

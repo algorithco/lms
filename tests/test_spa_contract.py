@@ -277,11 +277,17 @@ class LegacyPageShellTests(TestCase):
             topic=self.topic,
             essay_text="Esse matni " * 30,
             status=EssaySubmission.Status.DRAFT,
-        )
-        self.plan = SubscriptionPlan.objects.create(
-            name="Pro", plan_type="pro", description="Pro reja",
-            price_monthly=Decimal("49000"), is_active=True,
-        )
+        )        # The commercial plan catalogue is seeded by migration, so reuse the
+        # ``pro`` row when it already exists rather than assuming an empty table.
+        self.plan, _ = SubscriptionPlan.objects.get_or_create(
+            plan_type="pro",
+            defaults={
+                "name": "Pro",
+                "description": "Pro reja",
+                "price_monthly": Decimal("49000"),
+                "is_active": True,
+            },
+        )
         self.room = ArenaRoom.objects.create(
             room_code="SHELL01", player1=self.student,
         )

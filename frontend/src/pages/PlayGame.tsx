@@ -81,6 +81,7 @@ export default function PlayGame() {
         setLevels(r.levels as unknown as Level[]);
         setContent(r.content as unknown as Record<string, unknown>);
         setMyScore((r.my_score ?? null) as Record<string, unknown> | null);
+        setCombo(num((r.my_score as Record<string, unknown> | null)?.current_streak));
         setRemaining(num((r.level as unknown as Level)?.time_limit_seconds, 0) || null);
         if (slug === 'gazal_puzzle') {
           const n = num((r.content as Record<string, unknown>).line_count, 0);
@@ -108,7 +109,7 @@ export default function PlayGame() {
     if (!level || busy) return;
     setBusy(true);
     try {
-      const r = await GamesApi.check(slug, { level_id: level.id, combo, ...payload });
+      const r = await GamesApi.check(slug, { level_id: level.id, ...payload });
       const res = r as unknown as CheckResult;
       setLast(res);
       setCombo(res.combo);

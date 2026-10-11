@@ -16,7 +16,6 @@ from django.db.models import F, Window
 from django.db.models.functions import RowNumber
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.core.spa import serve_spa_shell
@@ -143,7 +142,6 @@ def arena_api_invites(request: HttpRequest) -> JsonResponse:
     })
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def arena_api_room_create(request: HttpRequest) -> JsonResponse:
@@ -156,7 +154,6 @@ def arena_api_room_create(request: HttpRequest) -> JsonResponse:
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def arena_api_room_join(request: HttpRequest) -> JsonResponse:
@@ -182,7 +179,6 @@ def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     })
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def arena_api_queue(request: HttpRequest) -> JsonResponse:

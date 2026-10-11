@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { APP_LANGS, useLang } from '../i18n/LangContext';
-import type { AppLang } from '../i18n/LangContext';
+import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin } from '../lib/api';
+import LanguageSwitcher from './LanguageSwitcher';
 import {
   AwardIcon,
   BarChartIcon,
+  CreditCardIcon,
   CrownIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -40,7 +41,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const { t, lang, setLang } = useLang();
+  const { t } = useLang();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -98,6 +99,7 @@ export default function Layout() {
           {isAdmin && (
             <Section title={t('panel')}>
               <NavLink to="/panel" end className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> {t('panel_dashboard')}</NavLink>
+              <NavLink to="/panel/tuition" className={linkClass} onClick={close}><CreditCardIcon size={16} className="ico" /> {t('tuition_title')}</NavLink>
               <NavLink to="/panel/users" className={linkClass} onClick={close}><UserPlusIcon size={16} className="ico" /> {t('manage_teachers')}</NavLink>
             </Section>
           )}
@@ -129,21 +131,7 @@ export default function Layout() {
               {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
             </button>
             <div className="spacer" />
-            {showLangSwitch && (
-              <span className="lang-switch" role="group" aria-label="Language">
-                {APP_LANGS.map((l: AppLang) => (
-                  <button
-                    key={l}
-                    type="button"
-                    className={`btn ghost sm${lang === l ? ' active' : ''}`}
-                    aria-pressed={lang === l}
-                    onClick={() => setLang(l)}
-                  >
-                    {l.toUpperCase()}
-                  </button>
-                ))}
-              </span>
-            )}
+            {showLangSwitch && <LanguageSwitcher />}
             {user && <span className={`role role-${user.role}`}>{user.role}</span>}
             <button className="btn ghost sm" onClick={onLogout}>{t('logout')}</button>
           </div>

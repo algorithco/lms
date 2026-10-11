@@ -31,7 +31,7 @@ Auth: email + password, Google OAuth, Telegram login. API: REST (JWT) + Swagger.
 
 **Backend:** Django 5.2, DRF + SimpleJWT, Channels + Daphne, Celery + Redis
 **Data:** PostgreSQL 16 (prod) / SQLite (dev), Redis 7
-**Frontend:** Server-rendered Django templates + Tailwind, HTMX, Alpine.js — no build step
+**Frontend:** React 19 + TypeScript + Vite SPA (`frontend/`, built to `frontend/dist` → `/app/spa` via nginx; `templates/` keeps transactional email only)
 **AI:** OpenRouter / Groq via OpenAI-compatible client with fallback chain
 **Infra:** Docker Compose, Nginx, GHCR, GitHub Actions (CI → Build → Deploy)
 

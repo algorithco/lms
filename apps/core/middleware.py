@@ -20,26 +20,41 @@ NGROK_ORIGINS_RE = re.compile(
 
 class NgrokCsrfMiddleware:
     """
-    In development, dynamically trusts ngrok origins for CSRF.
+    In development, allow ngrok origins for CSRF without mutating global settings.
 
-    Without this, every ngrok URL restart would require manually updating
-    CSRF_TRUSTED_ORIGINS — which users forget to do, causing 403 CSRF errors
-    on every POST request (login, register, form submissions).
+    The previous implementation appended to settings.CSRF_TRUSTED_ORIGINS per
+    request (thread-unsafe, unbounded growth, and matched against Referer paths
+    that never equal an origin). This version is stateless: it validates the
+    request Origin/Referer against the ngrok pattern per-request and sets a
+    request-local flag. CSRF_TRUSTED_ORIGINS must still be configured
+    explicitly (DEV_CSRF_TRUSTED_ORIGINS); this middleware only documents the
+    intent and never mutates global state.
+
+    NOTE: not in MIDDLEWARE (verified) — kept for explicit opt-in dev use only.
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Only in DEBUG mode — production should have explicit origins
+        # Only in DEBUG mode — production should have explicit origins.
+        # Stateless: no global mutation; expose per-request allowance for
+        # logging/debugging. Actual CSRF trust comes from settings.
         if settings.DEBUG:
             origin = request.META.get("HTTP_ORIGIN") or request.META.get(
                 "HTTP_REFERER", ""
             )
-            if origin and NGROK_ORIGINS_RE.match(origin):
-                # Dynamically add to trusted origins if not already there
-                if origin not in settings.CSRF_TRUSTED_ORIGINS:
-                    settings.CSRF_TRUSTED_ORIGINS.append(origin)
-                    logger.info("Auto-trusted ngrok origin: %s", origin)
+            if origin:
+                # Compare origin host only (Referer includes a path).
+                from urllib.parse import urlsplit
+
+                try:
+                    parts = urlsplit(origin)
+                    candidate = f"{parts.scheme}://{parts.netloc}" if parts.netloc else ""
+                except Exception:
+                    candidate = ""
+                if candidate and NGROK_ORIGINS_RE.match(candidate):
+                    request.META["LMS_NGROK_ORIGIN_ALLOWED"] = candidate
+                    logger.info("Ngrok origin seen (not auto-trusted): %s", candidate)
 
         return self.get_response(request)

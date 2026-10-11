@@ -42,6 +42,18 @@ from .services import SaveAnswerService, StartAttemptService, SubmitAttemptServi
 logger = logging.getLogger(__name__)
 
 
+def _own_attempt_or_404(request: Request, attempt_id: int):
+    """Owner-student attempt or None (→ 404, hides existence from others).
+
+    Teachers may READ own-course attempts (IsAttemptOwner on safe views) but
+    only the taking student may mutate/submit through these endpoints.
+    """
+    try:
+        return TestAttempt.objects.get(id=attempt_id, student=request.user)
+    except TestAttempt.DoesNotExist:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Test List (Student: only active tests, Teacher/Admin: all)
 # ---------------------------------------------------------------------------
@@ -183,6 +195,7 @@ class AttemptDetailView(generics.RetrieveAPIView):
             "test", "student",
         ).prefetch_related(
             "answers", "answers__selected_choices",
+            "section_progress", "section_progress__section",
         )
 
     def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
@@ -195,6 +208,18 @@ class AttemptDetailView(generics.RetrieveAPIView):
                 SubmitAttemptService._timeout_attempt(instance)
                 instance.refresh_from_db()
                 logger.info("Auto-timeout on attempt view: id=%d", instance.id)
+        elif instance.status == TestAttempt.Status.PENDING_GRADING:
+            # Yozma baho fonda tugagan bo'lsa — o'qishda yakunlash
+            # (idempotent; hali tayyor emas bo'lsa ValueError yutiladi).
+            from .services import SubmitAttemptService
+            try:
+                SubmitAttemptService.finalize_pending_grading(
+                    attempt_id=instance.id, student=request.user,
+                )
+                instance.refresh_from_db()
+                logger.info("Auto-finalized on attempt view: id=%d", instance.id)
+            except ValueError:
+                pass
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
@@ -237,7 +262,12 @@ class SaveAnswerView(APIView):
         tags=["Tests"],
     )
     def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
-        """Javobni saqlash."""
+        """Javobni saqlash (barcha savol turlari; kalitlar hech qachon qaytmaydi)."""
+        if _own_attempt_or_404(request, attempt_id) is None:
+            return Response(
+                {"error": "Attempt topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         serializer = SaveAnswerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -245,8 +275,11 @@ class SaveAnswerView(APIView):
             answer = SaveAnswerService.execute(
                 attempt_id=attempt_id,
                 question_id=serializer.validated_data["question_id"],
-                choice_ids=serializer.validated_data["choice_ids"],
+                choice_ids=serializer.validated_data.get("choice_ids") or [],
                 text_answer=serializer.validated_data.get("text_answer", ""),
+                gap_answers=serializer.validated_data.get("gap_answers") or {},
+                matching=serializer.validated_data.get("matching") or {},
+                written_text=serializer.validated_data.get("written_text"),
                 student=request.user,
             )
         except ValueError as e:
@@ -266,6 +299,11 @@ class SaveAnswerView(APIView):
                 "saved_choices": list(
                     answer.selected_choices.values_list("id", flat=True)
                 ),
+                "saved_gap_positions": sorted(
+                    answer.gap_responses.values_list("blank_position", flat=True)
+                ),
+                "saved_matching_count": answer.matching_responses.count(),
+                "written_word_count": answer.written_word_count,
                 "remaining_seconds": answer.attempt.remaining_seconds,
             },
             status=status.HTTP_200_OK,
@@ -322,6 +360,11 @@ class SubmitAttemptView(APIView):
     )
     def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
         """Testni yakunlash."""
+        if _own_attempt_or_404(request, attempt_id) is None:
+            return Response(
+                {"error": "Attempt topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         try:
             result = SubmitAttemptService.execute(
                 attempt_id=attempt_id,
@@ -351,6 +394,89 @@ class SubmitAttemptView(APIView):
                     "percentage": str(result.percentage),
                     "is_passed": result.is_passed,
                     "time_taken_seconds": result.time_taken_seconds,
+                    "grading_status": result.grading_status,
+                    "certificate_status": result.certificate_status,
+                    "objective_score": str(result.objective_score),
+                    "writing_score": str(result.writing_score),
+                    "pending_written_count": result.pending_written_count,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Finalize Attempt (PENDING_GRADING → COMPLETED once writing is graded)
+# ---------------------------------------------------------------------------
+class FinalizeAttemptView(APIView):
+    """
+    POST /api/tests/attempts/{id}/finalize/
+
+    Yozma baho tayyor bo'lgach kutilayotgan attemptni yakunlash.
+    Idempotent: tayyor bo'lmasa 202 + pending qaytaradi.
+    """
+
+    permission_classes = [IsAuthenticated, IsAttemptOwner]
+
+    @extend_schema(
+        summary="Kutilayotgan natijani yakunlash",
+        description=(
+            "PENDING_GRADING holatdagi attemptni yakunlash.\n\n"
+            "- Yozma ish baholangan bo'lsa → COMPLETED + yangilangan Result\n"
+            "- Hali tayyor emas bo'lsa → 202 + pending holat\n"
+            "- Boshqa holatlar → 400 (noto'g'ri o'tish)"
+        ),
+        request=None,
+        responses={200: {"description": "Yakunlandi"}, 202: {"description": "Hali kutilmoqda"}},
+        tags=["Tests"],
+    )
+    def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
+        """Kutilayotgan baholashni yakunlash."""
+        if _own_attempt_or_404(request, attempt_id) is None:
+            return Response(
+                {"error": "Attempt topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            result = SubmitAttemptService.finalize_pending_grading(
+                attempt_id=attempt_id,
+                student=request.user,
+            )
+        except ValueError as e:
+            message = str(e)
+            if "kutilmoqda" in message:
+                return Response(
+                    {"status": "pending", "detail": message},
+                    status=status.HTTP_202_ACCEPTED,
+                )
+            logger.warning(
+                "Finalize failed: attempt=%d, user=%d, error=%s",
+                attempt_id, request.user.id, message,
+            )
+            return Response(
+                {"error": message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Natija yakunlandi!",
+                "result": {
+                    "attempt_id": result.attempt_id,
+                    "total_questions": result.total_questions,
+                    "correct_answers": result.correct_answers,
+                    "wrong_answers": result.wrong_answers,
+                    "unanswered": result.unanswered,
+                    "score": str(result.score),
+                    "max_score": str(result.max_score),
+                    "percentage": str(result.percentage),
+                    "is_passed": result.is_passed,
+                    "time_taken_seconds": result.time_taken_seconds,
+                    "grading_status": result.grading_status,
+                    "certificate_status": result.certificate_status,
+                    "objective_score": str(result.objective_score),
+                    "writing_score": str(result.writing_score),
+                    "pending_written_count": result.pending_written_count,
                 },
             },
             status=status.HTTP_200_OK,

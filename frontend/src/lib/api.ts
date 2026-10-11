@@ -430,7 +430,14 @@ export const Tests = {
   attempt: (id: string) => api<Attempt>(`/api/tests/attempts/${id}/`),
   saveAnswer: (
     attemptId: string,
-    payload: { question_id: number; choice_ids?: number[]; text_answer?: string },
+    payload: {
+      question_id: number;
+      choice_ids?: number[];
+      text_answer?: string;
+      gap_answers?: Record<string, string>;
+      matching?: Record<string, number | null>;
+      written_text?: string;
+    },
   ) =>
     api<unknown>(`/api/tests/attempts/${attemptId}/save-answer/`, {
       method: 'POST',
@@ -438,6 +445,10 @@ export const Tests = {
     }),
   submit: (attemptId: string) =>
     api<unknown>(`/api/tests/attempts/${attemptId}/submit/`, {
+      method: 'POST',
+    }),
+  finalize: (attemptId: string) =>
+    api<unknown>(`/api/tests/attempts/${attemptId}/finalize/`, {
       method: 'POST',
     }),
 };
@@ -782,9 +793,79 @@ export const Panel = {
     api<Record<string, unknown>>(`/api/v1/panel/users/${id}/block/`, { method: 'POST' }),
 };
 
+/**
+ * One commercial quota bucket from GET /api/v1/billing/entitlement/.
+ * `unlimited: true` means the plan does not meter this operation, so both
+ * `limit` and `remaining` are null. A null `limit` with `unlimited: false`
+ * means "not configured by an administrator" — which is NOT the same as zero
+ * remaining, so it must never be rendered as 0.
+ */
+export interface UsageBucket {
+  unlimited: boolean;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+}
+
+/**
+ * Effective entitlement + remaining allowances for the signed-in student.
+ * `source` is the precedence chain that produced the entitlement:
+ * override → sponsored → subscription → default.
+ */
+export interface BillingEntitlement {
+  source: 'override' | 'sponsored' | 'subscription' | 'default' | string;
+  plan_type: string | null;
+  plan_name: string;
+  is_sponsored: boolean;
+  is_paid: boolean;
+  expires_at: string | null;
+  period_start: string;
+  period_end: string;
+  image_essay: UsageBucket;
+  text_essay: UsageBucket;
+  test: UsageBucket;
+  text_cooldown_seconds: number;
+  text_cooldown_until: string | null;
+  can_submit_image_essay: boolean;
+  can_submit_text_essay: boolean;
+  can_start_test: boolean;
+}
+
+/** Plan shape returned by /api/v1/billing/plans/ (mirrors SubscriptionPlanSerializer). */
+export interface BillingPlan {
+  id: number;
+  name: string;
+  plan_type: string;
+  description?: string;
+  price_monthly?: number | string;
+  price_yearly?: number | string;
+  max_tests_per_day?: number;
+  max_essays_per_week?: number;
+  unlimited_tests?: boolean;
+  unlimited_essays?: boolean;
+  detailed_analytics?: boolean;
+  pdf_certificate?: boolean;
+  priority_support?: boolean;
+  /** Canonical plan code (aliases plan_type on the backend). */
+  code?: string;
+  price_uzs?: number;
+  display_order?: number;
+  duration_days?: number;
+  /** Whole Stars charged inside Telegram; null = not sold through Telegram. */
+  telegram_stars_price?: number | null;
+  image_essay_weekly_limit?: number | null;
+  text_essay_weekly_limit?: number | null;
+  text_essay_cooldown_hours?: number | null;
+  test_limit?: number | null;
+  is_unlimited_image_essays?: boolean;
+  is_unlimited_text_essays?: boolean;
+  is_unlimited_tests?: boolean;
+  is_public?: boolean;
+}
+
 export const Billing = {
   plans: () =>
-    api<{ results: Record<string, unknown>[]; my_plan_id: number | null }>('/api/v1/billing/plans/'),
+    api<{ results: BillingPlan[]; my_plan_id: number | null }>('/api/v1/billing/plans/'),
   my: () =>
     api<{ subscription: Record<string, unknown> | null; history: Record<string, unknown>[] }>(
       '/api/v1/billing/my/',
@@ -793,9 +874,248 @@ export const Billing = {
     api<Record<string, unknown>>(`/api/v1/billing/subscribe/${planId}/`),
   cancel: () => api<Record<string, unknown>>('/api/v1/billing/cancel/', { method: 'POST' }),
   status: () => sessionApi<Record<string, unknown>>('/subscribe/api/status/'),
+  /** Server-calculated plan + remaining usage for the current student. */
+  entitlement: () => api<BillingEntitlement>('/api/v1/billing/entitlement/'),
 };
 
+/**
+ * Attendance + group essay reporting (apps/attendance, apps/essays/group_reports).
+ *
+ * Status vocabulary is fixed: `present` / `absent` / `late` / `excused` — the
+ * Uzbek labels are Keldi / Kelmadi / Kechikdi / Sababli.
+ */
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
+export interface AttendanceRosterRow {
+  student_id: number;
+  name: string;
+  record_id: number | null;
+  /** `null` means the teacher has not marked this student yet. */
+  status: AttendanceStatus | null;
+  status_label: string;
+  late_minutes: number;
+  note: string;
+  marked: boolean;
+}
+
+export interface AttendanceSessionSummary {
+  session_id: number;
+  group_id: number;
+  group_name: string;
+  lesson_date: string;
+  time_label: string;
+  status: 'draft' | 'finalized' | 'cancelled' | string;
+  status_label: string;
+  roster_size: number;
+  marked: number;
+  unmarked: number;
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  attended: number;
+}
+
+export interface AttendanceSessionDetail extends AttendanceSessionSummary {
+  roster: AttendanceRosterRow[];
+}
+
+export interface AttendanceReport {
+  group_id?: number;
+  group_name: string;
+  start?: string;
+  end?: string;
+  roster_size: number;
+  sessions_total: number;
+  finalized_sessions: number;
+  /** Unfinished registers are reported separately and never counted as absent. */
+  pending_sessions: number;
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  unexcused_absent: number;
+  attended: number;
+  marked_records: number;
+  /** `null` when nothing has been marked yet — not the same as 0%. */
+  attendance_percentage: number | null;
+  daily?: AttendanceDailyRow[];
+  groups?: AttendanceGroupRow[];
+}
+
+export interface AttendanceDailyRow {
+  date: string;
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  attendance_percentage: number | null;
+}
+
+export interface AttendanceGroupRow {
+  group_id: number;
+  group_name: string;
+  roster_size: number;
+  finalized_sessions: number;
+  pending_sessions: number;
+  attendance_percentage: number | null;
+  absent: number;
+  late: number;
+  excused: number;
+}
+
+export interface StudentAttendanceRecord {
+  date: string;
+  time: string;
+  group: string;
+  status: AttendanceStatus;
+  status_label: string;
+  late_minutes: number;
+  note: string;
+}
+
+export interface StudentAttendance {
+  student_id: number;
+  name: string;
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  unexcused_absent: number;
+  attended: number;
+  marked_records: number;
+  attendance_percentage: number | null;
+  recent: StudentAttendanceRecord[];
+}
+
+/** A single row from `GET school/essay-results/`. */
+export interface GroupEssayResultRow {
+  submission_id: number;
+  student_id: number;
+  student_name: string;
+  topic_title: string;
+  submitted_at: string | null;
+  source: string;
+  source_label: string;
+  status: string;
+  status_label: string;
+  is_graded: boolean;
+  is_pending: boolean;
+  is_failed: boolean;
+  /** Raw AI total. Distinct from `final_score` (teacher-adjusted). */
+  ai_total_score: number | null;
+  max_score: number;
+  final_score: number | null;
+  effective_score: number | null;
+  /** Practice-scale conversion only — never an official Rasch result. */
+  converted_practice_score: number | null;
+  is_off_topic: boolean;
+  teacher_review_required: boolean;
+  result_url: string;
+}
+
+export interface GroupEssayResults {
+  group_id: number;
+  group_name: string;
+  total: number;
+  shown: number;
+  limit: number;
+  offset: number;
+  graded: number;
+  pending: number;
+  failed: number;
+  average_ai_score: number | null;
+  results: GroupEssayResultRow[];
+}
+
+export interface GroupEssaySummaryRow {
+  group_id: number;
+  group_name: string;
+  roster_size: number;
+  graded: number;
+  pending: number;
+  failed: number;
+  average_ai_score: number | null;
+}
+
+export interface GroupEssaySummary {
+  days: number;
+  groups: GroupEssaySummaryRow[];
+}
+
+/**
+ * Extract the structured body of a failed request.
+ *
+ * `api()` throws an `ApiError` whose `detail` is the JSON body stringified
+ * when the response has no `detail` key — which is exactly the shape the
+ * attendance finalize endpoint uses for its 409 (`{ok: false, reason:
+ * "unmarked_students", unmarked: [...]}`). Returns `null` when the body is not
+ * parsed JSON, so callers can fall back to the plain message.
+ */
+export function apiErrorBody(e: unknown): Record<string, unknown> | null {
+  const raw = (e as { detail?: unknown })?.detail;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface WeeklyReportRow {
+  id: number;
+  group_id?: number;
+  group_name?: string;
+  student_id?: number;
+  student_name?: string;
+  period_label: string;
+  version: number;
+  generated_at: string;
+  text: string;
+  summary: Record<string, unknown>;
+}
+
+export interface TuitionInvoice {
+  id: number;
+  student_id: number;
+  student_name: string;
+  period_label: string;
+  course: string | null;
+  amount_due_uzs: number;
+  paid_amount_uzs: number;
+  pending_amount_uzs: number;
+  balance_uzs: number;
+  due_date: string;
+  grace_until?: string | null;
+  status: string;
+  status_label: string;
+  awaiting_confirmation: boolean;
+  payment_instructions: string;
+}
+
+export interface TuitionOverview {
+  student_id: number;
+  student_name: string;
+  outstanding_uzs: number;
+  confirmed_paid_uzs: number;
+  invoices: TuitionInvoice[];
+  payments: Array<Record<string, unknown>>;
+  accepted_methods: Array<{ value: string; label: string }>;
+}
+
 export const School = {
+  notificationPreferences: (payload?: Record<string, boolean>) =>
+    api<Record<string, boolean>>('/api/v1/school/notification-preferences/', {
+      method: payload ? 'PATCH' : 'GET',
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+    }),
+  weeklyReports: () =>
+    api<{ count: number; results: WeeklyReportRow[] }>('/api/v1/school/weekly-reports/'),
+  myWeeklyReports: () =>
+    api<{ count: number; results: WeeklyReportRow[] }>('/api/v1/billing/weekly-reports/'),
   groups: () => api<Record<string, unknown>[]>('/api/v1/school/groups/'),
   createGroup: (payload: { name: string; description?: string }) =>
     api<Record<string, unknown>>('/api/v1/school/groups/', { method: 'POST', body: JSON.stringify(payload) }),
@@ -813,6 +1133,125 @@ export const School = {
     }),
   studentSearch: (q: string) =>
     api<Record<string, unknown>[]>(`/api/v1/school/students/?q=${encodeURIComponent(q)}`),
+
+  // -- Attendance ----------------------------------------------------------
+  attendanceSessions: (params: {
+    group_id: number | string;
+    start?: string;
+    end?: string;
+  }) => {
+    const qs = new URLSearchParams({ group_id: String(params.group_id) });
+    if (params.start) qs.set('start', params.start);
+    if (params.end) qs.set('end', params.end);
+    return api<AttendanceSessionSummary[]>(
+      `/api/v1/school/attendance/sessions/?${qs.toString()}`,
+    );
+  },
+  attendanceSession: (sessionId: number | string) =>
+    api<AttendanceSessionDetail>(`/api/v1/school/attendance/sessions/${sessionId}/`),
+  /**
+   * Create or resolve the register for a group/date/period. The backend is
+   * idempotent per (group, lesson_date, start_time), so posting twice returns
+   * the existing session instead of creating a second register.
+   */
+  attendanceOpenSession: (payload: {
+    group_id: number | string;
+    lesson_date?: string;
+    start_time?: string;
+    end_time?: string;
+    title?: string;
+  }) =>
+    api<AttendanceSessionDetail>('/api/v1/school/attendance/sessions/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  attendanceMark: (
+    sessionId: number | string,
+    marks: Array<{
+      student_id: number;
+      status: AttendanceStatus;
+      late_minutes?: number;
+      note?: string;
+    }>,
+    reason = '',
+  ) =>
+    api<AttendanceSessionDetail>(`/api/v1/school/attendance/sessions/${sessionId}/mark/`, {
+      method: 'POST',
+      body: JSON.stringify({ marks, reason }),
+    }),
+  attendanceMarkAllPresent: (sessionId: number | string) =>
+    api<AttendanceSessionDetail>(
+      `/api/v1/school/attendance/sessions/${sessionId}/mark-all-present/`,
+      { method: 'POST' },
+    ),
+  /**
+   * Finalize a register. Throws with status 409 while students are unmarked;
+   * the caller must confirm explicitly, then retry with
+   * `mark_unmarked_as_absent: true`. Unmarked students are NEVER marked absent
+   * implicitly.
+   */
+  attendanceFinalize: (
+    sessionId: number | string,
+    markUnmarkedAsAbsent = false,
+  ) =>
+    api<AttendanceSessionSummary>(
+      `/api/v1/school/attendance/sessions/${sessionId}/finalize/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ mark_unmarked_as_absent: markUnmarkedAsAbsent }),
+      },
+    ),
+  attendanceReport: (params: {
+    group_id: number | string;
+    start?: string;
+    end?: string;
+    daily?: boolean;
+  }) => {
+    const qs = new URLSearchParams({ group_id: String(params.group_id) });
+    if (params.start) qs.set('start', params.start);
+    if (params.end) qs.set('end', params.end);
+    if (params.daily) qs.set('daily', 'true');
+    return api<AttendanceReport>(`/api/v1/school/attendance/report/?${qs.toString()}`);
+  },
+  attendanceOverview: () =>
+    api<AttendanceReport>('/api/v1/school/attendance/report/?overview=true'),
+  /**
+   * One student's attendance history — teacher/admin only.
+   * A parent must use parentAttendance() below: this endpoint refuses them.
+   */
+  studentAttendance: (studentId: number | string) =>
+    api<StudentAttendance>(`/api/v1/school/attendance/students/${studentId}/`),
+  /** Attendance for every child this parent is approved for, in one call. */
+  parentAttendance: () =>
+    api<{ children: (StudentAttendance & { relationship?: string })[] }>(
+      '/api/v1/school/parent/attendance/',
+    ),
+
+  // -- Group essay results -------------------------------------------------
+  groupEssayResults: (params: {
+    group_id: number | string;
+    student_id?: number | string;
+    start?: string;
+    end?: string;
+    state?: 'graded' | 'pending' | 'failed';
+    source?: string;
+    review_required?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const qs = new URLSearchParams({ group_id: String(params.group_id) });
+    if (params.student_id) qs.set('student_id', String(params.student_id));
+    if (params.start) qs.set('start', params.start);
+    if (params.end) qs.set('end', params.end);
+    if (params.state) qs.set('state', params.state);
+    if (params.source) qs.set('source', params.source);
+    if (params.review_required) qs.set('review_required', 'true');
+    if (params.limit !== undefined) qs.set('limit', String(params.limit));
+    if (params.offset !== undefined) qs.set('offset', String(params.offset));
+    return api<GroupEssayResults>(`/api/v1/school/essay-results/?${qs.toString()}`);
+  },
+  groupEssaySummary: (days = 30) =>
+    api<GroupEssaySummary>(`/api/v1/school/essay-summary/?overview=true&days=${days}`),
   parent: () => api<{ children: Record<string, unknown>[] }>('/api/v1/school/parent/'),
   teacher: () => api<Record<string, unknown>>('/api/v1/school/teacher/'),
   analytics: (days = 14) =>
@@ -838,13 +1277,194 @@ export const School = {
   },
   importTestCourses: () =>
     api<{ courses: { id: number; title: string }[] }>('/api/v1/school/import-test/'),
+  /** The same canonical admin course list, named for the tuition policy scope. */
+  courses: () =>
+    api<{ courses: { id: number; title: string }[] }>('/api/v1/school/import-test/'),
   importTest: (fd: FormData) =>
     api<Record<string, unknown>>('/api/v1/school/import-test/', { method: 'POST', body: fd }),
+};
+
+/**
+ * The per-policy reminder ladder of the tuition reminder job
+ * (`CourseBillingPolicy.reminder_policy`). Day offsets are relative to the due
+ * date; quiet hours are whole hours in the reporting timezone. An absent or
+ * empty ladder means "never remind automatically".
+ */
+export interface TuitionReminderPolicy {
+  before?: number[];
+  due?: number[];
+  overdue?: number[];
+  quiet_start?: number;
+  quiet_end?: number;
+}
+
+/** Mirrors CourseBillingPolicySerializer (apps/webapi/serializers.py). */
+export interface TuitionPolicy {
+  id: number;
+  name: string;
+  course: number | null;
+  group: number | null;
+  amount_uzs: number;
+  billing_frequency: string;
+  due_day: number;
+  grace_days: number;
+  mid_month_policy: string;
+  installment_allowed: boolean;
+  installments: number;
+  effective_from: string;
+  effective_until: string | null;
+  payment_instructions: string;
+  accepted_methods: string[];
+  reminder_policy: TuitionReminderPolicy;
+  is_active: boolean;
+}
+
+/** One row of GET /api/v1/school/tuition/payments/ (the confirmation queue). */
+export interface TuitionPaymentRow {
+  id: number;
+  invoice_id: number | null;
+  student_id: number;
+  student_name: string;
+  invoice_period: string | null;
+  amount_uzs: number;
+  method: string;
+  method_label: string;
+  reference: string;
+  status: string;
+  status_label: string;
+  verified_at: string | null;
+  created_at: string;
+}
+
+/** One append-only correction record from GET /school/tuition/audit/. */
+export interface TuitionAuditRow {
+  id: number;
+  action: string;
+  action_label: string;
+  actor_id: number | null;
+  actor_name: string | null;
+  field: string;
+  old_value: string;
+  new_value: string;
+  reason: string;
+  created_at: string;
+}
+
+export const Tuition = {
+  mine: () => api<TuitionOverview>('/api/v1/billing/tuition/'),
+  children: () =>
+    api<{ children: Array<TuitionOverview & { invoice_rows?: TuitionInvoice[] }> }>(
+      '/api/v1/billing/tuition/children/',
+    ),
+  submitPayment: (payload: {
+    invoice_id: number;
+    amount: number;
+    method: string;
+    reference?: string;
+  }) =>
+    api<{ payment: Record<string, unknown>; invoice: TuitionInvoice }>(
+      '/api/v1/billing/tuition/payments/',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+};
+
+/**
+ * Staff-side course tuition (`/api/v1/school/tuition/...`).
+ *
+ * Every call here is gated on the backend by `tuition.view_courseinvoice` /
+ * `tuition.change_courseinvoice` (a platform admin holds both). The panel page
+ * that uses this client is mounted behind AdminRoute, so the client never has
+ * to guess whether the caller may see money — the server answers 403 instead.
+ */
+export const TuitionAdmin = {
+  policies: (params: { active?: boolean } = {}) =>
+    api<{ count: number; results: TuitionPolicy[] }>(
+      `/api/v1/school/tuition/policies/${params.active ? '?active=1' : ''}`,
+    ),
+  createPolicy: (payload: Partial<TuitionPolicy>) =>
+    api<TuitionPolicy>('/api/v1/school/tuition/policies/create/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updatePolicy: (id: number | string, payload: Partial<TuitionPolicy>) =>
+    api<TuitionPolicy>(`/api/v1/school/tuition/policies/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  invoices: (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api<{ count: number; results: TuitionInvoice[] }>(
+      `/api/v1/school/tuition/invoices/${qs ? `?${qs}` : ''}`,
+    );
+  },
+  studentTuition: (studentId: number | string) =>
+    api<TuitionOverview>(`/api/v1/school/tuition/students/${studentId}/`),
+  setInvoiceDueDate: (
+    id: number | string,
+    payload: { due_date: string; grace_until?: string | null },
+  ) =>
+    api<{ invoice: TuitionInvoice }>(`/api/v1/school/tuition/invoices/${id}/due-date/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  /** Record an offline payment the operator has already seen the evidence for. */
+  recordInvoicePayment: (
+    id: number | string,
+    payload: { amount: number; method?: string; reference?: string; reason: string },
+  ) =>
+    api<{ payment: Record<string, unknown>; invoice: TuitionInvoice }>(
+      `/api/v1/school/tuition/invoices/${id}/payments/record/`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  adjustInvoice: (id: number | string, payload: { amount: number; reason: string }) =>
+    api<{ invoice: TuitionInvoice }>(`/api/v1/school/tuition/invoices/${id}/adjust/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  waiveInvoice: (id: number | string, reason: string) =>
+    api<{ invoice: TuitionInvoice }>(`/api/v1/school/tuition/invoices/${id}/waive/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  paymentQueue: (status = '') => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return api<{ count: number; results: TuitionPaymentRow[] }>(
+      `/api/v1/school/tuition/payments/${qs}`,
+    );
+  },
+  verifyPayment: (id: number | string, reason: string) =>
+    api<{ payment: TuitionPaymentRow; invoice: TuitionInvoice | null }>(
+      `/api/v1/school/tuition/payments/${id}/verify/`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+  rejectPayment: (id: number | string, reason: string) =>
+    api<{ payment: TuitionPaymentRow; invoice: TuitionInvoice | null }>(
+      `/api/v1/school/tuition/payments/${id}/reject/`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+  audit: (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api<{ count: number; results: TuitionAuditRow[] }>(
+      `/api/v1/school/tuition/audit/${qs ? `?${qs}` : ''}`,
+    );
+  },
 };
 
 // ---------------------------------------------------------------------------
 // Essays + arena lobby via the TMA JSON API (JWT, generic — not Telegram-only)
 // ---------------------------------------------------------------------------
+
+/**
+ * Grading provenance the backend reports for the student's OWN essay.
+ * `cached: true` means the grade is a shared, previously validated AI
+ * evaluation that was reused. It never identifies another account, and
+ * `grading_source: 'mock'` means the AI was not actually called (test mode),
+ * so the score must be presented as unverified.
+ */
+export interface EssayGradingProvenance {
+  grading_source?: 'ai' | 'cache' | 'mock' | string;
+  cached?: boolean;
+}
 
 export const Essays = {
   topics: () => api<{ topics?: unknown[] } & Record<string, unknown>>('/tma/api/essays/topics/'),
@@ -860,9 +1480,13 @@ export const Essays = {
       body: JSON.stringify({ essay_text, ...(autoSubmit ? { auto_submit: true } : {}) }),
     }),
   result: (submissionId: number | string) =>
-    api<Record<string, unknown>>(`/tma/api/essays/${submissionId}/result/`),
+    api<EssayGradingProvenance & Record<string, unknown>>(
+      `/tma/api/essays/${submissionId}/result/`,
+    ),
   status: (submissionId: number | string) =>
-    sessionApi<Record<string, unknown>>(`/essays/api/${submissionId}/status/`),
+    sessionApi<EssayGradingProvenance & Record<string, unknown>>(
+      `/essays/api/${submissionId}/status/`,
+    ),
   improve: (submissionId: number | string) =>
     sessionApi<Record<string, unknown>>(`/essays/result/${submissionId}/improve/`, { method: 'POST' }),
 };

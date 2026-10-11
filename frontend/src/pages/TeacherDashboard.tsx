@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { School } from '../lib/api';
+import { School, type WeeklyReportRow } from '../lib/api';
 import AnalyticsChart from '../components/AnalyticsChart';
+import AttendancePanel from '../components/AttendancePanel';
 import { UsersIcon } from '../components/icons';
 import type {
   AnalyticsData,
@@ -21,9 +22,13 @@ export default function TeacherDashboard() {
   const [board, setBoard] = useState<EssayBoard | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReportRow[]>([]);
 
   useEffect(() => {
     let alive = true;
+    School.weeklyReports().then(({ results }) => {
+      if (alive) setWeeklyReports(results);
+    }).catch(() => { /* report archive is supplementary */ });
     // GET /api/v1/school/teacher/ — groups, student_count,
     // published_tests, active_topics, recent_results.
     School.teacher()
@@ -121,6 +126,20 @@ export default function TeacherDashboard() {
           </div>
         </>
       )}
+
+      {weeklyReports.length > 0 && (
+        <section className="card" aria-label="Weekly reports">
+          <h2>📊 {t('weekly_group_reports_title')}</h2>
+          {weeklyReports.map((report) => <article key={report.id}>
+            <h3>{report.group_name} · {report.period_label} · v{report.version}</h3>
+            <p className="muted small">{report.text.replace(/\*/g, '')}</p>
+          </article>)}
+        </section>
+      )}
+
+      {/* Attendance workspace — group roster, 4-way marking, finalization. */}
+      <h2>{t('attendance_title')}</h2>
+      <AttendancePanel />
 
       {/* Groups + students lists — parity with group_list.html cards. */}
       <h2>{t('groups')}</h2>

@@ -97,6 +97,8 @@ export default function Subscribe() {
 
       {info.free ? (
         <p className="muted">{t('pay_msg_free_plan')}</p>
+      ) : info.payment_available === false ? (
+        <p className="error">{t('pay_unavailable')}</p>
       ) : (
         <>
           {/* Step 1 — card transfer. */}

@@ -98,6 +98,12 @@ export default function PanelDashboard() {
             {t('panel_essays_pending')}: {num(essays.awaiting_review)}
           </span>
         </Link>
+        <Link className="card stat admin-action" to="/panel/tuition">
+          <span className="stat-label"><CreditCardIcon size={15} className="ico" /> {t('tuition_title')}</span>
+          <span className="muted small">
+            {t('panel_payments_pending')}: {num(d.pending_payments)} · {t('tuition_admin_sub')}
+          </span>
+        </Link>
         <Link className="card stat admin-action" to="/panel/users">
           <span className="stat-label"><UsersIcon size={15} className="ico" /> {t('panel_action_manage_users')}</span>
           <span className="muted small">
