@@ -254,7 +254,10 @@ def get_games_hub_etag(request, *args, **kwargs) -> str:
         total=Sum("total_xp")
     )["total"] or 0
     raw = f"{game_count}:{user_xp}:{user_id}"
-    etag = hashlib.md5(raw.encode()).hexdigest()
+    # Cache validator, not a security primitive: sha256 keeps the digest
+    # family consistent with the rest of the codebase and satisfies bandit
+    # B324 (weak MD5) without suppressing the check.
+    etag = hashlib.sha256(raw.encode()).hexdigest()
     dj_cache.set(cache_key, etag, 60)
     return etag
 
