@@ -14,12 +14,3 @@
 
 [lint]
 select = ["E9", "F821", "F841"]
-
-# Detached prototypes (quiz/, essays/, project/ at repo root + root test
-# scripts): not shipped in Docker (.dockerignore), not wired to config.urls,
-# slated for deletion. Their violations are tracked, not gated.
-[lint.per-file-ignores]
-"quiz/consumers.py" = ["F821"]
-"project/settings_additions.py" = ["F821"]
-"essays/views.py" = ["F841"]
-"test_quiz_ws.py" = ["F841"]

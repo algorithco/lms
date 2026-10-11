@@ -63,12 +63,7 @@ celerybeat-schedule
 celerybeat.pid
 .aider*
 
-# Detached local prototypes and audit artifacts are not part of the app
-essays/
-project/
-quiz/
-test_grading.py
-test_quiz_ws.py
+# Audit artifacts are not part of the app
 INTEGRATION_GUIDE.md
 AUDIT_REPORT_*.md
 

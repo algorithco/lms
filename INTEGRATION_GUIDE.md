@@ -1,4 +1,13 @@
-# Django + Channels + AI Integration - Setup & Run Guide
+# ARCHIVED — Django + Channels + AI Integration - Setup & Run Guide
+
+> **DEPRECATED (2026-10-06 hardening pass, removed 2026-10-06 stabilization).**
+> This guide described detached prototypes under root `quiz/`, `essays/`,
+> `project/` which were NOT used by production and have now been deleted from
+> the repository (`git rm`). Canonical code lives under `apps/` with entry
+> points `config/urls.py`, `config/asgi.py` (Arena WS `/ws/arena/` via
+> `apps/arena/consumers.py`), and TMA JSON at `/tma/api/*`. Do not integrate
+> against `ws/quiz/arena/`, `project.settings`, or `essays.views.EssaySubmitView`.
+> Kept for history only; see `docs/HARDENING_2026-10-06.md` and `README.md`.
 
 ## 1. Install Dependencies
 
