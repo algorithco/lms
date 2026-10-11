@@ -16,6 +16,10 @@ class IsAttemptOwner(BasePermission):
     O'qituvchilar o'z kurslaridagi attemptlarni ko'ra oladi.
     """
 
+    # Explicit message: the DRF default ("You do not have permission to
+    # perform this action.") hides which rule was applied.
+    message = "Only the owner of this attempt may do that."
+
     def has_permission(self, request, view) -> bool:
         return request.user and request.user.is_authenticated
 
@@ -40,6 +44,8 @@ class IsTestOwnerOrStudent(BasePermission):
         - O'quvchilar — faqat faol testni ko'ra oladi.
         - Admin — to'liq kiradi.
     """
+
+    message = "Test access required."
 
     def has_permission(self, request, view) -> bool:
         return request.user and request.user.is_authenticated
@@ -66,6 +72,8 @@ class CanStartAttempt(BasePermission):
     """
     Ruxsat: Faqat o'quvchilar testni boshlashi mumkin.
     """
+
+    message = "Only students may start a test."
 
     def has_permission(self, request, view) -> bool:
         return (

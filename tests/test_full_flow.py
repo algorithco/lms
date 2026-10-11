@@ -829,7 +829,8 @@ class EdgeCaseTests(LMSBaseTestCase):
         """Mavjud bo'lmagan attempt ni submit qilish."""
         client = self.get_authenticated_client()
         response = client.post("/api/tests/attempts/99999/submit/", format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # 404: write endpoints hide foreign/missing attempts (no existence leak).
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_answer_wrong_question(self):
         """Boshqa testga tegishli javob berish."""

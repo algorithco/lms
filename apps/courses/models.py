@@ -13,6 +13,8 @@ from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.validators import validate_attachment_upload, validate_image_upload
+
 
 # ---------------------------------------------------------------------------
 # Category  (self-referential tree, e.g. "Backend → Django → REST API")
@@ -99,6 +101,7 @@ class Course(models.Model):
         upload_to="courses/thumbnails/%Y/%m/",
         blank=True,
         null=True,
+        validators=[validate_image_upload],
     )
     status = models.CharField(
         _("holat"),
@@ -306,6 +309,7 @@ class Lesson(models.Model):
         upload_to="lessons/attachments/%Y/%m/",
         blank=True,
         null=True,
+        validators=[validate_attachment_upload],
     )
     position = models.PositiveIntegerField(_("tartib raqami"), default=0)
     is_free = models.BooleanField(

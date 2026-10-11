@@ -72,6 +72,50 @@ class Result(models.Model):
         default=0,
     )
 
+    # -- Milliy Sertifikat agregatsiyasi --------------------------------------
+    grading_status = models.CharField(
+        _("baholash holati"),
+        max_length=20,
+        default="graded",
+        help_text=_("graded = yakuniy; pending_grading = yozma baho kutilmoqda."),
+    )
+    objective_score = models.DecimalField(
+        _("obyektiv ball"),
+        max_digits=7,
+        decimal_places=2,
+        default=0,
+        help_text=_("Avtomatik tekshiriladigan savollar yig'indisi."),
+    )
+    writing_score = models.DecimalField(
+        _("yozma ball"),
+        max_digits=7,
+        decimal_places=2,
+        default=0,
+        help_text=_("Esse dvigateli orqali baholangan yozma ishlar yig'indisi."),
+    )
+    scoring_profile = models.ForeignKey(
+        "tests.ExamScoringProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="results",
+        verbose_name=_("skoring profili"),
+        help_text=_("Natija hisoblangan konfiguratsiya (tarixiy o'zgarmas)."),
+    )
+    scoring_version = models.CharField(
+        _("skoring versiyasi"),
+        max_length=40,
+        blank=True,
+        default="",
+    )
+    rubric_version = models.CharField(
+        _("rubrika versiyasi"),
+        max_length=40,
+        blank=True,
+        default="",
+        help_text=_("Yozma bahoni bergan esse rubrikasi versiyasi."),
+    )
+
     # -- Meta -----------------------------------------------------------------
     calculated_at = models.DateTimeField(_("hisoblangan"), auto_now_add=True)
 
@@ -103,6 +147,47 @@ class Result(models.Model):
     def __str__(self) -> str:
         status = "✓ PASS" if self.is_passed else "✗ FAIL"
         return f"{self.student} — {self.test} — {self.percentage}% {status}"
+
+
+class ResultSectionScore(models.Model):
+    """
+    Per-section earned/maximum for one Result — relational, never an opaque
+    JSON blob. Written sections stay 0 until the essay bridge grades them.
+    """
+
+    result = models.ForeignKey(
+        Result,
+        on_delete=models.CASCADE,
+        related_name="section_scores",
+        verbose_name=_("natija"),
+    )
+    section = models.ForeignKey(
+        "tests.ExamSection",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("bo'lim"),
+    )
+    section_code = models.CharField(_("bo'lim kodi"), max_length=20, blank=True)
+    section_name = models.CharField(_("bo'lim nomi"), max_length=120, blank=True)
+    earned = models.DecimalField(
+        _("to'plangan ball"), max_digits=7, decimal_places=2, default=0
+    )
+    maximum = models.DecimalField(
+        _("maksimal ball"), max_digits=7, decimal_places=2, default=0
+    )
+    weight = models.DecimalField(
+        _("vazn"), max_digits=5, decimal_places=2, default=1
+    )
+
+    class Meta:
+        verbose_name = _("Bo'lim bali")
+        verbose_name_plural = _("Bo'lim ballari")
+        unique_together = ("result", "section_code")
+
+    def __str__(self) -> str:
+        return f"R{self.result_id} {self.section_code}: {self.earned}/{self.maximum}"
 
 
 # ---------------------------------------------------------------------------

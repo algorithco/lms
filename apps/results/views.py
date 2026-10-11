@@ -6,7 +6,7 @@ Endpoints:
     GET /api/results/{id}/detail/     — Natija tafsilotlari
     GET /api/results/stats/           — Umumiy statistika
 """
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Exists, OuterRef, Q, Sum
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -42,8 +42,22 @@ class MyResultsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return result_queryset_for_user(self.request.user).select_related(
-            "test", "course", "student",
+        from apps.tests.models import Question
+
+        milliy_questions = Question.objects.filter(
+            test_id=OuterRef("test_id"),
+        ).filter(
+            Q(section__isnull=False)
+            | Q(question_type__in=(
+                Question.QuestionType.GAP_FILL,
+                Question.QuestionType.MATCHING,
+                Question.QuestionType.WRITTEN,
+            ))
+        )
+        return result_queryset_for_user(self.request.user).annotate(
+            is_milliy=Exists(milliy_questions),
+        ).select_related(
+            "test", "test__scoring_profile", "course", "student",
         )
 
 
@@ -63,7 +77,9 @@ class ResultDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return result_queryset_for_user(self.request.user)
+        return result_queryset_for_user(self.request.user).select_related(
+            "scoring_profile",
+        ).prefetch_related("section_scores")
 
     def retrieve(self, request: Request, *args, **kwargs):
         instance = self.get_object()

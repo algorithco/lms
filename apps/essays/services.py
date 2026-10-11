@@ -12,47 +12,28 @@ The AI grading uses a structured prompt that returns JSON with:
     - Per-criterion short reasons (1-2 jumla)
     - Summary and topic-match info in Uzbek
 """
-from __future__ import annotations
-
+import hashlib
+import hmac
 import json
 import logging
 import re
-import time
-from decimal import Decimal, InvalidOperation
-from typing import Any
-from datetime import timedelta
-
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.db.models import F
-from django.db import transaction
-from django.core.exceptions import PermissionDenied
-from django.utils import timezone
-
-import hashlib
+import secrets
 import threading
+import time
+import unicodedata
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
+from functools import wraps
+from typing import Any
 
 import httpx
 from billiard.exceptions import SoftTimeLimitExceeded
-
-from .models import (
-    EssayCriterionScore,
-    EssayGradingCache,
-    EssaySubmission,
-    EssayTopic,
-    TeacherReview,
-    VALID_CRITERION_IDS,
-)
 
 logger = logging.getLogger(__name__)
 
 # Module-level semaphore for background thread grading (Phase 6 fix:
 # previously lazy-initialized inside function -> race/thread-unsafe).
 _THREAD_GRADE_SEMAPHORE = threading.Semaphore(3)
-
-# ---------------------------------------------------------------------------
-# AI provider resolution (OpenRouter / Groq — OpenAI-compatible APIs)
-# ---------------------------------------------------------------------------
 
 VALID_PROVIDERS = {"openrouter", "groq"}
 
@@ -63,14 +44,52 @@ _PROVIDER_KEY_PREFIX = {
     "groq": "gsk_",
 }
 
+# ---------------------------------------------------------------------------
+# Django setup (at module level so service helpers are easy to mock)
+# ---------------------------------------------------------------------------
+
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
+from django.core.cache import cache as default_cache
+from django.db import IntegrityError, transaction as _db_txn
+from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.utils import timezone as _timezone
+
+from . import metrics
+
+from .models import (
+    EssayCriterionScore,
+    EssayGradingCache,
+    EssayRewriteCache,
+    EssaySubmission,
+    EssayTopic,
+    TeacherReview,
+    VALID_CRITERION_IDS,
+)
+
+# ---------------------------------------------------------------------------
+# Canonical essay rubric version
+# ---------------------------------------------------------------------------
+# Persisted on exam written bridges and results so a historical writing score
+# always identifies the rubric that produced it. Neutral internal identifier
+# (UNVERIFIED against any official BMB rubric unless an authoritative source
+# is supplied). Bump when the 12-criteria / 24-point semantics change; never
+# rewrite history.
+ESSAY_RUBRIC_VERSION = "grandec-essay-12x2-v1"
+
+# Raw rubric maximum: 12 criteria × 2 points. The exam bridge scales a
+# submission's effective score onto a question's points against this maximum.
+ESSAY_RUBRIC_MAX_SCORE = 24
+
+# ---------------------------------------------------------------------------
+# AI provider resolution (OpenRouter / Groq — OpenAI-compatible APIs)
+# ---------------------------------------------------------------------------
 
 def _provider_key(provider: str) -> str:
     """Return the configured API key for a provider (stripped)."""
     return (getattr(settings, f"{provider.upper()}_API_KEY", "") or "").strip()
 
-
 _PLACEHOLDER_KEY_MARKERS = ("your", "here", "change", "example", "placeholder")
-
 
 def _is_placeholder_key(api_key: str) -> bool:
     """Detect .env.example placeholder keys (never send them to providers).
@@ -86,13 +105,11 @@ def _is_placeholder_key(api_key: str) -> bool:
     lowered = api_key.lower()
     return any(marker in lowered for marker in _PLACEHOLDER_KEY_MARKERS)
 
-
 def _has_real_key(provider: str) -> bool:
     """True only for a configured, non-placeholder provider key."""
     return bool(_provider_key(provider)) and not _is_placeholder_key(
         _provider_key(provider)
     )
-
 
 def _resolve_provider() -> str:
     """
@@ -157,7 +174,6 @@ def _resolve_provider() -> str:
 
     return provider
 
-
 def _get_llm_client(timeout: float | None = None):
     """
     Return an OpenAI-compatible client pointed at the resolved provider
@@ -213,7 +229,6 @@ def _get_llm_client(timeout: float | None = None):
     )
     return client
 
-
 def _get_ai_model() -> str:
     """
     Return the LLM model name, honoring an explicit ESSAY_AI_MODEL override
@@ -236,7 +251,6 @@ def _get_ai_model() -> str:
         "nvidia/nemotron-3.5-lightning:free",
     )
 
-
 def _get_fallback_models() -> list[str]:
     """
     Return the ordered fallback-model chain for the resolved provider.
@@ -257,7 +271,6 @@ def _get_fallback_models() -> list[str]:
     single = (getattr(settings, "GROQ_FALLBACK_MODEL", "") or "").strip()
     return [single] if single else []
 
-
 def _model_candidates() -> list[str]:
     """Primary model first, then the fallback chain — deduplicated."""
     try:
@@ -267,7 +280,6 @@ def _model_candidates() -> list[str]:
     fallbacks = _get_fallback_models()
     return [m for m in dict.fromkeys([primary, *fallbacks]) if m]
 
-
 def _is_transient_ai_error(e: Exception) -> bool:
     """
     Classify errors worth retrying with the fallback model: rate-limits,
@@ -275,15 +287,13 @@ def _is_transient_ai_error(e: Exception) -> bool:
     retired/deprecated model should fail over, not abort. Auth errors
     (401/403) and bad requests stay fatal: another model won't fix them.
     """
-    import openai
+    import openai as _openai
 
-    if isinstance(e, (TimeoutError, openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)):
+    if isinstance(e, (TimeoutError, _openai.RateLimitError, _openai.APITimeoutError, _openai.APIConnectionError)):
         return True
     status = getattr(e, "status_code", None)
-    if isinstance(status, int) and status >= 500:
+    if isinstance(status, int) and (status >= 500 or status == 404):
         return True
-    if isinstance(status, int) and status == 404:
-        return True  # model not found / no endpoints — fail over to fallback
     s = str(e).lower()
     return (
         "429" in s
@@ -293,7 +303,6 @@ def _is_transient_ai_error(e: Exception) -> bool:
         or "no endpoints found" in s
         or ("404" in s and "not found" in s)
     )
-
 
 def _is_unsupported_response_format(e: Exception) -> bool:
     """Model response_format=json_object ni qo'llamasa 400 qaytaradi.
@@ -313,7 +322,6 @@ def _is_unsupported_response_format(e: Exception) -> bool:
         or "structured output" in s
     )
 
-
 def _is_invalid_model_error(e: Exception) -> bool:
     """OpenRouter 400 "X is not a valid model ID" — model ID provider'da
     umuman mavjud emas (eskirgan yoki noto'g'ri yozilgan).
@@ -332,7 +340,6 @@ def _is_invalid_model_error(e: Exception) -> bool:
         or ("invalid model" in s and "id" in s)
         or "no endpoints found matching" in s
     )
-
 
 def _chat_with_fallback(
     client,
@@ -454,12 +461,10 @@ def _chat_with_fallback(
     assert last_exc is not None  # candidates is never empty (model is set)
     raise last_exc
 
-
 def _is_mock_mode() -> bool:
     """Check if we're running in mock mode (no real API key)."""
     has_key = _has_real_key("openrouter") or _has_real_key("groq")
     return not has_key and getattr(settings, "ESSAY_AI_MOCK_MODE", False)
-
 
 # ---------------------------------------------------------------------------
 # Word Counter
@@ -528,7 +533,6 @@ class WordCounter:
             "max": topic.word_limit_max,
         }
 
-
 # ---------------------------------------------------------------------------
 # Mock response helper (only used when ESSAY_AI_MOCK_MODE=True)
 # ---------------------------------------------------------------------------
@@ -564,8 +568,6 @@ def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[s
         "topic_match_reason": "[SINOV REJIMI] Mock tekshiruv",
     }
 
-
-
 # ---------------------------------------------------------------------------
 # Escalation: find the right reviewer for a student
 # ---------------------------------------------------------------------------
@@ -597,7 +599,6 @@ def _find_reviewer_for_student(student):
     # Fallback: find any teacher
     return User.objects.filter(role="teacher").first()
 
-
 def can_review_submission(user, submission: EssaySubmission) -> bool:
     """Object-level authorization for reading or grading an essay.
 
@@ -618,7 +619,6 @@ def can_review_submission(user, submission: EssaySubmission) -> bool:
         return submission.assigned_reviewer_id == user.id
     return submission.student.student_groups.filter(teacher=user).exists()
 
-
 def _escape_markdown(text: str) -> str:
     """Escape Telegram Markdown special chars to prevent injection (*, _, [, `)."""
     if not text:
@@ -630,7 +630,6 @@ def _escape_markdown(text: str) -> str:
         .replace("[", "\\[")
         .replace("`", "\\`")
     )
-
 
 def _notify_reviewer(submission, reviewer):
     """Notify reviewer about new essay review request via Telegram."""
@@ -675,7 +674,6 @@ def _notify_reviewer(submission, reviewer):
     except Exception as e:
         logger.warning("Failed to notify reviewer %s: %s", reviewer.email, e)
 
-
 # ---------------------------------------------------------------------------
 # Teacher Review Service
 # ---------------------------------------------------------------------------
@@ -693,7 +691,7 @@ class TeacherReviewService:
     """
 
     @staticmethod
-    @transaction.atomic
+    @_db_txn.atomic
     def submit_review(
         submission: EssaySubmission,
         teacher,
@@ -780,7 +778,7 @@ class TeacherReviewService:
         return review
 
     @staticmethod
-    @transaction.atomic
+    @_db_txn.atomic
     def request_teacher_review(
         submission: EssaySubmission, student, reason: str = "",
     ) -> EssaySubmission:
@@ -808,7 +806,7 @@ class TeacherReviewService:
         submission.status = EssaySubmission.Status.PENDING_TEACHER
         submission.assigned_reviewer = reviewer
         submission.teacher_review_requested = True
-        submission.teacher_review_requested_at = timezone.now()
+        submission.teacher_review_requested_at = _timezone.now()
         submission.teacher_review_reason = reason
         submission.save(update_fields=[
             "status", "assigned_reviewer", "teacher_review_requested",
@@ -816,7 +814,7 @@ class TeacherReviewService:
         ])
 
         # Notify reviewer via Telegram
-        transaction.on_commit(lambda: _notify_reviewer(submission, reviewer))
+        _db_txn.on_commit(lambda: _notify_reviewer(submission, reviewer))
 
         logger.info(
             "Teacher review requested: submission=%d, student=%d, reviewer=%s",
@@ -826,7 +824,6 @@ class TeacherReviewService:
 
         return submission
 
-
 # ---------------------------------------------------------------------------
 # 12-Mezon Grading Service (OpenRouter via OpenAI SDK)
 # Used by: essay_create_view (free-form essay flow)
@@ -835,10 +832,8 @@ class TeacherReviewService:
 # Allowed scores for each criterion
 ALLOWED_SCORES = {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")}
 
-
 ALLOWED_TOP_KEYS = {"criteria", "total_score", "max_score", "summary", "topic_match", "topic_match_reason"}
 ALLOWED_CRITERION_KEYS = {"id", "name", "score", "reason", "errors", "max_score"}
-
 
 def _validate_result(result: dict) -> None:
     """
@@ -944,14 +939,13 @@ def _validate_result(result: dict) -> None:
     result["total_score"] = float(sum(
         Decimal(str(c["score"])) for c in criteria
     ))
-    result["max_score"] = 24
+    result["max_score"] = ESSAY_RUBRIC_MAX_SCORE
     if not isinstance(result.get("summary"), str) or len(result["summary"]) > 8000:
         raise ValueError("'summary' must be text of at most 8000 characters")
 
     # topic_match is optional (backward-compatible with old cached results)
     if "topic_match" in result and not isinstance(result["topic_match"], bool):
         raise ValueError("'topic_match' must be a boolean")
-
 
 def _strip_thinking_tags(text: str) -> str:
     """Strip thinking/reasoning tags that some models (Qwen, etc.) return.
@@ -975,7 +969,6 @@ def _strip_thinking_tags(text: str) -> str:
 
     return text.strip()
 
-
 def _try_load_json(text: str) -> dict | None:
     """json.loads — muvaffaqiyatli va natija dict bo'lsa qaytaradi, aks holda None."""
     if not text or not text.strip():
@@ -985,7 +978,6 @@ def _try_load_json(text: str) -> dict | None:
     except (json.JSONDecodeError, ValueError):
         return None
     return obj if isinstance(obj, dict) else None
-
 
 def _extract_json_block(text: str) -> str | None:
     """Birinchi `{` dan oxirgi `}` gacha bo'lgan blokni ajratadi.
@@ -999,7 +991,6 @@ def _extract_json_block(text: str) -> str | None:
         return None
     return text[start:end + 1]
 
-
 def _parse_failed_result() -> dict:
     """Buzilgan javob uchun xavfsiz fallback — chaqiruvchi `_parse_failed`ni tekshiradi."""
     return {
@@ -1009,7 +1000,6 @@ def _parse_failed_result() -> dict:
         "max_score": 24,
         "summary": "",
     }
-
 
 def parse_llm_json(raw_text: str) -> dict:
     """
@@ -1079,7 +1069,6 @@ def parse_llm_json(raw_text: str) -> dict:
     )
     return _parse_failed_result()
 
-
 def _compute_text_hash(
     essay_text: str,
     topic_title: str = "",
@@ -1096,14 +1085,711 @@ def _compute_text_hash(
     Includes topic_title so the same text under different topics
     produces different hashes (and potentially different topic_match).
     """
-    norm_text = re.sub(r'\s+', ' ', essay_text.strip())
-    norm_topic = topic_title.strip() if topic_title else ""
-    combined = (
-        f"{prompt_version}|{rubric_digest}|{language}|{provider}|{model}|mock={int(mock_mode)}|"
-        f"{norm_topic}||{norm_text}"
+    norm_text = re.sub(
+        r"\s+", " ", unicodedata.normalize("NFC", essay_text).strip(),
     )
-    return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+    norm_topic = re.sub(
+        r"\s+", " ", unicodedata.normalize("NFC", topic_title).strip(),
+    ) if topic_title else ""
+    identity = {
+        "prompt_version": prompt_version,
+        "rubric_digest": rubric_digest,
+        "language": language,
+        "provider": provider,
+        "model": model,
+        "mock_mode": bool(mock_mode),
+        "topic": norm_topic,
+        "essay": norm_text,
+    }
+    canonical_identity = json.dumps(
+        identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical_identity.encode("utf-8")).hexdigest()
 
+def _essay_grading_cache_identity(
+    essay_text: str, topic_title: str = "", *, context: dict | None = None,
+) -> tuple[str, str, bool, str]:
+    """Return the context-aware cache key plus model/mode identity.
+
+    Legacy 4-tuple wrapper around :func:`grading_cache_identity`; kept because
+    the grading task and the regression tests read the grader identity here.
+    """
+    identity = grading_cache_identity(essay_text, topic_title, context=context)
+    context = identity["context"]
+    return (
+        identity["cache_key"],
+        _get_ai_model(),
+        bool(context.get("mock_mode")),
+        str(context.get("provider", "")),
+    )
+
+# ---------------------------------------------------------------------------
+# Shared (cross-account) grading cache
+# ---------------------------------------------------------------------------
+# One eligible essay must not be paid for twice. The persistent, authoritative
+# store is PostgreSQL (``EssayGradingCache``); Redis is only a fast lock hint in
+# the rewrite path. The cache row is also the distributed leader lock:
+# ``status`` + ``lease_owner`` + ``lease_expires_at`` guarantee exactly one AI
+# request per cache key, recover abandoned leaders, and never let an expired
+# lease overwrite a newer valid result.
+
+_DEFAULT_CACHEABLE_SCOPES = ("practice",)
+_CACHE_KEY_PURPOSE = "grandec-essay-cache-v2"
+
+
+def normalize_essay_text(text: str) -> str:
+    """Canonical, meaning-preserving essay normalization for fingerprinting.
+
+    Unicode NFC, unified line endings, and every run of insignificant
+    whitespace (spaces, tabs, newlines) collapsed to one space.
+
+    Line wrapping is deliberately insignificant: the same essay pasted from a
+    different editor/client must reuse its evaluation. Wording, spelling,
+    punctuation and word order stay significant — a paraphrase is a different
+    essay, and punctuation is never stripped.
+    """
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFC", text).replace("\r\n", "\n").replace("\r", "\n")
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _cache_pepper() -> str:
+    """Dedicated, environment-managed fingerprint key (SECRET_KEY fallback)."""
+    configured = (getattr(settings, "ESSAY_CACHE_FINGERPRINT_KEY", "") or "").strip()
+    return configured or str(settings.SECRET_KEY)
+
+
+def _cache_fingerprint(payload: Any) -> str:
+    """Keyed HMAC-SHA256 fingerprint of a canonical JSON payload.
+
+    The fingerprint is an opaque internal key: it is never an authorization
+    mechanism and is never exposed to students.
+    """
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str,
+    )
+    return hmac.new(
+        f"{_CACHE_KEY_PURPOSE}:{_cache_pepper()}".encode("utf-8"),
+        canonical.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def cacheable_scopes() -> frozenset[str]:
+    """Assessment scopes allowed to reuse a grade across accounts."""
+    configured = getattr(settings, "ESSAY_CACHE_ALLOWED_SCOPES", _DEFAULT_CACHEABLE_SCOPES)
+    if isinstance(configured, str):
+        configured = [p.strip() for p in configured.split(",") if p.strip()]
+    return frozenset(configured or _DEFAULT_CACHEABLE_SCOPES)
+
+
+def cache_scope_allows_reuse(scope: str | None) -> bool:
+    """Supervised / restricted / high-stakes assessments are never shared."""
+    return (scope or "practice") in cacheable_scopes()
+
+
+def build_grading_context(
+    *, topic=None, topic_title: str = "", scope: str | None = None, language: str | None = None,
+) -> dict:
+    """Every grading input that can change the evaluation result.
+
+    Contains no student identity and no submission metadata — only the
+    parameters that make two evaluations interchangeable.
+    """
+    from .prompts import ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
+
+    if topic is not None:
+        topic_id = topic.pk
+        title = topic.title or ""
+        topic_digest = _cache_fingerprint({
+            "title": title,
+            "description": getattr(topic, "description", "") or "",
+            "word_limit_min": getattr(topic, "word_limit_min", None),
+            "word_limit_max": getattr(topic, "word_limit_max", None),
+            "time_limit_minutes": getattr(topic, "time_limit_minutes", None),
+            "category": getattr(topic, "category", "") or "",
+        })
+    else:
+        topic_id = None
+        title = topic_title or ""
+        topic_digest = _cache_fingerprint({"title": title, "description": "", "free_form": True})
+
+    model_chain = _model_candidates()
+    model_identity = ",".join(model_chain) or _get_ai_model()
+    mock_mode = _is_mock_mode()
+    provider = "mock" if mock_mode else _resolve_provider()
+    prompt_version = str(getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v3"))
+    rubric_digest = _cache_fingerprint({
+        "grading_prompt": ESSAY_GRADING_SYSTEM_PROMPT,
+        "simple_prompt": ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
+        "criterion_ids": sorted(VALID_CRITERION_IDS),
+        "prompt_version": prompt_version,
+        "model_chain": model_identity,
+    })
+    scoring_digest = _cache_fingerprint({
+        "target_scale": getattr(settings, "ESSAY_TARGET_SCALE", None),
+        "off_topic_score": getattr(settings, "ESSAY_OFF_TOPIC_SCORE", None),
+        "scoring_version": str(getattr(settings, "ESSAY_SCORING_VERSION", "v1")),
+    })
+    return {
+        "cache_schema_version": EssayGradingCache.CACHE_SCHEMA_VERSION,
+        "scope": scope or "practice",
+        "language": language or str(getattr(settings, "LANGUAGE_CODE", "uz")),
+        "rubric_version": ESSAY_RUBRIC_VERSION,
+        "prompt_version": prompt_version,
+        "rubric_digest": rubric_digest,
+        "model_chain": model_identity,
+        "provider": provider,
+        "mock_mode": mock_mode,
+        "topic_id": topic_id,
+        "topic_title": title,
+        "topic_digest": topic_digest,
+        "scoring_digest": scoring_digest,
+    }
+
+
+def grading_cache_identity(
+    essay_text: str, topic_title: str = "", *, context: dict | None = None,
+) -> dict:
+    """Context-aware cache key + diagnostics for one grading request.
+
+    ``cache_key = HMAC(canonical_json(normalized_essay + grading_context))``:
+    the same text under a different topic, rubric version, prompt version,
+    model chain, language, scoring configuration or scope is a different key.
+    """
+    context = dict(context) if context else build_grading_context(topic_title=topic_title)
+    normalized = normalize_essay_text(essay_text)
+    text_fingerprint = _cache_fingerprint({"text": normalized})
+    context_fingerprint = _cache_fingerprint(context)
+    cache_key = _cache_fingerprint({"text": normalized, "context": context})
+    return {
+        "cache_key": cache_key,
+        "text_fingerprint": text_fingerprint,
+        "context_fingerprint": context_fingerprint,
+        "context": context,
+        "cacheable": cache_scope_allows_reuse(context.get("scope")),
+    }
+
+
+def grading_context_for_submission(submission) -> dict:
+    """Grading context for a submission (topic, scope, language)."""
+    topic = submission.topic if submission.topic_id else None
+    return build_grading_context(
+        topic=topic,
+        topic_title=(topic.title if topic is not None else ""),
+        scope=getattr(submission, "cache_scope", None) or "practice",
+    )
+
+
+def grading_cache_key_for_submission(submission) -> str:
+    """Cache key a submission's grade would occupy (no AI call)."""
+    return grading_cache_identity(
+        submission.essay_text or "",
+        submission.topic.title if submission.topic_id else "",
+        context=grading_context_for_submission(submission),
+    )["cache_key"]
+
+
+def stamp_grading_cache_key(submission) -> str:
+    """Record the cache key on a submission before it starts grading.
+
+    Lets a completed leader find and complete the submissions that are waiting
+    on the same evaluation. Best-effort: a failure here must never block
+    grading, so it only writes one indexed column.
+    """
+    try:
+        key = grading_cache_key_for_submission(submission)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Could not compute grading cache key: submission=%s", getattr(submission, "pk", None))
+        return ""
+    submission.grading_cache_key = key
+    try:
+        EssaySubmission.objects.filter(pk=submission.pk).update(grading_cache_key=key)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Could not stamp grading cache key: submission=%s", submission.pk)
+    return key
+
+
+def _discard_unusable_entry(entry, reason: str) -> None:
+    """Drop a corrupt/obsolete entry unless a live leader currently owns it."""
+    now = _timezone.now()
+    if entry.status == EssayGradingCache.Status.PROCESSING and entry.lease_expires_at is not None and entry.lease_expires_at > now:
+        logger.warning(
+            "Unusable cache entry kept (active leader): hash=%s reason=%s",
+            entry.text_hash[:12], reason,
+        )
+        return
+    EssayGradingCache.objects.filter(pk=entry.pk).delete()
+    metrics.cache_event("entry_discarded", cache_key=entry.text_hash, reason=reason[:80])
+
+
+def _load_cached_grading_result(
+    text_hash: str, *, context_fingerprint: str | None = None,
+) -> dict | None:
+    """Return a reusable validated grade (HIT) or ``None`` (MISS).
+
+    A grade is reusable only when it is COMPLETED, schema-current, not
+    invalidated, within the cache lifetime, matching the requested grading
+    context, and still passing full rubric validation. A payload that no
+    longer validates is discarded instead of served, so a corrupt row can
+    never masquerade as a successful grade.
+    """
+    import copy
+
+    cache_lifetime_days = max(1, int(getattr(settings, "ESSAY_GRADING_CACHE_DAYS", 30)))
+    entry = EssayGradingCache.objects.filter(
+        text_hash=text_hash,
+        created_at__gte=_timezone.now() - timedelta(days=cache_lifetime_days),
+    ).first()
+    if entry is None:
+        return None
+    if (
+        context_fingerprint
+        and entry.grading_context_fingerprint
+        and entry.grading_context_fingerprint != context_fingerprint
+    ):
+        metrics.cache_event("context_mismatch", cache_key=text_hash)
+        return None
+    if not entry.is_reusable():
+        return None
+    try:
+        _validate_result(copy.deepcopy(entry.raw_result))
+    except ValueError as exc:
+        logger.warning(
+            "Invalid cached essay result discarded: hash=%s, error=%s",
+            text_hash[:12], exc,
+        )
+        _discard_unusable_entry(entry, f"invalid payload: {exc}")
+        return None
+
+    EssayGradingCache.objects.filter(pk=entry.pk).update(
+        hit_count=F("hit_count") + 1,
+        last_used_at=_timezone.now(),
+    )
+    result = copy.deepcopy(entry.raw_result)
+    result["_from_cache"] = True
+    result["_mock_mode"] = entry.provider == "mock"
+    result["_cache_entry_pk"] = entry.pk
+    metrics.cache_event(
+        "hit", cache_key=text_hash, score=str(entry.total_score), reuse_count=entry.hit_count,
+    )
+    logger.info(
+        "Essay grading cache HIT: hash=%s, score=%s/%s (reuse #%d)",
+        text_hash[:12], entry.total_score, entry.max_score, entry.hit_count,
+    )
+    return result
+
+
+class _CacheClaim:
+    """Outcome of the atomic leader election for one cache key."""
+
+    __slots__ = ("identity", "entry", "token", "is_leader")
+
+    def __init__(self, identity: dict, entry, token: str, is_leader: bool) -> None:
+        self.identity = identity
+        self.entry = entry
+        self.token = token
+        self.is_leader = is_leader
+
+    @property
+    def cache_key(self) -> str:
+        return self.identity["cache_key"]
+
+
+def _claim_grading_cache_entry(identity: dict, essay_text: str) -> _CacheClaim:
+    """Reserve the single grading operation for this cache key.
+
+    Uses a UNIQUE constraint plus one conditional UPDATE (atomic on both
+    PostgreSQL and SQLite) instead of a process-local lock, so two workers on
+    different hosts cannot both become the leader for one key.
+    """
+    now = _timezone.now()
+    lease_seconds = max(30, int(getattr(settings, "ESSAY_CACHE_LEASE_SECONDS", 300)))
+    token = secrets.token_urlsafe(24)
+    key = identity["cache_key"]
+    context = identity["context"]
+
+    entry = EssayGradingCache.objects.filter(text_hash=key).first()
+    if entry is None:
+        try:
+            with _db_txn.atomic():
+                entry = EssayGradingCache.objects.create(
+                    text_hash=key,
+                    essay_text=(essay_text or "")[:20000],
+                    raw_result={},
+                    total_score=Decimal("0"),
+                    max_score=ESSAY_RUBRIC_MAX_SCORE,
+                    status=EssayGradingCache.Status.PENDING,
+                    hit_count=1,
+                    cache_schema_version=EssayGradingCache.CACHE_SCHEMA_VERSION,
+                    text_fingerprint=identity["text_fingerprint"],
+                    grading_context_fingerprint=identity["context_fingerprint"],
+                    grading_context=context,
+                    rubric_version=context.get("rubric_version", ""),
+                    prompt_version=context.get("prompt_version", ""),
+                    model_identifier=context.get("model_chain", ""),
+                    provider=context.get("provider", ""),
+                )
+        except IntegrityError:
+            # A concurrent worker created it first — that is the expected race.
+            entry = EssayGradingCache.objects.filter(text_hash=key).first()
+            if entry is None:
+                raise
+
+    claimable = (
+        Q(status=EssayGradingCache.Status.PENDING)
+        | Q(status=EssayGradingCache.Status.FAILED, lease_expires_at__lte=now)
+        | Q(status=EssayGradingCache.Status.FAILED, lease_expires_at__isnull=True)
+        | Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__lte=now)
+        | Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__isnull=True)
+        | Q(status=EssayGradingCache.Status.COMPLETED, invalidated_at__isnull=False)
+        # A completed row written under an older cache schema is historical
+        # only: it must never match, but it must not deadlock the key either.
+        | Q(
+            status=EssayGradingCache.Status.COMPLETED,
+            cache_schema_version__lt=EssayGradingCache.CACHE_SCHEMA_VERSION,
+        )
+    )
+    claimed = (
+        EssayGradingCache.objects.filter(pk=entry.pk)
+        .filter(claimable)
+        .update(
+            status=EssayGradingCache.Status.PROCESSING,
+            lease_owner=token,
+            lease_expires_at=now + timedelta(seconds=lease_seconds),
+            text_fingerprint=identity["text_fingerprint"],
+            grading_context_fingerprint=identity["context_fingerprint"],
+            grading_context=context,
+            rubric_version=context.get("rubric_version", ""),
+            prompt_version=context.get("prompt_version", ""),
+            model_identifier=context.get("model_chain", ""),
+            provider=context.get("provider", ""),
+            cache_schema_version=EssayGradingCache.CACHE_SCHEMA_VERSION,
+            invalidated_at=None,
+            invalidated_reason="",
+        )
+    )
+    if claimed == 1:
+        metrics.cache_event("leader_claimed", cache_key=key)
+        return _CacheClaim(identity, entry, token, True)
+
+    # Someone else owns the operation: register as a waiting submission.
+    EssayGradingCache.objects.filter(pk=entry.pk).update(waiting_count=F("waiting_count") + 1)
+    metrics.cache_event("dedup_wait", cache_key=key)
+    logger.info(
+        "Essay grading deduplicated: hash=%s already in progress — waiting for the leader",
+        key[:12],
+    )
+    return _CacheClaim(identity, entry, token, False)
+
+
+def _complete_cache_entry(claim: _CacheClaim, result: dict) -> None:
+    """Persist the validated canonical evaluation (only while still leader)."""
+    clean = {k: v for k, v in result.items() if not k.startswith("_")}
+    now = _timezone.now()
+    updated = (
+        EssayGradingCache.objects.filter(pk=claim.entry.pk, lease_owner=claim.token)
+        .update(
+            status=EssayGradingCache.Status.COMPLETED,
+            raw_result=clean,
+            total_score=Decimal(str(clean["total_score"])),
+            max_score=int(clean["max_score"]),
+            completed_at=now,
+            lease_owner="",
+            lease_expires_at=None,
+            error_summary="",
+            failure_count=0,
+            waiting_count=0,
+            hit_count=Case(
+                When(hit_count__lt=1, then=Value(1)),
+                default=F("hit_count"),
+                output_field=IntegerField(),
+            ),
+        )
+    )
+    if not updated:
+        # The lease expired and a newer leader took over: never overwrite it.
+        metrics.cache_event("lease_lost", cache_key=claim.cache_key)
+        logger.warning(
+            "Essay grading lease lost before completion: hash=%s — newer leader keeps the entry",
+            claim.cache_key[:12],
+        )
+        return
+    metrics.cache_event(
+        "completed", cache_key=claim.cache_key, score=str(clean["total_score"]),
+    )
+    logger.info(
+        "Essay grading cache COMPLETED: hash=%s, score=%s/%s",
+        claim.cache_key[:12], clean["total_score"], clean["max_score"],
+    )
+
+
+def _fail_cache_entry(claim: _CacheClaim, exc: BaseException) -> None:
+    """Record a failed leader attempt — never a fake successful grade.
+
+    A failed provider response must leave no cache artifact behind when nobody
+    is waiting (an unusable AI reply is not a cache entry). When other
+    submissions are waiting on the key, the row is kept as ``FAILED`` with a
+    bounded retry delay so recovery happens exactly once and the AI provider is
+    not stampeded.
+    """
+    now = _timezone.now()
+    retry_delay = max(5, int(getattr(settings, "ESSAY_CACHE_RETRY_DELAY_SECONDS", 30)))
+    summary = f"{type(exc).__name__}: {exc}"[:250]
+    metrics.cache_event("failed", cache_key=claim.cache_key, error=summary[:80])
+    deleted, _ = (
+        EssayGradingCache.objects.filter(
+            pk=claim.entry.pk, lease_owner=claim.token, waiting_count__lte=0,
+        ).delete()
+    )
+    if deleted:
+        logger.warning(
+            "Essay grading failed, no cache artifact kept: hash=%s, error=%s",
+            claim.cache_key[:12], summary,
+        )
+        return
+    EssayGradingCache.objects.filter(pk=claim.entry.pk, lease_owner=claim.token).update(
+        status=EssayGradingCache.Status.FAILED,
+        failure_count=F("failure_count") + 1,
+        error_summary=summary,
+        lease_owner="",
+        lease_expires_at=now + timedelta(seconds=retry_delay),
+        hit_count=0,
+        raw_result={},
+        completed_at=None,
+    )
+    logger.warning(
+        "Essay grading cache FAILED (waiters pending): hash=%s, error=%s",
+        claim.cache_key[:12], summary,
+    )
+
+
+def _wait_for_cache_completion(claim: _CacheClaim, deadline: float) -> tuple[dict | None, bool]:
+    """Poll for the leader's result.
+
+    Returns ``(result, retry_now)``. ``retry_now`` is True when the entry is
+    FAILED and its retry delay has elapsed, so the caller should try to take
+    over leadership (recovery after an abandoned leader).
+    """
+    key = claim.cache_key
+    while True:
+        result = _load_cached_grading_result(
+            key, context_fingerprint=claim.identity["context_fingerprint"],
+        )
+        if result is not None:
+            return result, False
+        entry = (
+            EssayGradingCache.objects.filter(pk=claim.entry.pk)
+            .values("status", "lease_expires_at")
+            .first()
+        )
+        if entry is None:
+            return None, True
+        if entry["status"] == EssayGradingCache.Status.FAILED:
+            lease_until = entry["lease_expires_at"]
+            if lease_until is None or lease_until <= _timezone.now():
+                return None, True
+        elif entry["status"] == EssayGradingCache.Status.PROCESSING:
+            lease_until = entry["lease_expires_at"]
+            if lease_until is not None and lease_until <= _timezone.now():
+                # Expired leader — take over instead of waiting forever.
+                return None, True
+        if time.monotonic() >= deadline:
+            return None, False
+        time.sleep(0.25)
+
+
+def _deduplicate_cached_grading(func):
+    """Single-flight + shared-cache wrapper for a grading callable.
+
+    Cache HIT → the canonical evaluation is returned without an AI call.
+    Cache MISS → exactly one caller becomes the leader and pays for the AI
+    request; the others register as waiters and apply the leader's validated
+    result. Failures are recorded on the cache entry (never as a grade), and a
+    timed-out waiter raises so the caller's retry/recovery path can take over.
+    """
+    @wraps(func)
+    def wrapped(essay_text: str, topic_title: str = "", *args, **kwargs):
+        if not essay_text or not essay_text.strip():
+            return func(essay_text, topic_title, *args, **kwargs)
+
+        context = kwargs.get("cache_context")
+        identity = grading_cache_identity(essay_text, topic_title, context=context)
+        if not identity["cacheable"]:
+            # Supervised / restricted / high-stakes assessment: grade per
+            # student, never reuse another account's evaluation.
+            metrics.cache_event("bypass_scope", scope=str(identity["context"].get("scope")))
+            return func(essay_text, topic_title, *args, **kwargs)
+
+        wait_seconds = max(5, int(getattr(settings, "ESSAY_CACHE_WAIT_SECONDS", 200)))
+        deadline = time.monotonic() + wait_seconds
+
+        while True:
+            cached = _load_cached_grading_result(
+                identity["cache_key"],
+                context_fingerprint=identity["context_fingerprint"],
+            )
+            if cached is not None:
+                return cached
+
+            claim = _claim_grading_cache_entry(identity, essay_text)
+            if claim.is_leader:
+                metrics.cache_event("miss", cache_key=claim.cache_key)
+                started = time.monotonic()
+                try:
+                    result = func(essay_text, topic_title, *args, **kwargs)
+                except Exception as exc:
+                    _fail_cache_entry(claim, exc)
+                    metrics.cache_event(
+                        "provider_failure", cache_key=claim.cache_key,
+                        error=type(exc).__name__,
+                    )
+                    raise
+                _complete_cache_entry(claim, result)
+                metrics.cache_event(
+                    "ai_request", cache_key=claim.cache_key,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
+                return result
+
+            result, retry_now = _wait_for_cache_completion(claim, deadline)
+            if result is not None:
+                metrics.cache_event("reuse", cache_key=claim.cache_key)
+                return result
+            if retry_now:
+                # Abandoned/failed leader — re-enter the loop and try to claim.
+                continue
+            raise TimeoutError(
+                "Identical essay is still being graded by another account; retry shortly"
+            )
+
+    return wrapped
+
+
+def apply_cached_grade_to_submission(submission, cache_key: str) -> bool:
+    """Apply a completed canonical evaluation to one waiting submission.
+
+    Each student keeps an independent ``EssaySubmission``; only the validated
+    AI evaluation is shared. Returns True when this call graded the row.
+    """
+    if (
+        submission.status == EssaySubmission.Status.GRADED
+        and essay_has_grade_result(submission)
+    ):
+        # Idempotent: a repeated sweep (or a late Celery delivery) must not
+        # re-apply the evaluation or duplicate criterion rows.
+        return False
+    result = _load_cached_grading_result(cache_key)
+    if result is None:
+        return False
+    apply_ai_result(submission, result)
+    return submission.status == EssaySubmission.Status.GRADED
+
+
+def distribute_cached_grade(cache_key: str, *, exclude_submission_id: int | None = None) -> int:
+    """Complete every authorized submission waiting on one cache key.
+
+    Idempotent: each row is re-checked under its own lock by
+    :func:`apply_ai_result`, so a late Celery delivery cannot double-grade.
+    """
+    if not cache_key:
+        return 0
+    waiters = EssaySubmission.objects.filter(
+        grading_cache_key=cache_key,
+        status=EssaySubmission.Status.PENDING,
+    )
+    if exclude_submission_id is not None:
+        waiters = waiters.exclude(pk=exclude_submission_id)
+    applied = 0
+    for submission in list(waiters):
+        if not cache_scope_allows_reuse(submission.cache_scope):
+            continue
+        try:
+            if apply_cached_grade_to_submission(submission, cache_key):
+                applied += 1
+                metrics.cache_event("distributed", submission_id=submission.pk)
+                notify_student_essay_graded(submission)
+        except Exception:  # pragma: no cover - defensive, one row must not break others
+            logger.exception(
+                "Failed to distribute cached grade: submission=%d key=%s",
+                submission.pk, cache_key[:12],
+            )
+    if applied:
+        logger.info(
+            "Distributed cached grade to %d waiting submission(s): hash=%s",
+            applied, cache_key[:12],
+        )
+    return applied
+
+
+def recover_stale_grading_cache_entries() -> int:
+    """Release abandoned leases so grading can never be blocked forever.
+
+    A worker that dies mid-request leaves ``PROCESSING`` behind; expired or
+    missing leases are moved to ``FAILED`` with a retry delay, which lets the
+    next submission claim the key and grade it again.
+    """
+    now = _timezone.now()
+    stale = EssayGradingCache.objects.filter(
+        Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__lt=now)
+        | Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__isnull=True)
+    )
+    count = stale.update(
+        status=EssayGradingCache.Status.FAILED,
+        lease_owner="",
+        # Immediately claimable: the previous leader is gone, so the next
+        # submission may take over right away (a *failed* leader keeps the
+        # bounded retry delay so followers cannot stampede the provider).
+        lease_expires_at=now,
+        error_summary="stale lease recovered",
+        failure_count=F("failure_count") + 1,
+        hit_count=0,
+        raw_result={},
+        completed_at=None,
+    )
+    if count:
+        metrics.cache_event("stale_lease_recovered", count=count)
+        logger.warning("Recovered %d stale essay grading cache lease(s)", count)
+    return count
+
+
+def invalidate_cache_entry(entry, reason: str = "manually invalidated") -> None:
+    """Admin/ops invalidation: the entry stops matching but history survives."""
+    now = _timezone.now()
+    EssayGradingCache.objects.filter(pk=entry.pk).update(
+        invalidated_at=now,
+        invalidated_reason=(reason or "")[:250],
+        status=EssayGradingCache.Status.FAILED,
+        lease_owner="",
+        lease_expires_at=None,
+    )
+    metrics.cache_event("invalidated", cache_key=entry.text_hash, reason=(reason or "")[:60])
+
+
+def purge_obsolete_cache_entries(*, keep_days: int | None = None) -> int:
+    """Delete evaluations that can never be reused again.
+
+    Obsolete = older schema version, invalidated, or beyond the cache
+    lifetime. Completed, schema-current rows are preserved.
+    """
+    cache_lifetime_days = keep_days or max(1, int(getattr(settings, "ESSAY_GRADING_CACHE_DAYS", 30)))
+    cutoff = _timezone.now() - timedelta(days=cache_lifetime_days)
+    obsolete = EssayGradingCache.objects.filter(
+        Q(cache_schema_version__lt=EssayGradingCache.CACHE_SCHEMA_VERSION)
+        | Q(invalidated_at__isnull=False)
+        | Q(created_at__lt=cutoff)
+    )
+    # Never delete an entry a live leader is working on.
+    obsolete = obsolete.exclude(
+        status=EssayGradingCache.Status.PROCESSING,
+        lease_expires_at__gt=_timezone.now(),
+    )
+    deleted, _ = obsolete.delete()
+    if deleted:
+        metrics.cache_event("purged", count=deleted)
+        logger.info("Purged %d obsolete essay grading cache entries", deleted)
+    return deleted
 
 def _grade_via_llm(
     client,
@@ -1196,14 +1882,21 @@ def _grade_via_llm(
 
     raise last_error or ValueError("AI grading model chain is empty")
 
-
-def grade_essay(essay_text: str, topic_title: str = "") -> dict:
+@_deduplicate_cached_grading
+def grade_essay(
+    essay_text: str, topic_title: str = "", *, cache_context: dict | None = None,
+) -> dict:
     """
     Grade an essay using OpenRouter LLM with the 12-mezon rubric.
 
     Args:
         essay_text: The essay text to grade.
         topic_title: The essay topic title (optional, for topic relevance check).
+        cache_context: Full grading context (topic, scope, rubric/prompt/model
+            identity, language, scoring config) built with
+            :func:`build_grading_context`. It is consumed by the shared-cache
+            wrapper and never changes the grading rules themselves. Defaults to
+            a practice-scope context derived from ``topic_title``.
 
     Returns:
         dict with keys: criteria, total_score, max_score, summary,
@@ -1224,65 +1917,11 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
 
     model = _get_ai_model()
     mock_mode = _is_mock_mode()
-    provider = "mock" if mock_mode else _resolve_provider()
-    prompt_version = getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v3")
-    # Rubric digest must NOT include essay text (Phase 6) — hash only
-    # prompts + version + canonical criterion ids. Essay text varies per
-    # submission and would otherwise make the digest unique per essay.
-    prompt_material = "|".join([
-        ESSAY_GRADING_SYSTEM_PROMPT,
-        ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
-        ",".join(str(i) for i in sorted(VALID_CRITERION_IDS)),
-        prompt_version,
-    ])
-    rubric_digest = hashlib.sha256(prompt_material.encode("utf-8")).hexdigest()
-
-    # The key separates providers, models, mock data and rubric/prompt versions.
-    text_hash = _compute_text_hash(
-        essay_text,
-        topic_title,
-        provider=provider,
-        model=model,
-        mock_mode=mock_mode,
-        prompt_version=prompt_version,
-        rubric_digest=rubric_digest,
-        language=getattr(settings, "LANGUAGE_CODE", "uz"),
-    )
-    from datetime import timedelta
-    cache_lifetime_days = max(1, int(getattr(settings, "ESSAY_GRADING_CACHE_DAYS", 30)))
-    cached = EssayGradingCache.objects.filter(
-        text_hash=text_hash,
-        created_at__gte=timezone.now() - timedelta(days=cache_lifetime_days),
-    ).first()
-    if cached is not None:
-        # Re-validate cached result before return (Phase 6) — cache may
-        # contain stale/poisoned data from before strict validation.
-        import copy as _copy
-        try:
-            _validate_result(_copy.deepcopy(cached.raw_result))
-        except ValueError as _ve:
-            logger.warning(
-                "Invalid cached essay result discarded: hash=%s, error=%s",
-                text_hash[:12], _ve,
-            )
-            EssayGradingCache.objects.filter(pk=cached.pk).delete()
-            cached = None
-        else:
-            # Cache hit — increment hit_count atomically and return cached result
-            EssayGradingCache.objects.filter(pk=cached.pk).update(
-                hit_count=F("hit_count") + 1,
-            )
-            result = _copy.deepcopy(cached.raw_result)
-            result["_from_cache"] = True
-            logger.info(
-                "Essay grading cache HIT: hash=%s, score=%s/%s, hit_count=%d",
-                text_hash[:12], cached.total_score, cached.max_score, cached.hit_count + 1,
-            )
-            return result
+    cache_key = grading_cache_identity(essay_text, topic_title, context=cache_context)["cache_key"]
 
     logger.info(
         "Starting essay grading: model=%s, text_length=%d, hash=%s, mock=%s",
-        model, len(essay_text), text_hash[:12], mock_mode,
+        model, len(essay_text), cache_key[:12], mock_mode,
     )
 
     # --- Mock mode: return fake scores without calling API ---
@@ -1296,19 +1935,8 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
         result.setdefault("topic_match_reason", "")
         result["_from_cache"] = False
         result["_mock_mode"] = True
-
-        # Cache mock results too (they're deterministic per text+topic)
-        try:
-            EssayGradingCache.objects.create(
-                text_hash=text_hash,
-                essay_text=essay_text.strip(),
-                raw_result=result,
-                total_score=Decimal(str(result["total_score"])),
-                max_score=result["max_score"],
-            )
-        except Exception as e:
-            logger.warning("Failed to cache mock result: %s", e)
-
+        # Mock grades are deterministic (and provider="mock" is part of the
+        # cache context), so the shared-cache wrapper persists them too.
         return result
 
     # Share a 170s budget across the model chain. The primary model may use
@@ -1341,25 +1969,11 @@ def grade_essay(essay_text: str, topic_title: str = "") -> dict:
         result["topic_match"], model,
     )
 
-    # --- Save to cache (only real LLM results) ---
-    try:
-        EssayGradingCache.objects.update_or_create(
-            text_hash=text_hash,
-            defaults={
-                "essay_text": essay_text.strip(),
-                "raw_result": result,
-                "total_score": Decimal(str(result["total_score"])),
-                "max_score": result["max_score"],
-            },
-        )
-        logger.info("Essay grading result cached: hash=%s", text_hash[:12])
-    except Exception as e:
-        # Non-fatal: if cache save fails, the grading still succeeded
-        logger.warning("Failed to cache grading result: %s", e)
-
+    # Persistence of the canonical evaluation is owned by the shared-cache
+    # wrapper (_deduplicate_cached_grading), which writes it under the leader
+    # lease — never as an unconditional overwrite from a non-leader.
     result["_from_cache"] = False
     return result
-
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -1384,7 +1998,6 @@ QATIY QOIDALAR:
 """
 
 _IMPROVED_ESSAY_RE = re.compile(r"<essay>\s*(.*?)\s*</essay>", re.DOTALL | re.IGNORECASE)
-
 
 def build_improve_message(essay_text: str, criteria_feedback: list[dict] | None, summary: str = "") -> str:
     """Build the user message for the improved-version request."""
@@ -1411,8 +2024,98 @@ def build_improve_message(essay_text: str, criteria_feedback: list[dict] | None,
     )
     return "\n\n".join(parts)
 
+def _essay_rewrite_cache_hash(submission: "EssaySubmission") -> str:
+    """Hash essay, grading feedback, prompts, and provider/model for rewrites."""
+    from .prompts import ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
 
-def generate_improved_essay(submission: "EssaySubmission") -> str:
+    rewrite_model = _get_ai_model()
+    rewrite_provider = "mock" if _is_mock_mode() else _resolve_provider()
+    essay_text = (submission.essay_text or "").strip()
+    rewrite_identity = {
+        "version": "essay-rewrite-v1",
+        "provider": rewrite_provider,
+        "model_chain": _model_candidates() or [rewrite_model],
+        "rubric_version": ESSAY_RUBRIC_VERSION,
+        "topic": submission.topic.title if submission.topic_id else "",
+        "prompt_digest": hashlib.sha256((
+            IMPROVED_ESSAY_SYSTEM_PROMPT
+            + ESSAY_GRADING_SYSTEM_PROMPT
+            + ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
+        ).encode("utf-8")).hexdigest(),
+        "essay": re.sub(
+            r"\s+", " ", unicodedata.normalize("NFC", essay_text).strip(),
+        ),
+        "grade_result": submission.raw_result or {},
+        "summary": submission.summary or "",
+    }
+    rewrite_key = json.dumps(
+        rewrite_identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
+    return hashlib.sha256(rewrite_key.encode("utf-8")).hexdigest()
+
+def _load_cached_rewrite(submission: "EssaySubmission", rewrite_hash: str) -> str | None:
+    cached = EssayRewriteCache.objects.filter(text_hash=rewrite_hash).first()
+    if cached is None:
+        return None
+    EssayRewriteCache.objects.filter(pk=cached.pk).update(
+        hit_count=F("hit_count") + 1,
+        last_used_at=_timezone.now(),
+    )
+    submission.improved_content = cached.improved_content
+    submission.improved_at = _timezone.now()
+    submission.save(update_fields=["improved_content", "improved_at", "updated_at"])
+    submission._improved_fresh = False
+    return cached.improved_content
+
+def _deduplicate_rewrite(func):
+    """Share an in-flight rewrite and cache result across identical submissions."""
+    @wraps(func)
+    def wrapped(submission: "EssaySubmission") -> str:
+        if submission.improved_content.strip():
+            return submission.improved_content
+
+        essay_text = (submission.essay_text or "").strip()
+        if not essay_text:
+            raise ValueError("Esse matni bo'sh — yaxshilash mumkin emas")
+        rewrite_hash = _essay_rewrite_cache_hash(submission)
+        cached = _load_cached_rewrite(submission, rewrite_hash)
+        if cached is not None:
+            return cached
+
+        lock_key = f"essay-rewrite-lock:{rewrite_hash}"
+        lock_token = secrets.token_urlsafe(18)
+        from django.core.cache import cache as django_cache
+
+        acquired = django_cache.add(lock_key, lock_token, timeout=240)
+        if not acquired:
+            wait_until = time.monotonic() + 200
+            while True:
+                cached = _load_cached_rewrite(submission, rewrite_hash)
+                if cached is not None:
+                    return cached
+                acquired = django_cache.add(lock_key, lock_token, timeout=240)
+                if acquired:
+                    break
+                if time.monotonic() >= wait_until:
+                    raise TimeoutError("Bir xil esse qayta yozilmoqda; birozdan keyin urinib ko'ring")
+                time.sleep(0.25)
+
+        try:
+            cached = _load_cached_rewrite(submission, rewrite_hash)
+            if cached is not None:
+                return cached
+            return func(submission, rewrite_hash)
+        finally:
+            try:
+                if django_cache.get(lock_key) == lock_token:
+                    django_cache.delete(lock_key)
+            except Exception:
+                logger.exception("Could not release essay rewrite lock: %s", rewrite_hash[:12])
+
+    return wrapped
+
+@_deduplicate_rewrite
+def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) -> str:
     """
     Generate an improved version of the student's essay using the AI provider
     (with the same primary/fallback model chain as grading).
@@ -1420,7 +2123,6 @@ def generate_improved_essay(submission: "EssaySubmission") -> str:
     The result is persisted on ``submission.improved_content`` so repeated
     page loads never re-generate. Raises ValueError on API/validation failure.
     """
-    # Already generated — return the stored version (idempotent).
     if submission.improved_content.strip():
         return submission.improved_content
 
@@ -1441,8 +2143,15 @@ def generate_improved_essay(submission: "EssaySubmission") -> str:
             + "\n\n[YAXSHILANGAN — SINOV REJIMI] Lug'at boyitildi, imlo va punktuatsiya to'g'rilandi."
         )
         submission.improved_content = improved
-        submission.improved_at = timezone.now()
+        submission.improved_at = _timezone.now()
         submission.save(update_fields=["improved_content", "improved_at", "updated_at"])
+        try:
+            EssayRewriteCache.objects.get_or_create(
+                text_hash=rewrite_hash,
+                defaults={"essay_text": essay_text, "improved_content": improved},
+            )
+        except Exception:
+            logger.exception("Failed to cache mock rewrite: hash=%s", rewrite_hash[:12])
         submission._improved_fresh = True
         return improved
 
@@ -1499,8 +2208,15 @@ def generate_improved_essay(submission: "EssaySubmission") -> str:
         raise ValueError("AI javobi juda qisqa — qayta urinib ko'ring")
 
     submission.improved_content = improved
-    submission.improved_at = timezone.now()
+    submission.improved_at = _timezone.now()
     submission.save(update_fields=["improved_content", "improved_at", "updated_at"])
+    try:
+        EssayRewriteCache.objects.get_or_create(
+            text_hash=rewrite_hash,
+            defaults={"essay_text": essay_text, "improved_content": improved},
+        )
+    except Exception:
+        logger.exception("Failed to cache rewrite: hash=%s", rewrite_hash[:12])
     # In-memory marker so the view can tell "freshly generated" from a
     # cache hit (improved_at stays set forever after the first run).
     submission._improved_fresh = True
@@ -1509,7 +2225,6 @@ def generate_improved_essay(submission: "EssaySubmission") -> str:
         submission.id, model_used, len(improved),
     )
     return improved
-
 
 # Auto-submit: vaqt tugaganda avtomatik baholash
 # ---------------------------------------------------------------------------
@@ -1523,7 +2238,6 @@ _GRADEABLE_STATUSES = frozenset({
     EssaySubmission.Status.AI_EVALUATED,
     EssaySubmission.Status.PENDING,
 })
-
 
 def expire_overdue_pending_grading(submission) -> bool:
     """Turn an orphaned ``PENDING`` grading job into a terminal real error.
@@ -1544,12 +2258,12 @@ def expire_overdue_pending_grading(submission) -> bool:
     timeout_seconds = max(
         1, int(getattr(settings, "ESSAY_GRADING_PENDING_TIMEOUT_SECONDS", 720))
     )
-    now = timezone.now()
+    now = _timezone.now()
     started_at = submission.grading_started_at or submission.updated_at
     if started_at is None or started_at > now - timedelta(seconds=timeout_seconds):
         return False
 
-    with transaction.atomic():
+    with _db_txn.atomic():
         locked = (
             EssaySubmission.objects.select_for_update()
             .filter(pk=submission.pk)
@@ -1578,7 +2292,6 @@ def expire_overdue_pending_grading(submission) -> bool:
     )
     return True
 
-
 def essay_has_grade_result(submission) -> bool:
     """Submission to'liq baholangani: baho/izoh bazaga yozilganmi.
 
@@ -1605,12 +2318,11 @@ def essay_has_grade_result(submission) -> bool:
         return bool(submission.raw_result)
     return False
 
-
 def _send_to_teacher(submission, reason: str, error_message: str = "") -> dict:
     """Mark a submission PENDING_TEACHER (fallback when AI can't grade it)."""
     submission.status = EssaySubmission.Status.PENDING_TEACHER
     submission.auto_submitted = True
-    submission.submitted_at = timezone.now()
+    submission.submitted_at = _timezone.now()
     if error_message:
         submission.error_message = error_message
     update_fields = ["status", "auto_submitted", "submitted_at", "updated_at"]
@@ -1625,7 +2337,7 @@ def _send_to_teacher(submission, reason: str, error_message: str = "") -> dict:
     return {"success": True, "error": error_message or None, "fallback": True}
 
 
-def apply_ai_result(submission, result: dict) -> None:
+def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -> None:
     """Write a validated grade_essay() result onto a submission.
 
     Persists scores/summary/status and (re)creates the 12 EssayCriterionScore
@@ -1634,6 +2346,11 @@ def apply_ai_result(submission, result: dict) -> None:
     partial criterion set. Internal flags (_from_cache/_mock_mode/_errors
     handling keeps backward compat) are stripped before persistence, and any
     stale error_message is cleared on success.
+
+    Grading provenance (Phase E): a reused shared evaluation is recorded as
+    ``grading_source=cache`` with a reference to the cache row, so the UI can
+    say "saqlangan AI baholash natijasi qo'llandi" without ever exposing the
+    other account's activity.
     """
     from django.db import transaction as _txn
 
@@ -1645,7 +2362,7 @@ def apply_ai_result(submission, result: dict) -> None:
     # Backward-compat: Error handling for persisted errors already stored.
     # No _from_cache/_mock_mode should survive in DB.
 
-    with _txn.atomic():
+    with _db_txn.atomic():
         # Lock the row for the short write only — grading already finished.
         locked = (
             EssaySubmission.objects.select_for_update()
@@ -1682,12 +2399,24 @@ def apply_ai_result(submission, result: dict) -> None:
                 locked.pk, locked.status, _ve,
             )
             return
-        locked.graded_at = timezone.now()
+        locked.graded_at = _timezone.now()
         locked.error_message = ""
+        if result.get("_from_cache"):
+            locked.grading_source = EssaySubmission.GradingSource.CACHE
+            entry_pk = result.get("_cache_entry_pk")
+            if entry_pk:
+                locked.grading_cache_id = entry_pk
+        elif result.get("_mock_mode"):
+            locked.grading_source = EssaySubmission.GradingSource.MOCK
+        else:
+            locked.grading_source = EssaySubmission.GradingSource.AI
+        if cache_key and not locked.grading_cache_key:
+            locked.grading_cache_key = cache_key
         locked.save(update_fields=[
             "raw_result", "total_score", "max_score",
             "summary", "status", "graded_at", "updated_at",
             "is_off_topic", "topic_match_reason", "error_message",
+            "grading_source", "grading_cache", "grading_cache_key",
         ])
 
         locked.criteria.all().delete()
@@ -1713,6 +2442,9 @@ def apply_ai_result(submission, result: dict) -> None:
         submission.is_off_topic = locked.is_off_topic
         submission.topic_match_reason = locked.topic_match_reason
         submission.error_message = locked.error_message
+        submission.grading_source = locked.grading_source
+        submission.grading_cache_id = locked.grading_cache_id
+        submission.grading_cache_key = locked.grading_cache_key
 
 
 def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
@@ -1753,12 +2485,14 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
         )
 
     # AI baholashga urinish
+    cache_key = stamp_grading_cache_key(submission)
+    cache_context = grading_context_for_submission(submission)
     try:
-        result = grade_essay(essay_text, topic_title=topic_title)
+        result = grade_essay(essay_text, topic_title=topic_title, cache_context=cache_context)
     except (ValueError, ImportError, ImproperlyConfigured) as e:
         # AI xato → fail_status (PENDING_TEACHER fallback yoki ERROR)
         submission.auto_submitted = True
-        submission.submitted_at = timezone.now()
+        submission.submitted_at = _timezone.now()
         submission.status = fail_status
         submission.error_message = str(e)
         submission.save(update_fields=[
@@ -1773,17 +2507,18 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
         return {"success": False, "error": str(e), "fallback": fallback}
 
     # Muvaffaqiyatli baholash
-    apply_ai_result(submission, result)
+    apply_ai_result(submission, result, cache_key=cache_key)
     submission.auto_submitted = True
-    submission.submitted_at = timezone.now()
+    submission.submitted_at = _timezone.now()
     submission.save(update_fields=["auto_submitted", "submitted_at", "updated_at"])
+    # Complete any other account waiting on the same canonical evaluation.
+    distribute_cached_grade(cache_key, exclude_submission_id=submission.pk)
 
     logger.info(
         "Auto-submit GRADED: submission=%d, score=%s/%d",
         submission.id, submission.total_score, submission.max_score,
     )
     return {"success": True, "error": None, "fallback": False}
-
 
 def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     """
@@ -1839,18 +2574,20 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
     if submission.topic is not None:
         min_words = submission.topic.word_limit_min
         if WordCounter.count(essay_text) < min_words:
-            return {**_send_to_teacher(submission, "under_min"), "async": False}
-
-    # Mark as pending so the result page shows the spinner and any concurrent
+            return {**_send_to_teacher(submission, "under_min"), "async": False}    # Mark as pending so the result page shows the spinner and any concurrent
     # submit is rejected by the status guard above. Use conditional update so
     # two parallel submits cannot both claim the same row.
-    grading_started_at = timezone.now()
+    grading_started_at = _timezone.now()
+    # Stamp the context-aware cache key before dispatching so a completed
+    # leader can complete this submission if an identical essay is graded.
+    cache_key = stamp_grading_cache_key(submission)
     claimed = EssaySubmission.objects.filter(
         pk=submission.pk, status__in=list(_GRADEABLE_STATUSES)
     ).update(
         status=EssaySubmission.Status.PENDING,
         grading_started_at=grading_started_at,
         updated_at=grading_started_at,
+        grading_cache_key=cache_key,
     )
     if not claimed:
         # Retry/resubmit path: ERROR/PENDING_TEACHER without result → DRAFT was
@@ -1861,6 +2598,7 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
             status=EssaySubmission.Status.PENDING,
             grading_started_at=grading_started_at,
             updated_at=grading_started_at,
+            grading_cache_key=cache_key,
         )
         if not claimed:
             return {
@@ -1900,7 +2638,6 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
 
     logger.info("Essay grading enqueued: submission=%d", submission.id)
     return {"success": True, "error": None, "fallback": False, "async": True}
-
 
 # ---------------------------------------------------------------------------
 # Celery-siz yengil fallback: background thread (asyncio.create_task muqobili)
@@ -2014,7 +2751,6 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
     )
     return {"success": True, "error": None, "fallback": False, "async": True}
 
-
 def start_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     """AI baholashni fon rejimida boshlash — broker'ga qarab yo'l tanlaydi.
 
@@ -2039,7 +2775,6 @@ def start_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
         else "sync",
     )
     return result
-
 
 # ---------------------------------------------------------------------------
 # Telegram: baholash tugaganda o'quvchiga xabar
