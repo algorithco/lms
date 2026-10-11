@@ -116,12 +116,21 @@ def parent_overview_view(request):
         parent = get_object_or_404(User, id=request.GET["user_id"])
     if parent.role != "parent" and not is_platform_admin(request.user):
         return Response({"detail": "Parent access required."}, status=403)
-    links = (
-        ParentStudentLink.objects.filter(parent=parent)
-        .select_related("student")
-        .order_by("-created_at")
-    )
+    # A pending relationship reveals no child PII or progress until approved.
+    # Platform admins can inspect the full relationship list for support.    # A requested user_id must still be a parent. Admin requests for another
+    # role are rejected rather than returning an empty or misleading portal.
+    if parent.role != "parent":
+        return Response({"detail": "Parent account required."}, status=400)
+
+    # A pending relationship must not disclose a child's identity or progress.
+    # Platform admins may inspect pending links for account support.
+    links = ParentStudentLink.objects.filter(parent=parent)
+    if not is_platform_admin(request.user):
+        links = links.filter(is_approved=True)
+    links = links.select_related("student").order_by("-created_at")
+
     children = []
+
     for link in links:
         s = link.student
         results = (
@@ -270,10 +279,13 @@ def analytics_view(request):
 def essay_leaderboard_view(request):
     target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
     off_topic_score = getattr(settings, "ESSAY_OFF_TOPIC_SCORE", 35)
+    # The divisor is deliberately a FLOAT: with an integer literal, SQLite
+    # truncates the division (22/24*75 -> 68) instead of rounding it, so the
+    # same submission scored differently on dev and on PostgreSQL.
     converted_expr = Case(
-        When(final_score__isnull=False, then=F("final_score") * Value(target) / Value(24)),
+        When(final_score__isnull=False, then=F("final_score") * Value(float(target)) / Value(24.0)),
         When(is_off_topic=True, then=Value(off_topic_score)),
-        default=F("total_score") * Value(target) / Value(24),
+        default=F("total_score") * Value(float(target)) / Value(24.0),
         output_field=FloatField(),
     )
     stats = (
