@@ -33,6 +33,7 @@ const PanelQuestions = lazyPage(() => import('./pages/PanelQuestions'));
 const PanelTestForm = lazyPage(() => import('./pages/PanelTestForm'));
 const PanelTests = lazyPage(() => import('./pages/PanelTests'));
 const PanelTopics = lazyPage(() => import('./pages/PanelTopics'));
+const PanelTuition = lazyPage(() => import('./pages/PanelTuition'));
 const PanelUsers = lazyPage(() => import('./pages/PanelUsers'));
 const ParentPortal = lazyPage(() => import('./pages/ParentPortal'));
 const PasswordReset = lazyPage(() => import('./pages/PasswordReset'));
@@ -80,7 +81,6 @@ function AnimatedRoutes() {
         {/* Telegram Mini App shell (bot web_app button points at /tma/) */}
         <Route path="/tma" element={<Tma />} />
         <Route path="/tma/" element={<Tma />} />
-        <Route path="/password-reset/confirm/:uid/:token" element={<PasswordResetConfirm />} />
           <Route path="/verify" element={<VerifyCertificate />} />
           <Route path="/verify/:number" element={<VerifyCertificate />} />
           {/* Legacy Django URL parity: /certificates/verify/<number>/ */}
@@ -169,11 +169,13 @@ function AnimatedRoutes() {
               <Route path="/control-panel/essay-topics/create" element={<Navigate to="/panel/topics" replace />} />
               <Route path="/control-panel/essay-topics/:id/edit" element={<Navigate to="/panel/topics" replace />} />
               <Route path="/control-panel/users" element={<Navigate to="/panel/users" replace />} />
+              <Route path="/control-panel/tuition" element={<Navigate to="/panel/tuition" replace />} />
               <Route path="/panel/tests" element={<PanelTests />} />
               <Route path="/panel/tests/new" element={<PanelTestForm />} />
               <Route path="/panel/tests/:id/edit" element={<PanelTestForm />} />
               <Route path="/panel/tests/:id/questions" element={<PanelQuestions />} />
               <Route path="/panel/topics" element={<PanelTopics />} />
+              <Route path="/panel/tuition" element={<PanelTuition />} />
               <Route path="/panel/users" element={<PanelUsers />} />
             </Route>
           </Route>

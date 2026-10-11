@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '../i18n/LangContext';
-import { School } from '../lib/api';
+import { School, Tuition, type StudentAttendance, type TuitionOverview, type TuitionInvoice, type WeeklyReportRow } from '../lib/api';
 import { UsersIcon } from '../components/icons';
 import type { ParentChild, ParentOverview } from '../lib/school';
 import { errMessage, num } from '../lib/school';
@@ -10,6 +10,16 @@ export default function ParentPortal() {
   const [children, setChildren] = useState<ParentChild[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  /**
+   * Attendance per child, keyed by student id.
+   *
+   * The endpoint only answers for a child this parent is approved for, so a
+   * missing entry means "not permitted / no data" and nothing is rendered —
+   * an empty placeholder must never imply that attendance data exists.
+   */
+  const [attendance, setAttendance] = useState<Record<number, StudentAttendance>>({});
+  const [tuition, setTuition] = useState<Record<number, { overview: TuitionOverview; invoices: TuitionInvoice[] }>>({});
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReportRow[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -26,6 +36,47 @@ export default function ParentPortal() {
           setErr(errMessage(e));
           setLoaded(true);
         }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Billing and weekly reports are supplementary; each endpoint restricts
+  // results to this parent's verified children.
+  useEffect(() => {
+    let alive = true;
+    Tuition.children().then(({ children: rows }) => {
+      if (!alive) return;
+      setTuition(Object.fromEntries(rows.map((row) => [
+        row.student_id,
+        { overview: row, invoices: row.invoice_rows ?? row.invoices ?? [] },
+      ])));
+    }).catch(() => { /* finance is optional when no verified child invoice exists */ });
+    School.myWeeklyReports().then(({ results }) => {
+      if (alive) setWeeklyReports(results);
+    }).catch(() => { /* retain the existing parent portal if no reports exist */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Attendance is supplementary: a failure here must not break the portal.
+  // One call covering every approved child. The per-student endpoint
+  // (school/attendance/students/<id>/) is teacher/admin-only, so asking it as
+  // a parent was refused with 403 and this block could never render for the
+  // very role the page exists for.
+  useEffect(() => {
+    let alive = true;
+    School.parentAttendance()
+      .then(({ children: rows }) => {
+        if (!alive) return;
+        const next: Record<number, StudentAttendance> = {};
+        for (const row of rows ?? []) {
+          if (Number.isFinite(row.student_id)) next[row.student_id] = row;
+        }
+        setAttendance(next);
+      })
+      .catch(() => {
+        /* no approved child / no data — the block stays hidden */
       });
     return () => {
       alive = false;
@@ -107,7 +158,6 @@ export default function ParentPortal() {
                         {c.relationship ? ` · ${c.relationship}` : ''}
                       </p>
                     </div>
-                    {!c.is_approved && <span className="badge amber">⏳ {t('pp_pending_approval')}</span>}
                   </div>
 
                   <div className="grid">
@@ -162,6 +212,96 @@ export default function ParentPortal() {
                       </div>
                     </>
                   )}
+
+                  {tuition[c.id] && (tuition[c.id].invoices.length > 0 || (tuition[c.id].overview.outstanding_uzs ?? 0) > 0) && (
+                    <section className="card" aria-label="Kurs to'lovlari">
+                      <h3>💳 {t('tuition_title')}</h3>
+                      <p className="muted small">{t('tuition_confirmed')}: {Number(tuition[c.id].overview.confirmed_paid_uzs ?? 0).toLocaleString()} so'm · {t('tuition_outstanding')}: {Number(tuition[c.id].overview.outstanding_uzs ?? 0).toLocaleString()} so'm</p>
+                      <div className="table-wrap">
+                        <table className="data">
+                          <thead><tr><th>{t('tuition_period')}</th><th>{t('tuition_status')}</th><th>{t('tuition_amount')}</th><th>{t('tuition_paid')}</th><th>{t('tuition_outstanding')}</th><th>{t('tuition_deadline')}</th></tr></thead>
+                          <tbody>{tuition[c.id].invoices.map((invoice) => (
+                            <tr key={invoice.id}>
+                              <td>{invoice.period_label}</td>
+                              <td>{invoice.status_label}{invoice.awaiting_confirmation ? ` · ${t('tuition_pending')}` : ''}</td>
+                              <td>{Number(invoice.amount_due_uzs).toLocaleString()} so'm</td>
+                              <td>{Number(invoice.paid_amount_uzs).toLocaleString()} so'm</td>
+                              <td>{Number(invoice.balance_uzs).toLocaleString()} so'm</td>
+                              <td>{invoice.due_date}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+                  {weeklyReports.filter((report) => report.student_id === c.id).map((report) => (
+                    <section key={report.id} className="card" aria-label="Haftalik hisobot">
+                      <h3>📊 {t('weekly_reports_title')} · {report.period_label}</h3>
+                      <p className="muted small">{t('weekly_attendance')}: {String((report.summary.attendance as Record<string, unknown> | undefined)?.attendance_percentage ?? '—')}% · {t('weekly_essays')}: {String((report.summary.essays as Record<string, unknown> | undefined)?.graded ?? 0)} · {t('weekly_tests')}: {String((report.summary.tests as Record<string, unknown> | undefined)?.completed_attempts ?? 0)}</p>
+                    </section>
+                  ))}
+                  {attendance[c.id] &&
+                    (attendance[c.id].marked_records ?? 0) > 0 && (
+                      <div className="card">
+                        <div className="row" style={{ justifyContent: 'space-between' }}>
+                          <strong>{t('attendance_student_history')}</strong>
+                          <span className="muted small">
+                            {t('attendance_percentage')}:{' '}
+                            <b>
+                              {attendance[c.id].attendance_percentage !== null
+                                ? `${attendance[c.id].attendance_percentage}%`
+                                : '—'}
+                            </b>
+                          </span>
+                        </div>
+                        <p className="muted small">
+                          {t('attendance_present')}: {attendance[c.id].present} ·{' '}
+                          {t('attendance_late')}: {attendance[c.id].late} ·{' '}
+                          {t('attendance_absent')}: {attendance[c.id].absent} ·{' '}
+                          {t('attendance_excused')}: {attendance[c.id].excused}
+                        </p>
+                        {(attendance[c.id].recent ?? []).length > 0 && (
+                          <div className="table-wrap">
+                            <table className="data">
+                              <thead>
+                                <tr>
+                                  <th>{t('date')}</th>
+                                  <th>{t('attendance_group')}</th>
+                                  <th>{t('status')}</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(attendance[c.id].recent ?? []).slice(0, 5).map((rec, i) => (
+                                  <tr key={`${rec.date}-${rec.time}-${i}`}>
+                                    <td className="muted small">
+                                      {rec.date}
+                                      {rec.time && rec.time !== '—' ? ` · ${rec.time}` : ''}
+                                    </td>
+                                    <td>{rec.group}</td>
+                                    <td>
+                                      <span
+                                        className={`badge ${
+                                          rec.status === 'present'
+                                            ? 'green'
+                                            : rec.status === 'late'
+                                              ? 'amber'
+                                              : 'rose'
+                                        }`}
+                                      >
+                                        {rec.status_label}
+                                        {rec.status === 'late' && rec.late_minutes > 0
+                                          ? ` (${rec.late_minutes} ${t('minutes')})`
+                                          : ''}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </div>
               );
             })}

@@ -4,6 +4,7 @@ import { useLang } from '../i18n/LangContext';
 import { Billing } from '../lib/api';
 import { isFreePlan, planEmoji, price } from '../lib/billingPanelGames';
 import { BarChartIcon } from '../components/icons';
+import UsageLimits from '../components/UsageLimits';
 
 interface Plan {
   id: number;
@@ -19,6 +20,43 @@ interface Plan {
   priority_support: boolean;
   unlimited_tests: boolean;
   unlimited_essays: boolean;
+  // Commercial plan configuration (apps/payments/models.py SubscriptionPlan).
+  image_essay_weekly_limit?: number | null;
+  text_essay_weekly_limit?: number | null;
+  text_essay_cooldown_hours?: number | null;
+  test_limit?: number | null;
+  is_unlimited_image_essays?: boolean;
+  is_unlimited_text_essays?: boolean;
+  is_unlimited_tests?: boolean;
+  is_public?: boolean;
+}
+
+/**
+ * Quota bullets derived from the plan's REAL configuration — nothing is
+ * invented. A null limit with the matching unlimited flag unset means the
+ * administrator has not configured that bucket, so no bullet is shown.
+ */
+function quotaFeatures(p: Plan, t: (k: string) => string): string[] {
+  const out: string[] = [];
+  if (p.is_unlimited_image_essays) {
+    out.push(`${t('usage_image_essay')}: ${t('usage_unlimited')}`);
+  } else if (typeof p.image_essay_weekly_limit === 'number') {
+    out.push(`${p.image_essay_weekly_limit} ${t('usage_image_essay')}${t('usage_per_week')}`);
+  }
+  if (p.is_unlimited_text_essays) {
+    out.push(`${t('usage_text_essay')}: ${t('usage_unlimited')}`);
+  } else if (typeof p.text_essay_weekly_limit === 'number') {
+    out.push(`${p.text_essay_weekly_limit} ${t('usage_text_essay')}${t('usage_per_week')}`);
+  }
+  if (typeof p.text_essay_cooldown_hours === 'number' && p.text_essay_cooldown_hours > 0) {
+    out.push(`${t('usage_text_cooldown_prefix')} ${p.text_essay_cooldown_hours} ${t('usage_hours')}`);
+  }
+  if (p.is_unlimited_tests) {
+    out.push(`${t('usage_tests')}: ${t('usage_unlimited')}`);
+  } else if (typeof p.test_limit === 'number') {
+    out.push(`${p.test_limit} ${t('usage_tests')}${t('usage_per_week')}`);
+  }
+  return out;
 }
 
 /** Per-plan_type feature bullets — parity with templates/payments/plans.html. */
@@ -87,11 +125,20 @@ export default function Plans() {
 
   const myPlanName = (mySub?.plan as Record<string, unknown> | undefined)?.name;
 
+  // Never show the store a plan that administrators have hidden, nor the
+  // sponsored tier (it is granted, not purchased).
+  const visiblePlans = plans.filter(
+    (p) => p.is_public !== false && p.plan_type !== 'teacher_sponsored',
+  );
+
   return (
     <div>
       <h1>{t('pay_plans_title')}</h1>
       <p className="muted">{t('pay_plans_subtitle')}</p>
       {err && <p className="error">{err}</p>}
+
+      {/* Current plan + live remaining usage for this student. */}
+      <UsageLimits />
 
       {/* Current subscription banner (legacy: user_subscription.is_active). */}
       {mySub && myActive && (
@@ -113,7 +160,7 @@ export default function Plans() {
       )}
 
       <div className="grid">
-        {plans.map((p) => {
+        {visiblePlans.map((p) => {
           const mine = myPlanId === p.id && myActive;
           const free = isFreePlan(p as unknown as Record<string, unknown>);
           const premium = p.plan_type === 'premium';
@@ -142,7 +189,7 @@ export default function Plans() {
                 </>
               )}
               <ul className="muted small">
-                {featuresFor(p, t).map((f, i) => (
+                {[...featuresFor(p, t), ...quotaFeatures(p, t)].map((f, i) => (
                   <li key={i}>
                     {f.includes('tahlil') || f.includes('Tahlil') ? (
                       <span>

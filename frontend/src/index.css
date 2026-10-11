@@ -560,11 +560,22 @@ table.data tr:last-child td { border-bottom: none; }
   white-space: nowrap;
 }
 
-.badge.green { background: rgba(250, 204, 21, 0.14); color: #fde047; }
+.badge.green { background: rgba(34, 197, 94, 0.14); color: #86efac; }
 .badge.amber { background: rgba(250, 204, 21, 0.1); color: #facc15; }
 .badge.rose { background: rgba(248, 113, 113, 0.14); color: #fca5a5; }
-.badge.blue { background: rgba(250, 204, 21, 0.08); color: #fef08a; }
-.badge.violet { background: rgba(250, 204, 21, 0.12); color: #fde047; }
+.badge.blue { background: rgba(59, 130, 246, 0.14); color: #93c5fd; }
+.badge.violet { background: rgba(139, 92, 246, 0.14); color: #c4b5fd; }
+
+/* Exam reading passage: sticky beside its questions on desktop,
+   stacked above them on mobile (same content, no split-pane JS). */
+@media (min-width: 768px) {
+  .passage-card {
+    position: sticky;
+    top: 12px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
 
 /* Mobile nav collapse (public topbar variant) */
 @media (max-width: 640px) {
@@ -789,3 +800,140 @@ img.auth-logo {
   flex-shrink: 0;
 }
 .score-mid { font-weight: 900; font-size: 0.9rem; flex-shrink: 0; }
+
+/* ---------- Language Switcher ---------- */
+.lang-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Desktop: segmented control */
+.lang-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.lang-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.35rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lang-btn:hover {
+  color: var(--ink);
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.lang-btn.active {
+  background: rgba(250, 204, 21, 0.16);
+  color: var(--accent-dark);
+}
+
+.lang-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Mobile: compact dropdown */
+.lang-dropdown {
+  display: none;
+}
+
+.lang-toggle {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.lang-toggle:hover {
+  border-color: var(--accent);
+}
+
+.lang-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lang-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  z-index: 60;
+  list-style: none;
+  margin: 0;
+}
+
+.lang-option {
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border: none;
+  background: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  color: var(--ink);
+  width: 100%;
+}
+
+.lang-option:hover {
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.lang-option.selected {
+  background: rgba(250, 204, 21, 0.14);
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.lang-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Show dropdown on mobile, segmented on desktop */
+@media (max-width: 767px) {
+  .lang-segmented {
+    display: none;
+  }
+  .lang-dropdown {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 768px) {
+  .lang-dropdown {
+    display: none;
+  }
+  .lang-segmented {
+    display: inline-flex;
+  }
+}

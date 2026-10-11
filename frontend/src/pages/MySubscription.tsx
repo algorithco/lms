@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Billing } from '../lib/api';
 import { formatDateTime, num, paymentStatusKey, str } from '../lib/billingPanelGames';
+import UsageLimits from '../components/UsageLimits';
 
 /**
  * My subscription — parity with templates/payments/my_subscription.html.
@@ -59,6 +60,9 @@ export default function MySubscription() {
       <h1>{t('sub_my_title')}</h1>
       <p className="muted">{t('sub_my_subtitle')}</p>
       {err && <p className="error">{err}</p>}
+
+      {/* Live plan + remaining usage (server-calculated, quietly hidden on error). */}
+      <UsageLimits />
 
       {!sub ? (
         <div className="card">
