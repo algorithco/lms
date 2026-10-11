@@ -29,6 +29,13 @@ from apps.accounts.services.telegram_identity import (
     TelegramIdentityUnverified,
     get_or_create_telegram_user,
 )
+from apps.payments.entitlements import (
+    QuotaDenied,
+    commit_usage,
+    enforce_essay_quota,
+    release_usage,
+)
+from apps.payments.models import SubscriptionUsage
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -464,7 +471,6 @@ def tma_essay_submissions_view(request: Request) -> Response:
 # TMA Essay Start (password gate + create submission)
 # -----------------------------------------------------------------------
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def tma_essay_start_view(request: Request, topic_id: int) -> Response:
@@ -540,6 +546,7 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
         topic=topic,
         status=EssaySubmission.Status.DRAFT,
         password_verified_at=timezone.now(),
+        source=EssaySubmission.Source.TMA,
     )
 
     return Response({
@@ -563,7 +570,6 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
 # TMA Essay Submit
 # -----------------------------------------------------------------------
 
-@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([ScopedRateThrottle])
@@ -649,6 +655,30 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 
     submission.save(update_fields=["essay_text", "word_count", "updated_at"])
 
+    # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
+    # Validatsiyadan o'tgan, haqiqiy yangi baholash ishi uchun limit
+    # sarflanadi. Idempotentlik kaliti submission'ga bog'langan — shu sababli
+    # bir xil submission veb yoki TMA orqali takror yuborilsa ham faqat bir
+    # marta hisoblanadi. Allaqachon baholangan / PENDING holatlar yuqorida
+    # erta qaytadi va hech narsa sarflamaydi.
+    try:
+        reservation = enforce_essay_quota(
+            request.user,
+            SubscriptionUsage.Kind.TEXT_ESSAY,
+            idempotency_key=f"essay:{submission.pk}",
+            source="tma",
+        )
+    except QuotaDenied as exc:
+        return Response(
+            {
+                "error": exc.message,
+                "code": exc.code,
+                "retry_after": exc.retry_after_seconds,
+                "remaining": exc.remaining,
+            },
+            status=429,
+        )
+
     # AI baholashni FONDA boshlash — broker (Celery) ishlab tursa worker'da,
     # aks holda background thread'da. Request hech qachon LLM'ni kutmaydi.
     dispatch = start_grading(
@@ -660,10 +690,15 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
         ),
     )
     if not dispatch.get("success"):
+        # Baholash navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
+        release_usage(reservation)
         return Response(
             {"status": "error", "error": dispatch.get("error") or "AI baholash boshlanmadi."},
             status=503,
         )
+
+    # Baholash qabul qilindi va navbatga qo'yildi → limit bir marta sarflandi.
+    commit_usage(reservation)
 
     return Response(
         {
@@ -732,6 +767,11 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "essay_text": submission.essay_text,
         "word_count": submission.word_count,
         "is_off_topic": submission.is_off_topic,
+        # Grading provenance: tells the student their grade is the shared
+        # validated AI evaluation. It never reveals which other account
+        # submitted the same essay (no ids, timestamps or comments).
+        "grading_source": submission.grading_source,
+        "cached": submission.grading_source == EssaySubmission.GradingSource.CACHE,
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,
         "final_score": float(submission.final_score) if submission.final_score is not None else None,
         "criteria": [

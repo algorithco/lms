@@ -43,6 +43,10 @@ class NotificationLog(models.Model):
         GENERAL = "general", _("Umumiy")
         ESSAY_GRADED = "essay_graded", _("Esse baholandi")
         ESSAY_REVIEW_REQUEST = "essay_review_request", _("Esse tekshirish so'rovi")
+        ATTENDANCE = "attendance", _("Davomat")
+        ATTENDANCE_SUMMARY = "attendance_summary", _("Davomat (guruh xulosasi)")
+        OBSERVATION = "observation", _("Sinf kuzatuvi")
+        ASSIGNMENT_OVERDUE = "assignment_overdue", _("Topshiriq muddati o'tdi")
 
     # -- Core -----------------------------------------------------------------
     recipient = models.ForeignKey(
@@ -113,6 +117,14 @@ class NotificationLog(models.Model):
         help_text=_("Essay notification idempotency kaliti sifatida ishlatiladi."),
     )
 
+    #: Deterministic key that makes delivery idempotent. Telegram webhooks and
+    #: Celery retries can fire the same event more than once, so a non-empty
+    #: key is UNIQUE: the second attempt is rejected instead of sending a
+    #: duplicate message to a parent or a group.
+    dedup_key = models.CharField(
+        _("idempotentlik kaliti"), max_length=200, blank=True, default="",
+    )
+
     # -- Timestamps -----------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     sent_at = models.DateTimeField(_("yuborilgan"), null=True, blank=True)
@@ -125,6 +137,13 @@ class NotificationLog(models.Model):
             models.Index(fields=["recipient"], name="idx_notif_recipient"),
             models.Index(fields=["status"], name="idx_notif_status"),
             models.Index(fields=["channel", "status"], name="idx_notif_chan_stat"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dedup_key"],
+                condition=~models.Q(dedup_key=""),
+                name="uniq_notification_dedup_key",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -215,6 +234,15 @@ class TelegramAuthToken(models.Model):
         verbose_name = "Telegram auth token"
         verbose_name_plural = "Telegram auth tokens"
         ordering = ["-created_at"]
+        constraints = [
+            # Short codes are lookup keys for unconsumed tokens. Empty codes
+            # (initial/consumed) may repeat; non-empty active codes must not.
+            models.UniqueConstraint(
+                fields=["short_code"],
+                condition=models.Q(consumed_at__isnull=True) & ~models.Q(short_code=""),
+                name="uniq_tgauth_short_code_active",
+            ),
+        ]
 
     # Conversation state for collecting user info
     CONVERSATION_STATES = (
@@ -253,10 +281,24 @@ class TelegramAuthToken(models.Model):
         return timezone.now() > self.created_at + TELEGRAM_AUTH_TOKEN_TTL
 
     def generate_short_code(self) -> str:
-        """Generate a unique 6-digit code."""
+        """Generate a unique 6-digit code (bounded retry, DB is authority)."""
         import secrets
-        while True:
+
+        from django.db import IntegrityError, transaction
+
+        for _ in range(10):
             code = f"{secrets.randbelow(1_000_000):06d}"
-            if not TelegramAuthToken.objects.filter(short_code=code, consumed_at__isnull=True).exists():
-                self.short_code = code
-                return code
+            if TelegramAuthToken.objects.filter(short_code=code, consumed_at__isnull=True).exists():
+                continue
+            self.short_code = code
+            # If attached to an existing row, persist atomically; collision
+            # retry is handled by the caller/unique constraint.
+            if self.pk:
+                try:
+                    with transaction.atomic():
+                        self.save(update_fields=["short_code"])
+                    return code
+                except IntegrityError:
+                    continue
+            return code
+        raise RuntimeError("Could not generate a unique short code after retries.")

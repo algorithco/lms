@@ -17,7 +17,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 
 
-def serve_spa_shell(request: HttpRequest, fallback: str = "/") -> HttpResponse:
+def serve_spa_shell(request: HttpRequest, fallback: str = "/", resource: str = "") -> HttpResponse:
     """GET page → baked SPA shell (or SPA-route redirect when unbaked)."""
     spa_index = Path(settings.BASE_DIR) / "spa" / "index.html"
     try:

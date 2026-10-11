@@ -19,6 +19,11 @@ class IsTeacher(BasePermission):
         - Savollar qo'shish
     """
 
+    # Without an explicit message DRF answers 403 with its generic
+    # "You do not have permission to perform this action.", which tells a user
+    # nothing about what was refused. Keep every class self-describing.
+    message = "Teacher access required."
+
     def has_permission(self, request, view) -> bool:
         return (
             request.user
@@ -36,6 +41,8 @@ class IsStudent(BasePermission):
         - Natijalarni ko'rish
     """
 
+    message = "Student access required."
+
     def has_permission(self, request, view) -> bool:
         return (
             request.user
@@ -52,6 +59,8 @@ class IsStudentOrReadOnly(BasePermission):
         - Test attempt endpoints
         - Student answer endpoints
     """
+
+    message = "Student access required."
 
     def has_permission(self, request, view) -> bool:
         if request.method in SAFE_METHODS:
@@ -74,6 +83,8 @@ class IsOwnerOrReadOnly(BasePermission):
         - Profilni ko'rish/tahrirlash
         - O'z natijalarini ko'rish
     """
+
+    message = "Only the owner of this record may do that."
 
     def has_permission(self, request, view) -> bool:
         return request.user and request.user.is_authenticated
@@ -119,6 +130,8 @@ class IsAdminOrReadOnly(BasePermission):
         - Category CRUD
         - Platform sozlamalari
     """
+
+    message = "Admin access required."
 
     def has_permission(self, request, view) -> bool:
         if request.method in SAFE_METHODS:

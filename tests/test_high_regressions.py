@@ -102,17 +102,117 @@ class TestSubmissionRegressionTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_result_feedback_respects_show_results_setting(self):
+        from apps.results.models import Result
+
+        self.test.show_results_immediately = False
+        self.test.save(update_fields=["show_results_immediately"])
+        attempt = TestAttempt.objects.create(
+            test=self.test, student=self.student, status=TestAttempt.Status.COMPLETED,
+        )
+        answer = StudentAnswer.objects.create(
+            attempt=attempt, question=self.question, is_correct=True,
+        )
+        answer.selected_choices.set([self.correct])
+        result = Result.objects.create(
+            attempt=attempt, student=self.student, test=self.test, course=self.course,
+            total_questions=1, correct_answers=1, wrong_answers=0,
+            score=1, max_score=1, percentage=100, is_passed=True,
+            time_taken_seconds=10,
+        )
+
+        self.client.force_login(self.student)
+        response = self.client.get(f"/api/results/{result.pk}/detail/")
+        self.assertEqual(response.status_code, 200)
+        question_detail = response.json()["question_details"][0]
+        self.assertEqual(question_detail["correct_choices"], [])
+        self.assertIsNone(question_detail["is_correct"])
+
+        tma_response = self.client.get(
+            f"/tma/api/attempts/{attempt.pk}/result/", **self.header,
+        )
+        self.assertEqual(tma_response.status_code, 200)
+        tma_question = tma_response.json()["question_details"][0]
+        self.assertNotIn("is_correct", tma_question)
+        self.assertNotIn("is_correct", tma_question["choices"][0])
+
+        # The owning teacher still has a legitimate review view.
+        self.client.force_login(self.teacher)
+        staff_response = self.client.get(f"/api/results/{result.pk}/detail/")
+        self.assertEqual(staff_response.status_code, 200)
+        staff_question = staff_response.json()["question_details"][0]
+        self.assertEqual(staff_question["correct_choices"][0]["id"], self.correct.pk)
+        self.assertTrue(staff_question["is_correct"])
+
+    def test_parent_portal_hides_unapproved_child_and_results(self):
+        from apps.accounts.models import ParentStudentLink
+        from apps.results.models import Result
+
+        parent = User.objects.create_user(
+            email="parent-regression@example.com", password="pass", role="parent",
+        )
+        attempt = TestAttempt.objects.create(
+            test=self.test, student=self.student, status=TestAttempt.Status.COMPLETED,
+        )
+        Result.objects.create(
+            attempt=attempt, student=self.student, test=self.test, course=self.course,
+            total_questions=1, correct_answers=1, wrong_answers=0,
+            score=1, max_score=1, percentage=100, is_passed=True,
+            time_taken_seconds=10,
+        )
+        ParentStudentLink.objects.create(
+            parent=parent, student=self.student, is_approved=False,
+        )
+        self.client.force_login(parent)
+        response = self.client.get("/api/v1/school/parent/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["children"], [])
+
+        ParentStudentLink.objects.filter(parent=parent, student=self.student).update(
+            is_approved=True,
+        )
+        approved_response = self.client.get("/api/v1/school/parent/")
+        self.assertEqual(approved_response.status_code, 200)
+        child = approved_response.json()["children"][0]
+        self.assertEqual(child["id"], self.student.pk)
+        self.assertEqual(len(child["results"]), 1)
+
     def test_group_edit_and_bulk_import_use_valid_backend_paths(self):
+        # Canonical SPA path (HTML group CRUD was retired in the SPA handoff;
+        # /groups/<pk>/edit/ now serves the SPA shell). Group persistence is
+        # covered via the versioned school API with teacher ownership scope.
+        import json
+
         group = StudentGroup.objects.create(teacher=self.teacher, name="Original")
         self.client.force_login(self.teacher)
-        response = self.client.post(
-            f"/groups/{group.pk}/edit/",
-            {"name": "Updated", "description": "", "students": [self.student.pk]},
+        response = self.client.patch(
+            f"/api/v1/school/groups/{group.pk}/",
+            data=json.dumps({"name": "Updated", "description": ""}),
+            content_type="application/json",
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200, response.content[:300])
+        members = self.client.post(
+            f"/api/v1/school/groups/{group.pk}/members/",
+            data=json.dumps({"add": [self.student.pk]}),
+            content_type="application/json",
+        )
+        self.assertEqual(members.status_code, 200, members.content[:300])
         group.refresh_from_db()
         self.assertEqual(group.name, "Updated")
         self.assertTrue(group.students.filter(pk=self.student.pk).exists())
+        # Ownership scope: another teacher cannot touch this group.
+        outsider = User.objects.create_user(
+            email="outsider-teacher@example.com", password="pass", role="teacher",
+        )
+        self.client.force_login(outsider)
+        denied = self.client.patch(
+            f"/api/v1/school/groups/{group.pk}/",
+            data=json.dumps({"name": "Hacked"}),
+            content_type="application/json",
+        )
+        self.assertEqual(denied.status_code, 404)
+        group.refresh_from_db()
+        self.assertEqual(group.name, "Updated")
 
         csv = "question,choice_a,choice_b,correct,points\nTwo plus two?,3,4,B,1\n"
         imported = BulkTestImportService.import_test(

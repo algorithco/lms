@@ -175,7 +175,7 @@ def send_telegram_result_task(
 
 def _generate_certificate(result: Any) -> bool:
     """
-    Certificate yaratish + PDF generatsiya.
+    Certificate yaratish + PDF generatsiya (thin wrapper over canonical service).
 
     1. Certificate model yaratish (agar mavjud bo'lmasa).
     2. PDF generatsiya qilish (ReportLab).
@@ -185,59 +185,21 @@ def _generate_certificate(result: Any) -> bool:
     Returns:
         True agar muvaffaqiyatli yaratilgan bo'lsa.
     """
-    from apps.results.models import Certificate
-    from apps.results.services.pdf_service import generate_certificate_pdf
-
-    # Certificate allaqachon mavjudmi?
-    cert, created = Certificate.objects.get_or_create(
-        result=result,
-        defaults={
-            "student": result.student,
-            "test": result.test,
-            "course": result.course,
-        },
-    )
-
-    if cert.status == Certificate.Status.GENERATED and cert.file:
-        logger.info("Certificate already generated: %s", cert.certificate_number)
-        return True
-
-    # Verify URL
-    base_url = getattr(settings, "SITE_URL", "http://localhost:8000")
-    verify_url = f"{base_url}/api/certificates/verify/{cert.certificate_number}/"
+    from apps.certificates.services.generation import generate_certificate as _gen
 
     try:
-        # PDF generatsiya
-        pdf_bytes = generate_certificate_pdf(
-            certificate_number=cert.certificate_number,
-            student_full_name=result.student.get_full_name(),
-            course_title=result.course.title,
-            test_title=result.test.title,
-            percentage=float(result.percentage),
-            issued_at=cert.issued_at,
-            verify_url=verify_url,
-        )
-
-        # PDF ni faylga saqlash
-        from django.core.files.base import ContentFile
-
-        filename = f"{cert.certificate_number}.pdf"
-        cert.file.save(filename, ContentFile(pdf_bytes), save=False)
-        cert.status = Certificate.Status.GENERATED
-        cert.save(update_fields=["file", "status"])
-        from apps.certificates.services.anti_fraud import generate_and_store_checksum
-        generate_and_store_checksum(cert)
-
-        logger.info(
-            "Certificate generated: %s, file=%s",
-            cert.certificate_number, cert.file.name,
-        )
+        _gen(result)
         return True
-
     except Exception:
-        cert.status = Certificate.Status.FAILED
-        cert.save(update_fields=["status"])
-        logger.exception("PDF generation failed for cert: %s", cert.certificate_number)
+        from apps.results.models import Certificate
+
+        try:
+            cert = Certificate.objects.get(result=result)
+            cert.status = Certificate.Status.FAILED
+            cert.save(update_fields=["status"])
+        except Certificate.DoesNotExist:
+            pass
+        logger.exception("PDF generation failed for cert result=%s", getattr(result, "id", "?"))
         return False
 
 

@@ -102,10 +102,29 @@ class ArenaRoom(models.Model):
         return f"Arena: {self.player1} vs {self.player2 or '?'} [{self.get_status_display()}]"
 
     def save(self, *args, **kwargs):
+        # Bounded retry keeps DB uniqueness as the authority; collisions on
+        # random 6-char codes are rare but must not become 500s.
         if not self.room_code:
             import random
             import string
-            self.room_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+            from django.db import IntegrityError, transaction
+
+            last_exc: Exception | None = None
+            for _ in range(5):
+                self.room_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError as exc:
+                    last_exc = exc
+                    continue
+            # Exhausted retries — surface clearly instead of silent duplicate.
+            if last_exc is not None:
+                raise last_exc
+            super().save(*args, **kwargs)
+            return
         super().save(*args, **kwargs)
 
     @property

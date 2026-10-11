@@ -60,6 +60,23 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
     except Test.DoesNotExist:
         return JsonResponse({"error": "Test topilmadi"}, status=404)
 
+    # TMA drives legacy choice/text flows only. New exam types require the
+    # React exam UI — refuse explicitly instead of corrupting the attempt.
+    if test.questions.exclude(
+        question_type__in=(
+            Question.QuestionType.SINGLE_CHOICE,
+            Question.QuestionType.MULTIPLE_CHOICE,
+            Question.QuestionType.TEXT_MATCH,
+        )
+    ).exists():
+        return JsonResponse(
+            {
+                "error": "Bu testda TMA qo'llab-quvvatlamaydigan savol turlari bor.",
+                "code": "unsupported_question_type",
+            },
+            status=400,
+        )
+
     # Check for existing active attempt
     existing = TestAttempt.objects.filter(
         test=test, student=user, status=TestAttempt.Status.IN_PROGRESS,
@@ -170,6 +187,25 @@ def tma_test_answer_view(request, test_id: int) -> JsonResponse:
             student=user,
             test_id=test_id,
         )
+        from apps.tests.models import Question as _Question
+
+        _unsupported = _Question.objects.filter(
+            id=int(question_id), test_id=test_id,
+        ).exclude(
+            question_type__in=(
+                _Question.QuestionType.SINGLE_CHOICE,
+                _Question.QuestionType.MULTIPLE_CHOICE,
+                _Question.QuestionType.TEXT_MATCH,
+            )
+        ).exists()
+        if _unsupported:
+            return JsonResponse(
+                {
+                    "error": "Bu savol turi TMA da qo'llab-quvvatlanmaydi.",
+                    "code": "unsupported_question_type",
+                },
+                status=400,
+            )
         SaveAnswerService.execute(
             attempt_id=attempt.id,
             question_id=int(question_id),
@@ -232,6 +268,23 @@ def tma_test_submit_view(request, test_id: int) -> JsonResponse:
             )
             if attempt.status != TestAttempt.Status.IN_PROGRESS:
                 raise ValueError("Attempt allaqachon yakunlangan")
+
+            from apps.tests.models import Question as _Question2
+
+            if _Question2.objects.filter(test_id=test_id).exclude(
+                question_type__in=(
+                    _Question2.QuestionType.SINGLE_CHOICE,
+                    _Question2.QuestionType.MULTIPLE_CHOICE,
+                    _Question2.QuestionType.TEXT_MATCH,
+                )
+            ).exists():
+                return JsonResponse(
+                    {
+                        "error": "Bu testda TMA qo'llab-quvvatlamaydigan savol turlari bor.",
+                        "code": "unsupported_question_type",
+                    },
+                    status=400,
+                )
 
             for q_id_str, c_ids in answers.items():
                 q_id = int(q_id_str)
@@ -320,6 +373,10 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
     if not result:
         return JsonResponse({"error": "Natija hali tayyor emas"}, status=404)
 
+    # Keep feedback consistent with the instructor's result-release setting.
+    # This endpoint is for the taking student, never a staff review surface.
+    reveal_answers = attempt.test.show_results_immediately
+
     # Get question details
     questions = attempt.test.questions.prefetch_related("choices").order_by("position")
     question_details = []
@@ -338,14 +395,14 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
             choices.append({
                 "id": c.id,
                 "text": c.text,
-                "is_correct": c.is_correct,
+                **({"is_correct": c.is_correct} if reveal_answers else {}),
             })
 
         question_details.append({
             "question_text": q.text,
             "question_type": q.question_type,
             "points": q.points,
-            "is_correct": is_correct,
+            **({"is_correct": is_correct} if reveal_answers else {}),
             "choices": choices,
             "selected_ids": list(selected_ids),
         })
