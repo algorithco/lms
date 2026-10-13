@@ -45,10 +45,14 @@ class Command(BaseCommand):
         token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
 
         if not token:
-            raise CommandError(
-                "TELEGRAM_BOT_TOKEN sozlanmagan!\n"
-                ".env fayliga qo'shing yoki settings.py da o'rnating."
+            self.stdout.write(
+                self.style.WARNING(
+                    "TELEGRAM_BOT_TOKEN sozlanmagan! Bot nofaol holatda kutmoqda (kutish rejimi)..."
+                )
             )
+            import time
+            while True:
+                time.sleep(3600)
 
         self.stdout.write(self.style.SUCCESS(f"Bot token topildi: ...{token[-8:]}"))
 
