@@ -2834,13 +2834,10 @@ def notify_student_essay_graded(submission) -> None:
         text += f"\n{status_line}\n\n"
         text += f"🔗 Batafsil: /essays/result/{submission.id}/"
 
-        sent = TelegramService._send_message(
+        sent = TelegramService.send_essay_graded(
             chat_id=chat_id,
-            text=text,
-            parse_mode="Markdown",
-            notification_type="essay_graded",
+            submission=submission,
             recipient=student,
-            title=f"Esse baholandi: {topic_title}",
         )
         if not sent.get("success"):
             logger.warning(

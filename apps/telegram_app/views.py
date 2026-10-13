@@ -791,3 +791,86 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     if submission.status == EssaySubmission.Status.PENDING:
         response["poll_after"] = 3
     return Response(response)
+
+
+# -----------------------------------------------------------------------
+# TMA Certificates List (API)
+# -----------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def tma_certificates_view(request: Request) -> Response:
+    """GET /api/telegram/certificates/ — User's earned certificates."""
+    from apps.results.models import Certificate
+    from apps.certificates.services.generation import generate_certificate
+
+    certs = (
+        Certificate.objects.filter(student=request.user)
+        .select_related("result__test", "result__course")
+        .order_by("-issued_at")[:20]
+    )
+
+    data = []
+    for c in certs:
+        if not c.file and c.result:
+            try:
+                generate_certificate(c.result)
+                c.refresh_from_db()
+            except Exception:
+                pass
+
+        title = c.result.course.title if (c.result and c.result.course) else (
+            c.result.test.title if (c.result and c.result.test) else "Kurs"
+        )
+        data.append({
+            "id": c.id,
+            "certificate_number": c.certificate_number,
+            "title": title,
+            "issued_at": c.issued_at.isoformat() if c.issued_at else None,
+            "download_url": c.file.url if c.file else None,
+            "score": float(c.result.score) if c.result and c.result.score is not None else None,
+            "percentage": float(c.result.percentage) if c.result and c.result.percentage is not None else None,
+        })
+
+    return Response({"certificates": data})
+
+
+# -----------------------------------------------------------------------
+# TMA My Plan / Entitlements (API)
+# -----------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def tma_myplan_view(request: Request) -> Response:
+    """GET /api/telegram/myplan/ — User's active subscription and limits."""
+    from apps.payments.entitlements import get_effective_entitlement
+
+    entitlement = get_effective_entitlement(request.user)
+    return Response({
+        "plan_name": entitlement.plan_name,
+        "source": entitlement.source,
+        "is_sponsored": entitlement.is_sponsored,
+        "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+    })
+
+
+# -----------------------------------------------------------------------
+# TMA My Tuition / Invoices (API)
+# -----------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def tma_mytuition_view(request: Request) -> Response:
+    """GET /api/telegram/mytuition/ — User's tuition and invoice status."""
+    from apps.tuition.services import children_tuition_overview, student_tuition_overview
+
+    user = request.user
+    if user.role == "parent":
+        rows = [{**child, "is_child": True} for child in children_tuition_overview(user)]
+    elif user.role == "student":
+        rows = [{**student_tuition_overview(user, limit=12), "is_child": False}]
+    else:
+        rows = []
+
+    return Response({"tuition": rows})
+

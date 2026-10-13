@@ -35,4 +35,9 @@ urlpatterns = [
     path("api/essays/<int:topic_id>/start/", views.tma_essay_start_view, name="essay-start"),
     path("api/essays/<int:submission_id>/submit/", views.tma_essay_submit_view, name="essay-submit"),
     path("api/essays/<int:submission_id>/result/", views.tma_essay_result_view, name="essay-result"),
+
+    # API — Certificates, Plan & Tuition
+    path("api/certificates/", views.tma_certificates_view, name="certificates"),
+    path("api/myplan/", views.tma_myplan_view, name="myplan"),
+    path("api/mytuition/", views.tma_mytuition_view, name="mytuition"),
 ]
