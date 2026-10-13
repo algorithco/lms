@@ -6,6 +6,7 @@ import { useLang } from '../i18n/LangContext';
 import { TelegramAuth, landingFor } from '../lib/api';
 import { ArrowLeftIcon } from '../components/icons';
 import Particles from '../components/Particles';
+import SEO from '../components/SEO';
 
 type TgPhase = 'idle' | 'waiting' | 'code' | 'done';
 
@@ -156,6 +157,11 @@ export default function Login() {
 
   return (
     <div className="auth-wrap" style={{ position: 'relative', overflow: 'hidden' }}>
+      <SEO
+        title={t('login_title')}
+        description={t('login_subtitle')}
+        canonical="/login"
+      />
       <div
         aria-hidden="true"
         style={{

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   Area,
@@ -19,15 +19,28 @@ export interface TrendPoint {
   essays: number;
 }
 
-const SERIES: { key: keyof Omit<TrendPoint, 'date'>; name: string; color: string; fill: boolean }[] = [
-  { key: 'attempts', name: 'Urinishlar', color: '#FACC15', fill: true },
-  { key: 'avg', name: "O'rtacha %", color: '#22D3EE', fill: false },
-  { key: 'certs', name: 'Sertifikatlar', color: '#A78BFA', fill: false },
-  { key: 'students', name: "O'quvchilar", color: '#F8FAFC', fill: false },
-  { key: 'essays', name: 'Esselar', color: '#FB923C', fill: false },
+export interface TrendLabels {
+  attempts?: string;
+  avg?: string;
+  certs?: string;
+  students?: string;
+  essays?: string;
+}
+
+const SERIES_CONFIG: {
+  key: keyof Omit<TrendPoint, 'date'>;
+  name: string;
+  color: string;
+  gradientId: string;
+}[] = [
+  { key: 'attempts', name: 'Urinishlar', color: '#F59E0B', gradientId: 'gradAttempts' },
+  { key: 'avg', name: "O'rtacha ball %", color: '#10B981', gradientId: 'gradAvg' },
+  { key: 'certs', name: 'Sertifikatlar', color: '#8B5CF6', gradientId: 'gradCerts' },
+  { key: 'students', name: "O'quvchilar", color: '#38BDF8', gradientId: 'gradStudents' },
+  { key: 'essays', name: 'AI Esselar', color: '#F43F5E', gradientId: 'gradEssays' },
 ];
 
-function DarkTooltip({
+function ModernTooltip({
   active,
   payload,
   label,
@@ -39,7 +52,7 @@ function DarkTooltip({
   focus?: string | null;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  // Dedupe by series (hit-areas share dataKeys) then apply hover focus.
+
   const seen = new Set<string>();
   const unique = payload.filter((p) => {
     const k = String(p.dataKey);
@@ -47,49 +60,89 @@ function DarkTooltip({
     seen.add(k);
     return true;
   });
+
   const rows = focus ? unique.filter((p) => String(p.dataKey) === focus) : unique;
   if (rows.length === 0) return null;
+
   const date = label ? new Date(label) : null;
   const title =
     date && !Number.isNaN(date.getTime())
-      ? date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+      ? date.toLocaleDateString('uz-UZ', { month: 'long', year: 'numeric' })
       : String(label ?? '');
+
   return (
     <div
       style={{
-        background: '#111111',
-        border: '1px solid #2b2b2b',
-        borderRadius: 12,
-        padding: '10px 14px',
+        background: 'rgba(15, 23, 42, 0.92)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(148, 163, 184, 0.18)',
+        boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) inset',
+        borderRadius: 14,
+        padding: '12px 16px',
         fontSize: 12,
+        minWidth: 180,
       }}
     >
-      <p style={{ margin: '0 0 6px', color: '#b8b8b8', fontWeight: 700 }}>{title}</p>
-      {rows.map((p) => (
-        <p key={p.name} style={{ margin: '2px 0', color: '#ffffff' }}>
-          <span
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
+          paddingBottom: 6,
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ color: '#94a3b8', fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }}>
+          {title}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 800,
+            padding: '2px 6px',
+            borderRadius: 6,
+            background: 'rgba(245, 158, 11, 0.12)',
+            color: '#F59E0B',
+          }}
+        >
+          LMS Live
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {rows.map((p) => (
+          <div
+            key={String(p.dataKey)}
             style={{
-              display: 'inline-block',
-              width: 8,
-              height: 8,
-              borderRadius: 999,
-              background: p.color ?? '#FACC15',
-              marginRight: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
             }}
-          />
-          {p.name}: <b>{Number(p.value).toLocaleString()}</b>
-        </p>
-      ))}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#e2e8f0' }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: p.color ?? '#F59E0B',
+                  boxShadow: `0 0 8px ${p.color ?? '#F59E0B'}`,
+                }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 500 }}>{p.name}</span>
+            </span>
+            <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+              {Number(p.value).toLocaleString()}
+              {String(p.dataKey) === 'avg' ? '%' : ''}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
-}
-
-export interface TrendLabels {
-  attempts?: string;
-  avg?: string;
-  certs?: string;
-  students?: string;
-  essays?: string;
 }
 
 export default function TrendChart({
@@ -101,29 +154,40 @@ export default function TrendChart({
   labels?: TrendLabels;
   emptyText?: string;
 }) {
-  const series = SERIES.map((s) => ({
-    ...s,
-    name: labels?.[s.key] ?? s.name,
-  }));
-  // Hovered series stays vivid, the rest fade — tooltip follows the focus.
-  const [focus, setFocus] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState<'6m' | '12m'>('12m');
+  const [activeMetric, setActiveMetric] = useState<string | null>(null);
+  const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
+
+  const series = useMemo(
+    () =>
+      SERIES_CONFIG.map((s) => ({
+        ...s,
+        name: labels?.[s.key] ?? s.name,
+      })),
+    [labels],
+  );
+
+  const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (selectedRange === '6m') {
+      return data.slice(-6);
+    }
+    return data;
+  }, [data, selectedRange]);
+
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef(0);
 
-  // Nearest-line hover: stacked fat hit-areas blanket each other (topmost
-  // always wins), so instead measure the real cursor distance to each
-  // rendered curve and focus the closest one within threshold.
-  const handleMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (activeMetric) return; // If pinned, don't auto-switch
     const wrap = wrapRef.current;
     if (!wrap) return;
     const { clientX, clientY } = e;
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      const curves = wrap.querySelectorAll<SVGGeometryElement>(
-        '.recharts-area-curve',
-      );
+      const curves = wrap.querySelectorAll<SVGGeometryElement>('.recharts-area-curve');
       let best: string | null = null;
-      let bestD = 40; // px — outside this, show everything
+      let bestD = 40;
       curves.forEach((path) => {
         const ctm = path.getScreenCTM();
         if (!ctm) return;
@@ -145,88 +209,205 @@ export default function TrendChart({
           }
         }
       });
-      setFocus((prev) => (prev === best ? prev : best));
+      setHoveredMetric(best);
     });
   };
 
-  const handleLeave = () => {
+  const handleMouseLeave = () => {
     cancelAnimationFrame(rafRef.current);
-    setFocus(null);
+    setHoveredMetric(null);
   };
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   if (!data || data.length === 0) {
-    return <p className="muted">{emptyText ?? '—'}</p>;
+    return <p className="land-muted" style={{ textAlign: 'center', padding: '2rem' }}>{emptyText ?? 'Maʼlumot mavjud emas'}</p>;
   }
 
+  const effectiveFocus = activeMetric || hoveredMetric;
+
   return (
-    <div style={{ width: '100%' }}>
+    <div
+      role="region"
+      aria-label="Platforma o'sishi ko'rsatkichlari grafigi"
+      style={{
+        width: '100%',
+        background: 'rgba(15, 23, 42, 0.72)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(148, 163, 184, 0.12)',
+        borderRadius: 20,
+        padding: '20px 20px 16px',
+        boxShadow: '0 20px 48px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+      }}
+    >
       <style>{`
         .trend-area .recharts-area-curve,
         .trend-area .recharts-area-area {
-          transition: opacity 0.3s ease, stroke-opacity 0.3s ease, fill-opacity 0.3s ease;
+          transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), stroke-opacity 0.3s ease, fill-opacity 0.3s ease;
+        }
+        .metric-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          min-height: 44px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          background: rgba(30, 41, 59, 0.4);
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          color: #94a3b8;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .metric-pill:hover {
+          background: rgba(30, 41, 59, 0.8);
+          color: #f8fafc;
+          border-color: rgba(148, 163, 184, 0.25);
+        }
+        .metric-pill.is-active {
+          background: rgba(245, 158, 11, 0.15);
+          border-color: rgba(245, 158, 11, 0.5);
+          color: #f8fafc;
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+        }
+        .range-toggle-btn {
+          padding: 4px 10px;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          color: #94a3b8;
+          transition: all 0.2s ease;
+        }
+        .range-toggle-btn.active {
+          background: rgba(245, 158, 11, 0.2);
+          color: #F59E0B;
         }
       `}</style>
+
+      {/* Header controls: Metric selector & Time range */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '8px 16px',
-          justifyContent: 'center',
-          marginBottom: 8,
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#b8b8b8',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 16,
+          paddingBottom: 14,
+          borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
         }}
       >
-        {series.map((s) => (
-          <span
-            key={s.key}
-            onMouseEnter={() => setFocus(s.key)}
-            onMouseLeave={() => setFocus(null)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              cursor: 'default',
-              opacity: !focus || focus === s.key ? 1 : 0.35,
-              transition: 'opacity 0.3s ease',
-            }}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <button
+            type="button"
+            className={`metric-pill ${activeMetric === null ? 'is-active' : ''}`}
+            onClick={() => setActiveMetric(null)}
+            aria-label="Barcha metrikalarni ko'rsatish"
           >
-            <span
-              style={{
-                width: 18,
-                height: 3,
-                borderRadius: 999,
-                background: s.color,
-                display: 'inline-block',
-              }}
-            />
-            {s.name}
-          </span>
-        ))}
+            <span>Barchasi</span>
+          </button>
+          {series.map((s) => {
+            const isSelected = activeMetric === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                className={`metric-pill ${isSelected ? 'is-active' : ''}`}
+                onClick={() => setActiveMetric(isSelected ? null : s.key)}
+                onMouseEnter={() => !activeMetric && setHoveredMetric(s.key)}
+                onMouseLeave={() => !activeMetric && setHoveredMetric(null)}
+                aria-label={`${s.name} bo'yicha filtrlash`}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    background: s.color,
+                    boxShadow: isSelected ? `0 0 8px ${s.color}` : 'none',
+                  }}
+                />
+                <span>{s.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Range switcher */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: 3,
+            borderRadius: 10,
+            background: 'rgba(30, 41, 59, 0.6)',
+            border: '1px solid rgba(148, 163, 184, 0.12)',
+          }}
+        >
+          <button
+            type="button"
+            className={`range-toggle-btn ${selectedRange === '6m' ? 'active' : ''}`}
+            onClick={() => setSelectedRange('6m')}
+            aria-label="So'nggi 6 oylik ma'lumotlar"
+          >
+            6 oy
+          </button>
+          <button
+            type="button"
+            className={`range-toggle-btn ${selectedRange === '12m' ? 'active' : ''}`}
+            onClick={() => setSelectedRange('12m')}
+            aria-label="So'nggi 12 oylik ma'lumotlar"
+          >
+            12 oy
+          </button>
+        </div>
       </div>
+
+      {/* Chart Canvas */}
       <div
-        style={{ width: '100%', height: 'clamp(340px, 42vw, 480px)' }}
+        style={{ width: '100%', height: 'clamp(320px, 38vw, 440px)' }}
         ref={wrapRef}
-        onMouseMove={handleMove}
-        onMouseLeave={handleLeave}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={data}
-            margin={{ left: 4, right: 8, top: 12, bottom: 4 }}
+            data={filteredData}
+            margin={{ left: 0, right: 10, top: 12, bottom: 4 }}
             className="trend-area"
           >
             <defs>
-              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FACC15" stopOpacity={0.55} />
-                <stop offset="95%" stopColor="#FACC15" stopOpacity={0} />
+              <linearGradient id="gradAttempts" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradAvg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradCerts" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradStudents" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradEssays" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid vertical={false} stroke="#2b2b2b" strokeOpacity={0.6} />
+            <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.08)" strokeDasharray="3 3" />
 
             <XAxis
               dataKey="date"
@@ -234,29 +415,31 @@ export default function TrendChart({
               tickLine={false}
               tickMargin={12}
               interval="preserveStartEnd"
-              tickFormatter={(value: string) =>
-                new Date(value).toLocaleDateString(undefined, { month: 'short' })
-              }
-              tick={{ fill: '#b8b8b8', fontSize: 12 }}
-              padding={{ left: 10, right: 10 }}
+              tickFormatter={(value: string) => {
+                const d = new Date(value);
+                return d.toLocaleDateString('uz-UZ', { month: 'short' });
+              }}
+              tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
+              padding={{ left: 12, right: 12 }}
             />
 
             <YAxis
               axisLine={false}
               tickLine={false}
               interval="preserveStartEnd"
-              tick={{ fill: '#b8b8b8', fontSize: 12 }}
+              tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
               tickFormatter={(value: number) => Number(value).toLocaleString()}
-              width={44}
+              width={42}
             />
 
             <Tooltip
-              content={<DarkTooltip focus={focus} />}
-              cursor={{ stroke: '#EAB308', strokeWidth: 1 }}
+              content={<ModernTooltip focus={effectiveFocus} />}
+              cursor={{ stroke: 'rgba(245, 158, 11, 0.4)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
             />
 
             {series.map((s) => {
-              const dim = focus !== null && focus !== s.key;
+              const isDim = effectiveFocus !== null && effectiveFocus !== s.key;
+              const isHighlighted = effectiveFocus === s.key;
               return (
                 <Area
                   key={s.key}
@@ -264,13 +447,18 @@ export default function TrendChart({
                   name={s.name}
                   type="monotone"
                   stroke={s.color}
-                  strokeWidth={2.5}
-                  strokeOpacity={dim ? 0.12 : 1}
-                  fill={s.fill ? 'url(#trendFill)' : 'none'}
-                  fillOpacity={s.fill ? (dim ? 0.04 : 0.35) : 0}
-                  activeDot={{ r: 4, fill: '#111111', stroke: s.color, strokeWidth: 2 }}
+                  strokeWidth={isHighlighted ? 3 : 2}
+                  strokeOpacity={isDim ? 0.12 : 1}
+                  fill={`url(#${s.gradientId})`}
+                  fillOpacity={isDim ? 0.02 : isHighlighted ? 0.45 : 0.22}
+                  activeDot={{
+                    r: 5,
+                    fill: '#090d16',
+                    stroke: s.color,
+                    strokeWidth: 2.5,
+                  }}
                   dot={false}
-                  animationDuration={1400}
+                  animationDuration={1000}
                   animationEasing="ease-out"
                 />
               );

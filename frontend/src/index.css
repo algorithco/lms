@@ -1,23 +1,56 @@
-/* LMS React — yellow & black theme. */
+/* LMS React — Modern Linear / Raycast Style Slate, Amber & Emerald Palette. */
 :root {
-  --bg: #0a0a0a;
-  --card: #141414;
-  --card-2: #0e0e0e;
-  --border: #2b2b2b;
-  --ink: #ffffff;
-  --ink-soft: #f2f2f2;
-  --muted: #b8b8b8;
-  --accent: #facc15;
-  --accent-dark: #fde047;
-  --accent-deep: #a16207;
-  --danger: #f87171;
-  --sidebar-bg: linear-gradient(180deg, #0a0a0a, #141414);
-  --radius: 1rem;
-  --font: Inter, system-ui, -apple-system, sans-serif;
+  --bg: #090d16;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #0f172a 0%, #090d16 100%);
+  --card: #0f172a;
+  --card-surface: rgba(15, 23, 42, 0.75);
+  --card-2: #1e293b;
+  --border: rgba(148, 163, 184, 0.12);
+  --border-focus: #f59e0b;
+  --ink: #f8fafc;
+  --ink-soft: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #f59e0b;
+  --accent-dark: #fbbf24;
+  --accent-deep: #d97706;
+  --emerald: #10b981;
+  --emerald-light: #34d399;
+  --danger: #f43f5e;
+  --sidebar-bg: linear-gradient(180deg, #090d16, #0f172a);
+  --radius: 0.875rem;
+  --font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+
+/* Accessible keyboard focus visible rings (WCAG 2.1 AA) */
+:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Accessibility: Skip Link */
+.skip-link {
+  position: absolute;
+  top: -120px;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: #f59e0b;
+  color: #090d16;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: top 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.skip-link:focus {
+  top: 1rem;
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
 
 html,
 body {
@@ -32,7 +65,7 @@ html {
 
 /* Fixed navbars (landing + app topbar) must not cover section tops. */
 section[id] {
-  scroll-margin-top: 76px;
+  scroll-margin-top: 80px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -84,10 +117,11 @@ body {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 50;
   width: 100%;
-  background: rgba(10, 10, 10, 0.88);
-  backdrop-filter: blur(12px);
+  background: rgba(9, 13, 22, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
 }
 

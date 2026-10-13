@@ -62,15 +62,15 @@ export default function Layout() {
 
   return (
     <div className="app">
-      <aside className={`sidebar${open ? ' open' : ''}`}>
-        <Link to="/" className="side-brand" onClick={close}>
+      <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Yon boshqaruv menyusi">
+        <Link to="/" className="side-brand" onClick={close} aria-label="GRANDEC LMS Bosh sahifasi">
           <img src="/grandec.png" alt="GRANDEC" className="brand-badge" />
           <span>
             <span className="side-brand-name">GRANDEC</span>
             <span className="side-brand-sub">LMS Platform</span>
           </span>
         </Link>
-        <nav className="side-nav">
+        <nav className="side-nav" aria-label="Ilova bo'limlari">
           <Section title={t('main')}>
             <NavLink to="/dashboard" className={linkClass} onClick={close}><LayoutDashboardIcon size={16} className="ico" /> {t('dashboard')}</NavLink>
             <NavLink to="/tests" className={linkClass} onClick={close}><FileTextIcon size={16} className="ico" /> {t('tests')}</NavLink>
@@ -119,21 +119,26 @@ export default function Layout() {
             <strong>{user?.full_name}</strong>
             <small>{user?.role}</small>
           </span>
-          <button className="btn ghost sm" onClick={onLogout} title={t('logout')}><LogOutIcon size={14} className="ico" /></button>
+          <button className="btn ghost sm" onClick={onLogout} title={t('logout')} aria-label={t('logout')}><LogOutIcon size={14} className="ico" /></button>
         </div>
       </aside>
-      {open && <div className="overlay" onClick={close} />}
+      {open && <div className="overlay" onClick={close} aria-hidden="true" />}
 
       <div className="main">
-        <header className="topbar app-topbar">
+        <header className="topbar app-topbar" aria-label="Yuqori panel">
           <div className="topbar-inner">
-            <button className="hamburger always" aria-label="Menu" onClick={() => setOpen((v) => !v)}>
+            <button
+              className="hamburger always"
+              aria-label={open ? "Menyuni yopish" : "Menyuni ochish"}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
               {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
             </button>
             <div className="spacer" />
             {showLangSwitch && <LanguageSwitcher />}
             {user && <span className={`role role-${user.role}`}>{user.role}</span>}
-            <button className="btn ghost sm" onClick={onLogout}>{t('logout')}</button>
+            <button className="btn ghost sm" onClick={onLogout} aria-label={t('logout')}>{t('logout')}</button>
           </div>
         </header>
         <main className="content">

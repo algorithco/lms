@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { landingFor } from '../lib/api';
+import SEO from '../components/SEO';
 
 export default function Register() {
   const { register, error } = useAuth();
@@ -38,6 +39,11 @@ export default function Register() {
 
   return (
     <div className="auth-wrap">
+      <SEO
+        title={t('register_title')}
+        description={t('register_subtitle')}
+        canonical="/register"
+      />
       <div className="auth-card">
         <img src="/grandec.png" alt="GRANDEC" className="auth-logo" />
         <h1>{t('register')}</h1>

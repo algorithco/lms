@@ -1,0 +1,9 @@
+# robots.txt for grandec.uz
+User-agent: *
+Allow: /
+Disallow: /panel/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /tma/
+
+Sitemap: https://grandec.uz/sitemap.xml

@@ -234,7 +234,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         reply_markup=_persistent_menu_keyboard(),
     )
     await update.message.reply_text(
-        "Boshqaruv paneli:",
+        "🎓 *Ona Tili & Adabiyot* — Boshqaruv paneli:",
+        parse_mode="Markdown",
         reply_markup=_main_menu_keyboard(),
     )
 
