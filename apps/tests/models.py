@@ -41,6 +41,8 @@ class Test(models.Model):
     `pass_percentage`     — minimum % to pass (used for certificate eligibility).
     """
 
+    __test__ = False
+
     class Difficulty(models.TextChoices):
         EASY = "easy", _("Oson")
         MEDIUM = "medium", _("O'rta")
@@ -424,6 +426,8 @@ class TestAttempt(models.Model):
 
     `started_at` / `completed_at` let us enforce `time_limit_minutes`.
     """
+
+    __test__ = False
 
     class Status(models.TextChoices):
         IN_PROGRESS = "in_progress", _("Davom etmoqda")

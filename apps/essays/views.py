@@ -638,6 +638,19 @@ def essay_improve_view(request: HttpRequest, submission_id: int) -> HttpResponse
 # Student: Request Teacher Review
 # ---------------------------------------------------------------------------
 
+def _render_review_result(request: HttpRequest, context: dict, status: int = 200) -> HttpResponse:
+    from django.template import TemplateDoesNotExist
+    try:
+        return render(request, "essays/review_request_partial.html", context, status=status)
+    except TemplateDoesNotExist:
+        return JsonResponse({
+            "ok": context.get("success", True),
+            "success": context.get("success", True),
+            "error": context.get("error"),
+            "submission_id": context.get("submission").id if context.get("submission") else None,
+        }, status=status)
+
+
 @login_required
 @require_POST
 def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpResponse:
@@ -648,15 +661,25 @@ def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpR
         student=request.user,
     )
 
+    reason = request.POST.get("reason", "")
+    if not reason and request.body:
+        try:
+            import json as _json
+            data = _json.loads(request.body)
+            if isinstance(data, dict):
+                reason = data.get("reason", "")
+        except Exception:
+            pass
+
     try:
         TeacherReviewService.request_teacher_review(
-            submission, request.user, request.POST.get("reason", ""),
+            submission, request.user, reason,
         )
     except ValueError as e:
-        return render(request, "essays/review_request_partial.html", {
+        return _render_review_result(request, {
             "success": False,
             "error": str(e),
-        })
+        }, status=400)
 
     submission.refresh_from_db()
 
@@ -665,7 +688,7 @@ def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpR
         submission.id, submission.teacher_review_reason[:100] if submission.teacher_review_reason else "",
     )
 
-    return render(request, "essays/review_request_partial.html", {
+    return _render_review_result(request, {
         "success": True,
         "submission": submission,
     })

@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { ensureSession, landingFor } from '../lib/api';
+import { landingFor } from '../lib/api';
 
 export default function Register() {
   const { register, error } = useAuth();
@@ -28,7 +28,6 @@ export default function Register() {
     setBusy(true);
     try {
       const user = await register(form);
-      ensureSession(form.email, form.password).catch(() => false);
       navigate(landingFor(user));
     } catch {
       /* error shown from context */

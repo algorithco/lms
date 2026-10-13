@@ -20,13 +20,46 @@ from django.shortcuts import redirect
 def serve_spa_shell(request: HttpRequest, fallback: str = "/", resource: str = "") -> HttpResponse:
     """GET page → baked SPA shell (or SPA-route redirect when unbaked)."""
     spa_index = Path(settings.BASE_DIR) / "spa" / "index.html"
-    try:
-        html = spa_index.read_text(encoding="utf-8")
-    except OSError:
-        # No baked SPA (e.g. dev bind-mount hides /app/spa — the dev UI
-        # runs on vite :5173 instead). Fall back to the SPA route.
-        query = request.META.get("QUERY_STRING", "")
-        return redirect(f"{fallback}?{query}" if query else fallback)
-    response = HttpResponse(html, content_type="text/html; charset=utf-8")
-    response["Cache-Control"] = "no-cache"
-    return response
+    frontend_dist_index = Path(settings.BASE_DIR) / "frontend" / "dist" / "index.html"
+
+    for candidate in (spa_index, frontend_dist_index):
+        try:
+            html = candidate.read_text(encoding="utf-8")
+            response = HttpResponse(html, content_type="text/html; charset=utf-8")
+            response["Cache-Control"] = "no-cache"
+            return response
+        except OSError:
+            continue
+
+    # No baked SPA on disk.
+    query = request.META.get("QUERY_STRING", "")
+    target = f"{fallback}?{query}" if query else fallback
+
+    # Guard against redirect loop: if redirect target matches request.path, never redirect to self.
+    current_path = request.path
+    if target == current_path or fallback == current_path or target.rstrip("/") == current_path.rstrip("/"):
+        if getattr(settings, "DEBUG", False):
+            vite_url = f"http://localhost:5173{current_path}"
+            if query:
+                vite_url = f"{vite_url}?{query}"
+            return HttpResponse(
+                f"""<!DOCTYPE html>
+<html>
+<head><title>SPA Shell (Dev Mode)</title></head>
+<body style="font-family:system-ui,sans-serif;padding:2rem;text-align:center;line-height:1.5;">
+  <h2>Grandec LMS — Frontend Unbaked</h2>
+  <p>The baked SPA shell (<code>spa/index.html</code> or <code>frontend/dist/index.html</code>) was not found on disk.</p>
+  <p>If running the Vite dev server, navigate to: <a href="{vite_url}">{vite_url}</a></p>
+  <p>Or build the frontend assets: <code>cd frontend &amp;&amp; npm run build</code></p>
+</body>
+</html>""",
+                content_type="text/html; charset=utf-8",
+                status=200,
+            )
+        return HttpResponse(
+            "Service Unavailable: SPA shell not built.",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    return redirect(target)

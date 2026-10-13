@@ -24,22 +24,14 @@ urlpatterns = [
     # -- Password Reset -------------------------------------------------------
     # Kept for URL namespace compatibility; React handles via JSON API.
     path("password-reset/", views.SecurePasswordResetView.as_view(
-        template_name="registration/password_reset.html",
         email_template_name="registration/password_reset_email.txt",
         html_email_template_name="registration/password_reset_email.html",
         subject_template_name="registration/password_reset_subject.txt",
         success_url="/password-reset/done/",
     ), name="password-reset"),
-    path("password-reset/done/", views.PasswordResetDoneView.as_view(
-        template_name="registration/password_reset_done.html",
-    ), name="password-reset-done"),
-    path("password-reset/<uidb64>/<token>/", views.PasswordResetConfirmView.as_view(
-        template_name="registration/password_reset_confirm.html",
-        success_url="/password-reset/complete/",
-    ), name="password-reset-confirm"),
-    path("password-reset/complete/", views.PasswordResetCompleteView.as_view(
-        template_name="registration/password_reset_complete.html",
-    ), name="password-reset-complete"),
+    path("password-reset/done/", views.password_reset_done_view, name="password-reset-done"),
+    path("password-reset/<uidb64>/<token>/", views.password_reset_confirm_view, name="password-reset-confirm"),
+    path("password-reset/complete/", views.password_reset_complete_view, name="password-reset-complete"),
 
     # -- Dashboard ------------------------------------------------------------
     path("dashboard/", views.dashboard_view, name="dashboard"),

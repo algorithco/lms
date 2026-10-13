@@ -3,7 +3,7 @@
 # ============================================================================
 
 # Django core
-Django>=6.1.1,<6.2
+Django>=5.2,<5.3
 
 # Database
 psycopg2-binary>=2.9.13,<3.0          # PostgreSQL adapter

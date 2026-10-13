@@ -3,7 +3,9 @@ Mirrors apps/essays/views.py teacher_*_view queries (same authorization).
 """
 from __future__ import annotations
 
-from django.core.exceptions import PermissionDenied
+import logging
+
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
@@ -13,6 +15,8 @@ from rest_framework.response import Response
 from apps.accounts.access import is_platform_admin
 from apps.essays.models import EssayCriterionScore, EssaySubmission
 from apps.essays.services import TeacherReviewService, WordCounter, can_review_submission
+
+logger = logging.getLogger(__name__)
 
 
 def _require_teacher(user) -> None:
@@ -195,3 +199,76 @@ def teacher_edit_submission_view(request, submission_id: int):
         **_submission_card(submission),
         "essay_text": submission.essay_text,
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def student_improve_view(request, submission_id: int):
+    """AI yaxshilangan esse versiyasini qaytarish (yoki yaratish)."""
+    submission = get_object_or_404(
+        EssaySubmission.objects.select_related("student", "topic"),
+        id=submission_id,
+        student=request.user,
+    )
+    if submission.status not in (
+        EssaySubmission.Status.GRADED,
+        EssaySubmission.Status.AI_EVALUATED,
+        EssaySubmission.Status.TEACHER_REVIEWED,
+    ):
+        return Response(
+            {"ok": False, "error": "Esse hali baholanmagan — yaxshilash mumkin emas."},
+            status=400,
+        )
+
+    from apps.essays.services import generate_improved_essay
+
+    try:
+        content = generate_improved_essay(submission)
+    except ImproperlyConfigured as e:
+        return Response({"ok": False, "error": str(e)}, status=503)
+    except ValueError as e:
+        return Response({"ok": False, "error": str(e)}, status=502)
+    except Exception:
+        logger.exception("Unexpected improve error: submission=%s", submission_id)
+        return Response(
+            {"ok": False, "error": "Kutilmagan xatolik. Qayta urinib ko'ring."},
+            status=500,
+        )
+
+    return Response({
+        "ok": True,
+        "improved": bool(getattr(submission, "_improved_fresh", False)),
+        "content": content,
+        "word_count": WordCounter.count(content),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def student_request_review_view(request, submission_id: int):
+    """Ustoz tekshiruvini so'rash."""
+    submission = get_object_or_404(
+        EssaySubmission,
+        id=submission_id,
+        student=request.user,
+    )
+    reason = str(request.data.get("reason", "") if hasattr(request, "data") else "").strip()
+    try:
+        TeacherReviewService.request_teacher_review(
+            submission, request.user, reason,
+        )
+    except ValueError as e:
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+    submission.refresh_from_db()
+    logger.info(
+        "Teacher review requested: submission=%d, reason=%s",
+        submission.id,
+        submission.teacher_review_reason[:100] if submission.teacher_review_reason else "",
+    )
+    return Response({
+        "ok": True,
+        "submission_id": submission.id,
+        "status": submission.status,
+    })
+

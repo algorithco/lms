@@ -308,9 +308,11 @@ urlpatterns = [
         views_reports.report_delivery_log_view,
         name="school-weekly-report-retry-failed",
     ),
-    # -- Essays teacher review -------------------------------------------
+    # -- Essays teacher review & student actions -------------------------
     path("essays/teacher/queue/", views_essays.teacher_queue_view, name="essays-teacher-queue"),
     path("essays/teacher/<int:submission_id>/", views_essays.teacher_submission_view, name="essays-teacher-detail"),
     path("essays/teacher/<int:submission_id>/review/", views_essays.teacher_submit_review_view, name="essays-teacher-review"),
     path("essays/teacher/<int:submission_id>/edit/", views_essays.teacher_edit_submission_view, name="essays-teacher-edit"),
+    path("essays/<int:submission_id>/improve/", views_essays.student_improve_view, name="essays-student-improve"),
+    path("essays/<int:submission_id>/request-review/", views_essays.student_request_review_view, name="essays-student-request-review"),
 ]

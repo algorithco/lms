@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { ArenaLobby, arenaSocketUrl, ensureSession } from '../lib/api';
+import { ArenaLobby, arenaSocketUrl } from '../lib/api';
 import { SwordsIcon } from '../components/icons';
-import { getCachedPassword } from '../auth/AuthContext';
 import { useAuth } from '../auth/AuthContext';
 
 /**
  * Arena lobby — mirrors GET /tma/api/arena/ (JWT summary: stats +
- * leaderboard + invites) and the session JSON APIs (POST
+ * leaderboard + invites) and the arena JSON APIs (POST
  * /arena/api/rooms/create/, POST /arena/api/rooms/join/, GET
- * /arena/api/stats|leaderboard|invites/ — all need ensureSession() first).
+ * /arena/api/stats|leaderboard|invites/ — all using JWT).
  *
  * Matchmaking parity with templates/arena/lobby.html: quick match opens a
  * WebSocket to /ws/arena/ and sends {type: "join_queue"}; the server answers
@@ -58,7 +57,6 @@ export default function Arena() {
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sessionOk, setSessionOk] = useState<boolean | null>(null);
   const [queue, setQueue] = useState<QueueState>('idle');
   const [queueMsg, setQueueMsg] = useState('');
   const [queuePos, setQueuePos] = useState<number | null>(null);
@@ -68,11 +66,6 @@ export default function Arena() {
     ArenaLobby.summary()
       .then(setSummary)
       .catch(() => setSummary(null));
-    if (user) {
-      ensureSession(user.email, getCachedPassword() ?? '')
-        .then(setSessionOk)
-        .catch(() => setSessionOk(false));
-    }
     return () => {
       try {
         queueWs.current?.close();
@@ -81,20 +74,7 @@ export default function Arena() {
       }
       queueWs.current = null;
     };
-  }, [user]);
-
-  const needSession = async (): Promise<boolean> => {
-    if (sessionOk) return true;
-    if (user) {
-      const ok = await ensureSession(user.email, getCachedPassword() ?? '').catch(
-        () => false,
-      );
-      setSessionOk(ok);
-      if (ok) return true;
-    }
-    setMsg(t('arena_session_needed'));
-    return false;
-  };
+  }, []);
 
   const cancelQueue = () => {
     try {
@@ -108,9 +88,12 @@ export default function Arena() {
     setQueuePos(null);
   };
 
-  /** WS matchmaking (legacy lobby parity): join_queue → match_found. */
+  /** WS matchmaking: join_queue → match_found with JWT token in URL. */
   const quickMatch = async () => {
-    if (!(await needSession())) return;
+    if (!user) {
+      setMsg(t('arena_login_needed'));
+      return;
+    }
     if (queue === 'connecting' || queue === 'waiting') return;
     setMsg(null);
     setQueue('connecting');
@@ -162,7 +145,6 @@ export default function Arena() {
       if (settled) return;
       if (ev.code === 4001) {
         setQueue('idle');
-        setSessionOk(false);
         setMsg(t('arena_login_needed'));
         return;
       }
@@ -173,7 +155,10 @@ export default function Arena() {
   };
 
   const createRoom = async () => {
-    if (!(await needSession())) return;
+    if (!user) {
+      setMsg(t('arena_login_needed'));
+      return;
+    }
     setBusy(true);
     try {
       const r = await ArenaLobby.createRoom();
@@ -186,7 +171,10 @@ export default function Arena() {
   };
 
   const joinRoom = async (raw?: string) => {
-    if (!(await needSession())) return;
+    if (!user) {
+      setMsg(t('arena_login_needed'));
+      return;
+    }
     const value = (raw ?? code).trim().toUpperCase();
     if (!value) return;
     setBusy(true);
@@ -210,7 +198,6 @@ export default function Arena() {
         <SwordsIcon size={24} className="ico" /> {t('arena')}
       </h1>
       <p className="muted">{t('arena_realtime_hint')}</p>
-      {sessionOk === false && <p className="error">{t('arena_session_needed')}</p>}
       {msg && <p className="error">{msg}</p>}
 
       <div className="grid">

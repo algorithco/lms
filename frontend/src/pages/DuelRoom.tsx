@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { arenaSocketUrl, ensureSession } from '../lib/api';
-import { getCachedPassword, useAuth } from '../auth/AuthContext';
+import { arenaSocketUrl } from '../lib/api';
+import { useAuth } from '../auth/AuthContext';
 import { FlameIcon, SwordsIcon, TrophyIcon } from '../components/icons';
 import {
   arenaOpponentRows,
@@ -15,9 +15,8 @@ import type { ArenaScoreRow } from '../lib/essays-arena';
 /**
  * Duel room — real-time 1v1 quiz duel over Django Channels.
  *
- * Auth: the WS consumer uses AuthMiddlewareStack (session cookie only —
- * JWT cannot authenticate a WebSocket), so ensureSession() runs BEFORE the
- * socket is opened; close code 4001 means "not logged in".
+ * Auth: the WS consumer authenticates via SimpleJWT access token in query string
+ * or header; close code 4001 means "not logged in".
  *
  * Protocol (apps/arena/consumers.py + templates/arena/duel_room.html):
  *   → join_room {room_code} · submit_answer {room_code, answer, question_index}
@@ -287,7 +286,7 @@ export default function DuelRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, handleMessage, t]);
 
-  // Session gate: the WS consumer accepts session cookies only.
+  // Connect to the room via JWT WebSocket.
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -295,22 +294,9 @@ export default function DuelRoom() {
       setNotice(t('arena_login_needed'));
       return;
     }
-    let alive = true;
     left.current = false;
-    (async () => {
-      const ok = await ensureSession(user.email, getCachedPassword() ?? '').catch(
-        () => false,
-      );
-      if (!alive) return;
-      if (!ok) {
-        setState('error');
-        setNotice(t('arena_session_needed'));
-        return;
-      }
-      connect();
-    })();
+    connect();
     return () => {
-      alive = false;
       left.current = true;
       clearTimers();
       try {

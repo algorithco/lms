@@ -406,9 +406,8 @@ def import_students_view(request):
 def import_test_view(request):
     from apps.courses.models import Course
 
-    # Phase 4: can_create_test grants access to any course (OR logic: admin OR flag OR owner)
-    can_create_test = bool(getattr(request.user, "can_create_test", False))
-    if is_platform_admin(request.user) or can_create_test:
+    # Courses: platform admin can import into any course; teachers can only import into their own courses.
+    if is_platform_admin(request.user):
         courses = Course.objects.all().order_by("title")
     else:
         courses = Course.objects.filter(teacher=request.user).order_by("title")

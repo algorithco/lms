@@ -7,6 +7,8 @@
  * JWT JSON endpoints stay in lib/api.ts (untouched by this stream).
  */
 
+import { Essays } from './api';
+
 const SESSION_BASE = import.meta.env.VITE_API_URL ?? '';
 
 // ---------------------------------------------------------------------------
@@ -227,22 +229,15 @@ export async function autosaveEssay(
 }
 
 /**
- * Student request for teacher review. The view always answers HTTP 200 with
- * an HTML partial (review_request_partial.html); the error variant contains
- * ❌ while the success variant contains ✅ — used here to detect failure.
- * Fragile by nature; a JSON endpoint would be preferable (see stream notes).
+ * Student request for teacher review via DRF JWT endpoint.
  */
 export async function requestTeacherReview(
   submissionId: number | string,
   reason: string,
 ): Promise<{ ok: boolean }> {
   try {
-    const r = await sessionPostForm(`/essays/${submissionId}/request-review/`, {
-      reason,
-    });
-    if (!r.ok) return { ok: false };
-    if (r.text.includes('\u274C')) return { ok: false };
-    return { ok: true };
+    const r = await Essays.requestReview(submissionId, reason);
+    return { ok: r.ok !== false };
   } catch {
     return { ok: false };
   }

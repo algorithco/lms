@@ -103,23 +103,54 @@ def arena_room_view(request: HttpRequest, room_code: str) -> HttpResponse:
     return serve_spa_shell(request, fallback=f"/arena/{room_code}")
 
 
+import functools
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
+def arena_auth_required(view_func):
+    """
+    Authenticate via SimpleJWT Bearer header or fallback to standard Django session.
+    When authenticated via JWT, CSRF checks are exempted.
+    When accessing with session cookie, standard CSRF & login_required are preserved.
+    """
+    @functools.wraps(view_func)
+    def _wrapped_view(request: HttpRequest, *args, **kwargs):
+        jwt_auth = JWTAuthentication()
+        header = jwt_auth.get_header(request)
+        if header is not None:
+            try:
+                raw_token = jwt_auth.get_raw_token(header)
+                if raw_token is not None:
+                    validated_token = jwt_auth.get_validated_token(raw_token)
+                    user = jwt_auth.get_user(validated_token)
+                    if user and user.is_active:
+                        request.user = user
+                        return csrf_exempt(view_func)(request, *args, **kwargs)
+            except Exception:
+                return JsonResponse({"detail": "Noto'g'ri yoki eskirgan token."}, status=401)
+        return login_required(view_func)(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
 # ---------------------------------------------------------------------------
 # JSON API
 # ---------------------------------------------------------------------------
 
-@login_required
+@arena_auth_required
 def arena_api_leaderboard(request: HttpRequest) -> JsonResponse:
     """GET /arena/api/leaderboard/ — top 50 by ELO."""
     return JsonResponse({"leaderboard": _leaderboard_rows(50)})
 
 
-@login_required
+@arena_auth_required
 def arena_api_stats(request: HttpRequest) -> JsonResponse:
     """GET /arena/api/stats/ — my arena stats."""
     return JsonResponse({"stats": _my_stats(request.user)})
 
 
-@login_required
+@arena_auth_required
 def arena_api_invites(request: HttpRequest) -> JsonResponse:
     """GET /arena/api/invites/ — my pending custom-room invite codes."""
     rooms = (
@@ -142,7 +173,7 @@ def arena_api_invites(request: HttpRequest) -> JsonResponse:
     })
 
 
-@login_required
+@arena_auth_required
 @require_POST
 def arena_api_room_create(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/rooms/create/ — create a custom room with invite code."""
@@ -154,7 +185,7 @@ def arena_api_room_create(request: HttpRequest) -> JsonResponse:
     }, status=201)
 
 
-@login_required
+@arena_auth_required
 @require_POST
 def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/rooms/join/ — join a custom room by invite code."""
@@ -179,7 +210,7 @@ def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     })
 
 
-@login_required
+@arena_auth_required
 @require_POST
 def arena_api_queue(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/queue/ — join matchmaking queue (REST convenience)."""

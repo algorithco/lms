@@ -29,10 +29,6 @@ interface AuthState {
 
 const Ctx = createContext<AuthState | null>(null);
 
-// Last-used password, memory-only (never persisted) — solely so the Django
-// session bridge (arena WS + session JSON) can run same-origin after login.
-let cachedPassword: string | null = null;
-
 /** Public SPA paths where an expired session must NOT force a /login bounce. */
 const PUBLIC_PREFIXES = ['/login', '/register', '/password-reset', '/verify', '/certificates/verify'];
 
@@ -49,10 +45,6 @@ function adoptServerLang(language: unknown): void {
   } catch {
     /* ignore */
   }
-}
-
-export function getCachedPassword(): string | null {
-  return cachedPassword;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -88,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const { user } = await apiLogin(email, password);
-      cachedPassword = password;
       adoptServerLang(user.language);
       setUser(user);
       return user;
@@ -109,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       try {
         const { user } = await apiRegister(payload);
-        cachedPassword = payload.password;
         adoptServerLang(user.language);
         setUser(user);
         return user;
@@ -123,7 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
-    cachedPassword = null;
     setUser(null);
   }, []);
 

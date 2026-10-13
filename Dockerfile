@@ -59,13 +59,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Runtime system libraries:
 #   - libpq5: psycopg2 runtime
-#   - pango/cairo/gdk-pixbuf/shared-mime-info: weasyprint (PDF certificates)
 #   - curl: healthcheck
 #   - tzdata: correct timestamps
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
-        libpango-1.0-0 \
-        libpangocairo-1.0-0 \
         libgdk-pixbuf-2.0-0 \
         libffi8 \
         shared-mime-info \

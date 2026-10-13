@@ -25,7 +25,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.crypto import salted_hmac
 from django.db.models import Avg, Case, Count, F, FloatField, Max, Q, Sum, Value, When
 from django.db.models.functions import Coalesce, ExtractHour
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -45,6 +45,12 @@ logger = logging.getLogger(__name__)
 
 class SecurePasswordResetView(PasswordResetView):
     """Generic reset response, shared rate limits, and trusted email links."""
+
+    def get(self, request, *args, **kwargs):
+        return serve_spa_shell(request, fallback="/password-reset")
+
+    def form_invalid(self, form):
+        return serve_spa_shell(self.request, fallback="/password-reset")
 
     def form_valid(self, form):
         from apps.core.translations import get_user_language
@@ -86,6 +92,18 @@ class SecurePasswordResetView(PasswordResetView):
         return HttpResponseRedirect(self.get_success_url())
 
 
+def password_reset_done_view(request: HttpRequest) -> HttpResponse:
+    return serve_spa_shell(request, fallback="/login")
+
+
+def password_reset_confirm_view(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
+    return serve_spa_shell(request, fallback=f"/password-reset/confirm/{uidb64}/{token}")
+
+
+def password_reset_complete_view(request: HttpRequest) -> HttpResponse:
+    return serve_spa_shell(request, fallback="/login")
+
+
 # ---------------------------------------------------------------------------
 # Auth Views — serve SPA shell for browser compatibility
 # ---------------------------------------------------------------------------
@@ -123,19 +141,19 @@ class RegisterView(View):
 
         # Basic validation
         if not email or not password or not password_confirm:
-            return render(request, "registration/register.html", {
-                "error": _t("incorrect_credentials", _lang),
-            })
+            if request.headers.get("accept") == "application/json":
+                return JsonResponse({"error": _t("incorrect_credentials", _lang)}, status=400)
+            return serve_spa_shell(request, fallback="/register")
 
         if password != password_confirm:
-            return render(request, "registration/register.html", {
-                "error": _t("incorrect_credentials", _lang),
-            })
+            if request.headers.get("accept") == "application/json":
+                return JsonResponse({"error": _t("incorrect_credentials", _lang)}, status=400)
+            return serve_spa_shell(request, fallback="/register")
 
         if User.objects.filter(email__iexact=email).exists():
-            return render(request, "registration/register.html", {
-                "error": _t("incorrect_login", _lang),
-            })
+            if request.headers.get("accept") == "application/json":
+                return JsonResponse({"error": _t("incorrect_login", _lang)}, status=400)
+            return serve_spa_shell(request, fallback="/register")
 
         user = User.objects.create_user(
             email=email,

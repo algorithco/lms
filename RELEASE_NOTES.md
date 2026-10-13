@@ -1,3 +1,44 @@
+# Release v0.73.0 — Security Hardening, Channels JWT Auth & Production Stability
+
+**Date:** 2026-10-13 · **Tag:** `v0.73.0` · **Base:** `v0.72.0`
+
+## 🔐 Security & Authentication Hardening
+
+- **Channels WebSocket JWT Authentication (`apps/arena/middleware.py`):**
+  Added ASGI `JwtAuthMiddleware` supporting token extraction via query string (`?token=<jwt>`) and header (`Authorization: Bearer <jwt>`). WebSockets in Django Channels authenticate natively with SimpleJWT access tokens.
+- **Frontend Password Cache & Session Purge:**
+  Completely eliminated `cachedPassword` from memory and removed all `ensureSession` bridging across `AuthContext.tsx`, `Arena.tsx`, `DuelRoom.tsx`, `EssayResult.tsx`, `Login.tsx`, and `Register.tsx`.
+- **DRF JWT API Migration for Essay Actions:**
+  Added `@api_view(["POST"])` endpoints with SimpleJWT authentication:
+  - `POST /api/v1/essays/<id>/improve/`
+  - `POST /api/v1/essays/<id>/request-review/`
+  Frontend now consumes these via standard JWT `api()`. Legacy views updated to safely return JSON without throwing `TemplateDoesNotExist`.
+- **Nginx Admin Gate Hardening (`deploy/nginx/nginx-ssl.conf`):**
+  On the main public domain `grandec.uz`, `/admin/` now returns HTTP 404. The Django Admin interface is exclusively accessible via `admin.grandec.uz`.
+- **Multi-Tenant Course Boundary in Test Import:**
+  Fixed course filtering in `apps/webapi/views_school.py:import_test_view` so non-admin teachers can only view and import tests into courses they own (`teacher=request.user`).
+
+## 🛠️ Local Development & Bug Fixes
+
+- **SPA Shell Redirect Loop Prevention (`apps/core/spa.py`):**
+  Fixed infinite 302 redirect loops in `serve_spa_shell` when unbaked by checking `frontend/dist/index.html` fallback and returning an informative 200 dev page or 503 instead of self-redirecting.
+- **TemplateDoesNotExist Elimination (`apps/web/views.py`, `apps/web/urls.py`):**
+  Updated `RegisterView` and `SecurePasswordResetView` (along with `done`, `confirm`, and `complete` routes) to serve the SPA shell or JSON without referencing deleted legacy HTML templates.
+- **Dependency & Config Modernization:**
+  - Pinned Django requirement to `Django>=5.2,<5.3` in `requirements/base.txt`.
+  - Removed unused `libpango*` system packages from `Dockerfile`.
+  - Added `__test__ = False` on `Test` and `TestAttempt` models in `apps/tests/models.py` to eliminate all PytestCollectionWarnings.
+
+## 🧪 Quality Assurance
+
+| Check | Result |
+|---|---|
+| `pytest` | **1115 passed**, 2 skipped, 0 failed (100% pass) |
+| `ruff check .` | **All checks passed** |
+| `npm run build` | **Built cleanly in 1.85s** (`tsc -b && vite build`) |
+
+---
+
 # Release v1.2.0 — AI Improved Essay Generator & OpenRouter Resilience
 
 **Date:** 2026-09-09 · **Tag:** `v1.2.0` · **Base:** `v1.1.1`

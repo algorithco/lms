@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { TelegramAuth, ensureSession, landingFor } from '../lib/api';
+import { TelegramAuth, landingFor } from '../lib/api';
 import { ArrowLeftIcon } from '../components/icons';
 import Particles from '../components/Particles';
 
@@ -146,8 +146,6 @@ export default function Login() {
     setBusy(true);
     try {
       const user = await login(email, password);
-      // Best-effort Django session for arena WS + session endpoints.
-      ensureSession(email, password).catch(() => false);
       navigate(landingFor(user));
     } catch {
       /* error shown from context */

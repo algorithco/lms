@@ -327,7 +327,6 @@ export async function logout(): Promise<void> {
     }
   } finally {
     clearTokens();
-    sessionReady = false;
   }
 }
 
@@ -537,9 +536,6 @@ export function getCookie(name: string): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-let sessionReady = false;
-let sessionAttempt: Promise<boolean> | null = null;
-
 /** Probe whether the Django session cookie is currently valid. */
 async function probeSession(): Promise<boolean> {
   try {
@@ -554,34 +550,9 @@ async function probeSession(): Promise<boolean> {
   }
 }
 
-/** Best-effort Django session login. Returns true when session is usable. */
-export function ensureSession(email: string, password: string): Promise<boolean> {
-  if (sessionReady) return Promise.resolve(true);
-  if (sessionAttempt) return sessionAttempt;
-  sessionAttempt = (async () => {
-    try {
-      // Probe-first: the session cookie may already be valid (e.g. after a
-      // page reload where the in-memory password cache is gone).
-      if (await probeSession()) {
-        sessionReady = true;
-        return true;
-      }
-      if (!password) return false;
-      const res = await fetch(`${API_BASE}/api/auth/session/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      sessionReady = res.ok;
-      return sessionReady;
-    } catch {
-      return false;
-    } finally {
-      sessionAttempt = null;
-    }
-  })();
-  return sessionAttempt;
+/** Best-effort Django session login (no-op now that WS and APIs use JWT). */
+export function ensureSession(_email?: string, _password?: string): Promise<boolean> {
+  return Promise.resolve(true);
 }
 
 /** Same-origin session-authenticated fetch (cookies incl. CSRF for POST). */
@@ -626,7 +597,9 @@ export async function sessionApi<T>(
 export function arenaSocketUrl(roomCode?: string): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const base = `${proto}://${window.location.host}/ws/arena/`;
-  return roomCode ? `${base}${roomCode}/` : base;
+  const url = roomCode ? `${base}${roomCode}/` : base;
+  const token = getTokens().access;
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
 
 export interface TelegramAuthStart {
@@ -1484,11 +1457,22 @@ export const Essays = {
       `/tma/api/essays/${submissionId}/result/`,
     ),
   status: (submissionId: number | string) =>
-    sessionApi<EssayGradingProvenance & Record<string, unknown>>(
+    api<EssayGradingProvenance & Record<string, unknown>>(
       `/essays/api/${submissionId}/status/`,
     ),
   improve: (submissionId: number | string) =>
-    sessionApi<Record<string, unknown>>(`/essays/result/${submissionId}/improve/`, { method: 'POST' }),
+    api<{ ok: boolean; content?: string; error?: string; word_count?: number }>(
+      `/api/v1/essays/${submissionId}/improve/`,
+      { method: 'POST' },
+    ),
+  requestReview: (submissionId: number | string, reason?: string) =>
+    api<{ ok: boolean; error?: string; submission_id?: number; status?: string }>(
+      `/api/v1/essays/${submissionId}/request-review/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || '' }),
+      },
+    ),
 };
 
 export interface TeacherEssayCard {
@@ -1553,15 +1537,15 @@ export const TeacherEssays = {
 export const ArenaLobby = {
   // JWT summary (stats + leaderboard + invites) — works without session.
   summary: () => api<Record<string, unknown>>('/tma/api/arena/'),
-  // Session lobby endpoints (need ensureSession first).
-  leaderboard: () => sessionApi<Record<string, unknown>>('/arena/api/leaderboard/'),
-  stats: () => sessionApi<Record<string, unknown>>('/arena/api/stats/'),
-  invites: () => sessionApi<Record<string, unknown>>('/arena/api/invites/'),
-  createRoom: () => sessionApi<{ room_code: string; url?: string }>('/arena/api/rooms/create/', { method: 'POST' }),
+  // Arena endpoints with DRF JWT Bearer authentication.
+  leaderboard: () => api<Record<string, unknown>>('/arena/api/leaderboard/'),
+  stats: () => api<Record<string, unknown>>('/arena/api/stats/'),
+  invites: () => api<Record<string, unknown>>('/arena/api/invites/'),
+  createRoom: () => api<{ room_code: string; url?: string }>('/arena/api/rooms/create/', { method: 'POST' }),
   joinRoom: (code: string) =>
-    sessionApi<{ room_code: string; url?: string }>('/arena/api/rooms/join/', {
+    api<{ room_code: string; url?: string }>('/arena/api/rooms/join/', {
       method: 'POST',
       body: JSON.stringify({ code }),
     }),
-  queue: () => sessionApi<Record<string, unknown>>('/arena/api/queue/', { method: 'POST' }),
+  queue: () => api<Record<string, unknown>>('/arena/api/queue/', { method: 'POST' }),
 };

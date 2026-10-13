@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { Essays, ensureSession } from '../lib/api';
-import { getCachedPassword, useAuth } from '../auth/AuthContext';
+import { Essays } from '../lib/api';
 import {
   countEssayWords,
   isEssayDone,
@@ -20,10 +19,8 @@ import {
  * - pending_teacher → "teacher reviewing" card (terminal, no more polling)
  * - error → error card with retry link
  * - final_score (teacher override) takes visual priority over the AI score
- * - AI improved version via POST /essays/result/<id>/improve/ (session-only
- *   JSON; needs ensureSession() first — no JWT equivalent exists)
- * - teacher-review request via POST /essays/<id>/request-review/
- *   (session-only HTML partial; sent as a form POST, no JWT equivalent)
+ * - AI improved version via POST /api/v1/essays/<id>/improve/ (JWT)
+ * - teacher-review request via POST /api/v1/essays/<id>/request-review/ (JWT)
  */
 
 interface Criterion {
@@ -61,7 +58,6 @@ interface Result {
 export default function EssayResult() {
   const { id = '' } = useParams();
   const { t } = useLang();
-  const { user } = useAuth();
   const [res, setRes] = useState<Result | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -110,19 +106,7 @@ export default function EssayResult() {
     setImprovedBusy(true);
     setImprovedErr(null);
     try {
-      const okSession = user
-        ? await ensureSession(user.email, getCachedPassword() ?? '')
-        : false;
-      if (!okSession) {
-        setImprovedErr(t('essay_session_needed'));
-        setImprovedBusy(false);
-        return;
-      }
-      const r = (await Essays.improve(id)) as {
-        ok: boolean;
-        content?: string;
-        error?: string;
-      };
+      const r = await Essays.improve(id);
       if (r.ok && r.content) {
         setImproved(r.content);
       } else {
@@ -133,8 +117,7 @@ export default function EssayResult() {
     } finally {
       setImprovedBusy(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, improved, improvedBusy, user]);
+  }, [id, improved, improvedBusy, t]);
 
   const toggleImproved = () => {
     const next = !improvedOpen;
@@ -156,17 +139,17 @@ export default function EssayResult() {
   const sendReview = async () => {
     setReviewBusy(true);
     setReviewErr(null);
-    const sessionOk = user
-      ? await ensureSession(user.email, getCachedPassword() ?? '')
-      : false;
-    const r = sessionOk
-      ? await requestTeacherReview(id, reason.trim())
-      : { ok: false };
-    setReviewBusy(false);
-    if (r.ok) {
-      setReviewSent(true);
-    } else {
+    try {
+      const r = await requestTeacherReview(id, reason.trim());
+      if (r.ok) {
+        setReviewSent(true);
+      } else {
+        setReviewErr(t('essay_js_error'));
+      }
+    } catch {
       setReviewErr(t('essay_js_error'));
+    } finally {
+      setReviewBusy(false);
     }
   };
 
