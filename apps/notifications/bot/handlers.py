@@ -135,32 +135,45 @@ async def edit_or_reply(update: Update, text: str, **kwargs):
         return await update.message.reply_text(text, **kwargs)
 
 
+def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
+    """Fixed reply keyboard buttons shown at the bottom of the screen."""
+    return ReplyKeyboardMarkup(
+        [
+            [KeyboardButton("✍️ Esse yozish"), KeyboardButton("🧠 Test / Quiz")],
+            [KeyboardButton("⚔️ Arena (1v1)"), KeyboardButton("📜 Sertifikatlarim")],
+            [KeyboardButton("💳 Mening tarifim"), KeyboardButton("👤 Profil")],
+        ],
+        resize_keyboard=True,
+    )
+
+
 def _main_menu_keyboard() -> InlineKeyboardMarkup:
     """Main menu inline keyboard."""
     from django.conf import settings as _settings
     _site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📝 Testlar", callback_data="menu_tests"),
-            InlineKeyboardButton("✍️ Esse", callback_data="menu_essays"),
+            InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
+            InlineKeyboardButton("🧠 Quiz (Test)", callback_data="menu_quiz"),
+        ],
+        [
+            InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
+            InlineKeyboardButton("📜 Sertifikatlar", callback_data="menu_certificates"),
         ],
         [
             InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
             InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
         ],
         [
+            InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
+            InlineKeyboardButton("📅 Davomat", callback_data="menu_attendance"),
+        ],
+        [
             InlineKeyboardButton("🏆 Reyting", callback_data="menu_leaderboard"),
             InlineKeyboardButton("🔥 Streak", callback_data="menu_streak"),
         ],
         [
-            InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
-            InlineKeyboardButton("📋 Kunlik vazifalar", callback_data="menu_daily"),
-        ],
-        [
-            InlineKeyboardButton("💎 Premium", callback_data="menu_premium"),
-        ],
-        [
-            InlineKeyboardButton("📱 Test topshirish (TMA)", web_app={"url": f"{_site_url}/tma/"}),
+            InlineKeyboardButton("📱 Test topshirish (WebApp)", web_app={"url": f"{_site_url}/tma/"}),
         ],
         [
             InlineKeyboardButton("🌐 Web'da ochish", url=f"{_site_url}/dashboard/"),
@@ -205,17 +218,23 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     welcome = (
         f"Salom, *{user.first_name}*! 👋\n\n"
-        f"🎓 *Ona Tili & Adabiyot* — Ona tili va Adabiyot bo'yicha ta'lim platformasi.\n\n"
+        f"🎓 *Ona Tili & Adabiyot* — Ta'lim platformasining rasmiy boti.\n\n"
         f"Bu yerda:\n"
-        f"• 📝 Testlarni topshirishingiz\n"
-        f"• ✍️ Esse yozishingiz (AI baholaydi)\n"
-        f"• 📊 Natijalaringizni ko'rishingiz mumkin\n\n"
-        f"Quyidagi tugmalardan foydalaning 👇"
+        f"• ✍️ *Esse yozish* (AI baholaydi, takomillashtiradi)\n"
+        f"• 🧠 *Telegram Quiz* va testlar topshirish\n"
+        f"• ⚔️ *Arena 1v1* duellarida bellashish\n"
+        f"• 📜 *Sertifikatlarni* to'g'ridan-to'g'ri PDF yuklab olish\n"
+        f"• 📊 To'lov va davomat monitoringi\n\n"
+        f"Quyidagi menyudan kerakli bo'limni tanlang 👇"
     )
 
     await update.message.reply_text(
         welcome,
         parse_mode="Markdown",
+        reply_markup=_persistent_menu_keyboard(),
+    )
+    await update.message.reply_text(
+        "Boshqaruv paneli:",
         reply_markup=_main_menu_keyboard(),
     )
 
@@ -411,11 +430,36 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
 async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text messages during Telegram auth or essay submission."""
     essay_state = context.user_data.get("bot_essay_state")
-    if essay_state == "awaiting_text":
+    if essay_state in ("awaiting_text", "awaiting_submission"):
         await _handle_bot_essay_text(update, context)
         return
     if essay_state == ESSAY_OCR_EDIT_STATE:
         await _handle_ocr_corrected_text(update, context)
+        return
+
+    # Check for persistent menu button taps
+    raw_text = (getattr(update.message, "text", "") or "").strip()
+    if raw_text in ("✍️ Esse yozish", "✍️ Esse"):
+        await essays_handler(update, context)
+        return
+    elif raw_text in ("🧠 Test / Quiz", "🧠 Quiz", "📝 Testlar"):
+        from apps.notifications.bot.quiz import quiz_handler
+        await quiz_handler(update, context)
+        return
+    elif raw_text in ("⚔️ Arena (1v1)", "⚔️ Arena"):
+        await arena_handler(update, context)
+        return
+    elif raw_text in ("📜 Sertifikatlarim", "📜 Sertifikatlar"):
+        await certificates_handler(update, context)
+        return
+    elif raw_text in ("💳 Mening tarifim", "💳 To'lov", "💳 Tarif"):
+        await myplan_handler(update, context)
+        return
+    elif raw_text in ("👤 Profil", "👤 Profilim"):
+        await profile_handler(update, context)
+        return
+    elif raw_text in ("📅 Davomat", "📅 Davomatim"):
+        await myattendance_handler(update, context)
         return
 
     from django.utils import timezone
@@ -1283,10 +1327,17 @@ async def _submit_essay_with_quota(
         await send_reply(update, exc.message, reply_markup=_essay_denied_keyboard())
         return
 
+    topic_id = context.user_data.get("bot_essay_topic_id")
+
     def _create_and_queue():
+        topic = None
+        if topic_id:
+            from apps.essays.models import EssayTopic
+            topic = EssayTopic.objects.filter(id=topic_id).first()
+
         existing = EssaySubmission.objects.filter(
             student=user,
-            topic__isnull=True,
+            topic=topic,
             essay_text=essay_text,
             status__in=(EssaySubmission.Status.PENDING, EssaySubmission.Status.GRADED),
         ).order_by("-id").first()
@@ -1295,7 +1346,7 @@ async def _submit_essay_with_quota(
 
         submission = EssaySubmission.objects.create(
             student=user,
-            topic=None,
+            topic=topic,
             essay_text=essay_text,
             word_count=WordCounter.count(essay_text),
             status=EssaySubmission.Status.DRAFT,
@@ -1339,16 +1390,16 @@ async def _submit_essay_with_quota(
 
     await send_reply(
         update,
-        "✅ Esse qabul qilindi. Baholash boshlandi.\n"
-        "Bir xil matnning tasdiqlangan bahosi boshqa hisoblar uchun ham "
-        "qayta ishlatiladi.",
+        "⏳ *Esse qabul qilindi!*\n\n"
+        "Baholash boshlandi (AI tahlili fon rejimida ishlamoqda). Natija tayyor bo'lgach, shu yerga yuboriladi. 🚀",
+        parse_mode="Markdown",
         reply_markup=_result_keyboard(submission.id),
     )
 
 
 async def cancel_essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _clear_essay_state(context)
-    await send_reply(update, "Esse yuborish bekor qilindi.")
+    await send_reply(update, "Esse topshirish bekor qilindi.")
 
 
 # ---------------------------------------------------------------------------
@@ -1361,7 +1412,7 @@ ESSAY_IMAGE_PAGES_STATE = "awaiting_image_pages"
 ESSAY_OCR_CONFIRM_STATE = "awaiting_ocr_confirm"
 ESSAY_OCR_EDIT_STATE = "awaiting_ocr_text"
 
-_ESSAY_STATE_KEYS = ("bot_essay_state", "essay_pages", "essay_ocr_text")
+_ESSAY_STATE_KEYS = ("bot_essay_state", "essay_pages", "essay_ocr_text", "bot_essay_topic_id")
 
 
 def _clear_essay_state(context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -1379,12 +1430,12 @@ def _site_url() -> str:
 
 
 def _result_keyboard(submission_id: int) -> InlineKeyboardMarkup:
-    """Link the student to their OWN result page — never anyone else's."""
+    """Link the student to their OWN result page or check status in bot."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            "📄 Natijani ko'rish",
-            url=f"{_site_url()}/essays/result/{submission_id}/",
-        )],
+        [
+            InlineKeyboardButton("📊 Natijani tekshirish", callback_data=f"essay_check:{submission_id}"),
+            InlineKeyboardButton("📄 Web'da ko'rish", url=f"{_site_url()}/essays/result/{submission_id}/"),
+        ],
         [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
     ])
 
@@ -1941,7 +1992,7 @@ _SOURCE_LABELS = {
 
 
 async def myplan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/myplan — show the effective plan and where the entitlement comes from."""
+    """/myplan — show the effective plan and entitlement card."""
     from django.utils import timezone
 
     from apps.payments.entitlements import get_effective_entitlement
@@ -1961,33 +2012,45 @@ async def myplan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         }
 
     data = await _run_db(_load)
-    lines = [
-        "💎 *Sizning tarifingiz*",
-        "",
-        f"📦 Tarif: *{data['plan_name']}*",
-        f"🔖 Manba: {_SOURCE_LABELS.get(data['source'], data['source'])}",
-    ]
+
+    expires_str = "Cheksiz"
     if data["expires_at"]:
         days = max(0, (data["expires_at"] - timezone.now()).days)
-        lines.append(f"⏰ Tugash: {data['expires_at']:%d.%m.%Y} ({days} kun)")
-    if data["is_sponsored"]:
-        lines.append("🎁 Ustoz homiyligi — to'lov talab qilinmaydi.")
-    lines.append("")
-    lines.append("Batafsil limitlar: /limits")
-    await send_reply(
-        update,
-        "\n".join(lines),
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits")],
-            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-        ]),
+        expires_str = f"{data['expires_at']:%d.%m.%Y} ({days} kun qoldi)"
+
+    status_icon = "🎁" if data["is_sponsored"] else "💎"
+    source_label = _SOURCE_LABELS.get(data["source"], data["source"])
+
+    card = (
+        f"💳 *TARIF REJASI KARTASI*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 Foydalanuvchi: *{user.get_full_name() or user.username}*\n"
+        f"{status_icon} Joriy tarif: *{data['plan_name']}*\n"
+        f"🔖 Manba: *{source_label}*\n"
+        f"⏳ Amal qilish muddati: *{expires_str}*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
+    if data["is_sponsored"]:
+        card += "🎁 *Ustoz homiyligi:* Ushbu tarif ustozingiz tomonidan taqdim etilgan.\n\n"
+    else:
+        card += "💡 *Qo'shimcha imkoniyatlar uchun tarifni yangilashingiz mumkin.*\n\n"
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits"),
+            InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans"),
+        ],
+        [
+            InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition"),
+            InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
+        ],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, card, parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/mytuition — private tuition overview for a student or verified parent."""
+    """/mytuition — private tuition overview card for a student or verified parent."""
     from apps.tuition.services import children_tuition_overview, student_tuition_overview
 
     if not await _require_private_chat(update):
@@ -2008,24 +2071,57 @@ async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     rows = await _run_db(_overview)
     if not rows:
-        await send_reply(update, "Siz uchun ko'rish mumkin bo'lgan kurs to'lovi topilmadi.")
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💎 Tarif rejasi", callback_data="cb_myplan")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ])
+        await send_reply(
+            update,
+            "💳 *KURS TO'LOVLARI*\n━━━━━━━━━━━━━━━━━━━━━━━━━\nSiz uchun ko'rish mumkin bo'lgan kurs to'lovi topilmadi.",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
         return
-    lines = ["💳 *Kurs to'lovlari*", ""]
+
+    lines = [
+        "💳 *KURS TO'LOVLARI KARTASI*",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
     for row in rows:
         name = row.get("student_name", "")
         if row["is_child"]:
-            # Never send any child data unless the canonical link is approved.
-            lines.append(f"*{name}*")
-        lines.append(f"Tasdiqlangan: {_format_uzs(row.get('confirmed_paid_uzs', 0))} so'm")
-        lines.append(f"Qoldiq: {_format_uzs(row.get('outstanding_uzs', 0))} so'm")
-        for invoice in row.get("invoices", [])[:8]:
-            lines.append(
-                f"• {invoice['period_label']}: {invoice['status_label']} · "
-                f"qoldiq {_format_uzs(invoice['balance_uzs'])} so'm"
-            )
+            lines.append(f"👤 O'quvchi: *{name}*")
+
+        paid = _format_uzs(row.get("confirmed_paid_uzs", 0))
+        debt = _format_uzs(row.get("outstanding_uzs", 0))
+        debt_icon = "⚠️" if (row.get("outstanding_uzs", 0) > 0) else "✅"
+
+        lines.append(f"✅ To'langan: *{paid} so'm*")
+        lines.append(f"{debt_icon} Qoldiq qarz: *{debt} so'm*")
+        lines.append("─────────────────────────")
+
+        invoices = row.get("invoices", [])
+        if invoices:
+            lines.append("📋 *Hisob-fakturalar:*")
+            for inv in invoices[:5]:
+                status_emoji = "🟢" if inv.get("status") == "paid" else "🟡"
+                lines.append(
+                    f"  {status_emoji} *{inv['period_label']}*: {inv['status_label']} "
+                    f"(qoldiq: {_format_uzs(inv['balance_uzs'])} so'm)"
+                )
         lines.append("")
-    lines.append("_Platforma tarifi va kurs to'lovi alohida majburiyatlardir._")
-    await send_reply(update, "\n".join(lines), parse_mode="Markdown")
+
+    lines.append("📌 _Eslatma: Platforma tarifi va kurs to'lovi alohida to'lanadi._")
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🧾 Dalil yuborish", callback_data="payment_proof")],
+        [
+            InlineKeyboardButton("💎 Platforma tarifi", callback_data="cb_myplan"),
+            InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
+        ],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def course_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2394,7 +2490,7 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ---------------------------------------------------------------------------
 
 async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /essays command — show essay topics."""
+    """Handle /essays or '✍️ Esse yozish' — show topics with inline buttons."""
     user = await _get_or_create_user_async(update)
     if not user:
         await send_reply(update, "Xatolik yuz berdi.")
@@ -2412,19 +2508,19 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     topics, user_subs = await _run_db(_get_essay_data)
 
-    from django.conf import settings as _settings
-    site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
-
     if not topics:
         await send_reply(
             update,
-            "✍️ Hali esse mavzulari yo'q.\n\n"
-            "O'qituvchilar yangi mavzular yaratganda, ular shu yerda paydo bo'ladi.",
-            reply_markup=_main_menu_keyboard(),
+            "✍️ *Esse yozish*\n\n"
+            "Hozircha tizimda tayyor mavzular mavjud emas. Biroq siz erkin mavzuda esse yozishingiz mumkin:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📝 Erkin mavzuda yozish", callback_data="cb_topic_select:0")],
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+            ]),
         )
         return
 
-    text = "✍️ *Esse mavzulari:*\n\n"
+    text = "✍️ *Esse yozish*\n\nMavzuni tanlang yoki erkin mavzuda yozing 👇\n\n"
     buttons = []
 
     for i, topic in enumerate(topics, 1):
@@ -2444,14 +2540,14 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             f"   📌 Holat: {status}\n\n"
         )
 
-        if not sub or sub.status == "draft":
-            buttons.append([
-                InlineKeyboardButton(
-                    f"✍️ {topic.title[:30]}",
-                    url=f"{site_url}/essays/{topic.id}/start/",
-                )
-            ])
+        buttons.append([
+            InlineKeyboardButton(
+                f"✍️ {topic.title[:32]}",
+                callback_data=f"cb_topic_select:{topic.id}",
+            )
+        ])
 
+    buttons.append([InlineKeyboardButton("📝 Erkin mavzu (Mavzusiz yozish)", callback_data="cb_topic_select:0")])
     buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
 
     await send_reply(
@@ -2460,6 +2556,634 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
+
+
+async def essay_topic_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, topic_id: int) -> None:
+    """Set active topic and prompt user to submit text or photo."""
+    query = update.callback_query
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    context.user_data["bot_essay_state"] = "awaiting_submission"
+    context.user_data["bot_essay_topic_id"] = topic_id if topic_id > 0 else None
+
+    title = "Erkin mavzu (Mavzusiz)"
+    desc = ""
+    limits_line = ""
+
+    if topic_id > 0:
+        from apps.essays.models import EssayTopic
+        topic = await _run_db(lambda: EssayTopic.objects.filter(id=topic_id).first())
+        if topic:
+            title = topic.title
+            if topic.description:
+                desc = f"\n💬 _{topic.description}_\n"
+            t_min = f"⏱ {topic.time_limit_minutes} daqiqa" if topic.time_limit_minutes else ""
+            w_lim = f"📏 {topic.word_limit_min}-{topic.word_limit_max} so'z"
+            limits_line = f"\n{t_min} · {w_lim}\n"
+
+    text = (
+        f"✍️ *Esse yozish*\n\n"
+        f"📚 Mavzu: *{title}*{desc}{limits_line}\n"
+        f"Endi essangizni yuborishingiz mumkin:\n"
+        f"1️⃣ *Matn yuborish:* Esse matnini shu yerga yozing yoki nusxalab yuboring ⌨️\n"
+        f"2️⃣ *Rasm yuborish:* Daftaringiz sahifasini rasm holatida yuboring 📸\n\n"
+        f"_Bekor qilish uchun: /cancel_essay yoki quyidagi tugmani bosing._"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_essay")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+    """Improve essay via AI and return the upgraded version directly in chat."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer("🪄 AI orqali takomillashtirilmoqda...")
+        except Exception:
+            pass
+
+    from apps.essays.models import EssaySubmission
+    from apps.essays.services import generate_improved_essay
+
+    def _improve():
+        sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
+        if not sub:
+            return None, "Esse topilmadi."
+        try:
+            content = generate_improved_essay(sub)
+            return content, None
+        except Exception as exc:
+            return None, str(exc)
+
+    content, err = await _run_db(_improve)
+    if err or not content:
+        msg = f"❌ Esseni qayta yozishda xatolik yuz berdi: {err or 'Noma`lum xatolik'}\n\nIltimos, qaytadan urinib ko'ring."
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ])
+        await send_reply(update, msg, reply_markup=buttons)
+        return
+
+    preview = content[:3500]
+    msg = (
+        "🪄 *AI orqali qayta yozilgan variant:*\n\n"
+        f"{preview}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "💡 *Asosiy mazmun saqlanib, so'z boyligi va grammatik tuzilma yuqori mezon darajasiga yetkazildi.*"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{submission_id}")],
+        [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def essay_review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+    """Request teacher review for an essay submission."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    from apps.essays.models import EssaySubmission
+    from apps.essays.services import TeacherReviewService
+
+    def _request():
+        sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
+        if not sub:
+            return False, "Esse topilmadi."
+        try:
+            TeacherReviewService.request_teacher_review(sub, user, "Telegram bot orqali tekshirish so'rovi")
+            return True, None
+        except Exception as exc:
+            return False, str(exc)
+
+    ok, err = await _run_db(_request)
+    if not ok:
+        msg = f"ℹ️ {err or 'Ustoz ko`rigini so`rashda xatolik yuz berdi.'}"
+    else:
+        msg = (
+            "✅ *Ustoz ko'rigiga yuborildi!*\n\n"
+            "Sizning essingiz o'qituvchiga tekshirish uchun taqdim etildi. "
+            "O'qituvchi baholagach, xulosa shu yerga yuboriladi. 👨‍🏫"
+        )
+
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+    """Check essay grading status and show interactive action buttons."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    from apps.essays.models import EssaySubmission
+
+    sub = await _run_db(lambda: EssaySubmission.objects.filter(id=submission_id, student=user).first())
+    if not sub:
+        await send_reply(
+            update,
+            "❌ Esse topilmadi.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]),
+        )
+        return
+
+    if sub.status in (EssaySubmission.Status.PENDING, EssaySubmission.Status.DRAFT):
+        text = (
+            "⏳ *Essangiz hali tekshirilmoqda...*\n\n"
+            "AI tahlili fon rejimida davom etmoqda. Iltimos, birozdan so'ng qayta tekshiring:"
+        )
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Qayta tekshirish", callback_data=f"essay_check:{submission_id}")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ])
+        await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+        return
+
+    topic_title = sub.topic.title if sub.topic else "Erkin mavzu"
+    score = str(sub.total_score) if sub.total_score is not None else "-"
+    max_score = str(sub.max_score) if sub.max_score else "24"
+    status_line = "✅ O'tdi" if sub.is_passed else "❌ O'tmadi"
+
+    text = (
+        f"📊 *ESSE NATIJASI*\n\n"
+        f"📚 Mavzu: *{topic_title}*\n"
+        f"📝 Holat: *{sub.get_status_display()}*\n"
+        f"📊 Ball: *{score}/{max_score}*\n"
+    )
+    if sub.converted_score is not None:
+        text += f"📈 Umumiy shkalada: *{sub.converted_score}/75*\n"
+    text += f"📋 Natija: {status_line}\n\n"
+    if sub.summary:
+        text += f"💬 *Xulosa:* _{sub.summary}_\n\n"
+
+    text += "Kerakli amalni tanlang 👇"
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🪄 AI orqali qayta yozish", callback_data=f"essay_improve:{sub.id}"),
+            InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{sub.id}"),
+        ],
+        [
+            InlineKeyboardButton("📄 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),
+            InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main"),
+        ],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def certificates_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /certificates — list user's earned certificates with download buttons."""
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi.")
+        return
+
+    from apps.results.models import Certificate
+
+    def _get_certs():
+        return list(
+            Certificate.objects.filter(student=user)
+            .select_related("result__test", "result__course")
+            .order_by("-issued_at")[:10]
+        )
+
+    certs = await _run_db(_get_certs)
+    if not certs:
+        await send_reply(
+            update,
+            "📜 *Sizda hali sertifikatlar yo'q.*\n\n"
+            "Testlarni muvaffaqiyatli topshiring va rasmiy PDF sertifikatlarga ega bo'ling! 🎓",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🧠 Quiz topshirish", callback_data="menu_quiz")],
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+            ]),
+        )
+        return
+
+    text = "📜 *Sizning sertifikatlaringiz:*\n\n"
+    buttons = []
+    for i, c in enumerate(certs, 1):
+        c_title = c.result.course.title if c.result and c.result.course else (
+            c.result.test.title if c.result and c.result.test else "Kurs"
+        )
+        date_str = c.issued_at.strftime("%d.%m.%Y") if c.issued_at else ""
+        text += (
+            f"{i}. 🎓 *{c_title}*\n"
+            f"   📋 Sertifikat: `{c.certificate_number}`\n"
+            f"   📅 Berilgan: {date_str}\n\n"
+        )
+        buttons.append([
+            InlineKeyboardButton(
+                f"📥 Yuklab olish ({c.certificate_number})",
+                callback_data=f"cert_dl:{c.id}",
+            )
+        ])
+
+    buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+
+
+async def certificate_download_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, cert_id: int) -> None:
+    """Send certificate PDF document directly to Telegram chat."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer("Sertifikat yuborilmoqda...")
+        except Exception:
+            pass
+
+    from apps.results.models import Certificate
+    from apps.certificates.services.generation import generate_certificate
+
+    def _get_cert_path():
+        cert = Certificate.objects.filter(id=cert_id, student=user).first()
+        if not cert:
+            return None, None
+        if not cert.file and cert.result:
+            try:
+                generate_certificate(cert.result)
+                cert.refresh_from_db()
+            except Exception:
+                pass
+        if cert.file:
+            return cert.file.path, cert.certificate_number
+        return None, None
+
+    cert_path, cert_num = await _run_db(_get_cert_path)
+    if not cert_path or not update.effective_chat:
+        await send_reply(update, "❌ Sertifikat fayli topilmadi.")
+        return
+
+    try:
+        import os
+        with open(cert_path, "rb") as doc_f:
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=doc_f,
+                filename=os.path.basename(cert_path) or f"Sertifikat_{cert_num}.pdf",
+                caption=f"📜 Sertifikat: *{cert_num}*",
+                parse_mode="Markdown",
+            )
+    except Exception as exc:
+        logger.exception("Sertifikat yuborishda xatolik: %s", exc)
+        await send_reply(update, f"PDF yuborishda xatolik yuz berdi: {exc}")
+
+
+async def myattendance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /myattendance — display student attendance overview card."""
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_reply(update, "Xatolik yuz berdi.")
+        return
+
+    from apps.attendance.models import AttendanceRecord
+    from django.db.models import Count, Q
+
+    def _get_attendance():
+        counts = AttendanceRecord.objects.filter(student=user).aggregate(
+            present=Count("id", filter=Q(status=AttendanceRecord.Status.PRESENT)),
+            late=Count("id", filter=Q(status=AttendanceRecord.Status.LATE)),
+            absent=Count("id", filter=Q(status=AttendanceRecord.Status.ABSENT)),
+            excused=Count("id", filter=Q(status=AttendanceRecord.Status.EXCUSED)),
+        )
+        total = (
+            (counts.get("present") or 0)
+            + (counts.get("late") or 0)
+            + (counts.get("absent") or 0)
+            + (counts.get("excused") or 0)
+        )
+        present_effective = (counts.get("present") or 0) + (counts.get("late") or 0)
+        pct = round(present_effective / total * 100, 1) if total > 0 else 100.0
+        return counts, total, pct
+
+    counts, total, pct = await _run_db(_get_attendance)
+
+    status_emoji = "🟢" if pct >= 80 else ("🟡" if pct >= 60 else "🔴")
+
+    card = (
+        f"📅 *DAVOMAT KARTASI*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 O'quvchi: *{user.get_full_name()}*\n"
+        f"📈 Umumiy ko'rsatkich: {status_emoji} *{pct}%*\n"
+        f"🔢 Jami qayd etilgan darslar: *{total} ta*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Kelgan: *{counts.get('present') or 0} ta*\n"
+        f"⏰ Kechikkan: *{counts.get('late') or 0} ta*\n"
+        f"📄 Sababli: *{counts.get('excused') or 0} ta*\n"
+        f"❌ Kelmagan: *{counts.get('absent') or 0} ta*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, card, parse_mode="Markdown", reply_markup=keyboard)
+
+
+# ---------------------------------------------------------------------------
+# Arena 1v1 Bot Duel Handlers
+# ---------------------------------------------------------------------------
+
+async def arena_bot_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Start an interactive 1v1 Arena duel against AI bot in Telegram chat."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer("⚔️ Duel tayyorlanmoqda...")
+        except Exception:
+            pass
+
+    from apps.arena import services
+    from apps.arena.models import ArenaQuestion
+
+    def _setup():
+        room = services.create_bot_room(user)
+        q0 = ArenaQuestion.objects.filter(room=room, position=0).first()
+        return room, q0
+
+    room, q0 = await _run_db(_setup)
+    if not room or not q0:
+        await send_reply(update, "❌ Duel yaratishda xatolik yuz berdi.")
+        return
+
+    context.user_data["arena_duel"] = {
+        "room_code": room.room_code,
+        "current_idx": 0,
+        "player_score": 0,
+        "bot_score": 0,
+        "player_correct": 0,
+        "bot_correct": 0,
+    }
+
+    await _show_arena_question(update, context, room.room_code, q0, 0, room.total_questions)
+
+
+async def _show_arena_question(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, q, idx: int, total: int,
+) -> None:
+    opt_a = getattr(q, "option_a", getattr(q, "choice_a", ""))
+    opt_b = getattr(q, "option_b", getattr(q, "choice_b", ""))
+    opt_c = getattr(q, "option_c", getattr(q, "choice_c", ""))
+    opt_d = getattr(q, "option_d", getattr(q, "choice_d", ""))
+
+    text = (
+        f"⚔️ *ARENA DUEL — {idx + 1}/{total}-savol*\n"
+        f"👤 Siz VS 🤖 Arena Bot\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"❓ *{q.question_text}*\n\n"
+        f"A) {opt_a}\n"
+        f"B) {opt_b}\n"
+        f"C) {opt_c}\n"
+        f"D) {opt_d}\n"
+    )
+    buttons = [
+        [
+            InlineKeyboardButton("A", callback_data=f"ar_ans:{room_code}:{idx}:a"),
+            InlineKeyboardButton("B", callback_data=f"ar_ans:{room_code}:{idx}:b"),
+        ],
+        [
+            InlineKeyboardButton("C", callback_data=f"ar_ans:{room_code}:{idx}:c"),
+            InlineKeyboardButton("D", callback_data=f"ar_ans:{room_code}:{idx}:d"),
+        ],
+        [InlineKeyboardButton("❌ Duelni tark etish", callback_data="menu_arena")],
+    ]
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+
+
+async def arena_answer_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, idx: int, choice: str,
+) -> None:
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    from apps.arena import services
+    from apps.arena.models import ArenaRoom, ArenaQuestion
+
+    def _process():
+        room = ArenaRoom.objects.filter(room_code=room_code).first()
+        if not room:
+            return None
+        q = ArenaQuestion.objects.filter(room=room, position=idx).first()
+        if not q:
+            return None
+
+        player_res = services.submit_answer(room, user.id, choice, idx, time_seconds=3.0) or {}
+        bot_user_id = room.player2_id
+        bot_dec = services.bot_decide_answer(room, idx, bot_user_id)
+        bot_res = services.submit_answer(
+            room, bot_user_id, bot_dec["answer"], idx, time_seconds=bot_dec.get("delay", 3.0),
+        ) or {}
+
+        return {
+            "room": room,
+            "q": q,
+            "player_ok": player_res.get("is_correct", False),
+            "player_pts": player_res.get("points", 0),
+            "bot_ok": bot_res.get("is_correct", False),
+            "bot_pts": bot_res.get("points", 0),
+            "correct_ans": q.correct_answer.upper(),
+        }
+
+    res = await _run_db(_process)
+    if not res:
+        await send_reply(update, "Xatolik yuz berdi.")
+        return
+
+    duel_state = context.user_data.get("arena_duel", {})
+    duel_state["player_score"] = duel_state.get("player_score", 0) + res["player_pts"]
+    duel_state["bot_score"] = duel_state.get("bot_score", 0) + res["bot_pts"]
+    if res["player_ok"]:
+        duel_state["player_correct"] = duel_state.get("player_correct", 0) + 1
+    if res["bot_ok"]:
+        duel_state["bot_correct"] = duel_state.get("bot_correct", 0) + 1
+
+    room = res["room"]
+    next_idx = idx + 1
+    total = room.total_questions
+
+    p_icon = "✅" if res["player_ok"] else "❌"
+    b_icon = "✅" if res["bot_ok"] else "❌"
+
+    round_text = (
+        f"🎯 *{idx + 1}-savol yakunlandi:*\n"
+        f"To'g'ri javob: *{res['correct_ans']}*\n\n"
+        f"👤 Siz: {p_icon} (+{res['player_pts']} ball)\n"
+        f"🤖 Bot: {b_icon} (+{res['bot_pts']} ball)\n\n"
+        f"📊 *Hisob:* Siz: *{duel_state['player_score']}* | Bot: *{duel_state['bot_score']}*"
+    )
+
+    if next_idx < total:
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("➡️ Keyingi savol", callback_data=f"ar_next:{room_code}:{next_idx}")],
+        ])
+    else:
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🏁 Duelni yakunlash", callback_data=f"ar_finish:{room_code}")],
+        ])
+
+    await send_reply(update, round_text, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def arena_next_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, next_idx: int,
+) -> None:
+    query = update.callback_query
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    from apps.arena.models import ArenaRoom, ArenaQuestion
+
+    def _get_q():
+        room = ArenaRoom.objects.filter(room_code=room_code).first()
+        if not room:
+            return None, None
+        q = ArenaQuestion.objects.filter(room=room, position=next_idx).first()
+        return room, q
+
+    room, q = await _run_db(_get_q)
+    if not room or not q:
+        await send_reply(update, "Savol topilmadi.")
+        return
+    await _show_arena_question(update, context, room_code, q, next_idx, room.total_questions)
+
+
+async def arena_finish_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str,
+) -> None:
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    from apps.arena import services
+    from apps.arena.models import ArenaRoom, ArenaProfile
+
+    def _finish():
+        room = ArenaRoom.objects.filter(room_code=room_code).first()
+        if not room:
+            return None
+        profile_before = services.get_or_create_profile(user)
+        old_rating = profile_before.rating
+        services.finish_duel(room_code)
+        profile_after = ArenaProfile.objects.get(user=user)
+        new_rating = profile_after.rating
+        return {
+            "room": room,
+            "old_rating": old_rating,
+            "new_rating": new_rating,
+            "streak": profile_after.current_win_streak,
+        }
+
+    res = await _run_db(_finish)
+    duel_state = context.user_data.pop("arena_duel", {})
+    p_score = duel_state.get("player_score", 0)
+    b_score = duel_state.get("bot_score", 0)
+    p_corr = duel_state.get("player_correct", 0)
+
+    if res:
+        diff = res["new_rating"] - res["old_rating"]
+        diff_str = f"+{diff}" if diff >= 0 else str(diff)
+        rating_line = f"🎯 ELO reyting: *{res['old_rating']} ➔ {res['new_rating']}* ({diff_str})\n"
+        streak_line = f"🔥 Streak: *{res['streak']}*\n"
+    else:
+        rating_line = ""
+        streak_line = ""
+
+    if p_score > b_score:
+        outcome = "🏆 *G'ALABA! Qoyilmaqom bellashuv!* 🎉"
+    elif p_score == b_score:
+        outcome = "🤝 *DURANG! Kuchlar teng keldi!*"
+    else:
+        outcome = "😔 *MAG'LUBIYAT! Keyingi safar albatta g'alaba qozonasiz!*"
+
+    text = (
+        f"🏁 *ARENA DUEL YAKUNLANDI!*\n\n"
+        f"{outcome}\n\n"
+        f"👤 Siz: *{p_score} ball* ({p_corr}/5)\n"
+        f"🤖 Bot: *{b_score} ball*\n\n"
+        f"{rating_line}"
+        f"{streak_line}"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("⚔️ Yangi duel", callback_data="arena_bot_start")],
+        [InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
 # ---------------------------------------------------------------------------
@@ -2475,180 +3199,241 @@ async def _dispatch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline keyboard callback queries."""
+    """Handle inline keyboard callback queries with robust error & timeout catching."""
     query = update.callback_query
-    await query.answer()
-
-    data = query.data
-
-    if data == "menu_main":
-        await query.edit_message_text(
-            "🎓 *Ona Tili & Adabiyot* — Bosh menyu\n\n"
-            "Quyidagi tugmalardan foydalaning 👇",
-            parse_mode="Markdown",
-            reply_markup=_main_menu_keyboard(),
-        )
-    elif data == "menu_tests":
-        # Simulate /tests command
-        user = await _get_or_create_user_async(update)
-        if user:
-            from apps.tests.models import Test
-            from django.conf import settings as _settings
-            site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
-            tests = await _run_db(lambda: list(Test.objects.filter(is_active=True).select_related("course").order_by("-created_at")[:8]))
-
-            if not tests:
-                await query.edit_message_text("📝 Hozircha mavjud testlar yo'q.")
-                return
-
-            text = "📝 *Mavjud testlar:*\n\n"
-            buttons = []
-            for test in tests:
-                diff = {"easy": "🟢", "medium": "🟡", "hard": "🔴"}.get(test.difficulty, "⚪")
-                text += f"{diff} *{test.title}* — {test.total_questions} savol\n"
-                buttons.append([
-                    InlineKeyboardButton(
-                        f"▶️ {test.title[:30]}",
-                        url=f"{site_url}/tests/{test.id}/take/",
-                    )
-                ])
-
-            buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
-
-    elif data == "menu_results":
-        await _dispatch_handler(update, context, results_handler)
-    elif data == "menu_profile":
-        await _dispatch_handler(update, context, profile_handler)
-    elif data == "menu_essays":
-        await _dispatch_handler(update, context, essays_handler)
-    elif data == "menu_leaderboard":
-        await _dispatch_handler(update, context, leaderboard_handler)
-    elif data == "menu_streak":
-        await _dispatch_handler(update, context, streak_handler)
-    elif data == "menu_daily":
-        await _dispatch_handler(update, context, daily_handler)
-    elif data == "menu_arena":
-        await _dispatch_handler(update, context, arena_handler)
-    elif data == "menu_premium":
-        await _dispatch_handler(update, context, premium_handler)
-    elif data == "cb_plans":
-        await _dispatch_handler(update, context, plans_handler)
-    elif data == "cb_limits":
-        await _dispatch_handler(update, context, limits_handler)
-    elif data == "cb_essay_text":
-        await _handle_essay_text_choice(update, context)
-    elif data == "cb_essay_image":
-        await _handle_essay_image_choice(update, context)
-    elif data == "cb_pages_more":
-        await _handle_pages_more(update, context)
-    elif data == "cb_pages_done":
-        await _handle_pages_done(update, context)
-    elif data == "cb_pages_cancel":
-        await _handle_pages_cancel(update, context)
-    elif data == "cb_ocr_confirm":
-        await _handle_ocr_confirm(update, context)
-    elif data == "cb_ocr_edit":
-        await _handle_ocr_edit(update, context)
-    elif data == "cb_ocr_retry":
-        await _handle_ocr_retry(update, context)
-    elif data.startswith("tg_buy_"):
-        plan_id = _safe_callback_int(data, prefix="tg_buy_")
-        if plan_id is not None:
-            await _tg_buy_callback(update, context, plan_id)
-    elif data.startswith("buy_plan_"):
-        plan_id = _safe_callback_int(data, prefix="buy_plan_")
-        if plan_id is not None:
-            await buy_plan_callback(update, context, plan_id)
-    elif data.startswith("approve_payment_"):
-        payment_id = _safe_callback_int(data, prefix="approve_payment_")
-        if payment_id is not None:
-            await approve_payment_callback(update, context, payment_id)
-    elif data.startswith("reject_payment_"):
-        payment_id = _safe_callback_int(data, prefix="reject_payment_")
-        if payment_id is not None:
-            await reject_payment_callback(update, context, payment_id)
-    elif data.startswith("student_result_"):
-        student_id = _safe_callback_int(data, prefix="student_result_")
-        if student_id is not None:
-            await _dispatch_handler(update, context, lambda u, c: _show_student_detail(u, c, student_id))
-    # -- Teacher groups, attendance and group reports ------------------------
-    # Ordering matters: the more specific prefixes are tested first.
-    elif data == "tgrplist":
-        await _dispatch_handler(update, context, groups_handler)
-    elif data.startswith("tgrp_"):
-        group_id = _safe_callback_int(data, prefix="tgrp_")
-        if group_id is not None:
-            await _group_card_callback(update, context, group_id)
-    elif data.startswith("tatt_"):
-        group_id = _safe_callback_int(data, prefix="tatt_")
-        if group_id is not None:
-            await _attendance_callback(update, context, group_id)
-    elif data.startswith("tmk_"):
-        parsed = _parse_mark_callback(data)
-        if parsed:
-            await _mark_callback(update, context, *parsed)
-    elif data.startswith("tall_"):
-        session_id = _safe_callback_int(data, prefix="tall_")
-        if session_id is not None:
-            await _all_present_callback(update, context, session_id)
-    elif data.startswith("tfinabs_"):
-        session_id = _safe_callback_int(data, prefix="tfinabs_")
-        if session_id is not None:
-            await _finalize_callback(update, context, session_id, True)
-    elif data.startswith("tfin_"):
-        session_id = _safe_callback_int(data, prefix="tfin_")
-        if session_id is not None:
-            await _finalize_callback(update, context, session_id, False)
-    elif data.startswith("trptw_"):
-        group_id = _safe_callback_int(data, prefix="trptw_")
-        if group_id is not None:
-            await _attendance_report_callback(update, context, group_id, 7)
-    elif data.startswith("trptm_"):
-        group_id = _safe_callback_int(data, prefix="trptm_")
-        if group_id is not None:
-            await _attendance_report_callback(update, context, group_id, 30)
-    elif data.startswith("trpt_"):
-        group_id = _safe_callback_int(data, prefix="trpt_")
-        if group_id is not None:
-            await _attendance_report_callback(update, context, group_id)
-    elif data.startswith("tstu_"):
-        group_id = _safe_callback_int(data, prefix="tstu_")
-        if group_id is not None:
-            await _students_callback(update, context, group_id)
-    elif data.startswith("terspend_"):
-        group_id = _safe_callback_int(data, prefix="terspend_")
-        if group_id is not None:
-            await _essay_results_callback(update, context, group_id, state="pending")
-    elif data.startswith("tersp_"):
-        parts = data[len("tersp_"):].split("_")
+    if query:
         try:
-            group_id, offset = int(parts[0]), int(parts[1])
-        except (IndexError, TypeError, ValueError):
-            logger.warning("Malformed essay page callback: %r", data)
+            await query.answer()
+        except Exception:
+            pass
+
+    data = query.data if query else ""
+
+    try:
+        if data == "menu_main":
+            await query.edit_message_text(
+                "🎓 *Ona Tili & Adabiyot* — Bosh menyu\n\n"
+                "Quyidagi tugmalardan foydalaning 👇",
+                parse_mode="Markdown",
+                reply_markup=_main_menu_keyboard(),
+            )
+        elif data == "menu_tests":
+            # Simulate /tests command
+            user = await _get_or_create_user_async(update)
+            if user:
+                from apps.tests.models import Test
+                from django.conf import settings as _settings
+                site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+                tests = await _run_db(lambda: list(Test.objects.filter(is_active=True).select_related("course").order_by("-created_at")[:8]))
+
+                if not tests:
+                    await query.edit_message_text("📝 Hozircha mavjud testlar yo'q.")
+                    return
+
+                text = "📝 *Mavjud testlar:*\n\n"
+                buttons = []
+                for test in tests:
+                    diff = {"easy": "🟢", "medium": "🟡", "hard": "🔴"}.get(test.difficulty, "⚪")
+                    text += f"{diff} *{test.title}* — {test.total_questions} savol\n"
+                    buttons.append([
+                        InlineKeyboardButton(
+                            f"▶️ {test.title[:30]}",
+                            url=f"{site_url}/tests/{test.id}/take/",
+                        )
+                    ])
+
+                buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
+                await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+
+        elif data == "menu_quiz":
+            from apps.notifications.bot.quiz import quiz_handler
+            await _dispatch_handler(update, context, quiz_handler)
+        elif data in ("menu_certs", "cb_certs"):
+            await _dispatch_handler(update, context, certificates_handler)
+        elif data in ("menu_myplan", "cb_myplan"):
+            await _dispatch_handler(update, context, myplan_handler)
+        elif data in ("menu_mytuition", "cb_mytuition", "cb_tuition"):
+            await _dispatch_handler(update, context, mytuition_handler)
+        elif data in ("menu_attendance", "cb_attendance"):
+            await _dispatch_handler(update, context, myattendance_handler)
+        elif data.startswith("cb_topic_select:"):
+            topic_id = int(data.split(":")[1])
+            await essay_topic_select_callback(update, context, topic_id)
+        elif data.startswith("essay_topic:"):
+            topic_id = int(data.split(":")[1])
+            await essay_topic_select_callback(update, context, topic_id)
+        elif data.startswith("essay_improve:"):
+            sub_id = int(data.split(":")[1])
+            await essay_improve_callback(update, context, sub_id)
+        elif data.startswith("essay_review:"):
+            sub_id = int(data.split(":")[1])
+            await essay_review_callback(update, context, sub_id)
+        elif data.startswith("essay_check:"):
+            sub_id = int(data.split(":")[1])
+            await essay_check_callback(update, context, sub_id)
+        elif data.startswith("cert_dl:"):
+            cert_id = int(data.split(":")[1])
+            await certificate_download_callback(update, context, cert_id)
+        elif data == "menu_results":
+            await _dispatch_handler(update, context, results_handler)
+        elif data == "menu_profile":
+            await _dispatch_handler(update, context, profile_handler)
+        elif data == "menu_essays":
+            await _dispatch_handler(update, context, essays_handler)
+        elif data == "menu_leaderboard":
+            await _dispatch_handler(update, context, leaderboard_handler)
+        elif data == "menu_streak":
+            await _dispatch_handler(update, context, streak_handler)
+        elif data == "menu_daily":
+            await _dispatch_handler(update, context, daily_handler)
+        elif data == "menu_arena":
+            await _dispatch_handler(update, context, arena_handler)
+        elif data == "menu_premium":
+            await _dispatch_handler(update, context, premium_handler)
+        elif data == "cb_plans":
+            await _dispatch_handler(update, context, plans_handler)
+        elif data == "cb_limits":
+            await _dispatch_handler(update, context, limits_handler)
+        elif data == "cb_essay_text":
+            await _handle_essay_text_choice(update, context)
+        elif data == "cb_essay_image":
+            await _handle_essay_image_choice(update, context)
+        elif data == "cb_pages_more":
+            await _handle_pages_more(update, context)
+        elif data == "cb_pages_done":
+            await _handle_pages_done(update, context)
+        elif data == "cb_pages_cancel":
+            await _handle_pages_cancel(update, context)
+        elif data == "cb_ocr_confirm":
+            await _handle_ocr_confirm(update, context)
+        elif data == "cb_ocr_edit":
+            await _handle_ocr_edit(update, context)
+        elif data == "cb_ocr_retry":
+            await _handle_ocr_retry(update, context)
+        elif data.startswith("tg_buy_"):
+            plan_id = _safe_callback_int(data, prefix="tg_buy_")
+            if plan_id is not None:
+                await _tg_buy_callback(update, context, plan_id)
+        elif data.startswith("buy_plan_"):
+            plan_id = _safe_callback_int(data, prefix="buy_plan_")
+            if plan_id is not None:
+                await buy_plan_callback(update, context, plan_id)
+        elif data.startswith("approve_payment_"):
+            payment_id = _safe_callback_int(data, prefix="approve_payment_")
+            if payment_id is not None:
+                await approve_payment_callback(update, context, payment_id)
+        elif data.startswith("reject_payment_"):
+            payment_id = _safe_callback_int(data, prefix="reject_payment_")
+            if payment_id is not None:
+                await reject_payment_callback(update, context, payment_id)
+        elif data.startswith("student_result_"):
+            student_id = _safe_callback_int(data, prefix="student_result_")
+            if student_id is not None:
+                await _dispatch_handler(update, context, lambda u, c: _show_student_detail(u, c, student_id))
+        # -- Teacher groups, attendance and group reports ------------------------
+        elif data == "tgrplist":
+            await _dispatch_handler(update, context, groups_handler)
+        elif data.startswith("tgrp_"):
+            group_id = _safe_callback_int(data, prefix="tgrp_")
+            if group_id is not None:
+                await _group_card_callback(update, context, group_id)
+        elif data.startswith("tatt_"):
+            group_id = _safe_callback_int(data, prefix="tatt_")
+            if group_id is not None:
+                await _attendance_callback(update, context, group_id)
+        elif data.startswith("tmk_"):
+            parsed = _parse_mark_callback(data)
+            if parsed:
+                await _mark_callback(update, context, *parsed)
+        elif data.startswith("tall_"):
+            session_id = _safe_callback_int(data, prefix="tall_")
+            if session_id is not None:
+                await _all_present_callback(update, context, session_id)
+        elif data.startswith("tfinabs_"):
+            session_id = _safe_callback_int(data, prefix="tfinabs_")
+            if session_id is not None:
+                await _finalize_callback(update, context, session_id, True)
+        elif data.startswith("tfin_"):
+            session_id = _safe_callback_int(data, prefix="tfin_")
+            if session_id is not None:
+                await _finalize_callback(update, context, session_id, False)
+        elif data.startswith("trptw_"):
+            group_id = _safe_callback_int(data, prefix="trptw_")
+            if group_id is not None:
+                await _attendance_report_callback(update, context, group_id, 7)
+        elif data.startswith("trptm_"):
+            group_id = _safe_callback_int(data, prefix="trptm_")
+            if group_id is not None:
+                await _attendance_report_callback(update, context, group_id, 30)
+        elif data.startswith("trpt_"):
+            group_id = _safe_callback_int(data, prefix="trpt_")
+            if group_id is not None:
+                await _attendance_report_callback(update, context, group_id)
+        elif data.startswith("tstu_"):
+            group_id = _safe_callback_int(data, prefix="tstu_")
+            if group_id is not None:
+                await _students_callback(update, context, group_id)
+        elif data.startswith("terspend_"):
+            group_id = _safe_callback_int(data, prefix="terspend_")
+            if group_id is not None:
+                await _essay_results_callback(update, context, group_id, state="pending")
+        elif data.startswith("tersp_"):
+            parts = data[len("tersp_"):].split("_")
+            try:
+                group_id, offset = int(parts[0]), int(parts[1])
+            except (IndexError, TypeError, ValueError):
+                logger.warning("Malformed essay page callback: %r", data)
+            else:
+                await _essay_results_callback(
+                    update, context, group_id, offset=max(0, offset),
+                )
+        elif data.startswith("ters_"):
+            group_id = _safe_callback_int(data, prefix="ters_")
+            if group_id is not None:
+                await _essay_results_callback(update, context, group_id)
+        elif data.startswith("tgreport_"):
+            group_id = _safe_callback_int(data, prefix="tgreport_")
+            if group_id is not None:
+                await _group_report_callback(update, context, group_id)
+        elif data.startswith(("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")):
+            report_id = _safe_report_callback_id(data)
+            if report_id is not None:
+                section = next(
+                    prefix for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")
+                    if data.startswith(prefix)
+                )
+                await _weekly_report_detail_callback(update, context, report_id, section)
         else:
-            await _essay_results_callback(
-                update, context, group_id, offset=max(0, offset),
-            )
-    elif data.startswith("ters_"):
-        group_id = _safe_callback_int(data, prefix="ters_")
-        if group_id is not None:
-            await _essay_results_callback(update, context, group_id)
-    elif data.startswith("tgreport_"):
-        group_id = _safe_callback_int(data, prefix="tgreport_")
-        if group_id is not None:
-            await _group_report_callback(update, context, group_id)
-    elif data.startswith(("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")):
-        report_id = _safe_report_callback_id(data)
-        if report_id is not None:
-            section = next(
-                prefix for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")
-                if data.startswith(prefix)
-            )
-            await _weekly_report_detail_callback(update, context, report_id, section)
-    else:
-        # Unknown callback data — acknowledge so the client stops spinning
-        await query.edit_message_text("😕 Bu tugma endi ishlamaydi. /start ni bosing.")
+            # Unknown callback data — give user a main menu button
+            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+            if query:
+                try:
+                    await query.edit_message_text(
+                        "ℹ️ Bu amal muddati tugagan yoki mavjud emas.\n"
+                        "Bosh menyuga qaytishingiz mumkin 👇",
+                        reply_markup=buttons,
+                    )
+                except Exception:
+                    await send_reply(update, "Bosh menyu 👇", reply_markup=buttons)
+
+    except Exception as exc:
+        logger.exception("Error in callback query (%s): %s", data, exc)
+        buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+        try:
+            if query and query.message:
+                await query.message.reply_text(
+                    "Operatsiyani bajarishda kutilmagan xatolik yuz berdi.\n"
+                    "Bosh menyuga qaytib, qayta urinib ko'rishingiz mumkin 👇",
+                    reply_markup=buttons,
+                )
+            else:
+                await send_reply(
+                    update,
+                    "Operatsiyani bajarishda xatolik yuz berdi.\nBosh menyuga qaytish 👇",
+                    reply_markup=buttons,
+                )
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -3289,7 +4074,8 @@ def _arena_keyboard() -> InlineKeyboardMarkup:
     from django.conf import settings as _settings
     site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚔️ Navbatga tushish (Web)", url=f"{site_url}/arena/")],
+        [InlineKeyboardButton("⚔️ Bot bilan duel (Telegram chatda)", callback_data="arena_bot_start")],
+        [InlineKeyboardButton("🌐 Web Arenaga o'tish (Jonli 1v1)", url=f"{site_url}/arena/")],
         [
             InlineKeyboardButton("🔗 Xona yaratish", callback_data="arena_create"),
             InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb"),
@@ -3383,55 +4169,88 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle arena inline buttons (arena_create / arena_lb)."""
+    """Handle arena inline buttons (arena_create / arena_lb / arena_bot_start / ar_*)."""
     query = update.callback_query
-    data = query.data
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
 
-    if data == "arena_create":
-        user = await _get_or_create_user_async(update)
-        if not user:
-            await query.answer("Xatolik")
-            return
+    data = query.data if query else ""
 
-        from django.conf import settings as _settings
-        from apps.arena import services
-        site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+    try:
+        if data == "arena_bot_start":
+            await arena_bot_start_callback(update, context)
 
-        def _create():
-            room = services.create_custom_room(user)
-            return room
+        elif data.startswith("ar_ans:"):
+            parts = data.split(":")
+            room_code, idx, choice = parts[1], int(parts[2]), parts[3]
+            await arena_answer_callback(update, context, room_code, idx, choice)
 
-        room = await _run_db(_create)
-        await query.answer()
-        await query.edit_message_text(
-            f"🔗 *XONA YARATILDI!*\n\n"
-            f"Do'stingizga shu kodni yuboring:\n\n"
-            f"`{room.room_code}`\n\n"
-            f"U botga `/arena_join {room.room_code}` yozib yoki "
-            f"{site_url}/arena/ sahifasida kodni kiritib qo'shiladi.\n\n"
-            f"Siz duelni shu yerda kutishingiz mumkin:\n"
-            f"{site_url}/arena/{room.room_code}/",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("⚔️ Duelni kutish", url=f"{site_url}/arena/{room.room_code}/")
-            ], [
-                InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")
-            ]]),
+        elif data.startswith("ar_next:"):
+            parts = data.split(":")
+            room_code, next_idx = parts[1], int(parts[2])
+            await arena_next_callback(update, context, room_code, next_idx)
+
+        elif data.startswith("ar_finish:"):
+            parts = data.split(":")
+            room_code = parts[1]
+            await arena_finish_callback(update, context, room_code)
+
+        elif data == "arena_create":
+            user = await _get_or_create_user_async(update)
+            if not user:
+                await send_reply(update, "Foydalanuvchi aniqlanmadi.")
+                return
+
+            from django.conf import settings as _settings
+            from apps.arena import services
+            site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+
+            def _create():
+                room = services.create_custom_room(user)
+                return room
+
+            room = await _run_db(_create)
+            await query.edit_message_text(
+                f"🔗 *XONA YARATILDI!*\n\n"
+                f"Do'stingizga shu kodni yuboring:\n\n"
+                f"`{room.room_code}`\n\n"
+                f"U botga `/arena_join {room.room_code}` yozib yoki "
+                f"{site_url}/arena/ sahifasida kodni kiritib qo'shiladi.\n\n"
+                f"Siz duelni shu yerda kutishingiz mumkin:\n"
+                f"{site_url}/arena/{room.room_code}/",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⚔️ Duelni kutish", url=f"{site_url}/arena/{room.room_code}/")
+                ], [
+                    InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")
+                ]]),
+            )
+
+        elif data == "arena_lb":
+            text = await _run_db(lambda: _arena_leaderboard_text(10))
+            await query.edit_message_text(
+                f"🏆 *ELO REYTING (TOP 10)*\n\n{text}",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Orqaga", callback_data="menu_arena")
+                ]]),
+            )
+
+        else:
+            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+            await send_reply(update, "Arena amali yakunlangan.", reply_markup=buttons)
+
+    except Exception as exc:
+        logger.exception("Error in arena_callback_handler (%s): %s", data, exc)
+        buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+        await send_reply(
+            update,
+            "Arena duelida kutilmagan xatolik yuz berdi.\nBosh menyuga qaytish 👇",
+            reply_markup=buttons,
         )
-
-    elif data == "arena_lb":
-        text = await _run_db(lambda: _arena_leaderboard_text(10))
-        await query.answer()
-        await query.edit_message_text(
-            f"🏆 *ELO REYTING (TOP 10)*\n\n{text}",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Orqaga", callback_data="menu_arena")
-            ]]),
-        )
-
-    else:
-        await query.answer()
 
 
 # ---------------------------------------------------------------------------
@@ -4359,6 +5178,8 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("essay", essay_handler))
     app.add_handler(CommandHandler("arena", arena_handler))
     app.add_handler(CommandHandler("arena_join", arena_join_handler))
+    app.add_handler(CommandHandler("certificates", certificates_handler))
+    app.add_handler(CommandHandler("myattendance", myattendance_handler))
 
     # Telegram Stars payments — registered before the generic message handlers
     # so a paid update can never be swallowed by the text/photo routers.
@@ -4378,7 +5199,7 @@ def setup_handlers(app) -> None:
     )
 
     # Arena callbacks (must be before generic callback_handler)
-    app.add_handler(CallbackQueryHandler(arena_callback_handler, pattern=r"^arena_"))
+    app.add_handler(CallbackQueryHandler(arena_callback_handler, pattern=r"^(arena_|ar_)"))
 
     # Quiz handler (must be before generic callback_handler)
     from apps.notifications.bot.quiz import quiz_handler, quiz_callback_handler
@@ -4458,10 +5279,12 @@ async def post_init(app) -> None:
         BotCommand("streak", "Kunlik streak"),
         BotCommand("daily", "Kunlik vazifalar"),
         BotCommand("essay", "Esse topshirish (matn/rasm)"),
+        BotCommand("certificates", "📜 Rasmiy PDF sertifikatlar"),
         BotCommand("plans", "Tariflar va narxlar"),
         BotCommand("buy", "Tarif sotib olish (Telegram Stars)"),
         BotCommand("myplan", "Mening platforma tarifim"),
         BotCommand("mytuition", "Kurs to'lovlari"),
+        BotCommand("myattendance", "📅 Mening davomatim"),
         BotCommand("course_payment", "Mening to'lov holatim"),
         BotCommand("payment_history", "To'lovlar tarixi"),
         BotCommand("payment_proof", "To'lov dalilini yuborish"),

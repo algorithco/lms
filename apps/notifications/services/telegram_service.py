@@ -12,6 +12,7 @@ Message types:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -140,9 +141,59 @@ class TelegramService:
             logger.error("answerCallbackQuery failed: %s", e)
             return {"ok": False, "error": str(e)}
 
-    # -----------------------------------------------------------------------
-    # Public methods
-    # -----------------------------------------------------------------------
+    @classmethod
+    def send_essay_graded(
+        cls,
+        chat_id: int,
+        submission: Any,
+        recipient: Any = None,
+    ) -> dict[str, Any]:
+        """
+        AI baholagan esse natijasi haqida xabar yuborish va harakat tugmalarini ulash:
+        [ 🪄 AI orqali qayta yozish ] va [ 👨‍🏫 O'qituvchiga tekshirtirish ].
+        """
+        topic_title = submission.topic.title if submission.topic else "Erkin mavzu"
+        score = str(submission.total_score) if submission.total_score is not None else "-"
+        max_score = str(submission.max_score) if submission.max_score else "24"
+        is_passed = bool(submission.is_passed)
+        converted = submission.converted_score
+        status_line = (
+            "✅ Tabriklaymiz — o'tdingiz!" if is_passed else "❌ Afsuski — o'tmadingiz."
+        )
+
+        text = (
+            f"🤖 *Essingiz baholandi!*\n\n"
+            f"📚 Mavzu: *{topic_title}*\n"
+            f"📊 Ball: *{score}/{max_score}*"
+        )
+        if converted is not None:
+            text += f"\n📈 Umumiy tizimda: *{converted}/75*"
+        text += f"\n{status_line}\n\n"
+        if getattr(submission, "summary", ""):
+            text += f"💬 *Xulosa:* _{submission.summary}_\n\n"
+        text += "Quyidagi tugmalar orqali esseni AI bilan yaxshilashingiz yoki ustozga tekshirtirishingiz mumkin 👇"
+
+        site_url = getattr(settings, "SITE_URL", "http://localhost:8000").rstrip("/")
+        buttons = [
+            [
+                {"text": "🪄 AI orqali qayta yozish", "callback_data": f"essay_improve:{submission.id}"},
+                {"text": "👨‍🏫 O'qituvchiga tekshirtirish", "callback_data": f"essay_review:{submission.id}"},
+            ],
+            [
+                {"text": "📄 To'liq natija", "url": f"{site_url}/essays/result/{submission.id}/"},
+                {"text": "🏠 Bosh menyu", "callback_data": "menu_main"},
+            ],
+        ]
+
+        return cls.send_message_with_keyboard(
+            chat_id=chat_id,
+            text=text,
+            buttons=buttons,
+            parse_mode="Markdown",
+            notification_type="essay_graded",
+            recipient=recipient or submission.student,
+            title=f"Esse baholandi: {topic_title}",
+        )
 
     @classmethod
     def send_essay_graded_by_teacher(
@@ -472,7 +523,8 @@ class TelegramService:
 
             with httpx.Client(timeout=30.0) as client:
                 with open(file_path, "rb") as f:
-                    files = {"document": (file_path.split("/")[-1], f, "application/pdf")}
+                    filename = os.path.basename(file_path)
+                    files = {"document": (filename, f, "application/pdf")}
                     data = {"chat_id": chat_id, "caption": caption}
                     response = client.post(url, data=data, files=files)
                     result = response.json()

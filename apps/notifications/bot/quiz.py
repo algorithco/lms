@@ -132,27 +132,42 @@ async def quiz_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     Returns True if handled, False otherwise.
     """
     query = update.callback_query
-    data = query.data
-
-    if not data.startswith("quiz_"):
+    if not query or not query.data or not query.data.startswith("quiz_"):
         return False
 
-    await query.answer()
+    try:
+        try:
+            await query.answer()
+        except Exception:
+            pass
 
-    if data.startswith("quiz_start_"):
-        test_id = int(data.split("_")[-1])
-        await _start_quiz(update, context, test_id)
-    elif data == "quiz_confirm":
-        await _confirm_start(update, context)
-    elif data.startswith("quiz_answer_"):
-        parts = data.split("_")
-        question_idx = int(parts[2])
-        choice_idx = int(parts[3])
-        await _handle_answer(update, context, question_idx, choice_idx)
-    elif data == "quiz_next":
-        await _show_next_question(update, context)
-    elif data == "quiz_finish":
-        await _show_final_results(update, context)
+        data = query.data
+        if data.startswith("quiz_start_"):
+            test_id = int(data.split("_")[-1])
+            await _start_quiz(update, context, test_id)
+        elif data == "quiz_confirm":
+            await _confirm_start(update, context)
+        elif data.startswith("quiz_answer_"):
+            parts = data.split("_")
+            question_idx = int(parts[2])
+            choice_idx = int(parts[3])
+            await _handle_answer(update, context, question_idx, choice_idx)
+        elif data == "quiz_next":
+            await _show_next_question(update, context)
+        elif data == "quiz_finish":
+            await _show_final_results(update, context)
+    except Exception as exc:
+        logger.exception("Quiz callback error (data=%s): %s", getattr(query, "data", ""), exc)
+        try:
+            await query.edit_message_text(
+                "⚠️ Quiz jarayonida kutilmagan uzilish yuz berdi.\n\n"
+                "Davom etish uchun quyidagi tugma orqali bosh menyuga qayting:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]
+                ]),
+            )
+        except Exception:
+            pass
 
     return True
 
@@ -446,6 +461,49 @@ async def _show_final_results(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode="Markdown",
         reply_markup=buttons,
     )
+
+    # Agar testdan muvaffaqiyatli o'tgan bo'lsa, sertifikat PDF faylini to'g'ridan-to'g'ri yuborish
+    if passed and user:
+        def _get_or_create_cert_pdf():
+            from apps.results.models import Result, Certificate
+            from apps.certificates.services.generation import generate_certificate
+
+            res = (
+                Result.objects.filter(student=user, test_id=quiz["test_id"], is_passed=True)
+                .order_by("-id")
+                .first()
+            )
+            if not res:
+                return None, None
+            cert = Certificate.objects.filter(result=res).first()
+            if not cert or not cert.file:
+                try:
+                    generate_certificate(res)
+                    cert = Certificate.objects.filter(result=res).first()
+                except Exception:
+                    pass
+            if cert and cert.file:
+                return cert.file.path, cert.certificate_number
+            return None, None
+
+        cert_path, cert_num = await _run_db(_get_or_create_cert_pdf)
+        if cert_path and update.effective_chat:
+            try:
+                import os
+                with open(cert_path, "rb") as doc_file:
+                    await context.bot.send_document(
+                        chat_id=update.effective_chat.id,
+                        document=doc_file,
+                        filename=os.path.basename(cert_path) or f"Sertifikat_{cert_num}.pdf",
+                        caption=(
+                            f"📜 *Tabriklaymiz, {user.first_name}!* 🎉\n\n"
+                            f"Testdan muvaffaqiyatli o'tganingiz uchun rasmiy sertifikatingiz taqdim etiladi.\n"
+                            f"📋 Sertifikat raqami: *{cert_num}*"
+                        ),
+                        parse_mode="Markdown",
+                    )
+            except Exception:
+                logger.exception("Quiz yakunida sertifikat PDF yuborishda xatolik")
 
     # Clean up quiz state
     context.user_data.pop(QUIZ_KEY, None)
