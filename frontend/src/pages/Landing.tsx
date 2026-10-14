@@ -10,6 +10,10 @@ import DepthCarousel from '../components/DepthCarousel';
 import TrendChart from '../components/TrendChart';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import confetti from 'canvas-confetti';
+import Hero3DCanvas from '../components/Hero3DCanvas';
+import TiltCard from '../components/TiltCard';
+import HologramRadar3D from '../components/HologramRadar3D';
 import {
   AwardIcon,
   BotIcon,
@@ -260,6 +264,16 @@ export default function Landing() {
     if (isCorrect) {
       setArenaUserScore((s) => s + 1);
       setArenaUserElo((e) => e + 15);
+      try {
+        confetti({
+          particleCount: 65,
+          spread: 75,
+          origin: { y: 0.62 },
+          colors: ['#F59E0B', '#10B981', '#FBBF24', '#34D399', '#8B5CF6'],
+        });
+      } catch {
+        // graceful fallback
+      }
     } else {
       setArenaAiScore((s) => s + 1);
     }
@@ -732,6 +746,57 @@ export default function Landing() {
           color: #FB7185;
           box-shadow: 0 0 16px rgba(244, 63, 94, 0.2);
         }
+
+        /* 3D Multi-Layer Helpers */
+        .layer-3d-z15 {
+          transform: translateZ(15px);
+          transform-style: preserve-3d;
+        }
+        .layer-3d-z30 {
+          transform: translateZ(30px);
+          transform-style: preserve-3d;
+        }
+        .layer-3d-z45 {
+          transform: translateZ(45px);
+          transform-style: preserve-3d;
+        }
+
+        /* 1v1 Arena Neon Laser Pulse */
+        .laser-beam-wrapper {
+          position: relative;
+          width: 100%;
+          height: 6px;
+          background: rgba(30, 41, 59, 0.6);
+          border-radius: 999px;
+          overflow: hidden;
+          margin: 12px 0 16px;
+          border: 1px solid rgba(245, 158, 11, 0.15);
+          box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.4);
+        }
+        .laser-beam-line {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          width: 45%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, #F59E0B 30%, #10B981 70%, #8B5CF6 95%, transparent);
+          box-shadow: 0 0 14px #F59E0B, 0 0 24px #10B981, 0 0 30px #8B5CF6;
+          animation: laserPulseAnim 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+        }
+        @keyframes laserPulseAnim {
+          0% {
+            left: 0%;
+            transform: scaleX(0.85);
+          }
+          50% {
+            transform: scaleX(1.3);
+          }
+          100% {
+            left: 55%;
+            transform: scaleX(0.9);
+          }
+        }
       `}</style>
 
       {/* NAVBAR */}
@@ -922,6 +987,9 @@ export default function Landing() {
       {/* HERO SECTION */}
       <main id="main-content">
         <section id="carousel" style={{ position: 'relative', paddingTop: 76, overflow: 'hidden' }}>
+          {/* Interactive 3D Three.js Hero Canvas */}
+          <Hero3DCanvas />
+
           <div style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
             <div className="hero-grid-bg" />
             <div className="hero-orb" style={{ width: 520, height: 520, background: '#F59E0B', top: -180, left: -100 }} />
@@ -1038,86 +1106,89 @@ export default function Landing() {
                 </div>
 
                 <div style={{ position: 'relative', minWidth: 0 }}>
-                  <div className="lcard" style={{ borderRadius: 24, padding: 24 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', color: '#F59E0B', margin: 0 }}>
-                        {t('slide1_badge')}
+                  <TiltCard glare maxTilt={8} scale={1.01} style={{ borderRadius: 24 }}>
+                    <div className="lcard" style={{ borderRadius: 24, padding: 24, transformStyle: 'preserve-3d' }}>
+                      <div className="layer-3d-z15" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', color: '#F59E0B', margin: 0 }}>
+                          {t('slide1_badge')}
+                        </p>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <CheckIcon size={14} /> BMB Standart
+                        </span>
+                      </div>
+                      <p className="land-ink layer-3d-z30" style={{ fontSize: 16, fontWeight: 800, marginTop: 6, marginBottom: 16 }}>
+                        {t('mock_sample_test')}
                       </p>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <CheckIcon size={14} /> BMB Standart
-                      </span>
-                    </div>
-                    <p className="land-ink" style={{ fontSize: 16, fontWeight: 800, marginTop: 6, marginBottom: 16 }}>
-                      {t('mock_sample_test')}
-                    </p>
 
-                    {[
-                      [t('mock_read'), '8 / 10 ✓', 80, '#10B981'],
-                      ['Grammatika va Morfologiya', '14 / 15 ✓', 93, '#F59E0B'],
-                      [t('mock_lit'), '9 / 15', 60, '#38BDF8'],
-                    ].map(([label, val, w, c]) => (
-                      <div key={String(label)} style={{ marginTop: 14 }}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: '#e2e8f0',
-                          }}
-                        >
-                          <span>{label}</span>
-                          <span style={{ color: String(c), fontWeight: 700 }}>{val}</span>
-                        </div>
-                        <div style={{ height: 8, borderRadius: 999, background: 'rgba(30, 41, 59, 0.7)', marginTop: 6 }}>
+                      {[
+                        [t('mock_read'), '8 / 10 ✓', 80, '#10B981'],
+                        ['Grammatika va Morfologiya', '14 / 15 ✓', 93, '#F59E0B'],
+                        [t('mock_lit'), '9 / 15', 60, '#38BDF8'],
+                      ].map(([label, val, w, c]) => (
+                        <div key={String(label)} className="layer-3d-z15" style={{ marginTop: 14 }}>
                           <div
                             style={{
-                              height: 8,
-                              borderRadius: 999,
-                              width: `${w}%`,
-                              background: `linear-gradient(90deg, ${c}, ${c})`,
-                              boxShadow: `0 0 10px ${c}55`,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: '#e2e8f0',
                             }}
-                          />
+                          >
+                            <span>{label}</span>
+                            <span style={{ color: String(c), fontWeight: 700 }}>{val}</span>
+                          </div>
+                          <div style={{ height: 8, borderRadius: 999, background: 'rgba(30, 41, 59, 0.7)', marginTop: 6 }}>
+                            <div
+                              style={{
+                                height: 8,
+                                borderRadius: 999,
+                                width: `${w}%`,
+                                background: `linear-gradient(90deg, ${c}, ${c})`,
+                                boxShadow: `0 0 10px ${c}55`,
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
 
-                    <div
-                      style={{
-                        marginTop: 22,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        borderRadius: 16,
-                        padding: '14px 18px',
-                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(16, 185, 129, 0.08))',
-                        border: '1px solid rgba(245, 158, 11, 0.2)',
-                      }}
-                    >
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#F59E0B', margin: 0 }}>
-                          {t('mock_score')}
-                        </p>
-                        <p className="land-ink" style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>
-                          78.3<span style={{ fontSize: 15, color: '#F59E0B' }}>%</span>
-                        </p>
-                      </div>
-                      <span
+                      <div
+                        className="layer-3d-z30"
                         style={{
-                          padding: '6px 14px',
-                          borderRadius: 12,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          color: '#090d16',
-                          background: 'linear-gradient(135deg, #10B981, #34D399)',
-                          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                          marginTop: 22,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          borderRadius: 16,
+                          padding: '14px 18px',
+                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(16, 185, 129, 0.08))',
+                          border: '1px solid rgba(245, 158, 11, 0.2)',
                         }}
                       >
-                        A daraja · {t('mock_passed')}
-                      </span>
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#F59E0B', margin: 0 }}>
+                            {t('mock_score')}
+                          </p>
+                          <p className="land-ink" style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>
+                            78.3<span style={{ fontSize: 15, color: '#F59E0B' }}>%</span>
+                          </p>
+                        </div>
+                        <span
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: '#090d16',
+                            background: 'linear-gradient(135deg, #10B981, #34D399)',
+                            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                          }}
+                        >
+                          A daraja · {t('mock_passed')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </TiltCard>
 
                   <div
                     className="float-badge glass-card"
@@ -1205,125 +1276,141 @@ export default function Landing() {
                 </div>
 
                 <div style={{ position: 'relative', minWidth: 0 }}>
-                  <div className="lcard" style={{ borderRadius: 24, padding: 22 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: '#F59E0B', margin: 0 }}>
-                        {t('mock_ai_result')}
+                  <TiltCard glare maxTilt={8} scale={1.01} style={{ borderRadius: 24 }}>
+                    <div className="lcard" style={{ borderRadius: 24, padding: 22, transformStyle: 'preserve-3d' }}>
+                      <div className="layer-3d-z15" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: '#F59E0B', margin: 0 }}>
+                          {t('mock_ai_result')}
+                        </p>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: '#10B981',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                          }}
+                        >
+                          12 Mezon Faol
+                        </span>
+                      </div>
+                      <p className="land-ink layer-3d-z30" style={{ fontSize: 15, fontWeight: 800, marginTop: 4, marginBottom: 14 }}>
+                        {t('mock_essay_title')}
                       </p>
-                      <span
+
+                      {/* Overall score indicator */}
+                      <div
+                        className="layer-3d-z15"
                         style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: '#10B981',
-                          background: 'rgba(16, 185, 129, 0.12)',
-                          padding: '3px 8px',
-                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 16,
+                          padding: '12px 16px',
+                          borderRadius: 16,
+                          background: 'rgba(30, 41, 59, 0.5)',
+                          border: '1px solid rgba(148, 163, 184, 0.12)',
+                          marginBottom: 16,
                         }}
                       >
-                        12 Mezon Faol
-                      </span>
-                    </div>
-                    <p className="land-ink" style={{ fontSize: 15, fontWeight: 800, marginTop: 4, marginBottom: 14 }}>
-                      {t('mock_essay_title')}
-                    </p>
-
-                    {/* Overall score indicator */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 16,
-                        padding: '12px 16px',
-                        borderRadius: 16,
-                        background: 'rgba(30, 41, 59, 0.5)',
-                        border: '1px solid rgba(148, 163, 184, 0.12)',
-                        marginBottom: 16,
-                      }}
-                    >
-                      <div style={{ textAlign: 'center' }}>
-                        <p className="land-ink" style={{ fontSize: 28, fontWeight: 900, margin: 0, color: '#F59E0B' }}>
-                          54.5
-                        </p>
-                        <p className="land-muted" style={{ fontSize: 10, fontWeight: 700, margin: 0 }}>
-                          60 ballik tizim
-                        </p>
-                      </div>
-                      <div style={{ flex: 1, borderLeft: '1px solid rgba(148, 163, 184, 0.14)', paddingLeft: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                          <span className="land-muted">Umumiy foiz:</span>
-                          <b style={{ color: '#10B981' }}>90.8% (A daraja)</b>
+                        <div style={{ textAlign: 'center' }}>
+                          <p className="land-ink" style={{ fontSize: 28, fontWeight: 900, margin: 0, color: '#F59E0B' }}>
+                            54.5
+                          </p>
+                          <p className="land-muted" style={{ fontSize: 10, fontWeight: 700, margin: 0 }}>
+                            60 ballik tizim
+                          </p>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                          <span className="land-muted">Matn hajmi:</span>
-                          <b style={{ color: '#f8fafc' }}>278 soʻz (Yetarli)</b>
+                        <div style={{ flex: 1, borderLeft: '1px solid rgba(148, 163, 184, 0.14)', paddingLeft: 14 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                            <span className="land-muted">Umumiy foiz:</span>
+                            <b style={{ color: '#10B981' }}>90.8% (A daraja)</b>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                            <span className="land-muted">Matn hajmi:</span>
+                            <b style={{ color: '#f8fafc' }}>278 soʻz (Yetarli)</b>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Criteria Selector / Hover list */}
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', margin: '0 0 8px' }}>
-                      Mezonni tanlang (jonli tahlil):
-                    </p>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gap: 6,
-                        maxHeight: showAllCriteria ? 220 : 130,
-                        overflowY: 'auto',
-                        paddingRight: 4,
-                      }}
-                    >
-                      {(showAllCriteria ? ESSAY_12_CRITERIA : ESSAY_12_CRITERIA.slice(0, 4)).map((crit) => {
-                        const isSelected = selectedCriterion.id === crit.id;
-                        return (
+                      {/* 3D Hologram Radar & Criteria List */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, alignItems: 'center' }}>
+                        <div className="layer-3d-z30" style={{ display: 'flex', justifyContent: 'center' }}>
+                          <HologramRadar3D
+                            items={ESSAY_12_CRITERIA.slice(0, 8)}
+                            activeId={selectedCriterion.id}
+                            size={210}
+                          />
+                        </div>
+
+                        <div>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', margin: '0 0 8px' }}>
+                            Mezonni tanlang (jonli tahlil):
+                          </p>
                           <div
-                            key={crit.id}
-                            onClick={() => setSelectedCriterion(crit)}
-                            onMouseEnter={() => setSelectedCriterion(crit)}
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              borderRadius: 10,
-                              fontSize: 12,
-                              cursor: 'pointer',
-                              background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                              border: `1px solid ${isSelected ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.1)'}`,
-                              transition: 'all 0.2s ease',
+                              display: 'grid',
+                              gap: 6,
+                              maxHeight: showAllCriteria ? 220 : 150,
+                              overflowY: 'auto',
+                              paddingRight: 4,
                             }}
                           >
-                            <span style={{ color: isSelected ? '#f8fafc' : '#cbd5e1', fontWeight: 600 }}>
-                              {crit.id}. {crit.name}
-                            </span>
-                            <b style={{ color: isSelected ? '#F59E0B' : '#10B981', marginLeft: 8 }}>
-                              {crit.score}
-                            </b>
+                            {(showAllCriteria ? ESSAY_12_CRITERIA : ESSAY_12_CRITERIA.slice(0, 4)).map((crit) => {
+                              const isSelected = selectedCriterion.id === crit.id;
+                              return (
+                                <div
+                                  key={crit.id}
+                                  onClick={() => setSelectedCriterion(crit)}
+                                  onMouseEnter={() => setSelectedCriterion(crit)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    borderRadius: 10,
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                    background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                                    border: `1px solid ${isSelected ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.1)'}`,
+                                    transition: 'all 0.2s ease',
+                                  }}
+                                >
+                                  <span style={{ color: isSelected ? '#f8fafc' : '#cbd5e1', fontWeight: 600 }}>
+                                    {crit.id}. {crit.name}
+                                  </span>
+                                  <b style={{ color: isSelected ? '#F59E0B' : '#10B981', marginLeft: 8 }}>
+                                    {crit.score}
+                                  </b>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Interactive Feedback Box */}
-                    <div
-                      style={{
-                        marginTop: 14,
-                        borderRadius: 14,
-                        padding: '12px 14px',
-                        fontSize: 12,
-                        background: 'rgba(245, 158, 11, 0.08)',
-                        border: '1px solid rgba(245, 158, 11, 0.2)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#F59E0B', fontWeight: 700, marginBottom: 4 }}>
-                        <LightbulbIcon size={15} />
-                        <span>{selectedCriterion.name}:</span>
+                        </div>
                       </div>
-                      <p style={{ margin: 0, color: '#cbd5e1', lineHeight: 1.5 }}>
-                        {selectedCriterion.desc}
-                      </p>
+
+                      {/* Interactive Feedback Box */}
+                      <div
+                        className="layer-3d-z15"
+                        style={{
+                          marginTop: 14,
+                          borderRadius: 14,
+                          padding: '12px 14px',
+                          fontSize: 12,
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.2)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#F59E0B', fontWeight: 700, marginBottom: 4 }}>
+                          <LightbulbIcon size={15} />
+                          <span>{selectedCriterion.name}:</span>
+                        </div>
+                        <p style={{ margin: 0, color: '#cbd5e1', lineHeight: 1.5 }}>
+                          {selectedCriterion.desc}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </TiltCard>
 
                   <div
                     className="float-badge glass-card"
@@ -1406,161 +1493,170 @@ export default function Landing() {
                 </div>
 
                 <div style={{ position: 'relative', minWidth: 0 }}>
-                  <div className="lcard" style={{ borderRadius: 24, padding: 22 }}>
-                    {/* Header: SIZ vs AI ELO */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                        <span
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 999,
-                            flexShrink: 0,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            color: '#090d16',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                            boxShadow: '0 0 12px rgba(245, 158, 11, 0.35)',
-                          }}
-                        >
-                          SIZ
-                        </span>
-                        <div style={{ minWidth: 0 }}>
-                          <b className="land-ink" style={{ display: 'block', fontSize: 14 }}>
-                            {t('mock_you')}
-                          </b>
-                          <small style={{ color: '#10B981', fontWeight: 800, fontSize: 10 }}>
-                            ELO {arenaUserElo}
-                          </small>
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'center', padding: '4px 14px', borderRadius: 12, background: 'rgba(30, 41, 59, 0.6)' }}>
-                        <b className="land-ink" style={{ fontSize: 16, letterSpacing: '0.05em' }}>
-                          {arenaUserScore} : {arenaAiScore}
-                        </b>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, justifyContent: 'flex-end' }}>
-                        <div style={{ minWidth: 0, textAlign: 'right' }}>
-                          <b className="land-ink" style={{ display: 'block', fontSize: 14 }}>
-                            {t('mock_rival')}
-                          </b>
-                          <small style={{ color: '#F43F5E', fontWeight: 800, fontSize: 10 }}>
-                            ELO 1195
-                          </small>
-                        </div>
-                        <span
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 999,
-                            flexShrink: 0,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            color: '#090d16',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-                            boxShadow: '0 0 12px rgba(139, 92, 246, 0.35)',
-                          }}
-                        >
-                          AI
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Question Card */}
-                    <div
-                      style={{
-                        marginTop: 16,
-                        borderRadius: 16,
-                        padding: '14px 18px',
-                        background: 'rgba(30, 41, 59, 0.5)',
-                        border: '1px solid rgba(148, 163, 184, 0.12)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#F59E0B' }}>
-                          SAVOL {arenaQuestionIdx + 1} / {ARENA_QUESTIONS.length}
-                        </span>
-                        {arenaAiThinking ? (
-                          <span style={{ fontSize: 10, color: '#38BDF8', fontWeight: 600 }}>
-                            AI javob bermoqda...
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 10, color: '#10B981', fontWeight: 600 }}>
-                            AI javob berdi (2.2s)
-                          </span>
-                        )}
-                      </div>
-                      <p className="land-ink" style={{ fontSize: 14, fontWeight: 700, margin: 0, lineHeight: 1.5 }}>
-                        {currentArenaQ.question}
-                      </p>
-                    </div>
-
-                    {/* Interactive Answer Buttons */}
-                    <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-                      {currentArenaQ.options.map((opt) => {
-                        const isChosen = userSelectedOption === opt.key;
-                        let extraClass = '';
-                        if (arenaAnswered) {
-                          if (opt.correct) extraClass = 'is-correct';
-                          else if (isChosen && !opt.correct) extraClass = 'is-wrong';
-                        }
-                        return (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            className={`interactive-opt-btn ${extraClass}`}
-                            onClick={() => handleArenaAnswer(opt.key)}
-                            disabled={arenaAnswered}
-                            aria-label={`${opt.key} varianti: ${opt.text}`}
+                  <TiltCard glare maxTilt={8} scale={1.01} style={{ borderRadius: 24 }}>
+                    <div className="lcard" style={{ borderRadius: 24, padding: 22, transformStyle: 'preserve-3d' }}>
+                      {/* Header: SIZ vs AI ELO */}
+                      <div className="layer-3d-z30" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                          <span
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 999,
+                              flexShrink: 0,
+                              fontSize: 12,
+                              fontWeight: 900,
+                              color: '#090d16',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                              boxShadow: '0 0 12px rgba(245, 158, 11, 0.35)',
+                            }}
                           >
-                            <span>
-                              <b style={{ color: '#F59E0B', marginRight: 6 }}>{opt.key} ·</b>
-                              {opt.text}
-                            </span>
-                            <span>
-                              {arenaAnswered && (opt.correct ? '✓ Toʻgʻri' : isChosen ? '✗ Xato' : '')}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                            SIZ
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <b className="land-ink" style={{ display: 'block', fontSize: 14 }}>
+                              {t('mock_you')}
+                            </b>
+                            <small style={{ color: '#10B981', fontWeight: 800, fontSize: 10 }}>
+                              ELO {arenaUserElo}
+                            </small>
+                          </div>
+                        </div>
 
-                    {/* Next Question / Feedback */}
-                    {arenaAnswered && (
+                        <div style={{ textAlign: 'center', padding: '4px 14px', borderRadius: 12, background: 'rgba(30, 41, 59, 0.6)' }}>
+                          <b className="land-ink" style={{ fontSize: 16, letterSpacing: '0.05em' }}>
+                            {arenaUserScore} : {arenaAiScore}
+                          </b>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, justifyContent: 'flex-end' }}>
+                          <div style={{ minWidth: 0, textAlign: 'right' }}>
+                            <b className="land-ink" style={{ display: 'block', fontSize: 14 }}>
+                              {t('mock_rival')}
+                            </b>
+                            <small style={{ color: '#F43F5E', fontWeight: 800, fontSize: 10 }}>
+                              ELO 1195
+                            </small>
+                          </div>
+                          <span
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 999,
+                              flexShrink: 0,
+                              fontSize: 12,
+                              fontWeight: 900,
+                              color: '#090d16',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                              boxShadow: '0 0 12px rgba(139, 92, 246, 0.35)',
+                            }}
+                          >
+                            AI
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Neon Laser Pulse Beam between Players */}
+                      <div className="laser-beam-wrapper layer-3d-z15" aria-hidden="true">
+                        <div className="laser-beam-line" />
+                      </div>
+
+                      {/* Question Card */}
                       <div
+                        className="layer-3d-z15"
                         style={{
-                          marginTop: 14,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: 12,
-                          background: 'rgba(16, 185, 129, 0.1)',
-                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          marginTop: 6,
+                          borderRadius: 16,
+                          padding: '14px 18px',
+                          background: 'rgba(30, 41, 59, 0.5)',
+                          border: '1px solid rgba(148, 163, 184, 0.12)',
                         }}
                       >
-                        <span style={{ fontSize: 12, color: '#e2e8f0' }}>
-                          {currentArenaQ.explanation}
-                        </span>
-                        <button
-                          type="button"
-                          className="landing-cta"
-                          onClick={handleNextArenaQuestion}
-                          style={{ padding: '6px 14px', fontSize: 12, minHeight: 36 }}
-                        >
-                          Keyingi savol →
-                        </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: '#F59E0B' }}>
+                            SAVOL {arenaQuestionIdx + 1} / {ARENA_QUESTIONS.length}
+                          </span>
+                          {arenaAiThinking ? (
+                            <span style={{ fontSize: 10, color: '#38BDF8', fontWeight: 600 }}>
+                              AI javob bermoqda...
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, color: '#10B981', fontWeight: 600 }}>
+                              AI javob berdi (2.2s)
+                            </span>
+                          )}
+                        </div>
+                        <p className="land-ink" style={{ fontSize: 14, fontWeight: 700, margin: 0, lineHeight: 1.5 }}>
+                          {currentArenaQ.question}
+                        </p>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Interactive Answer Buttons */}
+                      <div className="layer-3d-z30" style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                        {currentArenaQ.options.map((opt) => {
+                          const isChosen = userSelectedOption === opt.key;
+                          let extraClass = '';
+                          if (arenaAnswered) {
+                            if (opt.correct) extraClass = 'is-correct';
+                            else if (isChosen && !opt.correct) extraClass = 'is-wrong';
+                          }
+                          return (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              className={`interactive-opt-btn ${extraClass}`}
+                              onClick={() => handleArenaAnswer(opt.key)}
+                              disabled={arenaAnswered}
+                              aria-label={`${opt.key} varianti: ${opt.text}`}
+                            >
+                              <span>
+                                <b style={{ color: '#F59E0B', marginRight: 6 }}>{opt.key} ·</b>
+                                {opt.text}
+                              </span>
+                              <span>
+                                {arenaAnswered && (opt.correct ? '✓ Toʻgʻri' : isChosen ? '✗ Xato' : '')}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Next Question / Feedback */}
+                      {arenaAnswered && (
+                        <div
+                          className="layer-3d-z15"
+                          style={{
+                            marginTop: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            borderRadius: 12,
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                          }}
+                        >
+                          <span style={{ fontSize: 12, color: '#e2e8f0' }}>
+                            {currentArenaQ.explanation}
+                          </span>
+                          <button
+                            type="button"
+                            className="landing-cta"
+                            onClick={handleNextArenaQuestion}
+                            style={{ padding: '6px 14px', fontSize: 12, minHeight: 36 }}
+                          >
+                            Keyingi savol →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </TiltCard>
 
                   <div
                     className="float-badge glass-card"
@@ -1751,36 +1847,38 @@ export default function Landing() {
                 [t('step2_title'), t('step2_desc'), '#10B981'],
                 [t('step3_title'), t('step3_desc'), '#8B5CF6'],
               ].map(([title, desc, c], i) => (
-                <div
-                  key={i}
-                  className="glass-card lcard-hover"
-                  style={{ borderRadius: 20, padding: '32px 24px', textAlign: 'center' }}
-                >
+                <TiltCard key={i} glare maxTilt={10} scale={1.02} style={{ borderRadius: 20, height: '100%' }}>
                   <div
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 20,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#090d16',
-                      fontSize: 22,
-                      fontWeight: 900,
-                      marginBottom: 18,
-                      background: `linear-gradient(135deg, ${c}, ${c}dd)`,
-                      boxShadow: `0 8px 24px ${c}40`,
-                    }}
+                    className="glass-card lcard-hover"
+                    style={{ borderRadius: 20, padding: '32px 24px', textAlign: 'center', height: '100%', transformStyle: 'preserve-3d' }}
                   >
-                    {i + 1}
+                    <div
+                      className="layer-3d-z45"
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 20,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#090d16',
+                        fontSize: 22,
+                        fontWeight: 900,
+                        marginBottom: 18,
+                        background: `linear-gradient(135deg, ${c}, ${c}dd)`,
+                        boxShadow: `0 8px 24px ${c}40`,
+                      }}
+                    >
+                      {i + 1}
+                    </div>
+                    <h3 className="land-ink layer-3d-z30" style={{ fontSize: 18, fontWeight: 800, margin: '0 0 10px' }}>
+                      {title}
+                    </h3>
+                    <p className="land-muted layer-3d-z15" style={{ fontSize: 14, lineHeight: 1.65, margin: '0 auto' }}>
+                      {desc}
+                    </p>
                   </div>
-                  <h3 className="land-ink" style={{ fontSize: 18, fontWeight: 800, margin: '0 0 10px' }}>
-                    {title}
-                  </h3>
-                  <p className="land-muted" style={{ fontSize: 14, lineHeight: 1.65, margin: '0 auto' }}>
-                    {desc}
-                  </p>
-                </div>
+                </TiltCard>
               ))}
             </div>
 
