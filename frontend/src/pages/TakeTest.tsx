@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  FileText,
+  LayoutGrid,
+  Keyboard,
+} from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
 import { Tests as TestsApi } from '../lib/api';
 import {
@@ -179,6 +188,8 @@ export default function TakeTest() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [savingAll, setSavingAll] = useState(false);
+  const [singleMode, setSingleMode] = useState(true);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const submittedRef = useRef(false);
 
@@ -368,9 +379,24 @@ export default function TakeTest() {
     [save],
   );
 
-  const pick = (q: Question, choiceId: number) => {
-    setAnswers((prev) => {
-      const cur = prev[q.id] ?? emptyEntry();
+  const pick = useCallback(
+    (q: Question, choiceId: number) => {
+      let chosen: number[] = [];
+      setAnswers((prev) => {
+        const cur = prev[q.id] ?? emptyEntry();
+        const has = cur.choices.includes(choiceId);
+        chosen =
+          q.question_type === 'multiple'
+            ? has
+              ? cur.choices.filter((c) => c !== choiceId)
+              : [...cur.choices, choiceId]
+            : [choiceId];
+        const next = { ...prev, [q.id]: { ...cur, choices: chosen } };
+        persist(next);
+        return next;
+      });
+      setSaved((s) => ({ ...s, [q.id]: false }));
+      const cur = answers[q.id] ?? emptyEntry();
       const has = cur.choices.includes(choiceId);
       const choices =
         q.question_type === 'multiple'
@@ -378,22 +404,52 @@ export default function TakeTest() {
             ? cur.choices.filter((c) => c !== choiceId)
             : [...cur.choices, choiceId]
           : [choiceId];
-      const next = { ...prev, [q.id]: { ...cur, choices } };
-      persist(next);
-      return next;
-    });
-    setSaved((s) => ({ ...s, [q.id]: false }));
-    // Choice answers auto-save immediately (legacy take_test.html parity).
-    const cur = answers[q.id] ?? emptyEntry();
-    const has = cur.choices.includes(choiceId);
-    const choices =
-      q.question_type === 'multiple'
-        ? has
-          ? cur.choices.filter((c) => c !== choiceId)
-          : [...cur.choices, choiceId]
-        : [choiceId];
-    save(q, { ...cur, choices });
-  };
+      save(q, { ...cur, choices });
+    },
+    [answers, persist, save],
+  );
+
+  // Fast CBT hotkeys: Arrow keys to navigate, A/B/C/D or 1/2/3/4 to pick choices
+  useEffect(() => {
+    if (!singleMode || !attempt?.questions?.length || submitting || confirmOpen || result) {
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      const tag = activeEl?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || activeEl?.isContentEditable) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentQIndex((idx) => Math.max(0, idx - 1));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentQIndex((idx) => Math.min(attempt.questions.length - 1, idx + 1));
+      } else if (['1', '2', '3', '4', '5', 'a', 'b', 'c', 'd', 'e', 'A', 'B', 'C', 'D', 'E'].includes(e.key)) {
+        const q = attempt.questions[currentQIndex];
+        if (q && (q.question_type === 'single' || q.question_type === 'multiple')) {
+          let cIdx = -1;
+          const k = e.key.toLowerCase();
+          if (k === '1' || k === 'a') cIdx = 0;
+          else if (k === '2' || k === 'b') cIdx = 1;
+          else if (k === '3' || k === 'c') cIdx = 2;
+          else if (k === '4' || k === 'd') cIdx = 3;
+          else if (k === '5' || k === 'e') cIdx = 4;
+
+          if (cIdx >= 0 && cIdx < q.choices.length) {
+            e.preventDefault();
+            pick(q, q.choices[cIdx].id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [singleMode, attempt, currentQIndex, submitting, confirmOpen, result, pick]);
 
   const editText = (q: Question, text: string) => {
     setAnswers((prev) => {
@@ -522,6 +578,203 @@ export default function TakeTest() {
     }
   });
 
+  const safeQIndex = Math.min(
+    Math.max(0, currentQIndex),
+    Math.max(0, attempt.questions.length - 1),
+  );
+  const currentQuestion = attempt.questions[safeQIndex];
+
+  const renderQuestionCard = (q: Question, i: number, isSingleView: boolean) => {
+    const a = answers[q.id] ?? emptyEntry();
+    const hasAnswer = entryHasContent(q, a);
+    return (
+      <TiltCard
+        key={q.id}
+        glare={false}
+        maxTilt={isSingleView ? 2 : 3}
+        scale={isSingleView ? 1 : 1.005}
+        style={{ borderRadius: 'var(--radius)', marginBottom: isSingleView ? 0 : 12 }}
+      >
+        <div id={`question-${q.id}`} className="card" style={{ height: '100%', margin: 0 }}>
+          {q.section_id != null && (
+            <span id={`section-${q.section_id}`} style={{ scrollMarginTop: 80 }} />
+          )}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+              flexWrap: 'wrap',
+              gap: 8,
+            }}
+          >
+            <p className="muted small" style={{ margin: 0 }}>
+              {t('th_questions')} {i + 1}/{attempt.questions.length} · {q.points}{' '}
+              {t('points')} · {qtypeLabel(q.question_type, t)}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {saved[q.id] && !failed[q.id] && hasAnswer && (
+                <span className="badge green" style={{ fontSize: '0.72rem' }}>
+                  ✓ {t('essay_js_saved')}
+                </span>
+              )}
+              {failed[q.id] && (
+                <span className="badge rose" style={{ fontSize: '0.72rem' }}>
+                  Xatolik
+                </span>
+              )}
+            </div>
+          </div>
+
+          <p style={{ fontWeight: 700, fontSize: isSingleView ? '1.12rem' : '1rem', lineHeight: 1.55 }}>
+            {q.text}
+          </p>
+
+          {q.question_type === 'text' ? (
+            <textarea
+              rows={isSingleView ? 4 : 3}
+              value={a.text}
+              disabled={finished || submitting}
+              onChange={(e) => editText(q, e.target.value)}
+              onBlur={() => {
+                if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                if (a.text.trim()) save(q, a);
+              }}
+              placeholder={t('take_text_ph')}
+              style={{ width: '100%', marginTop: 8 }}
+            />
+          ) : q.question_type === 'gap_fill' ? (
+            <GapFillInput
+              text={q.text}
+              gaps={q.gaps ?? []}
+              values={a.gaps}
+              disabled={finished || submitting}
+              onChange={(pos, value) => editGap(q, pos, value)}
+            />
+          ) : q.question_type === 'matching' ? (
+            <MatchingInput
+              prompts={q.prompts ?? []}
+              options={q.matching_options ?? []}
+              values={a.matching}
+              disabled={finished || submitting}
+              onChange={(pid, oid) => editMatching(q, pid, oid)}
+            />
+          ) : q.question_type === 'written' ? (
+            <WrittenInput
+              value={a.written}
+              minWords={q.written?.min_words ?? 0}
+              maxWords={q.written?.max_words ?? 0}
+              disabled={finished || submitting}
+              placeholder={t('take_written_ph')}
+              onChange={(value) => editWritten(q, value)}
+              onBlur={() => {
+                if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                if (a.written.trim()) save(q, a);
+              }}
+            />
+          ) : (
+            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+              {q.choices.map((c, ci) => {
+                const on = a.choices.includes(c.id);
+                const letter = String.fromCharCode(65 + ci);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={finished || submitting}
+                    className={`quiz-opt${on ? ' picked' : ''}`}
+                    aria-pressed={on}
+                    onClick={() => pick(q, c.id)}
+                    style={{
+                      transition: 'all 0.15s ease',
+                      boxShadow: on ? '0 0 10px rgba(245, 158, 11, 0.2)' : undefined,
+                    }}
+                  >
+                    <span
+                      className="quiz-key"
+                      style={on ? { background: '#f59e0b', color: '#111' } : {}}
+                    >
+                      {on ? '✓' : letter}
+                    </span>
+                    <span style={{ fontWeight: on ? 600 : 400 }}>{c.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {failed[q.id] && (
+            <div style={{ marginTop: 8 }}>
+              <span className="error small">
+                {failed[q.id]}{' '}
+                <button className="btn sm ghost" onClick={() => a && save(q, a)}>
+                  {t('essay_error_retry')}
+                </button>
+              </span>
+            </div>
+          )}
+
+          {!isSingleView && entryHasContent(q, a) && (
+            <div style={{ marginTop: 8 }} className="toolbar">
+              <button
+                className="btn sm ghost"
+                disabled={finished || submitting}
+                onClick={() => save(q, a)}
+              >
+                {saved[q.id] && !failed[q.id]
+                  ? `✓ ${t('essay_js_saved')}`
+                  : t('save')}
+              </button>
+            </div>
+          )}
+
+          {isSingleView && (
+            <div className="single-q-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={i === 0 || finished || submitting}
+                onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <ChevronLeft size={16} /> {t('take_prev_q') || 'Oldingi'}
+              </button>
+
+              <span className="muted small" style={{ fontWeight: 600 }}>
+                {i + 1} / {attempt.questions.length}
+              </span>
+
+              {i < attempt.questions.length - 1 ? (
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={finished || submitting}
+                  onClick={() =>
+                    setCurrentQIndex((prev) => Math.min(attempt.questions.length - 1, prev + 1))
+                  }
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  {t('take_next_q') || 'Keyingi'} <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={finished || submitting}
+                  onClick={() => setConfirmOpen(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Check size={16} /> {t('take_finish')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </TiltCard>
+    );
+  };
+
   return (
     <div>
       <p className="muted small">
@@ -569,152 +822,145 @@ export default function TakeTest() {
         />
       </div>
 
-      {/* Question navigator (legacy take_test.html parity). */}
-      <div className="toolbar" style={{ marginBottom: 16 }} aria-label={t('questions')}>
-        {attempt.questions.map((q, i) => {
-          const a = answers[q.id];
-          const done = Boolean(a && entryHasContent(q, a));
-          return (
-            <a
-              key={q.id}
-              href={`#question-${q.id}`}
-              className={`badge${done ? ' green' : ''}${failed[q.id] ? ' rose' : ''}`}
-            >
-              {i + 1}
-            </a>
-          );
-        })}
+      {/* Mode switch, hotkey hints, quick finish button */}
+      <div className="test-top-bar">
+        <div className="test-mode-switch" role="tablist">
+          <button
+            type="button"
+            className={`test-mode-btn${singleMode ? ' active' : ''}`}
+            onClick={() => setSingleMode(true)}
+          >
+            <FileText size={14} /> {t('take_single_mode') || '1 tadan ishlash'}
+          </button>
+          <button
+            type="button"
+            className={`test-mode-btn${!singleMode ? ' active' : ''}`}
+            onClick={() => setSingleMode(false)}
+          >
+            <LayoutGrid size={14} /> {t('take_all_mode') || 'Barcha savollar'}
+          </button>
+        </div>
+
+        {singleMode && (
+          <div className="hotkey-hint-pill">
+            <Keyboard size={13} style={{ color: '#f59e0b' }} />
+            <span>
+              <kbd className="hotkey-kbd">←</kbd> <kbd className="hotkey-kbd">→</kbd> Savollar ·{' '}
+              <kbd className="hotkey-kbd">A</kbd> <kbd className="hotkey-kbd">B</kbd>{' '}
+              <kbd className="hotkey-kbd">C</kbd> <kbd className="hotkey-kbd">D</kbd> Tanlash
+            </span>
+          </div>
+        )}
+
+        {!finished && !result && (
+          <button
+            type="button"
+            className="btn sm"
+            style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+            disabled={submitting}
+            onClick={() => setConfirmOpen(true)}
+          >
+            {submitting ? t('loading') : t('take_finish')}
+          </button>
+        )}
+      </div>
+
+      {/* Interactive Question Palette */}
+      <div className="q-palette-container">
+        <div className="q-palette-header">
+          <span style={{ fontWeight: 700, color: 'var(--ink)' }}>
+            {t('questions')}: {safeQIndex + 1} / {attempt.questions.length}
+          </span>
+          <span>
+            <span style={{ color: '#86efac', fontWeight: 700 }}>✓ {answeredCount}</span>{' '}
+            {t('take_answered_stat') || 'ta belgilandi'} ·{' '}
+            <span style={{ color: '#fca5a5', fontWeight: 700 }}>{unanswered}</span>{' '}
+            {t('take_left_stat') || 'ta qoldi'}
+          </span>
+        </div>
+        <div className="q-palette-grid">
+          {attempt.questions.map((q, i) => {
+            const a = answers[q.id];
+            const done = Boolean(a && entryHasContent(q, a));
+            const isActive = singleMode && safeQIndex === i;
+            return (
+              <button
+                type="button"
+                key={q.id}
+                onClick={() => {
+                  setCurrentQIndex(i);
+                  if (!singleMode) {
+                    const el = document.getElementById(`question-${q.id}`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className={`q-palette-badge${isActive ? ' active' : ''}${done ? ' done' : ''}${failed[q.id] ? ' rose' : ''}`}
+                title={`Savol ${i + 1}`}
+                aria-current={isActive ? 'true' : undefined}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <SectionNav
         sections={sections}
         progress={attempt.section_progress ?? []}
         counts={sectionCounts}
+        activeSectionId={singleMode ? currentQuestion?.section_id : null}
+        onSelectSection={(sectionId) => {
+          const idx = attempt.questions.findIndex((q) => q.section_id === sectionId);
+          if (idx !== -1) {
+            setCurrentQIndex(idx);
+            if (!singleMode) {
+              const el = document.getElementById(`section-${sectionId}`);
+              el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+        }}
       />
 
-      {blocks.map((block, bi) => (
-        <div key={bi}>
-          {block.passage && <PassageCard passage={block.passage} />}
-          {block.questions.map(({ q, index: i }) => {
-        const a = answers[q.id] ?? emptyEntry();
-        return (
-          <TiltCard
-            key={q.id}
-            glare={false}
-            maxTilt={3}
-            scale={1.005}
-            style={{ borderRadius: 'var(--radius)', marginBottom: 12 }}
+      {/* Questions Render: Single Question or All Blocks */}
+      {singleMode && currentQuestion ? (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQuestion.id}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.15 }}
           >
-            <div id={`question-${q.id}`} className="card" style={{ height: '100%', margin: 0 }}>
-            {block.sectionId != null && (
-              <span id={`section-${block.sectionId}`} style={{ scrollMarginTop: 80 }} />
-            )}
-            <p className="muted small">
-              {t('th_questions')} {i + 1}/{attempt.questions.length} · {q.points}{' '}
-              {t('points')} · {qtypeLabel(q.question_type, t)}
-            </p>
-            <p style={{ fontWeight: 700 }}>{q.text}</p>
-            {q.question_type === 'text' ? (
-              <textarea
-                rows={3}
-                value={a.text}
-                disabled={finished || submitting}
-                onChange={(e) => editText(q, e.target.value)}
-                onBlur={() => {
-                  if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                  if (a.text.trim()) save(q, a);
-                }}
-                placeholder={t('take_text_ph')}
-                style={{ width: '100%', marginTop: 8 }}
-              />
-            ) : q.question_type === 'gap_fill' ? (
-              <GapFillInput
-                text={q.text}
-                gaps={q.gaps ?? []}
-                values={a.gaps}
-                disabled={finished || submitting}
-                onChange={(pos, value) => editGap(q, pos, value)}
-              />
-            ) : q.question_type === 'matching' ? (
-              <MatchingInput
-                prompts={q.prompts ?? []}
-                options={q.matching_options ?? []}
-                values={a.matching}
-                disabled={finished || submitting}
-                onChange={(pid, oid) => editMatching(q, pid, oid)}
-              />
-            ) : q.question_type === 'written' ? (
-              <WrittenInput
-                value={a.written}
-                minWords={q.written?.min_words ?? 0}
-                maxWords={q.written?.max_words ?? 0}
-                disabled={finished || submitting}
-                placeholder={t('take_written_ph')}
-                onChange={(value) => editWritten(q, value)}
-                onBlur={() => {
-                  if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                  if (a.written.trim()) save(q, a);
-                }}
-              />
-            ) : (
-              <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-                {q.choices.map((c, ci) => {
-                  const on = a.choices.includes(c.id);
-                  const letter = String.fromCharCode(65 + ci);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      disabled={finished || submitting}
-                      className={`quiz-opt${on ? ' picked' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => pick(q, c.id)}
-                    >
-                      <span className="quiz-key">
-                        {on ? '✓' : letter}
-                      </span>
-                      <span>{c.text}</span>
-                    </button>
-                  );
-                })}
+            {currentQuestion.passage ? (
+              <div className="single-q-split has-passage">
+                <PassageCard passage={currentQuestion.passage} />
+                <div>{renderQuestionCard(currentQuestion, safeQIndex, true)}</div>
               </div>
+            ) : (
+              <div>{renderQuestionCard(currentQuestion, safeQIndex, true)}</div>
             )}
-            <div style={{ marginTop: 8 }} className="toolbar">
-              {entryHasContent(q, a) ? (
-                <button
-                  className="btn sm ghost"
-                  disabled={finished || submitting}
-                  onClick={() => save(q, a)}
-                >
-                  {saved[q.id] && !failed[q.id]
-                    ? `✓ ${t('essay_js_saved')}`
-                    : t('save')}
-                </button>
-              ) : null}
-              {failed[q.id] && (
-                <span className="error small">
-                  {failed[q.id]}{' '}
-                  <button className="btn sm ghost" onClick={() => a && save(q, a)}>
-                    {t('essay_error_retry')}
-                  </button>
-                </span>
-              )}
+          </motion.div>
+        </AnimatePresence>
+      ) : (
+        <>
+          {blocks.map((block, bi) => (
+            <div key={bi}>
+              {block.passage && <PassageCard passage={block.passage} />}
+              {block.questions.map(({ q, index: i }) => renderQuestionCard(q, i, false))}
             </div>
-          </div>
-        </TiltCard>
-        );
-      })}
-        </div>
-      ))}
-
-      {!finished && !result && (
-        <button
-          className="btn primary"
-          disabled={submitting}
-          onClick={() => setConfirmOpen(true)}
-        >
-          {submitting ? t('loading') : t('take_finish')}
-        </button>
+          ))}
+          {!finished && !result && (
+            <button
+              className="btn primary"
+              disabled={submitting}
+              onClick={() => setConfirmOpen(true)}
+              style={{ marginTop: 16 }}
+            >
+              {submitting ? t('loading') : t('take_finish')}
+            </button>
+          )}
+        </>
       )}
 
       {confirmOpen && !result && (

@@ -107,6 +107,13 @@ const extraUz: Record<string, string> = {
   tma_words: 'so‘z',
   tma_new: 'Yangi',
   tma_write_hint: 'Essingizni yozing...',
+  take_single_mode: "1 tadan ishlash",
+  take_all_mode: "Barcha savollar",
+  take_next_q: "Keyingi savol",
+  take_prev_q: "Oldingi savol",
+  take_hotkey_hint: "Klaviaturadan tezkor foydalanish",
+  take_answered_stat: "ta belgilandi",
+  take_left_stat: "ta qoldi",
 };
 
 export function translate(key: string, lang: AppLang): string {

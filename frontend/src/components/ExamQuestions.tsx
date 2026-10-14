@@ -66,10 +66,14 @@ export function SectionNav({
   sections,
   progress,
   counts,
+  onSelectSection,
+  activeSectionId,
 }: {
   sections: SectionDef[];
   progress: SectionProgressDef[];
   counts: Record<number, { answered: number; total: number }>;
+  onSelectSection?: (sectionId: number) => void;
+  activeSectionId?: number | null;
 }) {
   const { t } = useLang();
   if (sections.length === 0) return null;
@@ -79,8 +83,34 @@ export function SectionNav({
       {sections.map((s) => {
         const c = counts[s.id] ?? { answered: 0, total: 0 };
         const p = progBySection.get(s.id);
+        const isActive = activeSectionId === s.id;
+        const className = `badge blue${isActive ? ' active-section' : ''}`;
+        if (onSelectSection) {
+          return (
+            <button
+              type="button"
+              key={s.id}
+              onClick={() => onSelectSection(s.id)}
+              className={className}
+              style={{
+                cursor: 'pointer',
+                border: isActive ? '2px solid #3b82f6' : '1px solid transparent',
+                transform: isActive ? 'scale(1.05)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {s.name} · {c.answered}/{c.total}
+              {p && p.remaining_seconds !== null && (
+                <span style={{ marginLeft: 6 }}>
+                  <ClockIcon size={12} className="ico" /> {Math.floor(p.remaining_seconds / 60)}:
+                  {String(p.remaining_seconds % 60).padStart(2, '0')}
+                </span>
+              )}
+            </button>
+          );
+        }
         return (
-          <a key={s.id} href={`#section-${s.id}`} className="badge blue">
+          <a key={s.id} href={`#section-${s.id}`} className={className}>
             {s.name} · {c.answered}/{c.total}
             {p && p.remaining_seconds !== null && (
               <span style={{ marginLeft: 6 }}>
