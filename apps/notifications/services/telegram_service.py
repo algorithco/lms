@@ -169,9 +169,20 @@ class TelegramService:
         if converted is not None:
             text += f"\n📈 Umumiy tizimda: *{converted}/75*"
         text += f"\n{status_line}\n\n"
+
+        criteria_lines = []
+        try:
+            if hasattr(submission, "criteria") and submission.criteria.exists():
+                for c in submission.criteria.order_by("criterion_id"):
+                    criteria_lines.append(f"  • {c.criterion_id}. {c.name}: *{c.score}/2*")
+        except Exception:
+            pass
+        if criteria_lines:
+            text += "📋 *12 Mezon bo'yicha tahlil:*\n" + "\n".join(criteria_lines[:12]) + "\n\n"
+
         if getattr(submission, "summary", ""):
             text += f"💬 *Xulosa:* _{submission.summary}_\n\n"
-        text += "Quyidagi tugmalar orqali esseni AI bilan yaxshilashingiz yoki ustozga tekshirtirishingiz mumkin 👇"
+        text += "Quyidagi tugmalar orqali esseni AI bilan mukammallashtirishingiz, ustozga yuborishingiz yoki PDF sertifikatini yuklab olishingiz mumkin 👇"
 
         site_url = getattr(settings, "SITE_URL", "http://localhost:8000").rstrip("/")
         buttons = [
@@ -180,7 +191,10 @@ class TelegramService:
                 {"text": "👨‍🏫 O'qituvchiga tekshirtirish", "callback_data": f"essay_review:{submission.id}"},
             ],
             [
-                {"text": "📄 To'liq natija", "url": f"{site_url}/essays/result/{submission.id}/"},
+                {"text": "📄 Natija sertifikatini (PDF) yuklab olish", "callback_data": f"essay_pdf:{submission.id}"},
+            ],
+            [
+                {"text": "🌐 Web'da ko'rish", "url": f"{site_url}/essays/result/{submission.id}/"},
                 {"text": "🏠 Bosh menyu", "callback_data": "menu_main"},
             ],
         ]

@@ -135,6 +135,34 @@ async def edit_or_reply(update: Update, text: str, **kwargs):
         return await update.message.reply_text(text, **kwargs)
 
 
+def _error_keyboard(retry_callback: str | None = None) -> InlineKeyboardMarkup:
+    """Friendly navigation keyboard for error states."""
+    buttons = []
+    if retry_callback:
+        buttons.append([InlineKeyboardButton("🔄 Qayta urinish", callback_data=retry_callback)])
+    buttons.append([InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")])
+    return InlineKeyboardMarkup(buttons)
+
+
+async def send_friendly_error(
+    update: Update,
+    message: str = "Amalni bajarishda qiyinchilik yuz berdi.",
+    retry_callback: str | None = None,
+) -> None:
+    """Send user-friendly error with immediate navigation buttons so student is never stuck."""
+    text = (
+        f"💡 *Kutilmagan holat yuz berdi:*\n"
+        f"{message}\n\n"
+        f"Quyidagi tugmalar orqali davom etishingiz mumkin 👇"
+    )
+    await send_reply(
+        update,
+        text,
+        parse_mode="Markdown",
+        reply_markup=_error_keyboard(retry_callback),
+    )
+
+
 def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
     """Fixed reply keyboard buttons shown at the bottom of the screen."""
     return ReplyKeyboardMarkup(
@@ -150,33 +178,30 @@ def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
 def _main_menu_keyboard() -> InlineKeyboardMarkup:
     """Main menu inline keyboard."""
     from django.conf import settings as _settings
-    _site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+    _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
-            InlineKeyboardButton("🧠 Quiz (Test)", callback_data="menu_quiz"),
+            InlineKeyboardButton("📱 Fast CBT Test (Mini App)", web_app={"url": f"{_site_url}/tma/#/tests"}),
         ],
         [
             InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
-            InlineKeyboardButton("📜 Sertifikatlar", callback_data="menu_certificates"),
+            InlineKeyboardButton("📜 Sertifikatlarim (PDF)", callback_data="menu_certificates"),
         ],
         [
+            InlineKeyboardButton("🧠 Telegram Quiz", callback_data="menu_quiz"),
             InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
-            InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
         ],
         [
             InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
+            InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
+        ],
+        [
+            InlineKeyboardButton("🏆 ELO Reyting", callback_data="menu_leaderboard"),
             InlineKeyboardButton("📅 Davomat", callback_data="menu_attendance"),
         ],
         [
-            InlineKeyboardButton("🏆 Reyting", callback_data="menu_leaderboard"),
-            InlineKeyboardButton("🔥 Streak", callback_data="menu_streak"),
-        ],
-        [
-            InlineKeyboardButton("📱 Test topshirish (WebApp)", web_app={"url": f"{_site_url}/tma/"}),
-        ],
-        [
-            InlineKeyboardButton("🌐 Web'da ochish", url=f"{_site_url}/dashboard/"),
+            InlineKeyboardButton("🌐 Web Platformaga o'tish", url=f"{_site_url}/dashboard/"),
         ],
     ])
 
@@ -1547,11 +1572,16 @@ async def essay_image_message_handler(update: Update, context: ContextTypes.DEFA
     when this flow is not active it returns immediately and lets that handler
     receive its own photos.
     """
-    if context.user_data.get("bot_essay_state") != ESSAY_IMAGE_PAGES_STATE:
+    current_state = context.user_data.get("bot_essay_state")
+    if current_state not in (ESSAY_IMAGE_PAGES_STATE, "awaiting_submission", "awaiting_text"):
         return
     message = update.message
     if message is None:
         return
+
+    if current_state in ("awaiting_submission", "awaiting_text"):
+        context.user_data["bot_essay_state"] = ESSAY_IMAGE_PAGES_STATE
+        context.user_data["essay_pages"] = []
 
     from django.conf import settings as _settings
 
@@ -2592,7 +2622,7 @@ async def essay_topic_select_callback(update: Update, context: ContextTypes.DEFA
         f"Endi essangizni yuborishingiz mumkin:\n"
         f"1️⃣ *Matn yuborish:* Esse matnini shu yerga yozing yoki nusxalab yuboring ⌨️\n"
         f"2️⃣ *Rasm yuborish:* Daftaringiz sahifasini rasm holatida yuboring 📸\n\n"
-        f"_Bekor qilish uchun: /cancel_essay yoki quyidagi tugmani bosing._"
+        f"_Jarayonni to'xtatish uchun quyidagi tugmani bosing:_"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -2753,6 +2783,17 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     if sub.converted_score is not None:
         text += f"📈 Umumiy shkalada: *{sub.converted_score}/75*\n"
     text += f"📋 Natija: {status_line}\n\n"
+
+    def _get_criteria():
+        return list(sub.criteria.order_by("criterion_id")) if hasattr(sub, "criteria") else []
+
+    criteria_qs = await _run_db(_get_criteria)
+    if criteria_qs:
+        text += "📋 *12 Mezon bo'yicha tahlil:*\n"
+        for c in criteria_qs[:12]:
+            text += f"  • {c.criterion_id}. {c.name}: *{c.score}/2*\n"
+        text += "\n"
+
     if sub.summary:
         text += f"💬 *Xulosa:* _{sub.summary}_\n\n"
 
@@ -2764,11 +2805,78 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{sub.id}"),
         ],
         [
-            InlineKeyboardButton("📄 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),
+            InlineKeyboardButton("📄 Natija sertifikatini (PDF) yuklab olish", callback_data=f"essay_pdf:{sub.id}"),
+        ],
+        [
+            InlineKeyboardButton("🌐 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),
             InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main"),
         ],
     ])
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def essay_pdf_download_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+    """Generate and send official PDF certificate/result document directly to Telegram chat."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    if not user:
+        if query:
+            await query.answer("Foydalanuvchi aniqlanmadi")
+        return
+
+    if query:
+        try:
+            await query.answer("📄 PDF sertifikat tayyorlanmoqda...")
+        except Exception:
+            pass
+
+    from apps.essays.models import EssaySubmission
+    from apps.essays.services import generate_essay_result_pdf
+
+    def _gen():
+        sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
+        if not sub:
+            return None, "Esse topilmadi."
+        try:
+            pdf_buf = generate_essay_result_pdf(sub)
+            return (sub, pdf_buf), None
+        except Exception as exc:
+            return None, str(exc)
+
+    res, err = await _run_db(_gen)
+    if not res:
+        await send_friendly_error(update, f"PDF yaratishda xatolik: {err or 'Esse topilmadi'}")
+        return
+
+    sub, pdf_buf = res
+    topic_title = sub.topic.title if sub.topic else "Erkin mavzu"
+    score_str = f"{sub.total_score or 0}/{sub.max_score or 24}"
+    caption = (
+        f"📄 *ESSE TAHLILI VA SERTIFIKATI*\n\n"
+        f"📚 Mavzu: *{topic_title}*\n"
+        f"📊 Natija: *{score_str}* (75 lik shkalada: *{sub.converted_score or 0}*)\n"
+        f"🎓 Rasmiy tekshiruv hujjati ilova qilindi."
+    )
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🪄 AI orqali qayta yozish", callback_data=f"essay_improve:{sub.id}"),
+            InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{sub.id}"),
+        ],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+    ])
+
+    try:
+        await context.bot.send_document(
+            chat_id=user.telegram_chat_id,
+            document=pdf_buf,
+            filename=f"esse_sertifikat_{sub.id}.pdf",
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=buttons,
+        )
+    except Exception as exc:
+        logger.exception("Failed to send essay PDF document: %s", exc)
+        await send_friendly_error(update, f"PDF yuborishda xatolik yuz berdi: {exc}")
 
 
 async def certificates_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3187,6 +3295,56 @@ async def arena_finish_callback(
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
+async def arena_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create a 1v1 Arena custom room and provide instant Telegram share invite link."""
+    query = update.callback_query
+    if query:
+        try:
+            await query.answer("⚔️ Xona yaratilmoqda...")
+        except Exception:
+            pass
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini aniqlab bo'lmadi.")
+        return
+
+    from urllib.parse import quote_plus
+    from django.conf import settings as _settings
+    from apps.arena import services
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+
+    try:
+        room = await _run_db(services.create_custom_room, user)
+    except Exception as exc:
+        logger.exception("Failed to create custom arena room: %s", exc)
+        await send_friendly_error(update, "Xona yaratishda xatolik yuz berdi.", retry_callback="arena_create")
+        return
+
+    share_text = f"⚔️ Men bilan GRAND EDUCATION Quiz Arenada 1v1 bellashishga tayyormisan? Xona kodi: {room.room_code}"
+    share_url = f"https://t.me/share/url?url={site_url}/arena/{room.room_code}/&text={quote_plus(share_text)}"
+
+    msg_text = (
+        f"⚔️ *DUEL XONASI YARATILDI!*\n\n"
+        f"🔑 *Xona kodi:* `{room.room_code}`\n\n"
+        f"Do'stingizni jangga chorlash uchun quyidagi tugmani bosing va unga taklif yuboring:\n\n"
+        f"Do'stingiz ushbu havola orqali yoki botda `/arena_join {room.room_code}` buyrug'i bilan xonaga ulanishi mumkin."
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📲 Do'stni Telegram orqali chorlash", url=share_url)],
+        [InlineKeyboardButton("⚔️ Xonaga kirish (Web Arena)", url=f"{site_url}/arena/{room.room_code}/")],
+        [InlineKeyboardButton("🔙 Arenaga qaytish", callback_data="menu_arena")],
+    ])
+
+    if query and query.message:
+        try:
+            await query.edit_message_text(msg_text, parse_mode="Markdown", reply_markup=keyboard)
+            return
+        except Exception:
+            pass
+    await send_reply(update, msg_text, parse_mode="Markdown", reply_markup=keyboard)
+
+
 # ---------------------------------------------------------------------------
 # Inline keyboard callback handlers
 # ---------------------------------------------------------------------------
@@ -3272,6 +3430,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif data.startswith("essay_check:"):
             sub_id = int(data.split(":")[1])
             await essay_check_callback(update, context, sub_id)
+        elif data.startswith("essay_pdf:"):
+            sub_id = int(data.split(":")[1])
+            await essay_pdf_download_callback(update, context, sub_id)
+        elif data == "arena_invite":
+            await arena_invite_callback(update, context)
         elif data.startswith("cert_dl:"):
             cert_id = int(data.split(":")[1])
             await certificate_download_callback(update, context, cert_id)
@@ -4073,15 +4236,15 @@ def _arena_leaderboard_text(top: int = 5) -> str:
 def _arena_keyboard() -> InlineKeyboardMarkup:
     """Arena action keyboard."""
     from django.conf import settings as _settings
-    site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⚔️ Bot bilan duel (Telegram chatda)", callback_data="arena_bot_start")],
+        [InlineKeyboardButton("📲 Do'stni duelga chorlash (Xona yaratish)", callback_data="arena_create")],
         [InlineKeyboardButton("🌐 Web Arenaga o'tish (Jonli 1v1)", url=f"{site_url}/arena/")],
         [
-            InlineKeyboardButton("🔗 Xona yaratish", callback_data="arena_create"),
             InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb"),
+            InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
         ],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
     ])
 
 
@@ -4089,7 +4252,7 @@ async def arena_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Handle /arena — show my ELO stats + top players + actions."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_reply(update, "Xatolik yuz berdi.")
+        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi.")
         return
 
     from apps.arena import services
@@ -4125,37 +4288,50 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Handle /arena_join <CODE> — join a custom room by invite code."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_reply(update, "Xatolik yuz berdi.")
+        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi.")
         return
+
+    from django.conf import settings as _settings
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
     args = context.args if context.args else []
     if not args:
         await send_reply(
             update,
             "🔗 *Xonaga qo'shilish*\n\n"
-            "Do'stingiz bergan invite kodni kiriting:\n"
-            "`/arena_join KOD123`",
+            "Do'stingiz bergan invite kodni quyidagicha kiriting:\n"
+            "`/arena_join KOD123`\n\n"
+            "Yoki quyidagi tugma orqali Web Arenaga o'ting 👇",
             parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌐 Web Arenaga o'tish", url=f"{site_url}/arena/")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]),
         )
         return
 
     code = args[0].strip().upper()
 
-    from django.conf import settings as _settings
     from apps.arena import services
-    site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
 
     def _join():
         room, error = services.join_custom_room(code, user)
         return room, error
 
-    room, error = await _run_db(_join)
+    try:
+        room, error = await _run_db(_join)
+    except Exception as exc:
+        logger.exception("Error in arena_join_handler: %s", exc)
+        await send_friendly_error(update, "Xonaga qo'shilishda kutilmagan xatolik yuz berdi.")
+        return
+
     if room is None:
         await send_reply(
             update,
             f"❌ *Xonaga qo'shib bo'lmadi*\n\n{error or 'Kod xato yoki xona to\'la.'}\n\n"
             f"To'g'ri kod bilan qayta urinib ko'ring: `/arena_join KOD`",
             parse_mode="Markdown",
+            reply_markup=_error_keyboard(),
         )
         return
 
@@ -4166,6 +4342,10 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"⚔️ Duel boshlanmoqda — Web orqali kiring:\n"
         f"{site_url}/arena/{room.room_code}/",
         parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⚔️ Arenaga o'tish", url=f"{site_url}/arena/{room.room_code}/")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]),
     )
 
 
@@ -4199,36 +4379,8 @@ async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             room_code = parts[1]
             await arena_finish_callback(update, context, room_code)
 
-        elif data == "arena_create":
-            user = await _get_or_create_user_async(update)
-            if not user:
-                await send_reply(update, "Foydalanuvchi aniqlanmadi.")
-                return
-
-            from django.conf import settings as _settings
-            from apps.arena import services
-            site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
-
-            def _create():
-                room = services.create_custom_room(user)
-                return room
-
-            room = await _run_db(_create)
-            await query.edit_message_text(
-                f"🔗 *XONA YARATILDI!*\n\n"
-                f"Do'stingizga shu kodni yuboring:\n\n"
-                f"`{room.room_code}`\n\n"
-                f"U botga `/arena_join {room.room_code}` yozib yoki "
-                f"{site_url}/arena/ sahifasida kodni kiritib qo'shiladi.\n\n"
-                f"Siz duelni shu yerda kutishingiz mumkin:\n"
-                f"{site_url}/arena/{room.room_code}/",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("⚔️ Duelni kutish", url=f"{site_url}/arena/{room.room_code}/")
-                ], [
-                    InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")
-                ]]),
-            )
+        elif data in ("arena_create", "arena_invite"):
+            await arena_invite_callback(update, context)
 
         elif data == "arena_lb":
             text = await _run_db(lambda: _arena_leaderboard_text(10))
@@ -4246,12 +4398,7 @@ async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     except Exception as exc:
         logger.exception("Error in arena_callback_handler (%s): %s", data, exc)
-        buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
-        await send_reply(
-            update,
-            "Arena duelida kutilmagan xatolik yuz berdi.\nBosh menyuga qaytish 👇",
-            reply_markup=buttons,
-        )
+        await send_friendly_error(update, "Arena duelida kutilmagan xatolik yuz berdi.")
 
 
 # ---------------------------------------------------------------------------

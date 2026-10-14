@@ -103,7 +103,17 @@ async def quiz_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     text = "🧠 *TELEGRAM QUIZ*\n\n"
     text += "Testni tanlang va Telegram'da javob bering!\n\n"
 
-    buttons = []
+    from django.conf import settings as _settings
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+
+    buttons = [
+        [
+            InlineKeyboardButton(
+                "📱 Fast CBT Test (Telegram Mini App)",
+                web_app={"url": f"{site_url}/tma/#/tests"},
+            )
+        ]
+    ]
     for test in tests:
         diff = {"easy": "🟢", "medium": "🟡", "hard": "🔴"}.get(test.difficulty, "⚪")
         buttons.append([

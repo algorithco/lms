@@ -2867,3 +2867,200 @@ def notify_student_essay_graded(submission) -> None:
         logger.warning(
             "Essay-graded notification error: submission=%d, %s", submission.id, e,
         )
+
+
+def generate_essay_result_pdf(submission: Any) -> Any:
+    """Generate an official A4 PDF certificate/result sheet for an essay submission.
+
+    Includes:
+    - Official GRAND EDUCATION header & branding
+    - Student info, essay topic, word count, date
+    - Total score (out of 24) and converted score (out of 75)
+    - 12 BMB criteria table with scores and reasons
+    - AI / Teacher summary
+    - QR Code linking to web verification URL
+    """
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "PDFTitle",
+        parent=styles["Title"],
+        fontSize=18,
+        leading=22,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=1,
+    )
+    subtitle_style = ParagraphStyle(
+        "PDFSubTitle",
+        parent=styles["Normal"],
+        fontSize=11,
+        leading=14,
+        textColor=colors.HexColor("#d97706"),
+        alignment=1,
+    )
+    heading_style = ParagraphStyle(
+        "PDFHeading",
+        parent=styles["Heading2"],
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#0f172a"),
+        spaceBefore=10,
+        spaceAfter=6,
+    )
+    body_style = ParagraphStyle(
+        "PDFBody",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#334155"),
+    )
+    body_bold = ParagraphStyle(
+        "PDFBodyBold",
+        parent=body_style,
+        fontName="Helvetica-Bold",
+    )
+
+    elements = []
+
+    # Title header
+    elements.append(Paragraph("<b>GRAND EDUCATION — MILLIY SERTIFIKAT TIZIMI</b>", title_style))
+    elements.append(Paragraph("<b>ESSE TAHLILI VA RASMIY NATIJA HUJJATI</b>", subtitle_style))
+    elements.append(Spacer(1, 14))
+
+    # Student & Essay Info Table
+    student = getattr(submission, "student", None)
+    student_name = student.get_full_name() if student else "O'quvchi"
+    if not student_name and student:
+        student_name = student.email
+    topic_title = submission.topic.title if getattr(submission, "topic", None) else "Erkin mavzu"
+    date_str = submission.created_at.strftime("%d.%m.%Y %H:%M") if getattr(submission, "created_at", None) else "-"
+    score_str = f"{submission.total_score or 0} / {submission.max_score or 24}"
+    conv_str = f"{submission.converted_score or 0} / 75"
+    status_str = "O'TDI (Muvaffaqiyatli)" if getattr(submission, "is_passed", False) else "O'TMADI"
+
+    info_data = [
+        [Paragraph("<b>O'quvchi:</b>", body_style), Paragraph(student_name, body_style),
+         Paragraph("<b>Sana:</b>", body_style), Paragraph(date_str, body_style)],
+        [Paragraph("<b>Esse mavzusi:</b>", body_style), Paragraph(topic_title, body_style),
+         Paragraph("<b>So'zlar soni:</b>", body_style), Paragraph(str(getattr(submission, "word_count", 0)), body_style)],
+        [Paragraph("<b>Umumiy ball:</b>", body_style), Paragraph(f"<b>{score_str}</b>", body_bold),
+         Paragraph("<b>75 shkalada:</b>", body_style), Paragraph(f"<b>{conv_str}</b>", body_bold)],
+        [Paragraph("<b>Holat:</b>", body_style), Paragraph(status_str, body_bold),
+         Paragraph("<b>Hujjat ID:</b>", body_style), Paragraph(f"ESSE-{submission.id:06d}", body_style)],
+    ]
+
+    t_info = Table(info_data, colWidths=[80, 180, 80, 180])
+    t_info.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("PADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    elements.append(t_info)
+    elements.append(Spacer(1, 14))
+
+    # 12 Criteria Table
+    elements.append(Paragraph("<b>12 Mezon bo'yicha batafsil baholash:</b>", heading_style))
+
+    criteria_table_data = [
+        [
+            Paragraph("<b>#</b>", body_bold),
+            Paragraph("<b>Mezon nomi</b>", body_bold),
+            Paragraph("<b>Ball</b>", body_bold),
+            Paragraph("<b>Max</b>", body_bold),
+            Paragraph("<b>Tahlil / Izoh</b>", body_bold),
+        ]
+    ]
+
+    criteria_qs = list(submission.criteria.order_by("criterion_id")) if hasattr(submission, "criteria") else []
+    if criteria_qs:
+        for c in criteria_qs:
+            criteria_table_data.append([
+                Paragraph(str(c.criterion_id), body_style),
+                Paragraph(c.name, body_style),
+                Paragraph(f"<b>{c.score}</b>", body_bold),
+                Paragraph("2.0", body_style),
+                Paragraph(c.reason[:180] if c.reason else "-", body_style),
+            ])
+    else:
+        from apps.essays.models import EssayCriterionScore
+        for cid, cname in EssayCriterionScore.CRITERION_NAMES.items():
+            criteria_table_data.append([
+                Paragraph(str(cid), body_style),
+                Paragraph(cname, body_style),
+                Paragraph("-", body_style),
+                Paragraph("2.0", body_style),
+                Paragraph("-", body_style),
+            ])
+
+    t_crit = Table(criteria_table_data, colWidths=[24, 180, 44, 40, 234])
+    t_crit.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("PADDING", (0, 0), (-1, -1), 4),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    elements.append(t_crit)
+    elements.append(Spacer(1, 12))
+
+    # Summary
+    if getattr(submission, "summary", ""):
+        elements.append(Paragraph("<b>Umumiy xulosa va tavsiyalar:</b>", heading_style))
+        elements.append(Paragraph(submission.summary, body_style))
+        elements.append(Spacer(1, 10))
+
+    # QR Code + Footer
+    site_url = getattr(settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    verify_url = f"{site_url}/essays/result/{submission.id}/"
+    qr_img = None
+    try:
+        import qrcode
+        qr = qrcode.QRCode(box_size=3, border=1)
+        qr.add_data(verify_url)
+        qr.make(fit=True)
+        img_buf = BytesIO()
+        qr.make_image(fill_color="black", back_color="white").save(img_buf, format="PNG")
+        img_buf.seek(0)
+        qr_img = Image(img_buf, width=60, height=60)
+    except Exception:
+        pass
+
+    footer_data = [
+        [
+            qr_img if qr_img else Paragraph("", body_style),
+            Paragraph(
+                f"<b>GRAND EDUCATION Rasmiy Baholash Tizimi</b><br/>"
+                f"Ushbu hujjat elektron tarzda shakllantirilgan va haqiqiyligi platforma bazasida saqlanadi.<br/>"
+                f"Tekshirish havolasi: <font color='#2563eb'>{verify_url}</font>",
+                body_style,
+            ),
+        ]
+    ]
+    t_foot = Table(footer_data, colWidths=[70, 450])
+    t_foot.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("PADDING", (0, 0), (-1, -1), 2),
+    ]))
+    elements.append(t_foot)
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+

@@ -13,11 +13,13 @@ from apps.attendance.models import AttendanceRecord, AttendanceSession
 from apps.courses.models import Course, StudentGroup
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.notifications.bot.handlers import (
+    _arena_keyboard,
     _main_menu_keyboard,
     arena_answer_callback,
     arena_bot_start_callback,
     arena_callback_handler,
     arena_finish_callback,
+    arena_invite_callback,
     arena_next_callback,
     callback_handler,
     certificate_download_callback,
@@ -320,6 +322,22 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertTrue(self.query.edit_message_text.called)
         args = self.query.edit_message_text.await_args.args[0]
         self.assertIn("ELO REYTING", args)
+
+    def test_arena_keyboard_and_invite_creation(self):
+        keyboard = _arena_keyboard()
+        button_texts = [btn.text for row in keyboard.inline_keyboard for btn in row]
+        combined = " ".join(button_texts)
+        self.assertIn("Do'stni duelga chorlash", combined)
+
+        self.update.callback_query = self.query
+        self.query.data = "arena_create"
+        async_to_sync(arena_callback_handler)(self.update, self.context)
+        self.assertTrue(self.query.edit_message_text.called)
+        text = self.query.edit_message_text.await_args.args[0]
+        self.assertIn("DUEL XONASI YARATILDI", text)
+        markup = self.query.edit_message_text.await_args.kwargs.get("reply_markup")
+        share_btns = [btn for row in markup.inline_keyboard for btn in row if "t.me/share" in (getattr(btn, "url", None) or "")]
+        self.assertTrue(len(share_btns) > 0)
 
     # 8. TMA REST API endpoints
     def test_tma_rest_api_certificates_myplan_mytuition(self):
