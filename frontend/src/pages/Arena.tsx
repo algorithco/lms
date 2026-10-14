@@ -4,6 +4,7 @@ import { useLang } from '../i18n/LangContext';
 import { ArenaLobby, arenaSocketUrl } from '../lib/api';
 import { SwordsIcon } from '../components/icons';
 import { useAuth } from '../auth/AuthContext';
+import TiltCard from '../components/TiltCard';
 
 /**
  * Arena lobby — mirrors GET /tma/api/arena/ (JWT summary: stats +
@@ -201,68 +202,77 @@ export default function Arena() {
       {msg && <p className="error">{msg}</p>}
 
       <div className="grid">
-        <div className="card">
-          <h2>{t('arena_quick_match')}</h2>
-          <p className="muted small">{t('arena_quick_hint')}</p>
-          {queue === 'idle' ? (
-            <button className="btn primary" disabled={busy} onClick={quickMatch}>
-              {t('arena_find_match')}
-            </button>
-          ) : (
-            <>
-              <p className="muted small">
-                {queuePos !== null ? `${t('arena_queue_position')}: ${queuePos} · ` : ''}
-                {queueMsg}
-              </p>
-              <button className="btn sm" onClick={cancelQueue}>
-                {t('cancel')}
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)', height: '100%' }}>
+          <div className="card" style={{ height: '100%', margin: 0 }}>
+            <h2>{t('arena_quick_match')}</h2>
+            <p className="muted small">{t('arena_quick_hint')}</p>
+            {queue === 'idle' ? (
+              <button className="btn primary" disabled={busy} onClick={quickMatch}>
+                {t('arena_find_match')}
               </button>
-            </>
-          )}
-        </div>
-        <div className="card">
-          <h2>{t('arena_create_room')}</h2>
-          <button className="btn" disabled={busy} onClick={createRoom}>
-            {t('arena_create')}
-          </button>
-          <div className="form">
-            <label>
-              {t('arena_enter_code')}
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="ABC123"
-              />
-            </label>
-            <button className="btn" disabled={busy} onClick={() => joinRoom()}>
-              {t('arena_join')}
-            </button>
+            ) : (
+              <>
+                <div className="laser-beam-wrapper" aria-hidden="true" style={{ margin: '10px 0' }}>
+                  <div className="laser-beam-line" />
+                </div>
+                <p className="muted small">
+                  {queuePos !== null ? `${t('arena_queue_position')}: ${queuePos} · ` : ''}
+                  {queueMsg}
+                </p>
+                <button className="btn sm" onClick={cancelQueue}>
+                  {t('cancel')}
+                </button>
+              </>
+            )}
           </div>
-        </div>
-        <div className="card stat">
-          <span className="stat-label">{t('arena_my_stats')}</span>
-          <span className="stat-value">
-            {stats.rating ?? '—'}
-            <small className="muted">
-              {' '}
-              ELO{stats.rank ? ` · #${stats.rank}` : ''}
-            </small>
-          </span>
-          <p className="muted small">
-            {t('arena_wins')}: {stats.wins ?? '—'} · {t('arena_losses')}:{' '}
-            {stats.losses ?? '—'} · {t('arena_draws')}: {stats.draws ?? '—'}
-          </p>
-          <p className="muted small">
-            {t('arena_streak')}: {stats.current_win_streak ?? '—'} ·{' '}
-            {t('arena_accuracy')}: {stats.accuracy ?? '—'}% · {t('arena_duels')}:{' '}
-            {stats.duels_played ?? '—'}
-          </p>
-          {(stats.xp !== undefined || stats.coins !== undefined) && (
+        </TiltCard>
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)', height: '100%' }}>
+          <div className="card" style={{ height: '100%', margin: 0 }}>
+            <h2>{t('arena_create_room')}</h2>
+            <button className="btn" disabled={busy} onClick={createRoom}>
+              {t('arena_create')}
+            </button>
+            <div className="form" style={{ marginTop: 12 }}>
+              <label>
+                {t('arena_enter_code')}
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="ABC123"
+                />
+              </label>
+              <button className="btn" disabled={busy} onClick={() => joinRoom()}>
+                {t('arena_join')}
+              </button>
+            </div>
+          </div>
+        </TiltCard>
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)', height: '100%' }}>
+          <div className="card stat stat-gradient-amber" style={{ height: '100%', margin: 0 }}>
+            <span className="stat-label">{t('arena_my_stats')}</span>
+            <span className="stat-value">
+              {stats.rating ?? '—'}
+              <small className="muted">
+                {' '}
+                ELO{stats.rank ? ` · #${stats.rank}` : ''}
+              </small>
+            </span>
             <p className="muted small">
-              ⚡ {stats.xp ?? 0} {t('xp')} · 🪙 {stats.coins ?? 0} {t('coins')}
+              {t('arena_wins')}: {stats.wins ?? '—'} · {t('arena_losses')}:{' '}
+              {stats.losses ?? '—'} · {t('arena_draws')}: {stats.draws ?? '—'}
             </p>
-          )}
-        </div>
+            <p className="muted small">
+              {t('arena_streak')}: {stats.current_win_streak ?? '—'} ·{' '}
+              {t('arena_accuracy')}: {stats.accuracy ?? '—'}% · {t('arena_duels')}:{' '}
+              {stats.duels_played ?? '—'}
+            </p>
+            {(stats.xp !== undefined || stats.coins !== undefined) && (
+              <p className="muted small">
+                ⚡ {stats.xp ?? 0} {t('xp')} · 🪙 {stats.coins ?? 0} {t('coins')}
+              </p>
+            )}
+          </div>
+        </TiltCard>
       </div>
 
       <h2>{t('arena_invites')}</h2>

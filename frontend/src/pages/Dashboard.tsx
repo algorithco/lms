@@ -11,6 +11,7 @@ import {
   TrophyIcon,
 } from '../components/icons';
 import UsageLimits from '../components/UsageLimits';
+import TiltCard from '../components/TiltCard';
 
 interface Stats {
   total_tests_taken?: number;
@@ -144,59 +145,67 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Stat cards — parity with legacy student_dashboard.html. */}
+      {/* Stat cards — modern 3D Tilt & parity with legacy student_dashboard.html. */}
       <div className="grid">
-        <div className="card stat stat-gradient-blue">
-          <span className="stat-label">
-            <FileTextIcon size={13} className="ico" /> {t('stat_tests_taken')}
-          </span>
-          <span className="stat-value">
-            {stats ? num(stats.total_tests_taken, 0) : '…'}
-          </span>
-          <span className="muted small">{t('stat_sub_total_hint')}</span>
-          <Link to="/tests">{t('tests')} →</Link>
-        </div>
-        <div className="card stat stat-gradient-green">
-          <span className="stat-label">
-            <TrophyIcon size={13} className="ico" /> {t('stat_tests_passed')}
-          </span>
-          <span className="stat-value">
-            {stats ? num(stats.total_passed, 0) : '…'}
-          </span>
-          <span className="muted small">
-            {stats
-              ? `${num(stats.total_passed, 0)}/${num(stats.total_tests_taken, 0)} ${t('stat_successfully')}`
-              : t('hint_take_test')}
-          </span>
-          <Link to="/results">{t('my_results')} →</Link>
-        </div>
-        <div className="card stat stat-gradient-amber">
-          <span className="stat-label">
-            <TrophyIcon size={13} className="ico" /> {t('average_score')}
-          </span>
-          <span className="stat-value">{avg === null ? '…' : `${avg}%`}</span>
-          <span className="muted small">
-            {avg === null
-              ? ''
-              : avg >= 70
-                ? t('perf_excellent')
-                : avg >= 50
-                  ? t('perf_not_bad')
-                  : t('perf_more_effort')}
-          </span>
-          <Link to="/results">{t('recent_results')} →</Link>
-        </div>
-        {isStudent && (
-          <div className="card stat stat-gradient-purple">
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)' }}>
+          <div className="card stat stat-gradient-blue" style={{ height: '100%', margin: 0 }}>
             <span className="stat-label">
-              <AwardIcon size={13} className="ico" /> {t('certificates')}
+              <FileTextIcon size={13} className="ico" /> {t('stat_tests_taken')}
             </span>
-            <span className="stat-value">{certCount ?? '…'}</span>
-            <span className="muted small">
-              {t('count_certificates')} · {t('download_pdf_hint')}
+            <span className="stat-value">
+              {stats ? num(stats.total_tests_taken, 0) : '…'}
             </span>
-            <Link to="/certificates">{t('my_certificates')} →</Link>
+            <span className="muted small">{t('stat_sub_total_hint')}</span>
+            <Link to="/tests">{t('tests')} →</Link>
           </div>
+        </TiltCard>
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)' }}>
+          <div className="card stat stat-gradient-green" style={{ height: '100%', margin: 0 }}>
+            <span className="stat-label">
+              <TrophyIcon size={13} className="ico" /> {t('stat_tests_passed')}
+            </span>
+            <span className="stat-value">
+              {stats ? num(stats.total_passed, 0) : '…'}
+            </span>
+            <span className="muted small">
+              {stats
+                ? `${num(stats.total_passed, 0)}/${num(stats.total_tests_taken, 0)} ${t('stat_successfully')}`
+                : t('hint_take_test')}
+            </span>
+            <Link to="/results">{t('my_results')} →</Link>
+          </div>
+        </TiltCard>
+        <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)' }}>
+          <div className="card stat stat-gradient-amber" style={{ height: '100%', margin: 0 }}>
+            <span className="stat-label">
+              <TrophyIcon size={13} className="ico" /> {t('average_score')}
+            </span>
+            <span className="stat-value">{avg === null ? '…' : `${avg}%`}</span>
+            <span className="muted small">
+              {avg === null
+                ? ''
+                : avg >= 70
+                  ? t('perf_excellent')
+                  : avg >= 50
+                    ? t('perf_not_bad')
+                    : t('perf_more_effort')}
+            </span>
+            <Link to="/results">{t('recent_results')} →</Link>
+          </div>
+        </TiltCard>
+        {isStudent && (
+          <TiltCard glare maxTilt={8} scale={1.02} style={{ borderRadius: 'var(--radius)' }}>
+            <div className="card stat stat-gradient-purple" style={{ height: '100%', margin: 0 }}>
+              <span className="stat-label">
+                <AwardIcon size={13} className="ico" /> {t('certificates')}
+              </span>
+              <span className="stat-value">{certCount ?? '…'}</span>
+              <span className="muted small">
+                {t('count_certificates')} · {t('download_pdf_hint')}
+              </span>
+              <Link to="/certificates">{t('my_certificates')} →</Link>
+            </div>
+          </TiltCard>
         )}
       </div>
 
@@ -214,22 +223,24 @@ export default function Dashboard() {
       ) : (
         <div className="grid">
           {available.map((item) => (
-            <Link key={item.id} to={`/tests/${item.id}`} className="card link-card">
-              <div className="toolbar" style={{ marginBottom: 8 }}>
-                <span className="badge blue">{t(`difficulty_${item.difficulty ?? ''}`) !== `difficulty_${item.difficulty ?? ''}` ? t(`difficulty_${item.difficulty ?? ''}`) : String(item.difficulty ?? '—')}</span>
-                {(item.time_limit_minutes ?? 0) > 0 && (
-                  <span className="badge amber">
-                    <ClockIcon size={12} className="ico" /> {item.time_limit_minutes}{' '}
-                    {t('minutes_suffix')}
-                  </span>
-                )}
-              </div>
-              <strong>{String(item.title ?? `Test #${item.id}`)}</strong>
-              <span className="muted small">
-                {num(item.total_questions, 0)} {t('questions_suffix')} ·{' '}
-                {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
-              </span>
-            </Link>
+            <TiltCard key={item.id} glare maxTilt={6} scale={1.02} style={{ borderRadius: 'var(--radius)', height: '100%' }}>
+              <Link to={`/tests/${item.id}`} className="card link-card" style={{ height: '100%', margin: 0 }}>
+                <div className="toolbar" style={{ marginBottom: 8 }}>
+                  <span className="badge blue">{t(`difficulty_${item.difficulty ?? ''}`) !== `difficulty_${item.difficulty ?? ''}` ? t(`difficulty_${item.difficulty ?? ''}`) : String(item.difficulty ?? '—')}</span>
+                  {(item.time_limit_minutes ?? 0) > 0 && (
+                    <span className="badge amber">
+                      <ClockIcon size={12} className="ico" /> {item.time_limit_minutes}{' '}
+                      {t('minutes_suffix')}
+                    </span>
+                  )}
+                </div>
+                <strong>{String(item.title ?? `Test #${item.id}`)}</strong>
+                <span className="muted small">
+                  {num(item.total_questions, 0)} {t('questions_suffix')} ·{' '}
+                  {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
+                </span>
+              </Link>
+            </TiltCard>
           ))}
         </div>
       )}

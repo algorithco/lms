@@ -4,6 +4,7 @@ import { useLang } from '../i18n/LangContext';
 import { arenaSocketUrl } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { FlameIcon, SwordsIcon, TrophyIcon } from '../components/icons';
+import confetti from 'canvas-confetti';
 import {
   arenaOpponentRows,
   arenaRowOf,
@@ -220,6 +221,16 @@ export default function DuelRoom() {
             setResult('draw');
           } else if (winnerId === myIdRef.current) {
             setResult('win');
+            try {
+              confetti({
+                particleCount: 80,
+                spread: 80,
+                origin: { y: 0.55 },
+                colors: ['#F59E0B', '#10B981', '#FBBF24', '#34D399', '#8B5CF6'],
+              });
+            } catch {
+              /* ignore */
+            }
           } else {
             setResult('lose');
           }
@@ -448,6 +459,9 @@ export default function DuelRoom() {
                   {oppName.slice(0, 2).toUpperCase()}
                 </span>
               </div>
+            </div>
+            <div className="laser-beam-wrapper" aria-hidden="true" style={{ margin: '10px 0' }}>
+              <div className="laser-beam-line" />
             </div>
             {streak >= 2 && (
               <p style={{ color: '#f59e0b', fontWeight: 800 }}>

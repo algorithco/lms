@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Essays } from '../lib/api';
+import HologramRadar3D from '../components/HologramRadar3D';
+import TiltCard from '../components/TiltCard';
 import {
   countEssayWords,
   isEssayDone,
@@ -78,6 +80,20 @@ export default function EssayResult() {
   const [retryBusy, setRetryBusy] = useState(false);
   const [retryErr, setRetryErr] = useState<string | null>(null);
   const [pollNonce, setPollNonce] = useState(0);
+  const [selectedCritId, setSelectedCritId] = useState<number>(1);
+
+  const radarItems = useMemo(() => {
+    if (!res?.criteria || !res.criteria.length) return [];
+    return res.criteria.map((c) => {
+      const max = c.max_score || 2;
+      return {
+        id: c.id,
+        name: c.name,
+        score: `${c.score} / ${max}`,
+        percent: Math.min(Math.round((c.score / max) * 100), 100),
+      };
+    });
+  }, [res?.criteria]);
 
   useEffect(() => {
     let stop = false;
@@ -291,23 +307,52 @@ export default function EssayResult() {
             </div>
           )}
           <h2>{t('essay_12_criteria')}</h2>
+          {radarItems.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 28px' }}>
+              <HologramRadar3D
+                items={radarItems}
+                activeId={selectedCritId}
+                size={270}
+              />
+            </div>
+          )}
           <div className="grid">
             {res.criteria.map((c) => (
-              <div key={c.id} className="card">
-                <strong>{c.name}</strong>
-                <p className="stat-value">
-                  {c.score}
-                  <small className="muted"> / {c.max_score ?? 2}</small>
-                </p>
-                <p className="muted small">{c.reason}</p>
-                {!!c.errors?.length && (
-                  <ul className="muted small" style={{ marginTop: 4, paddingLeft: 18 }}>
-                    {c.errors.map((e, i) => (
-                      <li key={i}>“{e}”</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <TiltCard
+                key={c.id}
+                glare
+                maxTilt={6}
+                scale={1.02}
+                style={{ borderRadius: 'var(--radius)', height: '100%' }}
+              >
+                <div
+                  className="card"
+                  style={{
+                    height: '100%',
+                    margin: 0,
+                    cursor: 'pointer',
+                    borderColor: selectedCritId === c.id ? '#f59e0b' : undefined,
+                    boxShadow: selectedCritId === c.id ? '0 0 16px rgba(245, 158, 11, 0.25)' : undefined,
+                    transition: 'all 0.2s ease',
+                  }}
+                  onClick={() => setSelectedCritId(c.id)}
+                  onMouseEnter={() => setSelectedCritId(c.id)}
+                >
+                  <strong>{c.name}</strong>
+                  <p className="stat-value">
+                    {c.score}
+                    <small className="muted"> / {c.max_score ?? 2}</small>
+                  </p>
+                  <p className="muted small">{c.reason}</p>
+                  {!!c.errors?.length && (
+                    <ul className="muted small" style={{ marginTop: 4, paddingLeft: 18 }}>
+                      {c.errors.map((e, i) => (
+                        <li key={i}>“{e}”</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </TiltCard>
             ))}
           </div>
 

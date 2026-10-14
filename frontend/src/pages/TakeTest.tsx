@@ -18,6 +18,8 @@ import {
   type DraftMap,
 } from '../lib/testing';
 import { ClockIcon } from '../components/icons';
+import TiltCard from '../components/TiltCard';
+import confetti from 'canvas-confetti';
 
 interface Choice {
   id: number;
@@ -286,6 +288,18 @@ export default function TakeTest() {
         const r: SubmitResult = (out.result ?? out) as SubmitResult;
         setResult(r);
         clearDraft(attemptId);
+        if (r.is_passed) {
+          try {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ['#10B981', '#34D399', '#F59E0B', '#FBBF24'],
+            });
+          } catch {
+            /* ignore */
+          }
+        }
       } catch (e) {
         submittedRef.current = false;
         setErr(
@@ -584,7 +598,14 @@ export default function TakeTest() {
           {block.questions.map(({ q, index: i }) => {
         const a = answers[q.id] ?? emptyEntry();
         return (
-          <div key={q.id} id={`question-${q.id}`} className="card" style={{ marginBottom: 12 }}>
+          <TiltCard
+            key={q.id}
+            glare={false}
+            maxTilt={3}
+            scale={1.005}
+            style={{ borderRadius: 'var(--radius)', marginBottom: 12 }}
+          >
+            <div id={`question-${q.id}`} className="card" style={{ height: '100%', margin: 0 }}>
             {block.sectionId != null && (
               <span id={`section-${block.sectionId}`} style={{ scrollMarginTop: 80 }} />
             )}
@@ -680,6 +701,7 @@ export default function TakeTest() {
               )}
             </div>
           </div>
+        </TiltCard>
         );
       })}
         </div>
