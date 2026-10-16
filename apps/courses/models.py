@@ -220,6 +220,15 @@ class StudentGroup(models.Model):
         blank=True,
         verbose_name=_("talabalar"),
     )
+    invite_code = models.CharField(
+        _("taklif kodi"),
+        max_length=32,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text=_("O'quvchilar qo'shilishi uchun unikal kod (masalan: GR-101)"),
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 
@@ -231,6 +240,12 @@ class StudentGroup(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.teacher.get_full_name()})"
+
+    def save(self, *args, **kwargs) -> None:
+        if not self.invite_code:
+            import secrets
+            self.invite_code = f"GR-{secrets.token_hex(3).upper()}"
+        super().save(*args, **kwargs)
 
     @property
     def student_count(self) -> int:

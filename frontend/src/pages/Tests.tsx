@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { api, type Paginated } from '../lib/api';
+import { api, MockTests, type Paginated } from '../lib/api';
 import { listTestsPage, num, type TestListItem } from '../lib/testing';
 import { CheckIcon, ClockIcon, HashIcon } from '../components/icons';
 
@@ -9,6 +9,7 @@ const PAGE_SIZE = 20;
 
 export default function Tests() {
   const { t } = useLang();
+  const navigate = useNavigate();
   const [tests, setTests] = useState<TestListItem[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -18,6 +19,26 @@ export default function Tests() {
   const [difficulty, setDifficulty] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Quick Mock Join
+  const [mockCode, setMockCode] = useState('');
+  const [mockBusy, setMockBusy] = useState(false);
+  const [mockErr, setMockErr] = useState<string | null>(null);
+
+  const joinMock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mockCode.trim()) return;
+    setMockBusy(true);
+    setMockErr(null);
+    try {
+      const res = await MockTests.join(mockCode.trim());
+      navigate(`/take/${res.attempt_id}`);
+    } catch (e2) {
+      setMockErr(e2 instanceof Error ? e2.message : 'Mock test topilmadi yoki kod noto‘g‘ri.');
+    } finally {
+      setMockBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +102,47 @@ export default function Tests() {
         {t('tests')} ({count})
       </h1>
       <p className="muted">{t('available_tests_hint')}</p>
+
+      {/* 🎯 Mock Testga Kod Bilan Qo'shilish */}
+      <div
+        className="card"
+        style={{
+          margin: '16px 0 20px',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(59, 130, 246, 0.06) 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#10b981' }}>
+              <span>🎯</span> Mock Testga Kod Bilan Qo‘shilish
+            </strong>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting va 1 soniyada rasmiy BMB simulyatsiyasini boshlang:
+            </p>
+          </div>
+          <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              value={mockCode}
+              onChange={(e) => setMockCode(e.target.value)}
+              placeholder="#MOCK-401"
+              required
+              style={{
+                width: '160px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+              }}
+            />
+            <button className="btn primary sm" disabled={mockBusy}>
+              {mockBusy ? 'Ulanmoqda…' : '🚀 Testni boshlash'}
+            </button>
+          </form>
+        </div>
+        {mockErr && <p className="error small" style={{ margin: '8px 0 0' }}>{mockErr}</p>}
+      </div>
 
       <div className="toolbar" style={{ marginBottom: 16 }}>
         <input

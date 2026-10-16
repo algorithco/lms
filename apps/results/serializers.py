@@ -26,6 +26,8 @@ class ResultListSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source="course.title", read_only=True)
     student_name = serializers.SerializerMethodField()
     certificate_status = serializers.SerializerMethodField()
+    bmb_grade = serializers.CharField(read_only=True)
+    bmb_info = serializers.DictField(read_only=True)
 
     class Meta:
         model = Result
@@ -33,7 +35,7 @@ class ResultListSerializer(serializers.ModelSerializer):
             "id", "test", "test_title", "course", "course_title",
             "student_name", "score", "max_score", "percentage",
             "is_passed", "time_taken_seconds", "calculated_at",
-            "grading_status", "certificate_status",
+            "grading_status", "certificate_status", "bmb_grade", "bmb_info",
         ]
 
     def get_certificate_status(self, obj: Result) -> str:
@@ -71,6 +73,8 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     certificate_info = serializers.SerializerMethodField()
     section_scores = serializers.SerializerMethodField()
     certificate_status = serializers.SerializerMethodField()
+    bmb_grade = serializers.CharField(read_only=True)
+    bmb_info = serializers.DictField(read_only=True)
 
     class Meta:
         model = Result
@@ -82,7 +86,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             "grading_status", "objective_score", "writing_score",
             "scoring_version", "rubric_version",
             "question_details", "section_scores", "certificate_status",
-            "certificate_info", "calculated_at",
+            "certificate_info", "calculated_at", "bmb_grade", "bmb_info",
         ]
 
     def get_student_name(self, obj: Result) -> str:

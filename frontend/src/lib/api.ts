@@ -468,6 +468,111 @@ export const Certificates = {
     `${API_BASE}/api/certificates/${id}/download/`,
 };
 
+export interface MockTestCreateResponse {
+  ok: boolean;
+  test_id: number;
+  mock_code: string;
+  title: string;
+  questions_count: number;
+  time_limit: number;
+  passing_score: number;
+}
+
+export interface MockTestJoinResponse {
+  ok: boolean;
+  message?: string;
+  test: {
+    id: number;
+    title: string;
+    mock_code: string;
+    time_limit: number;
+    questions_count: number;
+  };
+  attempt_id: number;
+}
+
+export interface MockLeaderboardResponse {
+  test_id: number;
+  title: string;
+  mock_code: string;
+  total_participants: number;
+  bmb_summary: Record<string, number>;
+  leaderboard: Array<{
+    rank: number;
+    student_name: string;
+    score: number;
+    max_score: number;
+    percentage: number;
+    bmb_grade: string;
+    bmb_title: string;
+    passed: boolean;
+    date: string;
+  }>;
+}
+
+export const MockTests = {
+  create: (payload: { title?: string; keys: string; time_limit?: number; passing_score?: number }) =>
+    api<MockTestCreateResponse>('/api/tests/mock/create/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  join: (mock_code: string) =>
+    api<MockTestJoinResponse>('/api/tests/mock/join/', {
+      method: 'POST',
+      body: JSON.stringify({ mock_code }),
+    }),
+  leaderboard: (testId: number | string) =>
+    api<MockLeaderboardResponse>(`/api/tests/mock/${testId}/leaderboard/`),
+};
+
+export interface WeakTopicItem {
+  topic: string;
+  category: string;
+  incorrect_count: number;
+  severity: 'high' | 'medium' | 'low';
+  recommendation: string;
+}
+
+export interface ResultDiagnosticsResponse {
+  result_id: number;
+  score: number;
+  max_score: number;
+  percentage: number;
+  bmb_grade: string;
+  bmb_title: string;
+  total_questions: number;
+  incorrect_count: number;
+  weak_topics: WeakTopicItem[];
+  general_advice: string;
+}
+
+export interface QuestionMistakeExplanation {
+  ok: boolean;
+  question_id: number;
+  question_text: string;
+  selected_choice: string | null;
+  correct_choice: string;
+  why_wrong: string;
+  correct_rule: string;
+  memory_tip: string;
+}
+
+export const AiTutor = {
+  getDiagnostics: (resultId: number | string) =>
+    api<ResultDiagnosticsResponse>(`/api/tests/results/${resultId}/diagnostics/`),
+  explainMistake: (
+    questionId: number | string,
+    payload: { selected_choice_id?: number | null; attempt_id?: number | null } = {},
+  ) =>
+    api<QuestionMistakeExplanation>(
+      `/api/tests/questions/${questionId}/explain-mistake/`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
+};
+
 // ---------------------------------------------------------------------------
 // Web Push (apps/notifications push_* views, JWT via api()).
 // Opt-in: call Push.subscribe() from a user gesture after Notification
@@ -1121,6 +1226,37 @@ export interface TuitionOverview {
   accepted_methods: Array<{ value: string; label: string }>;
 }
 
+export interface GroupStudentAnalytics {
+  student_id: number;
+  student_name: string;
+  email: string;
+  tests_count: number;
+  avg_test_percentage: number;
+  latest_test_grade: string;
+  essays_count: number;
+  avg_essay_score: number;
+  last_active: string | null;
+}
+
+export interface GroupFullAnalyticsResponse {
+  group: {
+    id: number;
+    name: string;
+    invite_code: string;
+    teacher_name: string;
+    total_students: number;
+  };
+  summary: {
+    total_tests_taken: number;
+    total_essays_submitted: number;
+    average_test_score: number;
+    average_test_percentage: number;
+    average_essay_score: number;
+    bmb_distribution: Record<string, number>;
+  };
+  students: GroupStudentAnalytics[];
+}
+
 export const School = {
   notificationPreferences: (payload?: Record<string, boolean>) =>
     api<Record<string, boolean>>('/api/v1/school/notification-preferences/', {
@@ -1148,6 +1284,17 @@ export const School = {
     }),
   studentSearch: (q: string) =>
     api<Record<string, unknown>[]>(`/api/v1/school/students/?q=${encodeURIComponent(q)}`),
+  groupAnalytics: (groupId: number | string) =>
+    api<GroupFullAnalyticsResponse>(`/api/v1/school/groups/${groupId}/analytics/`),
+  joinGroup: (invite_code: string) =>
+    api<{ ok: boolean; message: string; group: { id: number; name: string; teacher_name: string } }>(
+      '/api/v1/school/groups/join/',
+      { method: 'POST', body: JSON.stringify({ invite_code }) },
+    ),
+  exportExcelUrl: (groupId: number | string) =>
+    `${API_BASE}/api/v1/school/groups/${groupId}/export/excel/`,
+  exportPdfUrl: (groupId: number | string) =>
+    `${API_BASE}/api/v1/school/groups/${groupId}/export/pdf/`,
 
   // -- Attendance ----------------------------------------------------------
   attendanceSessions: (params: {

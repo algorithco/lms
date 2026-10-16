@@ -68,6 +68,7 @@ export default function EssayResult() {
   const [improved, setImproved] = useState<string | null>(null);
   const [improvedBusy, setImprovedBusy] = useState(false);
   const [improvedErr, setImprovedErr] = useState<string | null>(null);
+  const [improvedView, setImprovedView] = useState<'diff' | 'after' | 'before'>('diff');
   const [copied, setCopied] = useState(false);
 
   // Teacher-review request (session form endpoint).
@@ -356,25 +357,192 @@ export default function EssayResult() {
             ))}
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
-            <button className="btn sm" disabled={improvedBusy} onClick={toggleImproved}>
-              {improvedBusy
-                ? t('essay_improved_loading')
-                : improvedOpen
-                  ? t('essay_improved_hide')
-                  : t('essay_improved_show')}
-            </button>
-            {improvedErr && <p className="error">{improvedErr}</p>}
-            {improvedOpen && improved && (
-              <>
-                <p className="muted small">
-                  {t('essay_improved_title')} · {countEssayWords(improved)} {t('words_suffix')}
+          {/* 🪄 AI tahriri (Oldin / Keyin) - Interactive Redactor */}
+          <div
+            className="card"
+            style={{
+              marginTop: 20,
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              borderRadius: '14px',
+              padding: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>🪄</span> AI tahriri (Oldin / Keyin)
+                </h3>
+                <p className="muted small" style={{ margin: '4px 0 0' }}>
+                  12 mezon talablari asosida tuzatilgan mukammal namuna matn
                 </p>
-                <p style={{ whiteSpace: 'pre-line' }}>{improved}</p>
-                <button className="btn sm" onClick={copyImproved}>
-                  {copied ? t('essay_improved_copied') : t('essay_improved_copy')}
-                </button>
-              </>
+              </div>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={improvedBusy}
+                onClick={toggleImproved}
+                style={{
+                  borderColor: '#f59e0b',
+                  color: '#f59e0b',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>{improvedOpen ? '✕ Yopish' : '✨ AI Tahririni ochish'}</span>
+              </button>
+            </div>
+
+            {improvedBusy && (
+              <p className="muted small" style={{ marginTop: 14 }}>
+                🤖 AI matningizni tahrirlamoqda va uslubiy xatolarni tuzatmoqda…
+              </p>
+            )}
+            {improvedErr && <p className="error small" style={{ marginTop: 14 }}>{improvedErr}</p>}
+
+            {improvedOpen && improved && (
+              <div style={{ marginTop: 18 }}>
+                {/* View Mode Switcher */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`btn sm ${improvedView === 'diff' ? 'primary' : 'ghost'}`}
+                    onClick={() => setImprovedView('diff')}
+                  >
+                    🔄 Solishtirish (Oldin / Keyin)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn sm ${improvedView === 'after' ? 'primary' : 'ghost'}`}
+                    onClick={() => setImprovedView('after')}
+                  >
+                    ✨ Faqat AI tahriri
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn sm ${improvedView === 'before' ? 'primary' : 'ghost'}`}
+                    onClick={() => setImprovedView('before')}
+                  >
+                    📝 Asl esse matni
+                  </button>
+                </div>
+
+                {/* Diff: Side-by-side comparison */}
+                {improvedView === 'diff' && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '10px',
+                        padding: '14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <strong style={{ color: '#ef4444', fontSize: '0.9rem' }}>
+                          📝 Oldin (Siz yozgan asl matn):
+                        </strong>
+                        <span className="muted small">{res.word_count} so‘z</span>
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: 'pre-line',
+                          fontSize: '0.88rem',
+                          lineHeight: 1.6,
+                          maxHeight: '400px',
+                          overflowY: 'auto',
+                          color: 'var(--text-muted, #9ca3af)',
+                        }}
+                      >
+                        {res.essay_text || '(Asl matn topilmadi)'}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.04)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderRadius: '10px',
+                        padding: '14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
+                        <strong style={{ color: '#10b981', fontSize: '0.9rem' }}>
+                          ✨ Keyin (AI tuzatgan namuna):
+                        </strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="muted small">{countEssayWords(improved)} so‘z</span>
+                          <button type="button" className="btn sm ghost" onClick={copyImproved} style={{ padding: '2px 8px', fontSize: '0.78rem' }}>
+                            {copied ? '✓ Nusxalandi' : '📋 Nusxa'}
+                          </button>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: 'pre-line',
+                          fontSize: '0.88rem',
+                          lineHeight: 1.6,
+                          maxHeight: '400px',
+                          overflowY: 'auto',
+                          color: 'var(--text, #f3f4f6)',
+                        }}
+                      >
+                        {improved}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* View only After */}
+                {improvedView === 'after' && (
+                  <div
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.04)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: '10px',
+                      padding: '16px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, alignItems: 'center' }}>
+                      <span className="muted small">
+                        {countEssayWords(improved)} {t('words_suffix')} · AI tomonidan mukammallashtirildi
+                      </span>
+                      <button type="button" className="btn sm" onClick={copyImproved}>
+                        {copied ? '✓ Nusxalandi' : '📋 Matnni nusxalash'}
+                      </button>
+                    </div>
+                    <p style={{ whiteSpace: 'pre-line', fontSize: '0.92rem', lineHeight: 1.7, margin: 0 }}>
+                      {improved}
+                    </p>
+                  </div>
+                )}
+
+                {/* View only Before */}
+                {improvedView === 'before' && (
+                  <div
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '10px',
+                      padding: '16px',
+                    }}
+                  >
+                    <p className="muted small" style={{ marginBottom: 10 }}>
+                      Asl yozilgan variant · {res.word_count} {t('words_suffix')}
+                    </p>
+                    <p style={{ whiteSpace: 'pre-line', fontSize: '0.92rem', lineHeight: 1.7, margin: 0 }}>
+                      {res.essay_text}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

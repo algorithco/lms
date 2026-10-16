@@ -422,36 +422,26 @@ async def _show_final_results(update: Update, context: ContextTypes.DEFAULT_TYPE
         percentage = round(correct / total * 100, 1) if total > 0 else 0
         passed = percentage >= 60
 
-    # Grade emoji
-    if percentage >= 90:
-        grade = "A+ 🌟"
-    elif percentage >= 80:
-        grade = "A ✨"
-    elif percentage >= 70:
-        grade = "B 💪"
-    elif percentage >= 60:
-        grade = "C 👍"
-    elif percentage >= 50:
-        grade = "D 😐"
-    else:
-        grade = "F 😔"
-
-    status = "✅ O'tdi!" if passed else "❌ O'tmadi"
+    from apps.tests.bmb_grading import calculate_bmb_grade
+    bmb_info = calculate_bmb_grade(percentage)
+    grade = f"{bmb_info['grade']} ({bmb_info['title']})"
+    passed = bmb_info["is_passed"]
+    status = "✅ Sertifikat beriladi!" if passed else "❌ Sertifikat berilmaydi (Yetarli emas)"
 
     text = (
-        f"📊 *QUIZ NATIJASI*\n\n"
+        f"📊 *MILLIY SERTIFIKAT QUIZ NATIJASI*\n\n"
         f"📝 Test: *{quiz['test_title']}*\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"✅ To'g'ri: *{correct}/{total}*\n"
         f"📈 Foiz: *{percentage}%*\n"
-        f"🎓 Baho: *{grade}*\n"
+        f"🎖 BMB Daraja: *{grade}*\n"
         f"📋 Holat: {status}\n"
     )
 
     if passed:
         text += (
             f"\n🎉 *Tabriklaymiz!*\n"
-            f"Siz muvaffaqiyatli testdan o'tdingiz!\n"
+            f"Siz Milliy sertifikat talablarini bajardingiz! Rasmiy PDF sertifikatingiz quyida yuklanmoqda... 👇\n"
         )
     else:
         text += (

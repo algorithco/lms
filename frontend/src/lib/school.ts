@@ -21,6 +21,7 @@ export interface SchoolGroup {
   id: number;
   name: string;
   description: string;
+  invite_code?: string;
   teacher: number;
   teacher_name: string;
   student_count: number;

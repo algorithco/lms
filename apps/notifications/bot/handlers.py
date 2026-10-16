@@ -168,8 +168,8 @@ def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [KeyboardButton("✍️ Esse yozish"), KeyboardButton("🧠 Test / Quiz")],
-            [KeyboardButton("⚔️ Arena (1v1)"), KeyboardButton("📜 Sertifikatlarim")],
-            [KeyboardButton("💳 Mening tarifim"), KeyboardButton("👤 Profil")],
+            [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
+            [KeyboardButton("📜 Sertifikatlarim"), KeyboardButton("👤 Profil")],
         ],
         resize_keyboard=True,
     )
@@ -181,24 +181,24 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
     _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
-            InlineKeyboardButton("📱 Fast CBT Test (Mini App)", web_app={"url": f"{_site_url}/tma/#/tests"}),
+            InlineKeyboardButton("📝 Mock Test (#kod)", callback_data="menu_mock_join"),
+            InlineKeyboardButton("📱 Fast CBT Test", web_app={"url": f"{_site_url}/tma/#/tests"}),
         ],
         [
+            InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
             InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
-            InlineKeyboardButton("📜 Sertifikatlarim (PDF)", callback_data="menu_certificates"),
         ],
         [
             InlineKeyboardButton("🧠 Telegram Quiz", callback_data="menu_quiz"),
-            InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
+            InlineKeyboardButton("📜 Sertifikatlarim (PDF)", callback_data="menu_certificates"),
         ],
         [
-            InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
+            InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
             InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
         ],
         [
+            InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
             InlineKeyboardButton("🏆 ELO Reyting", callback_data="menu_leaderboard"),
-            InlineKeyboardButton("📅 Davomat", callback_data="menu_attendance"),
         ],
         [
             InlineKeyboardButton("🌐 Web Platformaga o'tish", url=f"{_site_url}/dashboard/"),
@@ -486,6 +486,76 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("📅 Davomat", "📅 Davomatim"):
         await myattendance_handler(update, context)
+        return
+    elif raw_text in ("📝 Mock Test (#kod)", "📝 Mock Test", "Mock Test"):
+        text = (
+            "📝 *MILLIY SERTIFIKAT MOCK TESTGA ULANISH*\n\n"
+            "Ustozingiz bergan Mock kodini botga yuboring:\n"
+            "Masalan: `#MOCK-401` yoki `MOCK-401`\n\n"
+            "📌 Kodni yozib yuborganingizdan so'ng, test darhol boshlanadi va rasmiy BMB darajangiz (A+, A, B+...) hisoblab beriladi."
+        )
+        await update.message.reply_text(text, parse_mode="Markdown")
+        return
+
+    # Check for #MOCK-XXX or MOCK-XXX code input
+    upper_raw = raw_text.upper().strip()
+    if upper_raw.startswith("#MOCK-") or (upper_raw.startswith("MOCK-") and len(upper_raw) >= 6):
+        from apps.tests.mock_service import find_mock_by_code
+        mock_test = await _run_db(find_mock_by_code, raw_text)
+        if mock_test:
+            text = (
+                f"📋 *MILLIY SERTIFIKAT MOCK TEST TOPILDI*\n\n"
+                f"📌 Test: *{mock_test.title}*\n"
+                f"🔢 Savollar soni: *{mock_test.total_questions} ta*\n"
+                f"⏱ Vaqt: *{mock_test.time_limit_minutes} daqiqa*\n"
+                f"🎯 Rasmiy BMB darajalari baholanadi (A+, A, B+, B, C+, C).\n\n"
+                f"Testni Telegramda boshlashga tayyormisiz?"
+            )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚀 Testni boshlash", callback_data=f"quiz_start_{mock_test.id}")],
+                [InlineKeyboardButton("❌ Bekor qilish", callback_data="menu_main")],
+            ])
+            await update.message.reply_text(text, parse_mode="Markdown", reply_markup=buttons)
+            return
+        else:
+            await update.message.reply_text(
+                f"❌ '{raw_text}' kodi bo'yicha Mock test topilmadi.\n"
+                f"Iltimos, ustozingiz bergan kodni to'g'ri kiritganingizni tekshiring (masalan: `#MOCK-401`).",
+                parse_mode="Markdown",
+            )
+            return
+
+    # Teacher /newmock command
+    if raw_text.lower().startswith("/newmock") or raw_text.lower().startswith("#newmock"):
+        parts = raw_text.split(maxsplit=1)
+        if len(parts) < 2:
+            await update.message.reply_text(
+                "Ustoz, kalitlarni quyidagi formatda yuboring:\n"
+                "`/newmock 1a2b3c4d5a...40b`",
+                parse_mode="Markdown",
+            )
+            return
+        key_str = parts[1].strip()
+        user = await _get_or_create_user_async(update)
+        if not user or not (getattr(user, "role", None) in ("teacher", "admin") or is_platform_admin(user)):
+            await update.message.reply_text("Faqat o'qituvchilar tezkor mock sessiya yarata oladi.")
+            return
+
+        from apps.tests.mock_service import create_quick_mock
+        try:
+            res = await _run_db(create_quick_mock, user, key_str)
+            code = res["mock_code"]
+            await update.message.reply_text(
+                f"✅ *Mock sessiya muvaffaqiyatli yaratildi!*\n\n"
+                f"📌 Test kodi: `{code}`\n"
+                f"🔢 Savollar: *{res['total_questions']} ta*\n"
+                f"⏱ Vaqt: *{res['time_limit_minutes']} daqiqa*\n\n"
+                f"O'quvchilaringizga ushbu kodni yuboring:\n"
+                f"👉 O'quvchi botga `{code}` deb yozsa, darhol test boshlanadi!",
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            await update.message.reply_text(f"Xatolik: {e}")
         return
 
     from django.utils import timezone
@@ -3376,6 +3446,17 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 parse_mode="Markdown",
                 reply_markup=_main_menu_keyboard(),
             )
+        elif data == "menu_mock_join":
+            text = (
+                "📝 *MILLIY SERTIFIKAT MOCK TESTGA ULANISH*\n\n"
+                "Ustozingiz bergan Mock kodini botga yuboring:\n"
+                "Masalan: `#MOCK-401` yoki `MOCK-401`\n\n"
+                "📌 Kodni yuborganingizdan so'ng, test darhol ochiladi va rasmiy BMB darajangiz (A+, A, B+...) hisoblab beriladi."
+            )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")]
+            ])
+            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=buttons)
         elif data == "menu_tests":
             # Simulate /tests command
             user = await _get_or_create_user_async(update)

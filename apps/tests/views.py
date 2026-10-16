@@ -481,3 +481,202 @@ class FinalizeAttemptView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ===========================================================================
+# 24/7 AI Tutor & Mistake Diagnostics Views
+# ===========================================================================
+
+class ResultDiagnosticsView(APIView):
+    """
+    POST /api/tests/results/<int:result_id>/diagnostics/
+    GET  /api/tests/results/<int:result_id>/diagnostics/
+
+    Test natijasi bo'yicha zaif mavzular tahlili va shaxsiy tavsiyalar.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_or_post(self, request: Request, result_id: int) -> Response:
+        from apps.results.models import Result
+        from apps.tests.ai_tutor import get_result_diagnostics
+
+        result = Result.objects.filter(id=result_id).first()
+        if not result:
+            return Response({"error": "Natija topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not (
+            result.student_id == request.user.id
+            or is_platform_admin(request.user)
+            or (getattr(request.user, "role", None) == "teacher" and result.course.teacher_id == request.user.id)
+        ):
+            return Response({"error": "Ruxsat etilmagan."}, status=status.HTTP_403_FORBIDDEN)
+
+        data = get_result_diagnostics(result_id)
+        return Response(data, status=status.HTTP_200_OK)
+
+    def get(self, request: Request, result_id: int) -> Response:
+        return self.get_or_post(request, result_id)
+
+    def post(self, request: Request, result_id: int) -> Response:
+        return self.get_or_post(request, result_id)
+
+
+class QuestionExplainMistakeView(APIView):
+    """
+    POST /api/tests/questions/<int:question_id>/explain-mistake/
+
+    Xato ishlangan savol uchun interaktiv 24/7 repetitor tushuntirishi.
+    Body: {"selected_choice_id": 12, "attempt_id": 34}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, question_id: int) -> Response:
+        from apps.tests.ai_tutor import explain_question_mistake
+
+        selected_choice_id = request.data.get("selected_choice_id")
+        attempt_id = request.data.get("attempt_id")
+
+        if selected_choice_id is not None:
+            try:
+                selected_choice_id = int(selected_choice_id)
+            except (ValueError, TypeError):
+                selected_choice_id = None
+
+        if attempt_id is not None:
+            try:
+                attempt_id = int(attempt_id)
+            except (ValueError, TypeError):
+                attempt_id = None
+
+        data = explain_question_mistake(
+            question_id=question_id,
+            selected_choice_id=selected_choice_id,
+            attempt_id=attempt_id,
+        )
+        return Response(data, status=status.HTTP_200_OK)
+
+
+# ===========================================================================
+# Fast Key-Based Mock Test Views
+# ===========================================================================
+
+class QuickMockCreateView(APIView):
+    """
+    POST /api/tests/mock/create/
+
+    Ustoz uchun bir qatorli kalitlar bilan tezkor Mock sessiya yaratish.
+    Body:
+    {
+        "keys": "1a2b3c4d...40b",
+        "title": "Milliy Sertifikat Mock #1",
+        "time_limit_minutes": 120,
+        "custom_code": "#MOCK-401"
+    }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = request.user
+        role = getattr(user, "role", None)
+        if not (role in ("teacher", "admin") or is_platform_admin(user)):
+            return Response(
+                {"error": "Faqat o'qituvchilar va administratorlar mock sessiya yarata oladi."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        keys_str = request.data.get("keys", "")
+        title = request.data.get("title", "")
+        time_limit = request.data.get("time_limit_minutes", 120)
+        custom_code = request.data.get("custom_code")
+
+        try:
+            time_limit = int(time_limit)
+        except (ValueError, TypeError):
+            time_limit = 120
+
+        from apps.tests.mock_service import create_quick_mock
+
+        try:
+            res = create_quick_mock(
+                teacher=user,
+                key_string=keys_str,
+                title=title,
+                time_limit_minutes=time_limit,
+                custom_code=custom_code,
+            )
+            return Response(res, status=status.HTTP_201_CREATED)
+        except ValueError as err:
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Quick mock creation failed: %s", exc)
+            return Response(
+                {"error": "Mock test yaratishda xatolik yuz berdi."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class QuickMockJoinView(APIView):
+    """
+    POST /api/tests/mock/join/
+
+    O'quvchi #MOCK-XXX kodi orqali testga ulanadi va testni boshlaydi.
+    Body: {"code": "#MOCK-401", "auto_start": true}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        code = request.data.get("code", "")
+        auto_start = bool(request.data.get("auto_start", True))
+
+        if not code or not code.strip():
+            return Response({"error": "Mock kodi kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.tests.mock_service import find_mock_by_code
+        test = find_mock_by_code(code.strip())
+        if not test:
+            return Response(
+                {"error": f"'{code}' kodi bo'yicha faol Mock test topilmadi. Kodni tekshirib qayta kiriting."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        attempt_id = None
+        if auto_start:
+            # Mavjud active attempt bormi?
+            active = test.attempts.filter(student=request.user, status="in_progress").first()
+            if active:
+                attempt_id = active.id
+            else:
+                try:
+                    attempt = StartAttemptService.execute(test_id=test.id, student=request.user)
+                    attempt_id = attempt.id
+                except ValueError as err:
+                    # e.g. already reached max attempts
+                    active = test.attempts.filter(student=request.user).order_by("-started_at").first()
+                    if active:
+                        attempt_id = active.id
+                    else:
+                        return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "test_id": test.id,
+            "title": test.title,
+            "mock_code": test.mock_code,
+            "total_questions": test.total_questions,
+            "time_limit_minutes": test.time_limit_minutes,
+            "attempt_id": attempt_id,
+        }, status=status.HTTP_200_OK)
+
+
+class MockLeaderboardView(APIView):
+    """
+    GET /api/tests/mock/<int:test_id>/leaderboard/
+
+    Mock test bo'yicha guruh reytingi va BMB darajalari taqsimoti.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, test_id: int) -> Response:
+        from apps.tests.mock_service import get_mock_leaderboard
+        data = get_mock_leaderboard(test_id)
+        return Response(data, status=status.HTTP_200_OK)
+

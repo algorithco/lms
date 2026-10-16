@@ -92,6 +92,65 @@ def group_members_view(request, group_id: int):
 
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
+def group_analytics_view(request, group_id: int):
+    """Guruh bo'yicha jonli monitoring, test/esse ko'rsatkichlari va BMB taqsimoti."""
+    group = get_object_or_404(_teacher_groups(request.user), id=group_id)
+    from apps.courses.group_service import get_group_full_analytics
+    return Response(get_group_full_analytics(group))
+
+
+@api_view(["GET"])
+@permission_classes([IsTeacherOrAdmin])
+def group_export_excel_view(request, group_id: int):
+    """Guruh hisobotini Excel (.xlsx) formatida yuklab olish."""
+    from django.http import HttpResponse
+    from apps.courses.group_service import export_group_to_excel
+    group = get_object_or_404(_teacher_groups(request.user), id=group_id)
+    excel_bytes = export_group_to_excel(group)
+    response = HttpResponse(
+        excel_bytes,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    safe_name = group.name.replace(" ", "_")
+    response["Content-Disposition"] = f'attachment; filename="Guruh_{safe_name}_hisobot.xlsx"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsTeacherOrAdmin])
+def group_export_pdf_view(request, group_id: int):
+    """Guruh hisobotini PDF formatida yuklab olish."""
+    from django.http import HttpResponse
+    from apps.courses.group_service import export_group_to_pdf
+    group = get_object_or_404(_teacher_groups(request.user), id=group_id)
+    pdf_bytes = export_group_to_pdf(group)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    safe_name = group.name.replace(" ", "_")
+    response["Content-Disposition"] = f'attachment; filename="Guruh_{safe_name}_hisobot.pdf"'
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def group_join_view(request):
+    """O'quvchi taklif kodi (#GR-XXX) orqali guruhga qo'shiladi."""
+    code = request.data.get("invite_code") or request.data.get("code", "")
+    if not code:
+        return Response({"error": "Taklif kodi kiritilmadi."}, status=400)
+    from apps.courses.group_service import join_group_by_invite_code
+    try:
+        group = join_group_by_invite_code(request.user, code)
+        return Response({
+            "success": True,
+            "message": f"Siz '{group.name}' guruhiga muvaffaqiyatli qo'shildingiz!",
+            "group": StudentGroupSerializer(group).data,
+        })
+    except ValueError as err:
+        return Response({"error": str(err)}, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsTeacherOrAdmin])
 def student_search_view(request):
     """Find students to add to groups (email/name search)."""
     q = (request.GET.get("q") or "").strip()

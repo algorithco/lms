@@ -125,6 +125,15 @@ class Test(models.Model):
         _("variantlarni aralashtirish"),
         default=True,
     )
+    mock_code = models.CharField(
+        _("mock kodi"),
+        max_length=32,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text=_("O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)"),
+    )
 
     # -- Meta -----------------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)

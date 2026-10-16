@@ -1,13 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { Results as ResultsApi } from '../lib/api';
+import {
+  AiTutor,
+  type QuestionMistakeExplanation,
+  type ResultDiagnosticsResponse,
+  Results as ResultsApi,
+} from '../lib/api';
 import {
   formatDuration,
   listResultsPage,
   num,
   type ResultListItem,
 } from '../lib/testing';
+
+export function getBmbBadge(grade?: string, pct?: number): {
+  grade: string;
+  color: string;
+  desc: string;
+  bg: string;
+} {
+  let g = grade;
+  const p = pct ?? 0;
+  if (!g) {
+    if (p >= 86) g = 'A+';
+    else if (p >= 75) g = 'A';
+    else if (p >= 68) g = 'B+';
+    else if (p >= 60) g = 'B';
+    else if (p >= 53) g = 'C+';
+    else if (p >= 46) g = 'C';
+    else g = 'Fail';
+  }
+  switch (g) {
+    case 'A+':
+      return { grade: 'A+', color: '#10b981', desc: 'Maksimal imtiyoz (86–100%)', bg: 'rgba(16, 185, 129, 0.15)' };
+    case 'A':
+      return { grade: 'A', color: '#059669', desc: 'Yuqori daraja (75–85%)', bg: 'rgba(5, 150, 105, 0.15)' };
+    case 'B+':
+      return { grade: 'B+', color: '#0284c7', desc: 'Yaxshi daraja (68–74%)', bg: 'rgba(2, 132, 199, 0.15)' };
+    case 'B':
+      return { grade: 'B', color: '#3b82f6', desc: 'Qoniqarli daraja (60–67%)', bg: 'rgba(59, 130, 246, 0.15)' };
+    case 'C+':
+      return { grade: 'C+', color: '#f59e0b', desc: 'O‘rtacha daraja (53–59%)', bg: 'rgba(245, 158, 11, 0.15)' };
+    case 'C':
+      return { grade: 'C', color: '#d97706', desc: 'Cheklangan daraja (46–52%)', bg: 'rgba(217, 119, 6, 0.15)' };
+    default:
+      return { grade: 'Fail', color: '#ef4444', desc: 'Sertifikat berilmaydi (<46%)', bg: 'rgba(239, 68, 68, 0.15)' };
+  }
+}
 
 interface QuestionDetail {
   question_id: number;
@@ -29,6 +69,7 @@ interface SectionScoreItem {
 }
 
 interface ResultDetailData extends ResultListItem {
+  bmb_grade?: string;
   total_questions?: number;
   correct_answers?: number;
   wrong_answers?: number;
@@ -166,7 +207,28 @@ export default function Results() {
                 }}
               >
                 <div>
-                  <strong>{String(r.test_title ?? `Test #${r.test ?? r.id}`)}</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <strong>{String(r.test_title ?? `Test #${r.test ?? r.id}`)}</strong>
+                    {(() => {
+                      const bmb = getBmbBadge(r.bmb_grade as string | undefined, pct);
+                      return (
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            fontSize: '0.78rem',
+                            color: bmb.color,
+                            background: bmb.bg,
+                            border: `1px solid ${bmb.color}40`,
+                          }}
+                          title={bmb.desc}
+                        >
+                          BMB: {bmb.grade}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <p className="muted small">
                     {String(r.course_title ?? '')}
                     {r.calculated_at
@@ -253,8 +315,222 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const pct = num(detail.percentage, 0);
   const pending = detail.grading_status === 'pending_grading';
   const unverified = detail.certificate_status === 'rules_unverified';
+  const bmb = getBmbBadge(detail.bmb_grade, pct);
+
+  // 24/7 AI Tutor Diagnostics
+  const [showDiag, setShowDiag] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagData, setDiagData] = useState<ResultDiagnosticsResponse | null>(null);
+  const [diagErr, setDiagErr] = useState<string | null>(null);
+
+  // Interactive Question Mistake Explainer
+  const [explainingId, setExplainingId] = useState<number | null>(null);
+  const [explanations, setExplanations] = useState<
+    Record<number, { data?: QuestionMistakeExplanation; err?: string; open: boolean }>
+  >({});
+
+  const toggleDiagnostics = async () => {
+    if (showDiag) {
+      setShowDiag(false);
+      return;
+    }
+    setShowDiag(true);
+    if (!diagData && !diagLoading) {
+      setDiagLoading(true);
+      setDiagErr(null);
+      try {
+        const res = await AiTutor.getDiagnostics(detail.id);
+        setDiagData(res);
+      } catch (e) {
+        setDiagErr(e instanceof Error ? e.message : 'AI tahlilni yuklab bo‘lmadi.');
+      } finally {
+        setDiagLoading(false);
+      }
+    }
+  };
+
+  const explainQuestion = async (
+    questionId: number,
+    selectedChoiceId?: number | null,
+  ) => {
+    const existing = explanations[questionId];
+    if (existing?.open) {
+      setExplanations((prev) => ({
+        ...prev,
+        [questionId]: { ...prev[questionId], open: false },
+      }));
+      return;
+    }
+    if (existing?.data) {
+      setExplanations((prev) => ({
+        ...prev,
+        [questionId]: { ...prev[questionId], open: true },
+      }));
+      return;
+    }
+
+    setExplainingId(questionId);
+    try {
+      const res = await AiTutor.explainMistake(questionId, {
+        selected_choice_id: selectedChoiceId ?? null,
+        attempt_id: detail.id,
+      });
+      setExplanations((prev) => ({
+        ...prev,
+        [questionId]: { data: res, open: true },
+      }));
+    } catch (e) {
+      setExplanations((prev) => ({
+        ...prev,
+        [questionId]: {
+          err: e instanceof Error ? e.message : 'Tushuntirishni yuklashda xatolik.',
+          open: true,
+        },
+      }));
+    } finally {
+      setExplainingId(null);
+    }
+  };
+
   return (
     <div>
+      {/* BMB Grade & Result Summary Card */}
+      <div
+        className="card"
+        style={{
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+          border: `1px solid ${bmb.color}40`,
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '4px 12px',
+                borderRadius: '8px',
+                fontWeight: 800,
+                fontSize: '1rem',
+                color: bmb.color,
+                background: bmb.bg,
+                border: `1px solid ${bmb.color}60`,
+                marginBottom: '6px',
+              }}
+            >
+              BMB Rasmiy Daraja: {bmb.grade}
+            </span>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{bmb.desc}</p>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              Umumiy ko‘rsatkich: <strong>{pct}%</strong> {detail.is_passed ? '(Muvaffaqiyatli)' : '(Qoniqarsiz)'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={toggleDiagnostics}
+            style={{
+              borderColor: '#f59e0b',
+              color: '#f59e0b',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span>🧠</span>
+            <span>{showDiag ? 'AI Tahlilni yopish' : '24/7 AI Tahlil & Zaif Mavzular'}</span>
+          </button>
+        </div>
+
+        {/* AI Diagnostics Panel */}
+        {showDiag && (
+          <div
+            style={{
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            }}
+          >
+            {diagLoading && <p className="muted small">🤖 AI repetitor xatolaringizni tahlil qilmoqda…</p>}
+            {diagErr && <p className="error small">{diagErr}</p>}
+            {diagData && (
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                  }}
+                >
+                  <strong style={{ color: '#f59e0b', display: 'block', marginBottom: 4 }}>
+                    💡 Shaxsiy AI Repetitor Xulosasi:
+                  </strong>
+                  <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>
+                    {diagData.general_advice}
+                  </p>
+                </div>
+
+                {diagData.weak_topics.length > 0 && (
+                  <div>
+                    <h5 style={{ margin: '8px 0', fontSize: '0.9rem' }}>
+                      Aniqlangan zaif mavzular ({diagData.weak_topics.length} ta):
+                    </h5>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {diagData.weak_topics.map((wt, idx) => {
+                        const sevColor =
+                          wt.severity === 'high'
+                            ? '#ef4444'
+                            : wt.severity === 'medium'
+                              ? '#f59e0b'
+                              : '#3b82f6';
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              borderRadius: '8px',
+                              padding: '10px 12px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong style={{ fontSize: '0.88rem' }}>{wt.topic}</strong>
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  color: sevColor,
+                                  background: `${sevColor}20`,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {wt.incorrect_count} ta xato ·{' '}
+                                {wt.severity === 'high'
+                                  ? 'Yuqori xavf'
+                                  : wt.severity === 'medium'
+                                    ? 'O‘rta xavf'
+                                    : 'Takrorlash lozim'}
+                              </span>
+                            </div>
+                            <p className="muted small" style={{ margin: '4px 0 0', fontSize: '0.82rem' }}>
+                              👉 {wt.recommendation}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {pending ? (
         <>
           <h3>{t('take_pending_title')}</h3>
@@ -276,6 +552,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
           {detail.is_passed ? t('rd_passed_msg') : t('rd_failed_msg')} — {pct}%
         </h3>
       )}
+
       {(detail.section_scores ?? []).length > 0 && (
         <>
           <h4>{t('exam_sections')}</h4>
@@ -291,6 +568,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
           </div>
         </>
       )}
+
       <div className="toolbar">
         <span className="badge green">
           {t('rd_correct')}: {Number(detail.correct_answers ?? 0)}
@@ -316,18 +594,24 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
           <Link to="/certificates">{t('my_certificates')} →</Link>
         </p>
       )}
-      <h4>{t('rd_analysis')}</h4>
-      <div style={{ display: 'grid', gap: 8 }}>
+
+      <h4 style={{ marginTop: '20px' }}>{t('rd_analysis')}</h4>
+      <div style={{ display: 'grid', gap: 10 }}>
         {(detail.question_details ?? []).map((qd) => {
           const selectedIds = new Set((qd.selected_choices ?? []).map((c) => c.id));
           const correctIds = new Set((qd.correct_choices ?? []).map((c) => c.id));
+          const isWrong = qd.is_correct === false;
+          const selectedChoiceId = qd.selected_choices?.[0]?.id ?? null;
+          const expl = explanations[qd.question_id];
+          const isThisLoading = explainingId === qd.question_id;
+
           return (
             <div key={qd.question_id} className="card">
               <p>
                 <span
-                  className={`badge ${qd.is_correct ? 'green' : qd.is_correct === false ? 'rose' : ''}`}
+                  className={`badge ${qd.is_correct ? 'green' : isWrong ? 'rose' : ''}`}
                 >
-                  {qd.is_correct ? '✓' : qd.is_correct === false ? '✗' : '—'}
+                  {qd.is_correct ? '✓' : isWrong ? '✗' : '—'}
                 </span>{' '}
                 <strong>{qd.question_text}</strong>
               </p>
@@ -349,10 +633,89 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                   <span className="muted small">{t('rd_unanswered')}</span>
                 )}
               </div>
-              {qd.explanation && qd.is_correct === false && (
-                <p className="muted small">
+
+              {qd.explanation && isWrong && (
+                <p className="muted small" style={{ marginTop: 8 }}>
                   {t('rd_explanation')} {qd.explanation}
                 </p>
+              )}
+
+              {/* Interactive AI Mistake Explainer */}
+              {isWrong && (
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    disabled={isThisLoading}
+                    onClick={() => explainQuestion(qd.question_id, selectedChoiceId)}
+                    style={{
+                      borderColor: '#10b981',
+                      color: '#10b981',
+                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>💡</span>
+                    <span>
+                      {isThisLoading
+                        ? 'AI tahlil qilmoqda…'
+                        : expl?.open
+                          ? 'Tushuntirishni yashirish'
+                          : 'Nega bu javob xato? AI dan so‘rash'}
+                    </span>
+                  </button>
+
+                  {expl?.open && (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        background: 'rgba(16, 185, 129, 0.05)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        fontSize: '0.88rem',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {expl.err && <p className="error small" style={{ margin: 0 }}>{expl.err}</p>}
+                      {expl.data && (
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          <div>
+                            <strong style={{ color: '#ef4444' }}>❌ Nega noto‘g‘ri?</strong>
+                            <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
+                              {expl.data.why_wrong}
+                            </p>
+                          </div>
+                          <div>
+                            <strong style={{ color: '#10b981' }}>📖 To‘g‘ri qoida:</strong>
+                            <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
+                              {expl.data.correct_rule}
+                            </p>
+                          </div>
+                          {expl.data.memory_tip && (
+                            <div
+                              style={{
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                border: '1px dashed rgba(245, 158, 11, 0.3)',
+                                borderRadius: '6px',
+                                padding: '8px 10px',
+                              }}
+                            >
+                              <strong style={{ color: '#f59e0b', fontSize: '0.84rem' }}>
+                                💡 Eslab qolish usuli (Mnemonic):
+                              </strong>
+                              <p style={{ margin: '2px 0 0', fontSize: '0.84rem' }}>
+                                {expl.data.memory_tip}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           );

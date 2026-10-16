@@ -148,6 +148,22 @@ class Result(models.Model):
         status = "✓ PASS" if self.is_passed else "✗ FAIL"
         return f"{self.student} — {self.test} — {self.percentage}% {status}"
 
+    @property
+    def bmb_info(self) -> dict:
+        from apps.tests.bmb_grading import calculate_bmb_grade
+
+        return calculate_bmb_grade(
+            self.percentage,
+            test_score=self.objective_score or self.score,
+            test_max=self.max_score,
+            essay_score=self.writing_score if self.writing_score > 0 else None,
+            essay_max=20 if self.writing_score > 0 else None,
+        )
+
+    @property
+    def bmb_grade(self) -> str:
+        return self.bmb_info["grade"]
+
 
 class ResultSectionScore(models.Model):
     """

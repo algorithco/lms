@@ -55,4 +55,33 @@ urlpatterns = [
         views.FinalizeAttemptView.as_view(),
         name="finalize-attempt",
     ),
+
+    # -- 24/7 AI Tutor & Diagnostics ------------------------------------------
+    path(
+        "results/<int:result_id>/diagnostics/",
+        views.ResultDiagnosticsView.as_view(),
+        name="result-diagnostics",
+    ),
+    path(
+        "questions/<int:question_id>/explain-mistake/",
+        views.QuestionExplainMistakeView.as_view(),
+        name="question-explain-mistake",
+    ),
+
+    # -- Fast Key-Based Mock Tests --------------------------------------------
+    path(
+        "mock/create/",
+        views.QuickMockCreateView.as_view(),
+        name="quick-mock-create",
+    ),
+    path(
+        "mock/join/",
+        views.QuickMockJoinView.as_view(),
+        name="quick-mock-join",
+    ),
+    path(
+        "mock/<int:test_id>/leaderboard/",
+        views.MockLeaderboardView.as_view(),
+        name="mock-leaderboard",
+    ),
 ]
