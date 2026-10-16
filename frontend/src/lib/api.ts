@@ -779,9 +779,18 @@ export interface SessionStatusResponse {
 }
 
 export const GoogleAuth = {
-  startUrl: `${API_BASE}/api/auth/google/`,
+  startUrl: `${API_BASE}/api/v1/auth/google/`,
+  getConfig: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/google/config/`);
+      if (!res.ok) return { client_id: '', enabled: false };
+      return (await res.json()) as { client_id: string; enabled: boolean };
+    } catch {
+      return { client_id: '', enabled: false };
+    }
+  },
   verify: async (credential: string) => {
-    const res = await fetch(`${API_BASE}/api/auth/google/verify/`, {
+    const res = await fetch(`${API_BASE}/api/v1/auth/google/`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

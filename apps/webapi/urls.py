@@ -51,6 +51,8 @@ urlpatterns = [
     path("payments/my-receipts/", views_billing.my_payment_receipts_view, name="payments-my-receipts"),
     # -- Google OAuth ----------------------------------------------------
     path("auth/google/", google_auth_views.google_auth_verify, name="auth-google"),
+    path("auth/google/config/", google_auth_views.google_auth_config, name="auth-google-config"),
+    path("auth/google/callback/", google_auth_views.google_auth_callback, name="auth-google-callback"),
     # -- School ----------------------------------------------------------
     path("school/groups/", views_school.groups_view, name="school-groups"),
     path("school/groups/<int:group_id>/", views_school.group_detail_view, name="school-group-detail"),

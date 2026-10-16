@@ -7,10 +7,12 @@ import { GoogleAuth, landingFor } from '../lib/api';
 import SEO from '../components/SEO';
 
 export default function Register() {
-  const { register, error } = useAuth();
+  const { register, loginWithGoogle, error } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -23,6 +25,54 @@ export default function Register() {
     (k: keyof typeof form) =>
     (e: { target: { value: string } }) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleGoogleClick = async () => {
+    setGoogleBusy(true);
+    setGoogleError(null);
+    try {
+      const cfg = await GoogleAuth.getConfig();
+      const google = (window as unknown as {
+        google?: {
+          accounts?: {
+            id?: {
+              initialize: (options: Record<string, unknown>) => void;
+              prompt: (notification?: (event: unknown) => void) => void;
+            };
+          };
+        };
+      }).google;
+
+      if (cfg.enabled && cfg.client_id && google?.accounts?.id) {
+        google.accounts.id.initialize({
+          client_id: cfg.client_id,
+          callback: async (resp: { credential?: string }) => {
+            if (resp.credential) {
+              try {
+                const user = await loginWithGoogle(resp.credential);
+                navigate(landingFor(user));
+              } catch (err) {
+                setGoogleError(err instanceof Error ? err.message : 'Google orqali ro‘yxatdan o‘tishda xatolik yuz berdi.');
+                setGoogleBusy(false);
+              }
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        google.accounts.id.prompt((notification: unknown) => {
+          const notif = notification as { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean };
+          if (notif?.isNotDisplayed?.() || notif?.isSkippedMoment?.()) {
+            window.location.href = GoogleAuth.startUrl;
+          }
+        });
+        return;
+      }
+    } catch {
+      /* fallback to standard redirect */
+    }
+    window.location.href = GoogleAuth.startUrl;
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,18 +100,23 @@ export default function Register() {
         <p className="muted">{t('register_subtitle')}</p>
 
         <div style={{ margin: '16px 0 20px' }}>
-          <a
-            href={GoogleAuth.startUrl}
+          <button
+            type="button"
+            onClick={handleGoogleClick}
+            disabled={googleBusy}
             className="btn"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 10,
+              width: '100%',
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
-              textDecoration: 'none',
+              color: '#f8fafc',
               fontWeight: 700,
+              cursor: googleBusy ? 'wait' : 'pointer',
+              opacity: googleBusy ? 0.7 : 1,
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -70,8 +125,9 @@ export default function Register() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            Google orqali 1-klikda ro‘yxatdan o‘tish
-          </a>
+            {googleBusy ? 'Google hisobiga ulanmoqda...' : 'Google orqali 1-klikda ro‘yxatdan o‘tish'}
+          </button>
+          {googleError && <p className="error" style={{ marginTop: 8 }}>{googleError}</p>}
         </div>
 
         <div style={{ position: 'relative', textAlign: 'center', margin: '14px 0' }}>

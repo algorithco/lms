@@ -22,6 +22,7 @@ export default function AuthModal() {
     login,
     register,
     loginWithTelegram,
+    loginWithGoogle,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -37,6 +38,9 @@ export default function AuthModal() {
   const [lastName, setLastName] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Google 1-click state
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   // Telegram auth state
   const [tgPhase, setTgPhase] = useState<TgPhase>('idle');
@@ -93,8 +97,53 @@ export default function AuthModal() {
   };
 
   // Google 1-Click OAuth Trigger
-  const handleGoogleClick = () => {
-    // Direct redirect to Google OAuth endpoint
+  const handleGoogleClick = async () => {
+    setGoogleBusy(true);
+    setErrorMsg(null);
+    try {
+      const cfg = await GoogleAuth.getConfig();
+      const google = (window as unknown as {
+        google?: {
+          accounts?: {
+            id?: {
+              initialize: (options: Record<string, unknown>) => void;
+              prompt: (notification?: (event: unknown) => void) => void;
+            };
+          };
+        };
+      }).google;
+
+      if (cfg.enabled && cfg.client_id && google?.accounts?.id) {
+        google.accounts.id.initialize({
+          client_id: cfg.client_id,
+          callback: async (resp: { credential?: string }) => {
+            if (resp.credential) {
+              try {
+                const user = await loginWithGoogle(resp.credential);
+                triggerSuccessCelebration();
+                closeAuthModal();
+                navigate(landingFor(user));
+              } catch (err) {
+                setErrorMsg(err instanceof Error ? err.message : 'Google orqali kirishda xatolik yuz berdi.');
+                setGoogleBusy(false);
+              }
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        google.accounts.id.prompt((notification: unknown) => {
+          const notif = notification as { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean };
+          if (notif?.isNotDisplayed?.() || notif?.isSkippedMoment?.()) {
+            window.location.href = GoogleAuth.startUrl;
+          }
+        });
+        return;
+      }
+    } catch {
+      /* fallback to standard OAuth redirect */
+    }
     window.location.href = GoogleAuth.startUrl;
   };
 
@@ -414,10 +463,13 @@ export default function AuthModal() {
             type="button"
             className="auth-1click-btn"
             onClick={handleGoogleClick}
+            disabled={googleBusy}
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
               color: '#f8fafc',
+              opacity: googleBusy ? 0.7 : 1,
+              cursor: googleBusy ? 'wait' : 'pointer',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -442,10 +494,10 @@ export default function AuthModal() {
               </svg>
               <div style={{ textAlign: 'left' }}>
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
-                  Google orqali davom etish
+                  {googleBusy ? 'Google hisobiga ulanmoqda...' : 'Google orqali davom etish'}
                 </span>
                 <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>
-                  1 soniyada xavfsiz kirish
+                  {googleBusy ? 'Iltimos, kuting...' : '1 soniyada xavfsiz kirish'}
                 </span>
               </div>
             </div>

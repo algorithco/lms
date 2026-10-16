@@ -90,9 +90,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (oauthAccess && oauthRefresh) {
       setTokens(oauthAccess, oauthRefresh);
-      // Clean up URL without reload
-      const cleanUrl = window.location.pathname;
+      // Clean up URL without reload and redirect to /dashboard if on auth page
+      const isAuthPath = window.location.pathname === '/login' || window.location.pathname === '/register';
+      const cleanUrl = isAuthPath ? '/dashboard' : window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
+      if (isAuthPath) {
+        window.location.assign('/dashboard');
+        return;
+      }
     }
 
     const { access, refresh } = getTokens();
@@ -176,6 +181,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  // Google One Tap automatic prompt on landing/public pages
+  useEffect(() => {
+    if (loading || user) return;
+
+    let cancelled = false;
+    GoogleAuth.getConfig().then((cfg) => {
+      if (cancelled || !cfg.enabled || !cfg.client_id) return;
+      const google = (window as unknown as {
+        google?: {
+          accounts?: {
+            id?: {
+              initialize: (options: Record<string, unknown>) => void;
+              prompt: () => void;
+            };
+          };
+        };
+      }).google;
+
+      if (!google?.accounts?.id) return;
+
+      try {
+        google.accounts.id.initialize({
+          client_id: cfg.client_id,
+          callback: async (resp: { credential?: string }) => {
+            if (resp.credential) {
+              try {
+                await loginWithGoogle(resp.credential);
+              } catch (err) {
+                console.error('Google One Tap verification failed:', err);
+              }
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+        google.accounts.id.prompt();
+      } catch {
+        /* ignore GIS initialization errors */
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user, loginWithGoogle]);
 
   const register = useCallback(
     async (payload: {

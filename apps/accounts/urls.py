@@ -106,4 +106,9 @@ urlpatterns = [
         google_auth_views.google_auth_verify,
         name="google_auth_verify",
     ),
+    path(
+        "google/config/",
+        google_auth_views.google_auth_config,
+        name="google_auth_config",
+    ),
 ]

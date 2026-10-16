@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { GoogleAuth, TelegramAuth, landingFor } from '../lib/api';
@@ -11,12 +11,86 @@ import SEO from '../components/SEO';
 type TgPhase = 'idle' | 'waiting' | 'code' | 'done';
 
 export default function Login() {
-  const { login, loginWithTelegram, error } = useAuth();
+  const { login, loginWithTelegram, loginWithGoogle, error } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlError = searchParams.get('error');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  // Friendly error message for URL error code
+  const getUrlErrorMessage = (code: string | null): string | null => {
+    if (!code) return null;
+    switch (code) {
+      case 'google_not_configured':
+        return 'Google orqali kirish hali sozlanmagan. Iltimos, Telegram yoki email orqali kiring.';
+      case 'google_cancelled':
+        return 'Google orqali kirish bekor qilindi.';
+      case 'google_invalid_state':
+        return 'Xavfsizlik tekshiruvidan o‘tmadi. Iltimos, qaytadan urinib ko‘ring.';
+      case 'email_exists':
+        return 'Bu email allaqachon ro‘yxatdan o‘tgan. Iltimos, parol bilan kiring.';
+      case 'account_inactive':
+        return 'Ushbu hisob faol emas. Qo‘llab-quvvatlash xizmatiga murojaat qiling.';
+      default:
+        return 'Avtorizatsiyada xatolik yuz berdi.';
+    }
+  };
+
+  const activeError = getUrlErrorMessage(urlError) || googleError || error;
+
+  const handleGoogleClick = async () => {
+    setGoogleBusy(true);
+    setGoogleError(null);
+    try {
+      const cfg = await GoogleAuth.getConfig();
+      const google = (window as unknown as {
+        google?: {
+          accounts?: {
+            id?: {
+              initialize: (options: Record<string, unknown>) => void;
+              prompt: (notification?: (event: unknown) => void) => void;
+            };
+          };
+        };
+      }).google;
+
+      if (cfg.enabled && cfg.client_id && google?.accounts?.id) {
+        google.accounts.id.initialize({
+          client_id: cfg.client_id,
+          callback: async (resp: { credential?: string }) => {
+            if (resp.credential) {
+              try {
+                const user = await loginWithGoogle(resp.credential);
+                navigate(landingFor(user));
+              } catch (err) {
+                setGoogleError(err instanceof Error ? err.message : 'Google orqali kirishda xatolik yuz berdi.');
+                setGoogleBusy(false);
+              }
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        google.accounts.id.prompt((notification: unknown) => {
+          const notif = notification as { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean };
+          if (notif?.isNotDisplayed?.() || notif?.isSkippedMoment?.()) {
+            window.location.href = GoogleAuth.startUrl;
+          }
+        });
+        return;
+      }
+    } catch {
+      /* fallback to standard redirect */
+    }
+    window.location.href = GoogleAuth.startUrl;
+  };
 
   // -- Telegram bot login (mirrors old login.html flow) --------------------
   const [tgPhase, setTgPhase] = useState<TgPhase>('idle');
@@ -214,7 +288,7 @@ export default function Login() {
             />
             <label htmlFor="password">{t('password')}</label>
           </div>
-          {error && <p className="error">{error}</p>}
+          {activeError && <p className="error">{activeError}</p>}
           <button className="btn primary btn-glow" disabled={busy}>
             {busy ? '…' : t('login')}
           </button>
@@ -222,8 +296,10 @@ export default function Login() {
 
         {/* -- 1-Click Fast Auth (Google & Telegram) -------------------- */}
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <a
-            href={GoogleAuth.startUrl}
+          <button
+            type="button"
+            onClick={handleGoogleClick}
+            disabled={googleBusy}
             className="btn"
             style={{
               display: 'flex',
@@ -232,8 +308,10 @@ export default function Login() {
               gap: 10,
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
-              textDecoration: 'none',
+              color: '#f8fafc',
               fontWeight: 700,
+              cursor: googleBusy ? 'wait' : 'pointer',
+              opacity: googleBusy ? 0.7 : 1,
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -242,8 +320,8 @@ export default function Login() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            {t('login_with_google')}
-          </a>
+            {googleBusy ? 'Google hisobiga ulanmoqda...' : t('login_with_google')}
+          </button>
 
           {tgPhase === 'idle' && (
             <button

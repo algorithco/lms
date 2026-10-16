@@ -26,9 +26,23 @@ def _get_google_config() -> dict[str, str]:
     client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
     client_secret = getattr(settings, "GOOGLE_CLIENT_SECRET", "")
     redirect_uri = getattr(settings, "GOOGLE_REDIRECT_URI", "")
-    if not client_id or not client_secret or not redirect_uri:
+    if not client_id or not client_secret:
         return {}
+    if not redirect_uri:
+        site_url = getattr(settings, "SITE_URL", "https://grandec.uz")
+        redirect_uri = f"{site_url}/api/auth/google/callback/"
     return {"client_id": client_id, "client_secret": client_secret, "redirect_uri": redirect_uri}
+
+
+@csrf_exempt
+@require_GET
+def google_auth_config(request: HttpRequest) -> JsonResponse:
+    """Return public Google client ID for GIS / Google One Tap SDK."""
+    client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+    return JsonResponse({
+        "client_id": client_id,
+        "enabled": bool(client_id),
+    })
 
 
 @require_GET
@@ -36,7 +50,7 @@ def google_auth_start(request: HttpRequest) -> HttpResponseRedirect:
     config = _get_google_config()
     if not config:
         messages.error(request, "Google kirish hali sozlanmagan. Admin bilan bog'laning.")
-        return redirect("web:login")
+        return redirect("/login?error=google_not_configured")
 
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
@@ -221,8 +235,10 @@ def google_auth_verify(request: HttpRequest):
     if not isinstance(credential, str) or not credential.strip():
         return JsonResponse({"error": "Google ID token berilmadi."}, status=400)
 
-    config = _get_google_config()
-    client_id = config.get("client_id")
+    client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+    if not client_id:
+        config = _get_google_config()
+        client_id = config.get("client_id")
     if not client_id:
         return JsonResponse({"error": "Google OAuth hali sozlanmagan."}, status=503)
 
@@ -245,17 +261,26 @@ def google_auth_verify(request: HttpRequest):
                 user_by_email.google_id = google_id
                 user_by_email.save(update_fields=["google_id"])
                 user = user_by_email
+            elif user_by_email.google_id == google_id:
+                user = user_by_email
             else:
                 return JsonResponse({"error": "Bu email boshqa Google hisobiga biriktirilgan."}, status=400)
         else:
             from apps.accounts.models import Profile
             try:
                 with transaction.atomic():
+                    first_name = claims.get("given_name") or ""
+                    last_name = claims.get("family_name") or ""
+                    if not first_name and claims.get("name"):
+                        parts = claims["name"].strip().split(" ", 1)
+                        first_name = parts[0]
+                        if len(parts) > 1:
+                            last_name = parts[1]
                     user = User.objects.create_user(
                         email=email,
                         password=None,
-                        first_name=claims.get("given_name", ""),
-                        last_name=claims.get("family_name", ""),
+                        first_name=first_name,
+                        last_name=last_name,
                         role=User.Role.STUDENT,
                         google_id=google_id,
                     )

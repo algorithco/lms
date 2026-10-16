@@ -167,13 +167,59 @@ def test_reject_payment_receipt():
 
 @pytest.mark.django_db
 def test_google_auth_routes():
+    from unittest.mock import patch
+    from django.contrib.auth import get_user_model
+    from django.test import override_settings
+
+    User = get_user_model()
     client = Client()
-    # Test GET redirect to google_auth_start
+
+    # 1. Test GET auth-google-config
+    config_url = reverse("webapi:auth-google-config")
+    resp_cfg = client.get(config_url)
+    assert resp_cfg.status_code == 200
+    cfg_data = resp_cfg.json()
+    assert "client_id" in cfg_data
+    assert "enabled" in cfg_data
+
+    # 2. Test GET redirect to google_auth_start
     url = reverse("webapi:auth-google")
     response = client.get(url)
-    # If Google OAuth isn't fully configured with real secrets in test env, it gracefully redirects or returns
     assert response.status_code in (200, 302)
 
-    # Test POST invalid body gives 400 with Uzbek error
+    # 3. Test POST invalid body gives 400 with error
     response_post = client.post(url, data={"invalid": "token"}, content_type="application/json")
     assert response_post.status_code in (400, 503)
+
+    # 4. Test POST valid mock credential auto-creates user and returns tokens
+    mock_claims = {
+        "sub": "mock-google-id-12345",
+        "email": "auto-google-user@grandec.uz",
+        "email_verified": True,
+        "name": "Alisher Navoiy",
+        "given_name": "Alisher",
+        "family_name": "Navoiy",
+    }
+    with override_settings(GOOGLE_CLIENT_ID="mock-google-client-id"), patch(
+        "apps.accounts.google_auth._verified_claims", return_value=mock_claims
+    ):
+        resp_verify = client.post(
+            url,
+            data={"credential": "mock-valid-id-token"},
+            content_type="application/json",
+        )
+        assert resp_verify.status_code == 200
+        data = resp_verify.json()
+        assert data["status"] == "ok"
+        assert "tokens" in data
+        assert "access" in data["tokens"]
+        assert "refresh" in data["tokens"]
+        assert data["user"]["email"] == "auto-google-user@grandec.uz"
+
+        # Check DB record
+        created_user = User.objects.get(email="auto-google-user@grandec.uz")
+        assert created_user.google_id == "mock-google-id-12345"
+        assert created_user.first_name == "Alisher"
+        assert created_user.last_name == "Navoiy"
+        assert created_user.is_active is True
+        assert hasattr(created_user, "profile")
