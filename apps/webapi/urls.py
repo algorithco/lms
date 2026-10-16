@@ -1,6 +1,7 @@
 """React SPA API — mounted at /api/v1/ (additive, HTML views untouched)."""
 from django.urls import path
 
+from apps.accounts import google_auth as google_auth_views
 from . import (
     views_attendance,
     views_billing,
@@ -44,6 +45,12 @@ urlpatterns = [
     path("billing/entitlement/", views_billing.entitlement_view, name="billing-entitlement"),
     path("billing/subscribe/<int:plan_id>/", views_billing.subscribe_info_view, name="billing-subscribe"),
     path("billing/cancel/", views_billing.cancel_view, name="billing-cancel"),
+    # -- Payments & Receipts ---------------------------------------------
+    path("payments/card-info/", views_billing.card_info_view, name="payments-card-info"),
+    path("payments/receipts/", views_billing.payment_receipt_upload_view, name="payments-receipt-upload"),
+    path("payments/my-receipts/", views_billing.my_payment_receipts_view, name="payments-my-receipts"),
+    # -- Google OAuth ----------------------------------------------------
+    path("auth/google/", google_auth_views.google_auth_verify, name="auth-google"),
     # -- School ----------------------------------------------------------
     path("school/groups/", views_school.groups_view, name="school-groups"),
     path("school/groups/<int:group_id>/", views_school.group_detail_view, name="school-group-detail"),

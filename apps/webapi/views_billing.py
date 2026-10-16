@@ -1,11 +1,11 @@
-"""Billing JSON API — same data as apps/payments/views.py, JSON in/out."""
-from __future__ import annotations
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.payments.entitlements import (
@@ -15,6 +15,7 @@ from apps.payments.entitlements import (
 )
 from apps.payments.models import (
     PaymentHistory,
+    PaymentReceipt,
     SubscriptionPlan,
     SubscriptionUsage,
     UserSubscription,
@@ -22,6 +23,7 @@ from apps.payments.models import (
 
 from .serializers import (
     PaymentHistorySerializer,
+    PaymentReceiptSerializer,
     SubscriptionPlanSerializer,
     UserSubscriptionSerializer,
 )
@@ -119,3 +121,59 @@ def entitlement_view(request):
         "can_submit_text_essay": can_text,
         "can_start_test": can_test,
     })
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def card_info_view(request):
+    """GET /api/v1/payments/card-info/ — Public card and plan price settings."""
+    return Response({
+        "card_number": getattr(settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****"),
+        "card_holder": getattr(settings, "PAYMENT_CARD_HOLDER", "KOMILJON R"),
+        "starter_price": getattr(settings, "PLAN_STARTER_PRICE", 49000),
+        "premium_price": getattr(settings, "PLAN_PREMIUM_PRICE", 99000),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def payment_receipt_upload_view(request):
+    """POST /api/v1/payments/receipts/ — Upload card payment screenshot/receipt."""
+    plan = str(request.data.get("plan", "")).strip().lower()
+    if plan not in ("starter", "premium"):
+        return Response({"detail": "Tarif 'starter' yoki 'premium' bo'lishi kerak."}, status=400)
+
+    amount_val = request.data.get("amount")
+    if amount_val:
+        try:
+            amount = Decimal(str(amount_val))
+        except (InvalidOperation, ValueError):
+            amount = Decimal(getattr(settings, f"PLAN_{plan.upper()}_PRICE", 49000))
+    else:
+        amount = Decimal(getattr(settings, f"PLAN_{plan.upper()}_PRICE", 49000))
+
+    receipt_image = request.FILES.get("receipt_image")
+    if not receipt_image:
+        return Response({"detail": "To'lov cheki rasmi yuklanishi shart."}, status=400)
+
+    receipt = PaymentReceipt.objects.create(
+        user=request.user,
+        plan=plan,
+        amount=amount,
+        receipt_image=receipt_image,
+        source=PaymentReceipt.Source.WEB,
+        status=PaymentReceipt.Status.PENDING,
+    )
+    return Response(PaymentReceiptSerializer(receipt).data, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_payment_receipts_view(request):
+    """GET /api/v1/payments/my-receipts/ — User's uploaded payment receipts."""
+    receipts = PaymentReceipt.objects.filter(user=request.user).order_by("-created_at")
+    return Response({
+        "results": PaymentReceiptSerializer(receipts, many=True).data
+    })
+

@@ -258,6 +258,25 @@ class TelegramService:
         )
 
     @classmethod
+    def send_general_notification(
+        cls,
+        chat_id: int,
+        text: str,
+        title: str = "Bildirishnoma",
+        recipient: Any = None,
+        parse_mode: str = "HTML",
+    ) -> dict[str, Any]:
+        """Send generic text notification to chat_id."""
+        return cls._send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode=parse_mode,
+            notification_type="general",
+            recipient=recipient,
+            title=title,
+        )
+
+    @classmethod
     def send_essay_review_requested(
         cls,
         chat_id: int,

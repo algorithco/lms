@@ -200,14 +200,18 @@ def _jwt_user_payload(user) -> dict:
 
 
 @csrf_exempt
-@require_POST
-def google_auth_verify(request: HttpRequest) -> JsonResponse:
+def google_auth_verify(request: HttpRequest):
     """
-    POST /api/auth/google/verify/
+    POST /api/auth/google/verify/ or /api/v1/auth/google/
     Verify Google One Tap or credential from Google Identity Services SDK.
     Body: {"credential": "raw_id_token"}
     Returns: {"status": "ok", "user": ..., "tokens": {"access": ..., "refresh": ...}}
+    If GET request is sent, seamlessly forwards to google_auth_start flow.
     """
+    if request.method == "GET":
+        return google_auth_start(request)
+    if request.method != "POST":
+        return JsonResponse({"error": "Faqat GET yoki POST so'rovi qabul qilinadi."}, status=405)
     try:
         body = json.loads(request.body.decode("utf-8"))
     except Exception:

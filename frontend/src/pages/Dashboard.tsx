@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { AuthExpiredError, Certificates, Results, School, Tests, Tuition, type TuitionOverview, type WeeklyReportRow } from '../lib/api';
+import { AuthExpiredError, Certificates, PaymentsApi, Results, School, Tests, Tuition, type PaymentReceiptItem, type TuitionOverview, type WeeklyReportRow } from '../lib/api';
 import { num, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
 import {
   AwardIcon,
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [tick, setTick] = useState(0);
   const [tuition, setTuition] = useState<TuitionOverview | null>(null);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReportRow[]>([]);
+  const [pendingReceipt, setPendingReceipt] = useState<PaymentReceiptItem | null>(null);
   // This dashboard is the landing page for every role (teachers and admins are
   // routed here too), but certificates are student-only on the server
   // (MyCertificatesView is [IsAuthenticated, IsStudent]). Requesting a list the
@@ -48,6 +49,12 @@ export default function Dashboard() {
     let alive = true;
     Tuition.mine().then((value) => { if (alive) setTuition(value); }).catch(() => {});
     School.myWeeklyReports().then(({ results }) => { if (alive) setWeeklyReports(results); }).catch(() => {});
+    PaymentsApi.myReceipts().then(({ results }) => {
+      if (alive) {
+        const pending = results.find((r) => r.status === 'pending');
+        setPendingReceipt(pending || null);
+      }
+    }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -118,6 +125,54 @@ export default function Dashboard() {
         </p>
       )}
       {loading && <p className="muted" role="status" aria-live="polite">{t('loading')}</p>}
+
+      {/* Pending payment receipt alert banner */}
+      {pendingReceipt && (
+        <div
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.08))',
+            borderColor: 'rgba(245, 158, 11, 0.35)',
+            color: '#fef3c7',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '16px 20px',
+            borderRadius: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 24 }}>⏳</span>
+            <div>
+              <strong style={{ color: '#fbbf24', fontSize: 15, display: 'block' }}>
+                Sizning to'lov chekingiz tekshirilmoqda...
+              </strong>
+              <p className="small muted" style={{ margin: 0, color: '#fde68a' }}>
+                {pendingReceipt.plan.toUpperCase()} tarifi uchun to'lov chekingiz admin tomonidan tekshirilmoqda (odatda 5-15 daqiqa). Tasdiqlangach tarifingiz avtomatik faollashadi.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/subscribe"
+            className="badge yellow"
+            style={{
+              textDecoration: 'none',
+              background: 'rgba(245, 158, 11, 0.2)',
+              color: '#fbbf24',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Chek holatini ko'rish →
+          </Link>
+        </div>
+      )}
 
       {/* Platform subscription remains separate from course tuition. */}
       <UsageLimits />

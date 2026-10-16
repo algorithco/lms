@@ -137,6 +137,34 @@ export default function Plans() {
       <p className="muted">{t('pay_plans_subtitle')}</p>
       {err && <p className="error">{err}</p>}
 
+      <div
+        className="card"
+        style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(16, 185, 129, 0.05))',
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+          padding: '16px 20px',
+          borderRadius: 12,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div>
+          <strong style={{ fontSize: 16, color: '#fbbf24', display: 'block', marginBottom: 4 }}>
+            💳 Karta orqali tezkor to'lov va chek yuklash
+          </strong>
+          <span className="muted small">
+            Starter (49 000 so'm) yoki Premium (99 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
+          </span>
+        </div>
+        <Link to="/checkout" className="btn primary sm btn-glow" style={{ textDecoration: 'none', fontWeight: 700 }}>
+          To'lov qilish & Chek yuklash →
+        </Link>
+      </div>
+
       {/* Current plan + live remaining usage for this student. */}
       <UsageLimits />
 

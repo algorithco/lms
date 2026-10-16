@@ -1837,7 +1837,19 @@ export default function Landing() {
               }}
             >
               <span>© {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). Barcha huquqlar himoyalangan.</span>
-              <span>Linear.app / Vercel Dark UI Pro Max</span>
+              <span>
+                Website{' '}
+                <a
+                  href="https://www.instagram.com/rozievkomiljon/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:text-amber-300 transition-colors underline underline-offset-4"
+                  style={{ color: '#fbbf24', textDecoration: 'underline', textUnderlineOffset: 4, transition: 'color 0.2s' }}
+                >
+                  Komiljon Ro'ziyev
+                </a>{' '}
+                tomonidan tayyorlandi
+              </span>
             </div>
           </div>
         </div>

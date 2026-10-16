@@ -998,6 +998,41 @@ export const Billing = {
   entitlement: () => api<BillingEntitlement>('/api/v1/billing/entitlement/'),
 };
 
+export interface CardInfoResponse {
+  card_number: string;
+  card_holder: string;
+  starter_price: number;
+  premium_price: number;
+}
+
+export interface PaymentReceiptItem {
+  id: number;
+  plan: 'starter' | 'premium';
+  amount: number | string;
+  receipt_image: string;
+  receipt_image_url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  source: 'web' | 'bot';
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const PaymentsApi = {
+  cardInfo: () => api<CardInfoResponse>('/api/v1/payments/card-info/'),
+  uploadReceipt: (plan: 'starter' | 'premium', file: File, amount?: number) => {
+    const fd = new FormData();
+    fd.append('plan', plan);
+    fd.append('receipt_image', file);
+    if (amount) fd.append('amount', String(amount));
+    return api<PaymentReceiptItem>('/api/v1/payments/receipts/', {
+      method: 'POST',
+      body: fd,
+    });
+  },
+  myReceipts: () => api<{ results: PaymentReceiptItem[] }>('/api/v1/payments/my-receipts/'),
+};
+
 /**
  * Attendance + group essay reporting (apps/attendance, apps/essays/group_reports).
  *

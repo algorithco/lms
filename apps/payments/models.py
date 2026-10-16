@@ -810,3 +810,77 @@ class PaymentRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} — {self.plan.name} — {self.status}"
+
+
+# ---------------------------------------------------------------------------
+# Payment Receipt (Web & Bot card transfer receipt uploads)
+# ---------------------------------------------------------------------------
+class PaymentReceipt(models.Model):
+    """
+    To'lov cheki (karta orqali to'lov).
+    Web yoki Telegram bot orqali yuklanadi, admin tasdiqlagach obuna faollashadi.
+    """
+
+    class PlanChoice(models.TextChoices):
+        STARTER = "starter", _("Starter")
+        PREMIUM = "premium", _("Premium")
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
+    class Source(models.TextChoices):
+        WEB = "web", _("Web")
+        BOT = "bot", _("Bot")
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payment_receipts",
+        verbose_name=_("foydalanuvchi"),
+    )
+    plan = models.CharField(
+        _("tarif"),
+        max_length=20,
+        choices=PlanChoice.choices,
+        db_index=True,
+    )
+    amount = models.DecimalField(
+        _("summa"),
+        max_digits=12,
+        decimal_places=2,
+    )
+    receipt_image = models.ImageField(
+        _("chek rasmi"),
+        upload_to="receipts/%Y/%m/",
+    )
+    status = models.CharField(
+        _("holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    source = models.CharField(
+        _("manba"),
+        max_length=10,
+        choices=Source.choices,
+        default=Source.WEB,
+        db_index=True,
+    )
+    admin_note = models.TextField(
+        _("admin izohi"),
+        blank=True,
+        null=True,
+    )
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("To'lov cheki")
+        verbose_name_plural = _("To'lov cheklari")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.plan} ({int(self.amount):,} so'm) — {self.status}"

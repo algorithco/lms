@@ -170,13 +170,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(
         source="profile.date_of_birth", read_only=True,
     )
+    plan = serializers.CharField(
+        source="profile.plan", read_only=True, default="free",
+    )
     is_platform_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name",
-            "role", "phone", "bio", "avatar", "date_of_birth",
+            "role", "phone", "bio", "avatar", "date_of_birth", "plan",
             "created_at",
             "language", "is_staff", "is_superuser", "is_platform_admin",
         ]

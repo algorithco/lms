@@ -17,11 +17,13 @@ Conventions kept from the original file
 """
 from django.contrib import admin, messages
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .access import can_manage_payments
 from .models import (
     EntitlementAuditLog,
     PaymentHistory,
+    PaymentReceipt,
     PaymentRequest,
     SubscriptionOverride,
     SubscriptionPlan,
@@ -628,3 +630,89 @@ class PaymentHistoryAdmin(admin.ModelAdmin):
     list_filter = ("status", "payment_method", "currency")
     search_fields = ("user__email", "payment_id")
     raw_id_fields = ("user", "plan")
+
+
+@admin.register(PaymentReceipt)
+class PaymentReceiptAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "plan",
+        "amount_display",
+        "receipt_preview",
+        "status",
+        "source",
+        "created_at",
+    )
+    list_filter = ("status", "plan", "source", "created_at")
+    search_fields = ("user__email", "user__first_name", "user__last_name", "admin_note")
+    raw_id_fields = ("user",)
+    readonly_fields = ("receipt_preview_large", "created_at", "updated_at")
+    actions = ["approve_selected", "reject_selected"]
+
+    @admin.display(description="Summa")
+    def amount_display(self, obj: PaymentReceipt):
+        return f"{int(obj.amount):,} so'm"
+
+    @admin.display(description="Chek rasmi")
+    def receipt_preview(self, obj: PaymentReceipt):
+        if obj.receipt_image:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" style="max-height: 50px; border-radius: 4px; border: 1px solid #ddd;" />'
+                '</a>',
+                obj.receipt_image.url,
+                obj.receipt_image.url,
+            )
+        return "—"
+
+    @admin.display(description="Chek rasmi (kattalashtirilgan)")
+    def receipt_preview_large(self, obj: PaymentReceipt):
+        if obj.receipt_image:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" style="max-width: 480px; max-height: 600px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />'
+                '</a>',
+                obj.receipt_image.url,
+                obj.receipt_image.url,
+            )
+        return "—"
+
+    @admin.action(description="Tanlangan cheklarni tasdiqlash va obunani yoqish")
+    def approve_selected(self, request, queryset):
+        from .services import approve_payment_receipt
+
+        approved_count = 0
+        for receipt in queryset:
+            if receipt.status != PaymentReceipt.Status.APPROVED:
+                approve_payment_receipt(receipt, admin_user=request.user)
+                approved_count += 1
+        self.message_user(
+            request,
+            f"{approved_count} ta to'lov cheki tasdiqlandi va tegishli obunalar faollashtirildi.",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Tanlangan cheklarni rad etish")
+    def reject_selected(self, request, queryset):
+        from .services import reject_payment_receipt
+
+        rejected_count = 0
+        for receipt in queryset:
+            if receipt.status == PaymentReceipt.Status.PENDING:
+                reject_payment_receipt(receipt, note="Admin tomonidan rad etildi", admin_user=request.user)
+                rejected_count += 1
+        self.message_user(
+            request,
+            f"{rejected_count} ta to'lov cheki rad etildi.",
+            level=messages.WARNING,
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return can_manage_payments(request.user) and super().has_change_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return can_manage_payments(request.user) and super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return can_manage_payments(request.user) and super().has_delete_permission(request, obj)

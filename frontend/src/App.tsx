@@ -128,6 +128,8 @@ function AnimatedRoutes() {
             <Route path="/subscribe/cancel" element={<Navigate to="/subscribe" replace />} />
             <Route path="/subscribe/:planId/subscribe" element={<SubscribeRedirect />} />
             <Route path="/subscribe/:planId" element={<Subscribe />} />
+            <Route path="/subscribe/pay" element={<Subscribe />} />
+            <Route path="/checkout" element={<Subscribe />} />
             <Route path="/my-subscription" element={<MySubscription />} />
             {/* School */}
             <Route element={<TeacherRoute />}>

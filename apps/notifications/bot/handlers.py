@@ -169,7 +169,8 @@ def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
         [
             [KeyboardButton("✍️ Esse yozish"), KeyboardButton("🧠 Test / Quiz")],
             [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
-            [KeyboardButton("📜 Sertifikatlarim"), KeyboardButton("👤 Profil")],
+            [KeyboardButton("📜 Sertifikatlarim"), KeyboardButton("💳 Tariflar / Obuna")],
+            [KeyboardButton("👤 Profil")],
         ],
         resize_keyboard=True,
     )
@@ -478,8 +479,8 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     elif raw_text in ("📜 Sertifikatlarim", "📜 Sertifikatlar"):
         await certificates_handler(update, context)
         return
-    elif raw_text in ("💳 Mening tarifim", "💳 To'lov", "💳 Tarif"):
-        await myplan_handler(update, context)
+    elif raw_text in ("💳 Tariflar / Obuna", "💳 Tariflar", "💳 Obuna", "💳 Mening tarifim", "💳 To'lov", "💳 Tarif"):
+        await plans_and_payment_handler(update, context)
         return
     elif raw_text in ("👤 Profil", "👤 Profilim"):
         await profile_handler(update, context)
@@ -1853,8 +1854,53 @@ async def _handle_ocr_corrected_text(update, context) -> None:
 
 
 # ---------------------------------------------------------------------------
-# /plans and /buy — Telegram Stars checkout
+# /plans, card payments & receipt uploads
 # ---------------------------------------------------------------------------
+
+async def plans_and_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show Grand Education card details, plans and payment receipt instructions."""
+    from django.conf import settings as _settings
+    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****")
+    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "KOMILJON R")
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 49000)
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 99000)
+
+    text = (
+        f"💎 *GRAND EDUCATION TARIF VA OBUNA REJALARI*\n\n"
+        f"1️⃣ *⚡️ Starter tarifi — {starter_price:,} so'm / 30 kun*\n"
+        f"• 5 ta AI rasmli esse tahlili (haftasiga)\n"
+        f"• 10 ta AI matnli esse tahlili\n"
+        f"• 30 ta Milliy sertifikat testi\n\n"
+        f"2️⃣ *👑 Premium tarifi — {premium_price:,} so'm / 30 kun*\n"
+        f"• ✍️ Cheksiz AI Esse baholash (12 mezon + AI tahriri)\n"
+        f"• 📚 Cheksiz Milliy Sertifikat testlari (Fast CBT)\n"
+        f"• ⚔️ Cheksiz Real-vaqt 1v1 ELO Arena bellashuvi\n"
+        f"• 📜 Rasmiy PDF Sertifikat va batafsil tahlillar\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💳 *KARTA ORQALI TO'LOV:*\n"
+        f"Karta raqami: `{card_number}`\n"
+        f"Karta egasi: *{card_holder}*\n\n"
+        f"📲 *TO'LOVNI FAOLLASHTIRISH:*\n"
+        f"1. Yuqoridagi kartaga to'lovni o'tkazing.\n"
+        f"2. To'lov chekini (screenshot/kvitansiya) to'g'ridan-to'g'ri shu chatga *rasm* qilib tashlang.\n"
+        f"3. Chek kelgach, 5-15 daqiqa ichida admin tekshiradi va obunangiz faollashadi!"
+    )
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(f"⚡️ Starter ({starter_price:,} so'm)", callback_data="pay_plan_starter"),
+            InlineKeyboardButton(f"👑 Premium ({premium_price:,} so'm)", callback_data="pay_plan_premium"),
+        ],
+        [
+            InlineKeyboardButton("🌐 Veb-saytda to'lash", url="https://grandec.uz/subscribe/"),
+            InlineKeyboardButton("📊 Mening limitlarim", callback_data="cb_limits"),
+        ],
+        [
+            InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
+        ],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
 
 async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/plans — list purchasable plans with their Telegram Stars prices."""
@@ -3536,7 +3582,27 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif data == "menu_premium":
             await _dispatch_handler(update, context, premium_handler)
         elif data == "cb_plans":
-            await _dispatch_handler(update, context, plans_handler)
+            await _dispatch_handler(update, context, plans_and_payment_handler)
+        elif data in ("pay_plan_starter", "pay_plan_premium"):
+            selected_slug = "starter" if data == "pay_plan_starter" else "premium"
+            context.user_data["selected_plan_slug"] = selected_slug
+            context.user_data["payment_state"] = "awaiting_screenshot"
+            from django.conf import settings as _settings
+            card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****")
+            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "KOMILJON R")
+            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 49000 if selected_slug == "starter" else 99000)
+            text = (
+                f"💳 *{selected_slug.capitalize()} tarifi uchun to'lov*\n\n"
+                f"💰 Summa: *{price:,} so'm*\n"
+                f"💳 Karta: `{card_number}`\n"
+                f"👤 Egasi: *{card_holder}*\n\n"
+                f"📸 *To'lovni amalga oshirgach, chek screenshot'ini shu chatga rasm qilib yuboring.*\n"
+                f"Admin 5-15 daqiqada tekshiradi va tarifingiz avtomatik yoqiladi."
+            )
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Boshqa tarif tanlash", callback_data="cb_plans")]
+            ])
+            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=buttons)
         elif data == "cb_limits":
             await _dispatch_handler(update, context, limits_handler)
         elif data == "cb_essay_text":
@@ -3976,81 +4042,89 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
 
 async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle photo messages — check if it's a payment screenshot."""
-    # Check if user is in payment flow
+    """Handle photo messages — check if it's a payment screenshot and create PaymentReceipt."""
+    # Never intercept essay image submissions
+    if context.user_data.get("essay_state") == "awaiting_photo" or context.user_data.get("active_topic_id"):
+        return
+
     payment_state = context.user_data.get("payment_state")
-    if payment_state != "awaiting_screenshot":
-        return  # Not expecting a screenshot
+    selected_slug = context.user_data.get("selected_plan_slug")
+    caption = (update.message.caption or "").lower() if update.message else ""
+
+    # Check if this is a payment receipt
+    is_payment = (
+        payment_state == "awaiting_screenshot"
+        or selected_slug is not None
+        or any(w in caption for w in ("chek", "to'lov", "tolov", "starter", "premium", "kvitansiya", "obuna"))
+    )
+    if not is_payment:
+        return
 
     user = await _get_or_create_user_async(update)
     if not user:
         return
 
-    plan_id = context.user_data.get("selected_plan_id")
-    if not plan_id:
-        return
-
-    # Get the photo (largest size)
     photo = update.message.photo[-1] if update.message.photo else None
     if not photo:
         await update.message.reply_text("Rasm topilmadi. Qaytadan yuboring.")
         return
 
-    # Save payment request
-    def _create_request():
+    from django.conf import settings as _settings
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 49000)
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 99000)
+
+    # Determine plan slug
+    if not selected_slug:
+        if "premium" in caption:
+            selected_slug = "premium"
+        else:
+            selected_slug = "starter"
+
+    amount = Decimal(premium_price if selected_slug == "premium" else starter_price)
+
+    # Download photo
+    file_bytes = None
+    try:
+        file_obj = await photo.get_file()
+        file_bytes = await file_obj.download_as_bytearray()
+    except Exception as exc:
+        logger.warning("Failed to download photo from telegram: %s", exc)
+
+    def _create_receipt():
+        from django.core.files.base import ContentFile
         from django.utils import timezone
-        from apps.payments.models import SubscriptionPlan, PaymentRequest
+        from apps.payments.models import PaymentReceipt
 
-        plan = SubscriptionPlan.objects.filter(id=plan_id).first()
-        if not plan:
-            return None, "Reja topilmadi"
+        content_file = None
+        if file_bytes:
+            filename = f"receipt_tg_{user.id}_{int(timezone.now().timestamp())}.jpg"
+            content_file = ContentFile(bytes(file_bytes), name=filename)
 
-        # Check if there's already a pending request for this plan
-        existing = PaymentRequest.objects.filter(
-            user=user, plan=plan, status="pending"
-        ).first()
-        if existing:
-            return None, "Sizda allaqachon tekshirilayotgan to'lov so'rovi bor."
-
-        pr = PaymentRequest.objects.create(
+        receipt = PaymentReceipt.objects.create(
             user=user,
-            plan=plan,
-            amount=plan.price_monthly,
-            telegram_message_id=update.message.message_id,
-            screenshot_file_id=photo.file_id,
-            status="pending",
+            plan=selected_slug,
+            amount=amount,
+            receipt_image=content_file or "receipts/placeholder.jpg",
+            source=PaymentReceipt.Source.BOT,
+            status=PaymentReceipt.Status.PENDING,
         )
-        return pr, None
+        return receipt
 
-    pr, error = await _run_db(_create_request)
+    receipt = await _run_db(_create_receipt)
 
-    if error:
-        await update.message.reply_text(f"❌ {error}")
-        context.user_data.pop("payment_state", None)
-        context.user_data.pop("selected_plan_id", None)
-        return
-
-    # Clear payment state
+    # Clear state
     context.user_data.pop("payment_state", None)
+    context.user_data.pop("selected_plan_slug", None)
     context.user_data.pop("selected_plan_id", None)
 
-    # Confirm to user
+    plan_name = "Starter" if selected_slug == "starter" else "Premium"
     await update.message.reply_text(
-        f"✅ *Screenshot qabul qilindi!*\n\n"
-        f"📦 Reja: *{pr.plan.name}*\n"
-        f"💰 Summa: *{int(pr.amount):,} so'm*\n"
-        f"📅 Sana: {pr.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-        f"⏳ Admin tekshirmoqda...\n"
-        f"Tekshirilgandan keyin sizga xabar beriladi.",
+        f"✅ *To'lov chekingiz qabul qilindi!*\n\n"
+        f"📦 Tarif: *{plan_name}*\n"
+        f"💰 Summa: *{int(amount):,} so'm*\n"
+        f"📅 Sana: {receipt.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"⏳ Tez orada admin tekshiradi (odatda 5-15 daqiqa) va obunangiz faollashadi.",
         parse_mode="Markdown",
-    )
-
-    # Notify payment administrators
-    await _notify_admins_payment(update, context, pr)
-
-    logger.info(
-        "Payment request created: user=%s, plan=%s, amount=%s",
-        user.email, pr.plan.name, pr.amount,
     )
 
 

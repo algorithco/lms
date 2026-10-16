@@ -211,6 +211,12 @@ class Profile(models.Model):
         null=True,
         blank=True,
     )
+    plan = models.CharField(
+        _("tarif"),
+        max_length=20,
+        default="free",
+        blank=True,
+    )
 
     class Meta:
         verbose_name = _("Profil")

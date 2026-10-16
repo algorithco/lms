@@ -16,7 +16,7 @@ from apps.core.validators import validate_attachment_upload
 from apps.tuition.models import CourseBillingPolicy, PaymentMethod
 from apps.essays.models import EssayTopic
 from apps.games.models import Game, GameLevel, UserGameScore
-from apps.payments.models import PaymentHistory, SubscriptionPlan, UserSubscription
+from apps.payments.models import PaymentHistory, PaymentReceipt, SubscriptionPlan, UserSubscription
 from apps.tests.models import Choice, ExamSection, Question, ReadingPassage, Test
 
 
@@ -191,6 +191,31 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
             "id", "plan_name", "amount", "currency",
             "payment_method", "status", "created_at",
         ]
+
+
+class PaymentReceiptSerializer(serializers.ModelSerializer):
+    receipt_image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PaymentReceipt
+        fields = [
+            "id",
+            "plan",
+            "amount",
+            "receipt_image",
+            "receipt_image_url",
+            "status",
+            "source",
+            "admin_note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "status", "source", "admin_note", "created_at", "updated_at"]
+
+    def get_receipt_image_url(self, obj: PaymentReceipt) -> str:
+        if obj.receipt_image:
+            return obj.receipt_image.url
+        return ""
 
 
 # ---------------------------------------------------------------------------
