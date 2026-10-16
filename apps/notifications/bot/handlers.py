@@ -1860,10 +1860,10 @@ async def _handle_ocr_corrected_text(update, context) -> None:
 async def plans_and_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show Grand Education card details, plans and payment receipt instructions."""
     from django.conf import settings as _settings
-    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****")
-    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "KOMILJON R")
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 49000)
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 99000)
+    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 49000
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 99000
 
     text = (
         f"💎 *GRAND EDUCATION TARIF VA OBUNA REJALARI*\n\n"
@@ -3588,9 +3588,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             context.user_data["selected_plan_slug"] = selected_slug
             context.user_data["payment_state"] = "awaiting_screenshot"
             from django.conf import settings as _settings
-            card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****")
-            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "KOMILJON R")
-            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 49000 if selected_slug == "starter" else 99000)
+            card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0) or (49000 if selected_slug == "starter" else 99000)
             text = (
                 f"💳 *{selected_slug.capitalize()} tarifi uchun to'lov*\n\n"
                 f"💰 Summa: *{price:,} so'm*\n"

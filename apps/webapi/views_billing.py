@@ -127,11 +127,15 @@ def entitlement_view(request):
 @permission_classes([AllowAny])
 def card_info_view(request):
     """GET /api/v1/payments/card-info/ — Public card and plan price settings."""
+    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+    starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 49000
+    premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 99000
     return Response({
-        "card_number": getattr(settings, "PAYMENT_CARD_NUMBER", "9860 **** **** ****"),
-        "card_holder": getattr(settings, "PAYMENT_CARD_HOLDER", "KOMILJON R"),
-        "starter_price": getattr(settings, "PLAN_STARTER_PRICE", 49000),
-        "premium_price": getattr(settings, "PLAN_PREMIUM_PRICE", 99000),
+        "card_number": card_number,
+        "card_holder": card_holder,
+        "starter_price": starter_price,
+        "premium_price": premium_price,
     })
 
 
