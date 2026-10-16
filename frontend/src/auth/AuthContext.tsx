@@ -6,7 +6,18 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { Auth, AuthExpiredError, getTokens, login as apiLogin, logout as apiLogout, normalizeUser, register as apiRegister, setTokens } from '../lib/api';
+import {
+  Auth,
+  AuthExpiredError,
+  GoogleAuth,
+  SessionAuth,
+  getTokens,
+  login as apiLogin,
+  logout as apiLogout,
+  normalizeUser,
+  register as apiRegister,
+  setTokens,
+} from '../lib/api';
 import type { AuthUser, TokenPair } from '../lib/api';
 import { storeLang } from '../i18n/LangContext';
 import type { AppLang } from '../i18n/LangContext';
@@ -15,8 +26,14 @@ interface AuthState {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
+  isAuthModalOpen: boolean;
+  authModalMode: 'login' | 'register';
+  openAuthModal: (mode?: 'login' | 'register') => void;
+  closeAuthModal: () => void;
   login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithTokens: (tokens: TokenPair, rawUser?: Record<string, unknown>) => Promise<AuthUser>;
   loginWithTelegram: (tokens: TokenPair, rawUser: Record<string, unknown>) => AuthUser;
+  loginWithGoogle: (credential: string) => Promise<AuthUser>;
   register: (payload: {
     email: string;
     password: string;
@@ -51,17 +68,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+
+  const openAuthModal = useCallback((mode: 'login' | 'register' = 'login') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
 
   // Restore session on mount if tokens exist (api() auto-refreshes if needed).
-  // A refresh failure means the refresh token was rotated/blacklisted or
-  // expired: tokens are already cleared by api(), the user is dropped, and
-  // protected deep links bounce to /login (public pages stay put).
+  // Also check URL parameters for OAuth redirect tokens (?access=...&refresh=...)
+  // and fallback to active Django session.
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthAccess = params.get('access');
+    const oauthRefresh = params.get('refresh');
+
+    if (oauthAccess && oauthRefresh) {
+      setTokens(oauthAccess, oauthRefresh);
+      // Clean up URL without reload
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+
     const { access, refresh } = getTokens();
     if (!access && !refresh) {
-      setLoading(false);
+      SessionAuth.status()
+        .then((st) => {
+          if (st.authenticated && st.tokens) {
+            setTokens(st.tokens.access, st.tokens.refresh);
+            if (st.user) {
+              const u = normalizeUser(st.user);
+              setUser(u);
+              adoptServerLang(u.language);
+              setLoading(false);
+              return;
+            }
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
       return;
     }
+
     Auth.me()
       .then((u) => {
         setUser(u);
@@ -88,6 +141,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw e;
     }
   }, []);
+
+  const loginWithTokens = useCallback(
+    async (tokens: TokenPair, rawUser?: Record<string, unknown>) => {
+      setError(null);
+      setTokens(tokens.access, tokens.refresh);
+      let resolvedUser: AuthUser;
+      if (rawUser) {
+        resolvedUser = normalizeUser(rawUser);
+      } else {
+        resolvedUser = await Auth.me();
+      }
+      adoptServerLang(resolvedUser.language);
+      setUser(resolvedUser);
+      return resolvedUser;
+    },
+    [],
+  );
+
+  const loginWithGoogle = useCallback(
+    async (credential: string) => {
+      setError(null);
+      try {
+        const data = await GoogleAuth.verify(credential);
+        setTokens(data.tokens.access, data.tokens.refresh);
+        const user = normalizeUser(data.user);
+        adoptServerLang(user.language);
+        setUser(user);
+        return user;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Google login failed.');
+        throw e;
+      }
+    },
+    [],
+  );
 
   const register = useCallback(
     async (payload: {
@@ -116,8 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  // Adopt a Telegram bot login: the backend already created the Django
-  // session (same response), so only the JWT pair needs storing.
   const loginWithTelegram = useCallback((tokens: TokenPair, rawUser: Record<string, unknown>) => {
     setError(null);
     setTokens(tokens.access, tokens.refresh);
@@ -128,7 +214,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, loading, error, login, register, logout, loginWithTelegram }}>
+    <Ctx.Provider
+      value={{
+        user,
+        loading,
+        error,
+        isAuthModalOpen,
+        authModalMode,
+        openAuthModal,
+        closeAuthModal,
+        login,
+        loginWithTokens,
+        loginWithTelegram,
+        loginWithGoogle,
+        register,
+        logout,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

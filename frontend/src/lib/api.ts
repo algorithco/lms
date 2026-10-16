@@ -660,6 +660,48 @@ export const TelegramAuth = {
   },
 };
 
+export interface GoogleAuthVerifyResponse {
+  status: string;
+  redirect: string;
+  user: Record<string, unknown>;
+  tokens: TokenPair;
+}
+
+export interface SessionStatusResponse {
+  authenticated: boolean;
+  user: Record<string, unknown> | null;
+  tokens: TokenPair | null;
+}
+
+export const GoogleAuth = {
+  startUrl: `${API_BASE}/api/auth/google/`,
+  verify: async (credential: string) => {
+    const res = await fetch(`${API_BASE}/api/auth/google/verify/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) await throwForResponse(res, 'Google orqali kirishda xatolik yuz berdi.');
+    return (await res.json()) as GoogleAuthVerifyResponse;
+  },
+};
+
+export const SessionAuth = {
+  status: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/session/status/`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) return { authenticated: false, user: null, tokens: null } as SessionStatusResponse;
+      return (await res.json()) as SessionStatusResponse;
+    } catch {
+      return { authenticated: false, user: null, tokens: null } as SessionStatusResponse;
+    }
+  },
+};
+
 // ---------------------------------------------------------------------------
 // React SPA API (/api/v1/ — apps/webapi, JWT via api())
 // ---------------------------------------------------------------------------

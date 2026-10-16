@@ -376,14 +376,34 @@ class SessionStatusView(APIView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         user = request.user
         authed = bool(user and user.is_authenticated)
+        tokens = None
+        user_data = None
+        if authed:
+            from rest_framework_simplejwt.tokens import RefreshToken
+            from apps.accounts.access import is_platform_admin
+
+            refresh = RefreshToken.for_user(user)
+            tokens = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+            user_data = {
+                "id": user.pk,
+                "email": user.email,
+                "role": user.role,
+                "full_name": user.get_full_name(),
+                "is_active": user.is_active,
+                "language": getattr(user, "language", "uz"),
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+                "is_platform_admin": is_platform_admin(user),
+            }
+
         return Response(
             {
                 "authenticated": authed,
-                "user": (
-                    {"id": user.pk, "email": user.email, "role": user.role}
-                    if authed
-                    else None
-                ),
+                "user": user_data,
+                "tokens": tokens,
             },
             status=status.HTTP_200_OK,
         )

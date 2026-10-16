@@ -50,12 +50,15 @@ const Tests = lazyPage(() => import('./pages/Tests'));
 const Tma = lazyPage(() => import('./pages/Tma'));
 const VerifyCertificate = lazyPage(() => import('./pages/VerifyCertificate'));
 
+import AuthModal from './components/AuthModal';
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <ScrollTop />
         <AnimatedRoutes />
+        <AuthModal />
       </BrowserRouter>
     </AuthProvider>
   );

@@ -101,4 +101,9 @@ urlpatterns = [
         google_auth_views.google_auth_callback,
         name="google_auth_callback",
     ),
+    path(
+        "google/verify/",
+        google_auth_views.google_auth_verify,
+        name="google_auth_verify",
+    ),
 ]

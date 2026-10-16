@@ -11,9 +11,10 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.db import IntegrityError, transaction
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +55,8 @@ def google_auth_start(request: HttpRequest) -> HttpResponseRedirect:
     return HttpResponseRedirect(f"{GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}")
 
 
-def _verified_claims(raw_id_token: str, client_id: str, nonce: str) -> dict | None:
-    """Verify Google's signature, issuer, audience and expiry, then session nonce."""
+def _verified_claims(raw_id_token: str, client_id: str, nonce: str | None = None) -> dict | None:
+    """Verify Google's signature, issuer, audience and expiry, then session nonce if present."""
     try:
         from google.auth.transport.requests import Request
         from google.oauth2 import id_token
@@ -64,7 +65,7 @@ def _verified_claims(raw_id_token: str, client_id: str, nonce: str) -> dict | No
     except Exception as exc:
         logger.warning("Google ID token verification failed: %s", exc)
         return None
-    if not secrets.compare_digest(str(claims.get("nonce", "")), nonce):
+    if nonce is not None and not secrets.compare_digest(str(claims.get("nonce", "")), nonce):
         logger.warning("Google OAuth nonce mismatch")
         return None
     if claims.get("email_verified") is not True:
@@ -168,4 +169,109 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
     login(request, user)
     request.session.set_expiry(60 * 60 * 24 * 30)
     logger.info("Google OAuth login: user_id=%s", user.pk)
-    return redirect("web:dashboard")
+
+    tokens = _jwt_pair_for(user)
+    return HttpResponseRedirect(f"/dashboard?oauth=google&access={tokens['access']}&refresh={tokens['refresh']}")
+
+
+def _jwt_pair_for(user) -> dict[str, str]:
+    """Mint a SimpleJWT pair for *user*."""
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    refresh = RefreshToken.for_user(user)
+    return {"access": str(refresh.access_token), "refresh": str(refresh)}
+
+
+def _jwt_user_payload(user) -> dict:
+    """User payload for SPA (mirrors CustomTokenObtainPairView response)."""
+    from apps.accounts.access import is_platform_admin
+
+    return {
+        "id": user.pk,
+        "email": user.email,
+        "role": user.role,
+        "full_name": user.get_full_name(),
+        "is_active": user.is_active,
+        "language": getattr(user, "language", "uz"),
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "is_platform_admin": is_platform_admin(user),
+    }
+
+
+@csrf_exempt
+@require_POST
+def google_auth_verify(request: HttpRequest) -> JsonResponse:
+    """
+    POST /api/auth/google/verify/
+    Verify Google One Tap or credential from Google Identity Services SDK.
+    Body: {"credential": "raw_id_token"}
+    Returns: {"status": "ok", "user": ..., "tokens": {"access": ..., "refresh": ...}}
+    """
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"error": "Noto'g'ri so'rov formati."}, status=400)
+
+    credential = body.get("credential") or body.get("id_token")
+    if not isinstance(credential, str) or not credential.strip():
+        return JsonResponse({"error": "Google ID token berilmadi."}, status=400)
+
+    config = _get_google_config()
+    client_id = config.get("client_id")
+    if not client_id:
+        return JsonResponse({"error": "Google OAuth hali sozlanmagan."}, status=503)
+
+    claims = _verified_claims(credential, client_id, nonce=None)
+    if claims is None:
+        return JsonResponse({"error": "Google tokeni haqiqiy emas yoki muddati o'tgan."}, status=400)
+
+    google_id = claims.get("sub")
+    email = claims.get("email", "")
+    if not google_id or not email:
+        return JsonResponse({"error": "Google hisob ma'lumotlari to'liq emas."}, status=400)
+    email = email.strip().lower()
+
+    User = get_user_model()
+    user = User.objects.filter(google_id=google_id).first()
+    if user is None:
+        user_by_email = User.objects.filter(email=email).first()
+        if user_by_email:
+            if not user_by_email.google_id:
+                user_by_email.google_id = google_id
+                user_by_email.save(update_fields=["google_id"])
+                user = user_by_email
+            else:
+                return JsonResponse({"error": "Bu email boshqa Google hisobiga biriktirilgan."}, status=400)
+        else:
+            from apps.accounts.models import Profile
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        email=email,
+                        password=None,
+                        first_name=claims.get("given_name", ""),
+                        last_name=claims.get("family_name", ""),
+                        role=User.Role.STUDENT,
+                        google_id=google_id,
+                    )
+                    Profile.objects.get_or_create(user=user)
+            except IntegrityError:
+                return JsonResponse({"error": "Foydalanuvchi yaratishda xatolik."}, status=400)
+
+    if not user.is_active:
+        return JsonResponse({"error": "Hisobingiz faol emas."}, status=403)
+
+    login(request, user)
+    request.session.set_expiry(60 * 60 * 24 * 30)
+
+    tokens = _jwt_pair_for(user)
+    payload = _jwt_user_payload(user)
+
+    logger.info("Google verify login: user_id=%s", user.pk)
+    return JsonResponse({
+        "status": "ok",
+        "redirect": "/dashboard/",
+        "user": payload,
+        "tokens": tokens,
+    })
