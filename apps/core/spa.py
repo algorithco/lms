@@ -56,6 +56,8 @@ def serve_spa_shell(request: HttpRequest, fallback: str = "/", resource: str = "
                 content_type="text/html; charset=utf-8",
                 status=200,
             )
+        if current_path.rstrip("/") != "":
+            return redirect(f"/?{query}" if query else "/")
         return HttpResponse(
             "Service Unavailable: SPA shell not built.",
             status=503,
