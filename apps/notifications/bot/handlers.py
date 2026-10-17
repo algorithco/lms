@@ -437,21 +437,17 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # --- Group join link flow: /start join_<invite_code> or /start GR-XXX ---
     if args and (args[0].startswith("join_") or args[0].upper().startswith("GR-")):
         invite_code = args[0].removeprefix("join_").upper()
+        from apps.courses.group_service import join_group_by_invite_code
         user = await _get_or_create_user_async(update)
         if user:
-            def _join_via_start(u_obj, code_val):
-                from apps.courses.models import StudentGroup
-                grp = StudentGroup.objects.filter(invite_code__iexact=code_val).first()
-                if grp:
-                    grp.students.add(u_obj)
-                    return grp
-                return None
-            joined_grp = await _run_db(_join_via_start, user, invite_code)
-            if joined_grp:
+            ok, msg, joined_grp = await _run_db(join_group_by_invite_code, user, invite_code)
+            if ok and joined_grp:
                 await update.message.reply_text(
                     f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
                     f"🏫 Guruh: *{joined_grp.name}*\n"
-                    f"👨‍🏫 O'qituvchi: *{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}*",
+                    f"👨‍🏫 O'qituvchi: *{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}*\n\n"
+                    f"⭐ *Sizga ustozingiz guruhi orqali avtomatik ravishda PRO tarifi ulandi!*\n"
+                    f"(Cheksiz BMB testlari va 50 ta kunlik AI repetitor kvotasi)",
                     parse_mode="Markdown",
                     reply_markup=_persistent_menu_keyboard("student"),
                 )
@@ -1002,30 +998,27 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     # Check for #GR-XXX or GR-XXX group invite code input
     if upper_raw.startswith("#GR-") or (upper_raw.startswith("GR-") and len(upper_raw) >= 5):
         clean_code = upper_raw.removeprefix("#").strip()
-        def _join_group(user_obj, code_val):
-            from apps.courses.models import StudentGroup
-            grp = StudentGroup.objects.filter(invite_code__iexact=code_val).first()
-            if not grp:
-                return None
-            grp.students.add(user_obj)
-            return grp
+        from apps.courses.group_service import join_group_by_invite_code
 
         user = await _get_or_create_user_async(update)
-        grp = await _run_db(_join_group, user, clean_code)
-        if grp:
+        success, msg, grp = await _run_db(join_group_by_invite_code, user, clean_code)
+        if success and grp:
             teacher_name = grp.teacher.get_full_name() or grp.teacher.email
             await update.message.reply_text(
                 f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
                 f"🏫 Guruh nomi: *{grp.name}*\n"
                 f"👨‍🏫 O'qituvchi: *{teacher_name}*\n\n"
-                f"Endi sizning barcha test natijalaringiz va davomatingiz ushbu guruh hisobotlarida aks etadi.",
+                f"⭐ *Sizga ustozingiz guruhi orqali PRO tarifi faollashtirildi!*\n"
+                f"• Cheksiz BMB mock testlari va diagnostikalar\n"
+                f"• Kunlik 50 ta sun'iy intellekt (AI repetitor) tahlili\n"
+                f"• Barcha test va esse natijalaringiz ustozingiz hisobotida aks etadi.",
                 parse_mode="Markdown",
                 reply_markup=_persistent_menu_keyboard("student"),
             )
             return
         else:
             await update.message.reply_text(
-                f"❌ '{raw_text}' kodi bo'yicha guruh topilmadi.\n"
+                f"❌ '{raw_text}' kodi bo'yicha guruh topilmadi yoki ulanishda xatolik yuz berdi ({msg}).\n\n"
                 f"Iltimos, ustozingiz bergan taklif kodini to'g'ri kiritganingizni tekshiring (masalan: `#GR-101`).",
                 parse_mode="Markdown",
                 reply_markup=_persistent_menu_keyboard("student"),
@@ -5515,6 +5508,7 @@ def _group_list_keyboard(groups, callback_prefix: str = "tgrp_") -> InlineKeyboa
         [InlineKeyboardButton(f"🏫 {g.name}", callback_data=f"{callback_prefix}{g.id}")]
         for g in groups
     ]
+    rows.append([InlineKeyboardButton("➕ Yangi guruh ochish", callback_data="tgrp_create_new")])
     rows.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
@@ -5641,15 +5635,19 @@ async def _send_group_card(update: Update, context, user, group) -> None:
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🗓 Davomat olish", callback_data=f"tatt_{group.id}"),
-            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
+            InlineKeyboardButton("💳 To'lov holati", callback_data=f"ttuition_{group.id}"),
         ],
         [
+            InlineKeyboardButton("👥 O'quvchilar va BMB", callback_data=f"tstu_{group.id}"),
+            InlineKeyboardButton("📚 Uyga vazifa", callback_data=f"thw_{group.id}"),
+        ],
+        [
+            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
             InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}"),
-            InlineKeyboardButton("👥 O'quvchilar", callback_data=f"tstu_{group.id}"),
         ],
         [
             InlineKeyboardButton("📈 Davomat hisoboti", callback_data=f"trpt_{group.id}"),
-            InlineKeyboardButton("📈 Guruh hisoboti", callback_data=f"tgreport_{group.id}"),
+            InlineKeyboardButton("🏆 Guruhlar reytingi", callback_data="tgrpleaderboard"),
         ],
         [
             InlineKeyboardButton("📋 Taklif kodini ulashish", url=f"https://t.me/share/url?url=%23{invite_code}&text={group.name}+guruhimizga+qo%27shiling!"),
@@ -6395,32 +6393,50 @@ async def students_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def _send_students(update: Update, context, user, group) -> None:
-    from apps.attendance.services import student_attendance_report
+    from apps.courses.group_service import get_group_full_analytics
 
-    students = await _run_db(
-        lambda: list(group.students.filter(is_active=True).order_by("first_name", "last_name"))
-    )
-    if not students:
-        await edit_or_reply(update, f"🏫 *{group.name}* da o'quvchi yo'q.", parse_mode="Markdown")
+    analytics = await _run_db(get_group_full_analytics, group)
+    roster = analytics.get("roster", [])
+    invite_code = getattr(group, "invite_code", "") or f"GR-{group.id}"
+    if not roster:
+        await edit_or_reply(
+            update,
+            f"🏫 *{group.name}* guruhida hozircha o'quvchilar yo'q.\n\n"
+            f"Taklif kodi: `#{invite_code}`\n"
+            f"O'quvchilar ushbu kodni botga yozishi bilan bu yerda paydo bo'ladi.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
+            ]]),
+        )
         return
-    lines = [f"👥 *{group.name} — o'quvchilar* ({len(students)})", ""]
-    for index, student in enumerate(students, 1):
-        report = await _run_db(student_attendance_report, student, group=group)
-        percentage = (
-            f"{report['attendance_percentage']}%"
-            if report["attendance_percentage"] is not None else "—"
-        )
+
+    lines = [
+        f"👥 *{group.name} — O'quvchilar va BMB Monitoringi*",
+        f"Jami a'zolar: *{len(roster)} nafar* · Guruh o'rtacha: *{analytics.get('group_avg_pct', 0)}%*\n",
+    ]
+    for index, s in enumerate(roster, 1):
         lines.append(
-            f"{index}. {report['name']} — davomat: *{percentage}* "
-            f"(❌ {report['absent']})"
+            f"*{index}. {s['name']}* ({s.get('plan_badge', 'PRO')})\n"
+            f"   📊 Testlar: *{s['tests_count']} ta* (O'rtacha: *{s['avg_test_pct']}%*) · BMB: *{s['bmb_grade']}*\n"
+            f"   📝 Esselar: *{s['essays_count']} ta* (Oxirgi ball: *{s['latest_essay_score']}*)\n"
+            f"   🗓 Davomat: *{s['attendance_pct']}*\n"
         )
-    lines.append("")
-    lines.append("_Davomat ko'rsatkichi faqat yakunlangan darslar bo'yicha._")
+
+    bmb_summary = analytics.get("bmb_counts", {})
+    bmb_line = " · ".join(f"*{k}:* {v}" for k, v in bmb_summary.items() if v > 0)
+    if bmb_line:
+        lines.append(f"🏆 *BMB Taqsimoti:* {bmb_line}")
+
     await edit_or_reply(
         update, "\n".join(lines), parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
-        ]]),
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
+                InlineKeyboardButton("💳 To'lov holati", callback_data=f"ttuition_{group.id}"),
+            ],
+            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+        ]),
     )
 
 

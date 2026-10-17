@@ -71,7 +71,7 @@ class EssayTopic(models.Model):
     )
     word_limit_min = models.PositiveIntegerField(
         _("minimal so'zlar soni"),
-        default=150,
+        default=200,
     )
     word_limit_max = models.PositiveIntegerField(
         _("maksimal so'zlar soni"),

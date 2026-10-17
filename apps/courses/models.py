@@ -341,3 +341,91 @@ class Lesson(models.Model):
 
     def __str__(self) -> str:
         return f"{self.module} — {self.title}"
+
+
+# ---------------------------------------------------------------------------
+# Homework (Uyga vazifa tizimi)
+# ---------------------------------------------------------------------------
+class Homework(models.Model):
+    """
+    Ustoz tomonidan guruhga berilgan uyga vazifa (Test yoki Esse).
+    """
+
+    group = models.ForeignKey(
+        StudentGroup,
+        on_delete=models.CASCADE,
+        related_name="homeworks",
+        verbose_name=_("guruh"),
+    )
+    title = models.CharField(_("vazifa sarlavhasi"), max_length=200)
+    description = models.TextField(_("tavsif va ko'rsatmalar"), blank=True)
+    test = models.ForeignKey(
+        "tests.Test",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="homework_assignments",
+        verbose_name=_("biriktirilgan test"),
+    )
+    essay_topic = models.ForeignKey(
+        "essays.EssayTopic",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="homework_assignments",
+        verbose_name=_("biriktirilgan esse mavzusi"),
+    )
+    due_date = models.DateTimeField(
+        _("topshirish muddati (deadline)"),
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_homeworks",
+    )
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Uyga vazifa")
+        verbose_name_plural = _("Uyga vazifalar")
+        ordering = ["-due_date", "-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.group.name}: {self.title} (Muddat: {self.due_date})"
+
+
+class HomeworkSubmission(models.Model):
+    """
+    O'quvchining uyga vazifani bajarganlik holati.
+    """
+
+    homework = models.ForeignKey(
+        Homework,
+        on_delete=models.CASCADE,
+        related_name="submissions",
+        verbose_name=_("uyga vazifa"),
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="homework_submissions",
+        verbose_name=_("o'quvchi"),
+    )
+    is_completed = models.BooleanField(_("bajarildimi"), default=False, db_index=True)
+    completed_at = models.DateTimeField(_("bajarilgan vaqt"), null=True, blank=True)
+    score_display = models.CharField(_("natija"), max_length=50, blank=True)
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Vazifa bajarilishi")
+        verbose_name_plural = _("Vazifa bajarilishlari")
+        unique_together = ("homework", "student")
+
+    def __str__(self) -> str:
+        status = "Bajarildi" if self.is_completed else "Bajarilmadi"
+        return f"{self.student_id} — {self.homework_id} ({status})"
+

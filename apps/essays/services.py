@@ -541,13 +541,23 @@ def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[s
     """Generate a mock 12-criteria response for frontend testing."""
     word_count = WordCounter.count(essay_text)
     base = min(2, max(0, word_count // 100))
-    half = min(1.5, max(0.5, word_count // 150))
+    half = min(1.5, max(0.5, word_count // 200))
+
+    # Rasmiy talab: 200-500 so'z. 200 dan kam bo'lsa kompozitsiya va hajm bo'yicha ball kesiladi.
+    if word_count < 200:
+        comp_score = 1.0 if word_count >= 150 else 0.5
+        comp_reason = f"[HAJM YETARLI EMAS] Esse {word_count} so'zdan iborat (minimal talab: 200 so'z). Kompozitsiya to'liq ochilmagan."
+        summary_warning = f" Diqqat: esse hajmi yetarli emas ({word_count}/200 so'z), hajm mezoni bo'yicha ball kesildi."
+    else:
+        comp_score = base
+        comp_reason = "[SINOV REJIMI] Mock baholash"
+        summary_warning = ""
 
     criteria = [
         {"id": 1, "name": "Uslub", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 2, "name": "Ikkala qarash va shaxsiy fikr", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 3, "name": "Dalillar bilan asoslanganlik", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 4, "name": "Kirish/asosiy qism/xulosa", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
+        {"id": 2, "name": "Ikkala qarash va shaxsiy fikr", "score": base if word_count >= 200 else min(base, 1.0), "reason": "[SINOV REJIMI] Mock baholash"},
+        {"id": 3, "name": "Dalillar bilan asoslanganlik", "score": base if word_count >= 200 else min(base, 1.0), "reason": "[SINOV REJIMI] Mock baholash"},
+        {"id": 4, "name": "Kirish/asosiy qism/xulosa", "score": comp_score, "reason": comp_reason},
         {"id": 5, "name": "Mantiqiy-qurilish", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
         {"id": 6, "name": "Mantiqiy-mazmuniy izchillik", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
         {"id": 7, "name": "Imlo xatolari", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
@@ -563,7 +573,7 @@ def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[s
         "criteria": criteria,
         "total_score": float(total),
         "max_score": 24,
-        "summary": f"[SINOV REJIMI] {word_count} so'zlik esse. Haqiqiy AI bahosi uchun OPENROUTER_API_KEY ni sozlang.",
+        "summary": f"[SINOV REJIMI] {word_count} so'zlik esse.{summary_warning} Haqiqiy AI bahosi uchun OPENROUTER_API_KEY ni sozlang.",
         "topic_match": True,
         "topic_match_reason": "[SINOV REJIMI] Mock tekshiruv",
     }
@@ -835,7 +845,7 @@ ALLOWED_SCORES = {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), De
 ALLOWED_TOP_KEYS = {"criteria", "total_score", "max_score", "summary", "topic_match", "topic_match_reason"}
 ALLOWED_CRITERION_KEYS = {"id", "name", "score", "reason", "errors", "max_score"}
 
-def _validate_result(result: dict) -> None:
+def _validate_result(result: dict, essay_text: str = "") -> None:
     """
     Validate the parsed JSON result from LLM.
 
@@ -934,6 +944,15 @@ def _validate_result(result: dict) -> None:
     criterion_ids = [c["id"] for c in criteria]
     if set(criterion_ids) != VALID_CRITERION_IDS or len(set(criterion_ids)) != 12:
         raise ValueError("Criteria must contain each canonical id 1..12 exactly once")
+
+    # Qat'iy talab: 200-500 so'z. Agar matn 200 so'zdan kam bo'lsa, ogohlantirish qo'shiladi.
+    raw_text = essay_text or str(result.get("_essay_text") or "")
+    if raw_text:
+        wc = WordCounter.count(raw_text)
+        if 0 < wc < 200:
+            warn_msg = f" [Hajm talabi: esse {wc} so'zdan iborat, tavsiya etilgan minimal hajm 200 so'z]"
+            if "summary" in result and isinstance(result["summary"], str) and warn_msg not in result["summary"]:
+                result["summary"] = (result["summary"].strip() + warn_msg).strip()
 
     # Model-provided totals are never authoritative.
     result["total_score"] = float(sum(
@@ -1800,6 +1819,7 @@ def _grade_via_llm(
     *,
     deadline: float | None = None,
     request_timeout: float | None = None,
+    essay_text: str = "",
 ) -> tuple[dict, str]:
     """
     Try each model until one returns a complete, valid rubric result.
@@ -1870,7 +1890,7 @@ def _grade_via_llm(
                 criterion.setdefault("reason", "")
                 criterion.setdefault("errors", [])
         try:
-            _validate_result(result)
+            _validate_result(result, essay_text)
         except ValueError as exc:
             last_error = ValueError(f"LLM javob formati noto'g'ri: {exc}")
             logger.warning(
@@ -1957,6 +1977,7 @@ def grade_essay(
         ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
         deadline=time.monotonic() + 170.0,
         request_timeout=configured_timeout,
+        essay_text=essay_text,
     )
 
     # --- Ensure topic_match fields exist (backward-compatible) ---
@@ -2478,7 +2499,7 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     word_count = WordCounter.count(essay_text)
 
     # Minimal so'z soni yetmasa → o'qituvchiga yuborish
-    min_words = submission.topic.word_limit_min if submission.topic else 50
+    min_words = submission.topic.word_limit_min if submission.topic else 200
     if word_count < min_words:
         return _send_to_teacher(
             submission, f"under_min ({word_count} < {min_words})"

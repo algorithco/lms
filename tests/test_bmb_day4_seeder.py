@@ -71,7 +71,7 @@ class TestBmbDay4SeederAndScoring:
         q45 = questions[44]
         assert q45.question_type == Question.QuestionType.WRITTEN
         assert q45.points == 25
-        assert q45.config.get("min_words") == 150
+        assert q45.config.get("min_words") == 200
         assert q45.config.get("max_words") == 500
 
         # 9. Verify EssayTopic was synchronized

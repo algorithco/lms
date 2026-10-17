@@ -194,8 +194,21 @@ def find_mock_by_code(code_str: str) -> Test | None:
     else:
         raw_with_hash = raw
 
-    return Test.objects.filter(mock_code__iexact=raw_with_hash, is_active=True).first() or \
-           Test.objects.filter(mock_code__iexact=raw, is_active=True).first()
+    found = (
+        Test.objects.filter(mock_code__iexact=raw_with_hash, is_active=True).first()
+        or Test.objects.filter(mock_code__iexact=raw, is_active=True).first()
+    )
+    if found:
+        return found
+
+    # Aliases backward compatibility
+    if raw_with_hash in ("#MOCK-BMB-DIAGNOSTIC", "#MOCK-SHUKUROV", "MOCK-BMB-DIAGNOSTIC", "MOCK-SHUKUROV"):
+        return Test.objects.filter(
+            mock_code__in=["#MOCK-BMB-DIAGNOSTIC", "MOCK-BMB-DIAGNOSTIC", "#MOCK-SHUKUROV", "MOCK-SHUKUROV"],
+            is_active=True,
+        ).first()
+
+    return None
 
 
 def get_mock_leaderboard(test_id: int) -> dict[str, Any]:

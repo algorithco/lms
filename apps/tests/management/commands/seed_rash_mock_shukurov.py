@@ -1,7 +1,7 @@
 """
 Django Management Command: seed_rash_mock_shukurov
 
-Seeds the 3-hour official BMBA Mock Diagnostic Exam (Umid Shukurov jamoasi):
+Seeds the 3-hour official BMBA Mock Diagnostic Exam (BMB Rasmiy Mock):
 - 44 Test Questions (Grammar, Reading "O'lik dengiz", Story "Ming marta shukur", Classical Ghazal Navoiy, Syntactic Matching, Short Written)
 - Task 45: Official 12-criteria Essay with EssayTopic synchronization
 - Full AI Repetitor educational explanations for every single question.
@@ -29,19 +29,19 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seeds BMBA Rasmiy Mock Test (Umid Shukurov jamoasi) into the platform."
+    help = "Seeds Ona tili va Adabiyot — BMB Rasmiy Mock Test into the platform."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--reset",
             action="store_true",
-            help="Delete existing Shukurov Mock test before recreating.",
+            help="Delete existing BMB Mock test before recreating.",
         )
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
         reset: bool = options.get("reset", False)
-        self.stdout.write(self.style.NOTICE("Seeding BMBA Rasmiy Mock Test (Umid Shukurov jamoasi)..."))
+        self.stdout.write(self.style.NOTICE("Seeding Ona tili va Adabiyot — BMB Rasmiy Mock Test..."))
 
         # 1. Instructor User
         instructor = User.objects.filter(role="teacher").first()
@@ -89,18 +89,21 @@ class Command(BaseCommand):
             course.save(update_fields=["status", "price"])
 
         # 4. Test
-        mock_code = "#MOCK-SHUKUROV"
-        existing_test = Test.objects.filter(mock_code=mock_code).first()
-        if not existing_test:
-            # Also check without hash
-            existing_test = Test.objects.filter(mock_code="MOCK-SHUKUROV").first()
+        mock_code = "#MOCK-BMB-DIAGNOSTIC"
+        existing_test = (
+            Test.objects.filter(mock_code=mock_code).first()
+            or Test.objects.filter(mock_code="MOCK-BMB-DIAGNOSTIC").first()
+            or Test.objects.filter(mock_code="#MOCK-SHUKUROV").first()
+            or Test.objects.filter(mock_code="MOCK-SHUKUROV").first()
+            or Test.objects.filter(title__icontains="Shukurov").first()
+        )
 
         if existing_test and reset:
-            self.stdout.write(self.style.WARNING("Reset requested: Deleting existing Shukurov Mock test..."))
+            self.stdout.write(self.style.WARNING("Reset requested: Deleting existing BMB Mock test..."))
             existing_test.delete()
             existing_test = None
 
-        test_title = "Ona tili va Adabiyot — Rasmiy Mock Test (Umid Shukurov jamoasi)"
+        test_title = "Ona tili va Adabiyot — BMB Rasmiy Mock Test"
         test_desc = (
             "3 soatlik (180 daqiqa) rasmiy BMBA andozasidagi diagnostik imtihon. "
             "44 ta test topshirig'i, 'O'lik dengiz', 'Ming marta shukur' (Aziz Nesin), "
@@ -1327,12 +1330,12 @@ class Command(BaseCommand):
                     "   II. Asosiy qism: kamida uchta xatboshidan iborat bo'lsin, har bir xatboshida tomonlarning va shaxsiy qarashlaringizni hayotiy misollar va dalillar bilan yoriting;\n"
                     "   III. Xulosa: asosiy qismdagi fikrlarni umumlashtiruvchi 2-3 jumla bo'lsin.\n"
                     "3. Reja tuzilmaydi, epigraf qo'yilmaydi.\n"
-                    "4. Minimal hajm: 150 so'z (tavsiya etiladi: 200–350 so'z)."
+                    "4. Minimal hajm: 200 so'z (maksimal: 500 so'z)."
                 ),
                 "type": Question.QuestionType.WRITTEN,
                 "points": 25,
                 "config": {
-                    "min_words": 150,
+                    "min_words": 200,
                     "max_words": 500,
                     "rubric": "bmb_12_mezon",
                     "national_cert_scale": True,
@@ -1385,21 +1388,32 @@ class Command(BaseCommand):
                 created_choices += 1
 
         # 9. Sync Standalone EssayTopic for Task 45
-        essay_topic, topic_created = EssayTopic.objects.get_or_create(
-            title="Nafaqa yoshining qisqartirilishi kadrlar salohiyatini oshiradimi? (Umid Shukurov Mock)",
-            defaults={
-                "description": (
-                    "Bugungi kunda nafaqaga chiqish yoshi borasida jamiyat vakillari turlicha fikrga ega: "
-                    "ayrimlar yosh chegarasini qisqartirish kadrlar salohiyati uchun muhimligini ta’kidlashadi; "
-                    "ayrimlar pensiya yoshining uzaytirilishi yaxshi hayot kafolati ekanligini uqtirishadi. "
-                    "Nima deb o'ylaysiz, nafaqa yoshining qisqartirilishi kadrlar salohiyatini oshiradimi? "
-                    "Fikr-mulohazalaringizni publitsistik uslubda 12 mezon asosida bayon qiling."
-                ),
-                "category": EssayTopic.Category.ONA_TILI,
-                "word_limit_min": 150,
-                "word_limit_max": 500,
-                "time_limit_minutes": 60,
-                "national_cert_scale": True,
+        topic_title = "Nafaqaga chiqish yoshi chegarasi va kadrlar salohiyati (BMB Rasmiy Mock)"
+        old_topic = EssayTopic.objects.filter(title__icontains="Umid Shukurov").first()
+        if old_topic:
+            old_topic.title = topic_title
+            old_topic.word_limit_min = 200
+            old_topic.word_limit_max = 500
+            old_topic.national_cert_scale = True
+            old_topic.save(update_fields=["title", "word_limit_min", "word_limit_max", "national_cert_scale"])
+            essay_topic = old_topic
+            topic_created = False
+        else:
+            essay_topic, topic_created = EssayTopic.objects.get_or_create(
+                title=topic_title,
+                defaults={
+                    "description": (
+                        "Bugungi kunda nafaqaga chiqish yoshi borasida jamiyat vakillari turlicha fikrga ega: "
+                        "ayrimlar yosh chegarasini qisqartirish kadrlar salohiyati uchun muhimligini ta’kidlashadi; "
+                        "ayrimlar pensiya yoshining uzaytirilishi yaxshi hayot kafolati ekanligini uqtirishadi. "
+                        "Nima deb o'ylaysiz, nafaqa yoshining qisqartirilishi kadrlar salohiyatini oshiradimi? "
+                        "Fikr-mulohazalaringizni publitsistik uslubda 12 mezon asosida bayon qiling."
+                    ),
+                    "category": EssayTopic.Category.ONA_TILI,
+                    "word_limit_min": 200,
+                    "word_limit_max": 500,
+                    "time_limit_minutes": 60,
+                    "national_cert_scale": True,
                 "sample_outline": (
                     "I. Kirish: Zamonaviy mehnat bozorida pensiya yoshi va mehnat unumdorligi o'rtasidagi munosabat.\n"
                     "II. Asosiy qism:\n"
@@ -1416,7 +1430,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Successfully seeded BMBA Shukurov Mock Test!\n"
+                f"Successfully seeded BMB Rasmiy Mock Test!\n"
                 f"- Test ID: {test.id} ({test.title})\n"
                 f"- Code: {test.mock_code}\n"
                 f"- Time Limit: {test.time_limit_minutes} minutes\n"

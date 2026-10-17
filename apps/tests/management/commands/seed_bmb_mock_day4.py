@@ -1230,12 +1230,12 @@ class Command(BaseCommand):
                     "   II. Asosiy qism: kamida uchta xatboshidan iborat bo'lsin, har bir xatboshida tomonlarning va shaxsiy qarashlaringizni hayotiy misollar va dalillar bilan yoriting;\n"
                     "   III. Xulosa: asosiy qismdagi fikrlarni umumlashtiruvchi 2-3 jumla bo'lsin.\n"
                     "3. Reja tuzilmaydi, epigraf qo'yilmaydi.\n"
-                    "4. Minimal hajm: 150 so'z (tavsiya etiladi: 200–350 so'z)."
+                    "4. Minimal hajm: 200 so'z (maksimal: 500 so'z)."
                 ),
                 "type": Question.QuestionType.WRITTEN,
                 "points": 25,
                 "config": {
-                    "min_words": 150,
+                    "min_words": 200,
                     "max_words": 500,
                     "rubric": "bmb_12_mezon",
                     "national_cert_scale": True,
@@ -1298,7 +1298,7 @@ class Command(BaseCommand):
                     "publitsistik uslubda 12 mezon asosida bayon qiling."
                 ),
                 "category": EssayTopic.Category.ONA_TILI,
-                "word_limit_min": 150,
+                "word_limit_min": 200,
                 "word_limit_max": 500,
                 "time_limit_minutes": 60,
                 "national_cert_scale": True,

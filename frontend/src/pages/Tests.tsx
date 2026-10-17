@@ -102,9 +102,13 @@ export default function Tests() {
     String(item.title ?? '').toLowerCase().includes('mock #4') ||
     String(item.title ?? '').toLowerCase().includes('mock 4');
 
-  const isMockShukurov = (item: TestListItem) =>
+  const isMockBmbDiag = (item: TestListItem) =>
+    item.mock_code === '#MOCK-BMB-DIAGNOSTIC' ||
+    item.mock_code === 'MOCK-BMB-DIAGNOSTIC' ||
     item.mock_code === '#MOCK-SHUKUROV' ||
-    String(item.title ?? '').toLowerCase().includes('shukurov');
+    item.mock_code === 'MOCK-SHUKUROV' ||
+    String(item.title ?? '').toLowerCase().includes('shukurov') ||
+    String(item.title ?? '').toLowerCase().includes('bmb rasmiy mock');
 
   // Client-side search and category filtering
   const visible = useMemo(() => {
@@ -122,7 +126,7 @@ export default function Tests() {
       if (categoryFilter === 'milliy') {
         return (
           isMock4(item) ||
-          isMockShukurov(item) ||
+          isMockBmbDiag(item) ||
           item.category_slug === 'milliy-sertifikat' ||
           title.includes('milliy') ||
           course.includes('milliy')
@@ -135,8 +139,8 @@ export default function Tests() {
     });
 
     return [...filtered].sort((a, b) => {
-      const aWeight = isMockAttest(a) ? 3 : isMockShukurov(a) ? 2 : isMock4(a) ? 1 : 0;
-      const bWeight = isMockAttest(b) ? 3 : isMockShukurov(b) ? 2 : isMock4(b) ? 1 : 0;
+      const aWeight = isMockAttest(a) ? 3 : isMockBmbDiag(a) ? 2 : isMock4(a) ? 1 : 0;
+      const bWeight = isMockAttest(b) ? 3 : isMockBmbDiag(b) ? 2 : isMock4(b) ? 1 : 0;
       return bWeight - aWeight;
     });
   }, [tests, query, difficulty, categoryFilter]);
@@ -230,11 +234,11 @@ export default function Tests() {
                 }}
                 disabled={mockBusy}
                 onClick={() => {
-                  setMockCode('#MOCK-SHUKUROV');
-                  executeJoin('#MOCK-SHUKUROV');
+                  setMockCode('#MOCK-BMB-DIAGNOSTIC');
+                  executeJoin('#MOCK-BMB-DIAGNOSTIC');
                 }}
               >
-                🔥 #MOCK-SHUKUROV (Umid Shukurov jamoasi Mock) →
+                🔥 #MOCK-BMB-DIAGNOSTIC (BMB Rasmiy Mock Test) →
               </button>
               <button
                 type="button"
@@ -271,7 +275,7 @@ export default function Tests() {
                 setMockCode(e.target.value);
                 if (mockErr) setMockErr(null);
               }}
-              placeholder="#MOCK-SHUKUROV"
+              placeholder="#MOCK-BMB-DIAGNOSTIC"
               required
               style={{
                 width: '180px',
@@ -448,9 +452,9 @@ export default function Tests() {
       <div className="grid">
         {visible.map((item) => {
           const isAttest = isMockAttest(item);
-          const isShukurov = isMockShukurov(item);
+          const isBmbDiag = isMockBmbDiag(item);
           const isM4 = isMock4(item);
-          const isHighlight = isAttest || isShukurov || isM4;
+          const isHighlight = isAttest || isBmbDiag || isM4;
           return (
             <Link
               key={item.id}
@@ -463,7 +467,7 @@ export default function Tests() {
                       background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)',
                       boxShadow: '0 4px 20px rgba(139, 92, 246, 0.2)',
                     }
-                  : isShukurov
+                  : isBmbDiag
                   ? {
                       border: '1.5px solid rgba(245, 158, 11, 0.7)',
                       background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
@@ -484,7 +488,7 @@ export default function Tests() {
                     style={{
                       background: isAttest
                         ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
-                        : isShukurov
+                        : isBmbDiag
                         ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
                         : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                       color: '#ffffff',
@@ -494,7 +498,7 @@ export default function Tests() {
                       borderRadius: '9999px',
                       boxShadow: isAttest
                         ? '0 2px 8px rgba(139, 92, 246, 0.4)'
-                        : isShukurov
+                        : isBmbDiag
                         ? '0 2px 8px rgba(245, 158, 11, 0.4)'
                         : '0 2px 8px rgba(16, 185, 129, 0.4)',
                       display: 'inline-flex',
@@ -504,8 +508,8 @@ export default function Tests() {
                   >
                     {isAttest
                       ? '🎓 Rasmiy Attestatsiya Diagnostika 2026'
-                      : isShukurov
-                      ? '🔥 Rasmiy Mock (Umid Shukurov)'
+                      : isBmbDiag
+                      ? '🔥 BMB Rasmiy Mock Test'
                       : '⭐️ BMB Rasmiy Mock #4 (Tekin)'}
                   </span>
                   <span className="badge amber">

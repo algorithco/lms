@@ -882,39 +882,43 @@ export default function TakeTest() {
             <div className="single-q-actions">
               <button
                 type="button"
-                className="btn ghost"
+                className="btn ghost nav-prev-btn"
                 disabled={i === 0 || finished || submitting}
-                onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={() => {
+                  setCurrentQIndex((prev) => Math.max(0, prev - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44 }}
               >
-                <ChevronLeft size={16} /> {t('take_prev_q') || 'Oldingi'}
+                <ChevronLeft size={18} /> {t('take_prev_q') || 'Oldingi'}
               </button>
 
-              <span className="muted small" style={{ fontWeight: 600 }}>
+              <span className="muted small q-counter-text" style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                 {i + 1} / {attempt.questions.length}
               </span>
 
               {i < attempt.questions.length - 1 ? (
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn primary nav-next-btn"
                   disabled={finished || submitting}
-                  onClick={() =>
-                    setCurrentQIndex((prev) => Math.min(attempt.questions.length - 1, prev + 1))
-                  }
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    setCurrentQIndex((prev) => Math.min(attempt.questions.length - 1, prev + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44 }}
                 >
-                  {t('take_next_q') || 'Keyingi'} <ChevronRight size={16} />
+                  {t('take_next_q') || 'Keyingi'} <ChevronRight size={18} />
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn primary nav-finish-btn"
                   disabled={finished || submitting}
                   onClick={() => setConfirmOpen(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, background: '#10b981', borderColor: '#10b981' }}
                 >
-                  <Check size={16} /> {t('take_finish')}
+                  <Check size={18} /> {t('take_finish')}
                 </button>
               )}
             </div>
@@ -925,7 +929,7 @@ export default function TakeTest() {
   };
 
   return (
-    <div>
+    <div className="take-test-page-container">
       <p className="muted small">
         <Link to="/tests">← {t('tests')}</Link>
       </p>
@@ -950,25 +954,28 @@ export default function TakeTest() {
         </p>
       )}
 
-      <div className="toolbar">
-        {remaining !== null && (
-          <span className={`timer${timerClass}`}>
-            <ClockIcon size={14} className="ico" /> {formatClock(remaining)}
+      {/* Sticky Top Bar with 180 min Timer & Progress */}
+      <div className="take-test-sticky-top">
+        <div className="toolbar" style={{ justifyContent: 'space-between', margin: 0 }}>
+          {remaining !== null && (
+            <span className={`timer${timerClass}`}>
+              <ClockIcon size={16} className="ico" /> {formatClock(remaining)}
+            </span>
+          )}
+          <span className="badge" style={{ fontWeight: 700 }}>
+            {answeredCount}/{attempt.questions.length} ✓
           </span>
-        )}
-        <span className="badge">
-          {answeredCount}/{attempt.questions.length} ✓
-        </span>
-        {attempt.status === 'timeout' && (
-          <span className="badge rose">{t('take_time_up')}</span>
-        )}
-      </div>
-      <div className="progress" style={{ marginBottom: 16 }}>
-        <div
-          style={{
-            width: `${(answeredCount / Math.max(attempt.questions.length, 1)) * 100}%`,
-          }}
-        />
+          {attempt.status === 'timeout' && (
+            <span className="badge rose">{t('take_time_up')}</span>
+          )}
+        </div>
+        <div className="progress" style={{ marginTop: 6, marginBottom: 0 }}>
+          <div
+            style={{
+              width: `${(answeredCount / Math.max(attempt.questions.length, 1)) * 100}%`,
+            }}
+          />
+        </div>
       </div>
 
       {/* Mode switch, hotkey hints, quick finish button */}

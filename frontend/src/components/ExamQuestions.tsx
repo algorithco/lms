@@ -51,7 +51,9 @@ export function AutosaveStatus({ saved, error }: { saved: boolean; error?: strin
 
 export function PassageCard({ passage }: { passage: PassageDef }) {
   const { t } = useLang();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
 
   return (
     <div className="card passage-card sticky-passage" style={{ marginBottom: 12 }}>
@@ -68,7 +70,7 @@ export function PassageCard({ passage }: { passage: PassageDef }) {
         }}
       >
         <p className="small" style={{ margin: 0, fontWeight: 800, color: '#f59e0b', fontSize: '0.95rem' }}>
-          📖 {t('exam_passage_title') || t('exam_passage')}
+          📖 {t('exam_passage_title') || "Matnni ko'rish (Qismlar bo'yicha)"}
           {passage.title ? ` · ${passage.title}` : ''}
         </p>
         <button
@@ -77,7 +79,7 @@ export function PassageCard({ passage }: { passage: PassageDef }) {
           onClick={() => setCollapsed(!collapsed)}
           style={{ fontSize: '0.78rem', padding: '3px 8px' }}
         >
-          {collapsed ? `📖 ${t('read_full_passage')}` : `🔼 ${t('collapse_passage')}`}
+          {collapsed ? `📖 ${t('read_full_passage') || 'Matnni ochish'}` : `🔼 ${t('collapse_passage') || 'Yopish'}`}
         </button>
       </div>
 
@@ -94,8 +96,20 @@ export function PassageCard({ passage }: { passage: PassageDef }) {
           {passage.content}
         </div>
       ) : (
-        <div style={{ whiteSpace: 'pre-line', lineHeight: 1.6, fontSize: '0.92rem', color: 'var(--muted)' }}>
-          {passage.content.slice(0, 240)}...
+        <div
+          onClick={() => setCollapsed(false)}
+          style={{
+            whiteSpace: 'pre-line',
+            lineHeight: 1.6,
+            fontSize: '0.9rem',
+            color: 'var(--muted)',
+            cursor: 'pointer',
+            padding: '6px 8px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: 6,
+          }}
+        >
+          {passage.content.slice(0, 180)}... <span style={{ color: '#f59e0b', fontWeight: 600 }}>[To'liq matnni o'qish →]</span>
         </div>
       )}
 
@@ -281,7 +295,8 @@ export function WrittenInput({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const words = value.trim() === '' ? 0 : value.trim().split(/\s+/).filter(Boolean).length;
-  const targetMin = minWords > 0 ? minWords : 150;
+  const targetMin = minWords > 0 ? minWords : 200;
+  const targetMax = maxWords > 0 ? maxWords : 500;
 
   const handlePhotoSelect = (file: File | null) => {
     if (!file) return;
@@ -294,8 +309,9 @@ export function WrittenInput({
     }
   };
 
-  const isMinReached = words >= targetMin;
-  const isGoodRange = words >= targetMin && words <= 350;
+  const isUnder = words < targetMin;
+  const isOver = targetMax > 0 && words > targetMax;
+  const isIdeal = !isUnder && !isOver;
 
   return (
     <div style={{ marginTop: 10 }}>
@@ -313,37 +329,34 @@ export function WrittenInput({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span
             style={{
-              padding: '5px 12px',
+              padding: '6px 14px',
               borderRadius: 8,
-              fontSize: '0.82rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              background: !isMinReached
+              background: isUnder
                 ? 'rgba(245, 158, 11, 0.15)'
-                : isGoodRange
-                  ? 'rgba(16, 185, 129, 0.15)'
-                  : 'rgba(59, 130, 246, 0.15)',
-              color: !isMinReached ? '#f59e0b' : isGoodRange ? '#10b981' : '#60a5fa',
+                : isIdeal
+                  ? 'rgba(16, 185, 129, 0.16)'
+                  : 'rgba(239, 68, 68, 0.18)',
+              color: isUnder ? '#f59e0b' : isIdeal ? '#10b981' : '#ef4444',
               border: `1px solid ${
-                !isMinReached
-                  ? 'rgba(245, 158, 11, 0.35)'
-                  : isGoodRange
-                    ? 'rgba(16, 185, 129, 0.35)'
-                    : 'rgba(59, 130, 246, 0.35)'
+                isUnder
+                  ? 'rgba(245, 158, 11, 0.4)'
+                  : isIdeal
+                    ? 'rgba(16, 185, 129, 0.45)'
+                    : 'rgba(239, 68, 68, 0.5)'
               }`,
+              transition: 'all 0.2s ease',
             }}
           >
-            <span>{isMinReached ? '✓' : '⚠️'}</span>
+            <span>{isUnder ? '⚠️' : isIdeal ? '✓' : '❌'}</span>
             <span>
-              {t('essay_word_count_live')} {words} (
-              {!isMinReached
-                ? `${t('essay_word_count_min')}: ${targetMin}`
-                : isGoodRange
-                  ? t('essay_word_count_good')
-                  : t('essay_word_count_long')}
-              )
+              {isUnder && (t('word_counter_under') ? t('word_counter_under').replace('{count}', String(words)).replace('{min}', String(targetMin)) : `Yetarli emas: ${words}/${targetMin} so'z`)}
+              {isIdeal && (t('word_counter_ideal') ? t('word_counter_ideal').replace('{count}', String(words)) : `Ideal hajm: ${words} so'z ✓`)}
+              {isOver && (t('word_counter_over') ? t('word_counter_over').replace('{count}', String(words)).replace('{max}', String(targetMax)) : `Hajm oshib ketdi: ${words}/${targetMax} so'z`)}
             </span>
           </span>
         </div>

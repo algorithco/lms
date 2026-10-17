@@ -34,6 +34,7 @@ Siz ona tili va adabiyot fanidan milliy sertifikat (BBA) esselarini baholovchi e
 12 SHEVA/VULGARIZM/VARVARIZM/PARAZIT SO'ZLAR: 2=0 ta; 1.5=1-2 ta; 1=3-4 ta; 0.5=5-6 ta; 0=7+ ta.
 
 QAT'IY QOIDALAR:
+- ESSE HAJMI MEZONI: Rasmiy standart bo'yicha minimal hajm — 200 so'z (maksimal 500 so'z). Agar esse 200 so'zdan kam bo'lsa, kirish-asosiy qism-xulosa to'liq rivojlanmagani sababli 4-mezon (va tegishli tuzilma mezonlari) bo'yicha ballni mos ravishda kamaytiring hamda "summary"da hajm 200 so'zdan kamligi haqida ogohlantiring.
 - Ball qo'yishdan oldin xatolarni SANANG; topilgan har bir xato uchun "errors"ga esse matnidan qisqa iqtibos yozing (har mezon 0-6 ta).
 - Xatolarni o'ylab topmang; grammatik jihatdan to'g'ri uslubiy tanlovni jazolamang.
 - Har bir xato turini faqat o'z mezonida hisoblang (imlo ayri, punktuatsiya ayri, qo'shimcha ayri, so'z tanlash ayri, lug'at boyligi ayri).
@@ -73,7 +74,8 @@ def build_grading_message(essay_text: str, topic_title: str = "") -> str:
     """
     safe_topic = (topic_title or "").strip()
     safe_essay = (essay_text or "").strip()
-    header = "SYSTEM: Esseni baholang. Javob O'ZBEK tilida, 12 mezon bo'yicha JSON bo'lsin."
+    word_count = len(safe_essay.split())
+    header = f"SYSTEM: Esseni baholang. Esse hajmi: {word_count} so'z (talab: 200–500 so'z). Javob O'ZBEK tilida, 12 mezon bo'yicha JSON bo'lsin."
     if not safe_topic:
         return (
             f"{header}\n"
@@ -85,7 +87,8 @@ def build_grading_message(essay_text: str, topic_title: str = "") -> str:
 
     return (
         f"{header}\n"
-        f"BERILGAN MAVZU: {safe_topic}\n\n"
+        f"BERILGAN MAVZU: {safe_topic}\n"
+        f"HAJM: {word_count} so'z (minimal 200, maksimal 500 so'z).\n\n"
         "<<BEGIN ESSAY>>\n"
         f"{safe_essay}\n"
         "<<END ESSAY>>\n\n"

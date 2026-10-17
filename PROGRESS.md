@@ -61,13 +61,39 @@
 - [x] `curl -I https://grandec.uz/healthz/` -> **HTTP 200 OK** tasdiqlandi.
 - [x] `curl -fsS https://grandec.uz/api/v1/payments/card-info/` -> PRO narxi 49 000 so'm ekanligi jonli serverda tasdiqlandi.
 
+### 2.6. Esse So'zlar Chegarasi (200–500) & AI Baholash Integratsiyasi
+- [x] `apps/essays/validators.py` yaratildi: `MIN_WORDS_DEFAULT = 200`, `MAX_WORDS_DEFAULT = 500`.
+- [x] `apps/essays/models.py`: `EssayTopic.word_limit_min` default qiymati 200 qilib belgilandi.
+- [x] `apps/essays/services.py` & `apps/essays/prompts.py`: AI esse baholash tizimi 12 mezon bo'yicha 200–500 so'z talabini hisobga oladi; 200 so'zdan kam esselar uchun xulosa ogohlantirishi beriladi.
+- [x] `frontend/src/components/ExamQuestions.tsx`, `frontend/src/pages/EssayWrite.tsx`, `PanelTopics.tsx`:
+  - 3 holatli jonli so'zlar hisoblagichi (Live Word Counter):
+    * 0–199 so'z: Sariq/amber ogohlantirish (`⚠️ Yetarli emas: {count}/200 so'z`)
+    * 200–500 so'z: Zumrad yashil (`✓ Ideal hajm: {count} so'z`)
+    * 500+ so'z: Qizil ogohlantirish (`❌ Hajm oshib ketdi: {count}/500 so'z`)
+
+### 2.7. Rasmiy BMB Diagnostika Brendingi
+- [x] Saytdan barcha "Umid Shukurov" nomlari olib tashlandi.
+- [x] Test nomi rasmiy: "Ona tili va Adabiyot — BMB Rasmiy Mock Test".
+- [x] Mock kodi: `#MOCK-BMB-DIAGNOSTIC` (orqaga moslik uchun `#MOCK-SHUKUROV` ham saqlangan).
+- [x] Esse mavzusi: "Nafaqaga chiqish yoshi chegarasi va kadrlar salohiyati (BMB Rasmiy Mock)".
+
+### 2.8. Responsive & Adaptive CBT Imtihon Interfeysi
+- [x] Mobil (< 768px):
+  - O'qish matnlari akordeon rejimi (`📖 Matnni ko'rish (Qismlar bo'yicha)`) orqali ixcham ochilib-yopiladi.
+  - Savollar palitrasi (1–45) gorizontal silliq skrollanadi.
+  - Navigatsiya tugmalari (`[ ← Oldingi ]` va `[ Keyingi → ]`): ekranning pastiga yopishgan (sticky bottom) shaffof blur qatlam bilan qotirilgan, tagidagi kontent yopilib qolmasligi uchun bufer masofa qoldirilgan.
+- [x] Desktop (>= 1024px):
+  - Chap tomonda matn va lug'at, o'ng tomonda aktiv savol va variantlar qulay ikkiga bo'lingan (split-screen).
+  - 180 daqiqalik taymer doimiy tepada ko'rinib turadi (`.take-test-sticky-top`).
+- [x] Barcha qurilmalarda: Variantlar teginish uchun qulay (`min-height: 48px`, faol bosilish effekti).
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va xatosiz bajarildi, production serverida jonli tekshiruvdan o'tkazildi.
+- Barcha talablar to'liq bajarildi, testlar 100% muvaffaqiyatli o'tdi, VPS deployment bosqichi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Ustozlar tomonidan ochilayotgan yangi guruhlar va o'quvchilarning avtomatik PRO tarifidan foydalanish monitoringini olib borish.
-- Foydalanuvchilar oqimi va to'lov tushumlarini tahlil qilish.
+- Production serverida test va esse natijalari monitoringini olib borish.
+- O'quvchilarning real imtihon ko'rsatkichlarini tahlil qilish.

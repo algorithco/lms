@@ -803,18 +803,23 @@ img.auth-logo {
 .quiz-opt {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.75rem;
   width: 100%;
   text-align: left;
-  padding: 0.8rem 1rem;
-  border-radius: 0.9rem;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
   border: 1px solid var(--border);
   background: var(--card);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .quiz-opt:hover { border-color: var(--accent); }
+.quiz-opt:active { transform: scale(0.985); }
 .quiz-opt.picked { border-color: var(--accent); background: rgba(250, 204, 21, 0.1); }
 .quiz-opt.right { border-color: var(--accent); background: rgba(250, 204, 21, 0.18); }
 .quiz-opt.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.12); }
@@ -1146,6 +1151,18 @@ img.auth-logo {
   padding: 0.2rem;
 }
 
+@media (max-width: 767px) {
+  .q-palette-grid {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 0.5rem;
+    padding: 0.4rem 0.2rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
 .q-palette-badge {
   min-width: 2.1rem;
   height: 2.1rem;
@@ -1198,18 +1215,23 @@ img.auth-logo {
   align-items: start;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .single-q-split.has-passage {
     grid-template-columns: 1.05fr 1.15fr;
+    gap: 1.5rem;
   }
 
   .sticky-passage {
     position: sticky;
-    top: 80px;
-    max-height: calc(100vh - 120px);
+    top: 130px;
+    max-height: calc(100vh - 150px);
     overflow-y: auto;
     scrollbar-width: thin;
     padding-right: 6px;
+  }
+
+  .passage-content-scroll {
+    max-height: calc(100vh - 250px);
   }
 }
 
@@ -1220,10 +1242,17 @@ img.auth-logo {
   scrollbar-width: thin;
 }
 
-@media (min-width: 900px) {
-  .passage-content-scroll {
-    max-height: calc(100vh - 220px);
-  }
+/* Sticky top timer toolbar */
+.take-test-sticky-top {
+  position: sticky;
+  top: 56px;
+  z-index: 30;
+  background: var(--bg);
+  padding: 8px 0;
+  margin-bottom: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .single-q-actions {
@@ -1236,4 +1265,54 @@ img.auth-logo {
   padding-top: 1.2rem;
   border-top: 1px solid var(--border);
 }
+
+@media (max-width: 767px) {
+  .take-test-page-container {
+    padding-bottom: 84px;
+  }
+
+  .q-palette-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem;
+    padding: 0.35rem 0.2rem 0.6rem 0.2rem;
+    max-height: none;
+    scrollbar-width: none;
+  }
+  .q-palette-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .q-palette-badge {
+    flex-shrink: 0;
+  }
+
+  .single-q-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(11, 17, 32, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 10px 16px;
+    margin: 0;
+    z-index: 100;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.55);
+  }
+
+  .single-q-actions .nav-prev-btn,
+  .single-q-actions .nav-next-btn,
+  .single-q-actions .nav-finish-btn {
+    min-height: 46px;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+}
+
 

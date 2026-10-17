@@ -193,3 +193,196 @@ def send_parent_weekly_digest_task(self: Any) -> dict[str, Any]:
     except Exception as exc:
         logger.exception("Failed running weekly digest task")
         raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    name="notifications.send_parent_essay_alert",
+    max_retries=3,
+    default_retry_delay=30,
+)
+def send_parent_essay_alert_task(self: Any, submission_id: int) -> dict[str, Any]:
+    """
+    Esse AI yoki ustoz tomonidan baholanganda ota-onaga tezkor xabar yetkazish.
+    """
+    try:
+        from apps.accounts.models import ParentStudentRelation
+        from apps.essays.models import EssaySubmission
+        from apps.notifications.services.telegram_service import TelegramService
+
+        sub = EssaySubmission.objects.select_related("student", "topic").get(id=submission_id)
+        student = sub.student
+        topic_title = sub.topic.title if sub.topic else "Erkin mavzu"
+
+        relations = ParentStudentRelation.objects.filter(
+            student=student,
+            is_verified=True,
+            instant_alerts_enabled=True,
+            parent_telegram_id__isnull=False,
+        )
+        if not relations.exists():
+            return {"status": "no_active_parent_subscribers"}
+
+        student_name = student.get_full_name() or student.email
+        total_score = float(sub.total_score or 0)
+        summary = sub.summary or "Esse muvaffaqiyatli baholandi."
+
+        msg = (
+            f"📝 <b>Farzandingiz {student_name}ning essesi baholandi!</b>\n\n"
+            f"📌 <b>Mavzu:</b> {topic_title}\n"
+            f"🎯 <b>Ball:</b> {total_score:.1f}/24.0\n"
+            f"💡 <b>Xulosa:</b> {summary[:300]}\n\n"
+            f"<i>GRAND EDUCATION Smart Monitoring</i>"
+        )
+
+        sent_count = 0
+        for rel in relations:
+            try:
+                TelegramService.send_message(
+                    chat_id=rel.parent_telegram_id,
+                    text=msg,
+                    recipient=student,
+                    parse_mode="HTML",
+                )
+                sent_count += 1
+            except Exception as exc:
+                logger.warning("Failed to send parent essay alert to %s: %s", rel.parent_telegram_id, exc)
+
+        return {"status": "sent", "count": sent_count}
+    except Exception as exc:
+        logger.exception("Error in send_parent_essay_alert_task for sub_id=%s", submission_id)
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    name="notifications.send_parent_absence_alert",
+    max_retries=3,
+    default_retry_delay=30,
+)
+def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) -> dict[str, Any]:
+    """
+    O'quvchi darsga kelmaganda ota-onasiga tezkor xabar yuborish.
+    """
+    try:
+        from apps.accounts.models import ParentStudentRelation, User
+        from apps.attendance.models import AttendanceSession
+        from apps.notifications.services.telegram_service import TelegramService
+
+        session = AttendanceSession.objects.select_related("group").get(id=session_id)
+        student = User.objects.get(id=student_id)
+        student_name = student.get_full_name() or student.email
+
+        relations = ParentStudentRelation.objects.filter(
+            student=student,
+            is_verified=True,
+            instant_alerts_enabled=True,
+            parent_telegram_id__isnull=False,
+        )
+        if not relations.exists():
+            return {"status": "no_active_parent_subscribers"}
+
+        date_str = session.lesson_date.strftime("%d.%m.%Y")
+        msg = (
+            f"⚠️ <b>Hurmatli ota-ona!</b>\n\n"
+            f"Farzandingiz <b>{student_name}</b> bugun ({date_str}) "
+            f"<b>{session.group.name}</b> darsiga kelmadi.\n\n"
+            f"Iltimos, dars qoldirilishi sababidan xabardor bo'ling.\n"
+            f"<i>GRAND EDUCATION — Mas'uliyatli ta'lim</i>"
+        )
+
+        sent_count = 0
+        for rel in relations:
+            try:
+                TelegramService.send_message(
+                    chat_id=rel.parent_telegram_id,
+                    text=msg,
+                    recipient=student,
+                    parse_mode="HTML",
+                )
+                sent_count += 1
+            except Exception as exc:
+                logger.warning("Failed to send parent absence alert to %s: %s", rel.parent_telegram_id, exc)
+
+        return {"status": "sent", "count": sent_count}
+    except Exception as exc:
+        logger.exception("Error in send_parent_absence_alert_task")
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    name="notifications.send_tuition_due_alerts",
+    max_retries=2,
+    default_retry_delay=60,
+)
+def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
+    """
+    Kurs to'lovi muddati yaqinlashganda (2 kun oldin va muddat kuni) o'quvchi va ota-onaga eslatma yuborish.
+    """
+    try:
+        from datetime import date
+        from apps.accounts.models import ParentStudentRelation
+        from apps.notifications.services.telegram_service import TelegramService
+        from apps.tuition.models import StudentTuition
+
+        today = date.today()
+        two_days_later = today + timedelta(days=2)
+
+        # 2 kun qolgan va to'lov kuni bo'lgan to'lanmagan to'lovlar
+        tuitions = StudentTuition.objects.filter(
+            status__in=[StudentTuition.Status.PENDING, StudentTuition.Status.OVERDUE],
+            due_date__in=[today, two_days_later],
+        ).select_related("student", "group")
+
+        sent_count = 0
+        for tuit in tuitions:
+            student = tuit.student
+            student_name = student.get_full_name() or student.email
+            group_name = tuit.group.name
+            fee_formatted = f"{tuit.monthly_fee:,}".replace(",", " ")
+            due_str = tuit.due_date.strftime("%d.%m.%Y")
+
+            is_today = tuit.due_date == today
+            timing_text = "BUGUN to'lovning oxirgi kuni!" if is_today else f"To'lov muddatiga 2 kun qoldi ({due_str})."
+
+            # O'quvchiga Telegram xabar
+            student_tg_id = getattr(student, "telegram_chat_id", None) or getattr(student, "telegram_id", None)
+            student_msg = (
+                f"💳 <b>Kurs to'lovi eslatmasi!</b>\n\n"
+                f"Hurmatli <b>{student_name}</b>, sizning <b>{group_name}</b> guruhi uchun oylik to'lovingiz: <b>{fee_formatted} so'm</b>.\n"
+                f"⏰ {timing_text}\n\n"
+                f"To'lovni amalga oshirib, ustozingizga ma'lum qilishingizni so'raymiz."
+            )
+            if student_tg_id:
+                try:
+                    TelegramService.send_message(chat_id=student_tg_id, text=student_msg, parse_mode="HTML")
+                    sent_count += 1
+                except Exception:
+                    pass
+
+            # Ota-onaga Telegram xabar
+            parent_rels = ParentStudentRelation.objects.filter(
+                student=student,
+                is_verified=True,
+                instant_alerts_enabled=True,
+                parent_telegram_id__isnull=False,
+            )
+            parent_msg = (
+                f"💳 <b>Hurmatli ota-ona!</b>\n\n"
+                f"Farzandingiz <b>{student_name}</b> ning <b>{group_name}</b> guruhi oylik to'lovi: <b>{fee_formatted} so'm</b>.\n"
+                f"⏰ {timing_text}\n\n"
+                f"<i>GRAND EDUCATION o'quv markazi</i>"
+            )
+            for rel in parent_rels:
+                try:
+                    TelegramService.send_message(chat_id=rel.parent_telegram_id, text=parent_msg, parse_mode="HTML")
+                    sent_count += 1
+                except Exception:
+                    pass
+
+        return {"status": "sent", "count": sent_count}
+    except Exception as exc:
+        logger.exception("Error in send_tuition_due_alerts_task")
+        raise self.retry(exc=exc)
+

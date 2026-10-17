@@ -593,3 +593,69 @@ class TuitionAuditLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.action} → invoice={self.invoice_id} payment={self.payment_id}"
+
+
+class StudentTuition(models.Model):
+    """
+    O'quvchining guruh bo'yicha kurs oylik to'lovi (Tuition Billing).
+    """
+
+    class Status(models.TextChoices):
+        PAID = "paid", _("To'langan")
+        PENDING = "pending", _("Kutilmoqda")
+        OVERDUE = "overdue", _("Muddati o'tgan")
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tuition_records",
+        verbose_name=_("o'quvchi"),
+    )
+    group = models.ForeignKey(
+        "courses.StudentGroup",
+        on_delete=models.CASCADE,
+        related_name="tuition_records",
+        verbose_name=_("guruh"),
+    )
+    monthly_fee = models.PositiveIntegerField(
+        _("oylik to'lov summasi (so'm)"),
+        default=400000,
+    )
+    due_date = models.DateField(
+        _("to'lov muddati"),
+        db_index=True,
+    )
+    status = models.CharField(
+        _("to'lov holati"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    paid_at = models.DateTimeField(
+        _("to'langan vaqt"),
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("O'quvchi kurs to'lovi")
+        verbose_name_plural = _("O'quvchilar kurs to'lovlari")
+        ordering = ["-due_date", "student__first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "group", "due_date"],
+                name="uniq_student_group_tuition_due",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student_id} · {self.group_id} · {self.monthly_fee} ({self.status})"
+
+    def mark_paid(self) -> None:
+        self.status = self.Status.PAID
+        self.paid_at = timezone.now()
+        self.save(update_fields=["status", "paid_at", "updated_at"])
+

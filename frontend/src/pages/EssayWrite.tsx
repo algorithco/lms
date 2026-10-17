@@ -68,8 +68,8 @@ export default function EssayWrite() {
   const autoSubmitDone = useRef(false);
 
   const words = useMemo(() => countEssayWords(text), [text]);
-  const minWords = Number(topic?.word_limit_min ?? 0);
-  const maxWords = Number(topic?.word_limit_max ?? 0);
+  const minWords = Number(topic?.word_limit_min ?? 200) || 200;
+  const maxWords = Number(topic?.word_limit_max ?? 500) || 500;
   const timeLimitMin = Number(topic?.time_limit_minutes ?? 0);
   const hasLimit = timeLimitMin > 0;
   const zone = wordZone(words, minWords, maxWords);
@@ -323,9 +323,32 @@ export default function EssayWrite() {
                 <ClockIcon size={14} className="ico" /> {mm}:{ss}
               </span>
             )}
-            <span className="badge">
-              {t('words')}: {words} / {minWords}+
-              {maxWords > 0 ? ` (max ${maxWords})` : ''}
+            <span
+              className="badge"
+              style={{
+                background:
+                  words < minWords
+                    ? 'rgba(245, 158, 11, 0.16)'
+                    : words <= maxWords
+                    ? 'rgba(16, 185, 129, 0.16)'
+                    : 'rgba(239, 68, 68, 0.18)',
+                color:
+                  words < minWords
+                    ? '#f59e0b'
+                    : words <= maxWords
+                    ? '#10b981'
+                    : '#ef4444',
+                borderColor:
+                  words < minWords
+                    ? 'rgba(245, 158, 11, 0.4)'
+                    : words <= maxWords
+                    ? 'rgba(16, 185, 129, 0.45)'
+                    : 'rgba(239, 68, 68, 0.5)',
+                fontWeight: 700,
+              }}
+            >
+              {words < minWords ? '⚠️ ' : words <= maxWords ? '✓ ' : '❌ '}
+              {t('words')}: {words} / {minWords}–{maxWords} so'z
             </span>
             <span className="muted small">
               {saveState === 'saving' && t('essay_js_saving')}
@@ -367,12 +390,20 @@ export default function EssayWrite() {
               />
             </div>
             {zone === 'under' && (
-              <p className="muted small">
-                {t('essay_js_write_more')} {minWords - words} {t('words_suffix')}
+              <p className="error small" style={{ color: '#f59e0b', fontWeight: 600 }}>
+                ⚠️ Yetarli emas: {words}/{minWords} soʻz ({minWords - words} ta soʻz qoldi)
               </p>
             )}
-            {zone === 'over' && <p className="error">{t('essay_js_over_limit')}</p>}
-            {zone === 'ok' && <p className="muted small">{t('essay_js_in_range')}</p>}
+            {zone === 'over' && (
+              <p className="error small" style={{ color: '#ef4444', fontWeight: 600 }}>
+                ❌ Hajm oshib ketdi: {words}/{maxWords} soʻz
+              </p>
+            )}
+            {zone === 'ok' && (
+              <p className="muted small" style={{ color: '#10b981', fontWeight: 600 }}>
+                ✓ Ideal hajm: {words} soʻz
+              </p>
+            )}
             <p className="muted small">{t('essay_autosave_note')}</p>
             <div className="toolbar">
               <button className="btn sm" disabled={busy} onClick={saveNow}>
