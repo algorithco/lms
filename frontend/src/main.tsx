@@ -25,10 +25,14 @@ function initPushNotifications(): void {
 
 initPushNotifications()
 
+import { ThemeProvider } from './theme/ThemeContext.tsx'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LangProvider>
-      <App />
-    </LangProvider>
+    <ThemeProvider>
+      <LangProvider>
+        <App />
+      </LangProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

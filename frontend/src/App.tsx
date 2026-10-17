@@ -40,6 +40,7 @@ const PasswordReset = lazyPage(() => import('./pages/PasswordReset'));
 const PasswordResetConfirm = lazyPage(() => import('./pages/PasswordResetConfirm'));
 const MyCertificates = lazyPage(() => import('./pages/MyCertificates'));
 const Plans = lazyPage(() => import('./pages/Plans'));
+const Profile = lazyPage(() => import('./pages/Profile'));
 const Register = lazyPage(() => import('./pages/Register'));
 const Results = lazyPage(() => import('./pages/Results'));
 const Subscribe = lazyPage(() => import('./pages/Subscribe'));
@@ -96,6 +97,7 @@ function AnimatedRoutes() {
                 requires auth, so a shell-less public route only 401'd. */}
             <Route path="/essay-leaderboard" element={<EssayLeaderboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/:id" element={<TestDetail />} />
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}

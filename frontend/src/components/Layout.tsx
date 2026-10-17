@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin } from '../lib/api';
-import LanguageSwitcher from './LanguageSwitcher';
+import UserNavDropdown from './UserNavDropdown';
 import {
   AwardIcon,
   BarChartIcon,
@@ -43,10 +43,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  // No language switcher inside the admin control panel — it is uz-only.
-  const showLangSwitch = !pathname.startsWith('/panel');
 
   const onLogout = async () => {
     await logout();
@@ -136,9 +133,7 @@ export default function Layout() {
               {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
             </button>
             <div className="spacer" />
-            {showLangSwitch && <LanguageSwitcher />}
-            {user && <span className={`role role-${user.role}`}>{user.role}</span>}
-            <button className="btn ghost sm" onClick={onLogout} aria-label={t('logout')}>{t('logout')}</button>
+            <UserNavDropdown />
           </div>
         </header>
         <main className="content">

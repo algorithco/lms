@@ -20,7 +20,6 @@ import {
 } from '../lib/api';
 import type { AuthUser, TokenPair } from '../lib/api';
 import { storeLang } from '../i18n/LangContext';
-import type { AppLang } from '../i18n/LangContext';
 
 interface AuthState {
   user: AuthUser | null;
@@ -54,11 +53,17 @@ function isProtectedPath(pathname: string): boolean {
   return !PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-/** Adopt the server-side language preference (local choice wins if already set). */
+/** Keep local language preference or default strictly to Uzbek (uz). */
 function adoptServerLang(language: unknown): void {
-  if (language !== 'uz' && language !== 'ru' && language !== 'en') return;
   try {
-    if (!localStorage.getItem('lms_lang')) storeLang(language as AppLang);
+    const existing = localStorage.getItem('lms_lang');
+    if (!existing) {
+      storeLang('uz');
+      return;
+    }
+    if (language === 'uz' || language === 'ru' || language === 'en') {
+      // Local choice always wins if already set
+    }
   } catch {
     /* ignore */
   }

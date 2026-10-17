@@ -159,6 +159,7 @@ export interface AuthUser {
   is_staff?: boolean;
   is_superuser?: boolean;
   is_platform_admin?: boolean;
+  avatar?: string;
 }
 
 /** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
@@ -219,6 +220,8 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     ...(typeof raw.is_platform_admin === 'boolean'
       ? { is_platform_admin: raw.is_platform_admin }
       : {}),
+    ...(typeof raw.avatar === 'string' && raw.avatar ? { avatar: raw.avatar } : {}),
+    ...(typeof raw.picture === 'string' && raw.picture ? { avatar: raw.picture } : {}),
   };
 }
 

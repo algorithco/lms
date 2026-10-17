@@ -7,6 +7,7 @@ import { School, landingFor } from '../lib/api';
 import TrendChart from '../components/TrendChart';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import UserNavDropdown from '../components/UserNavDropdown';
 import confetti from 'canvas-confetti';
 import {
   BotIcon,
@@ -199,13 +200,6 @@ export default function Landing() {
   const [newsDone, setNewsDone] = useState(false);
 
   const startTo = user ? landingFor(user) : '/register';
-  const initials =
-    (user?.full_name || '?')
-      .split(' ')
-      .map((p) => p[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || '?';
 
   useEffect(() => {
     let live = true;
@@ -308,8 +302,8 @@ export default function Landing() {
     <div
       className="landing"
       style={{
-        background: '#090d16',
-        color: '#f8fafc',
+        background: 'var(--bg)',
+        color: 'var(--ink)',
         minHeight: '100svh',
         position: 'relative',
         overflowX: 'clip',
@@ -448,49 +442,14 @@ export default function Landing() {
             ))}
           </div>
 
-          {/* Right Area: Language Switcher & Auth Button */}
+          {/* Right Area: Language Switcher & Auth / User Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <LanguageSwitcher />
-
             {user ? (
-              <Link
-                to={startTo}
-                className="btn-glow"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px 8px 10px',
-                  borderRadius: 12,
-                  fontSize: 13,
-                  fontWeight: 800,
-                  color: '#090d16',
-                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                  textDecoration: 'none',
-                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
-                }}
-              >
-                <span
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 999,
-                    background: 'rgba(9, 13, 22, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 11,
-                    fontWeight: 900,
-                  }}
-                >
-                  {initials}
-                </span>
-                <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.full_name}
-                </span>
-              </Link>
+              <UserNavDropdown />
             ) : (
-              <button
+              <>
+                <LanguageSwitcher />
+                <button
                 type="button"
                 onClick={() => openAuthModal('login')}
                 className="btn-glow"
@@ -523,6 +482,7 @@ export default function Landing() {
                   1-klik
                 </span>
               </button>
+            </>
             )}
 
             {/* Mobile Hamburger */}

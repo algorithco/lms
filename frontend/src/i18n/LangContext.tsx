@@ -125,6 +125,8 @@ function readStoredLang(): AppLang {
   try {
     const v = localStorage.getItem(LANG_KEY);
     if (v === 'ru' || v === 'en' || v === 'uz') return v;
+    // Strictly default to 'uz' (Uzbek) on first visit and persist
+    localStorage.setItem(LANG_KEY, 'uz');
   } catch {
     /* ignore */
   }
