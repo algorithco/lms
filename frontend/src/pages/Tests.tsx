@@ -25,19 +25,45 @@ export default function Tests() {
   const [mockBusy, setMockBusy] = useState(false);
   const [mockErr, setMockErr] = useState<string | null>(null);
 
-  const joinMock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mockCode.trim()) return;
+  const formatMockError = (e2: unknown): string => {
+    if (e2 instanceof Error) {
+      try {
+        const parsed = JSON.parse(e2.message);
+        if (parsed && typeof parsed.error === 'string') return parsed.error;
+        if (parsed && typeof parsed.detail === 'string') return parsed.detail;
+      } catch {
+        // Not a JSON string
+      }
+      return e2.message;
+    }
+    return 'Mock test topilmadi yoki kod noto‘g‘ri.';
+  };
+
+  const executeJoin = async (overrideCode?: string) => {
+    const raw = (overrideCode ?? mockCode).trim();
+    if (!raw) {
+      setMockErr("Iltimos, Mock test kodini kiriting (masalan: #MOCK-BMB04)");
+      return;
+    }
     setMockBusy(true);
     setMockErr(null);
     try {
-      const res = await MockTests.join(mockCode.trim());
-      navigate(`/take/${res.attempt_id}`);
+      const res = await MockTests.join(raw);
+      if (res && res.attempt_id) {
+        navigate(`/take/${res.attempt_id}`);
+      } else if (res && res.test_id) {
+        navigate(`/tests/${res.test_id}`);
+      }
     } catch (e2) {
-      setMockErr(e2 instanceof Error ? e2.message : 'Mock test topilmadi yoki kod noto‘g‘ri.');
+      setMockErr(formatMockError(e2));
     } finally {
       setMockBusy(false);
     }
+  };
+
+  const joinMock = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeJoin();
   };
 
   useEffect(() => {
@@ -141,22 +167,34 @@ export default function Tests() {
                   background: 'rgba(16, 185, 129, 0.15)',
                   border: '1px solid #10b981',
                   color: '#10b981',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s ease',
                 }}
-                onClick={() => setMockCode('#MOCK-BMB04')}
+                disabled={mockBusy}
+                onClick={() => {
+                  setMockCode('#MOCK-BMB04');
+                  executeJoin('#MOCK-BMB04');
+                }}
               >
-                ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4)
+                ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4) →
               </button>
             </div>
           </div>
           <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input
+              type="text"
               value={mockCode}
-              onChange={(e) => setMockCode(e.target.value)}
+              onChange={(e) => {
+                setMockCode(e.target.value);
+                if (mockErr) setMockErr(null);
+              }}
               placeholder="#MOCK-BMB04"
               required
               style={{
@@ -171,7 +209,26 @@ export default function Tests() {
             </button>
           </form>
         </div>
-        {mockErr && <p className="error small" style={{ margin: '8px 0 0' }}>{mockErr}</p>}
+        {mockErr && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '10px 14px',
+              borderRadius: 8,
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>⚠️</span>
+            <span>{mockErr}</span>
+          </div>
+        )}
       </div>
 
       <div className="toolbar" style={{ marginBottom: 16 }}>

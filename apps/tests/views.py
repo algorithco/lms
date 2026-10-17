@@ -637,17 +637,18 @@ class QuickMockJoinView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
-        code = request.data.get("code", "")
+        code = request.data.get("code") or request.data.get("mock_code") or ""
         auto_start = bool(request.data.get("auto_start", True))
 
-        if not code or not code.strip():
+        if not code or not str(code).strip():
             return Response({"error": "Mock kodi kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST)
 
+        code_clean = str(code).strip()
         from apps.tests.mock_service import find_mock_by_code
-        test = find_mock_by_code(code.strip())
+        test = find_mock_by_code(code_clean)
         if not test:
             return Response(
-                {"error": f"'{code}' kodi bo'yicha faol Mock test topilmadi. Kodni tekshirib qayta kiriting."},
+                {"error": f"'{code_clean}' kodi bo'yicha faol Mock test topilmadi. Kodni tekshirib qayta kiriting."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

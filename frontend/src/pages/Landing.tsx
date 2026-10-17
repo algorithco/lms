@@ -6,6 +6,7 @@ import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
 import { School, landingFor } from '../lib/api';
 import TrendChart from '../components/TrendChart';
+import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import UserNavDropdown from '../components/UserNavDropdown';
@@ -1571,92 +1572,7 @@ export default function Landing() {
         </section>
 
         {/* HOW IT WORKS */}
-        <section
-          id="how"
-          style={{
-            padding: '70px 20px',
-            background: 'var(--card-2)',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <div style={{ margin: '0 auto', maxWidth: 1000 }}>
-            <div style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 48px' }}>
-              <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.22em', color: '#F59E0B' }}>
-                {t('how_eyebrow')}
-              </span>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: 'var(--ink)', margin: '12px 0' }}>
-                {t('how_title_1')} <span className="hero-title-gradient">{t('how_title_2')}</span>
-              </h2>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: 24,
-              }}
-            >
-              {[
-                [t('step1_title'), t('step1_desc'), '#F59E0B'],
-                [t('step2_title'), t('step2_desc'), '#10B981'],
-                [t('step3_title'), t('step3_desc'), '#8B5CF6'],
-              ].map(([title, desc, c], i) => (
-                <div
-                  key={i}
-                  className="glass-card lcard-hover"
-                  style={{
-                    borderRadius: 20,
-                    padding: '32px 24px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 18,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#090d16',
-                      fontSize: 22,
-                      fontWeight: 900,
-                      marginBottom: 18,
-                      background: `linear-gradient(135deg, ${c}, ${c}dd)`,
-                      boxShadow: `0 8px 24px ${c}40`,
-                    }}
-                  >
-                    {i + 1}
-                  </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 10px' }}>{title}</h3>
-                  <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: 0 }}>{desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: 44, textAlign: 'center' }}>
-              <button
-                type="button"
-                onClick={() => (user ? navigate(startTo) : openAuthModal('register'))}
-                className="btn-glow"
-                style={{
-                  padding: '14px 36px',
-                  fontSize: 15,
-                  fontWeight: 800,
-                  borderRadius: 14,
-                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                  color: '#090d16',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
-                }}
-              >
-                {t('cta_free_account')} →
-              </button>
-            </div>
-          </div>
-        </section>
+        <HowItWorks />
       </main>
 
       {/* FOOTER */}

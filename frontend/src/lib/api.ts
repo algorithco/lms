@@ -507,9 +507,11 @@ export interface MockTestCreateResponse {
 }
 
 export interface MockTestJoinResponse {
-  ok: boolean;
+  ok?: boolean;
+  success?: boolean;
   message?: string;
-  test: {
+  test_id?: number;
+  test?: {
     id: number;
     title: string;
     mock_code: string;
@@ -544,11 +546,13 @@ export const MockTests = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  join: (mock_code: string) =>
-    api<MockTestJoinResponse>('/api/tests/mock/join/', {
+  join: (mock_code: string) => {
+    const clean = (mock_code || '').trim();
+    return api<MockTestJoinResponse>('/api/tests/mock/join/', {
       method: 'POST',
-      body: JSON.stringify({ mock_code }),
-    }),
+      body: JSON.stringify({ code: clean, mock_code: clean, auto_start: true }),
+    });
+  },
   leaderboard: (testId: number | string) =>
     api<MockLeaderboardResponse>(`/api/tests/mock/${testId}/leaderboard/`),
 };
