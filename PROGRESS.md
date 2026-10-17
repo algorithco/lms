@@ -90,7 +90,7 @@
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq bajarildi, testlar 100% muvaffaqiyatli o'tdi, VPS deployment bosqichi.
+- Barcha talablar to'liq va mukammal bajarildi, VPS (`169.58.58.229`) da production deploy yakunlandi va HTTP 200 OK orqali tasdiqlandi.
 
 ---
 
