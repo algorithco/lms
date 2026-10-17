@@ -218,7 +218,7 @@ export default function Plans() {
       >
         {PUBLIC_PLANS.map((p) => {
           const apiPlan = plans.find((ap) => ap.plan_type === p.plan_type);
-          const priceMonthly = apiPlan ? Number(apiPlan.price_monthly) : p.defaultPrice;
+          const priceMonthly = p.plan_type === 'pro' ? 49000 : (p.plan_type === 'starter' ? 15000 : 60000);
           const mine = myActive && (myPlanType === p.plan_type || (apiPlan && myPlanId === apiPlan.id));
           const isPro = p.plan_type === 'pro';
           const isPremium = p.plan_type === 'premium';

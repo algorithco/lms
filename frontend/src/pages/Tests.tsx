@@ -17,6 +17,7 @@ export default function Tests() {
   const [hasPrev, setHasPrev] = useState(false);
   const [query, setQuery] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'milliy' | 'attestatsiya' | 'arena'>('all');
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +43,7 @@ export default function Tests() {
   const executeJoin = async (overrideCode?: string) => {
     const raw = (overrideCode ?? mockCode).trim();
     if (!raw) {
-      setMockErr("Iltimos, Mock test kodini kiriting (masalan: #MOCK-BMB04)");
+      setMockErr("Iltimos, Mock test kodini kiriting (masalan: #MOCK-ATTEST2026)");
       return;
     }
     setMockBusy(true);
@@ -90,6 +91,12 @@ export default function Tests() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  const isMockAttest = (item: TestListItem) =>
+    item.mock_code === '#MOCK-ATTEST2026' ||
+    item.mock_code === 'MOCK-ATTEST2026' ||
+    item.category_slug === 'attestatsiya' ||
+    String(item.title ?? '').toLowerCase().includes('attestatsiya');
+
   const isMock4 = (item: TestListItem) =>
     item.mock_code === '#MOCK-BMB04' ||
     String(item.title ?? '').toLowerCase().includes('mock #4') ||
@@ -99,9 +106,7 @@ export default function Tests() {
     item.mock_code === '#MOCK-SHUKUROV' ||
     String(item.title ?? '').toLowerCase().includes('shukurov');
 
-  // Backend TestListView exposes no search/filter params, so search +
-  // difficulty filter run client-side over the loaded page (parity with
-  // legacy templates/web/test_list.html filterTests() behaviour).
+  // Client-side search and category filtering
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = tests.filter((item) => {
@@ -109,15 +114,32 @@ export default function Tests() {
       const course = String(item.course_title ?? '').toLowerCase();
       const matchSearch = !q || title.includes(q) || course.includes(q);
       const matchDiff = !difficulty || String(item.difficulty ?? '') === difficulty;
-      return matchSearch && matchDiff;
+      if (!matchSearch || !matchDiff) return false;
+
+      if (categoryFilter === 'attestatsiya') {
+        return isMockAttest(item);
+      }
+      if (categoryFilter === 'milliy') {
+        return (
+          isMock4(item) ||
+          isMockShukurov(item) ||
+          item.category_slug === 'milliy-sertifikat' ||
+          title.includes('milliy') ||
+          course.includes('milliy')
+        );
+      }
+      if (categoryFilter === 'arena') {
+        return false;
+      }
+      return true;
     });
 
     return [...filtered].sort((a, b) => {
-      const aWeight = isMockShukurov(a) ? 2 : isMock4(a) ? 1 : 0;
-      const bWeight = isMockShukurov(b) ? 2 : isMock4(b) ? 1 : 0;
+      const aWeight = isMockAttest(a) ? 3 : isMockShukurov(a) ? 2 : isMock4(a) ? 1 : 0;
+      const bWeight = isMockAttest(b) ? 3 : isMockShukurov(b) ? 2 : isMock4(b) ? 1 : 0;
       return bWeight - aWeight;
     });
-  }, [tests, query, difficulty]);
+  }, [tests, query, difficulty, categoryFilter]);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
@@ -164,6 +186,31 @@ export default function Tests() {
               Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
             </p>
             <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn sm"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.15)',
+                  border: '1px solid #8b5cf6',
+                  color: '#a78bfa',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s ease',
+                }}
+                disabled={mockBusy}
+                onClick={() => {
+                  setMockCode('#MOCK-ATTEST2026');
+                  executeJoin('#MOCK-ATTEST2026');
+                }}
+              >
+                🎓 #MOCK-ATTEST2026 (Attestatsiya Diagnostika 2026) →
+              </button>
               <button
                 type="button"
                 className="btn sm"
@@ -260,6 +307,101 @@ export default function Tests() {
         )}
       </div>
 
+      {/* 🏷 Toifalar Bo'limi (Category Filter) */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginBottom: 16,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <button
+          type="button"
+          className={`btn sm ${categoryFilter === 'all' ? 'primary' : 'ghost'}`}
+          onClick={() => setCategoryFilter('all')}
+          style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
+        >
+          🌐 Barchasi
+        </button>
+        <button
+          type="button"
+          className={`btn sm ${categoryFilter === 'milliy' ? 'primary' : 'ghost'}`}
+          onClick={() => setCategoryFilter('milliy')}
+          style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
+        >
+          📜 Milliy Sertifikat
+        </button>
+        <button
+          type="button"
+          className={`btn sm ${categoryFilter === 'attestatsiya' ? 'primary' : 'ghost'}`}
+          onClick={() => setCategoryFilter('attestatsiya')}
+          style={{
+            borderRadius: 20,
+            padding: '6px 16px',
+            fontWeight: 700,
+            borderColor: categoryFilter === 'attestatsiya' ? '#8b5cf6' : undefined,
+            background: categoryFilter === 'attestatsiya' ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : undefined,
+            color: categoryFilter === 'attestatsiya' ? '#fff' : undefined,
+            boxShadow: categoryFilter === 'attestatsiya' ? '0 0 12px rgba(139, 92, 246, 0.4)' : undefined,
+          }}
+        >
+          🎓 Attestatsiya (Ustozlar uchun)
+        </button>
+        <button
+          type="button"
+          className={`btn sm ${categoryFilter === 'arena' ? 'primary' : 'ghost'}`}
+          onClick={() => setCategoryFilter('arena')}
+          style={{
+            borderRadius: 20,
+            padding: '6px 16px',
+            fontWeight: 700,
+            borderColor: categoryFilter === 'arena' ? '#f59e0b' : undefined,
+            background: categoryFilter === 'arena' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : undefined,
+            color: categoryFilter === 'arena' ? '#111' : undefined,
+            boxShadow: categoryFilter === 'arena' ? '0 0 12px rgba(245, 158, 11, 0.4)' : undefined,
+          }}
+        >
+          ⚔️ 1v1 Arena
+        </button>
+      </div>
+
+      {categoryFilter === 'arena' && (
+        <div
+          className="card"
+          style={{
+            background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)',
+            border: '1.5px solid rgba(245, 158, 11, 0.6)',
+            borderRadius: '16px',
+            padding: '24px',
+            marginBottom: '20px',
+            textAlign: 'center',
+          }}
+        >
+          <span style={{ fontSize: '3rem', display: 'block', marginBottom: '8px' }}>⚔️</span>
+          <h2 style={{ color: '#f59e0b', margin: '0 0 8px' }}>1v1 Real-Vaqt Bilimlar Arenasi</h2>
+          <p className="muted" style={{ maxWidth: 600, margin: '0 auto 16px', fontSize: '0.95rem' }}>
+            Boshqa o‘qituvchilar va abituriyentlar bilan real-vaqt rejimida 1v1 tezkor test jangida bellashing, tajriba to‘plang va milliy reytingingizni oshiring!
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            style={{
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: '#111',
+              fontWeight: 800,
+              padding: '10px 24px',
+              borderRadius: '10px',
+              fontSize: '1rem',
+            }}
+            onClick={() => navigate('/arena')}
+          >
+            🚀 Arenaga kirish va duel boshlash →
+          </button>
+        </div>
+      )}
+
       <div className="toolbar" style={{ marginBottom: 16 }}>
         <input
           type="search"
@@ -305,16 +447,23 @@ export default function Tests() {
 
       <div className="grid">
         {visible.map((item) => {
+          const isAttest = isMockAttest(item);
           const isShukurov = isMockShukurov(item);
           const isM4 = isMock4(item);
-          const isHighlight = isShukurov || isM4;
+          const isHighlight = isAttest || isShukurov || isM4;
           return (
             <Link
               key={item.id}
               to={`/tests/${item.id}`}
               className="card link-card"
               style={
-                isShukurov
+                isAttest
+                  ? {
+                      border: '1.5px solid rgba(139, 92, 246, 0.75)',
+                      background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                      boxShadow: '0 4px 20px rgba(139, 92, 246, 0.2)',
+                    }
+                  : isShukurov
                   ? {
                       border: '1.5px solid rgba(245, 158, 11, 0.7)',
                       background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
@@ -333,7 +482,9 @@ export default function Tests() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                   <span
                     style={{
-                      background: isShukurov
+                      background: isAttest
+                        ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
+                        : isShukurov
                         ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
                         : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                       color: '#ffffff',
@@ -341,7 +492,9 @@ export default function Tests() {
                       fontSize: '0.75rem',
                       padding: '3px 10px',
                       borderRadius: '9999px',
-                      boxShadow: isShukurov
+                      boxShadow: isAttest
+                        ? '0 2px 8px rgba(139, 92, 246, 0.4)'
+                        : isShukurov
                         ? '0 2px 8px rgba(245, 158, 11, 0.4)'
                         : '0 2px 8px rgba(16, 185, 129, 0.4)',
                       display: 'inline-flex',
@@ -349,10 +502,14 @@ export default function Tests() {
                       gap: 4,
                     }}
                   >
-                    {isShukurov ? '🔥 Rasmiy Mock (Umid Shukurov)' : '⭐️ BMB Rasmiy Mock #4 (Tekin)'}
+                    {isAttest
+                      ? '🎓 Rasmiy Attestatsiya Diagnostika 2026'
+                      : isShukurov
+                      ? '🔥 Rasmiy Mock (Umid Shukurov)'
+                      : '⭐️ BMB Rasmiy Mock #4 (Tekin)'}
                   </span>
                   <span className="badge amber">
-                    <ClockIcon size={12} className="ico" /> 180 {t('minutes_suffix')}
+                    <ClockIcon size={12} className="ico" /> {item.time_limit_minutes ?? 100} {t('minutes_suffix')}
                   </span>
                   <span className="badge blue">Qiyin (Hard)</span>
                 </div>

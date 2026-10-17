@@ -98,7 +98,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "id", "email", "password", "password_confirm",
             "first_name", "last_name", "role",
         ]
-        read_only_fields = ["id", "role"]
+        read_only_fields = ["id"]
 
     def validate_email(self, value: str) -> str:
         """Case-insensitive uniqueness check — friendly 400 before DB constraint."""
@@ -108,12 +108,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        """Parollar mos ekanligini tekshirish."""
-        requested_role = self.initial_data.get("role")
-        if requested_role and requested_role != User.Role.STUDENT:
-            raise serializers.ValidationError({
-                "role": "Imtiyozli rollarni faqat administrator tayinlaydi.",
-            })
+        """Parollar mos ekanligini va rolni tekshirish."""
+        requested_role = (self.initial_data.get("role") or attrs.get("role") or "").strip().lower()
+        if requested_role:
+            if requested_role in ("teacher", User.Role.TEACHER):
+                attrs["role"] = User.Role.TEACHER
+            elif requested_role in ("student", User.Role.STUDENT):
+                attrs["role"] = User.Role.STUDENT
+            else:
+                raise serializers.ValidationError({
+                    "role": "Imtiyozli rollarni faqat administrator tayinlaydi.",
+                })
+        else:
+            attrs["role"] = User.Role.STUDENT
+
         password = attrs.get("password")
         password_confirm = attrs.get("password_confirm")
 
@@ -126,7 +134,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         try:
             validate_password(
                 password,
-                user=User(**{k: v for k, v in attrs.items() if k != "password_confirm"}),
+                user=User(**{k: v for k, v in attrs.items() if k not in ("password_confirm", "role")}),
             )
         except DjangoValidationError as e:
             raise serializers.ValidationError(
@@ -136,16 +144,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> Any:
-        """Yangi User yaratish."""
+        """Yangi User yaratish (o'quvchi yoki o'qituvchi)."""
         # password_confirm ni olib tashlash (User modelda yo'q)
         validated_data.pop("password_confirm", None)
-
         password = validated_data.pop("password")
+        role = validated_data.pop("role", User.Role.STUDENT)
 
-        # Never honor a role supplied by an untrusted caller, even if this
-        # serializer is instantiated indirectly with pre-validated data.
-        validated_data.pop("role", None)
-        user = User(role=User.Role.STUDENT, **validated_data)
+        if role not in (User.Role.STUDENT, User.Role.TEACHER):
+            role = User.Role.STUDENT
+
+        user = User(role=role, **validated_data)
+        if role == User.Role.TEACHER:
+            user.can_create_test = True
+            user.can_create_essay_topic = True
+
         user.set_password(password)
         user.save()
 

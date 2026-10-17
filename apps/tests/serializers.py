@@ -172,11 +172,14 @@ class TestListSerializer(serializers.ModelSerializer):
 
     total_questions = serializers.IntegerField(read_only=True)
     course_title = serializers.CharField(source="course.title", read_only=True)
+    category_slug = serializers.CharField(source="course.category.slug", read_only=True, default="")
+    category_name = serializers.CharField(source="course.category.name", read_only=True, default="")
 
     class Meta:
         model = Test
         fields = [
             "id", "title", "description", "course", "course_title",
+            "category_slug", "category_name", "mock_code",
             "difficulty", "time_limit_minutes", "max_attempts",
             "pass_percentage", "total_questions", "is_active",
             "created_at",

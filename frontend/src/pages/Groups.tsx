@@ -459,6 +459,7 @@ export default function Groups() {
                                   <thead>
                                     <tr>
                                       <th>Talaba</th>
+                                      <th>Tarif</th>
                                       <th>Testlar</th>
                                       <th>O‘rtacha</th>
                                       <th>BMB</th>
@@ -470,6 +471,7 @@ export default function Groups() {
                                     {analytics.students.map((st) => (
                                       <tr key={st.student_id}>
                                         <td><strong>{st.student_name}</strong></td>
+                                        <td><span className="badge green" style={{ fontWeight: 600 }}>⭐ PRO (Faol)</span></td>
                                         <td>{st.tests_count}</td>
                                         <td>{st.avg_test_percentage}%</td>
                                         <td>

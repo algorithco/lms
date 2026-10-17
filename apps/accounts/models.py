@@ -168,6 +168,9 @@ class User(AbstractUser):
             self.email = self.email.strip().lower()
         else:
             self.email = ""
+        if self.role == self.Role.TEACHER:
+            self.can_create_test = True
+            self.can_create_essay_topic = True
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -195,6 +198,23 @@ class User(AbstractUser):
     @property
     def is_center_admin(self) -> bool:
         return self.role == self.Role.CENTER_ADMIN
+
+    @property
+    def has_pro_access(self) -> bool:
+        """True if user has PRO access (either via teacher role, teacher group, subscription or profile)."""
+        if self.role in (self.Role.TEACHER, self.Role.ADMIN):
+            return True
+        if hasattr(self, "student_groups") and self.student_groups.exists():
+            return True
+        sub = getattr(self, "subscription", None)
+        if sub and getattr(sub, "is_active", False):
+            plan_type = getattr(sub.plan, "plan_type", "").lower()
+            if plan_type in ("pro", "premium", "family"):
+                return True
+        profile = getattr(self, "profile", None)
+        if profile and getattr(profile, "plan", "").lower() in ("pro", "premium", "family"):
+            return True
+        return False
 
 
 class Profile(models.Model):
@@ -247,6 +267,10 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return f"Profile: {self.user.get_full_name()}"
+
+    @property
+    def has_pro_access(self) -> bool:
+        return self.user.has_pro_access
 
 
 class TelegramLinkChallenge(models.Model):

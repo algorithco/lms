@@ -15,6 +15,10 @@ export interface GroupMember {
   first_name: string;
   last_name: string;
   full_name: string;
+  has_pro?: boolean;
+  pro_status_label?: string;
+  tests_count?: number;
+  essays_count?: number;
 }
 
 export interface SchoolGroup {

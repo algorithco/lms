@@ -457,14 +457,24 @@ export default function TeacherDashboard() {
               <tr>
                 <th>{t('th_student')}</th>
                 <th>{t('th_email')}</th>
+                <th>Tarif</th>
+                <th>Testlar</th>
+                <th>Esselar</th>
                 <th>{t('groups')}</th>
               </tr>
             </thead>
             <tbody>
               {students.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.full_name}</td>
+                  <td><strong>{s.full_name}</strong></td>
                   <td>{s.email}</td>
+                  <td>
+                    <span className="badge green" style={{ fontWeight: 600 }}>
+                      {s.pro_status_label ?? '⭐ PRO (Faol)'}
+                    </span>
+                  </td>
+                  <td>{s.tests_count ?? 0} ta</td>
+                  <td>{s.essays_count ?? 0} ta</td>
                   <td>
                     {groups
                       .filter((g) => (g.students ?? []).some((m) => m.id === s.id))

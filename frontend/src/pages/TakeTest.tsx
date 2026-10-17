@@ -663,7 +663,7 @@ export default function TakeTest() {
             </div>
           </div>
 
-          <p style={{ fontWeight: 700, fontSize: isSingleView ? '1.12rem' : '1rem', lineHeight: 1.55 }}>
+          <p style={{ fontWeight: 700, fontSize: isSingleView ? '1.12rem' : '1rem', lineHeight: 1.55, whiteSpace: 'pre-line' }}>
             {q.text}
           </p>
 

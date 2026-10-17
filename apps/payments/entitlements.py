@@ -321,15 +321,16 @@ def get_effective_entitlement(user) -> Entitlement:
     # --- 2. Approved teacher sponsorship ------------------------------------
     sponsorship = _effective_sponsorship(user)
     if sponsorship is not None:
-        sponsored_plan = _plan_by_code(SubscriptionPlan.PlanType.TEACHER_SPONSORED)
+        sponsored_plan = _plan_by_code(SubscriptionPlan.PlanType.PRO) or _plan_by_code(SubscriptionPlan.PlanType.TEACHER_SPONSORED)
         if sponsored_plan is not None:
             merged, contributed = _apply_layer(dict(config), sponsored_plan)
             merged, contributed2 = _apply_layer(merged, sponsorship)
             entitlement_plan = sponsored_plan
             source = SOURCE_SPONSORED
-            plan_name = sponsored_plan.name or "Ustoz guruhi"
+            plan_name = "PRO (Ustoz guruhi orqali)"
             is_sponsored = True
             expires_at = sponsorship.expires_at
+            merged["is_unlimited_tests"] = True
             return Entitlement(
                 source=source, plan_type=sponsored_plan.plan_type,
                 plan_name=plan_name, is_sponsored=is_sponsored,
@@ -342,30 +343,55 @@ def get_effective_entitlement(user) -> Entitlement:
             user.pk,
         )
 
-    # --- 3. Paid subscription ----------------------------------------------
+    # --- 3. Paid or sponsored subscription ---------------------------------
     subscription = _subscription_for(user)
     if subscription is not None and subscription.is_active:
         plan = subscription.plan
         entitlement_plan = plan
-        source = SOURCE_SUBSCRIPTION
-        plan_name = plan.name
+        is_teacher_sponsored = (
+            subscription.purchase_source == UserSubscription.Source.TEACHER_SPONSORED
+            or (hasattr(user, "student_groups") and user.student_groups.exists())
+        )
+        source = SOURCE_SPONSORED if is_teacher_sponsored else SOURCE_SUBSCRIPTION
+        plan_name = "PRO (Ustoz guruhi orqali)" if is_teacher_sponsored else (plan.name if plan else "PRO")
+        is_sponsored = is_teacher_sponsored
         expires_at = subscription.expires_at
         if plan is not None:
             merged, contributed = _apply_layer(dict(config), plan)
+            if is_teacher_sponsored:
+                merged["is_unlimited_tests"] = True
             return Entitlement(
                 source=source, plan_type=plan.plan_type, plan_name=plan_name,
-                is_sponsored=False, plan=plan, subscription=subscription,
+                is_sponsored=is_sponsored, plan=plan, subscription=subscription,
                 expires_at=expires_at, override_fields=contributed, **merged,
             )
         return Entitlement(
             source=source, plan_type=None, plan_name=plan_name,
-            is_sponsored=False, subscription=subscription, expires_at=expires_at,
+            is_sponsored=is_sponsored, subscription=subscription, expires_at=expires_at,
             image_essay_weekly_limit=config["image_essay_weekly_limit"],
             text_essay_weekly_limit=config["text_essay_weekly_limit"],
             text_essay_cooldown_hours=config["text_essay_cooldown_hours"],
             test_limit=config["test_limit"],
             quota_period_days=period_days,
+            is_unlimited_tests=True if is_teacher_sponsored else False,
         )
+
+    # --- 3.5. Enrolled in teacher group (Auto-delegated PRO) ---------------
+    if hasattr(user, "student_groups") and user.student_groups.exists():
+        pro_plan = _plan_by_code(SubscriptionPlan.PlanType.PRO)
+        if pro_plan is not None:
+            merged, contributed = _apply_layer(dict(config), pro_plan)
+            merged["is_unlimited_tests"] = True
+            return Entitlement(
+                source=SOURCE_SPONSORED,
+                plan_type=pro_plan.plan_type,
+                plan_name="PRO (Ustoz guruhi orqali)",
+                is_sponsored=True,
+                plan=pro_plan,
+                expires_at=None,
+                override_fields=contributed,
+                **merged,
+            )
 
     # --- 4. Default / free policy ------------------------------------------
     # The ``free`` plan row (when an administrator has configured one) is the

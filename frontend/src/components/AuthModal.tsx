@@ -36,6 +36,7 @@ export default function AuthModal() {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -245,6 +246,7 @@ export default function AuthModal() {
           password_confirm: passwordConfirm,
           first_name: firstName,
           last_name: lastName,
+          role,
         });
         triggerSuccessCelebration();
         closeAuthModal();
@@ -756,28 +758,69 @@ export default function AuthModal() {
         {showEmailForm && (
           <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {mode === 'register' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="auth-input-group">
-                  <UserIcon size={16} className="auth-input-icon" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ism"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                  />
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    style={{
+                      background: role === 'student' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `1px solid ${role === 'student' ? '#6366f1' : 'rgba(255, 255, 255, 0.1)'}`,
+                      color: role === 'student' ? '#818cf8' : '#cbd5e1',
+                      fontWeight: role === 'student' ? 700 : 500,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🎓 O‘quvchiman
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    style={{
+                      background: role === 'teacher' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `1px solid ${role === 'teacher' ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                      color: role === 'teacher' ? '#34d399' : '#cbd5e1',
+                      fontWeight: role === 'teacher' ? 700 : 500,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    👨‍🏫 O‘qituvchiman
+                  </button>
                 </div>
-                <div className="auth-input-group">
-                  <UserIcon size={16} className="auth-input-icon" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Familiya"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
+                {role === 'teacher' && (
+                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#34d399', textAlign: 'center' }}>
+                    ✓ Guruhlar ochish va o‘quvchilarga avtomatik PRO ulashish huquqi
+                  </p>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="auth-input-group">
+                    <UserIcon size={16} className="auth-input-icon" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ism"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div className="auth-input-group">
+                    <UserIcon size={16} className="auth-input-icon" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Familiya"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <div className="auth-input-group">

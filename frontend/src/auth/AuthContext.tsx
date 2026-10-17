@@ -39,6 +39,7 @@ interface AuthState {
     password_confirm: string;
     first_name: string;
     last_name: string;
+    role?: string;
   }) => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
@@ -240,6 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password_confirm: string;
       first_name: string;
       last_name: string;
+      role?: string;
     }) => {
       setError(null);
       try {

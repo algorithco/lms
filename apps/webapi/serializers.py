@@ -223,10 +223,31 @@ class PaymentReceiptSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 class GroupMemberSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
+    has_pro = serializers.SerializerMethodField()
+    pro_status_label = serializers.SerializerMethodField()
+    tests_count = serializers.SerializerMethodField()
+    essays_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "full_name"]
+        fields = [
+            "id", "email", "first_name", "last_name", "full_name",
+            "has_pro", "pro_status_label", "tests_count", "essays_count",
+        ]
+
+    def get_has_pro(self, obj) -> bool:
+        return getattr(obj, "has_pro_access", True)
+
+    def get_pro_status_label(self, obj) -> str:
+        return "⭐ PRO (Faol)"
+
+    def get_tests_count(self, obj) -> int:
+        from apps.results.models import Result
+        return Result.objects.filter(student_id=obj.id).count()
+
+    def get_essays_count(self, obj) -> int:
+        from apps.essays.models import EssaySubmission
+        return EssaySubmission.objects.filter(student_id=obj.id).exclude(status=EssaySubmission.Status.DRAFT).count()
 
 
 class StudentGroupSerializer(serializers.ModelSerializer):

@@ -5,7 +5,13 @@ import { useLang } from '../i18n/LangContext';
 import { Billing, PaymentsApi, type PaymentReceiptItem } from '../lib/api';
 import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
-// Strictly 3 commercial subscription plans: START / STARTER, PRO (recommended), PREMIUM
+// Strictly 3 commercial subscription plans: START / STARTER (15 000), PRO (49 000 - recommended), PREMIUM (60 000)
+export const PLAN_PRICES = {
+  starter: 15000,
+  pro: 49000,
+  premium: 60000,
+} as const;
+
 const plans: {
   id: 'starter' | 'pro' | 'premium';
   name: string;
@@ -125,9 +131,9 @@ export default function Subscribe() {
   const [cardInfo, setCardInfo] = useState({
     card_number: '9860 **** **** ****',
     card_holder: 'KOMILJON R',
-    starter_price: 15000,
-    pro_price: 49000,
-    premium_price: 60000,
+    starter_price: PLAN_PRICES.starter,
+    pro_price: PLAN_PRICES.pro,
+    premium_price: PLAN_PRICES.premium,
   });
   const [copied, setCopied] = useState(false);
 
@@ -152,9 +158,9 @@ export default function Subscribe() {
           setCardInfo({
             card_number: data.card_number,
             card_holder: data.card_holder,
-            starter_price: data.starter_price ?? 15000,
-            pro_price: data.pro_price ?? 49000,
-            premium_price: data.premium_price ?? 60000,
+            starter_price: PLAN_PRICES.starter,
+            pro_price: PLAN_PRICES.pro,
+            premium_price: PLAN_PRICES.premium,
           });
         }
       })
@@ -227,12 +233,7 @@ export default function Subscribe() {
     }
   };
 
-  const currentPrice =
-    selectedPlan === 'premium'
-      ? cardInfo.premium_price
-      : selectedPlan === 'pro'
-      ? cardInfo.pro_price
-      : cardInfo.starter_price;
+  const currentPrice = PLAN_PRICES[selectedPlan] ?? 49000;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -302,7 +303,7 @@ export default function Subscribe() {
           {plans.map((p) => {
             const isSelected = selectedPlan === p.id;
             const isPro = p.id === 'pro';
-            const priceVal = cardInfo[p.priceKey] ?? p.defaultPrice;
+            const priceVal = PLAN_PRICES[p.id] ?? p.defaultPrice;
             const features = lang === 'ru' ? p.featuresRu : lang === 'en' ? p.featuresEn : p.featuresUz;
             const badgeText = isPro
               ? (lang === 'ru' ? p.badgeRu : lang === 'en' ? p.badgeEn : p.badgeUz)

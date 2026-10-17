@@ -97,6 +97,8 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
             "student_id": s.id,
             "full_name": s.get_full_name() or s.email,
             "email": s.email,
+            "has_pro": True,
+            "pro_status_label": "⭐ PRO (Faol)",
             "tests_taken": tests_count,
             "avg_test_pct": avg_test_pct,
             "latest_test_score": latest_score_str,
@@ -130,8 +132,58 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
     }
 
 
+def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
+    """O'quvchi ustoz guruhiga qo'shilganda unga avtomatik PRO tarifini faollashtiradi."""
+    from apps.payments.models import SubscriptionPlan, UserSubscription, TeacherSponsorship
+    from apps.payments.subscriptions import grant_subscription
+    from django.utils import timezone
+
+    # 1. Update Profile plan
+    try:
+        profile = getattr(student, "profile", None)
+        if profile:
+            profile.plan = "pro"
+            profile.save(update_fields=["plan"])
+    except Exception as e:
+        logger.warning("Could not update profile plan for student %s: %s", student.id, e)
+
+    # 2. Grant 365-day PRO subscription
+    pro_plan = SubscriptionPlan.objects.filter(plan_type=SubscriptionPlan.PlanType.PRO).first()
+    if pro_plan:
+        try:
+            grant_subscription(
+                user=student,
+                plan=pro_plan,
+                source=UserSubscription.Source.TEACHER_SPONSORED,
+                grant_source=f"group:{group.id}",
+                days=365,
+                reason=f"Ustoz guruhi orqali avtomatik PRO: {group.name} (#{group.invite_code})",
+            )
+        except Exception as e:
+            logger.warning("Could not grant PRO subscription to student %s: %s", student.id, e)
+
+    # 3. Create or update approved TeacherSponsorship
+    try:
+        now = timezone.now()
+        TeacherSponsorship.objects.update_or_create(
+            student=student,
+            group=group,
+            defaults={
+                "is_active": True,
+                "approved_at": now,
+                "expires_at": now + timezone.timedelta(days=365),
+                "is_unlimited_tests": True,
+                "is_unlimited_image_essays": True,
+                "is_unlimited_text_essays": True,
+                "note": f"Ustoz {group.teacher.get_full_name()} guruhi orqali avtomatik berilgan PRO",
+            },
+        )
+    except Exception as e:
+        logger.warning("Could not create teacher sponsorship for student %s: %s", student.id, e)
+
+
 def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
-    """O'quvchini taklif kodi orqali guruhga qo'shadi."""
+    """O'quvchini taklif kodi orqali guruhga qo'shadi va avtomatik PRO tarifini yoqadi."""
     raw = (invite_code or "").strip().upper()
     if raw.startswith("#"):
         raw = raw[1:]
@@ -145,6 +197,9 @@ def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
     if not group.students.filter(id=student.id).exists():
         group.students.add(student)
         logger.info("Student %s joined group %s via code %s", student.id, group.id, raw)
+
+    # Avtomatik PRO tarifini faollashtirish
+    _activate_student_pro_for_group(student, group)
 
     return group
 
@@ -201,6 +256,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
         "№",
         "O'quvchi F.I.Sh.",
         "Email / Login",
+        "Tarif",
         "Testlar soni",
         "O'rtacha ko'rsatkich (%)",
         "BMB Sertifikat Darajasi",
@@ -228,6 +284,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
             item["rank"],
             item["full_name"],
             item["email"],
+            item.get("pro_status_label", "⭐ PRO (Faol)"),
             item["tests_taken"],
             f"{item['avg_test_pct']}%",
             item["bmb_grade"],
@@ -244,9 +301,9 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
                 cell.fill = row_fill
 
             # Formatlash
-            if col_idx in (1, 4, 6, 7):
+            if col_idx in (1, 4, 5, 7, 8):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
-            elif col_idx in (5, 8):
+            elif col_idx in (6, 9):
                 cell.alignment = Alignment(horizontal="right", vertical="center")
                 cell.font = FONT_BOLD
             else:
@@ -258,10 +315,10 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
     ws.row_dimensions[current_row].height = 24
     summary_cells = [
         ("A", "B", "JAMI O'QUVCHILAR:"),
-        ("C", "C", f"{analytics['total_students']} nafar"),
-        ("D", "E", f"O'rtacha guruh bali: {analytics['group_avg_percentage']}%"),
-        ("F", "F", f"BMB: {analytics['group_bmb_grade']}"),
-        ("G", "I", f"A+: {analytics['bmb_distribution']['A+']} | A: {analytics['bmb_distribution']['A']} | B+: {analytics['bmb_distribution']['B+']} | B: {analytics['bmb_distribution']['B']}"),
+        ("C", "D", f"{analytics['total_students']} nafar"),
+        ("E", "F", f"O'rtacha guruh bali: {analytics['group_avg_percentage']}%"),
+        ("G", "G", f"BMB: {analytics['group_bmb_grade']}"),
+        ("H", "J", f"A+: {analytics['bmb_distribution']['A+']} | A: {analytics['bmb_distribution']['A']} | B+: {analytics['bmb_distribution']['B+']} | B: {analytics['bmb_distribution']['B']}"),
     ]
     for start_c, end_c, val in summary_cells:
         if start_c != end_c:
@@ -272,7 +329,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
         c.fill = SUMMARY_BG
         c.alignment = Alignment(horizontal="center", vertical="center")
 
-    for col in range(1, 10):
+    for col in range(1, 11):
         ws.cell(row=current_row, column=col).border = THIN_BORDER
 
     # Ustun kengliklarini avtomatik sozlash
