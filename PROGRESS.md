@@ -122,6 +122,39 @@
   - `pytest tests/test_teacher_bot_commands.py`: 100% PASS (27/27).
   - `pytest tests/test_teacher_group_auto_pro.py` & `test_teacher_group_reports.py`: 100% PASS (23/23).
 
+### 2.11. BMB Rasmiy 12 ta Mezoni Asosida Esse Baholash Tizimi (DeepSeek AI & 20 Ballik Shkala)
+- [x] Model va API integratsiyasi:
+  - OpenRouter orqali `deepseek/deepseek-v4-flash-0731` modeli ulandi.
+  - Qat'iy va xolisona baholash uchun `temperature: 0.1` o'rnatildi.
+  - Production muhiti uchun `OPENROUTER_API_KEY` xavfsiz tarzda GitHub Secrets orqali VPS muhitiga avtomatik sinxronlashtirildi.
+- [x] BMB Rasmiy 12 Mezonli 20 Ballik Shkala (`apps/essays/services.py`, `prompts.py`, `models.py`):
+  - 1. Mavzuning to'liq va teran ochib berilishi (max 2.0)
+  - 2. Fikrning mantiqiy izchilligi va kompozitsion yaxlitlik (max 2.0)
+  - 3. Dalillash mahorati va misollar keltirilishi (max 2.0)
+  - 4. Publitsistik uslub me'yorlariga rioya qilingani (max 1.5)
+  - 5. So'z qo'llash aniqligi va boy lug'at zaxirasi (max 1.5)
+  - 6. Grammatik qoidalarga rioya etilgani (max 1.5)
+  - 7. Imlo (orfografiya) to'g'riligi va xatolar tahlili (max 2.0)
+  - 8. Tinish belgilari (punktuatsiya) to'g'ri qo'llangani (max 1.5)
+  - 9. Uslubiy xatolar va takrorlarning mavjud emasligi (max 1.5)
+  - 10. Matnning o'ziga xosligi va mustaqil fikrlash darajasi (max 1.5)
+  - 11. Matn hajmi (200–500 so'z oralig'i) (max 1.5)
+  - 12. Xulosaning asosli va tugallangan bo'lishi (max 1.5)
+  - Jami: Qat'iy 20.0 ball.
+- [x] Kengaytirilgan Tahlil va SHA-256 Determinizm:
+  - Imlo xatolari jadvali: xato so'z, to'g'ri varianti va qoida izohi (`spelling_errors`).
+  - Kuchli tomonlar (`strengths`), zaif tomonlar (`weaknesses`), ustoz tavsiyasi (`teacher_recommendation`).
+  - Matnning AI tomonidan xatolarsiz takomillashtirilgan varianti (`improved_text`).
+  - SHA-256 kontent xeshi orqali bir xil matnlar uchun zudlik bilan qayta baholashsiz keshdan berish.
+- [x] Frontend va Telegram Bot Interfeyslari:
+  - Veb natijalar sahifasida 12 ta mezon rangli progress bar ko'rinishida, matnda imlo xatolarini interaktiv belgilash (highlight), Oldin / Keyin taqqoslash rejimi.
+  - Telegram botda BMB standarti bo'yicha baho / 20, aniqlangan xatolar, [ 🪄 AI tahririni ko'rish ] va [ 📄 Batafsil PDF xulosa ] tugmalari.
+- [x] Sifat, Testlar va Production Deploy:
+  - Barcha esse testlari: 115/115 (100% PASS).
+  - Frontend Vite build: 0 xatolik bilan yig'ildi.
+  - Production deploy: GitHub Actions orqali VPS ga to'liq yetkazildi va ishga tushirildi.
+  - Jonli tekshiruv: `https://grandec.uz/healthz/` va `https://grandec.uz/` -> HTTP 200 OK.
+
 ---
 
 ## 3. Jarayonda
