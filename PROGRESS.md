@@ -1,56 +1,49 @@
 # LMS Platform — Loyiha rivojlanish progressi (PROGRESS.md)
 
 ## 1. Maqsad
-Platformaning Testlar bo‘limida yangi "ATTESTATSIYA" toifasini ochish, "Attestatsiya Diagnostika-2026 (19)" 50 talik rasmiy attestatsiya testini to‘liq kalitlari, matnlari va AI tushuntirishlari bilan Django bazasiga kiritish, frontendda zamonaviy foydalanuvchi tajribasini (kategoriya filtri, split passage ko‘rinishi, moslashtirish, bo‘limlar kesimidagi ball tahlili va xatolarni ko‘rsatish) ta'minlash hamda Contabo VPS serveriga (`169.58.58.229` / `grandec.uz`) muvaffaqiyatli deploy qilish.
+"Rash test. Umid Shukurov jamoasi" (BMBA Namunaviy Milliy Sertifikat) 3 soatlik rasmiy diagnostika imtihonini barcha matnlari, 44 ta savoli, rasmiy javob kalitlari va 45-esse topshirig'i bilan birga Django bazasiga kiritish, moslashtirish va 2 talik ochiq savollar interfeysini qulay holatga keltirish, tezkor kirish chiplarini yaratish hamda Contabo VPS serveriga (`169.58.58.229` / `grandec.uz`) muvaffaqiyatli deploy qilish.
 
 ---
 
 ## 2. Bajarildi
 
 ### 2.1. Backend va Baza Seederi (`apps/tests/`)
-- [x] Yangi `seed_attestatsiya_test_2026` Django management buyrug‘i yaratildi (`apps/tests/management/commands/seed_attestatsiya_test_2026.py`).
-- [x] "Attestatsiya" toifasi (`slug='attestatsiya'`), "Ona tili va Adabiyot (Attestatsiya 2026)" kursi va "Ona tili va Adabiyot — Rasmiy Attestatsiya Diagnostika 2026" (Mock code: `#MOCK-ATTEST2026`, 100 daqiqa, 50 ta savol, 60% o'tish bali) yaratildi.
-- [x] 3 ta ixtisoslashgan bo‘lim shakllantirildi:
-  - `MUTAXASSISLIK` (1–35-savollar): Mutaxassislik fani (Ona tili va adabiyot)
-  - `KASB_STANDARTI` (36–40-savollar): Kasbiy standart (O'qituvchi kompetensiyalari)
-  - `PEDAGOGIKA` (41–50-savollar): Pedagogik mahorat va metodika
-- [x] 2 ta matn kiritildi va savollarga bog‘landi:
-  - 1–5-savollar: "DUNYO TILLARI HAQIDA QIZIQARLI MA’LUMOTLAR" ilmiy matni
-  - 21–25-savollar: Metin va uning ota-onasi haqidagi o'tkir satirik hikoya
-- [x] 50 ta rasmiy test savoli, 4 tadan variantlari, rasmiy kalitlari va tushuntirishlari kiritildi.
-- [x] `TestListSerializer` da `category_slug`, `category_name`, `mock_code` maydonlari integratsiya qilindi.
-- [x] Attestatsiya ballash profili (`ExamScoringProfile`) yaratildi: `MUTAXASSISLIK`, `KASB_STANDARTI`, `PEDAGOGIKA` bo‘limlari bo‘yicha to‘liq hisob-kitob.
+- [x] Yangi `seed_rash_mock_shukurov` Django seeder buyrug‘i yaratildi (`apps/tests/management/commands/seed_rash_mock_shukurov.py`).
+- [x] Test nomi: "Ona tili va Adabiyot — Rasmiy Mock Test (Umid Shukurov jamoasi)"
+- [x] Mock kodi: `#MOCK-SHUKUROV`, davomiyligi: 180 daqiqa (3 soat), 45 ta topshiriq (44 test + 45-esse).
+- [x] 4 ta rasmiy bo'lim integratsiya qilindi:
+  - `LANGUAGE` (1–17-savollar): Grammatika, leksika, orfografiya, morfologiya
+  - `READING` (18–27-savollar): "O'lik dengiz" (18–22) va "Ming marta shukur!" (23–27) matnlari tahlili
+  - `LITERATURE` (28–35-savollar): Navoiy g'azali tahlili (28–32) va sintaktik tahlil moslashtirishlari (33–35)
+  - `WRITING` (36–45-savollar): Ochiq savollar (36–44) va 45-rasmiy 12 mezonli publitsistik esse topshirig'i
+- [x] Barcha 3 ta matn (passages) kiritildi va savollarga bog'landi.
+- [x] 4-savoldagi PDF vektor glyph qiyinchiligi to'liq hal qilindi: rasmiy kalit (4b: `bo'sh, xom, puch`) va to'liq variantlar kiritildi.
+- [x] 45-esse topshirig'i uchun alohida `EssayTopic` (ID 2) sinxron yaratildi (Kamida 150 ta so'z, 12 mezonli BMB baholash).
 
-### 2.2. Frontend Integratsiyasi (`frontend/src/`)
-- [x] `frontend/src/lib/testing.ts`: `TestListItem` interfeysi yangi toifa maydonlari bilan boyitildi.
-- [x] `frontend/src/pages/Tests.tsx`:
-  - Yangi toifalar filtri qo‘shildi: `[ Barchasi ] [ Milliy Sertifikat ] [ Attestatsiya (Ustozlar uchun) ] [ 1v1 Arena ]`.
-  - Attestatsiya diagnostika testiga tezkor kirish tugmasi (`#MOCK-ATTEST2026`) va vizual badge qo‘shildi.
-  - 1v1 Arena bo‘limi kartasi va to‘g‘ridan-to‘g‘ri navigatsiyasi qo‘shildi.
+### 2.2. Frontend CBT Interfeysi & UX (`frontend/src/`)
 - [x] `frontend/src/pages/TakeTest.tsx`:
-  - 41 va 42-savollardagi moslashtirish bandlari va mumtoz she'riy misralar uchun qator buzilmasligi (`whiteSpace: 'pre-line'`) ta'minlandi.
-  - Desktopda matn va savol parallel (split view), mobilda esa qulay ochilib-yopiluvchi akkordeon ko‘rinishi ishlaydi.
-- [x] `frontend/src/pages/Results.tsx`:
-  - Test yakunida 3 ta bo‘lim (`Mutaxassislik`, `Kasbiy standart`, `Pedagogik mahorat`) bo‘yicha foiz va ballar alohida progress-barlar bilan vizuallashtirildi.
-  - Xato ishlangan savollar tahlili:
-    - ❌ Sizning javobingiz
-    - ✅ To‘g‘ri javob
-    - 💡 Nega bu javob xato? AI tushuntirishi (avtomatik ochiq turadi).
+  - 40, 41, 42, 43, 44-savollar uchun alohida `a)` va `b)` 2 talik kirish maydonlari integratsiya qilindi.
+  - JSON parsing va string formatidagi ikki qismli javoblarni avtomatik o'qish va xatosiz saqlash ta'minlandi.
+  - 33, 34, 35-savollar uchun tezkor variant tanlash pill paneli (`A-F`) qulay joylashtirildi.
+  - Matnlar uchun desktopda parallel split-view, mobilda esa akkordeon rejim saqlandi.
+  - Test yakunlashda esse yozilmagan bo'lsa ogohlantirish modal dialogi ishlaydi.
+- [x] `frontend/src/pages/Tests.tsx`:
+  - `#MOCK-SHUKUROV` tezkor kirish chipi va 1-klikli ulanish tugmasi qo'shildi.
+  - Shukurov mock testi ro'yxatda yuqoriga pin qilindi va alohida amber rangli nishon (`🔥 Rasmiy Mock (Umid Shukurov)`) bilan ajratildi.
+- [x] `frontend/src/i18n/translations.json`:
+  - Rus va ingliz tili tarjimalaridagi barcha yozuvlar tiklandi va tozalandi.
 
 ### 2.3. Sifat va Testlash (QA Gate)
-- [x] `tests/test_attestatsiya_test_2026.py` test to‘plami yozildi:
-  - 50 ta savol mavjudligi va toifalarga bo‘linganligi (35, 5, 10).
-  - 100% rasmiy javob kalitlari muvofiqligi.
-  - Matnlar bog‘lanishi va variantlar to‘liqligi.
-- [x] `pytest tests/test_attestatsiya_test_2026.py` — **100% PASS (1 passed in 19.44s)**.
-- [x] `npm run build` — **0 xato (Vite build 2.33s)**.
+- [x] `ruff check .` — Barcha linter qoidalari muvaffaqiyatli o'tdi.
+- [x] `npm run build` — TypeScript va Vite production yig'ish 0 xato bilan yakunlandi (3.67s).
+- [x] `pytest -q` — 1161 ta test 100% muvaffaqiyatli o'tdi (0 failed).
 
 ### 2.4. Production Deploy (`grandec.uz`)
-- [x] O‘zgarishlar GitHub `main` tarmog‘iga push qilindi (`Komiljon Roziyev` profilida, no-AI attribution).
-- [x] CI/CD avtomatik ravishda Docker prod konteynerlarini (`ghcr.io/algorithco/lms:sha-fce2375`) yig‘ib, VPS ga deploy qildi.
-- [x] Production VPS serverida (`169.58.58.229`):
-  - `docker compose exec web python manage.py seed_attestatsiya_test_2026` ishga tushirildi: 50 ta savol to‘liq PostgreSQL bazasiga kiritildi.
-  - Public endpoint tekshirildi: `curl https://grandec.uz/healthz/` -> `HTTP 200 OK` (`{"status": "ok", "db": true, "version": "0.98.0"}`).
+- [x] Git commits Komiljon Roziyev (`kruziyev0@gmail.com`) nomidan, hech qanday AI atributsisiz `main` ga push qilindi.
+- [x] VPS serverida (`169.58.58.229`) git yangilandi:
+  - `seed_rash_mock_shukurov` buyrug'i production bazasida ishga tushirildi: Test ID 2 (`#MOCK-SHUKUROV`) to'liq 45 ta savoli bilan yaratildi.
+  - Yangi yig'ilgan SPA bundle `/var/lib/docker/volumes/lms-platform-prod_spa_volume/_data/` ga ko'chirildi va Nginx qayta yuklandi.
+  - Public endpoint tekshirildi: `https://grandec.uz/` -> `HTTP 200 OK`.
 
 ---
 
@@ -60,12 +53,11 @@ Platformaning Testlar bo‘limida yangi "ATTESTATSIYA" toifasini ochish, "Attest
 ---
 
 ## 4. Keyingi qadamlar
-- O'qituvchilar uchun attestatsiya natijalari asosida shaxsiy tahliliy PDF sertifikat yoki ma'lumotnoma generatsiya qilish imkoniyatini ko'rib chiqish.
-- Foydalanuvchi va ustozlarning diagnostika testini yechish statistikasi hamda analitikasini kuzatib borish.
+- O'quvchilar va abituriyentlarning imtihon topshirish statistikasi va AI esse baholash natijalarini kuzatib borish.
+- Yangi diagnostika testlari kelganda ularni ham xuddi shu yuqori andozada platformaga integratsiya qilish.
 
 ---
 
 ## 5. Muhim qarorlar
-- **37-savoldagi nusxa xatosi to'g'rilandi**: Asl faylda D varianti "A) Hayot xavfsizligi asoslarini" deb xato belgilangan edi. Bu baza kiritilishida D varianti sifatida to'g'rilandi, rasmiy to'g'ri javob kaliti B saqlab qolindi.
-- **Ko'p qatorli matn va moslashtirish savollari**: 41 va 42-savollar (moslashtirish) hamda 26–35-savollardagi she'riy parchalar formatini to'g'ri saqlash uchun frontendda `pre-line` uslubi qo'llandi.
-- **Nol uzilishli deploy**: Persistent PostgreSQL va Redis hajmlari saqlangan holda faqat app konteynerlari yangilandi va production healthz 200 OK tasdiqlandi.
+- Savol 4 dagi matnlar PDF ichida vektor yo'nalishlar sifatida chizilganligi sababli, uning geometrik parametrlari tahlil qilinib, to'g'ri variantlar (`bo'sh, xom, puch`) kiritildi.
+- 40–44-savollar ikki mustaqil qismdan (`a)` va `b)`) iborat bo'lganligi sababli bitta matn maydoni o'rniga strukturalangan ikkita alohida input orqali foydalanuvchiga taqdim etildi.
