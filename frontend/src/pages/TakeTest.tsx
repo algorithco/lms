@@ -173,6 +173,34 @@ function entryHasContent(q: Question, a: AnswerEntry): boolean {
   return a.choices.length > 0;
 }
 
+function parseTwoPartAnswer(text: string): { a: string; b: string } {
+  if (!text) return { a: '', b: '' };
+  const match = text.match(/a\)\s*(.*?)(?:\s*b\)\s*(.*)|$)/is);
+  if (match) {
+    return {
+      a: (match[1] || '').trim(),
+      b: (match[2] || '').trim(),
+    };
+  }
+  const parts = text.split(/[\n,]/);
+  if (parts.length >= 2) {
+    return {
+      a: parts[0].trim(),
+      b: parts.slice(1).join(', ').trim(),
+    };
+  }
+  return { a: text.trim(), b: '' };
+}
+
+function formatTwoPartAnswer(valA: string, valB: string): string {
+  const cleanA = valA.trim();
+  const cleanB = valB.trim();
+  if (!cleanA && !cleanB) return '';
+  if (cleanA && cleanB) return `a) ${cleanA} b) ${cleanB}`;
+  if (cleanA) return `a) ${cleanA}`;
+  return `b) ${cleanB}`;
+}
+
 export default function TakeTest() {
   const { attemptId = '' } = useParams();
   const navigate = useNavigate();
@@ -621,7 +649,7 @@ export default function TakeTest() {
               )}
               {failed[q.id] && (
                 <span className="badge rose" style={{ fontSize: '0.72rem' }}>
-                  Xatolik
+                  {t('essay_error') || 'Xatolik'}
                 </span>
               )}
             </div>
@@ -632,18 +660,86 @@ export default function TakeTest() {
           </p>
 
           {q.question_type === 'text' ? (
-            <textarea
-              rows={isSingleView ? 4 : 3}
-              value={a.text}
-              disabled={finished || submitting}
-              onChange={(e) => editText(q, e.target.value)}
-              onBlur={() => {
-                if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                if (a.text.trim()) save(q, a);
-              }}
-              placeholder={t('take_text_ph')}
-              style={{ width: '100%', marginTop: 8 }}
-            />
+            (() => {
+              const isTwoPart =
+                (q.text.includes('a)') && q.text.includes('b)')) ||
+                (q.position >= 41 && q.position <= 44);
+              if (isTwoPart) {
+                const twoPart = parseTwoPartAnswer(a.text);
+                return (
+                  <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
+                        {t('two_part_label_a')}
+                      </label>
+                      <input
+                        type="text"
+                        disabled={finished || submitting}
+                        value={twoPart.a}
+                        onChange={(e) => {
+                          const next = formatTwoPartAnswer(e.target.value, twoPart.b);
+                          editText(q, next);
+                        }}
+                        onBlur={() => {
+                          if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                          if (a.text.trim()) save(q, a);
+                        }}
+                        placeholder={t('two_part_placeholder_a')}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                          color: 'var(--ink)',
+                          fontSize: '0.95rem',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
+                        {t('two_part_label_b')}
+                      </label>
+                      <input
+                        type="text"
+                        disabled={finished || submitting}
+                        value={twoPart.b}
+                        onChange={(e) => {
+                          const next = formatTwoPartAnswer(twoPart.a, e.target.value);
+                          editText(q, next);
+                        }}
+                        onBlur={() => {
+                          if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                          if (a.text.trim()) save(q, a);
+                        }}
+                        placeholder={t('two_part_placeholder_b')}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                          color: 'var(--ink)',
+                          fontSize: '0.95rem',
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <textarea
+                  rows={isSingleView ? 4 : 3}
+                  value={a.text}
+                  disabled={finished || submitting}
+                  onChange={(e) => editText(q, e.target.value)}
+                  onBlur={() => {
+                    if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                    if (a.text.trim()) save(q, a);
+                  }}
+                  placeholder={t('take_text_ph')}
+                  style={{ width: '100%', marginTop: 8 }}
+                />
+              );
+            })()
           ) : q.question_type === 'gap_fill' ? (
             <GapFillInput
               text={q.text}
@@ -674,33 +770,78 @@ export default function TakeTest() {
               }}
             />
           ) : (
-            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-              {q.choices.map((c, ci) => {
-                const on = a.choices.includes(c.id);
-                const letter = String.fromCharCode(65 + ci);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    disabled={finished || submitting}
-                    className={`quiz-opt${on ? ' picked' : ''}`}
-                    aria-pressed={on}
-                    onClick={() => pick(q, c.id)}
-                    style={{
-                      transition: 'all 0.15s ease',
-                      boxShadow: on ? '0 0 10px rgba(245, 158, 11, 0.2)' : undefined,
-                    }}
-                  >
-                    <span
-                      className="quiz-key"
-                      style={on ? { background: '#f59e0b', color: '#111' } : {}}
+            <div style={{ marginTop: 10 }}>
+              {/* Quick selector pill bar for matching or multi-choice items (Q33-Q35) */}
+              {q.choices.length >= 4 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span className="small muted" style={{ marginRight: 4, fontWeight: 600 }}>
+                    {t('matching_pick_option')}:
+                  </span>
+                  {q.choices.map((c, ci) => {
+                    const on = a.choices.includes(c.id);
+                    const letter = String.fromCharCode(65 + ci);
+                    return (
+                      <button
+                        key={`pill-${c.id}`}
+                        type="button"
+                        disabled={finished || submitting}
+                        onClick={() => pick(q, c.id)}
+                        className={`btn sm ${on ? 'primary' : 'ghost'}`}
+                        style={{
+                          minWidth: 36,
+                          height: 32,
+                          padding: 0,
+                          fontWeight: 800,
+                          borderRadius: 8,
+                          borderColor: on ? '#f59e0b' : 'var(--border)',
+                          background: on ? '#f59e0b' : 'rgba(255, 255, 255, 0.04)',
+                          color: on ? '#111' : 'var(--ink)',
+                          boxShadow: on ? '0 0 10px rgba(245, 158, 11, 0.3)' : undefined,
+                        }}
+                      >
+                        {letter}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gap: 8 }}>
+                {q.choices.map((c, ci) => {
+                  const on = a.choices.includes(c.id);
+                  const letter = String.fromCharCode(65 + ci);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={finished || submitting}
+                      className={`quiz-opt${on ? ' picked' : ''}`}
+                      aria-pressed={on}
+                      onClick={() => pick(q, c.id)}
+                      style={{
+                        transition: 'all 0.15s ease',
+                        boxShadow: on ? '0 0 10px rgba(245, 158, 11, 0.2)' : undefined,
+                      }}
                     >
-                      {on ? '✓' : letter}
-                    </span>
-                    <span style={{ fontWeight: on ? 600 : 400 }}>{c.text}</span>
-                  </button>
-                );
-              })}
+                      <span
+                        className="quiz-key"
+                        style={on ? { background: '#f59e0b', color: '#111' } : {}}
+                      >
+                        {on ? '✓' : letter}
+                      </span>
+                      <span style={{ fontWeight: on ? 600 : 400 }}>{c.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -845,9 +986,9 @@ export default function TakeTest() {
           <div className="hotkey-hint-pill">
             <Keyboard size={13} style={{ color: '#f59e0b' }} />
             <span>
-              <kbd className="hotkey-kbd">←</kbd> <kbd className="hotkey-kbd">→</kbd> Savollar ·{' '}
+              <kbd className="hotkey-kbd">←</kbd> <kbd className="hotkey-kbd">→</kbd> {t('hotkey_questions')} ·{' '}
               <kbd className="hotkey-kbd">A</kbd> <kbd className="hotkey-kbd">B</kbd>{' '}
-              <kbd className="hotkey-kbd">C</kbd> <kbd className="hotkey-kbd">D</kbd> Tanlash
+              <kbd className="hotkey-kbd">C</kbd> <kbd className="hotkey-kbd">D</kbd> {t('hotkey_select')}
             </span>
           </div>
         )}
@@ -966,6 +1107,30 @@ export default function TakeTest() {
       {confirmOpen && !result && (
         <div className="card" role="dialog" aria-modal="true" style={{ marginTop: 16 }}>
           <h3>{t('take_confirm_title')}</h3>
+
+          {attempt.questions.some(
+            (q) => q.question_type === 'written' && (!answers[q.id]?.written || !answers[q.id].written.trim())
+          ) && (
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: 10,
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#ef4444',
+                marginTop: 10,
+                marginBottom: 12,
+              }}
+            >
+              <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: 4 }}>
+                ⚠️ {t('essay_empty_warning_title')}
+              </strong>
+              <span style={{ fontSize: '0.86rem', lineHeight: 1.5, display: 'block' }}>
+                {t('essay_empty_warning_body')}
+              </span>
+            </div>
+          )}
+
           <p className="muted">
             {unanswered === 0
               ? t('take_confirm_all')

@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { useLang } from '../i18n/LangContext';
 import { ClockIcon } from './icons';
 
@@ -50,14 +51,59 @@ export function AutosaveStatus({ saved, error }: { saved: boolean; error?: strin
 
 export function PassageCard({ passage }: { passage: PassageDef }) {
   const { t } = useLang();
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="card passage-card" style={{ marginBottom: 12 }}>
-      <p className="muted small">
-        {t('exam_passage')}
-        {passage.title ? ` · ${passage.title}` : ''}
-      </p>
-      <p style={{ whiteSpace: 'pre-line' }}>{passage.content}</p>
-      {passage.source && <p className="muted small">{passage.source}</p>}
+    <div className="card passage-card sticky-passage" style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+          borderBottom: '1px solid var(--border)',
+          paddingBottom: 8,
+          flexWrap: 'wrap',
+          gap: 6,
+        }}
+      >
+        <p className="small" style={{ margin: 0, fontWeight: 800, color: '#f59e0b', fontSize: '0.95rem' }}>
+          📖 {t('exam_passage_title') || t('exam_passage')}
+          {passage.title ? ` · ${passage.title}` : ''}
+        </p>
+        <button
+          type="button"
+          className="btn sm ghost"
+          onClick={() => setCollapsed(!collapsed)}
+          style={{ fontSize: '0.78rem', padding: '3px 8px' }}
+        >
+          {collapsed ? `📖 ${t('read_full_passage')}` : `🔼 ${t('collapse_passage')}`}
+        </button>
+      </div>
+
+      {!collapsed ? (
+        <div
+          className="passage-content-scroll"
+          style={{
+            whiteSpace: 'pre-line',
+            lineHeight: 1.75,
+            fontSize: '0.96rem',
+            color: 'var(--ink)',
+          }}
+        >
+          {passage.content}
+        </div>
+      ) : (
+        <div style={{ whiteSpace: 'pre-line', lineHeight: 1.6, fontSize: '0.92rem', color: 'var(--muted)' }}>
+          {passage.content.slice(0, 240)}...
+        </div>
+      )}
+
+      {passage.source && (
+        <p className="muted small" style={{ marginTop: 10, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+          <em>{passage.source}</em>
+        </p>
+      )}
     </div>
   );
 }
@@ -231,21 +277,161 @@ export function WrittenInput({
   onBlur: () => void;
 }) {
   const { t } = useLang();
-  const words = value.trim() === '' ? 0 : value.trim().split(/\s+/).length;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const words = value.trim() === '' ? 0 : value.trim().split(/\s+/).filter(Boolean).length;
+  const targetMin = minWords > 0 ? minWords : 150;
+
+  const handlePhotoSelect = (file: File | null) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+    const tag = `[Qo'lyozma rasm biriktirildi: ${file.name}]`;
+    if (!value.includes(tag)) {
+      const nextVal = value.trim() ? `${value}\n\n${tag}` : tag;
+      onChange(nextVal);
+    }
+  };
+
+  const isMinReached = words >= targetMin;
+  const isGoodRange = words >= targetMin && words <= 350;
+
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 10 }}>
+      {/* Word counter badge & photo upload button bar */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10,
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              padding: '5px 12px',
+              borderRadius: 8,
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: !isMinReached
+                ? 'rgba(245, 158, 11, 0.15)'
+                : isGoodRange
+                  ? 'rgba(16, 185, 129, 0.15)'
+                  : 'rgba(59, 130, 246, 0.15)',
+              color: !isMinReached ? '#f59e0b' : isGoodRange ? '#10b981' : '#60a5fa',
+              border: `1px solid ${
+                !isMinReached
+                  ? 'rgba(245, 158, 11, 0.35)'
+                  : isGoodRange
+                    ? 'rgba(16, 185, 129, 0.35)'
+                    : 'rgba(59, 130, 246, 0.35)'
+              }`,
+            }}
+          >
+            <span>{isMinReached ? '✓' : '⚠️'}</span>
+            <span>
+              {t('essay_word_count_live')} {words} (
+              {!isMinReached
+                ? `${t('essay_word_count_min')}: ${targetMin}`
+                : isGoodRange
+                  ? t('essay_word_count_good')
+                  : t('essay_word_count_long')}
+              )
+            </span>
+          </span>
+        </div>
+
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            disabled={disabled}
+            onChange={(e) => handlePhotoSelect(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            className="btn sm ghost"
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              fontSize: '0.82rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              borderColor: '#f59e0b',
+              color: '#f59e0b',
+            }}
+          >
+            <span>📷</span>
+            <span>{t('essay_ocr_upload_btn')}</span>
+          </button>
+        </div>
+      </div>
+
+      {photoPreview && (
+        <div
+          style={{
+            marginBottom: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: 10,
+            background: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+          }}
+        >
+          <img
+            src={photoPreview}
+            alt="Handwritten essay preview"
+            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }}
+          />
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: '0.86rem', color: '#10b981', fontWeight: 700, display: 'block' }}>
+              {t('essay_ocr_photo_attached')}
+            </span>
+            <button
+              type="button"
+              className="btn sm ghost"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ padding: '3px 8px', fontSize: '0.75rem', marginTop: 4 }}
+            >
+              {t('essay_ocr_change_photo')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <textarea
-        rows={8}
+        rows={14}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder={placeholder}
-        style={{ width: '100%' }}
+        style={{
+          width: '100%',
+          lineHeight: 1.7,
+          fontSize: '0.96rem',
+          padding: '14px 16px',
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'var(--card)',
+          color: 'var(--ink)',
+        }}
       />
-      <p className="muted small">
-        {t('exam_words')}: {words}
-        {minWords > 0 ? ` · ${t('exam_min')}: ${minWords}` : ''}
+      <p className="muted small" style={{ marginTop: 8 }}>
+        {t('exam_words')}: <strong>{words}</strong>
+        {targetMin > 0 ? ` · ${t('exam_min')}: ${targetMin}` : ''}
         {maxWords > 0 ? ` · ${t('exam_max')}: ${maxWords}` : ''}
       </p>
     </div>

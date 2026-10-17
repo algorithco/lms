@@ -14,7 +14,7 @@ import {
   type ResultListItem,
 } from '../lib/testing';
 
-export function getBmbBadge(grade?: string, pct?: number): {
+export function getBmbBadge(grade?: string, pct?: number, t?: (k: string) => string): {
   grade: string;
   color: string;
   desc: string;
@@ -33,19 +33,19 @@ export function getBmbBadge(grade?: string, pct?: number): {
   }
   switch (g) {
     case 'A+':
-      return { grade: 'A+', color: '#10b981', desc: 'Maksimal imtiyoz (86–100%)', bg: 'rgba(16, 185, 129, 0.15)' };
+      return { grade: 'A+', color: '#10b981', desc: t ? t('bmb_grade_ap') : 'Maksimal imtiyoz (86–100%)', bg: 'rgba(16, 185, 129, 0.15)' };
     case 'A':
-      return { grade: 'A', color: '#059669', desc: 'Yuqori daraja (75–85%)', bg: 'rgba(5, 150, 105, 0.15)' };
+      return { grade: 'A', color: '#059669', desc: t ? t('bmb_grade_a') : 'Yuqori daraja (75–85%)', bg: 'rgba(5, 150, 105, 0.15)' };
     case 'B+':
-      return { grade: 'B+', color: '#0284c7', desc: 'Yaxshi daraja (68–74%)', bg: 'rgba(2, 132, 199, 0.15)' };
+      return { grade: 'B+', color: '#0284c7', desc: t ? t('bmb_grade_bp') : 'Yaxshi daraja (68–74%)', bg: 'rgba(2, 132, 199, 0.15)' };
     case 'B':
-      return { grade: 'B', color: '#3b82f6', desc: 'Qoniqarli daraja (60–67%)', bg: 'rgba(59, 130, 246, 0.15)' };
+      return { grade: 'B', color: '#3b82f6', desc: t ? t('bmb_grade_b') : 'Qoniqarli daraja (60–67%)', bg: 'rgba(59, 130, 246, 0.15)' };
     case 'C+':
-      return { grade: 'C+', color: '#f59e0b', desc: 'O‘rtacha daraja (53–59%)', bg: 'rgba(245, 158, 11, 0.15)' };
+      return { grade: 'C+', color: '#f59e0b', desc: t ? t('bmb_grade_cp') : 'O‘rtacha daraja (53–59%)', bg: 'rgba(245, 158, 11, 0.15)' };
     case 'C':
-      return { grade: 'C', color: '#d97706', desc: 'Cheklangan daraja (46–52%)', bg: 'rgba(217, 119, 6, 0.15)' };
+      return { grade: 'C', color: '#d97706', desc: t ? t('bmb_grade_c') : 'Cheklangan daraja (46–52%)', bg: 'rgba(217, 119, 6, 0.15)' };
     default:
-      return { grade: 'Fail', color: '#ef4444', desc: 'Sertifikat berilmaydi (<46%)', bg: 'rgba(239, 68, 68, 0.15)' };
+      return { grade: 'Fail', color: '#ef4444', desc: t ? t('bmb_grade_fail') : 'Sertifikat berilmaydi (<46%)', bg: 'rgba(239, 68, 68, 0.15)' };
   }
 }
 
@@ -210,7 +210,7 @@ export default function Results() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <strong>{String(r.test_title ?? `Test #${r.test ?? r.id}`)}</strong>
                     {(() => {
-                      const bmb = getBmbBadge(r.bmb_grade as string | undefined, pct);
+                      const bmb = getBmbBadge(r.bmb_grade as string | undefined, pct, t);
                       return (
                         <span
                           style={{
@@ -315,7 +315,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const pct = num(detail.percentage, 0);
   const pending = detail.grading_status === 'pending_grading';
   const unverified = detail.certificate_status === 'rules_unverified';
-  const bmb = getBmbBadge(detail.bmb_grade, pct);
+  const bmb = getBmbBadge(detail.bmb_grade, pct, t);
 
   // 24/7 AI Tutor Diagnostics
   const [showDiag, setShowDiag] = useState(false);
@@ -342,7 +342,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
         const res = await AiTutor.getDiagnostics(detail.id);
         setDiagData(res);
       } catch (e) {
-        setDiagErr(e instanceof Error ? e.message : 'AI tahlilni yuklab bo‘lmadi.');
+        setDiagErr(e instanceof Error ? e.message : t('err_retry_js'));
       } finally {
         setDiagLoading(false);
       }
@@ -383,7 +383,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       setExplanations((prev) => ({
         ...prev,
         [questionId]: {
-          err: e instanceof Error ? e.message : 'Tushuntirishni yuklashda xatolik.',
+          err: e instanceof Error ? e.message : t('err_retry_js'),
           open: true,
         },
       }));
@@ -420,11 +420,11 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                 marginBottom: '6px',
               }}
             >
-              BMB Rasmiy Daraja: {bmb.grade}
+              {t('bmb_official_grade')}: {bmb.grade}
             </span>
             <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{bmb.desc}</p>
             <p className="muted small" style={{ margin: '4px 0 0' }}>
-              Umumiy ko‘rsatkich: <strong>{pct}%</strong> {detail.is_passed ? '(Muvaffaqiyatli)' : '(Qoniqarsiz)'}
+              {t('overall_score')}: <strong>{pct}%</strong> {detail.is_passed ? `(${t('passed_status')})` : `(${t('failed_status')})`}
             </p>
           </div>
           <button
@@ -440,7 +440,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
             }}
           >
             <span>🧠</span>
-            <span>{showDiag ? 'AI Tahlilni yopish' : '24/7 AI Tahlil & Zaif Mavzular'}</span>
+            <span>{showDiag ? t('ai_diag_btn_close') : t('ai_diag_btn_open')}</span>
           </button>
         </div>
 
@@ -634,10 +634,24 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                 )}
               </div>
 
-              {qd.explanation && isWrong && (
-                <p className="muted small" style={{ marginTop: 8 }}>
-                  {t('rd_explanation')} {qd.explanation}
-                </p>
+              {qd.explanation && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '10px 14px',
+                    background: 'rgba(59, 130, 246, 0.06)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    borderRadius: 8,
+                    fontSize: '0.88rem',
+                    lineHeight: 1.6,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  <strong style={{ color: '#60a5fa', display: 'block', marginBottom: 4 }}>
+                    {t('bmb_rule_explanation')}
+                  </strong>
+                  <span>{qd.explanation}</span>
+                </div>
               )}
 
               {/* Interactive AI Mistake Explainer */}
@@ -660,10 +674,10 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                     <span>💡</span>
                     <span>
                       {isThisLoading
-                        ? 'AI tahlil qilmoqda…'
+                        ? t('ai_explaining')
                         : expl?.open
-                          ? 'Tushuntirishni yashirish'
-                          : 'Nega bu javob xato? AI dan so‘rash'}
+                          ? t('ai_explain_hide')
+                          : t('ai_explain_btn')}
                     </span>
                   </button>
 
@@ -683,13 +697,13 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                       {expl.data && (
                         <div style={{ display: 'grid', gap: 8 }}>
                           <div>
-                            <strong style={{ color: '#ef4444' }}>❌ Nega noto‘g‘ri?</strong>
+                            <strong style={{ color: '#ef4444' }}>{t('why_wrong_title')}</strong>
                             <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
                               {expl.data.why_wrong}
                             </p>
                           </div>
                           <div>
-                            <strong style={{ color: '#10b981' }}>📖 To‘g‘ri qoida:</strong>
+                            <strong style={{ color: '#10b981' }}>{t('correct_rule_title')}</strong>
                             <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
                               {expl.data.correct_rule}
                             </p>
@@ -704,7 +718,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                               }}
                             >
                               <strong style={{ color: '#f59e0b', fontSize: '0.84rem' }}>
-                                💡 Eslab qolish usuli (Mnemonic):
+                                {t('mnemonic_title')}
                               </strong>
                               <p style={{ margin: '2px 0 0', fontSize: '0.84rem' }}>
                                 {expl.data.memory_tip}

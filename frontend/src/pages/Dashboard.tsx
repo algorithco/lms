@@ -148,10 +148,10 @@ export default function Dashboard() {
             <span style={{ fontSize: 24 }}>⏳</span>
             <div>
               <strong style={{ color: '#fbbf24', fontSize: 15, display: 'block' }}>
-                Sizning to'lov chekingiz tekshirilmoqda...
+                {t('dash_receipt_pending_title')}
               </strong>
               <p className="small muted" style={{ margin: 0, color: '#fde68a' }}>
-                {pendingReceipt.plan.toUpperCase()} tarifi uchun to'lov chekingiz admin tomonidan tekshirilmoqda (odatda 5-15 daqiqa). Tasdiqlangach tarifingiz avtomatik faollashadi.
+                {pendingReceipt.plan.toUpperCase()} {t('dash_receipt_pending_desc')}
               </p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function Dashboard() {
               whiteSpace: 'nowrap',
             }}
           >
-            Chek holatini ko'rish →
+            {t('dash_view_receipt_status')}
           </Link>
         </div>
       )}
@@ -179,13 +179,13 @@ export default function Dashboard() {
       {tuition && (tuition.invoices.length > 0 || tuition.outstanding_uzs > 0) && (
         <section className="card" aria-label="Course tuition">
           <h2>💳 {t('tuition_title')}</h2>
-          <p className="muted">{t('tuition_confirmed')}: {Number(tuition.confirmed_paid_uzs).toLocaleString()} so'm · {t('tuition_outstanding')}: {Number(tuition.outstanding_uzs).toLocaleString()} so'm</p>
+          <p className="muted">{t('tuition_confirmed')}: {Number(tuition.confirmed_paid_uzs).toLocaleString()} {t('currency_uzs')} · {t('tuition_outstanding')}: {Number(tuition.outstanding_uzs).toLocaleString()} {t('currency_uzs')}</p>
           <div className="table-wrap"><table className="data">
             <thead><tr><th>{t('tuition_period')}</th><th>{t('tuition_status')}</th><th>{t('tuition_amount')}</th><th>{t('tuition_paid')}</th><th>{t('tuition_outstanding')}</th><th>{t('tuition_deadline')}</th><th>{t('tuition_payment_instructions')}</th></tr></thead>
             <tbody>{tuition.invoices.map((invoice) => <tr key={invoice.id}>
               <td>{invoice.period_label}</td><td>{invoice.status_label}{invoice.awaiting_confirmation ? ` · ${t('tuition_pending')}` : ''}</td>
-              <td>{Number(invoice.amount_due_uzs).toLocaleString()} so'm</td><td>{Number(invoice.paid_amount_uzs).toLocaleString()} so'm</td>
-              <td>{Number(invoice.balance_uzs).toLocaleString()} so'm</td><td>{invoice.due_date}</td><td>{invoice.payment_instructions || '—'}</td>
+              <td>{Number(invoice.amount_due_uzs).toLocaleString()} {t('currency_uzs')}</td><td>{Number(invoice.paid_amount_uzs).toLocaleString()} {t('currency_uzs')}</td>
+              <td>{Number(invoice.balance_uzs).toLocaleString()} {t('currency_uzs')}</td><td>{invoice.due_date}</td><td>{invoice.payment_instructions || '—'}</td>
             </tr>)}</tbody>
           </table></div>
         </section>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLang } from '../i18n/LangContext';
 import { api } from '../lib/api';
 import { TrashIcon, UserIcon } from './icons';
 
@@ -14,6 +15,7 @@ interface ParentRelation {
 }
 
 export default function ParentMonitoringCard() {
+  const { t } = useLang();
   const [relations, setRelations] = useState<ParentRelation[]>([]);
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
@@ -51,7 +53,7 @@ export default function ParentMonitoringCard() {
       setPhoneInput('');
       await loadRelations();
     } catch (err: any) {
-      setError(err?.response?.data?.error || "Xatolik yuz berdi. Qayta urinib ko'ring.");
+      setError(err?.response?.data?.error || t('parent_error_generic'));
     } finally {
       setSaving(false);
     }
@@ -71,7 +73,7 @@ export default function ParentMonitoringCard() {
   };
 
   const handleDelete = async (relId: number) => {
-    if (!confirm("Haqiqatan ham ushbu ota-ona raqamini o'chirmoqchimisiz?")) return;
+    if (!confirm(t('parent_delete_confirm'))) return;
     try {
       await api.delete(`/parents/relation/${relId}/`);
       setRelations((prev) => prev.filter((r) => r.id !== relId));
@@ -98,9 +100,9 @@ export default function ParentMonitoringCard() {
           <UserIcon size={22} />
         </div>
         <div>
-          <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800 }}>👨‍👩‍👧 Ota-onalar nazorati (Smart Alerts)</h2>
+          <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800 }}>{t('parent_card_title')}</h2>
           <span className="muted small">
-            Test va mock natijalari hamda haftalik hisobotlarni ota-onangizning Telegram botiga avtomatik yuborish
+            {t('parent_card_subtitle')}
           </span>
         </div>
       </div>
@@ -139,7 +141,7 @@ export default function ParentMonitoringCard() {
 
       {/* Linked Relations List */}
       {loading ? (
-        <div className="muted small" style={{ padding: 12 }}>Yuklanmoqda...</div>
+        <div className="muted small" style={{ padding: 12 }}>{t('parent_loading')}</div>
       ) : relations.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
           {relations.map((rel) => (
@@ -160,9 +162,9 @@ export default function ParentMonitoringCard() {
                   <strong style={{ fontSize: 15, display: 'block' }}>{rel.parent_phone}</strong>
                   <span className="muted small">
                     {rel.is_verified ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Telegram botga bog'langan</span>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>{t('parent_linked')}</span>
                     ) : (
-                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>⏳ Tasdiqlash kutilmoqda</span>
+                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>{t('parent_pending')}</span>
                     )}
                   </span>
                 </div>
@@ -180,7 +182,7 @@ export default function ParentMonitoringCard() {
                         color: 'var(--accent-dark)',
                       }}
                     >
-                      Kodi: <code>{rel.verification_code}</code>
+                      {t('parent_code_label')} <code>{rel.verification_code}</code>
                     </div>
                   )}
 
@@ -201,7 +203,7 @@ export default function ParentMonitoringCard() {
                     }}
                   >
                     <TrashIcon size={14} />
-                    O'chirish
+                    {t('parent_delete_btn')}
                   </button>
                 </div>
               </div>
@@ -216,8 +218,8 @@ export default function ParentMonitoringCard() {
                     color: 'var(--ink)',
                   }}
                 >
-                  💡 <strong>Ota-onangizga ayting:</strong> Telegramda <code>@grandec_bot</code> ga kirib,{' '}
-                  <strong>{rel.verification_code}</strong> kodini yozsa, tizim darhol ulanadi.
+                  💡 <strong>{t('parent_connect_tip_prefix')}</strong> Telegramda <code>@grandec_bot</code> ga kirib,{' '}
+                  <strong>{rel.verification_code}</strong> {t('parent_connect_tip_body')}
                 </div>
               )}
 
@@ -237,7 +239,7 @@ export default function ParentMonitoringCard() {
                     checked={rel.instant_alerts_enabled}
                     onChange={() => handleToggle(rel.id, 'instant_alerts_enabled', rel.instant_alerts_enabled)}
                   />
-                  <span>🔔 Test natijalarini darhol yuborish</span>
+                  <span>{t('parent_instant_alerts')}</span>
                 </label>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
@@ -246,7 +248,7 @@ export default function ParentMonitoringCard() {
                     checked={rel.weekly_report_enabled}
                     onChange={() => handleToggle(rel.id, 'weekly_report_enabled', rel.weekly_report_enabled)}
                   />
-                  <span>📊 Haftalik yakshanba hisoboti (18:00)</span>
+                  <span>{t('parent_weekly_reports')}</span>
                 </label>
               </div>
             </div>
@@ -263,10 +265,10 @@ export default function ParentMonitoringCard() {
           }}
         >
           <span className="muted small" style={{ display: 'block', marginBottom: 6 }}>
-            Hozircha hech qanday ota-ona raqami ulanmagan.
+            {t('parent_no_relations')}
           </span>
           <span className="muted small">
-            Ota-onangiz telefon raqamini kiritib, ularga test natijalaringizni avtomatik borishini ta'minlang.
+            {t('parent_no_relations_sub')}
           </span>
         </div>
       )}
@@ -275,7 +277,7 @@ export default function ParentMonitoringCard() {
       <form onSubmit={handleAddPhone} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <input
           type="text"
-          placeholder="Ota-ona telefon raqami (masalan: +998901234567)"
+          placeholder={t('parent_phone_placeholder')}
           value={phoneInput}
           onChange={(e) => setPhoneInput(e.target.value)}
           style={{
@@ -295,7 +297,7 @@ export default function ParentMonitoringCard() {
           className="btn primary btn-glow"
           style={{ padding: '10px 18px', fontSize: 13, fontWeight: 700 }}
         >
-          {saving ? "Saqlanmoqda..." : "Ota-ona raqamini ulash"}
+          {saving ? t('parent_saving') : t('parent_add_btn')}
         </button>
       </form>
     </div>

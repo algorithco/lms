@@ -16,15 +16,14 @@ function bucketLine(
   label: string,
   bucket: UsageBucket | undefined,
   t: (k: string) => string,
+  fallbackValue?: string,
 ): string {
-  if (!bucket) return `${label}: ${t('usage_not_configured')}`;
-  if (bucket.unlimited) return `${label}: ${t('usage_unlimited')}`;
-  // A null limit means "not configured by an administrator" — distinct from a
-  // real zero, which has remaining === 0 and a numeric limit.
-  if (bucket.limit === null || bucket.remaining === null) {
-    return `${label}: ${t('usage_not_configured')}`;
+  if (bucket && bucket.unlimited) return `${label}: ${t('usage_unlimited')}`;
+  if (bucket && typeof bucket.remaining === 'number' && typeof bucket.limit === 'number') {
+    return `${label}: ${bucket.remaining}/${bucket.limit} ${t('usage_remaining')}`;
   }
-  return `${label}: ${bucket.remaining}/${bucket.limit} ${t('usage_remaining')}`;
+  if (fallbackValue) return `${label}: ${fallbackValue}`;
+  return `${label}: ${t('usage_unlimited')}`;
 }
 
 /** Local clock time of the cooldown deadline, e.g. "14:30". */
@@ -38,6 +37,7 @@ function clockTime(iso: string | null): string {
 function planLabel(e: BillingEntitlement, t: (k: string) => string): string {
   if (e.is_sponsored || e.source === 'sponsored') return t('usage_sponsored');
   if (e.source === 'override') return t('usage_admin_override');
+  if (!e.is_paid || e.source === 'default' || e.plan_name === 'Bepul') return t('pay_free_label');
   return e.plan_name || String(e.plan_type ?? '') || t('usage_plan');
 }
 
@@ -63,6 +63,7 @@ export default function UsageLimits({ showManage = true }: { showManage?: boolea
   if (!ent) return null;
 
   const sponsored = ent.is_sponsored || ent.source === 'sponsored';
+  const isFreePlan = !ent.is_paid && !sponsored && ent.source !== 'override';
   const cooldown = Number(ent.text_cooldown_seconds ?? 0);
   const cooldownAt = cooldown > 0 ? clockTime(ent.text_cooldown_until) : '';
 
@@ -72,9 +73,24 @@ export default function UsageLimits({ showManage = true }: { showManage?: boolea
         {t('usage_plan')}: <strong>{planLabel(ent, t)}</strong>
       </p>
       <ul className="muted small">
-        <li>{bucketLine(t('usage_image_essay'), ent.image_essay, t)}</li>
-        <li>{bucketLine(t('usage_text_essay'), ent.text_essay, t)}</li>
-        <li>{bucketLine(t('usage_tests'), ent.test, t)}</li>
+        <li>
+          {isFreePlan
+            ? `${t('usage_text_essay')}: ${t('usage_text_essay_free_val')}`
+            : bucketLine(t('usage_text_essay'), ent.text_essay, t, t('usage_text_essay_free_val'))}
+        </li>
+        <li>
+          {isFreePlan
+            ? `${t('usage_image_essay')}: ${t('usage_image_essay_free_val')}`
+            : bucketLine(t('usage_image_essay'), ent.image_essay, t, t('usage_image_essay_free_val'))}
+        </li>
+        <li>
+          {isFreePlan
+            ? `${t('usage_tests')}: ${t('usage_test_free_val')}`
+            : bucketLine(t('usage_tests'), ent.test, t, t('usage_test_free_val'))}
+        </li>
+        <li>
+          {`${t('usage_ai_tutor')}: ${isFreePlan ? t('usage_ai_tutor_free_val') : t('usage_unlimited')}`}
+        </li>
         {cooldownAt && (
           <li>
             {t('usage_next_essay')}: <b>{cooldownAt}</b>
