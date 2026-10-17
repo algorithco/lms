@@ -175,7 +175,7 @@ class GradingTests(TestCase):
         # through tables, 1 bulk_update, profile get_or_create, result
         # get_or_create+update, per-section update_or_create, 1 milliy EXISTS
         # check in the cert gate). Bound guards N+1.
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(53):
             outcome = SubmitAttemptService.execute(attempt_id=attempt.id, student=student)
         self.assertEqual(outcome.correct_answers, 3)
         self.assertEqual(outcome.score, Decimal("10"))

@@ -120,7 +120,7 @@ def test_parent_student_relation_flow(student_user):
 @pytest.mark.django_db
 def test_parent_instant_alert_task(student_user, test_instance):
     # Setup relation with telegram ID
-    rel = ParentStudentRelation.objects.create(
+    ParentStudentRelation.objects.create(
         student=student_user,
         parent_phone="+998909876543",
         parent_telegram_id=999888777,
@@ -247,7 +247,7 @@ def test_enterprise_hub_flow(student_user, test_instance):
         owner=director,
         student_seat_limit=50,
     )
-    branch1 = CenterBranch.objects.create(center=center, name="Chilonzor filiali")
+    CenterBranch.objects.create(center=center, name="Chilonzor filiali")
     CenterBranch.objects.create(center=center, name="Yunusobod filiali")
 
     director.learning_center = center

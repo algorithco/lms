@@ -13,6 +13,7 @@ from django.contrib.auth import get_user_model, login
 from django.db import IntegrityError, transaction
 from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -185,7 +186,8 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
     logger.info("Google OAuth login: user_id=%s", user.pk)
 
     tokens = _jwt_pair_for(user)
-    return HttpResponseRedirect(f"/dashboard?oauth=google&access={tokens['access']}&refresh={tokens['refresh']}")
+    dash_url = reverse("web:dashboard")
+    return HttpResponseRedirect(f"{dash_url}?oauth=google&access={tokens['access']}&refresh={tokens['refresh']}")
 
 
 def _jwt_pair_for(user) -> dict[str, str]:
