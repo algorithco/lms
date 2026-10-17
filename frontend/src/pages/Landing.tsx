@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
+import { useTheme } from '../theme/ThemeContext';
 import { School, landingFor } from '../lib/api';
 import TrendChart from '../components/TrendChart';
 import SEO from '../components/SEO';
@@ -17,7 +18,9 @@ import {
   LightbulbIcon,
   MapPinIcon,
   MenuIcon,
+  MoonIcon,
   PenLineIcon,
+  SunIcon,
   SwordsIcon,
   TrophyIcon,
   XIcon,
@@ -180,6 +183,7 @@ const CBT_QUESTION: CbtSampleQuestion = {
 export default function Landing() {
   const { t } = useLang();
   const { user, openAuthModal } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -329,10 +333,10 @@ export default function Landing() {
           left: 0,
           right: 0,
           zIndex: 50,
-          background: 'rgba(9, 13, 22, 0.85)',
+          background: 'var(--topbar-bg)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--border)',
         }}
         aria-label="Asosiy navigatsiya"
       >
@@ -386,7 +390,7 @@ export default function Landing() {
                   fontSize: 16,
                   fontWeight: 900,
                   letterSpacing: '-0.02em',
-                  color: '#f8fafc',
+                  color: 'var(--ink)',
                   lineHeight: 1.1,
                 }}
               >
@@ -424,16 +428,16 @@ export default function Landing() {
                   borderRadius: 10,
                   fontSize: 14,
                   fontWeight: 600,
-                  color: '#94a3b8',
+                  color: 'var(--muted)',
                   textDecoration: 'none',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#f8fafc';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.color = 'var(--ink)';
+                  e.currentTarget.style.background = 'var(--dropdown-hover)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#94a3b8';
+                  e.currentTarget.style.color = 'var(--muted)';
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
@@ -442,47 +446,68 @@ export default function Landing() {
             ))}
           </div>
 
-          {/* Right Area: Language Switcher & Auth / User Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Right Area: Language Switcher, Theme Switcher & Auth / User Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {user ? (
               <UserNavDropdown />
             ) : (
               <>
                 <LanguageSwitcher />
                 <button
-                type="button"
-                onClick={() => openAuthModal('login')}
-                className="btn-glow"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '9px 20px',
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: 800,
-                  color: '#090d16',
-                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(245, 158, 11, 0.35)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <span>{t('login')}</span>
-                <span
+                  type="button"
+                  onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
+                  title={resolvedTheme === 'light' ? "Qorong'i rejimga o'tish" : "Yorug' rejimga o'tish"}
+                  aria-label={resolvedTheme === 'light' ? "Qorong'i rejim" : "Yorug' rejim"}
                   style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    padding: '2px 6px',
-                    borderRadius: 6,
-                    background: 'rgba(9, 13, 22, 0.2)',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
                   }}
                 >
-                  1-klik
-                </span>
-              </button>
-            </>
+                  {resolvedTheme === 'light' ? <MoonIcon size={16} /> : <SunIcon size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="btn-glow"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '9px 20px',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: '#090d16',
+                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(245, 158, 11, 0.35)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span>{t('login')}</span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      background: 'rgba(9, 13, 22, 0.2)',
+                    }}
+                  >
+                    1-klik
+                  </span>
+                </button>
+              </>
             )}
 
             {/* Mobile Hamburger */}
@@ -495,13 +520,14 @@ export default function Landing() {
                 width: 40,
                 height: 40,
                 borderRadius: 10,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                background: 'rgba(15, 23, 42, 0.6)',
-                color: '#f8fafc',
+                border: '1px solid var(--border)',
+                background: 'var(--card-2)',
+                color: 'var(--ink)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                transition: 'all 0.2s ease',
               }}
             >
               {mobileOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
@@ -534,12 +560,12 @@ export default function Landing() {
               width: '85%',
               maxWidth: 340,
               zIndex: 100,
-              background: '#0f172a',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--card)',
+              borderLeft: '1px solid var(--border)',
               padding: '24px 20px',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '-12px 0 40px rgba(0, 0, 0, 0.8)',
+              boxShadow: '-12px 0 40px rgba(0, 0, 0, 0.5)',
             }}
             role="dialog"
             aria-modal="true"
@@ -548,7 +574,7 @@ export default function Landing() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img src="/grandec.png" alt="GRANDEC" style={{ width: 30, height: 30 }} />
-                <span style={{ fontWeight: 900, fontSize: 16, color: '#f8fafc' }}>GRAND EDUCATION</span>
+                <span style={{ fontWeight: 900, fontSize: 16, color: 'var(--ink)' }}>GRAND EDUCATION</span>
               </div>
               <button
                 type="button"
@@ -556,7 +582,7 @@ export default function Landing() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: 'var(--muted)',
                   cursor: 'pointer',
                 }}
               >
@@ -575,7 +601,7 @@ export default function Landing() {
                     borderRadius: 12,
                     fontSize: 15,
                     fontWeight: 600,
-                    color: '#94a3b8',
+                    color: 'var(--muted)',
                     textDecoration: 'none',
                   }}
                 >
@@ -584,7 +610,7 @@ export default function Landing() {
               ))}
             </nav>
 
-            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: 20 }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
               {user ? (
                 <Link
                   to={startTo}
@@ -688,7 +714,7 @@ export default function Landing() {
                   lineHeight: 1.1,
                   fontWeight: 900,
                   letterSpacing: '-0.03em',
-                  color: '#f8fafc',
+                  color: 'var(--ink)',
                   margin: '0 0 20px',
                 }}
               >
@@ -701,7 +727,7 @@ export default function Landing() {
                 style={{
                   fontSize: 'clamp(1.05rem, 1.8vw, 1.2rem)',
                   lineHeight: 1.7,
-                  color: '#94a3b8',
+                  color: 'var(--muted)',
                   maxWidth: 540,
                   margin: '0 0 32px',
                 }}
@@ -755,20 +781,20 @@ export default function Landing() {
                     borderRadius: 14,
                     fontSize: 14,
                     fontWeight: 700,
-                    color: '#f8fafc',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.14)',
+                    color: 'var(--ink)',
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
                     cursor: 'pointer',
                     backdropFilter: 'blur(12px)',
                     transition: 'all 0.2s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.borderColor = 'var(--accent)';
+                    e.currentTarget.style.background = 'var(--dropdown-hover)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.14)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.background = 'var(--card-2)';
                   }}
                 >
                   <span>⚡ 1-klikda kirish</span>
@@ -804,25 +830,23 @@ export default function Landing() {
             {/* Right Column: High-End Interactive Demo Widget */}
             <div>
               <div
-                className="glass-card lcard-hover"
+                className="glass-card lcard-hover demo-card"
                 style={{
                   borderRadius: 24,
                   padding: 24,
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   backdropFilter: 'blur(16px)',
-                  boxShadow: '0 24px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
                 }}
               >
                 {/* Segmented Demo Tabs */}
                 <div
+                  className="demo-tabs-wrap"
                   style={{
                     display: 'flex',
-                    background: 'rgba(30, 41, 59, 0.6)',
+                    background: 'var(--card-2)',
                     borderRadius: 14,
                     padding: 4,
                     marginBottom: 20,
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    border: '1px solid var(--border)',
                   }}
                 >
                   <button
@@ -838,7 +862,7 @@ export default function Landing() {
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       background: demoTab === 'essay' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
-                      color: demoTab === 'essay' ? '#F59E0B' : '#94a3b8',
+                      color: demoTab === 'essay' ? '#F59E0B' : 'var(--muted)',
                       boxShadow: demoTab === 'essay' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
                     }}
                   >
@@ -857,7 +881,7 @@ export default function Landing() {
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       background: demoTab === 'test' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                      color: demoTab === 'test' ? '#10B981' : '#94a3b8',
+                      color: demoTab === 'test' ? '#10B981' : 'var(--muted)',
                       boxShadow: demoTab === 'test' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
                     }}
                   >
@@ -882,7 +906,7 @@ export default function Landing() {
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
                           Insho mavzusi
                         </span>
-                        <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: '#f8fafc' }}>
+                        <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
                           Alisher Navoiy ijodida insonparvarlik gʻoyalari
                         </h4>
                       </div>
@@ -904,31 +928,32 @@ export default function Landing() {
 
                     {/* Score summary bar */}
                     <div
+                      className="demo-score-box"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '12px 16px',
                         borderRadius: 14,
-                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(16, 185, 129, 0.08))',
-                        border: '1px solid rgba(245, 158, 11, 0.2)',
+                        background: 'var(--card-2)',
+                        border: '1px solid rgba(245, 158, 11, 0.25)',
                         marginBottom: 16,
                       }}
                     >
                       <div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>Umumiy ball:</span>
-                        <div style={{ fontSize: 22, fontWeight: 900, color: '#f8fafc' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Umumiy ball:</span>
+                        <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
                           54.5 <span style={{ fontSize: 14, color: '#F59E0B' }}>/ 60</span>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>Matn hajmi:</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Matn hajmi:</span>
                         <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>278 soʻz (Yetarli)</div>
                       </div>
                     </div>
 
                     {/* Criteria Selector Chips */}
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', margin: '0 0 8px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
                       Mezonni tanlang (jonli tahlil):
                     </p>
                     <div
@@ -952,9 +977,9 @@ export default function Landing() {
                               fontSize: 11,
                               fontWeight: 700,
                               cursor: 'pointer',
-                              border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
-                              background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'rgba(30, 41, 59, 0.4)',
-                              color: isSel ? '#F59E0B' : '#cbd5e1',
+                              border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.5)' : 'var(--border)'}`,
+                              background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
+                              color: isSel ? '#F59E0B' : 'var(--ink-soft)',
                               transition: 'all 0.15s ease',
                             }}
                           >
@@ -966,10 +991,11 @@ export default function Landing() {
 
                     {/* Active Criterion Critique Box */}
                     <div
+                      className="active-critique-box"
                       style={{
                         padding: '14px',
                         borderRadius: 14,
-                        background: 'rgba(15, 23, 42, 0.9)',
+                        background: 'var(--card-2)',
                         border: '1px solid rgba(245, 158, 11, 0.25)',
                         marginBottom: 16,
                       }}
@@ -980,13 +1006,13 @@ export default function Landing() {
                         </b>
                         <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCrit.score}</span>
                       </div>
-                      <p style={{ fontSize: 12, color: '#cbd5e1', margin: '0 0 6px', lineHeight: 1.5 }}>
+                      <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 6px', lineHeight: 1.5 }}>
                         {selectedCrit.desc}
                       </p>
                       <div
                         style={{
                           fontSize: 11,
-                          color: '#94a3b8',
+                          color: 'var(--muted)',
                           background: 'rgba(245, 158, 11, 0.08)',
                           padding: '6px 10px',
                           borderRadius: 8,
@@ -1037,7 +1063,7 @@ export default function Landing() {
                         justifyContent: 'space-between',
                         fontSize: 12,
                         fontWeight: 700,
-                        color: '#94a3b8',
+                        color: 'var(--muted)',
                         marginBottom: 12,
                       }}
                     >
@@ -1045,7 +1071,7 @@ export default function Landing() {
                       <span>Qolgan vaqt: 01:24:50</span>
                     </div>
 
-                    <h4 style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', margin: '0 0 16px', lineHeight: 1.5 }}>
+                    <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
                       {CBT_QUESTION.question}
                     </h4>
 
@@ -1078,19 +1104,19 @@ export default function Landing() {
                                 ? 'rgba(16, 185, 129, 0.2)'
                                 : showWrongState
                                 ? 'rgba(239, 68, 68, 0.2)'
-                                : 'rgba(30, 41, 59, 0.4)',
+                                : 'var(--card-2)',
                               border: `1px solid ${
                                 showCorrectState
                                   ? '#10B981'
                                   : showWrongState
                                   ? '#ef4444'
-                                  : 'rgba(255, 255, 255, 0.08)'
+                                  : 'var(--border)'
                               }`,
                               color: showCorrectState
                                 ? '#34D399'
                                 : showWrongState
                                 ? '#f87171'
-                                : '#f8fafc',
+                                : 'var(--ink)',
                             }}
                           >
                             <span>
@@ -1172,14 +1198,14 @@ export default function Landing() {
                 style={{
                   fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
                   fontWeight: 900,
-                  color: '#f8fafc',
+                  color: 'var(--ink)',
                   margin: '12px 0',
                 }}
               >
                 Milliy sertifikatga tayyorlovchi{' '}
                 <span className="hero-title-gradient">3 ta asosiy yo‘nalish</span>
               </h2>
-              <p style={{ fontSize: 15, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
                 BMB talablariga to‘liq moslashtirilgan sunʼiy intellekt va interaktiv tizimlar
               </p>
             </div>
@@ -1200,8 +1226,6 @@ export default function Landing() {
                   padding: '32px 28px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -1236,15 +1260,15 @@ export default function Landing() {
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: '#f8fafc', margin: '0 0 10px' }}>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                   ✍️ AI Esse Baholash
                 </h3>
-                <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                   12 ta rasmiy mezon boʻyicha inshongizni 15 soniya ichida grammatika, uslub, punktuatsiya va dalillanish
                   darajasigacha chuqur tahlil qilib, aniq tavsiyalar beradi.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#F59E0B' }} />
                     <span>12 ta BMB mezoniga 100% muvofiqlik</span>
@@ -1293,8 +1317,6 @@ export default function Landing() {
                   padding: '32px 28px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -1329,15 +1351,15 @@ export default function Landing() {
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: '#f8fafc', margin: '0 0 10px' }}>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                   📚 Milliy Sertifikat Testlari
                 </h3>
-                <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                   Haqiqiy CBT imtihon muhiti — 1 tadan ishlash rejimi, aniq vaqt nazorati va har bir savolga professional
                   ustozlar tahlili.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#10B981' }} />
                     <span>1 tadan ishlash (Fast CBT interfeys)</span>
@@ -1386,8 +1408,6 @@ export default function Landing() {
                   padding: '32px 28px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -1422,15 +1442,15 @@ export default function Landing() {
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: '#f8fafc', margin: '0 0 10px' }}>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                   ⚔️ Real-vaqt 1v1 Arena
                 </h3>
-                <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                   Butun respublika oʻquvchilari yoki AI bot bilan 60 soniyalik tezkor bilim jangi. ELO reytingingizni
                   oshiring va ligalarda yetakchilik qiling!
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#A78BFA' }} />
                     <span>Real vaqtda jonli raqib bilan bellashuv</span>
@@ -1522,10 +1542,10 @@ export default function Landing() {
                       <item.Icon size={22} />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#f8fafc' }}>
+                      <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
                         {Number(item.value).toLocaleString()}
                       </p>
-                      <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
                         {item.label}
                       </p>
                     </div>
@@ -1559,9 +1579,9 @@ export default function Landing() {
           id="how"
           style={{
             padding: '70px 20px',
-            background: 'rgba(9, 13, 22, 0.95)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'var(--card-2)',
+            borderTop: '1px solid var(--border)',
+            borderBottom: '1px solid var(--border)',
           }}
         >
           <div style={{ margin: '0 auto', maxWidth: 1000 }}>
@@ -1569,7 +1589,7 @@ export default function Landing() {
               <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.22em', color: '#F59E0B' }}>
                 {t('how_eyebrow')}
               </span>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: '#f8fafc', margin: '12px 0' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: 'var(--ink)', margin: '12px 0' }}>
                 {t('how_title_1')} <span className="hero-title-gradient">{t('how_title_2')}</span>
               </h2>
             </div>
@@ -1593,8 +1613,6 @@ export default function Landing() {
                     borderRadius: 20,
                     padding: '32px 24px',
                     textAlign: 'center',
-                    background: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
                   }}
                 >
                   <div
@@ -1615,8 +1633,8 @@ export default function Landing() {
                   >
                     {i + 1}
                   </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>{title}</h3>
-                  <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: 0 }}>{desc}</p>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 10px' }}>{title}</h3>
+                  <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: 0 }}>{desc}</p>
                 </div>
               ))}
             </div>
@@ -1661,13 +1679,13 @@ export default function Landing() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <img src="/grandec.png" alt="GRANDEC" style={{ width: 34, height: 34, objectFit: 'cover' }} />
                   <div>
-                    <b style={{ display: 'block', fontSize: 16, color: '#f8fafc' }}>GRAND EDUCATION</b>
+                    <b style={{ display: 'block', fontSize: 16, color: 'var(--ink)' }}>GRAND EDUCATION</b>
                     <small style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#F59E0B' }}>
                       LMS PLATFORM
                     </small>
                   </div>
                 </div>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#94a3b8', marginTop: 16 }}>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', marginTop: 16 }}>
                   {t('foot_mission')}
                 </p>
               </div>
@@ -1679,7 +1697,7 @@ export default function Landing() {
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
                   {sectionNav.map(([k, href]) => (
                     <li key={k}>
-                      <a href={href} style={{ color: '#94a3b8', textDecoration: 'none' }}>
+                      <a href={href} style={{ color: 'var(--muted)', textDecoration: 'none' }}>
                         {t(k)}
                       </a>
                     </li>
@@ -1688,7 +1706,7 @@ export default function Landing() {
                     <button
                       type="button"
                       onClick={() => openAuthModal('login')}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, fontSize: 14 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}
                     >
                       {t('login')}
                     </button>
@@ -1697,7 +1715,7 @@ export default function Landing() {
                     <button
                       type="button"
                       onClick={() => openAuthModal('register')}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, fontSize: 14 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}
                     >
                       {t('register')}
                     </button>
@@ -1709,7 +1727,7 @@ export default function Landing() {
                 <h4 style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.2em', color: '#F59E0B', margin: '0 0 18px', textTransform: 'uppercase' }}>
                   {t('foot_news')}
                 </h4>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: '#94a3b8', margin: '0 0 14px' }}>
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', margin: '0 0 14px' }}>
                   {t('foot_newsletter_desc')}
                 </p>
                 {newsDone ? (
@@ -1730,9 +1748,9 @@ export default function Landing() {
                         minWidth: 0,
                         padding: '10px 14px',
                         borderRadius: 12,
-                        background: 'rgba(15, 23, 42, 0.8)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#f8fafc',
+                        background: 'var(--card-2)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--ink)',
                         fontSize: 13,
                       }}
                     />
@@ -1771,11 +1789,11 @@ export default function Landing() {
                       @uz_essaygrader_bot
                     </a>
                   </li>
-                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8' }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
                     <ClockIcon size={18} style={{ color: '#F59E0B' }} />
                     <span>24/7 Avtomatlashtirilgan AI</span>
                   </li>
-                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8' }}>
+                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
                     <MapPinIcon size={18} style={{ color: '#F59E0B' }} />
                     <span>O‘zbekiston, Toshkent</span>
                   </li>
@@ -1787,13 +1805,13 @@ export default function Landing() {
               style={{
                 marginTop: 44,
                 paddingTop: 24,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid var(--border)',
                 display: 'flex',
                 flexWrap: 'wrap',
                 justifyContent: 'space-between',
                 gap: 12,
                 fontSize: 13,
-                color: '#64748b',
+                color: 'var(--muted)',
               }}
             >
               <span>© {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). Barcha huquqlar himoyalangan.</span>

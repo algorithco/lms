@@ -15,59 +15,40 @@ const THEME_KEY = 'theme';
 function getStoredTheme(): Theme {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved === 'dark' || saved === 'light' || saved === 'system') {
+    if (saved === 'light') {
+      return 'light';
+    }
+    if (saved === 'dark' || saved === 'system') {
       return saved;
     }
   } catch {
     /* ignore */
   }
-  return 'system';
+  // Default is STRICTLY dark mode
+  return 'dark';
 }
 
 const ThemeContext = createContext<ThemeState | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');
+
+  // Requirement: ONLY explicit 'light' activates light mode.
+  // 'dark' and 'system' (and default) are strictly dark mode.
+  const resolvedTheme: ResolvedTheme = theme === 'light' ? 'light' : 'dark';
 
   useEffect(() => {
-    const applyTheme = () => {
-      let active: ResolvedTheme = 'dark';
-      if (theme === 'system') {
-        // Tizim (System - default holatda Dark bilan bir xil)
-        const isSystemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-        const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (isSystemLight && !isSystemDark) {
-          active = 'light';
-        } else {
-          active = 'dark';
-        }
-      } else {
-        active = theme;
-      }
-
-      setResolvedTheme(active);
-      const root = document.documentElement;
-      if (active === 'light') {
-        root.classList.remove('dark');
-        root.classList.add('light');
-        root.style.colorScheme = 'light';
-      } else {
-        root.classList.remove('light');
-        root.classList.add('dark');
-        root.style.colorScheme = 'dark';
-      }
-    };
-
-    applyTheme();
-
-    if (theme === 'system') {
-      const media = window.matchMedia('(prefers-color-scheme: light)');
-      const listener = () => applyTheme();
-      media.addEventListener('change', listener);
-      return () => media.removeEventListener('change', listener);
+    const root = document.documentElement;
+    if (resolvedTheme === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
     }
-  }, [theme]);
+  }, [resolvedTheme]);
 
   const setTheme = (next: Theme) => {
     setThemeState(next);

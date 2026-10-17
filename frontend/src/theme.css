@@ -369,33 +369,150 @@ html.light .land-muted-soft {
 html.light .land-sec {
   background: #f8fafc;
 }
+
+/* Headings in Light Mode */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a;
+}
+
+/* Gradients in Light Mode */
+html.light .hero-title-gradient {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #92400e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html.light .emerald-gradient {
+  background: linear-gradient(135deg, #047857 0%, #059669 50%, #065f46 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Navbar in Light Mode */
+html.light .landing-nav {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .landing-nav .brand-name-text {
+  color: #0f172a !important;
+}
+
+html.light .landing-desktop-nav a {
+  color: #475569 !important;
+}
+
+html.light .landing-desktop-nav a:hover {
+  color: #0f172a !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .landing-burger-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Cards & Glassmorphism in Light Mode */
 html.light .glass-card,
 html.light .lcard {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.03);
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
 }
+
+html.light .lcard-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(217, 119, 6, 0.35) !important;
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.08), 0 0 16px rgba(245, 158, 11, 0.08) !important;
+}
+
+html.light .glass-card p,
+html.light .lcard p {
+  color: #475569;
+}
+
+/* Interactive Demo Widget in Light Mode */
+html.light .demo-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.07), 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .demo-tabs-wrap {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html.light .demo-score-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html.light .active-critique-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
 html.light .lpill {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #0f172a;
 }
+
+/* Backgrounds in Light Mode */
 html.light .subtle-grid-bg {
   background-image: 
     linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
 }
+
 html.light .subtle-dot-bg {
   background-image: radial-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px);
 }
+
+html.light .radial-glow-hero {
+  background: radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.08) 0%, rgba(16, 185, 129, 0.04) 45%, rgba(248, 250, 252, 0) 75%) !important;
+}
+
+/* Footer in Light Mode */
+html.light .land-foot-bg {
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+html.light .land-foot-ink {
+  color: #0f172a !important;
+}
+
+html.light .land-foot-muted {
+  color: #64748b !important;
+}
+
+html.light a.land-foot-muted:hover {
+  color: #d97706 !important;
+}
+
+/* Admin / Hero in Light Mode */
 html.light .admin-hero {
   background: linear-gradient(135deg, #ffffff, #f8fafc);
   border: 1px solid #e2e8f0;
 }
+
 html.light .admin-hero-stats > div {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
 }
+
 html.light .admin-action {
   background: #ffffff;
   border: 1px solid #e2e8f0;

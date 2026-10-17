@@ -73,11 +73,11 @@ function ModernTooltip({
   return (
     <div
       style={{
-        background: 'rgba(15, 23, 42, 0.92)',
+        background: 'var(--card)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(148, 163, 184, 0.18)',
-        boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) inset',
+        border: '1px solid var(--border)',
+        boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.3)',
         borderRadius: 14,
         padding: '12px 16px',
         fontSize: 12,
@@ -230,15 +230,16 @@ export default function TrendChart({
     <div
       role="region"
       aria-label="Platforma o'sishi ko'rsatkichlari grafigi"
+      className="glass-card"
       style={{
         width: '100%',
-        background: 'rgba(15, 23, 42, 0.72)',
+        background: 'var(--card)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(148, 163, 184, 0.12)',
+        border: '1px solid var(--border)',
         borderRadius: 20,
         padding: '20px 20px 16px',
-        boxShadow: '0 20px 48px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        boxShadow: '0 20px 48px -12px rgba(0, 0, 0, 0.3)',
       }}
     >
       <style>{`
@@ -256,8 +257,8 @@ export default function TrendChart({
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
-          background: rgba(30, 41, 59, 0.4);
-          border: 1px solid rgba(148, 163, 184, 0.12);
+          background: var(--card-2);
+          border: 1px solid var(--border);
           color: #94a3b8;
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }

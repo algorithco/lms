@@ -321,11 +321,11 @@ export default function AuthModal() {
         }
         .auth-input-group input {
           width: 100%;
-          background: rgba(15, 23, 42, 0.7);
-          border: 1px solid rgba(148, 163, 184, 0.16);
+          background: var(--card-2);
+          border: 1px solid var(--border);
           border-radius: 12px;
           padding: 12px 14px 12px 40px;
-          color: #f8fafc;
+          color: var(--ink);
           font-size: 14px;
           transition: all 0.2s ease;
         }
@@ -337,7 +337,7 @@ export default function AuthModal() {
         .auth-input-icon {
           position: absolute;
           left: 14px;
-          color: #94a3b8;
+          color: var(--muted);
           pointer-events: none;
         }
       `}</style>
@@ -347,9 +347,9 @@ export default function AuthModal() {
           position: 'relative',
           width: '100%',
           maxWidth: 440,
-          background: 'rgba(15, 23, 42, 0.94)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.04) inset',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.5)',
           borderRadius: 24,
           padding: '28px 24px',
           overflow: 'hidden',
@@ -389,19 +389,19 @@ export default function AuthModal() {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: 10,
-            border: '1px solid rgba(148, 163, 184, 0.15)',
-            background: 'rgba(30, 41, 59, 0.5)',
-            color: '#94a3b8',
+            border: '1px solid var(--border)',
+            background: 'var(--card-2)',
+            color: 'var(--muted)',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#f8fafc';
-            e.currentTarget.style.background = 'rgba(30, 41, 59, 0.9)';
+            e.currentTarget.style.color = 'var(--ink)';
+            e.currentTarget.style.background = 'var(--dropdown-hover)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#94a3b8';
-            e.currentTarget.style.background = 'rgba(30, 41, 59, 0.5)';
+            e.currentTarget.style.color = 'var(--muted)';
+            e.currentTarget.style.background = 'var(--card-2)';
           }}
         >
           <XIcon size={18} />
@@ -430,10 +430,10 @@ export default function AuthModal() {
             />
           </div>
 
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#f8fafc', margin: '0 0 6px' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 6px' }}>
             {mode === 'login' ? 'Tizimga 1-klikda kiring' : '1-klikda hisob yarating'}
           </h2>
-          <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
             Ona tili va adabiyotidan Milliy sertifikatga tayyorlovchi LMS platformasi
           </p>
         </div>
@@ -465,9 +465,9 @@ export default function AuthModal() {
             onClick={handleGoogleClick}
             disabled={googleBusy}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#f8fafc',
+              background: 'var(--card-2)',
+              border: '1px solid var(--border)',
+              color: 'var(--ink)',
               opacity: googleBusy ? 0.7 : 1,
               cursor: googleBusy ? 'wait' : 'pointer',
             }}
@@ -496,7 +496,7 @@ export default function AuthModal() {
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
                   {googleBusy ? 'Google hisobiga ulanmoqda...' : 'Google orqali davom etish'}
                 </span>
-                <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>
+                <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--muted)' }}>
                   {googleBusy ? 'Iltimos, kuting...' : '1 soniyada xavfsiz kirish'}
                 </span>
               </div>
@@ -524,9 +524,9 @@ export default function AuthModal() {
               onClick={startTelegramAuth}
               disabled={tgBusy}
               style={{
-                background: 'linear-gradient(135deg, rgba(34, 158, 217, 0.2), rgba(42, 171, 238, 0.1))',
+                background: 'linear-gradient(135deg, rgba(34, 158, 217, 0.15), rgba(42, 171, 238, 0.08))',
                 border: '1px solid rgba(42, 171, 238, 0.35)',
-                color: '#f8fafc',
+                color: 'var(--ink)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -550,7 +550,7 @@ export default function AuthModal() {
                   <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
                     Telegram orqali kirish
                   </span>
-                  <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--muted)' }}>
                     @uz_essaygrader_bot orqali tasdiqlash
                   </span>
                 </div>
@@ -656,7 +656,7 @@ export default function AuthModal() {
                 border: '1px solid rgba(42, 171, 238, 0.3)',
               }}
             >
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#f8fafc', margin: '0 0 10px' }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', margin: '0 0 10px' }}>
                 Telegram bot bergan 6 xonali tasdiqlash kodini kiriting:
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -668,15 +668,15 @@ export default function AuthModal() {
                   onChange={(e) => setTgCode(e.target.value)}
                   style={{
                     flex: 1,
-                    background: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(148, 163, 184, 0.25)',
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
                     borderRadius: 10,
                     padding: '10px 14px',
                     fontSize: 16,
                     fontWeight: 800,
                     letterSpacing: '0.2em',
                     textAlign: 'center',
-                    color: '#f8fafc',
+                    color: 'var(--ink)',
                   }}
                 />
                 <button
