@@ -518,6 +518,20 @@ h2 { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
 
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.gap-6 { gap: 1.5rem; }
+@media (min-width: 768px) {
+  .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+.border-amber-500\/80 {
+  border-color: rgba(245, 158, 11, 0.8) !important;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3) !important;
+}
+
 .stat { display: flex; flex-direction: column; gap: 0.3rem; }
 .stat-label {
   font-size: 0.7rem;

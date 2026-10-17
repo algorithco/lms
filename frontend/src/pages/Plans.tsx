@@ -2,96 +2,122 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Billing } from '../lib/api';
-import { isFreePlan, planEmoji, price } from '../lib/billingPanelGames';
-import { BarChartIcon } from '../components/icons';
 import UsageLimits from '../components/UsageLimits';
 
 interface Plan {
   id: number;
-  name: string;
+  name?: string;
   plan_type: string;
-  description?: string;
   price_monthly: number | string;
-  price_yearly: number | string;
-  max_tests_per_day: number;
-  max_essays_per_week: number;
-  detailed_analytics: boolean;
-  pdf_certificate: boolean;
-  priority_support: boolean;
-  unlimited_tests: boolean;
-  unlimited_essays: boolean;
-  // Commercial plan configuration (apps/payments/models.py SubscriptionPlan).
-  image_essay_weekly_limit?: number | null;
-  text_essay_weekly_limit?: number | null;
-  text_essay_cooldown_hours?: number | null;
-  test_limit?: number | null;
-  is_unlimited_image_essays?: boolean;
-  is_unlimited_text_essays?: boolean;
-  is_unlimited_tests?: boolean;
   is_public?: boolean;
 }
 
-/**
- * Quota bullets derived from the plan's REAL configuration — nothing is
- * invented. A null limit with the matching unlimited flag unset means the
- * administrator has not configured that bucket, so no bullet is shown.
- */
-function quotaFeatures(p: Plan, t: (k: string) => string): string[] {
-  const out: string[] = [];
-  if (p.is_unlimited_image_essays) {
-    out.push(`${t('usage_image_essay')}: ${t('usage_unlimited')}`);
-  } else if (typeof p.image_essay_weekly_limit === 'number') {
-    out.push(`${p.image_essay_weekly_limit} ${t('usage_image_essay')}${t('usage_per_week')}`);
-  }
-  if (p.is_unlimited_text_essays) {
-    out.push(`${t('usage_text_essay')}: ${t('usage_unlimited')}`);
-  } else if (typeof p.text_essay_weekly_limit === 'number') {
-    out.push(`${p.text_essay_weekly_limit} ${t('usage_text_essay')}${t('usage_per_week')}`);
-  }
-  if (typeof p.text_essay_cooldown_hours === 'number' && p.text_essay_cooldown_hours > 0) {
-    out.push(`${t('usage_text_cooldown_prefix')} ${p.text_essay_cooldown_hours} ${t('usage_hours')}`);
-  }
-  if (p.is_unlimited_tests) {
-    out.push(`${t('usage_tests')}: ${t('usage_unlimited')}`);
-  } else if (typeof p.test_limit === 'number') {
-    out.push(`${p.test_limit} ${t('usage_tests')}${t('usage_per_week')}`);
-  }
-  return out;
-}
-
-/** Per-plan_type feature bullets — parity with templates/payments/plans.html. */
-function featuresFor(p: Plan, t: (k: string) => string): string[] {
-  switch (p.plan_type) {
-    case 'free':
-      return [t('feat_free_1'), t('feat_free_2'), t('feat_free_3')];
-    case 'starter':
-      return [t('feat_starter_1'), t('feat_starter_2'), t('feat_starter_3')];
-    case 'pro':
-      return [t('feat_pro_1'), t('feat_pro_2'), t('feat_pro_3')];
-    case 'premium':
-      return [t('feat_premium_1'), t('feat_premium_2'), t('feat_premium_3'), t('feat_premium_4')];
-    default: {
-      const out: string[] = [];
-      out.push(
-        p.unlimited_tests
-          ? t('sub_unlimited_tests')
-          : `${t('sub_per_day_pre')} ${p.max_tests_per_day} ${t('sub_tests_unit')}`,
-      );
-      out.push(
-        p.unlimited_essays
-          ? t('sub_unlimited_essays')
-          : `${t('sub_per_week_pre')} ${p.max_essays_per_week} ${t('sub_essays_unit')}`,
-      );
-      if (p.detailed_analytics) out.push(t('detailed_analytics'));
-      if (p.pdf_certificate) out.push(t('sub_pdf_cert'));
-      if (p.priority_support) out.push(t('sub_priority_support'));
-      return out;
-    }
-  }
-}
+const PUBLIC_PLANS: {
+  plan_type: 'starter' | 'pro' | 'premium';
+  name: string;
+  defaultPrice: number;
+  emoji: string;
+  badgeUz?: string | null;
+  badgeRu?: string | null;
+  badgeEn?: string | null;
+  featuresUz: string[];
+  featuresRu: string[];
+  featuresEn: string[];
+}[] = [
+  {
+    plan_type: 'starter',
+    name: 'START / STARTER',
+    defaultPrice: 15000,
+    emoji: '⚡',
+    badgeUz: null,
+    badgeRu: null,
+    badgeEn: null,
+    featuresUz: [
+      'Kuniga 5 ta test',
+      'Haftasiga 8 ta esse',
+      '5 Rasmli esse/hafta',
+      '3 Matnli esse/hafta',
+      'Matnli esselar orasida 5 soat',
+    ],
+    featuresRu: [
+      '5 тестов в день',
+      '8 эссе в неделю',
+      '5 фото эссе / неделю',
+      '3 текстовых эссе / неделю',
+      '5 часов между текстовыми эссе',
+    ],
+    featuresEn: [
+      '5 tests per day',
+      '8 essays per week',
+      '5 photo essays / week',
+      '3 text essays / week',
+      '5 hours cooldown between text essays',
+    ],
+  },
+  {
+    plan_type: 'pro',
+    name: 'PRO',
+    defaultPrice: 49000,
+    emoji: '🚀',
+    badgeUz: '⭐ Eng ommabop / Tavsiya etiladi',
+    badgeRu: '⭐ Самый популярный / Рекомендуется',
+    badgeEn: '⭐ Most Popular / Recommended',
+    featuresUz: [
+      'Kuniga 1 ta rasmiy Mock test',
+      'Haftasiga 15 ta esse baholash',
+      'Barcha CBT va Mock testlar',
+      "Kunlik 50 ta AI repetitor so'rovi & Tahlil",
+      'Qisqa kutish vaqti (cooldownsiz)',
+    ],
+    featuresRu: [
+      '1 официальный Mock тест в день',
+      '15 оценок эссе в неделю',
+      'Все CBT и Mock тесты',
+      '50 запросов к AI-репетитору в день & Аналитика',
+      'Короткое время ожидания (без кулдауна)',
+    ],
+    featuresEn: [
+      '1 official Mock test per day',
+      '15 essay assessments per week',
+      'All CBT and Mock tests',
+      '50 AI tutor requests per day & Analytics',
+      'Short waiting time (no cooldown)',
+    ],
+  },
+  {
+    plan_type: 'premium',
+    name: 'PREMIUM',
+    defaultPrice: 60000,
+    emoji: '👑',
+    badgeUz: null,
+    badgeRu: null,
+    badgeEn: null,
+    featuresUz: [
+      'Cheksiz rasmli va matnli esse baholash (12 mezon)',
+      'Cheksiz barcha CBT, Mock testlar va 1v1 Arena',
+      '24/7 Cheksiz AI repetitor ("Nega bu xato?")',
+      'Rasmiy PDF Sertifikat & Ustoz tekshiruvi',
+      "Hech qanday cheklov va cooldown yo'q",
+    ],
+    featuresRu: [
+      'Безлимитная оценка фото и текстовых эссе (12 критериев)',
+      'Все CBT, Mock тесты и 1v1 Арена',
+      '24/7 Безлимитный AI репетитор ("Почему эта ошибка?")',
+      'Официальный PDF Сертификат & Проверка учителем',
+      'Без каких-либо ограничений и кулдауна',
+    ],
+    featuresEn: [
+      'Unlimited photo and text essay grading (12 criteria)',
+      'All CBT, Mock tests and 1v1 Arena',
+      '24/7 Unlimited AI tutor ("Why is this wrong?")',
+      'Official PDF Certificate & Teacher review',
+      'No restrictions and no cooldown',
+    ],
+  },
+];
 
 export default function Plans() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [myPlanId, setMyPlanId] = useState<number | null>(null);
   // Current-subscription banner — same data as legacy plans.html
@@ -124,19 +150,7 @@ export default function Plans() {
   }, []);
 
   const myPlanName = (mySub?.plan as Record<string, unknown> | undefined)?.name;
-
-  // Never show the store a plan that administrators have hidden, nor the
-  // sponsored tier (it is granted, not purchased).
-  const planOrder: Record<string, number> = {
-    free: 0,
-    starter: 1,
-    start: 1,
-    pro: 2,
-    premium: 3,
-  };
-  const visiblePlans = plans
-    .filter((p) => p.is_public !== false && p.plan_type !== 'teacher_sponsored')
-    .sort((a, b) => (planOrder[a.plan_type] ?? 99) - (planOrder[b.plan_type] ?? 99));
+  const myPlanType = (mySub?.plan as Record<string, unknown> | undefined)?.plan_type;
 
   return (
     <div>
@@ -195,36 +209,48 @@ export default function Plans() {
       )}
 
       <div
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 20,
+          gap: 24,
           marginBottom: 32,
         }}
       >
-        {visiblePlans.map((p) => {
-          const mine = myPlanId === p.id && myActive;
-          const free = isFreePlan(p as unknown as Record<string, unknown>);
-          const pro = p.plan_type === 'pro';
-          const premium = p.plan_type === 'premium';
-          const yearly = Number(p.price_yearly ?? 0);
+        {PUBLIC_PLANS.map((p) => {
+          const apiPlan = plans.find((ap) => ap.plan_type === p.plan_type);
+          const priceMonthly = apiPlan ? Number(apiPlan.price_monthly) : p.defaultPrice;
+          const mine = myActive && (myPlanType === p.plan_type || (apiPlan && myPlanId === apiPlan.id));
+          const isPro = p.plan_type === 'pro';
+          const isPremium = p.plan_type === 'premium';
+          const features = lang === 'ru' ? p.featuresRu : lang === 'en' ? p.featuresEn : p.featuresUz;
+          const badgeText = isPro
+            ? (lang === 'ru' ? p.badgeRu : lang === 'en' ? p.badgeEn : p.badgeUz)
+            : null;
+
           return (
             <div
-              key={p.id}
-              className="card"
+              key={p.plan_type}
+              className={`card ${isPro ? 'border-amber-500/80 shadow-lg' : ''}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
-                border: pro
-                  ? '2px solid rgba(245, 158, 11, 0.6)'
-                  : premium
+                padding: 24,
+                borderRadius: 16,
+                border: isPro
+                  ? '2px solid rgba(245, 158, 11, 0.8)'
+                  : isPremium
                   ? '1px solid rgba(16, 185, 129, 0.4)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-                background: pro ? 'rgba(245, 158, 11, 0.04)' : undefined,
+                  : '1px solid var(--border)',
+                boxShadow: isPro ? '0 0 20px rgba(245, 158, 11, 0.3)' : undefined,
+                background: isPro
+                  ? 'rgba(245, 158, 11, 0.05)'
+                  : isPremium
+                  ? 'rgba(16, 185, 129, 0.04)'
+                  : 'var(--card-2)',
               }}
             >
-              {pro && (
+              {badgeText && (
                 <span
                   style={{
                     position: 'absolute',
@@ -239,72 +265,43 @@ export default function Plans() {
                     boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
                   }}
                 >
-                  ⭐ Eng ommabop / Tavsiya etiladi
+                  {badgeText}
                 </span>
               )}
-              {premium && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -12,
-                    right: 16,
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 20,
-                  }}
-                >
-                  👑 Premium VIP
-                </span>
-              )}
-              <p style={{ fontSize: 32, margin: '4px 0 8px' }}>{planEmoji(p.plan_type)}</p>
-              <strong style={{ fontSize: 20 }}>{String(p.name)}</strong>
-              <p className="muted small" style={{ minHeight: 38 }}>
-                {String(p.description ?? '')}
+              <p style={{ fontSize: 32, margin: '4px 0 8px' }}>{p.emoji}</p>
+              <strong style={{ fontSize: 20 }}>{p.name}</strong>
+
+              <p className="stat-value" style={{ margin: '8px 0 16px', fontSize: 24, color: 'var(--ink)' }}>
+                {priceMonthly.toLocaleString()}{' '}
+                <span style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>{t('pay_per_month')}</span>
               </p>
-              {free ? (
-                <>
-                  <p className="stat-value">{t('pay_free_label')}</p>
-                  <p className="muted small">{t('pay_free_forever')}</p>
-                </>
-              ) : (
-                <>
-                  <p className="stat-value" style={{ margin: '8px 0 16px' }}>
-                    {price(p.price_monthly)} <small className="muted">{t('pay_per_month')}</small>
-                  </p>
-                  {yearly > 0 && (
-                    <p className="muted small">
-                      {t('pay_yearly_prefix')} {price(p.price_yearly)} {t('pay_yearly_suffix')}
-                    </p>
-                  )}
-                </>
-              )}
-              <ul className="muted small" style={{ flex: 1, marginBottom: 20 }}>
-                {[...featuresFor(p, t), ...quotaFeatures(p, t)].map((f, i) => (
+
+              <ul className="muted small" style={{ flex: 1, paddingLeft: 18, margin: '0 0 20px', lineHeight: 1.7 }}>
+                {features.map((f, i) => (
                   <li key={i} style={{ marginBottom: 6 }}>
-                    {f.includes('tahlil') || f.includes('Tahlil') ? (
-                      <span>
-                        <BarChartIcon size={13} className="ico" /> {f}
-                      </span>
-                    ) : (
-                      f
-                    )}
+                    {f}
                   </li>
                 ))}
               </ul>
-              {free ? (
-                <span className="badge">{t('btn_current_plan')}</span>
-              ) : mine ? (
-                <span className="badge green">{t('btn_active')}</span>
+
+              {mine ? (
+                <span className="badge green" style={{ textAlign: 'center', padding: '8px 16px', marginTop: 'auto', fontWeight: 700 }}>
+                  {t('btn_active')}
+                </span>
               ) : (
                 <Link
-                  className="btn primary sm btn-glow"
-                  style={{ textAlign: 'center', textDecoration: 'none', fontWeight: 700, marginTop: 'auto' }}
+                  className={`btn sm ${isPro ? 'primary btn-glow' : ''}`}
+                  style={{
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    marginTop: 'auto',
+                    background: isPro ? 'linear-gradient(135deg, #f59e0b, #d97706)' : undefined,
+                    color: isPro ? '#fff' : undefined,
+                  }}
                   to={`/checkout?plan=${p.plan_type}`}
                 >
-                  To'lov qilish & Chek yuklash →
+                  {lang === 'ru' ? 'Оплатить и загрузить чек →' : lang === 'en' ? 'Pay & Upload Receipt →' : "To'lov qilish & Chek yuklash →"}
                 </Link>
               )}
             </div>

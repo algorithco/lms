@@ -5,6 +5,115 @@ import { useLang } from '../i18n/LangContext';
 import { Billing, PaymentsApi, type PaymentReceiptItem } from '../lib/api';
 import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
+// Strictly 3 commercial subscription plans: START / STARTER, PRO (recommended), PREMIUM
+const plans: {
+  id: 'starter' | 'pro' | 'premium';
+  name: string;
+  priceKey: 'starter_price' | 'pro_price' | 'premium_price';
+  defaultPrice: number;
+  emoji: string;
+  badgeUz?: string | null;
+  badgeRu?: string | null;
+  badgeEn?: string | null;
+  featuresUz: string[];
+  featuresRu: string[];
+  featuresEn: string[];
+}[] = [
+  {
+    id: 'starter',
+    name: 'START / STARTER',
+    priceKey: 'starter_price',
+    defaultPrice: 15000,
+    emoji: '⚡',
+    badgeUz: null,
+    badgeRu: null,
+    badgeEn: null,
+    featuresUz: [
+      'Kuniga 5 ta test',
+      'Haftasiga 8 ta esse',
+      '5 Rasmli esse/hafta',
+      '3 Matnli esse/hafta',
+      'Matnli esselar orasida 5 soat',
+    ],
+    featuresRu: [
+      '5 тестов в день',
+      '8 эссе в неделю',
+      '5 фото эссе / неделю',
+      '3 текстовых эссе / неделю',
+      '5 часов между текстовыми эссе',
+    ],
+    featuresEn: [
+      '5 tests per day',
+      '8 essays per week',
+      '5 photo essays / week',
+      '3 text essays / week',
+      '5 hours cooldown between text essays',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'PRO',
+    priceKey: 'pro_price',
+    defaultPrice: 49000,
+    emoji: '🚀',
+    badgeUz: '⭐ Eng ommabop / Tavsiya etiladi',
+    badgeRu: '⭐ Самый популярный / Рекомендуется',
+    badgeEn: '⭐ Most Popular / Recommended',
+    featuresUz: [
+      'Kuniga 1 ta rasmiy Mock test',
+      'Haftasiga 15 ta esse baholash',
+      'Barcha CBT va Mock testlar',
+      "Kunlik 50 ta AI repetitor so'rovi & Tahlil",
+      'Qisqa kutish vaqti (cooldownsiz)',
+    ],
+    featuresRu: [
+      '1 официальный Mock тест в день',
+      '15 оценок эссе в неделю',
+      'Все CBT и Mock тесты',
+      '50 запросов к AI-репетитору в день & Аналитика',
+      'Короткое время ожидания (без кулдауна)',
+    ],
+    featuresEn: [
+      '1 official Mock test per day',
+      '15 essay assessments per week',
+      'All CBT and Mock tests',
+      '50 AI tutor requests per day & Analytics',
+      'Short waiting time (no cooldown)',
+    ],
+  },
+  {
+    id: 'premium',
+    name: 'PREMIUM',
+    priceKey: 'premium_price',
+    defaultPrice: 60000,
+    emoji: '👑',
+    badgeUz: null,
+    badgeRu: null,
+    badgeEn: null,
+    featuresUz: [
+      'Cheksiz rasmli va matnli esse baholash (12 mezon)',
+      'Cheksiz barcha CBT, Mock testlar va 1v1 Arena',
+      '24/7 Cheksiz AI repetitor ("Nega bu xato?")',
+      'Rasmiy PDF Sertifikat & Ustoz tekshiruvi',
+      "Hech qanday cheklov va cooldown yo'q",
+    ],
+    featuresRu: [
+      'Безлимитная оценка фото и текстовых эссе (12 критериев)',
+      'Все CBT, Mock тесты и 1v1 Арена',
+      '24/7 Безлимитный AI репетитор ("Почему эта ошибка?")',
+      'Официальный PDF Сертификат & Проверка учителем',
+      'Без каких-либо ограничений и кулдауна',
+    ],
+    featuresEn: [
+      'Unlimited photo and text essay grading (12 criteria)',
+      'All CBT, Mock tests and 1v1 Arena',
+      '24/7 Unlimited AI tutor ("Why is this wrong?")',
+      'Official PDF Certificate & Teacher review',
+      'No restrictions and no cooldown',
+    ],
+  },
+];
+
 export default function Subscribe() {
   const { planId } = useParams();
   const [searchParams] = useSearchParams();
@@ -189,124 +298,127 @@ export default function Subscribe() {
       {/* Step 1: Select Plan */}
       <div className="card" style={{ marginBottom: 20, padding: 24 }}>
         <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t('sub_step1_title')}</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-          {/* Starter */}
-          <div
-            onClick={() => setSelectedPlan('starter')}
-            style={{
-              padding: 20,
-              borderRadius: 14,
-              cursor: 'pointer',
-              border: selectedPlan === 'starter' ? '2px solid #38bdf8' : '1px solid var(--border)',
-              background: selectedPlan === 'starter' ? 'rgba(56, 189, 248, 0.08)' : 'var(--card-2)',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>⚡️</span>
-              {selectedPlan === 'starter' && (
-                <span className="badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
-                  {t('sub_plan_selected')}
-                </span>
-              )}
-            </div>
-            <strong style={{ fontSize: 18, display: 'block' }}>Starter</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
-              {cardInfo.starter_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
-            </p>
-            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>{t('sub_plan_starter_f1')}</li>
-              <li>{t('sub_plan_starter_f2')}</li>
-              <li>{t('sub_plan_starter_f3')}</li>
-            </ul>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{ display: 'grid', gap: 24 }}>
+          {plans.map((p) => {
+            const isSelected = selectedPlan === p.id;
+            const isPro = p.id === 'pro';
+            const priceVal = cardInfo[p.priceKey] ?? p.defaultPrice;
+            const features = lang === 'ru' ? p.featuresRu : lang === 'en' ? p.featuresEn : p.featuresUz;
+            const badgeText = isPro
+              ? (lang === 'ru' ? p.badgeRu : lang === 'en' ? p.badgeEn : p.badgeUz)
+              : null;
 
-          {/* Pro (Recommended) */}
-          <div
-            onClick={() => setSelectedPlan('pro')}
-            style={{
-              padding: 20,
-              borderRadius: 14,
-              cursor: 'pointer',
-              border: selectedPlan === 'pro' ? '2px solid #fbbf24' : '1px solid rgba(245, 158, 11, 0.3)',
-              background: selectedPlan === 'pro' ? 'rgba(245, 158, 11, 0.1)' : 'var(--card-2)',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                top: -10,
-                right: 16,
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#fff',
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 20,
-                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
-              }}
-            >
-              {t('sub_recommended')}
-            </span>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>🚀</span>
-              {selectedPlan === 'pro' && (
-                <span className="badge yellow" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
-                  {t('sub_plan_selected')}
-                </span>
-              )}
-            </div>
-            <strong style={{ fontSize: 18, display: 'block' }}>Pro</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
-              {cardInfo.pro_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
-            </p>
-            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>{t('sub_plan_pro_f1')}</li>
-              <li>{t('sub_plan_pro_f2')}</li>
-              <li>{t('sub_plan_pro_f3')}</li>
-              <li>{t('sub_plan_pro_f4')}</li>
-            </ul>
-          </div>
+            return (
+              <div
+                key={p.id}
+                onClick={() => setSelectedPlan(p.id)}
+                className={`card ${isPro ? 'border-amber-500/80 shadow-lg' : ''}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: 24,
+                  borderRadius: 16,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  border: isPro
+                    ? (isSelected ? '2px solid #f59e0b' : '2px solid rgba(245, 158, 11, 0.8)')
+                    : isSelected
+                    ? (p.id === 'starter' ? '2px solid #38bdf8' : '2px solid #10b981')
+                    : '1px solid var(--border)',
+                  boxShadow: isPro
+                    ? (isSelected ? '0 0 25px rgba(245, 158, 11, 0.45)' : '0 0 18px rgba(245, 158, 11, 0.25)')
+                    : undefined,
+                  background: isPro
+                    ? (isSelected ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.04)')
+                    : isSelected
+                    ? (p.id === 'starter' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(16, 185, 129, 0.08)')
+                    : 'var(--card-2)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {badgeText && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -12,
+                      right: 16,
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+                    }}
+                  >
+                    {badgeText}
+                  </span>
+                )}
 
-          {/* Premium */}
-          <div
-            onClick={() => setSelectedPlan('premium')}
-            style={{
-              padding: 20,
-              borderRadius: 14,
-              cursor: 'pointer',
-              border: selectedPlan === 'premium' ? '2px solid #10b981' : '1px solid var(--border)',
-              background: selectedPlan === 'premium' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-2)',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>👑</span>
-              {selectedPlan === 'premium' && (
-                <span className="badge green" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
-                  {t('sub_plan_selected')}
-                </span>
-              )}
-            </div>
-            <strong style={{ fontSize: 18, display: 'block' }}>Premium</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
-              {cardInfo.premium_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
-            </p>
-            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>{t('sub_plan_premium_f1')}</li>
-              <li>{t('sub_plan_premium_f2')}</li>
-              <li>{t('sub_plan_premium_f3')}</li>
-              <li>{t('sub_plan_premium_f4')}</li>
-            </ul>
-          </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 32 }}>{p.emoji}</span>
+                  {isSelected && (
+                    <span
+                      className={`badge ${isPro ? 'yellow' : p.id === 'starter' ? '' : 'green'}`}
+                      style={{
+                        background: isPro
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : p.id === 'starter'
+                          ? 'rgba(56, 189, 248, 0.2)'
+                          : 'rgba(16, 185, 129, 0.2)',
+                        color: isPro ? '#fbbf24' : p.id === 'starter' ? '#38bdf8' : '#10b981',
+                      }}
+                    >
+                      {t('sub_plan_selected')}
+                    </span>
+                  )}
+                </div>
+
+                <strong style={{ fontSize: 20, display: 'block', marginBottom: 4 }}>{p.name}</strong>
+                <p className="stat-value" style={{ margin: '8px 0 16px', fontSize: 24, color: 'var(--ink)' }}>
+                  {priceVal.toLocaleString()}{' '}
+                  <span style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>{t('sub_per_month')}</span>
+                </p>
+
+                <ul className="muted small" style={{ paddingLeft: 18, margin: '0 0 20px', lineHeight: 1.7, flex: 1 }}>
+                  {features.map((feat, idx) => (
+                    <li key={idx} style={{ marginBottom: 6 }}>
+                      {feat}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  className={`btn sm ${isPro ? 'primary btn-glow' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan(p.id);
+                    const step2 = document.getElementById('step-card-info');
+                    if (step2) {
+                      step2.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    marginTop: 'auto',
+                    fontWeight: 700,
+                    justifyContent: 'center',
+                    textDecoration: 'none',
+                    background: isPro ? 'linear-gradient(135deg, #f59e0b, #d97706)' : undefined,
+                    color: isPro ? '#fff' : undefined,
+                  }}
+                >
+                  {lang === 'ru' ? 'Оплатить и загрузить чек →' : lang === 'en' ? 'Pay & Upload Receipt →' : "To'lov qilish & Chek yuklash →"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Step 2: Bank Card Details with 1-click copy */}
-      <div className="card" style={{ marginBottom: 20, padding: 24 }}>
+      <div id="step-card-info" className="card" style={{ marginBottom: 20, padding: 24 }}>
         <h2 style={{ fontSize: 18, marginBottom: 8 }}>{t('sub_step2_title')}</h2>
         <p className="muted small" style={{ marginBottom: 16 }}>
           {t('sub_step2_hint')}{' '}
