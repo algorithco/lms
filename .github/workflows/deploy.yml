@@ -88,14 +88,15 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
           GHCR_USER: ${{ secrets.GHCR_USER }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s' "$VPS_SSH_KEY" | base64 -d > ~/.ssh/lms_deploy_key
           chmod 600 ~/.ssh/lms_deploy_key
           ssh-keygen -y -f ~/.ssh/lms_deploy_key >/dev/null # fail fast: key must parse
-          printf 'IMS_IMAGE_TAG=%s\nGHCR_USER=%s\nGHCR_READ_TOKEN=%s\n' \
-            "${IMS_IMAGE_TAG:?}" "${GHCR_USER:?}" "${GHCR_READ_TOKEN:?}" > /tmp/lms_deploy.env
+          printf 'IMS_IMAGE_TAG=%s\nGHCR_USER=%s\nGHCR_READ_TOKEN=%s\nOPENROUTER_API_KEY=%s\n' \
+            "${IMS_IMAGE_TAG:?}" "${GHCR_USER:?}" "${GHCR_READ_TOKEN:?}" "${OPENROUTER_API_KEY:-}" > /tmp/lms_deploy.env
           chmod 600 /tmp/lms_deploy.env
           # Key + env file are shredded on EXIT (success or failure).
           cleanup_ci() { rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key; }

@@ -31,6 +31,20 @@ if [ -f /tmp/lms_deploy.env ]; then
 fi
 rm -f /tmp/lms_deploy.env
 
+# --- OpenRouter key & model synchronization to .env.prod ---
+if [ -n "${OPENROUTER_API_KEY:-}" ] && [ -f .env.prod ]; then
+  if grep -q "^OPENROUTER_API_KEY=" .env.prod; then
+    sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=${OPENROUTER_API_KEY}|" .env.prod
+  else
+    echo "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" >> .env.prod
+  fi
+  if grep -q "^OPENROUTER_AI_MODEL=" .env.prod; then
+    sed -i "s|^OPENROUTER_AI_MODEL=.*|OPENROUTER_AI_MODEL=deepseek/deepseek-v4-flash-0731|" .env.prod
+  else
+    echo "OPENROUTER_AI_MODEL=deepseek/deepseek-v4-flash-0731" >> .env.prod
+  fi
+fi
+
 # --- GHCR login: temp DOCKER_CONFIG only (nothing on disk) ---
 export DOCKER_CONFIG="$(mktemp -d)"
 cleanup() { docker logout "$REGISTRY" >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"; }
