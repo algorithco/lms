@@ -957,10 +957,11 @@ class SubmitAttemptService:
 
             # -- Grading logic (semantika o'zgarmagan) ----------------------
             if qtype == Question.QuestionType.TEXT_MATCH:
-                # Matnli javob: normalize (kichik harf, bo'shliqlar) va taqqoslash
+                # Matnli javob: normalize (kichik harf, bo'shliqlar) va taqqoslash (ko'p variantlar | bilan ajratilgan)
                 student_text = _normalize_text(student_answer.text_answer or "")
-                correct_text = _normalize_text(question.correct_text or "")
-                is_correct = bool(student_text and correct_text and student_text == correct_text)
+                raw_keys = (question.correct_text or "").split("|")
+                accepted_keys = [_normalize_text(k) for k in raw_keys if k.strip()]
+                is_correct = bool(student_text and any(student_text == k for k in accepted_keys))
                 question_scores.append(QuestionScore(
                     question_id=question.id,
                     earned=qmax if is_correct else Decimal("0"), maximum=qmax,

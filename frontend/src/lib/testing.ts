@@ -19,6 +19,7 @@ export interface TestListItem {
   pass_percentage?: number;
   total_questions?: number;
   is_active?: boolean;
+  mock_code?: string;
   created_at?: string;
   [key: string]: unknown;
 }

@@ -64,17 +64,28 @@ export default function Tests() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  const isMock4 = (item: TestListItem) =>
+    item.mock_code === '#MOCK-BMB04' ||
+    String(item.title ?? '').toLowerCase().includes('mock #4') ||
+    String(item.title ?? '').toLowerCase().includes('mock 4');
+
   // Backend TestListView exposes no search/filter params, so search +
   // difficulty filter run client-side over the loaded page (parity with
   // legacy templates/web/test_list.html filterTests() behaviour).
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return tests.filter((item) => {
+    const filtered = tests.filter((item) => {
       const title = String(item.title ?? '').toLowerCase();
       const course = String(item.course_title ?? '').toLowerCase();
       const matchSearch = !q || title.includes(q) || course.includes(q);
       const matchDiff = !difficulty || String(item.difficulty ?? '') === difficulty;
       return matchSearch && matchDiff;
+    });
+
+    return [...filtered].sort((a, b) => {
+      const aM = isMock4(a) ? 1 : 0;
+      const bM = isMock4(b) ? 1 : 0;
+      return bM - aM;
     });
   }, [tests, query, difficulty]);
 
@@ -108,8 +119,8 @@ export default function Tests() {
         className="card"
         style={{
           margin: '16px 0 20px',
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(59, 130, 246, 0.06) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.35)',
           borderRadius: '12px',
           padding: '16px 20px',
         }}
@@ -120,14 +131,33 @@ export default function Tests() {
               <span>🎯</span> Mock Testga Kod Bilan Qo‘shilish
             </strong>
             <p className="muted small" style={{ margin: '4px 0 0' }}>
-              Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting va 1 soniyada rasmiy BMB simulyatsiyasini boshlang:
+              Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
             </p>
+            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn sm"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid #10b981',
+                  color: '#10b981',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setMockCode('#MOCK-BMB04')}
+              >
+                ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4)
+              </button>
+            </div>
           </div>
           <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               value={mockCode}
               onChange={(e) => setMockCode(e.target.value)}
-              placeholder="#MOCK-401"
+              placeholder="#MOCK-BMB04"
               required
               style={{
                 width: '160px',
@@ -188,34 +218,75 @@ export default function Tests() {
       )}
 
       <div className="grid">
-        {visible.map((item) => (
-          <Link key={item.id} to={`/tests/${item.id}`} className="card link-card">
-            <div className="toolbar" style={{ marginBottom: 8 }}>
-              <span className="badge blue">{String(item.difficulty ?? '—')}</span>
-              {(item.time_limit_minutes ?? 0) > 0 && (
-                <span className="badge amber">
-                  <ClockIcon size={12} className="ico" /> {item.time_limit_minutes} {t('minutes_suffix')}
+        {visible.map((item) => {
+          const isHighlight = isMock4(item);
+          return (
+            <Link
+              key={item.id}
+              to={`/tests/${item.id}`}
+              className="card link-card"
+              style={
+                isHighlight
+                  ? {
+                      border: '1.5px solid rgba(16, 185, 129, 0.7)',
+                      background: 'radial-gradient(circle at top right, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                      boxShadow: '0 4px 20px rgba(16, 185, 129, 0.12)',
+                    }
+                  : undefined
+              }
+            >
+              {isHighlight ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      padding: '3px 10px',
+                      borderRadius: '9999px',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    ⭐️ BMB Rasmiy Mock Test #4 (Tekin)
+                  </span>
+                  <span className="badge amber">
+                    <ClockIcon size={12} className="ico" /> 180 {t('minutes_suffix')}
+                  </span>
+                  <span className="badge blue">Qiyin (Hard)</span>
+                </div>
+              ) : (
+                <div className="toolbar" style={{ marginBottom: 8 }}>
+                  <span className="badge blue">{String(item.difficulty ?? '—')}</span>
+                  {(item.time_limit_minutes ?? 0) > 0 && (
+                    <span className="badge amber">
+                      <ClockIcon size={12} className="ico" /> {item.time_limit_minutes} {t('minutes_suffix')}
+                    </span>
+                  )}
+                </div>
+              )}
+              <strong>{String(item.title ?? `Test #${item.id}`)}</strong>
+              {item.description && (
+                <span className="muted small">{String(item.description).slice(0, 120)}</span>
+              )}
+              <span className="muted small">
+                <HashIcon size={12} className="ico" /> {num(item.total_questions, 0)} {t('questions_suffix')}
+                {' · '}
+                {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
+                {' · '}
+                {t('th_attempts')}: {num(item.max_attempts, 0) === 0 ? '∞' : num(item.max_attempts, 0)}
+              </span>
+              {item.course_title && (
+                <span className="muted small">
+                  <CheckIcon size={12} className="ico" /> {String(item.course_title)}
                 </span>
               )}
-            </div>
-            <strong>{String(item.title ?? `Test #${item.id}`)}</strong>
-            {item.description && (
-              <span className="muted small">{String(item.description).slice(0, 120)}</span>
-            )}
-            <span className="muted small">
-              <HashIcon size={12} className="ico" /> {num(item.total_questions, 0)} {t('questions_suffix')}
-              {' · '}
-              {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
-              {' · '}
-              {t('th_attempts')}: {num(item.max_attempts, 0) === 0 ? '∞' : num(item.max_attempts, 0)}
-            </span>
-            {item.course_title && (
-              <span className="muted small">
-                <CheckIcon size={12} className="ico" /> {String(item.course_title)}
-              </span>
-            )}
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
 
       {(hasNext || hasPrev) && (
