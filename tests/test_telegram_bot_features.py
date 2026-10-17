@@ -15,12 +15,14 @@ from apps.essays.models import EssaySubmission, EssayTopic
 from apps.notifications.bot.handlers import (
     _arena_keyboard,
     _main_menu_keyboard,
+    _persistent_menu_keyboard,
     arena_answer_callback,
     arena_bot_start_callback,
     arena_callback_handler,
     arena_finish_callback,
     arena_invite_callback,
     arena_next_callback,
+    auth_conversation_handler,
     callback_handler,
     certificate_download_callback,
     certificates_handler,
@@ -32,10 +34,14 @@ from apps.notifications.bot.handlers import (
     myattendance_handler,
     myplan_handler,
     mytuition_handler,
+    payment_screenshot_handler,
+    tests_handler as bot_tests_handler,
 )
+from apps.notifications.bot.quiz import quiz_callback_handler
 from apps.notifications.services.telegram_service import TelegramService
+from apps.payments.models import PaymentReceipt
 from apps.results.models import Certificate, Result
-from apps.tests.models import Test
+from apps.tests.models import Choice, Question, Test
 
 
 class TelegramBotFeaturesTests(TestCase):
@@ -358,3 +364,114 @@ class TelegramBotFeaturesTests(TestCase):
         res_tui = client.get("/tma/api/mytuition/")
         self.assertEqual(res_tui.status_code, 200)
         self.assertIn("tuition", res_tui.json())
+
+    # 9. Test handler & test format options
+    def test_tests_handler_shows_fast_cbt_and_quiz_and_mock(self):
+        async_to_sync(bot_tests_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        text = self.message.reply_text.await_args.args[0]
+        self.assertIn("Fast CBT", text)
+        self.assertIn("Telegram Chat Quiz", text)
+        self.assertIn("Mock Test", text)
+        markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
+        btn_data = [getattr(btn, "callback_data", None) for row in markup.inline_keyboard for btn in row]
+        self.assertIn("menu_quiz", btn_data)
+        self.assertIn("menu_mock_join", btn_data)
+
+    # 10. Persistent menu keyboard layout
+    def test_persistent_menu_keyboard_layout(self):
+        markup = _persistent_menu_keyboard()
+        buttons = [[btn.text for btn in row] for row in markup.keyboard]
+        self.assertEqual(len(buttons), 3)
+        self.assertEqual(buttons[0], ["✍️ Esse yozish", "📚 Test ishlash"])
+        self.assertEqual(buttons[1], ["📝 Mock Test (#kod)", "⚔️ Arena (1v1)"])
+        self.assertEqual(buttons[2], ["👤 Natijalar / Profil", "💳 Tariflar / Obuna"])
+
+    # 11. Quiz mistake AI explainer
+    def test_quiz_explain_callback_returns_explanation(self):
+        course = Course.objects.create(
+            title="Ona tili",
+            slug="ona-tili-quiz-test",
+            teacher=self.user,
+        )
+        test = Test.objects.create(
+            course=course,
+            title="Grammatika",
+            time_limit_minutes=10,
+            pass_percentage=60,
+        )
+        q = Question.objects.create(
+            test=test,
+            text="Qaysi gapda ergashgan qo'shma gap berilgan?",
+            question_type=Question.QuestionType.SINGLE_CHOICE,
+            explanation="Ergash gap bosh gapga bog'lovchi orqali birikadi.",
+        )
+        c_wrong = Choice.objects.create(question=q, text="Sodda gap varianti", is_correct=False)
+        Choice.objects.create(question=q, text="To'g'ri ergashgan gap", is_correct=True)
+
+        self.update.callback_query = self.query
+        self.query.data = f"quiz_explain_{q.id}_{c_wrong.id}"
+        async_to_sync(quiz_callback_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply_text = self.message.reply_text.await_args.args[0]
+        self.assertIn("AI REPETITOR TAHLILI", reply_text)
+        self.assertIn("Nega bu javob xato", reply_text)
+
+    # 12. Mock test code join via chat
+    def test_auth_conversation_handler_mock_code_join(self):
+        course = Course.objects.create(
+            title="Mock Kurs",
+            slug="mock-kurs-test",
+            teacher=self.user,
+        )
+        test = Test.objects.create(
+            course=course,
+            title="Milliy Sertifikat Mock #MOCK-999",
+            mock_code="#MOCK-999",
+            time_limit_minutes=60,
+            pass_percentage=46,
+            is_active=True,
+        )
+        self.message.text = "#MOCK-999"
+        async_to_sync(auth_conversation_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply_text = self.message.reply_text.await_args.args[0]
+        self.assertIn("MOCK TEST TOPILDI", reply_text)
+        markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
+        btn_data = [btn.callback_data for row in markup.inline_keyboard for btn in row if getattr(btn, "callback_data", None)]
+        self.assertIn(f"quiz_start_{test.id}", btn_data)
+
+    # 13. Fallback on unrecognized text
+    def test_auth_conversation_handler_unrecognized_text_fallback(self):
+        self.message.text = "tushunarsiz tasodifiy matn 123"
+        async_to_sync(auth_conversation_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply_text = self.message.reply_text.await_args.args[0]
+        self.assertIn("Kerakli bo'limni tanlash uchun quyidagi menyu tugmalaridan foydalaning", reply_text)
+        markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
+        self.assertIsNotNone(markup)
+
+    # 14. Payment receipt screenshot upload
+    def test_payment_screenshot_handler_creates_receipt(self):
+        self.context.user_data["selected_plan_slug"] = "starter"
+        self.context.user_data["payment_state"] = "awaiting_screenshot"
+        self.message.photo = [
+            SimpleNamespace(
+                get_file=AsyncMock(
+                    return_value=SimpleNamespace(
+                        download_as_bytearray=AsyncMock(return_value=b"fake-image-bytes")
+                    )
+                )
+            )
+        ]
+        self.message.caption = "Starter to'lov cheki"
+        async_to_sync(payment_screenshot_handler)(self.update, self.context)
+
+        receipt = PaymentReceipt.objects.filter(user=self.user, plan="starter").order_by("-id").first()
+        self.assertIsNotNone(receipt)
+        self.assertEqual(receipt.source, PaymentReceipt.Source.BOT)
+        self.assertEqual(receipt.status, PaymentReceipt.Status.PENDING)
+        self.assertTrue(self.message.reply_text.called)
+        reply_text = self.message.reply_text.await_args.args[0]
+        self.assertIn("Chekingiz qabul qilindi", reply_text)
+

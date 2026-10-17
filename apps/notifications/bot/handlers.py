@@ -167,13 +167,13 @@ def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
     """Fixed reply keyboard buttons shown at the bottom of the screen."""
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton("✍️ Esse yozish"), KeyboardButton("🧠 Test / Quiz")],
+            [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
             [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
-            [KeyboardButton("📜 Sertifikatlarim"), KeyboardButton("💳 Tariflar / Obuna")],
-            [KeyboardButton("👤 Profil")],
+            [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
         ],
         resize_keyboard=True,
     )
+
 
 
 def _main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -469,9 +469,8 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     if raw_text in ("✍️ Esse yozish", "✍️ Esse"):
         await essays_handler(update, context)
         return
-    elif raw_text in ("🧠 Test / Quiz", "🧠 Quiz", "📝 Testlar"):
-        from apps.notifications.bot.quiz import quiz_handler
-        await quiz_handler(update, context)
+    elif raw_text in ("📚 Test ishlash", "📚 Test topshirish", "🧠 Test / Quiz", "🧠 Quiz", "📝 Testlar"):
+        await tests_handler(update, context)
         return
     elif raw_text in ("⚔️ Arena (1v1)", "⚔️ Arena"):
         await arena_handler(update, context)
@@ -482,13 +481,14 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     elif raw_text in ("💳 Tariflar / Obuna", "💳 Tariflar", "💳 Obuna", "💳 Mening tarifim", "💳 To'lov", "💳 Tarif"):
         await plans_and_payment_handler(update, context)
         return
-    elif raw_text in ("👤 Profil", "👤 Profilim"):
+    elif raw_text in ("👤 Natijalar / Profil", "👤 Profil", "👤 Profilim", "📊 Natijalarim", "📊 Natijalar"):
         await profile_handler(update, context)
         return
     elif raw_text in ("📅 Davomat", "📅 Davomatim"):
         await myattendance_handler(update, context)
         return
     elif raw_text in ("📝 Mock Test (#kod)", "📝 Mock Test", "Mock Test"):
+        context.user_data["awaiting_mock_code"] = True
         text = (
             "📝 *MILLIY SERTIFIKAT MOCK TESTGA ULANISH*\n\n"
             "Ustozingiz bergan Mock kodini botga yuboring:\n"
@@ -498,27 +498,41 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text(text, parse_mode="Markdown")
         return
 
-    # Check for #MOCK-XXX or MOCK-XXX code input
+    # Check for #MOCK-XXX or MOCK-XXX code input or awaiting_mock_code
     upper_raw = raw_text.upper().strip()
-    if upper_raw.startswith("#MOCK-") or (upper_raw.startswith("MOCK-") and len(upper_raw) >= 6):
-        from apps.tests.mock_service import find_mock_by_code
-        mock_test = await _run_db(find_mock_by_code, raw_text)
+    is_awaiting_mock = bool(context.user_data.get("awaiting_mock_code"))
+    if upper_raw.startswith("#MOCK-") or (upper_raw.startswith("MOCK-") and len(upper_raw) >= 6) or is_awaiting_mock:
+        def _load_mock():
+            from apps.tests.mock_service import find_mock_by_code
+            m = find_mock_by_code(raw_text)
+            if not m:
+                return None
+            return {
+                "id": m.id,
+                "title": m.title,
+                "total_questions": m.total_questions,
+                "time_limit_minutes": m.time_limit_minutes,
+            }
+
+        mock_test = await _run_db(_load_mock)
         if mock_test:
+            context.user_data.pop("awaiting_mock_code", None)
             text = (
                 f"📋 *MILLIY SERTIFIKAT MOCK TEST TOPILDI*\n\n"
-                f"📌 Test: *{mock_test.title}*\n"
-                f"🔢 Savollar soni: *{mock_test.total_questions} ta*\n"
-                f"⏱ Vaqt: *{mock_test.time_limit_minutes} daqiqa*\n"
+                f"📌 Test: *{mock_test['title']}*\n"
+                f"🔢 Savollar soni: *{mock_test['total_questions']} ta*\n"
+                f"⏱ Vaqt: *{mock_test['time_limit_minutes']} daqiqa*\n"
                 f"🎯 Rasmiy BMB darajalari baholanadi (A+, A, B+, B, C+, C).\n\n"
                 f"Testni Telegramda boshlashga tayyormisiz?"
             )
             buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Testni boshlash", callback_data=f"quiz_start_{mock_test.id}")],
+                [InlineKeyboardButton("🚀 Testni boshlash", callback_data=f"quiz_start_{mock_test['id']}")],
                 [InlineKeyboardButton("❌ Bekor qilish", callback_data="menu_main")],
             ])
             await update.message.reply_text(text, parse_mode="Markdown", reply_markup=buttons)
             return
-        else:
+        elif is_awaiting_mock or upper_raw.startswith("#MOCK-") or upper_raw.startswith("MOCK-"):
+            context.user_data.pop("awaiting_mock_code", None)
             await update.message.reply_text(
                 f"❌ '{raw_text}' kodi bo'yicha Mock test topilmadi.\n"
                 f"Iltimos, ustozingiz bergan kodni to'g'ri kiritganingizni tekshiring (masalan: `#MOCK-401`).",
@@ -564,7 +578,21 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
 
     auth_state = context.user_data.get("auth_state")
     if not auth_state or auth_state == "idle":
-        return  # Not in auth conversation — ignore
+        help_text = (
+            "👋 Assalomu alaykum! Kerakli bo'limni tanlash uchun quyidagi menyu tugmalaridan foydalaning:\n\n"
+            "✍️ *Esse yozish* — AI orqali 12 mezonli esse tahlili va tahriri\n"
+            "📚 *Test ishlash* — Fast CBT Mini App yoki Telegram chat orqali quiz\n"
+            "📝 *Mock Test (#kod)* — Ustozingiz kodi orqali mock imtihon\n"
+            "⚔️ *Arena (1v1)* — Boshqa o'quvchilar bilan real vaqtda bellashuv\n"
+            "👤 *Natijalar / Profil* — Ballar, sertifikatlar va shaxsiy statistika\n"
+            "💳 *Tariflar / Obuna* — Starter va Premium obunalar hamda to'lov"
+        )
+        await update.message.reply_text(
+            help_text,
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard(),
+        )
+        return
 
     auth_token_str = context.user_data.get("auth_token")
     if not auth_token_str:
@@ -845,52 +873,37 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ---------------------------------------------------------------------------
 
 async def tests_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /tests command — show available tests."""
+    """Handle /tests command & '📚 Test ishlash' menu button."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_reply(update, "Xatolik yuz berdi.")
+        await send_reply(update, "Xatolik yuz berdi. Iltimos, /start buyrug'ini yuboring.")
         return
 
-    from apps.tests.models import Test
     from django.conf import settings as _settings
-    site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
-    tests = await _run_db(lambda: list(Test.objects.filter(is_active=True).select_related("course").order_by("-created_at")[:10]))
-
-    if not tests:
-        await send_reply(
-            update,
-            "📝 Hozircha mavjud testlar yo'q.\n\n"
-            "O'qituvchilar yangi testlar yaratganda, ular shu yerda paydo bo'ladi.",
-            reply_markup=_main_menu_keyboard(),
-        )
-        return
-
-    text = "📝 *Mavjud testlar:*\n\n"
-    buttons = []
-
-    for i, test in enumerate(tests, 1):
-        diff_emoji = {"easy": "🟢", "medium": "🟡", "hard": "🔴"}.get(test.difficulty, "⚪")
-        text += (
-            f"{i}. {diff_emoji} *{test.title}*\n"
-            f"   📚 {test.course.title}\n"
-            f"   ⏱ {test.time_limit_minutes} daqiqa · {test.total_questions} savol\n\n"
-        )
-        buttons.append([
-            InlineKeyboardButton(
-                f"▶️ {test.title[:30]}",
-                url=f"{site_url}/tests/{test.id}/take/",
-            )
-        ])
-
-    buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-
+    text = (
+        "📚 *ONA TILI VA ADABIYOTIDAN TEST TOPSHIRISH*\n\n"
+        "O'zingizga qulay test formatini tanlang:\n\n"
+        "1️⃣ *📱 Fast CBT (Telegram Mini App)* — Zamonaviy '1 tadan ishlash' interfeysi. "
+        "Telegram ichida sahifadan chiqmasdan xuddi veb-saytdagidek test topshirish.\n\n"
+        "2️⃣ *🧠 Telegram Chat Quiz* — Rasmiy Telegram so'rovnoma formatida savollar birma-bir beriladi. "
+        "BMB shkalasi (A+, A, B...) hisoblanadi, AI xatolar tahlili va PDF sertifikat taqdim etiladi.\n\n"
+        "3️⃣ *📝 Mock Test (#kod)* — Ustozingiz yoki repetitoringiz bergan maxsus kod orqali imtihon topshirish."
+    )
+    buttons = [
+        [InlineKeyboardButton("📱 Fast CBT (Mini App)", web_app={"url": f"{site_url}/tma/#/tests"})],
+        [InlineKeyboardButton("🧠 Telegram Chat Quiz", callback_data="menu_quiz")],
+        [InlineKeyboardButton("📝 Mock Test (#kod orqali)", callback_data="menu_mock_join")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+    ]
     await send_reply(
         update,
         text,
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
+
 
 
 
@@ -2770,14 +2783,15 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
     def _improve():
         sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
         if not sub:
-            return None, "Esse topilmadi."
+            return None, None, "Esse topilmadi."
         try:
             content = generate_improved_essay(sub)
-            return content, None
+            orig_text = getattr(sub, "essay_text", "") or ""
+            return content, orig_text, None
         except Exception as exc:
-            return None, str(exc)
+            return None, None, str(exc)
 
-    content, err = await _run_db(_improve)
+    content, orig_text, err = await _run_db(_improve)
     if err or not content:
         msg = f"❌ Esseni qayta yozishda xatolik yuz berdi: {err or 'Noma`lum xatolik'}\n\nIltimos, qaytadan urinib ko'ring."
         buttons = InlineKeyboardMarkup([
@@ -2787,15 +2801,22 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
         await send_reply(update, msg, reply_markup=buttons)
         return
 
-    preview = content[:3500]
+    preview = content[:3200]
+    orig_snippet = (orig_text or "")[:400]
+    orig_section = f"📝 *Asl matn (parcha):*\n_{orig_snippet}..._\n\n" if orig_snippet else ""
+
     msg = (
-        "🪄 *AI orqali qayta yozilgan variant:*\n\n"
+        "🪄 *AI orqali qayta yozilgan variant (Oldin / Keyin):*\n\n"
+        f"{orig_section}"
+        f"✨ *Xatolari to'g'irlangan takomillashtirilgan namuna matn:*\n\n"
         f"{preview}\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "💡 *Asosiy mazmun saqlanib, so'z boyligi va grammatik tuzilma yuqori mezon darajasiga yetkazildi.*"
+        "💡 *Repetitor maslahati:* Matnda imlo, tinish belgilari va gap bo'laklari bog'lanishidagi "
+        "kamchiliklar to'g'rilandi. Fikrni dalillashda asardan iqtiboslar keltirish tavsiya etiladi."
     )
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{submission_id}")],
+        [InlineKeyboardButton("👨‍🏫 Ustoz tekshiruviga yuborish", callback_data=f"essay_review:{submission_id}")],
+        [InlineKeyboardButton("📄 PDF xulosani yuklab olish", callback_data=f"essay_pdf:{submission_id}")],
         [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
         [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
     ])
@@ -2917,11 +2938,11 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🪄 AI orqali qayta yozish", callback_data=f"essay_improve:{sub.id}"),
-            InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{sub.id}"),
+            InlineKeyboardButton("🪄 AI tahriri (Oldin/Keyin)", callback_data=f"essay_improve:{sub.id}"),
+            InlineKeyboardButton("👨‍🏫 Ustoz tekshiruviga yuborish", callback_data=f"essay_review:{sub.id}"),
         ],
         [
-            InlineKeyboardButton("📄 Natija sertifikatini (PDF) yuklab olish", callback_data=f"essay_pdf:{sub.id}"),
+            InlineKeyboardButton("📄 PDF xulosani yuklab olish", callback_data=f"essay_pdf:{sub.id}"),
         ],
         [
             InlineKeyboardButton("🌐 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),
@@ -3493,6 +3514,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 reply_markup=_main_menu_keyboard(),
             )
         elif data == "menu_mock_join":
+            context.user_data["awaiting_mock_code"] = True
             text = (
                 "📝 *MILLIY SERTIFIKAT MOCK TESTGA ULANISH*\n\n"
                 "Ustozingiz bergan Mock kodini botga yuboring:\n"
@@ -3504,32 +3526,22 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ])
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=buttons)
         elif data == "menu_tests":
-            # Simulate /tests command
-            user = await _get_or_create_user_async(update)
-            if user:
-                from apps.tests.models import Test
-                from django.conf import settings as _settings
-                site_url = getattr(_settings, "SITE_URL", "http://localhost:8000")
-                tests = await _run_db(lambda: list(Test.objects.filter(is_active=True).select_related("course").order_by("-created_at")[:8]))
-
-                if not tests:
-                    await query.edit_message_text("📝 Hozircha mavjud testlar yo'q.")
-                    return
-
-                text = "📝 *Mavjud testlar:*\n\n"
-                buttons = []
-                for test in tests:
-                    diff = {"easy": "🟢", "medium": "🟡", "hard": "🔴"}.get(test.difficulty, "⚪")
-                    text += f"{diff} *{test.title}* — {test.total_questions} savol\n"
-                    buttons.append([
-                        InlineKeyboardButton(
-                            f"▶️ {test.title[:30]}",
-                            url=f"{site_url}/tests/{test.id}/take/",
-                        )
-                    ])
-
-                buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-                await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+            from django.conf import settings as _settings
+            site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+            text = (
+                "📚 *ONA TILI VA ADABIYOTIDAN TEST TOPSHIRISH*\n\n"
+                "O'zingizga qulay test formatini tanlang:\n\n"
+                "1️⃣ *📱 Fast CBT (Telegram Mini App)* — Telegram ichida sahifadan chiqmasdan tezkor '1 tadan ishlash' interfeysi.\n\n"
+                "2️⃣ *🧠 Telegram Chat Quiz* — Telegram chatida savollar birma-bir beriladi, rasmiy BMB daraja hisoblanadi va AI xatolar tahlili beriladi.\n\n"
+                "3️⃣ *📝 Mock Test (#kod)* — Ustozingiz bergan kod orqali mock imtihon topshirish."
+            )
+            buttons = [
+                [InlineKeyboardButton("📱 Fast CBT (Mini App)", web_app={"url": f"{site_url}/tma/#/tests"})],
+                [InlineKeyboardButton("🧠 Telegram Chat Quiz", callback_data="menu_quiz")],
+                [InlineKeyboardButton("📝 Mock Test (#kod orqali)", callback_data="menu_mock_join")],
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+            ]
+            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
 
         elif data == "menu_quiz":
             from apps.notifications.bot.quiz import quiz_handler
@@ -3593,11 +3605,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0) or (49000 if selected_slug == "starter" else 99000)
             text = (
                 f"💳 *{selected_slug.capitalize()} tarifi uchun to'lov*\n\n"
-                f"💰 Summa: *{price:,} so'm*\n"
                 f"💳 Karta: `{card_number}`\n"
-                f"👤 Egasi: *{card_holder}*\n\n"
-                f"📸 *To'lovni amalga oshirgach, chek screenshot'ini shu chatga rasm qilib yuboring.*\n"
-                f"Admin 5-15 daqiqada tekshiradi va tarifingiz avtomatik yoqiladi."
+                f"👤 Karta egasi: {card_holder}\n"
+                f"💰 Summa: {price:,} so'm\n\n"
+                f"To'lovni amalga oshirgach, chek skrinshotini ushbu chatga rasm ko'rinishida yuboring."
             )
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔙 Boshqa tarif tanlash", callback_data="cb_plans")]
@@ -4119,11 +4130,10 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
 
     plan_name = "Starter" if selected_slug == "starter" else "Premium"
     await update.message.reply_text(
-        f"✅ *To'lov chekingiz qabul qilindi!*\n\n"
+        f"✅ Chekingiz qabul qilindi! Admin tasdiqlashi bilan obunangiz faollashadi.\n\n"
         f"📦 Tarif: *{plan_name}*\n"
         f"💰 Summa: *{int(amount):,} so'm*\n"
-        f"📅 Sana: {receipt.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
-        f"⏳ Tez orada admin tekshiradi (odatda 5-15 daqiqa) va obunangiz faollashadi.",
+        f"📅 Sana: {receipt.created_at.strftime('%d.%m.%Y %H:%M')}",
         parse_mode="Markdown",
     )
 

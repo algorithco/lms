@@ -166,6 +166,11 @@ async def quiz_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await _show_next_question(update, context)
         elif data == "quiz_finish":
             await _show_final_results(update, context)
+        elif data.startswith("quiz_explain_"):
+            parts = data.split("_")
+            q_id = int(parts[2])
+            c_id = int(parts[3])
+            await _handle_explain(update, context, q_id, c_id)
     except Exception as exc:
         logger.exception("Quiz callback error (data=%s): %s", getattr(query, "data", ""), exc)
         try:
@@ -336,6 +341,15 @@ async def _handle_answer(
     quiz["answers"][question_idx] = choice_idx
     if is_correct:
         quiz["correct_count"] += 1
+    else:
+        if "mistakes" not in quiz:
+            quiz["mistakes"] = []
+        quiz["mistakes"].append({
+            "idx": question_idx + 1,
+            "q_id": q["id"],
+            "c_id": selected["id"],
+            "q_text": q["text"][:50],
+        })
 
     # Show feedback
     labels = ["A", "B", "C", "D"]
@@ -360,22 +374,89 @@ async def _handle_answer(
         f"📊 Hozirgi hisob: *{quiz['correct_count']}/{quiz['total_questions']}*"
     )
 
-    # Next question or finish
+    # Next question or finish + AI explain button if incorrect
+    buttons_list = []
+    if not is_correct:
+        buttons_list.append([
+            InlineKeyboardButton(
+                "💡 Nega bu xato? AI dan so'rash",
+                callback_data=f"quiz_explain_{q['id']}_{selected['id']}",
+            )
+        ])
+
     next_idx = question_idx + 1
     if next_idx < quiz["total_questions"]:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➡️ Keyingi savol", callback_data="quiz_next")],
-        ])
+        buttons_list.append([InlineKeyboardButton("➡️ Keyingi savol", callback_data="quiz_next")])
     else:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 Natijani ko'rish", callback_data="quiz_finish")],
-        ])
+        buttons_list.append([InlineKeyboardButton("📊 Natijani ko'rish", callback_data="quiz_finish")])
 
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=buttons,
+        reply_markup=InlineKeyboardMarkup(buttons_list),
     )
+
+
+async def _handle_explain(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    question_id: int,
+    choice_id: int,
+) -> None:
+    """Fetch and display AI tutor explanation for an incorrect answer."""
+    query = update.callback_query
+    try:
+        await query.answer("AI tahlili tayyorlanmoqda... 🧠")
+    except Exception:
+        pass
+
+    from apps.tests.ai_tutor import explain_question_mistake
+    try:
+        explanation = await _run_db(explain_question_mistake, question_id, choice_id)
+    except Exception as exc:
+        logger.exception("AI explain failed: %s", exc)
+        explanation = None
+
+    if not explanation or "error" in explanation:
+        if query.message:
+            await query.message.reply_text("❌ Tushuntirishni yuklashda xatolik yuz berdi.")
+        return
+
+    topic = explanation.get("topic", "Ona tili va adabiyoti")
+    q_text = explanation.get("question_text", "")
+    sel_ans = explanation.get("selected_answer", "")
+    cor_ans = explanation.get("correct_answer", "")
+    why_wrong = explanation.get("why_wrong", "")
+    correct_rule = explanation.get("correct_rule", "")
+    memory_tip = explanation.get("memory_tip", "")
+    full_explanation = explanation.get("full_explanation")
+
+    if full_explanation:
+        body = full_explanation
+    else:
+        body = (
+            f"❌ *Nega bu javob xato:*\n{why_wrong}\n\n"
+            f"📖 *Qoida:*\n{correct_rule}\n\n"
+            f"🎯 *Eslab qolish uchun maslahat:*\n{memory_tip}"
+        )
+
+    text = (
+        f"💡 *AI REPETITOR TAHLILI*\n\n"
+        f"📚 *Mavzu:* {topic}\n"
+        f"❓ *Savol:* {q_text[:200]}\n\n"
+        f"👤 Tanlangan: {sel_ans}\n"
+        f"✅ To'g'ri javob: *{cor_ans}*\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{body}"
+    )
+
+    try:
+        if query.message:
+            await query.message.reply_text(text, parse_mode="Markdown")
+    except Exception:
+        if query.message:
+            clean_text = text.replace("*", "").replace("`", "").replace("_", "")
+            await query.message.reply_text(clean_text)
 
 
 async def _show_next_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -449,7 +530,28 @@ async def _show_final_results(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"Ko'proq mashq qiling va qayta urinib ko'ring!\n"
         )
 
-    buttons = InlineKeyboardMarkup([
+    mistakes = quiz.get("mistakes", [])
+    if mistakes:
+        text += (
+            f"\n━━━━━━━━━━━━━━━━━━━━\n"
+            f"💡 *XATOLAR TAHLILI ({len(mistakes)} ta xato)*\n"
+            f"AI tushuntirishini ko'rish uchun savol tugmasini bosing:\n"
+        )
+
+    buttons_list = []
+    if mistakes:
+        mistake_btns = []
+        for m in mistakes[:6]:
+            mistake_btns.append(
+                InlineKeyboardButton(
+                    f"💡 {m['idx']}-savol xatosi",
+                    callback_data=f"quiz_explain_{m['q_id']}_{m['c_id']}",
+                )
+            )
+        for i in range(0, len(mistake_btns), 2):
+            buttons_list.append(mistake_btns[i:i+2])
+
+    buttons_list.extend([
         [InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"quiz_start_{quiz['test_id']}")],
         [InlineKeyboardButton("📝 Boshqa testlar", callback_data="menu_tests")],
         [InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results")],
@@ -459,7 +561,7 @@ async def _show_final_results(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=buttons,
+        reply_markup=InlineKeyboardMarkup(buttons_list),
     )
 
     # Agar testdan muvaffaqiyatli o'tgan bo'lsa, sertifikat PDF faylini to'g'ridan-to'g'ri yuborish
