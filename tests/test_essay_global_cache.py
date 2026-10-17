@@ -40,6 +40,7 @@ from apps.essays.services import (
     purge_obsolete_cache_entries,
     recover_stale_grading_cache_entries,
     stamp_grading_cache_key,
+    ESSAY_RUBRIC_VERSION,
 )
 
 ESSAY = "Inson hayotida kitob o'qishning o'rni beqiyosdir. " * 6
@@ -48,15 +49,24 @@ EDITED_ESSAY = ESSAY + "Bundan tashqari, mustaqil fikrlash ham muhim."
 MODEL = "grandec-test-model"
 
 
-def _grade(total_per_criterion: float = 2.0) -> dict:
+def _grade(total_per_criterion: float | None = None) -> dict:
     """A complete, valid 12-criterion grade payload."""
-    return {
-        "criteria": [
-            {"id": i, "name": f"Criterion {i}", "score": total_per_criterion, "reason": "Izoh."}
+    max_scores = {1: 2.0, 2: 2.0, 3: 2.0, 4: 1.5, 5: 1.5, 6: 1.5, 7: 2.0, 8: 1.5, 9: 1.5, 10: 1.5, 11: 1.5, 12: 1.5}
+    if total_per_criterion is not None:
+        criteria = [
+            {"id": i, "name": f"Criterion {i}", "score": min(total_per_criterion, max_scores[i]), "reason": "Izoh."}
             for i in range(1, 13)
-        ],
-        "total_score": total_per_criterion * 12,
-        "max_score": 24,
+        ]
+    else:
+        criteria = [
+            {"id": i, "name": f"Criterion {i}", "score": max_scores[i], "reason": "Izoh."}
+            for i in range(1, 13)
+        ]
+    total = sum(c["score"] for c in criteria)
+    return {
+        "criteria": criteria,
+        "total_score": total,
+        "max_score": 20,
         "summary": "Yaxshi esse.",
         "topic_match": True,
         "topic_match_reason": "Mavzuga mos.",
@@ -140,7 +150,7 @@ class CrossAccountReuseTests(SharedEssayCacheTestCase):
         self.assertIn(result_a["status"], ("graded", "ok"))
         self.assertEqual(grader.call_count, 1)
         self.assertEqual(sub_a.grading_source, EssaySubmission.GradingSource.AI)
-        self.assertEqual(sub_a.total_score, Decimal("24.0"))
+        self.assertEqual(sub_a.total_score, Decimal("20.0"))
 
         result_b = self.run_task(sub_b)
         sub_b.refresh_from_db()
@@ -167,7 +177,7 @@ class CrossAccountReuseTests(SharedEssayCacheTestCase):
         self.assertEqual(entry.hit_count, 2)
         self.assertEqual(entry.reuse_count, 1)
         self.assertIsNotNone(entry.completed_at)
-        self.assertEqual(entry.rubric_version, "grandec-essay-12x2-v1")
+        self.assertEqual(entry.rubric_version, ESSAY_RUBRIC_VERSION)
 
     def test_distribution_completes_waiting_submission_without_second_ai_call(self):
         grader = self.patch_grader()
@@ -391,14 +401,14 @@ class HighStakesIsolationTests(SharedEssayCacheTestCase):
         self.assertEqual(
             bridge.essay_submission.cache_scope, EssaySubmission.CacheScope.HIGH_STAKES,
         )
-        self.assertEqual(bridge.rubric_version, "grandec-essay-12x2-v1")
+        self.assertEqual(bridge.rubric_version, ESSAY_RUBRIC_VERSION)
         # The bridge kept working: the submission exists and is queued/pending,
         # never silently marked graded by a shared evaluation.
         self.assertIn(
             bridge.essay_submission.status,
             (EssaySubmission.Status.PENDING, EssaySubmission.Status.DRAFT),
         )
-        self.assertEqual(ExamBridgeService._rubric_version(), "grandec-essay-12x2-v1")
+        self.assertEqual(ExamBridgeService._rubric_version(), ESSAY_RUBRIC_VERSION)
 
 
 class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
@@ -425,7 +435,7 @@ class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
         _complete_cache_entry(claim, FULL_GRADE)
         result = grade_essay(ESSAY, "Kitob va inson")
         self.assertTrue(result["_from_cache"])
-        self.assertEqual(result["total_score"], 24.0)
+        self.assertEqual(result["total_score"], 20.0)
         self.assertEqual(grader.call_count, 0)
 
     @override_settings(ESSAY_CACHE_WAIT_SECONDS=1)
@@ -534,12 +544,12 @@ class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
         self.assertFalse(fresh["_from_cache"])
         entry = EssayGradingCache.objects.get()
         self.assertEqual(entry.status, EssayGradingCache.Status.COMPLETED)
-        self.assertEqual(entry.total_score, Decimal("24.0"))
+        self.assertEqual(entry.total_score, Decimal("20.0"))
 
         # The stalled worker must not clobber the newer result.
         _complete_cache_entry(stale_claim, _grade(1.0))
         entry.refresh_from_db()
-        self.assertEqual(entry.total_score, Decimal("24.0"))
+        self.assertEqual(entry.total_score, Decimal("20.0"))
         self.assertEqual(entry.status, EssayGradingCache.Status.COMPLETED)
         self.assertEqual(first.call_count, 1)
         self.assertTrue(entry.is_reusable())
@@ -700,9 +710,9 @@ class ValidationAndInvalidationTests(SharedEssayCacheTestCase):
         EssayGradingCache.objects.create(
             text_hash=key,
             essay_text=ESSAY,
-            raw_result={"criteria": [], "total_score": 24, "max_score": 24},
-            total_score=Decimal("24.0"),
-            max_score=24,
+            raw_result={"criteria": [], "total_score": 20, "max_score": 20},
+            total_score=Decimal("20.0"),
+            max_score=20,
             status=EssayGradingCache.Status.COMPLETED,
             completed_at=timezone.now(),
         )
@@ -750,18 +760,18 @@ class ValidationAndInvalidationTests(SharedEssayCacheTestCase):
         obsolete = EssayGradingCache.objects.create(
             text_hash="0" * 64,
             essay_text="eski",
-            raw_result={"criteria": [], "total_score": 1, "max_score": 24},
+            raw_result={"criteria": [], "total_score": 1, "max_score": 20},
             total_score=Decimal("1.0"),
-            max_score=24,
+            max_score=20,
             status=EssayGradingCache.Status.COMPLETED,
             cache_schema_version=1,
         )
         invalidated = EssayGradingCache.objects.create(
             text_hash="1" * 64,
             essay_text="bekor qilingan",
-            raw_result={"criteria": [], "total_score": 1, "max_score": 24},
+            raw_result={"criteria": [], "total_score": 1, "max_score": 20},
             total_score=Decimal("1.0"),
-            max_score=24,
+            max_score=20,
             status=EssayGradingCache.Status.COMPLETED,
             invalidated_at=timezone.now(),
         )
@@ -846,7 +856,7 @@ class ProvenanceAndPrivacyTests(SharedEssayCacheTestCase):
         entry = EssayGradingCache.objects.get()
 
         self.assertIsNone(self.sub_b.final_score)
-        self.assertEqual(self.sub_b.total_score, Decimal("24.0"))
+        self.assertEqual(self.sub_b.total_score, Decimal("20.0"))
         self.assertNotIn("Faqat shu o'quvchi uchun.", json.dumps(entry.raw_result))
         self.assertFalse(
             TeacherReview.objects.filter(submission=self.sub_b).exists(),
@@ -970,8 +980,8 @@ class EssayEditAndCompatibilityTests(SharedEssayCacheTestCase):
             word_count=len(ESSAY.split()),
             status=EssaySubmission.Status.GRADED,
             raw_result=FULL_GRADE,
-            total_score=Decimal("24.0"),
-            max_score=24,
+            total_score=Decimal("20.0"),
+            max_score=20,
             grading_source=EssaySubmission.GradingSource.AI,
         )
         self.assertTrue(essay_has_grade_result(legacy))

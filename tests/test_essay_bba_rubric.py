@@ -1,19 +1,10 @@
 """
-BBA 12-criterion rubric regression tests (offline, no LLM calls).
+BMB 12-criterion rubric regression tests (offline, no LLM calls).
 
-Guards the reported mis-scoring of the insurance essay (19.5/24 instead of
-~22/24), whose biggest errors were:
-  - Criterion 9 ("Qo'shimcha qo'llash") scored 0.5 because the grader read it
-    as "did the student cite additional sources" instead of Uzbek
-    suffix/affix usage errors.
-  - Criterion 11 ("Leksik xilma-xillik") capped at 1 despite sufficient
-    lexical variety.
-
-The actual insurance essay text was not attached to the task, so these tests
-guard the rubric *interpretation* (prompt wording + validation pipeline)
-rather than a single golden score: any future prompt edit that reintroduces
-the "sources" reading of criterion 9 or drops the criterion-11 full-2 rule
-fails here before reaching production.
+Official BMB 12-criterion rubric with total 20.0 max score:
+  - Criteria 1, 2, 3, 7: max 2.0 points
+  - Criteria 4, 5, 6, 8, 9, 10, 11, 12: max 1.5 points
+  - Total: 2.0*4 + 1.5*8 = 20.0 points
 """
 from __future__ import annotations
 
@@ -24,31 +15,34 @@ from apps.essays.prompts import (
     ESSAY_GRADING_SYSTEM_PROMPT,
     ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
 )
-from apps.essays.services import _validate_result
+from apps.essays.services import _validate_result, ESSAY_RUBRIC_MAX_SCORE
 
 
-def _valid_payload(scores: list[float]) -> dict:
+def _valid_payload(scores: list[float] | None = None) -> dict:
+    if scores is None:
+        # Valid maximum scores per criterion (total 20.0)
+        scores = [2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 2.0, 1.5, 1.5, 1.5, 1.5, 1.5]
     return {
         "criteria": [
             {"id": i + 1, "name": f"Mezon {i + 1}", "score": s, "reason": "izoh"}
             for i, s in enumerate(scores)
         ],
         "total_score": 0,
-        "max_score": 24,
+        "max_score": 20,
         "summary": "Xulosa.",
     }
 
 
-# Expected insurance-essay distribution from the task (≈22/24).
-INSURANCE_EXPECTED_SCORES = [2, 2, 2, 2, 1.5, 2, 2, 2, 2, 1.5, 2, 2]
+# Representative valid distribution (16.5 / 20.0)
+BMB_SAMPLE_SCORES = [2.0, 1.5, 2.0, 1.0, 1.5, 1.0, 2.0, 1.0, 1.5, 1.0, 1.0, 1.0]
 
 
-class BbaPromptCriterion9Tests(SimpleTestCase):
-    """Criterion 9 must mean suffix/affix errors — never sources/citations."""
+class BbaPromptGrammarTests(SimpleTestCase):
+    """Grammar / affix criterion must mean suffix/affix errors — never sources/citations."""
 
     def test_full_prompt_defines_affix_errors(self):
         p = ESSAY_GRADING_SYSTEM_PROMPT
-        self.assertIn("9 QO'SHIMCHA QO'LLASH", p)
+        self.assertIn("6 GRAMMATIK QOIDALARGA RIOYA ETILGANI", p)
         self.assertIn("suffiks/affiks", p.lower())
         self.assertIn("kelishik", p.lower())
 
@@ -57,46 +51,40 @@ class BbaPromptCriterion9Tests(SimpleTestCase):
         self.assertIn("MANBA", p)
         self.assertIn("TAQIQLANADI", p)
 
-    def test_simple_prompt_keeps_criterion9_guard(self):
-        # The retry prompt is shorter but must not reintroduce the bug.
+    def test_simple_prompt_keeps_grammar_guard(self):
         p = ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
-        self.assertIn("9-QO'SHIMCHA", p)
+        self.assertIn("6-mezon", p)
         self.assertIn("suffiks/affiks", p.lower())
         self.assertIn("TAQIQLANADI", p)
 
 
-class BbaPromptCriterion11Tests(SimpleTestCase):
-    """Criterion 11 must allow full 2 points for satisfied requirements."""
+class BbaPromptVocabularyTests(SimpleTestCase):
+    """Vocabulary criterion must reward precise and rich vocabulary."""
 
-    def test_full_prompt_allows_full_two(self):
+    def test_full_prompt_has_vocabulary_criterion(self):
         p = ESSAY_GRADING_SYSTEM_PROMPT
-        self.assertIn("11 LUG'AT BOYLIGI", p)
-        self.assertIn("to'liq 2 ball bering", p)
-        self.assertIn("sun'iy murakkab", p.lower())
+        self.assertIn("5 SO'Z QO'LLASH ANIQLIGI VA BOY LUG'AT ZAXIRASI", p)
 
-    def test_simple_prompt_keeps_criterion11_guard(self):
+    def test_simple_prompt_has_vocabulary_criterion(self):
         p = ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
-        self.assertIn("11-LUG'AT", p)
-        self.assertIn("to'liq 2 ball", p)
+        self.assertIn("5 So'z qo'llash va lug'at boyligi", p)
 
 
 class BbaPromptStructureTests(SimpleTestCase):
-    """All 12 criteria with 2/1.5/1/0.5/0 ladders + total=sum rule."""
+    """All 12 criteria with 20.0 max points + total=sum rule."""
 
     def test_all_twelve_criteria_present(self):
         for p in (ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE):
             for cid in range(1, 13):
                 self.assertIn(str(cid), p)
 
-    def test_error_count_ladders_present(self):
-        p = ESSAY_GRADING_SYSTEM_PROMPT
-        # Count-based criteria share the 0/1-2/3-4/5-6/7+ ladder.
-        self.assertIn("1.5=1-2", p)
-        self.assertIn("0=7+", p)
-
     def test_total_is_sum_rule_present(self):
         self.assertIn("yig'indisi", ESSAY_GRADING_SYSTEM_PROMPT)
         self.assertIn("yig'indi", ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE)
+
+    def test_max_score_20_in_prompts(self):
+        for p in (ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE):
+            self.assertIn("20", p)
 
     def test_errors_array_in_json_format(self):
         for p in (ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE):
@@ -104,51 +92,62 @@ class BbaPromptStructureTests(SimpleTestCase):
 
 
 class BbaValidationTests(SimpleTestCase):
-    """Validation normalizes evidence + forces per-criterion max 2."""
+    """Validation normalizes evidence + forces 20 max score and individual criterion maxes."""
 
-    def test_insurance_expected_distribution_sums_correctly(self):
-        # NOTE: the task lists per-criterion scores 2/2/2/2/1.5/2/2/2/2/1.5/2/2
-        # with total "22/24" — but those scores sum to 23.0, not 22.0.
-        # Rule 10 (total = exact sum) wins over the typo: the pipeline must
-        # return the true sum, never a hand-adjusted total.
-        payload = _valid_payload(INSURANCE_EXPECTED_SCORES)
+    def test_sample_distribution_sums_correctly(self):
+        payload = _valid_payload(BMB_SAMPLE_SCORES)
         _validate_result(payload)
-        self.assertEqual(payload["total_score"], float(sum(INSURANCE_EXPECTED_SCORES)))
-        self.assertEqual(payload["total_score"], 23.0)
-        self.assertEqual(payload["max_score"], 24)
+        expected_sum = float(sum(BMB_SAMPLE_SCORES))
+        self.assertEqual(payload["total_score"], expected_sum)
+        self.assertEqual(payload["max_score"], 20)
+        # Check individual max_scores
         for c in payload["criteria"]:
-            self.assertEqual(c["max_score"], 2)
-            self.assertEqual(c["errors"], [])
+            crit_max = float(EssayCriterionScore.CRITERION_MAX_SCORES[c["id"]])
+            self.assertEqual(c["max_score"], crit_max)
 
     def test_errors_evidence_preserved_and_capped(self):
-        payload = _valid_payload([2] * 12)
-        payload["criteria"][8]["errors"] = ["  noto'g'ri qo'shimcha  ", 123, "", "x" * 500]
+        payload = _valid_payload()
+        payload["criteria"][6]["errors"] = ["  imlo xatosi  ", 123, "", "x" * 500]
         _validate_result(payload)
-        errors = payload["criteria"][8]["errors"]
-        self.assertEqual(errors[0], "noto'g'ri qo'shimcha")
+        errors = payload["criteria"][6]["errors"]
+        self.assertEqual(errors[0], "imlo xatosi")
         self.assertIn("123", errors)
         self.assertTrue(all(len(e) <= 200 for e in errors))
 
     def test_errors_capped_at_six(self):
-        payload = _valid_payload([1] * 12)
+        payload = _valid_payload()
         payload["criteria"][0]["errors"] = [f"xato {i}" for i in range(20)]
         _validate_result(payload)
         self.assertEqual(len(payload["criteria"][0]["errors"]), 6)
 
     def test_non_list_errors_normalized(self):
-        payload = _valid_payload([1.5] * 12)
+        payload = _valid_payload()
         payload["criteria"][0]["errors"] = "not-a-list"
         _validate_result(payload)
         self.assertEqual(payload["criteria"][0]["errors"], [])
 
-    def test_legacy_payload_without_errors_still_valid(self):
-        # Old cached results have no "errors" key — must keep validating.
-        payload = _valid_payload([1] * 12)
+    def test_spelling_errors_and_recommendations_normalized(self):
+        payload = _valid_payload()
+        payload["spelling_errors"] = [{"word": "muxrdor", "correction": "muhrdor", "explanation": "H va X farqi"}]
+        payload["strengths"] = ["Kuchli tezis"]
+        payload["weaknesses"] = ["Lug'at oddiy"]
+        payload["teacher_recommendation"] = "Ko'proq o'qing"
+        payload["improved_text"] = "Tahrirlangan matn"
         _validate_result(payload)
-        self.assertEqual(payload["total_score"], 12.0)
+        self.assertEqual(len(payload["spelling_errors"]), 1)
+        self.assertEqual(payload["spelling_errors"][0]["word"], "muxrdor")
+        self.assertEqual(payload["strengths"], ["Kuchli tezis"])
+        self.assertEqual(payload["improved_text"], "Tahrirlangan matn")
+
+    def test_criterion_score_cannot_exceed_its_max(self):
+        # Criterion 4 has max 1.5, trying 2.0 must raise ValueError
+        payload = _valid_payload()
+        payload["criteria"][3]["score"] = 2.0  # id 4 max is 1.5
+        with self.assertRaises(ValueError):
+            _validate_result(payload)
 
     def test_verbose_model_label_uses_database_safe_rubric_name(self):
-        payload = _valid_payload([1.5] * 12)
+        payload = _valid_payload()
         payload["criteria"][0]["name"] = "Uslub va boshqa izohlar " * 10
 
         _validate_result(payload)
@@ -159,4 +158,3 @@ class BbaValidationTests(SimpleTestCase):
                 EssayCriterionScore.CRITERION_NAMES[criterion["id"]],
             )
             self.assertLessEqual(len(criterion["name"]), 100)
-        self.assertEqual(payload["total_score"], 18.0)

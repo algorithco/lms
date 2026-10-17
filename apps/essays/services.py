@@ -75,11 +75,11 @@ from .models import (
 # (UNVERIFIED against any official BMB rubric unless an authoritative source
 # is supplied). Bump when the 12-criteria / 24-point semantics change; never
 # rewrite history.
-ESSAY_RUBRIC_VERSION = "grandec-essay-12x2-v1"
+ESSAY_RUBRIC_VERSION = "grandec-essay-bmb-20p-v1"
 
-# Raw rubric maximum: 12 criteria × 2 points. The exam bridge scales a
-# submission's effective score onto a question's points against this maximum.
-ESSAY_RUBRIC_MAX_SCORE = 24
+# Raw rubric maximum: 12 criteria (BMB official scale, exactly 20.0 max score).
+# Criteria 1-3, 7 max 2.0; Criteria 4-6, 8-12 max 1.5. Total = 20.0 points.
+ESSAY_RUBRIC_MAX_SCORE = 20
 
 # ---------------------------------------------------------------------------
 # AI provider resolution (OpenRouter / Groq — OpenAI-compatible APIs)
@@ -248,7 +248,7 @@ def _get_ai_model() -> str:
     return getattr(
         settings,
         f"{provider.upper()}_AI_MODEL",
-        "nvidia/nemotron-3.5-lightning:free",
+        "deepseek/deepseek-v4-flash-0731",
     )
 
 def _get_fallback_models() -> list[str]:
@@ -538,44 +538,52 @@ class WordCounter:
 # ---------------------------------------------------------------------------
 
 def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[str, Any]:
-    """Generate a mock 12-criteria response for frontend testing."""
+    """Generate a mock 12-criteria response for frontend testing (BMB 20-point rubric)."""
     word_count = WordCounter.count(essay_text)
-    base = min(2, max(0, word_count // 100))
-    half = min(1.5, max(0.5, word_count // 200))
+    base_2 = min(Decimal("2.0"), max(Decimal("0.5"), Decimal(str(min(2, max(0, word_count // 100))))))
+    base_1_5 = min(Decimal("1.5"), max(Decimal("0.5"), Decimal(str(min(1.5, max(0.5, word_count // 200))))))
 
-    # Rasmiy talab: 200-500 so'z. 200 dan kam bo'lsa kompozitsiya va hajm bo'yicha ball kesiladi.
     if word_count < 200:
         comp_score = 1.0 if word_count >= 150 else 0.5
         comp_reason = f"[HAJM YETARLI EMAS] Esse {word_count} so'zdan iborat (minimal talab: 200 so'z). Kompozitsiya to'liq ochilmagan."
         summary_warning = f" Diqqat: esse hajmi yetarli emas ({word_count}/200 so'z), hajm mezoni bo'yicha ball kesildi."
     else:
-        comp_score = base
+        comp_score = float(base_2)
         comp_reason = "[SINOV REJIMI] Mock baholash"
         summary_warning = ""
 
+    b2 = float(base_2)
+    b15 = float(base_1_5)
+
     criteria = [
-        {"id": 1, "name": "Uslub", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 2, "name": "Ikkala qarash va shaxsiy fikr", "score": base if word_count >= 200 else min(base, 1.0), "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 3, "name": "Dalillar bilan asoslanganlik", "score": base if word_count >= 200 else min(base, 1.0), "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 4, "name": "Kirish/asosiy qism/xulosa", "score": comp_score, "reason": comp_reason},
-        {"id": 5, "name": "Mantiqiy-qurilish", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 6, "name": "Mantiqiy-mazmuniy izchillik", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 7, "name": "Imlo xatolari", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 8, "name": "Punktuatsiya xatolari", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 9, "name": "Qo'shimcha qo'llash xatolari", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 10, "name": "So'z qo'llash uslubiy xatolari", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 11, "name": "Leksik xilma-xillik", "score": half, "reason": "[SINOV REJIMI] Mock baholash"},
-        {"id": 12, "name": "Sheva/vulgarizm/parazit so'zlar", "score": base, "reason": "[SINOV REJIMI] Mock baholash"},
+        {"id": 1, "name": EssayCriterionScore.CRITERION_NAMES[1], "score": b2, "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 2, "name": EssayCriterionScore.CRITERION_NAMES[2], "score": comp_score, "max_score": 2.0, "reason": comp_reason, "errors": []},
+        {"id": 3, "name": EssayCriterionScore.CRITERION_NAMES[3], "score": b2 if word_count >= 200 else min(b2, 1.0), "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 4, "name": EssayCriterionScore.CRITERION_NAMES[4], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 5, "name": EssayCriterionScore.CRITERION_NAMES[5], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 6, "name": EssayCriterionScore.CRITERION_NAMES[6], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 7, "name": EssayCriterionScore.CRITERION_NAMES[7], "score": b2, "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 8, "name": EssayCriterionScore.CRITERION_NAMES[8], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 9, "name": EssayCriterionScore.CRITERION_NAMES[9], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 10, "name": EssayCriterionScore.CRITERION_NAMES[10], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {"id": 11, "name": EssayCriterionScore.CRITERION_NAMES[11], "score": 1.5 if word_count >= 200 else (1.0 if word_count >= 150 else 0.5), "max_score": 1.5, "reason": f"Hajm: {word_count} so'z", "errors": []},
+        {"id": 12, "name": EssayCriterionScore.CRITERION_NAMES[12], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
     ]
 
-    total = sum(c["score"] for c in criteria)
+    total = sum(Decimal(str(c["score"])) for c in criteria)
     return {
         "criteria": criteria,
         "total_score": float(total),
-        "max_score": 24,
+        "max_score": ESSAY_RUBRIC_MAX_SCORE,
+        "word_count": word_count,
         "summary": f"[SINOV REJIMI] {word_count} so'zlik esse.{summary_warning} Haqiqiy AI bahosi uchun OPENROUTER_API_KEY ni sozlang.",
         "topic_match": True,
         "topic_match_reason": "[SINOV REJIMI] Mock tekshiruv",
+        "spelling_errors": [],
+        "strengths": ["Mavzuni tushunish", "Mustaqil fikrlash"],
+        "weaknesses": ["Lug'at boyligini oshirish kerak"],
+        "teacher_recommendation": "Mavzu bo'yicha ko'proq adabiy va hayotiy misollar keltirish tavsiya etiladi.",
+        "improved_text": essay_text,
     }
 
 # ---------------------------------------------------------------------------
@@ -748,15 +756,16 @@ class TeacherReviewService:
         for cid in range(1, 13):
             raw = criteria_scores.get(cid, 0)
             score = Decimal(str(raw))
-            if score not in VALID_SCORES:
+            max_s = EssayCriterionScore.CRITERION_MAX_SCORES.get(cid, Decimal("2.0"))
+            if score not in VALID_SCORES or score > max_s:
                 raise ValueError(
-                    f"Mezon #{cid}: ball {raw} yaroqsiz. "
+                    f"Mezon #{cid}: ball {raw} yaroqsiz (maksimal: {max_s}). "
                     f"Ruxsat etilgan: {VALID_SCORES}"
                 )
             total_score += score
             validated_scores[str(cid)] = float(score)
 
-        total_score = min(total_score, Decimal("24"))
+        total_score = min(total_score, Decimal(str(ESSAY_RUBRIC_MAX_SCORE)))
 
         # Create or update review
         review, created = TeacherReview.objects.update_or_create(
@@ -841,23 +850,34 @@ class TeacherReviewService:
 
 # Allowed scores for each criterion
 ALLOWED_SCORES = {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")}
+ALLOWED_SCORES_BY_MAX = {
+    Decimal("2.0"): {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")},
+    Decimal("1.5"): {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5")},
+}
 
-ALLOWED_TOP_KEYS = {"criteria", "total_score", "max_score", "summary", "topic_match", "topic_match_reason"}
+ALLOWED_TOP_KEYS = {
+    "criteria", "total_score", "max_score", "summary", "topic_match",
+    "topic_match_reason", "word_count", "spelling_errors", "strengths",
+    "weaknesses", "teacher_recommendation", "improved_text",
+}
 ALLOWED_CRITERION_KEYS = {"id", "name", "score", "reason", "errors", "max_score"}
 
 def _validate_result(result: dict, essay_text: str = "") -> None:
     """
-    Validate the parsed JSON result from LLM.
+    Validate the parsed JSON result from LLM (BMB 20-point rubric).
 
     Checks:
         1. 'criteria' key exists and is a list of exactly 12 items
         2. Each criterion has 'id', 'name', 'score'
             ('reason'/'errors' ixtiyoriy — normalize bosqichida "" / []
             bilan to'ldiriladi, chunki ba'zi modellar ularni yozmaydi)
-        3. Each score is in {0, 0.5, 1, 1.5, 2}
+        3. Each score is within the allowed set for that criterion:
+           - Criteria 1-3, 7: max 2.0 (0, 0.5, 1, 1.5, 2)
+           - Criteria 4-6, 8-12: max 1.5 (0, 0.5, 1, 1.5)
         4. 'total_score' and 'max_score' are present (recomputed, never trusted)
         5. Optional 'errors' is normalized to a short list of evidence snippets
         6. No unknown keys at top level or per-criterion (strict schema)
+        7. Normalize spelling_errors, strengths, weaknesses, teacher_recommendation, improved_text
     """
     if not isinstance(result, dict):
         raise ValueError("Result must be a dict")
@@ -885,20 +905,6 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
             if field not in c:
                 raise ValueError(f"Criterion #{i} missing '{field}'")
 
-        score = c["score"]
-        try:
-            if isinstance(score, bool):
-                raise InvalidOperation
-            score_decimal = Decimal(str(score))
-        except (InvalidOperation, ValueError) as exc:
-            raise ValueError(f"Criterion #{i} score must be numeric") from exc
-        if not score_decimal.is_finite():
-            raise ValueError(f"Criterion #{i} score must be finite")
-        if score_decimal not in ALLOWED_SCORES:
-            raise ValueError(
-                f"Criterion #{i} score {score} not in allowed set {ALLOWED_SCORES}"
-            )
-
         try:
             if isinstance(c["id"], bool) or str(c["id"]) != str(int(c["id"])):
                 raise ValueError
@@ -908,6 +914,24 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
         if criterion_id not in VALID_CRITERION_IDS:
             raise ValueError(f"Criterion #{i} id is outside 1..12")
         c["id"] = criterion_id
+
+        score = c["score"]
+        try:
+            if isinstance(score, bool):
+                raise InvalidOperation
+            score_decimal = Decimal(str(score))
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError(f"Criterion #{i} score must be numeric") from exc
+        if not score_decimal.is_finite():
+            raise ValueError(f"Criterion #{i} score must be finite")
+
+        crit_max = EssayCriterionScore.CRITERION_MAX_SCORES.get(criterion_id, Decimal("2.0"))
+        allowed_set = ALLOWED_SCORES_BY_MAX.get(crit_max, ALLOWED_SCORES)
+        if score_decimal not in allowed_set or score_decimal > crit_max:
+            raise ValueError(
+                f"Criterion #{i} score {score} not in allowed set {allowed_set} (max: {crit_max})"
+            )
+
         if not isinstance(c["name"], str) or not c["name"].strip():
             raise ValueError(f"Criterion #{i} name must be non-empty text")
         if not isinstance(c.get("reason", ""), str):
@@ -938,8 +962,8 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
             if snippet:
                 errors.append(snippet[:200])
         c["errors"] = errors
-        # Har bir mezon maksimumi qat'iy 2 (BBA rubrikasi).
-        c["max_score"] = 2
+        # Har bir mezon maksimumi (BMB 20-point rubrikasi).
+        c["max_score"] = float(crit_max)
 
     criterion_ids = [c["id"] for c in criteria]
     if set(criterion_ids) != VALID_CRITERION_IDS or len(set(criterion_ids)) != 12:
@@ -961,6 +985,38 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
     result["max_score"] = ESSAY_RUBRIC_MAX_SCORE
     if not isinstance(result.get("summary"), str) or len(result["summary"]) > 8000:
         raise ValueError("'summary' must be text of at most 8000 characters")
+
+    # Normalize spelling_errors: [{"word": str, "correction": str, "explanation": str}]
+    raw_spelling = result.get("spelling_errors", [])
+    spelling_errors = []
+    if isinstance(raw_spelling, list):
+        for item in raw_spelling[:25]:
+            if isinstance(item, dict):
+                w = str(item.get("word", "")).strip()[:100]
+                corr = str(item.get("correction", "")).strip()[:100]
+                exp = str(item.get("explanation", "")).strip()[:200]
+                if w:
+                    spelling_errors.append({"word": w, "correction": corr, "explanation": exp})
+    result["spelling_errors"] = spelling_errors
+
+    # Normalize strengths and weaknesses
+    for key in ("strengths", "weaknesses"):
+        raw_list = result.get(key, [])
+        cleaned_list = []
+        if isinstance(raw_list, list):
+            for item in raw_list[:6]:
+                if isinstance(item, str) and item.strip():
+                    cleaned_list.append(item.strip()[:300])
+        result[key] = cleaned_list
+
+    # Normalize recommendations and improved_text
+    for key in ("teacher_recommendation", "improved_text"):
+        val = result.get(key, "")
+        result[key] = str(val).strip()[:10000] if val else ""
+
+    # Normalize word_count
+    if "word_count" not in result or not isinstance(result["word_count"], int):
+        result["word_count"] = WordCounter.count(raw_text) if raw_text else 0
 
     # topic_match is optional (backward-compatible with old cached results)
     if "topic_match" in result and not isinstance(result["topic_match"], bool):
@@ -2433,12 +2489,17 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
             locked.grading_source = EssaySubmission.GradingSource.AI
         if cache_key and not locked.grading_cache_key:
             locked.grading_cache_key = cache_key
-        locked.save(update_fields=[
+        update_fields = [
             "raw_result", "total_score", "max_score",
             "summary", "status", "graded_at", "updated_at",
             "is_off_topic", "topic_match_reason", "error_message",
             "grading_source", "grading_cache", "grading_cache_key",
-        ])
+        ]
+        if clean_result.get("improved_text") and not locked.improved_content:
+            locked.improved_content = clean_result["improved_text"]
+            locked.improved_at = _timezone.now()
+            update_fields.extend(["improved_content", "improved_at"])
+        locked.save(update_fields=update_fields)
 
         locked.criteria.all().delete()
         rows = [
@@ -2970,7 +3031,7 @@ def generate_essay_result_pdf(submission: Any) -> Any:
         student_name = student.email
     topic_title = submission.topic.title if getattr(submission, "topic", None) else "Erkin mavzu"
     date_str = submission.created_at.strftime("%d.%m.%Y %H:%M") if getattr(submission, "created_at", None) else "-"
-    score_str = f"{submission.total_score or 0} / {submission.max_score or 24}"
+    score_str = f"{submission.total_score or 0} / {submission.max_score or 20}"
     conv_str = f"{submission.converted_score or 0} / 75"
     status_str = "O'TDI (Muvaffaqiyatli)" if getattr(submission, "is_passed", False) else "O'TMADI"
 
@@ -2997,7 +3058,7 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     elements.append(Spacer(1, 14))
 
     # 12 Criteria Table
-    elements.append(Paragraph("<b>12 Mezon bo'yicha batafsil baholash:</b>", heading_style))
+    elements.append(Paragraph("<b>12 Mezon bo'yicha batafsil baholash (BMB 20 ballik shkala):</b>", heading_style))
 
     criteria_table_data = [
         [
@@ -3009,24 +3070,28 @@ def generate_essay_result_pdf(submission: Any) -> Any:
         ]
     ]
 
+    from apps.essays.models import EssayCriterionScore
+    crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
+
     criteria_qs = list(submission.criteria.order_by("criterion_id")) if hasattr(submission, "criteria") else []
     if criteria_qs:
         for c in criteria_qs:
+            c_max = str(crit_maxes.get(c.criterion_id, 2.0))
             criteria_table_data.append([
                 Paragraph(str(c.criterion_id), body_style),
                 Paragraph(c.name, body_style),
                 Paragraph(f"<b>{c.score}</b>", body_bold),
-                Paragraph("2.0", body_style),
+                Paragraph(c_max, body_style),
                 Paragraph(c.reason[:180] if c.reason else "-", body_style),
             ])
     else:
-        from apps.essays.models import EssayCriterionScore
         for cid, cname in EssayCriterionScore.CRITERION_NAMES.items():
+            c_max = str(crit_maxes.get(cid, 2.0))
             criteria_table_data.append([
                 Paragraph(str(cid), body_style),
                 Paragraph(cname, body_style),
                 Paragraph("-", body_style),
-                Paragraph("2.0", body_style),
+                Paragraph(c_max, body_style),
                 Paragraph("-", body_style),
             ])
 

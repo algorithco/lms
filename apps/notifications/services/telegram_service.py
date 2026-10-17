@@ -154,7 +154,7 @@ class TelegramService:
         """
         topic_title = submission.topic.title if submission.topic else "Erkin mavzu"
         score = str(submission.total_score) if submission.total_score is not None else "-"
-        max_score = str(submission.max_score) if submission.max_score else "24"
+        max_score = str(submission.max_score) if submission.max_score else "20"
         is_passed = bool(submission.is_passed)
         converted = submission.converted_score
         status_line = (
@@ -170,15 +170,27 @@ class TelegramService:
             text += f"\n📈 Umumiy tizimda: *{converted}/75*"
         text += f"\n{status_line}\n\n"
 
+        from apps.essays.models import EssayCriterionScore
+        crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
+
         criteria_lines = []
         try:
             if hasattr(submission, "criteria") and submission.criteria.exists():
                 for c in submission.criteria.order_by("criterion_id"):
-                    criteria_lines.append(f"  • {c.criterion_id}. {c.name}: *{c.score}/2*")
+                    c_max = crit_maxes.get(c.criterion_id, 2.0)
+                    criteria_lines.append(f"  • {c.criterion_id}. {c.name}: *{c.score}/{c_max}*")
         except Exception:
             pass
         if criteria_lines:
             text += "📋 *12 Mezon bo'yicha tahlil:*\n" + "\n".join(criteria_lines[:12]) + "\n\n"
+
+        raw_res = getattr(submission, "raw_result", {}) or {}
+        spelling_errors = raw_res.get("spelling_errors", [])
+        if spelling_errors:
+            text += f"✍️ *Topilgan imlo xatolari ({len(spelling_errors)} ta):*\n"
+            for se in spelling_errors[:4]:
+                text += f"  • _{se.get('word', '')}_ ➔ *{se.get('correction', '')}* ({se.get('explanation', '')})\n"
+            text += "\n"
 
         if getattr(submission, "summary", ""):
             text += f"💬 *Xulosa:* _{submission.summary}_\n\n"
@@ -187,11 +199,11 @@ class TelegramService:
         site_url = getattr(settings, "SITE_URL", "http://localhost:8000").rstrip("/")
         buttons = [
             [
-                {"text": "🪄 AI orqali qayta yozish", "callback_data": f"essay_improve:{submission.id}"},
+                {"text": "🪄 AI tahririni ko'rish", "callback_data": f"essay_improve:{submission.id}"},
                 {"text": "👨‍🏫 O'qituvchiga tekshirtirish", "callback_data": f"essay_review:{submission.id}"},
             ],
             [
-                {"text": "📄 Natija sertifikatini (PDF) yuklab olish", "callback_data": f"essay_pdf:{submission.id}"},
+                {"text": "📄 Batafsil PDF xulosa", "callback_data": f"essay_pdf:{submission.id}"},
             ],
             [
                 {"text": "🌐 Web'da ko'rish", "url": f"{site_url}/essays/result/{submission.id}/"},

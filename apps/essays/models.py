@@ -298,7 +298,7 @@ class EssaySubmission(models.Model):
     )
     max_score = models.PositiveSmallIntegerField(
         _("maksimal ball"),
-        default=24,
+        default=20,
     )
     summary = models.TextField(
         _("xulosa"),
@@ -849,7 +849,7 @@ class EssayGradingCache(models.Model):
         verbose_name=_("umumiy ball"),
     )
     max_score = models.PositiveSmallIntegerField(
-        default=24,
+        default=20,
         verbose_name=_("maksimal ball"),
     )
     hit_count = models.PositiveIntegerField(
@@ -1070,18 +1070,32 @@ class EssayCriterionScore(models.Model):
     Total max score: 12 × 2 = 24.
     """
     CRITERION_NAMES = {
-        1: "Uslub",
-        2: "Ikkala qarash va shaxsiy fikr",
-        3: "Dalillar bilan asoslanganlik",
-        4: "Kirish/asosiy qism/xulosa",
-        5: "Mantiqiy-qurilish",
-        6: "Mantiqiy-mazmuniy izchillik",
-        7: "Imlo xatolari",
-        8: "Punktuatsiya xatolari",
-        9: "Qo'shimcha qo'llash xatolari",
-        10: "So'z qo'llash uslubiy xatolari",
-        11: "Leksik xilma-xillik",
-        12: "Sheva/vulgarizm/parazit so'zlar",
+        1: "Mavzuning to'liq va teran ochib berilishi",
+        2: "Fikrning mantiqiy izchilligi va kompozitsion yaxlitlik",
+        3: "Dalillash mahorati va misollar keltirilishi",
+        4: "Publitsistik uslub me'yorlariga rioya qilingani",
+        5: "So'z qo'llash aniqligi va boy lug'at zaxirasi",
+        6: "Grammatik qoidalarga rioya etilgani",
+        7: "Imlo (orfografiya) to'g'riligi va xatolar tahlili",
+        8: "Tinish belgilari (punktuatsiya) to'g'ri qo'llangani",
+        9: "Uslubiy xatolar va takrorlarning mavjud emasligi",
+        10: "Matnning o'ziga xosligi va mustaqil fikrlash darajasi",
+        11: "Matn hajmi",
+        12: "Xulosaning asosli va tugallangan bo'lishi",
+    }
+    CRITERION_MAX_SCORES = {
+        1: Decimal("2.0"),
+        2: Decimal("2.0"),
+        3: Decimal("2.0"),
+        4: Decimal("1.5"),
+        5: Decimal("1.5"),
+        6: Decimal("1.5"),
+        7: Decimal("2.0"),
+        8: Decimal("1.5"),
+        9: Decimal("1.5"),
+        10: Decimal("1.5"),
+        11: Decimal("1.5"),
+        12: Decimal("1.5"),
     }
 
     VALID_SCORES = {0, 0.5, 1, 1.5, 2}
@@ -1126,12 +1140,14 @@ class EssayCriterionScore(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.name}: {self.score}/2"
+        max_s = self.CRITERION_MAX_SCORES.get(self.criterion_id, Decimal("2.0"))
+        return f"{self.name}: {self.score}/{max_s}"
 
     def clean(self):
-        """Validate score is in allowed set {0, 0.5, 1, 1.5, 2}."""
+        """Validate score is in allowed set {0, 0.5, 1, 1.5, 2} and does not exceed criterion max."""
         from django.core.exceptions import ValidationError
-        if self.score not in self.VALID_SCORES:
+        max_s = self.CRITERION_MAX_SCORES.get(self.criterion_id, Decimal("2.0"))
+        if self.score not in self.VALID_SCORES or self.score > max_s:
             raise ValidationError(
-                f"Ball {self.score} yaroqsiz. Ruxsat etilgan ballar: {self.VALID_SCORES}"
+                f"Ball {self.score} yaroqsiz (maksimal: {max_s}). Ruxsat etilgan ballar: {self.VALID_SCORES}"
             )

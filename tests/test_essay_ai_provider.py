@@ -419,7 +419,7 @@ class GradingResponseFallbackTests(TestCase):
         valid = MagicMock()
         valid.choices[0].message.content = json.dumps({
             "criteria": [
-                {"id": i, "name": f"Criterion {i}", "score": 2, "reason": "izoh"}
+                {"id": i, "name": f"Criterion {i}", "score": 2.0 if i in (1, 2, 3, 7) else 1.5, "reason": "izoh"}
                 for i in range(1, 13)
             ],
             "summary": "To'liq baho.",
@@ -431,7 +431,7 @@ class GradingResponseFallbackTests(TestCase):
         )
 
         self.assertEqual(used_model, "fallback")
-        self.assertEqual(result["total_score"], 24.0)
+        self.assertEqual(result["total_score"], 20.0)
 
     @override_settings(
         ESSAY_AI_PROVIDER="openrouter",

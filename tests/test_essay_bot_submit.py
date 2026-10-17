@@ -77,7 +77,7 @@ class TelegramEssaySubmissionTests(TestCase):
             essay_text=self.message.text,
             status=EssaySubmission.Status.GRADED,
             total_score=19,
-            max_score=24,
+            max_score=20,
         )
 
         async_to_sync(essay_submit_handler)(self.update, SimpleNamespace(
@@ -88,5 +88,5 @@ class TelegramEssaySubmissionTests(TestCase):
         mock_task.delay.assert_not_called()
         reply = self.message.reply_text.await_args.args[0]
         self.assertIn("allaqachon baholangan", reply)
-        self.assertIn("19.0/24", reply)
+        self.assertIn("19.0/20", reply)
         self.assertIn(str(existing.id), reply)

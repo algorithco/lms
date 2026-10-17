@@ -3559,11 +3559,11 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     topic_title = sub.topic.title if sub.topic else "Erkin mavzu"
     score = str(sub.total_score) if sub.total_score is not None else "-"
-    max_score = str(sub.max_score) if sub.max_score else "24"
+    max_score = str(sub.max_score) if sub.max_score else "20"
     status_line = "✅ O'tdi" if sub.is_passed else "❌ O'tmadi"
 
     text = (
-        f"📊 *ESSE NATIJASI*\n\n"
+        f"📊 *ESSE NATIJASI (BMB 20 BALLIK SHKALA)*\n\n"
         f"📚 Mavzu: *{topic_title}*\n"
         f"📝 Holat: *{sub.get_status_display()}*\n"
         f"📊 Ball: *{score}/{max_score}*\n"
@@ -3572,6 +3572,9 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         text += f"📈 Umumiy shkalada: *{sub.converted_score}/75*\n"
     text += f"📋 Natija: {status_line}\n\n"
 
+    from apps.essays.models import EssayCriterionScore
+    crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
+
     def _get_criteria():
         return list(sub.criteria.order_by("criterion_id")) if hasattr(sub, "criteria") else []
 
@@ -3579,7 +3582,16 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     if criteria_qs:
         text += "📋 *12 Mezon bo'yicha tahlil:*\n"
         for c in criteria_qs[:12]:
-            text += f"  • {c.criterion_id}. {c.name}: *{c.score}/2*\n"
+            c_max = crit_maxes.get(c.criterion_id, 2.0)
+            text += f"  • {c.criterion_id}. {c.name}: *{c.score}/{c_max}*\n"
+        text += "\n"
+
+    raw_res = sub.raw_result or {}
+    spelling_errors = raw_res.get("spelling_errors", [])
+    if spelling_errors:
+        text += f"✍️ *Topilgan imlo xatolari ({len(spelling_errors)} ta):*\n"
+        for se in spelling_errors[:4]:
+            text += f"  • _{se.get('word', '')}_ ➔ *{se.get('correction', '')}* ({se.get('explanation', '')})\n"
         text += "\n"
 
     if sub.summary:
@@ -3589,11 +3601,11 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     buttons = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🪄 AI tahriri (Oldin/Keyin)", callback_data=f"essay_improve:{sub.id}"),
+            InlineKeyboardButton("🪄 AI tahririni ko'rish", callback_data=f"essay_improve:{sub.id}"),
             InlineKeyboardButton("👨‍🏫 Ustoz tekshiruviga yuborish", callback_data=f"essay_review:{sub.id}"),
         ],
         [
-            InlineKeyboardButton("📄 PDF xulosani yuklab olish", callback_data=f"essay_pdf:{sub.id}"),
+            InlineKeyboardButton("📄 Batafsil PDF xulosa", callback_data=f"essay_pdf:{sub.id}"),
         ],
         [
             InlineKeyboardButton("🌐 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),

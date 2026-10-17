@@ -594,7 +594,7 @@ GROQ_API_KEY = env("GROQ_API_KEY", default="")
 # extraction/tuzatish mantiqi. Zanjir bo'ylab fallback + soddalashtirilgan
 # prompt bilan retry bepul modellarni barqaror qiladi.
 ESSAY_AI_MODEL = env("ESSAY_AI_MODEL", default=env("AI_MODEL", default=""))
-OPENROUTER_AI_MODEL = env("OPENROUTER_AI_MODEL", default="nvidia/nemotron-3.5-lightning:free")
+OPENROUTER_AI_MODEL = env("OPENROUTER_AI_MODEL", default="deepseek/deepseek-v4-flash-0731")
 GROQ_AI_MODEL = env("GROQ_AI_MODEL", default="llama-3.3-70b-versatile")
 
 # Fallback chain: tried in order when the primary model hits a rate limit /

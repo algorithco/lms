@@ -25,6 +25,12 @@ import {
  * - teacher-review request via POST /api/v1/essays/<id>/request-review/ (JWT)
  */
 
+interface SpellingError {
+  word: string;
+  correction: string;
+  explanation: string;
+}
+
 interface Criterion {
   id: number;
   name: string;
@@ -52,9 +58,50 @@ interface Result {
   essay_text?: string;
   can_retry?: boolean;
   criteria: Criterion[];
+  spelling_errors?: SpellingError[];
+  strengths?: string[];
+  weaknesses?: string[];
+  teacher_recommendation?: string;
+  improved_text?: string;
   graded_at?: string | null;
   poll_after?: number;
   error?: string | null;
+}
+
+function renderHighlightedText(text?: string, errors?: SpellingError[]) {
+  if (!text) return '(Asl matn topilmadi)';
+  if (!errors || !errors.length) return text;
+  const words = errors.map((e) => e.word.trim()).filter((w) => w.length > 0);
+  if (!words.length) return text;
+  try {
+    const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) => {
+      const match = errors.find((e) => e.word.toLowerCase() === part.toLowerCase());
+      if (match) {
+        return (
+          <mark
+            key={i}
+            style={{
+              background: 'rgba(239, 68, 68, 0.25)',
+              color: '#ef4444',
+              padding: '1px 4px',
+              borderRadius: '4px',
+              fontWeight: 600,
+              borderBottom: '2px solid #ef4444',
+            }}
+            title={`${match.word} ➔ ${match.correction} (${match.explanation})`}
+          >
+            {part}
+          </mark>
+        );
+      }
+      return part;
+    });
+  } catch {
+    return text;
+  }
 }
 
 export default function EssayResult() {
@@ -104,6 +151,9 @@ export default function EssayResult() {
         const r = (await Essays.result(id)) as unknown as Result;
         if (stop) return;
         setRes({ ...r, criteria: r.criteria ?? [] });
+        if (r.improved_text) {
+          setImproved(r.improved_text);
+        }
         if (!isEssayTerminal(r.status)) {
           timer = setTimeout(poll, (r.poll_after ?? 3) * 1000);
         }
@@ -340,10 +390,22 @@ export default function EssayResult() {
                   onMouseEnter={() => setSelectedCritId(c.id)}
                 >
                   <strong>{c.name}</strong>
-                  <p className="stat-value">
+                  <p className="stat-value" style={{ margin: '6px 0 2px' }}>
                     {c.score}
                     <small className="muted"> / {c.max_score ?? 2}</small>
                   </p>
+                  {/* Progress bar */}
+                  <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', margin: '4px 0 8px' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.min(100, Math.round((c.score / (c.max_score || 2)) * 100))}%`,
+                        background: c.score >= (c.max_score || 2) ? '#10b981' : c.score >= (c.max_score || 2) * 0.7 ? '#f59e0b' : '#ef4444',
+                        borderRadius: 3,
+                        transition: 'width 0.4s ease',
+                      }}
+                    />
+                  </div>
                   <p className="muted small">{c.reason}</p>
                   {!!c.errors?.length && (
                     <ul className="muted small" style={{ marginTop: 4, paddingLeft: 18 }}>
@@ -356,6 +418,84 @@ export default function EssayResult() {
               </TiltCard>
             ))}
           </div>
+
+          {/* Strengths, Weaknesses, and Teacher Recommendation */}
+          {(!!res.strengths?.length || !!res.weaknesses?.length || !!res.teacher_recommendation) && (
+            <div className="grid" style={{ marginTop: 20 }}>
+              {!!res.strengths?.length && (
+                <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
+                  <h4 style={{ color: '#10b981', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>💪</span> Kuchli tomonlari
+                  </h4>
+                  <ul className="muted small" style={{ margin: 0, paddingLeft: 18 }}>
+                    {res.strengths.map((s, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!!res.weaknesses?.length && (
+                <div className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                  <h4 style={{ color: '#f59e0b', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>⚠️</span> E'tibor qaratish kerak
+                  </h4>
+                  <ul className="muted small" style={{ margin: 0, paddingLeft: 18 }}>
+                    {res.weaknesses.map((w, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!!res.teacher_recommendation && (
+                <div className="card" style={{ borderLeft: '4px solid #3b82f6', gridColumn: '1 / -1' }}>
+                  <h4 style={{ color: '#3b82f6', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>💡</span> Ustoz / AI Tavsiyasi
+                  </h4>
+                  <p className="small" style={{ margin: 0, color: 'var(--text, #f3f4f6)', lineHeight: 1.6 }}>
+                    {res.teacher_recommendation}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Spelling Errors Table/List */}
+          {!!res.spelling_errors?.length && (
+            <div
+              className="card"
+              style={{
+                marginTop: 20,
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'rgba(239, 68, 68, 0.02)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.05rem' }}>
+                <span>✍️</span> Aniqlangan imlo va grammatika xatoliklari ({res.spelling_errors.length} ta)
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                {res.spelling_errors.map((err, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 14px',
+                      background: 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ textDecoration: 'line-through', color: '#ef4444', fontWeight: 600 }}>{err.word}</span>
+                      <span style={{ color: 'var(--text-muted, #9ca3af)' }}>➔</span>
+                      <span style={{ color: '#10b981', fontWeight: 700 }}>{err.correction}</span>
+                    </div>
+                    {err.explanation && (
+                      <p className="muted small" style={{ margin: 0, fontSize: '0.8rem' }}>{err.explanation}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 🪄 AI tahriri (Oldin / Keyin) - Interactive Redactor */}
           <div
@@ -461,7 +601,7 @@ export default function EssayResult() {
                           color: 'var(--text-muted, #9ca3af)',
                         }}
                       >
-                        {res.essay_text || '(Asl matn topilmadi)'}
+                        {renderHighlightedText(res.essay_text, res.spelling_errors)}
                       </div>
                     </div>
 
@@ -537,9 +677,9 @@ export default function EssayResult() {
                     <p className="muted small" style={{ marginBottom: 10 }}>
                       Asl yozilgan variant · {res.word_count} {t('words_suffix')}
                     </p>
-                    <p style={{ whiteSpace: 'pre-line', fontSize: '0.92rem', lineHeight: 1.7, margin: 0 }}>
-                      {res.essay_text}
-                    </p>
+                    <div style={{ whiteSpace: 'pre-line', fontSize: '0.92rem', lineHeight: 1.7, margin: 0 }}>
+                      {renderHighlightedText(res.essay_text, res.spelling_errors)}
+                    </div>
                   </div>
                 )}
               </div>

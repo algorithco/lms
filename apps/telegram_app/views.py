@@ -749,6 +749,16 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     except (AttributeError, TypeError):
         raw_errors_by_id = {}
 
+    from apps.essays.models import EssayCriterionScore
+
+    raw_res = submission.raw_result or {}
+    spelling_errors = raw_res.get("spelling_errors", [])
+    strengths = raw_res.get("strengths", [])
+    weaknesses = raw_res.get("weaknesses", [])
+    teacher_recommendation = raw_res.get("teacher_recommendation", "")
+    improved_text = raw_res.get("improved_text") or getattr(submission, "improved_content", "") or ""
+    crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
+
     response = {
         "id": submission.id,
         "topic_id": submission.topic_id,
@@ -767,6 +777,11 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "essay_text": submission.essay_text,
         "word_count": submission.word_count,
         "is_off_topic": submission.is_off_topic,
+        "spelling_errors": spelling_errors,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "teacher_recommendation": teacher_recommendation,
+        "improved_text": improved_text,
         # Grading provenance: tells the student their grade is the shared
         # validated AI evaluation. It never reveals which other account
         # submitted the same essay (no ids, timestamps or comments).
@@ -779,7 +794,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
                 "id": c.criterion_id,
                 "name": c.name,
                 "score": float(c.score),
-                "max_score": 2,
+                "max_score": float(crit_maxes.get(c.criterion_id, 2.0)),
                 "reason": c.reason,
                 "errors": raw_errors_by_id.get(c.criterion_id, []),
             }
