@@ -554,19 +554,62 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       )}
 
       {(detail.section_scores ?? []).length > 0 && (
-        <>
-          <h4>{t('exam_sections')}</h4>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {(detail.section_scores ?? []).map((s) => (
-              <div key={s.section_code || s.section_name} className="toolbar">
-                <span className="badge blue">
-                  {s.section_name || s.section_code}: {String(s.earned)}/
-                  {String(s.maximum)}
-                </span>
-              </div>
-            ))}
+        <div
+          className="card"
+          style={{
+            margin: '16px 0',
+            background: 'rgba(59, 130, 246, 0.04)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            borderRadius: '12px',
+            padding: '16px',
+          }}
+        >
+          <h4 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#60a5fa' }}>
+            <span>📊</span> Bo‘limlar kesimidagi batafsil tahlil
+          </h4>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(detail.section_scores ?? []).map((s) => {
+              const earnedNum = Number(s.earned) || 0;
+              const maxNum = Number(s.maximum) || 1;
+              const secPct = Math.round((earnedNum / maxNum) * 100);
+              const barColor = secPct >= 70 ? '#10b981' : secPct >= 50 ? '#f59e0b' : '#ef4444';
+              return (
+                <div
+                  key={s.section_code || s.section_name}
+                  style={{
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                    <strong style={{ fontSize: '0.92rem', color: 'var(--ink)' }}>
+                      {s.section_name || s.section_code}
+                    </strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="badge" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                        {String(s.earned)} / {String(s.maximum)} ball
+                      </span>
+                      <span
+                        style={{
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          color: barColor,
+                        }}
+                      >
+                        {secPct}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="progress" style={{ height: '6px', margin: 0 }}>
+                    <div style={{ width: `${Math.min(100, Math.max(0, secPct))}%`, background: barColor }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </>
+        </div>
       )}
 
       <div className="toolbar">
@@ -596,59 +639,102 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       )}
 
       <h4 style={{ marginTop: '20px' }}>{t('rd_analysis')}</h4>
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'grid', gap: 12 }}>
         {(detail.question_details ?? []).map((qd) => {
           const selectedIds = new Set((qd.selected_choices ?? []).map((c) => c.id));
-          const correctIds = new Set((qd.correct_choices ?? []).map((c) => c.id));
           const isWrong = qd.is_correct === false;
           const selectedChoiceId = qd.selected_choices?.[0]?.id ?? null;
           const expl = explanations[qd.question_id];
           const isThisLoading = explainingId === qd.question_id;
 
           return (
-            <div key={qd.question_id} className="card">
-              <p>
+            <div
+              key={qd.question_id}
+              className="card"
+              style={
+                isWrong
+                  ? {
+                      borderLeft: '4px solid #ef4444',
+                      background: 'radial-gradient(circle at top right, rgba(239, 68, 68, 0.03) 0%, var(--card) 100%)',
+                    }
+                  : qd.is_correct
+                  ? {
+                      borderLeft: '4px solid #10b981',
+                    }
+                  : undefined
+              }
+            >
+              <p style={{ whiteSpace: 'pre-line', margin: '0 0 10px', lineHeight: 1.5 }}>
                 <span
                   className={`badge ${qd.is_correct ? 'green' : isWrong ? 'rose' : ''}`}
+                  style={{ marginRight: 8 }}
                 >
-                  {qd.is_correct ? '✓' : isWrong ? '✗' : '—'}
+                  {qd.is_correct ? '✓ To‘g‘ri' : isWrong ? '✗ Xato' : '—'}
                 </span>{' '}
                 <strong>{qd.question_text}</strong>
               </p>
+
               <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-                {(qd.correct_choices ?? []).map((c) => (
-                  <span key={`c-${c.id}`} className="quiz-opt right">
-                    ✓ {c.text}
-                    {selectedIds.has(c.id) ? ` · ${t('rd_your_choice')}` : ''}
-                  </span>
-                ))}
-                {(qd.selected_choices ?? [])
-                  .filter((c) => !correctIds.has(c.id))
-                  .map((c) => (
-                    <span key={`s-${c.id}`} className="quiz-opt wrong">
-                      ✗ {c.text} · {t('rd_your_choice')}
-                    </span>
-                  ))}
-                {(qd.selected_choices ?? []).length === 0 && (
-                  <span className="muted small">{t('rd_unanswered')}</span>
+                {/* ❌ Sizning javobingiz (agar xato bo'lsa) */}
+                {isWrong && (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      fontSize: '0.92rem',
+                    }}
+                  >
+                    <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      ❌ Sizning javobingiz:
+                    </strong>{' '}
+                    {(qd.selected_choices ?? []).length > 0
+                      ? qd.selected_choices.map((c) => c.text).join(', ')
+                      : 'Belgilanmagan'}
+                  </div>
                 )}
+
+                {/* ✅ To'g'ri javob */}
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#34d399',
+                    fontSize: '0.92rem',
+                  }}
+                >
+                  <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    ✅ To‘g‘ri javob:
+                  </strong>{' '}
+                  {(qd.correct_choices ?? []).map((c) => c.text).join(', ')}
+                  {qd.is_correct && selectedIds.size > 0 && (
+                    <span className="small muted" style={{ marginLeft: 6 }}>
+                      (Siz ham to‘g‘ri belgiladingiz)
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {/* 💡 Nega bu javob xato? AI tushuntirishi (Ochiq tursin) */}
               {qd.explanation && (
                 <div
                   style={{
                     marginTop: 10,
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     background: 'rgba(59, 130, 246, 0.06)',
                     border: '1px solid rgba(59, 130, 246, 0.25)',
                     borderRadius: 8,
-                    fontSize: '0.88rem',
+                    fontSize: '0.9rem',
                     lineHeight: 1.6,
                     color: 'var(--ink)',
                   }}
                 >
-                  <strong style={{ color: '#60a5fa', display: 'block', marginBottom: 4 }}>
-                    {t('bmb_rule_explanation')}
+                  <strong style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span>💡</span> {isWrong ? 'Nega bu javob xato? AI tushuntirishi:' : t('bmb_rule_explanation')}
                   </strong>
                   <span>{qd.explanation}</span>
                 </div>
