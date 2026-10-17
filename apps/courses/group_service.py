@@ -103,14 +103,19 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
 
         roster.append({
             "student_id": s.id,
+            "student_name": s.get_full_name() or s.email,
             "full_name": s.get_full_name() or s.email,
             "email": s.email,
             "has_pro": True,
             "pro_status_label": "⭐ PRO (Faol)",
+            "tests_count": tests_count,
             "tests_taken": tests_count,
+            "avg_test_percentage": avg_test_pct,
             "avg_test_pct": avg_test_pct,
             "latest_test_score": latest_score_str,
             "latest_test_pct": latest_pct,
+            "latest_test_grade": grade if tests_count > 0 else "—",
+            "essays_count": essays_count,
             "essays_written": essays_count,
             "avg_essay_score": avg_essay_score,
             "bmb_grade": grade if tests_count > 0 else "—",
@@ -138,6 +143,14 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
         "group_avg_percentage": group_avg_pct,
         "group_bmb_grade": group_bmb,
         "bmb_distribution": bmb_counts,
+        "summary": {
+            "total_tests_taken": sum(r["tests_taken"] for r in roster),
+            "total_essays_submitted": sum(r["essays_written"] for r in roster),
+            "average_test_score": group_avg_pct,
+            "average_test_percentage": group_avg_pct,
+            "average_essay_score": round(sum(r["avg_essay_score"] for r in roster) / len(roster), 1) if roster else 0.0,
+            "bmb_distribution": bmb_counts,
+        },
         "students": roster,
     }
 

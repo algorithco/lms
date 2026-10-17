@@ -1344,6 +1344,8 @@ export interface GroupStudentAnalytics {
   latest_test_grade: string;
   essays_count: number;
   avg_essay_score: number;
+  tuition_status?: string;
+  tuition_label?: string;
   last_active: string | null;
 }
 
