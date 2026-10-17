@@ -223,3 +223,91 @@ def test_google_auth_routes():
         assert created_user.last_name == "Navoiy"
         assert created_user.is_active is True
         assert hasattr(created_user, "profile")
+
+
+@pytest.mark.django_db
+def test_receipt_image_validation_and_duplicate_hash():
+    from apps.payments.services import validate_and_hash_receipt_image
+
+    # 1. Valid image returns sha256 hash and bytes
+    valid_img = _create_test_image()
+    valid_bytes = valid_img.read()
+    image_hash, raw_bytes = validate_and_hash_receipt_image(valid_bytes)
+    assert len(image_hash) == 64
+    assert raw_bytes == valid_bytes
+
+    # 2. Rejection for non-image / invalid magic bytes
+    with pytest.raises(ValueError) as exc_info:
+        validate_and_hash_receipt_image(b"fake plain text file content")
+    assert "Faqat JPG, PNG yoki WEBP" in str(exc_info.value)
+
+    # 3. Rejection for file > 5MB
+    large_payload = b"\xff\xd8\xff" + b"0" * (5 * 1024 * 1024 + 10)
+    with pytest.raises(ValueError) as exc_info_size:
+        validate_and_hash_receipt_image(large_payload)
+    assert "5MB" in str(exc_info_size.value)
+
+    # 4. Save receipt with this hash in DB
+    user = User.objects.create_user(email="hash_user@grandec.uz", password="ValidPassword123!")
+    PaymentReceipt.objects.create(
+        user=user,
+        plan="starter",
+        amount=Decimal("49000"),
+        image_hash=image_hash,
+        status=PaymentReceipt.Status.PENDING,
+    )
+
+    # 5. Duplicate hash must be rejected
+    with pytest.raises(ValueError) as exc_dup:
+        validate_and_hash_receipt_image(valid_bytes)
+    assert "⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi." in str(exc_dup.value)
+
+
+@pytest.mark.django_db
+def test_ai_daily_quota_and_rate_limiting():
+    from apps.payments.ai_quota import check_and_consume_ai_quota, get_user_plan_tier
+    from django.core.cache import cache
+    cache.clear()
+
+    # Free user: exactly 1 request per day
+    free_user = User.objects.create_user(email="free_student@grandec.uz", password="ValidPassword123!")
+    free_user.profile.plan = "free"
+    free_user.profile.save()
+
+    assert get_user_plan_tier(free_user) == "free"
+
+    # 1st request succeeds
+    allowed, msg = check_and_consume_ai_quota(free_user)
+    assert allowed is True
+    assert msg == ""
+
+    # 2nd request rejected
+    allowed2, msg2 = check_and_consume_ai_quota(free_user)
+    assert allowed2 is False
+    assert "Sizning bugungi bepul AI limitingiz tugadi. Cheksiz foydalanish uchun tarifingizni yangilang!" in msg2
+
+    # Starter user: 20 requests per day
+    starter_user = User.objects.create_user(email="starter_student@grandec.uz", password="ValidPassword123!")
+    starter_user.profile.plan = "starter"
+    starter_user.profile.save()
+    assert get_user_plan_tier(starter_user) == "starter"
+
+    for i in range(20):
+        ok, _ = check_and_consume_ai_quota(starter_user)
+        assert ok is True, f"Failed at iteration {i}"
+
+    # 21st request rejected
+    ok21, err21 = check_and_consume_ai_quota(starter_user)
+    assert ok21 is False
+    assert "Sizning bugungi Starter AI limitingiz tugadi" in err21
+
+    # Premium user: unlimited requests
+    prem_user = User.objects.create_user(email="prem_student@grandec.uz", password="ValidPassword123!")
+    prem_user.profile.plan = "premium"
+    prem_user.profile.save()
+    assert get_user_plan_tier(prem_user) == "premium"
+
+    for _ in range(30):
+        ok_prem, _ = check_and_consume_ai_quota(prem_user)
+        assert ok_prem is True
+

@@ -161,14 +161,28 @@ def payment_receipt_upload_view(request):
     if not receipt_image:
         return Response({"detail": "To'lov cheki rasmi yuklanishi shart."}, status=400)
 
+    from apps.payments.services import validate_and_hash_receipt_image, notify_admin_new_receipt
+
+    try:
+        image_hash, _raw_bytes = validate_and_hash_receipt_image(receipt_image)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=400)
+
     receipt = PaymentReceipt.objects.create(
         user=request.user,
         plan=plan,
         amount=amount,
         receipt_image=receipt_image,
+        image_hash=image_hash,
         source=PaymentReceipt.Source.WEB,
         status=PaymentReceipt.Status.PENDING,
     )
+
+    try:
+        notify_admin_new_receipt(receipt)
+    except Exception as exc:
+        logger.warning("Failed to notify admin of receipt #%s: %s", receipt.id, exc)
+
     return Response(PaymentReceiptSerializer(receipt).data, status=201)
 
 

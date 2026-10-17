@@ -442,6 +442,18 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         # non-empty text (already enforced by essay text saving).
         pass
 
+    # --- Daily AI Quota Check -----------------------------------------------
+    from apps.payments.ai_quota import check_and_consume_ai_quota
+    ai_allowed, ai_err = check_and_consume_ai_quota(request.user)
+    if not ai_allowed:
+        return JsonResponse({
+            "ok": False,
+            "error": ai_err,
+            "quota_denied": True,
+            "code": "quota_exceeded",
+            "redirect_url": "/pricing/",
+        }, status=429)
+
     # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
     # Limit FAQAT haqiqiy yangi baholash ishi uchun sarflanadi: yuqoridagi
     # "allaqachon baholangan" va "PENDING" shoxobchalari hech narsa
@@ -609,6 +621,17 @@ def essay_improve_view(request: HttpRequest, submission_id: int) -> HttpResponse
             {"ok": False, "error": "Esse hali baholanmagan — yaxshilash mumkin emas."},
             status=400,
         )
+
+    if not getattr(submission, "improved_content", None):
+        from apps.payments.ai_quota import check_and_consume_ai_quota
+        allowed, err_msg = check_and_consume_ai_quota(request.user)
+        if not allowed:
+            return JsonResponse({
+                "ok": False,
+                "error": err_msg,
+                "code": "quota_exceeded",
+                "redirect_url": "/pricing/",
+            }, status=429)
 
     from .services import generate_improved_essay
 

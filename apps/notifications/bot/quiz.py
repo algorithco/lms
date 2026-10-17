@@ -405,8 +405,31 @@ async def _handle_explain(
 ) -> None:
     """Fetch and display AI tutor explanation for an incorrect answer."""
     query = update.callback_query
+
+    user = await _get_or_create_user_async(update)
+    if user:
+        from apps.payments.ai_quota import check_and_consume_ai_quota
+        allowed, _err_msg = await _run_db(check_and_consume_ai_quota, user)
+        if not allowed:
+            if query and query.message:
+                await query.message.reply_text(
+                    "⚠️ *Sizning bugungi AI limitingiz tugadi!*\n\n"
+                    "Cheksiz AI tahlili va milliy sertifikat savollarini chuqur o'rganish uchun tarifingizni yangilang.",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("💳 Tarifni yangilash", callback_data="cb_plans")]
+                    ]),
+                )
+            elif query:
+                try:
+                    await query.answer("Bugungi AI limitingiz tugadi. Tarifingizni yangilang!", show_alert=True)
+                except Exception:
+                    pass
+            return
+
     try:
-        await query.answer("AI tahlili tayyorlanmoqda... 🧠")
+        if query:
+            await query.answer("AI tahlili tayyorlanmoqda... 🧠")
     except Exception:
         pass
 
@@ -418,7 +441,7 @@ async def _handle_explain(
         explanation = None
 
     if not explanation or "error" in explanation:
-        if query.message:
+        if query and query.message:
             await query.message.reply_text("❌ Tushuntirishni yuklashda xatolik yuz berdi.")
         return
 

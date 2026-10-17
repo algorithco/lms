@@ -26,7 +26,7 @@ services:
     # IMS_IMAGE_TAG (e.g. sha-abc1234); default `latest`.
     image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     env_file:
       - .env.prod
@@ -69,7 +69,7 @@ services:
   # --------------------------------------------------------------------------
   db:
     image: postgres:16-alpine
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -88,7 +88,7 @@ services:
   # --------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     command: redis-server --appendonly yes
     volumes:
@@ -111,7 +111,7 @@ services:
   celery-worker:
     image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     env_file:
       - .env.prod
@@ -145,7 +145,7 @@ services:
   celery-beat:
     image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     env_file:
       - .env.prod
@@ -173,7 +173,7 @@ services:
   bot:
     image: ghcr.io/algorithco/lms:${IMS_IMAGE_TAG:-latest}
     build: .
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     env_file:
       - .env.prod
@@ -203,7 +203,7 @@ services:
     # post-quantum group X25519MLKEM768 to origins; OpenSSL <3.5 cannot
     # negotiate it -> Cloudflare 525. Do NOT downgrade to 1.27.
     image: nginx:1.29-alpine
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     ports:
       - "80:80"
@@ -246,7 +246,7 @@ services:
   certbot:
     image: certbot/certbot:latest
     profiles: ["legacy-le"]
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     volumes:
       - certbot_conf:/etc/letsencrypt

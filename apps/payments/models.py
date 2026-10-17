@@ -855,6 +855,13 @@ class PaymentReceipt(models.Model):
         _("chek rasmi"),
         upload_to="receipts/%Y/%m/",
     )
+    image_hash = models.CharField(
+        _("rasm xeshi (SHA-256)"),
+        max_length=64,
+        db_index=True,
+        blank=True,
+        null=True,
+    )
     status = models.CharField(
         _("holat"),
         max_length=20,

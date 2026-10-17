@@ -531,7 +531,19 @@ class QuestionExplainMistakeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, question_id: int) -> Response:
+        from apps.payments.ai_quota import check_and_consume_ai_quota
         from apps.tests.ai_tutor import explain_question_mistake
+
+        allowed, quota_err = check_and_consume_ai_quota(request.user)
+        if not allowed:
+            return Response(
+                {
+                    "error": quota_err,
+                    "code": "quota_exceeded",
+                    "redirect_url": "/pricing/",
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
         selected_choice_id = request.data.get("selected_choice_id")
         attempt_id = request.data.get("attempt_id")

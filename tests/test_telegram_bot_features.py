@@ -409,6 +409,9 @@ class TelegramBotFeaturesTests(TestCase):
         c_wrong = Choice.objects.create(question=q, text="Sodda gap varianti", is_correct=False)
         Choice.objects.create(question=q, text="To'g'ri ergashgan gap", is_correct=True)
 
+        self.user.profile.plan = "premium"
+        self.user.profile.save()
+
         self.update.callback_query = self.query
         self.query.data = f"quiz_explain_{q.id}_{c_wrong.id}"
         async_to_sync(quiz_callback_handler)(self.update, self.context)
@@ -455,11 +458,12 @@ class TelegramBotFeaturesTests(TestCase):
     def test_payment_screenshot_handler_creates_receipt(self):
         self.context.user_data["selected_plan_slug"] = "starter"
         self.context.user_data["payment_state"] = "awaiting_screenshot"
+        valid_mock_jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
         self.message.photo = [
             SimpleNamespace(
                 get_file=AsyncMock(
                     return_value=SimpleNamespace(
-                        download_as_bytearray=AsyncMock(return_value=b"fake-image-bytes")
+                        download_as_bytearray=AsyncMock(return_value=valid_mock_jpeg)
                     )
                 )
             )

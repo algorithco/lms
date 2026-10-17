@@ -3,8 +3,15 @@ Payments services: Receipt approval, rejection, notifications, and subscription 
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import os
 from decimal import Decimal
+from io import BytesIO
+import requests
+from PIL import Image
+
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -19,6 +26,140 @@ from .models import (
 from .subscriptions import grant_subscription
 
 logger = logging.getLogger(__name__)
+
+MAX_RECEIPT_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
+    """
+    Validates uploaded payment receipt image:
+    1. Size must not exceed 5MB.
+    2. Validates format via magic bytes (JPG/PNG/WEBP).
+    3. Calculates SHA-256 hash.
+    4. Anti-fraud check: Checks if another receipt with same hash is pending or approved.
+    
+    Returns (image_hash, raw_bytes).
+    Raises ValueError on validation failure.
+    """
+    if hasattr(file_or_bytes, "read"):
+        raw_bytes = file_or_bytes.read()
+        if hasattr(file_or_bytes, "seek"):
+            file_or_bytes.seek(0)
+    elif isinstance(file_or_bytes, (bytes, bytearray)):
+        raw_bytes = bytes(file_or_bytes)
+    else:
+        raise ValueError("Rasm formati noto'g'ri.")
+
+    if not raw_bytes:
+        raise ValueError("To'lov cheki fayli bo'sh bo'lishi mumkin emas.")
+
+    if len(raw_bytes) > MAX_RECEIPT_FILE_SIZE:
+        raise ValueError("Fayl hajmi 5MB dan oshmasligi kerak.")
+
+    # Magic bytes verification:
+    # JPEG: starts with \xff\xd8\xff
+    # PNG: starts with \x89PNG\r\n\x1a\n
+    # WEBP: starts with RIFF and WEBP at bytes 8..12
+    is_jpeg = raw_bytes[:3] == b"\xff\xd8\xff"
+    is_png = raw_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    is_webp = raw_bytes[:4] == b"RIFF" and len(raw_bytes) > 12 and raw_bytes[8:12] == b"WEBP"
+
+    if not (is_jpeg or is_png or is_webp):
+        # Also try opening with Pillow as verification
+        try:
+            with Image.open(BytesIO(raw_bytes)) as img:
+                fmt = (img.format or "").upper()
+                if fmt not in ("JPEG", "JPG", "PNG", "WEBP"):
+                    raise ValueError("Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi.")
+        except Exception:
+            raise ValueError("Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi.")
+
+    image_hash = hashlib.sha256(raw_bytes).hexdigest()
+
+    # Anti-fraud duplicate detection
+    duplicate = PaymentReceipt.objects.filter(
+        image_hash=image_hash,
+        status__in=[PaymentReceipt.Status.PENDING, PaymentReceipt.Status.APPROVED],
+    ).exists()
+
+    if duplicate:
+        raise ValueError("⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi.")
+
+    return image_hash, raw_bytes
+
+
+def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
+    """Send alert to superadmin Telegram with photo and inline action buttons."""
+    bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
+    admin_id = getattr(settings, "ADMIN_TELEGRAM_ID", None) or 5582178765
+
+    user = receipt.user
+    user_name = user.get_full_name() or user.email
+    user_phone = getattr(user, "phone_number", None) or getattr(user, "phone", None) or "Mavjud emas"
+    plan_name = receipt.plan.capitalize()
+    created_str = (
+        receipt.created_at.strftime("%d.%m.%Y %H:%M")
+        if receipt.created_at
+        else timezone.now().strftime("%d.%m.%Y %H:%M")
+    )
+
+    caption = (
+        f"📥 <b>YANGI TO'LOV CHEKI TUSHDI! (#RECEIPT-{receipt.id})</b>\n\n"
+        f"👤 <b>Foydalanuvchi:</b> {user_name} (Tel: {user_phone})\n"
+        f"💎 <b>Tanlangan tarif:</b> {plan_name}\n"
+        f"💰 <b>Summa:</b> {int(receipt.amount):,} so'm\n"
+        f"🕒 <b>Vaqt:</b> {created_str}"
+    )
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Tasdiqlash", "callback_data": f"adm_rec_appr_{receipt.id}"},
+                {"text": "❌ Rad etish", "callback_data": f"adm_rec_rej_{receipt.id}"},
+            ]
+        ]
+    }
+
+    if not bot_token:
+        logger.warning("TELEGRAM_BOT_TOKEN not configured; cannot notify admin of receipt #%s", receipt.id)
+        return
+
+    # Try sending photo if receipt_image exists
+    try:
+        if receipt.receipt_image:
+            image_path = getattr(receipt.receipt_image, "path", None)
+            if image_path and os.path.exists(image_path):
+                with open(image_path, "rb") as photo_file:
+                    resp = requests.post(
+                        f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                        data={
+                            "chat_id": admin_id,
+                            "caption": caption,
+                            "parse_mode": "HTML",
+                            "reply_markup": json.dumps(reply_markup),
+                        },
+                        files={"photo": photo_file},
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        return
+    except Exception as exc:
+        logger.warning("Failed to send receipt photo to admin: %s", exc)
+
+    # Fallback to text message if photo file is not on disk or failed
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            json={
+                "chat_id": admin_id,
+                "text": caption,
+                "parse_mode": "HTML",
+                "reply_markup": reply_markup,
+            },
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("Failed to send receipt text message to admin: %s", exc)
 
 
 def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
@@ -130,10 +271,9 @@ def approve_payment_receipt(receipt: PaymentReceipt, admin_user=None) -> UserSub
         try:
             plan_title = receipt.plan.capitalize()
             msg = (
-                f"🎉 <b>To'lovingiz muvaffaqiyatli tasdiqlandi!</b>\n\n"
+                f"🎉 <b>To'lovingiz tasdiqlandi! Sizda {plan_title} faollashtirildi.</b>\n\n"
                 f"📦 Tarif: <b>{plan_title}</b> (30 kun)\n"
                 f"💰 Summa: <b>{int(receipt.amount):,} so'm</b>\n\n"
-                f"Sizning hisobingizda <b>{plan_title}</b> obunasi faollashtirildi. "
                 f"Endi barcha AI esse tekshiruvlari va milliy sertifikat testlaridan to'liq foydalanishingiz mumkin!\n\n"
                 f"🚀 Boshlash: https://grandec.uz/dashboard/"
             )

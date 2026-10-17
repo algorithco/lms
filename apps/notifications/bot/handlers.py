@@ -1419,7 +1419,24 @@ async def _submit_essay_with_quota(
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return
 
-    # -- 1. Atomic allowance reservation, before anything is persisted ------
+    # -- 1. Daily AI quota check -------------------------------------------
+    from apps.payments.ai_quota import check_and_consume_ai_quota
+    ai_allowed, _ = await _run_db(check_and_consume_ai_quota, user)
+    if not ai_allowed:
+        _clear_essay_state(context)
+        await send_reply(
+            update,
+            "⚠️ *Sizning bugungi AI limitingiz tugadi!*\n\n"
+            "Cheksiz AI esse tekshiruvi va barcha imkoniyatlar uchun tarifingizni yangilang.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💳 Tarifni yangilash", callback_data="cb_plans")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]),
+        )
+        return
+
+    # -- 2. Atomic allowance reservation, before anything is persisted ------
     # The key is derived from the Telegram update identity: Telegram delivers
     # updates at least once with a stable update_id, so a redelivered update
     # replays the existing reservation instead of charging the student twice.
@@ -2780,6 +2797,29 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
     from apps.essays.models import EssaySubmission
     from apps.essays.services import generate_improved_essay
 
+    def _check_cached_or_consume():
+        sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
+        if not sub:
+            return False, "Esse topilmadi."
+        if sub.improved_content:
+            return True, ""
+        from apps.payments.ai_quota import check_and_consume_ai_quota
+        return check_and_consume_ai_quota(user)
+
+    allowed, _ = await _run_db(_check_cached_or_consume)
+    if not allowed:
+        msg = (
+            "⚠️ *Sizning bugungi AI limitingiz tugadi!*\n\n"
+            "Cheksiz AI tahlili va barcha imkoniyatlar uchun tarifingizni yangilang."
+        )
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Tarifni yangilash", callback_data="cb_plans")],
+            [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ])
+        await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
+        return
+
     def _improve():
         sub = EssaySubmission.objects.filter(id=submission_id, student=user).first()
         if not sub:
@@ -3648,6 +3688,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             payment_id = _safe_callback_int(data, prefix="reject_payment_")
             if payment_id is not None:
                 await reject_payment_callback(update, context, payment_id)
+        elif data.startswith("adm_rec_appr_"):
+            receipt_id = _safe_callback_int(data, prefix="adm_rec_appr_")
+            if receipt_id is not None:
+                await approve_receipt_callback(update, context, receipt_id)
+        elif data.startswith("adm_rec_rej_"):
+            receipt_id = _safe_callback_int(data, prefix="adm_rec_rej_")
+            if receipt_id is not None:
+                await reject_receipt_callback(update, context, receipt_id)
         elif data.startswith("student_result_"):
             student_id = _safe_callback_int(data, prefix="student_result_")
             if student_id is not None:
@@ -4101,27 +4149,42 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
     except Exception as exc:
         logger.warning("Failed to download photo from telegram: %s", exc)
 
+    if not file_bytes:
+        await update.message.reply_text("Rasm yuklanmadi. Qaytadan yuboring.")
+        return
+
+    from apps.payments.services import validate_and_hash_receipt_image, notify_admin_new_receipt
+    try:
+        image_hash, validated_bytes = await _run_db(validate_and_hash_receipt_image, bytes(file_bytes))
+    except ValueError as exc:
+        await update.message.reply_text(str(exc))
+        return
+
     def _create_receipt():
         from django.core.files.base import ContentFile
         from django.utils import timezone
         from apps.payments.models import PaymentReceipt
 
-        content_file = None
-        if file_bytes:
-            filename = f"receipt_tg_{user.id}_{int(timezone.now().timestamp())}.jpg"
-            content_file = ContentFile(bytes(file_bytes), name=filename)
+        filename = f"receipt_tg_{user.id}_{int(timezone.now().timestamp())}.jpg"
+        content_file = ContentFile(validated_bytes, name=filename)
 
         receipt = PaymentReceipt.objects.create(
             user=user,
             plan=selected_slug,
             amount=amount,
-            receipt_image=content_file or "receipts/placeholder.jpg",
+            receipt_image=content_file,
+            image_hash=image_hash,
             source=PaymentReceipt.Source.BOT,
             status=PaymentReceipt.Status.PENDING,
         )
         return receipt
 
     receipt = await _run_db(_create_receipt)
+
+    try:
+        await _run_db(notify_admin_new_receipt, receipt)
+    except Exception as exc:
+        logger.warning("Failed to notify admin of bot receipt #%s: %s", receipt.id, exc)
 
     # Clear state
     context.user_data.pop("payment_state", None)
@@ -4369,6 +4432,144 @@ async def reject_payment_callback(update: Update, context: ContextTypes.DEFAULT_
             logger.warning("Failed to notify user %s: %s", result.user.email, e)
     else:
         await query.edit_message_text(f"❌ {result}")
+
+
+async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int) -> None:
+    """Handle adm_rec_appr_<id> — admin approves payment receipt."""
+    query = update.callback_query
+    from django.conf import settings
+    admin_id = str(getattr(settings, "ADMIN_TELEGRAM_ID", "5582178765"))
+    tg_uid = str(update.effective_user.id) if update.effective_user else ""
+    admin_user = await _get_or_create_user_async(update)
+
+    from apps.payments.access import can_manage_payments
+    is_authorized = (
+        tg_uid == admin_id
+        or (admin_user and (admin_user.is_staff or admin_user.is_superuser or getattr(admin_user, "role", "") == "admin" or can_manage_payments(admin_user)))
+    )
+    if not is_authorized:
+        if query:
+            try:
+                await query.answer("Sizda ruxsat yo'q.", show_alert=True)
+            except Exception:
+                pass
+        return
+
+    from apps.payments.models import PaymentReceipt
+    from apps.payments.services import approve_payment_receipt
+
+    def _approve():
+        from django.db import transaction
+        with transaction.atomic():
+            try:
+                rec = PaymentReceipt.objects.select_for_update().get(id=receipt_id, status=PaymentReceipt.Status.PENDING)
+            except PaymentReceipt.DoesNotExist:
+                return False, "To'lov cheki topilmadi yoki allaqachon ko'rib chiqilgan."
+            approve_payment_receipt(rec, admin_user=admin_user)
+            return True, rec
+
+    success, result = await _run_db(_approve)
+
+    admin_name = ""
+    if update.effective_user:
+        admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+    elif admin_user:
+        admin_name = admin_user.get_full_name() or admin_user.username or "Admin"
+    else:
+        admin_name = "Admin"
+
+    if success:
+        note_text = f"\n\n✅ <b>Tasdiqlandi (Admin: {admin_name})</b>"
+        if query and query.message:
+            try:
+                if getattr(query.message, "photo", None):
+                    orig = query.message.caption_html or query.message.caption or ""
+                    await query.edit_message_caption(caption=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                else:
+                    orig = query.message.text_html or query.message.text or ""
+                    await query.edit_message_text(text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+            except Exception as e:
+                logger.warning("Failed to edit admin receipt message: %s", e)
+        if query:
+            try:
+                await query.answer("Chek muvaffaqiyatli tasdiqlandi!")
+            except Exception:
+                pass
+    else:
+        if query:
+            try:
+                await query.answer(str(result), show_alert=True)
+            except Exception:
+                pass
+
+
+async def reject_receipt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int) -> None:
+    """Handle adm_rec_rej_<id> — admin rejects payment receipt."""
+    query = update.callback_query
+    from django.conf import settings
+    admin_id = str(getattr(settings, "ADMIN_TELEGRAM_ID", "5582178765"))
+    tg_uid = str(update.effective_user.id) if update.effective_user else ""
+    admin_user = await _get_or_create_user_async(update)
+
+    from apps.payments.access import can_manage_payments
+    is_authorized = (
+        tg_uid == admin_id
+        or (admin_user and (admin_user.is_staff or admin_user.is_superuser or getattr(admin_user, "role", "") == "admin" or can_manage_payments(admin_user)))
+    )
+    if not is_authorized:
+        if query:
+            try:
+                await query.answer("Sizda ruxsat yo'q.", show_alert=True)
+            except Exception:
+                pass
+        return
+
+    from apps.payments.models import PaymentReceipt
+    from apps.payments.services import reject_payment_receipt
+
+    def _reject():
+        from django.db import transaction
+        with transaction.atomic():
+            try:
+                rec = PaymentReceipt.objects.select_for_update().get(id=receipt_id, status=PaymentReceipt.Status.PENDING)
+            except PaymentReceipt.DoesNotExist:
+                return False, "To'lov cheki topilmadi yoki allaqachon ko'rib chiqilgan."
+            reject_payment_receipt(rec, note="Admin tomonidan rad etildi", admin_user=admin_user)
+            return True, rec
+
+    success, result = await _run_db(_reject)
+
+    admin_name = ""
+    if update.effective_user:
+        admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+    elif admin_user:
+        admin_name = admin_user.get_full_name() or admin_user.username or "Admin"
+    else:
+        admin_name = "Admin"
+
+    if success:
+        note_text = f"\n\n❌ <b>Rad etildi (Admin: {admin_name})</b>"
+        if query and query.message:
+            try:
+                if getattr(query.message, "photo", None):
+                    orig = query.message.caption_html or query.message.caption or ""
+                    await query.edit_message_caption(caption=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                else:
+                    orig = query.message.text_html or query.message.text or ""
+                    await query.edit_message_text(text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+            except Exception as e:
+                logger.warning("Failed to edit admin receipt message: %s", e)
+        if query:
+            try:
+                await query.answer("Chek rad etildi.")
+            except Exception:
+                pass
+    else:
+        if query:
+            try:
+                await query.answer(str(result), show_alert=True)
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
