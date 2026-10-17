@@ -10,8 +10,11 @@ from . import (
     views_essays,
     views_games,
     views_panel,
+    views_parents,
     views_school,
+    views_tournaments,
 )
+from apps.organizations import views as views_enterprise
 
 app_name = "webapi"
 
@@ -328,4 +331,22 @@ urlpatterns = [
     path("essays/teacher/<int:submission_id>/edit/", views_essays.teacher_edit_submission_view, name="essays-teacher-edit"),
     path("essays/<int:submission_id>/improve/", views_essays.student_improve_view, name="essays-student-improve"),
     path("essays/<int:submission_id>/request-review/", views_essays.student_request_review_view, name="essays-student-request-review"),
+
+    # -- 👨‍👩‍👧 Ota-onalar nazorati (Parent Monitoring) -------------------------
+    path("parents/relation/", views_parents.parent_relations_view, name="parent_relations"),
+    path("parents/relation/<int:pk>/", views_parents.parent_relation_detail_view, name="parent_relation_detail"),
+    path("parents/verify-code/", views_parents.parent_verify_code_view, name="parent_verify_code"),
+
+    # -- 🏆 Jonli Yakshanba Turniri (Sunday Live League) --------------------
+    path("tournaments/", views_tournaments.tournament_list_view, name="tournament_list"),
+    path("tournaments/<int:pk>/", views_tournaments.tournament_detail_view, name="tournament_detail"),
+    path("tournaments/<int:pk>/join/", views_tournaments.tournament_join_view, name="tournament_join"),
+    path("tournaments/<int:pk>/submit/", views_tournaments.tournament_submit_view, name="tournament_submit"),
+    path("tournaments/<int:pk>/leaderboard/", views_tournaments.tournament_leaderboard_view, name="tournament_leaderboard"),
+    path("tournaments/<int:pk>/finalize/", views_tournaments.tournament_finalize_view, name="tournament_finalize"),
+
+    # -- 🏢 O'quv markazlari portali (B2B SaaS Enterprise) -----------------
+    path("enterprise/dashboard/", views_enterprise.enterprise_dashboard_view, name="enterprise_dashboard"),
+    path("enterprise/students/bulk-import/", views_enterprise.enterprise_bulk_import_view, name="enterprise_bulk_import"),
+    path("enterprise/report/download/", views_enterprise.enterprise_report_export_view, name="enterprise_report_export"),
 ]

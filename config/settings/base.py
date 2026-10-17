@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.payments",       # Subscriptions & Payments (platform plans)
     "apps.tuition",        # Course tuition billing (separate from subscriptions)
     "apps.weekly_reports",  # Automated weekly academic reports
+    "apps.organizations",   # B2B SaaS Enterprise Hub
     "apps.panel",          # In-app admin panel (/control-panel/)
     "apps.webapi",         # JSON API for the React SPA (/api/v1/)
 ]

@@ -258,6 +258,24 @@ class TelegramService:
         )
 
     @classmethod
+    def send_message(
+        cls,
+        chat_id: int,
+        text: str,
+        parse_mode: str = "HTML",
+        recipient: Any = None,
+        title: str = "Xabar",
+    ) -> dict[str, Any]:
+        """Convenience method for sending arbitrary text messages."""
+        return cls.send_general_notification(
+            chat_id=chat_id,
+            text=text,
+            title=title,
+            recipient=recipient,
+            parse_mode=parse_mode,
+        )
+
+    @classmethod
     def send_general_notification(
         cls,
         chat_id: int,
@@ -465,19 +483,26 @@ class TelegramService:
 
         Har bir yuborilgan/yuborilmagan xabar NotificationLog ga yoziladi.
         """
-        from apps.notifications.models import NotificationLog
+        if recipient is None:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            recipient = User.objects.filter(telegram_chat_id=chat_id).first()
 
-        # NotificationLog yaratish (PENDING)
-        log_entry = NotificationLog.objects.create(
-            recipient=recipient,
-            channel=NotificationLog.Channel.TELEGRAM,
-            notification_type=notification_type,
-            title=title,
-            message=text,
-            status=NotificationLog.Status.PENDING,
-            related_test_attempt=attempt,
-            related_certificate=certificate,
-        )
+        log_entry = None
+        if recipient is not None:
+            try:
+                log_entry = NotificationLog.objects.create(
+                    recipient=recipient,
+                    channel=NotificationLog.Channel.TELEGRAM,
+                    notification_type=notification_type,
+                    title=title,
+                    message=text,
+                    status=NotificationLog.Status.PENDING,
+                    related_test_attempt=attempt,
+                    related_certificate=certificate,
+                )
+            except Exception as e:
+                logger.warning("Could not create NotificationLog: %s", e)
 
         try:
             url = cls._get_api_url("sendMessage")
@@ -493,12 +518,13 @@ class TelegramService:
 
             if data.get("ok"):
                 message_id = data["result"]["message_id"]
-                log_entry.status = NotificationLog.Status.SENT
-                log_entry.external_id = str(message_id)
-                log_entry.sent_at = timezone.now()
-                log_entry.save(update_fields=[
-                    "status", "external_id", "sent_at",
-                ])
+                if log_entry:
+                    log_entry.status = NotificationLog.Status.SENT
+                    log_entry.external_id = str(message_id)
+                    log_entry.sent_at = timezone.now()
+                    log_entry.save(update_fields=[
+                        "status", "external_id", "sent_at",
+                    ])
 
                 logger.info(
                     "Telegram message sent: chat_id=%s, message_id=%s",
@@ -507,9 +533,10 @@ class TelegramService:
                 return {"success": True, "message_id": message_id, "error": None}
             else:
                 error_msg = data.get("description", "Unknown error")
-                log_entry.status = NotificationLog.Status.FAILED
-                log_entry.error_message = error_msg
-                log_entry.save(update_fields=["status", "error_message"])
+                if log_entry:
+                    log_entry.status = NotificationLog.Status.FAILED
+                    log_entry.error_message = error_msg
+                    log_entry.save(update_fields=["status", "error_message"])
 
                 logger.error(
                     "Telegram API error: chat_id=%s, error=%s",
@@ -518,9 +545,10 @@ class TelegramService:
                 return {"success": False, "message_id": None, "error": error_msg}
 
         except Exception as e:
-            log_entry.status = NotificationLog.Status.FAILED
-            log_entry.error_message = str(e)
-            log_entry.save(update_fields=["status", "error_message"])
+            if log_entry:
+                log_entry.status = NotificationLog.Status.FAILED
+                log_entry.error_message = str(e)
+                log_entry.save(update_fields=["status", "error_message"])
 
             logger.exception("Telegram send failed: chat_id=%s", chat_id)
             return {"success": False, "message_id": None, "error": str(e)}

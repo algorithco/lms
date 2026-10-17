@@ -46,6 +46,7 @@ class User(AbstractUser):
         TEACHER = "teacher", _("O'qituvchi")
         ADMIN = "admin", _("Admin")
         PARENT = "parent", _("Ota-ona")
+        CENTER_ADMIN = "center_admin", _("O'quv markaz rahbari")
 
     # -- Login ----------------------------------------------------------------
     username = None  # type: ignore[assignment]  # disable username field
@@ -61,6 +62,24 @@ class User(AbstractUser):
         max_length=20,
         choices=Role.choices,
         default=Role.STUDENT,
+    )
+
+    # -- Organization (B2B SaaS) ----------------------------------------------
+    learning_center = models.ForeignKey(
+        "organizations.LearningCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        verbose_name=_("o'quv markazi"),
+    )
+    branch = models.ForeignKey(
+        "organizations.CenterBranch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        verbose_name=_("filial"),
     )
 
     # -- Telegram integration -------------------------------------------------
@@ -173,6 +192,10 @@ class User(AbstractUser):
     def is_parent(self) -> bool:
         return self.role == self.Role.PARENT
 
+    @property
+    def is_center_admin(self) -> bool:
+        return self.role == self.Role.CENTER_ADMIN
+
 
 class Profile(models.Model):
     """
@@ -281,3 +304,57 @@ class ParentStudentLink(models.Model):
 
     def __str__(self) -> str:
         return f"{self.parent.get_full_name()} → {self.student.get_full_name()}"
+
+
+class ParentStudentRelation(models.Model):
+    """
+    Ota-onalar nazorati tizimi (Parent Monitoring & Smart Alerts).
+    O'quvchining natijalarini ota-onasining Telegram botiga real vaqtda yuborish.
+    """
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="parent_relations",
+        verbose_name=_("o'quvchi"),
+    )
+    parent_phone = models.CharField(
+        _("ota-ona telefon raqami"),
+        max_length=20,
+        db_index=True,
+    )
+    parent_telegram_id = models.BigIntegerField(
+        _("ota-ona Telegram ID"),
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    is_verified = models.BooleanField(
+        _("tasdiqlanganmi"),
+        default=False,
+    )
+    verification_code = models.CharField(
+        _("tasdiqlash kodi"),
+        max_length=6,
+        blank=True,
+    )
+    weekly_report_enabled = models.BooleanField(
+        _("haftalik hisobot yoqilgan"),
+        default=True,
+    )
+    instant_alerts_enabled = models.BooleanField(
+        _("tezkor xabarnomalar yoqilgan"),
+        default=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Ota-ona va o'quvchi munosabati")
+        verbose_name_plural = _("Ota-ona va o'quvchi munosabatlari")
+        unique_together = ("student", "parent_phone")
+
+    def __str__(self) -> str:
+        status = "tasdiqlangan" if self.is_verified else "kutilmoqda"
+        return f"{self.student.get_full_name()} ↔ {self.parent_phone} ({status})"
+

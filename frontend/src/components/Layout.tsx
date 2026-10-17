@@ -80,6 +80,7 @@ export default function Layout() {
             <NavLink to="/games" className={linkClass} onClick={close}><GamepadIcon size={16} className="ico" /> {t('games')}</NavLink>
             <NavLink to="/essays" className={linkClass} onClick={close}><PenLineIcon size={16} className="ico" /> {t('essays')}</NavLink>
             <NavLink to="/arena" className={linkClass} onClick={close}><SwordsIcon size={16} className="ico" /> {t('arena')}</NavLink>
+            <NavLink to="/tournaments" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> Turnirlar</NavLink>
             <NavLink to="/essay-leaderboard" className={linkClass} onClick={close}><AwardIcon size={16} className="ico" /> {t('leaderboard')}</NavLink>
           </Section>
           {isTeacher && (
@@ -103,6 +104,11 @@ export default function Layout() {
           {isParent && (
             <Section title={t('parent')}>
               <NavLink to="/parent" className={linkClass} onClick={close}><HomeIcon size={16} className="ico" /> {t('children')}</NavLink>
+            </Section>
+          )}
+          {(isAdmin || isTeacher || user?.role === 'center_admin') && (
+            <Section title="Enterprise">
+              <NavLink to="/enterprise" className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> O'quv markazi</NavLink>
             </Section>
           )}
           <Section title="Premium">

@@ -80,6 +80,13 @@ def process_test_result_task(
         # -- Step 3: Email xabar yuborish ------------------------------------
         _send_email_result(result)
 
+        # -- Step 4: Ota-onaga tezkor xabar yuborish -------------------------
+        try:
+            from apps.notifications.tasks_parent import send_parent_test_alert_task
+            send_parent_test_alert_task.delay(result_id)
+        except Exception:
+            logger.exception("Parent alert dispatch error for result_id=%s", result_id)
+
         return {
             "status": "completed",
             "result_id": result_id,

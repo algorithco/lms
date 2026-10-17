@@ -138,6 +138,31 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+api.get = <T>(path: string, init?: RequestInit): Promise<T> =>
+  api<T>(path, { ...init, method: 'GET' });
+
+api.post = <T>(path: string, body?: unknown, init?: RequestInit): Promise<T> =>
+  api<T>(path, {
+    ...init,
+    method: 'POST',
+    body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+    headers:
+      body instanceof FormData
+        ? init?.headers
+        : { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  });
+
+api.patch = <T>(path: string, body?: unknown, init?: RequestInit): Promise<T> =>
+  api<T>(path, {
+    ...init,
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  });
+
+api.delete = <T>(path: string, init?: RequestInit): Promise<T> =>
+  api<T>(path, { ...init, method: 'DELETE' });
+
 // ---------------------------------------------------------------------------
 // Typed endpoints (mirrors apps/*/urls.py + serializers)
 // ---------------------------------------------------------------------------
@@ -150,7 +175,7 @@ export interface TokenPair {
 export interface AuthUser {
   id: number;
   email: string;
-  role: 'student' | 'teacher' | 'admin' | 'parent';
+  role: 'student' | 'teacher' | 'admin' | 'parent' | 'center_admin';
   full_name: string;
   is_active: boolean;
   first_name?: string;

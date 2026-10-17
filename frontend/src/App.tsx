@@ -49,6 +49,9 @@ const TeacherDashboard = lazyPage(() => import('./pages/TeacherDashboard'));
 const TestDetail = lazyPage(() => import('./pages/TestDetail'));
 const Tests = lazyPage(() => import('./pages/Tests'));
 const Tma = lazyPage(() => import('./pages/Tma'));
+const Tournaments = lazyPage(() => import('./pages/Tournaments'));
+const TournamentLive = lazyPage(() => import('./pages/TournamentLive'));
+const EnterpriseDashboard = lazyPage(() => import('./pages/EnterpriseDashboard'));
 const VerifyCertificate = lazyPage(() => import('./pages/VerifyCertificate'));
 
 import AuthModal from './components/AuthModal';
@@ -116,6 +119,13 @@ function AnimatedRoutes() {
             {/* Arena */}
             <Route path="/arena" element={<Arena />} />
             <Route path="/arena/:code" element={<DuelRoom />} />
+            {/* Tournaments (Sunday Live League) */}
+            <Route path="/tournaments" element={<Tournaments />} />
+            <Route path="/tournaments/:id/live" element={<TournamentLive />} />
+            <Route path="/tournaments/:id" element={<TournamentLive />} />
+            {/* Enterprise (B2B SaaS Learning Centers Hub) */}
+            <Route path="/enterprise" element={<EnterpriseDashboard />} />
+            <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
             {/* Games (kebab-case = legacy Django slugs) */}
             <Route path="/games" element={<Games />} />
             <Route path="/games/leaderboard" element={<Navigate to="/games" replace />} />

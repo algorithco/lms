@@ -202,6 +202,10 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🏆 ELO Reyting", callback_data="menu_leaderboard"),
         ],
         [
+            InlineKeyboardButton("🏆 Yakshanba Turniri", callback_data="menu_tournament"),
+            InlineKeyboardButton("👨‍👩‍👧 Ota-onalar nazorati", callback_data="menu_parents"),
+        ],
+        [
             InlineKeyboardButton("🌐 Web Platformaga o'tish", url=f"{_site_url}/dashboard/"),
         ],
     ])
@@ -234,6 +238,18 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # --- Auth token flow: /start auth_<token> ---
     if args and args[0].startswith("auth_"):
         await _handle_auth_token(update, context, args[0])
+        return
+
+    # --- Parent linking flow: /start parent or /start parent_<code> ---
+    if args and (args[0] == "parent" or args[0].startswith("parent_")):
+        if args[0].startswith("parent_"):
+            context.args = [args[0].removeprefix("parent_")]
+        await parent_start_handler(update, context)
+        return
+
+    # --- Tournament flow: /start tournament ---
+    if args and (args[0] == "tournament" or args[0].startswith("tournament_")):
+        await tournament_handler(update, context)
         return
 
     # --- Normal /start flow ---
@@ -487,6 +503,12 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     elif raw_text in ("📅 Davomat", "📅 Davomatim"):
         await myattendance_handler(update, context)
         return
+    elif raw_text in ("👨‍👩‍👧 Ota-ona nazorati", "👨‍👩‍👧 Ota-onani ulash", "Ota-ona nazorati", "Ota-ona"):
+        await parent_start_handler(update, context)
+        return
+    elif raw_text in ("🏆 Yakshanba Turniri", "🏆 Turnir", "Yakshanba Turniri", "Turnir"):
+        await tournament_handler(update, context)
+        return
     elif raw_text in ("📝 Mock Test (#kod)", "📝 Mock Test", "Mock Test"):
         context.user_data["awaiting_mock_code"] = True
         text = (
@@ -537,6 +559,72 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
                 f"❌ '{raw_text}' kodi bo'yicha Mock test topilmadi.\n"
                 f"Iltimos, ustozingiz bergan kodni to'g'ri kiritganingizni tekshiring (masalan: `#MOCK-401`).",
                 parse_mode="Markdown",
+            )
+            return
+
+    # Check for 6-digit parent code input or awaiting_parent_code
+    is_awaiting_parent = bool(context.user_data.get("awaiting_parent_code"))
+    contact = getattr(update.message, "contact", None)
+    if contact and is_awaiting_parent:
+        contact_phone = getattr(contact, "phone_number", "") or ""
+        import re
+        digits = re.sub(r"\D", "", contact_phone)
+        clean_9 = digits[-9:] if len(digits) >= 9 else ""
+
+        def _link_by_phone(phone_tail: str, chat_id: int):
+            from apps.accounts.models import ParentStudentRelation
+            rels = ParentStudentRelation.objects.filter(parent_phone__endswith=phone_tail).select_related("student")
+            if not rels.exists():
+                return None
+            names = []
+            for r in rels:
+                r.parent_telegram_id = chat_id
+                r.is_verified = True
+                r.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
+                names.append(r.student.get_full_name() or r.student.email)
+            return names
+
+        linked_names = await _run_db(_link_by_phone, clean_9, update.effective_user.id)
+        context.user_data.pop("awaiting_parent_code", None)
+        if linked_names:
+            names_str = ", ".join(linked_names)
+            await update.message.reply_text(
+                f"✅ <b>Telefon raqamingiz muvaffaqiyatli bog'landi!</b>\n\n"
+                f"Farzandingiz: <b>{names_str}</b>\n\n"
+                f"Test natijalari va haftalik hisobotlar endi ushbu chatga yuboriladi.",
+                parse_mode="HTML",
+                reply_markup=_persistent_menu_keyboard(),
+            )
+            return
+        else:
+            await update.message.reply_text(
+                "Telefon raqamingiz bo'yicha kutilayotgan o'quvchi topilmadi. "
+                "Iltimos, farzandingizdan 6 xonali tasdiqlash kodini olib yuboring (masalan: <code>/parent_start 123456</code>).",
+                parse_mode="HTML",
+                reply_markup=_persistent_menu_keyboard(),
+            )
+            return
+
+    if raw_text.isdigit() and len(raw_text) == 6:
+        def _check_and_link(code_val: str, chat_id: int):
+            from apps.accounts.models import ParentStudentRelation
+            rel = ParentStudentRelation.objects.filter(verification_code=code_val).select_related("student").first()
+            if not rel:
+                return None
+            rel.parent_telegram_id = chat_id
+            rel.is_verified = True
+            rel.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
+            return rel.student.get_full_name() or rel.student.email
+
+        student_name = await _run_db(_check_and_link, raw_text, update.effective_user.id)
+        if student_name:
+            context.user_data.pop("awaiting_parent_code", None)
+            await update.message.reply_text(
+                f"✅ <b>Muvaffaqiyatli bog'landi!</b>\n\n"
+                f"Siz o'quvchi <b>{student_name}</b> ga ota-ona sifatida biriktirildingiz.\n\n"
+                f"Endi barcha test va mock natijalari hamda haftalik hisobotlar ushbu chatga boradi.",
+                parse_mode="HTML",
+                reply_markup=_persistent_menu_keyboard(),
             )
             return
 
@@ -3602,6 +3690,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await _dispatch_handler(update, context, mytuition_handler)
         elif data in ("menu_attendance", "cb_attendance"):
             await _dispatch_handler(update, context, myattendance_handler)
+        elif data in ("menu_tournament", "cb_tournament"):
+            await _dispatch_handler(update, context, tournament_handler)
+        elif data in ("menu_parents", "cb_parents"):
+            await _dispatch_handler(update, context, parent_start_handler)
         elif data.startswith("cb_topic_select:"):
             topic_id = int(data.split(":")[1])
             await essay_topic_select_callback(update, context, topic_id)
@@ -5673,6 +5765,202 @@ def _safe_callback_int(data: str, prefix: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
+# 👨‍👩‍👧 Ota-onalar nazorati & 🏆 Turnir Handlers
+# ---------------------------------------------------------------------------
+
+async def parent_start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /parent_start or /parent — Parent registration and smart alerts linking."""
+    tg_user = update.effective_user
+    if not tg_user:
+        return
+
+    args = context.args if context.args else []
+    code = args[0].strip() if args else ""
+    if code.startswith("parent_"):
+        code = code.removeprefix("parent_")
+
+    def _link_by_code(code_val: str, chat_id: int):
+        from apps.accounts.models import ParentStudentRelation
+        rel = ParentStudentRelation.objects.filter(verification_code=code_val).select_related("student").first()
+        if not rel:
+            return None
+        rel.parent_telegram_id = chat_id
+        rel.is_verified = True
+        rel.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
+        return rel.student.get_full_name() or rel.student.email
+
+    if code:
+        student_name = await _run_db(_link_by_code, code, tg_user.id)
+        if student_name:
+            await update.message.reply_text(
+                f"✅ <b>Muvaffaqiyatli bog'landi!</b>\n\n"
+                f"Siz o'quvchi <b>{student_name}</b> ga ota-ona sifatida biriktirildingiz.\n\n"
+                f"Endi farzandingizning:\n"
+                f"• Mock va test natijalari (ball, foiz, BMB darajasi)\n"
+                f"• Esse baholari\n"
+                f"• Har yakshanba 18:00 dagi haftalik o'sish hisoboti\n"
+                f"to'g'ridan-to'g'ri ushbu chatga avtomatik yuboriladi.",
+                parse_mode="HTML",
+            )
+            return
+        else:
+            await update.message.reply_text(
+                "❌ Tasdiqlash kodi noto'g'ri yoki eskirgan. Farzandingizdan yangi kod olishini so'rang.",
+                parse_mode="HTML",
+            )
+            return
+
+    # Check if this telegram user already has linked students
+    def _get_linked_students(chat_id: int):
+        from apps.accounts.models import ParentStudentRelation
+        rels = list(ParentStudentRelation.objects.filter(parent_telegram_id=chat_id, is_verified=True).select_related("student"))
+        return [r.student.get_full_name() or r.student.email for r in rels]
+
+    linked = await _run_db(_get_linked_students, tg_user.id)
+    if linked:
+        names_str = "\n".join(f"• <b>{n}</b>" for n in linked)
+        msg_text = (
+            f"👨‍👩‍👧 <b>OTA-ONALAR NAZORATI TIZIMI</b>\n\n"
+            f"Sizga quyidagi o'quvchilar biriktirilgan:\n{names_str}\n\n"
+            f"🔔 Tezkor xabarnomalar va haftalik hisobotlar faol.\n"
+            f"Yangi o'quvchini ulash uchun: <code>/parent_start KOD</code>"
+        )
+        if update.callback_query:
+            await update.callback_query.message.reply_text(msg_text, parse_mode="HTML")
+        else:
+            await update.message.reply_text(msg_text, parse_mode="HTML")
+        return
+
+    context.user_data["awaiting_parent_code"] = True
+    welcome_msg = (
+        "👨‍👩‍👧 <b>OTA-ONALAR NAZORATI TIZIMIGA XUSH KELIBSIZ!</b>\n\n"
+        "Farzandingizning test natijalari, BMB darajalari va davomatini ushbu Telegram bot orqali kuzatib boring.\n\n"
+        "📌 <b>Ulanish uchun:</b>\n"
+        "1. Farzandingiz veb-saytda yoki botda <code>/parent_link</code> orqali olingan <b>6 xonali kod</b>ni bu yerga yuboring.\n"
+        "Masalan: <code>123456</code> yoki <code>/parent_start 123456</code>\n"
+        "2. Yoki pastdagi tugma orqali telefon raqamingizni yuboring."
+    )
+    keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)], [KeyboardButton("🔙 Asosiy menyu")]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    if update.callback_query:
+        await update.callback_query.message.reply_text(welcome_msg, parse_mode="HTML", reply_markup=keyboard)
+    else:
+        await update.message.reply_text(welcome_msg, parse_mode="HTML", reply_markup=keyboard)
+
+
+async def parent_link_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /parent_link <phone> — Student initiates linking parent phone."""
+    args = context.args if context.args else []
+    user = await _get_or_create_user_async(update)
+    if not user:
+        await update.message.reply_text("Xatolik: foydalanuvchi topilmadi.")
+        return
+
+    if not args:
+        await update.message.reply_text(
+            "👨‍👩‍👧 <b>Ota-ona raqamini ulash</b>\n\n"
+            "Ota-onangiz telefon raqamini quyidagicha yuboring:\n"
+            "<code>/parent_link +998901234567</code>\n\n"
+            "Tizim sizga 6 xonali tasdiqlash kodini beradi. Ota-onangiz ushbu botga kirib, "
+            "kodni kiritishi bilan natijalaringiz ularga boradi.",
+            parse_mode="HTML",
+        )
+        return
+
+    raw_phone = args[0].strip()
+    import re
+    digits = re.sub(r"\D", "", raw_phone)
+    if len(digits) < 9:
+        await update.message.reply_text("Telefon raqami noto'g'ri. Masalan: <code>/parent_link +998901234567</code>", parse_mode="HTML")
+        return
+
+    clean_phone = "+998" + digits[-9:]
+
+    def _create_relation(student_user, phone: str):
+        import random
+        from apps.accounts.models import ParentStudentRelation
+        code_val = f"{random.randint(100000, 999999)}"
+        rel, _ = ParentStudentRelation.objects.get_or_create(
+            student=student_user,
+            parent_phone=phone,
+            defaults={"verification_code": code_val, "weekly_report_enabled": True, "instant_alerts_enabled": True},
+        )
+        if not rel.is_verified:
+            rel.verification_code = code_val
+            rel.save(update_fields=["verification_code"])
+        return rel.verification_code
+
+    code = await _run_db(_create_relation, user, clean_phone)
+    await update.message.reply_text(
+        f"✅ <b>Ota-ona raqami saqlandi:</b> <code>{clean_phone}</code>\n\n"
+        f"🔑 <b>Tasdiqlash kodi:</b> <code>{code}</code>\n\n"
+        f"Ota-onangizga ushbu xabarni yuboring:\n"
+        f"<i>«Botga kiring va <code>/parent_start {code}</code> deb yuboring!»</i>",
+        parse_mode="HTML",
+    )
+
+
+async def tournament_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /tournament — Sunday Live League info and quick entry."""
+    from django.conf import settings as _settings
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+
+    def _get_tournaments():
+        from apps.arena.models import Tournament
+        t = Tournament.objects.filter(status__in=["upcoming", "live"]).order_by("scheduled_at").first()
+        if not t:
+            t = Tournament.objects.order_by("-scheduled_at").first()
+        if not t:
+            return None
+        return {
+            "id": t.id,
+            "title": t.title,
+            "scheduled_at": t.scheduled_at.strftime("%d.%m.%Y soat %H:%M"),
+            "duration": t.duration_minutes,
+            "status": t.status,
+            "prizes": t.prize_fund_description,
+            "participants": t.participants.count(),
+        }
+
+    t_data = await _run_db(_get_tournaments)
+    if not t_data:
+        msg_none = "Hozircha faol turnirlar mavjud emas. Tez kunda yangi Yakshanba turniri e'lon qilinadi!"
+        if update.callback_query:
+            await update.callback_query.message.reply_text(msg_none)
+        else:
+            await update.message.reply_text(msg_none)
+        return
+
+    status_badge = "🔴 HOZIR JONLI!" if t_data["status"] == "live" else "⏳ YAQINLASHMOQDA"
+
+    msg = (
+        f"🏆 <b>JONLI YAKSHANBA TURNIRI (SUNDAY LIVE LEAGUE)</b>\n\n"
+        f"📌 <b>Turnir:</b> {t_data['title']}\n"
+        f"📊 <b>Holati:</b> {status_badge}\n"
+        f"📅 <b>Boshlanish vaqti:</b> {t_data['scheduled_at']}\n"
+        f"⏱ <b>Davomiyligi:</b> {t_data['duration']} daqiqa\n"
+        f"👥 <b>Qatnashuvchilar:</b> {t_data['participants']} nafar\n\n"
+        f"🎁 <b>MUKOFOTLAR:</b>\n"
+        f"{t_data['prizes']}\n\n"
+        f"Turnirda barcha o'quvchilar bir vaqtda start oladi va jonli reyting animatsiya bilan har soniyada yangilanib turadi!"
+    )
+
+    t_url = f"{site_url}/tournaments/{t_data['id']}/live"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 Turnirga kirish (Live)", url=t_url)],
+        [InlineKeyboardButton("📊 ELO Reyting", callback_data="menu_leaderboard")],
+    ])
+
+    if update.callback_query:
+        await update.callback_query.message.reply_text(msg, parse_mode="HTML", reply_markup=keyboard)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=keyboard)
+
+
+# ---------------------------------------------------------------------------
 # Bot setup
 # ---------------------------------------------------------------------------
 
@@ -5696,6 +5984,11 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))
     app.add_handler(CommandHandler("premium", premium_handler))
+    app.add_handler(CommandHandler("parent_start", parent_start_handler))
+    app.add_handler(CommandHandler("parent_link", parent_link_handler))
+    app.add_handler(CommandHandler("parent", parent_start_handler))
+    app.add_handler(CommandHandler("tournament", tournament_handler))
+    app.add_handler(CommandHandler("tournaments", tournament_handler))
     # Teacher group management, attendance and group reports
     app.add_handler(CommandHandler("groups", groups_handler))
     app.add_handler(CommandHandler("attendance", attendance_handler))

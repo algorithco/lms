@@ -387,3 +387,92 @@ class ArenaAnswerLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player.player} → Q{self.position}: {'✓' if self.is_correct else '✗'} +{self.points}"
+
+
+# ---------------------------------------------------------------------------
+# Tournament models (Sunday Live League)
+# ---------------------------------------------------------------------------
+
+class Tournament(models.Model):
+    """
+    Jonli Yakshanba Turniri (Sunday Live League & Real-time E-Sport Leaderboard).
+    """
+
+    class Status(models.TextChoices):
+        UPCOMING = "upcoming", _("Kutilmoqda")
+        LIVE = "live", _("Jonli")
+        FINISHED = "finished", _("Yakunlangan")
+
+    title = models.CharField(_("Turnir nomi"), max_length=255)
+    description = models.TextField(_("Tavsif"), blank=True)
+    scheduled_at = models.DateTimeField(_("Boshlanish vaqti"))
+    duration_minutes = models.PositiveIntegerField(_("Davomiyligi (daqiqa)"), default=40)
+    test = models.ForeignKey(
+        "tests.Test",
+        on_delete=models.CASCADE,
+        related_name="tournaments",
+        verbose_name=_("Turnir testi"),
+    )
+    status = models.CharField(
+        _("Holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.UPCOMING,
+        db_index=True,
+    )
+    prize_fund_description = models.TextField(
+        _("Mukofot jamg'armasi"),
+        blank=True,
+        default="1-o'rin: 1 oylik bepul Premium obuna + Oltin Kubok nishoni\n2- va 3-o'rinlar: Starter obuna + Kumush/Bronza nishonlari",
+    )
+    created_at = models.DateTimeField(_("Yaratilgan"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Turnir")
+        verbose_name_plural = _("Turnirlar")
+        ordering = ["-scheduled_at"]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.get_status_display()})"
+
+    @property
+    def participants_count(self) -> int:
+        return self.participants.count()
+
+
+class TournamentParticipant(models.Model):
+    """
+    Turnir qatnashuvchisi va uning jonli E-Sport natijasi.
+    """
+
+    tournament = models.ForeignKey(
+        Tournament,
+        on_delete=models.CASCADE,
+        related_name="participants",
+        verbose_name=_("Turnir"),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tournament_participations",
+        verbose_name=_("Ishtirokchi"),
+    )
+    score = models.DecimalField(_("To'plangan ball"), max_digits=6, decimal_places=2, default=0)
+    correct_answers = models.PositiveIntegerField(_("To'g'ri javoblar"), default=0)
+    total_questions = models.PositiveIntegerField(_("Jami savollar"), default=0)
+    time_taken_seconds = models.PositiveIntegerField(_("Sarflangan vaqt (sekund)"), default=0)
+    rank = models.PositiveIntegerField(_("O'rin (Rank)"), null=True, blank=True, db_index=True)
+    is_finished = models.BooleanField(_("Yakunlandimi"), default=False)
+    joined_at = models.DateTimeField(_("Qo'shilgan vaqt"), auto_now_add=True)
+    finished_at = models.DateTimeField(_("Yakunlangan vaqt"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Turnir ishtirokchisi")
+        verbose_name_plural = _("Turnir ishtirokchilari")
+        unique_together = ("tournament", "user")
+        ordering = ["rank", "-score", "time_taken_seconds"]
+
+    def __str__(self) -> str:
+        return f"{self.user.get_full_name()} in {self.tournament.title} (Rank: {self.rank or '—'}, Score: {self.score})"
+
