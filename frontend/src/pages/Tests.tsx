@@ -95,6 +95,10 @@ export default function Tests() {
     String(item.title ?? '').toLowerCase().includes('mock #4') ||
     String(item.title ?? '').toLowerCase().includes('mock 4');
 
+  const isMockShukurov = (item: TestListItem) =>
+    item.mock_code === '#MOCK-SHUKUROV' ||
+    String(item.title ?? '').toLowerCase().includes('shukurov');
+
   // Backend TestListView exposes no search/filter params, so search +
   // difficulty filter run client-side over the loaded page (parity with
   // legacy templates/web/test_list.html filterTests() behaviour).
@@ -109,9 +113,9 @@ export default function Tests() {
     });
 
     return [...filtered].sort((a, b) => {
-      const aM = isMock4(a) ? 1 : 0;
-      const bM = isMock4(b) ? 1 : 0;
-      return bM - aM;
+      const aWeight = isMockShukurov(a) ? 2 : isMock4(a) ? 1 : 0;
+      const bWeight = isMockShukurov(b) ? 2 : isMock4(b) ? 1 : 0;
+      return bWeight - aWeight;
     });
   }, [tests, query, difficulty]);
 
@@ -164,6 +168,31 @@ export default function Tests() {
                 type="button"
                 className="btn sm"
                 style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid #f59e0b',
+                  color: '#f59e0b',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s ease',
+                }}
+                disabled={mockBusy}
+                onClick={() => {
+                  setMockCode('#MOCK-SHUKUROV');
+                  executeJoin('#MOCK-SHUKUROV');
+                }}
+              >
+                🔥 #MOCK-SHUKUROV (Umid Shukurov jamoasi Mock) →
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                style={{
                   background: 'rgba(16, 185, 129, 0.15)',
                   border: '1px solid #10b981',
                   color: '#10b981',
@@ -195,10 +224,10 @@ export default function Tests() {
                 setMockCode(e.target.value);
                 if (mockErr) setMockErr(null);
               }}
-              placeholder="#MOCK-BMB04"
+              placeholder="#MOCK-SHUKUROV"
               required
               style={{
-                width: '160px',
+                width: '180px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
@@ -276,14 +305,22 @@ export default function Tests() {
 
       <div className="grid">
         {visible.map((item) => {
-          const isHighlight = isMock4(item);
+          const isShukurov = isMockShukurov(item);
+          const isM4 = isMock4(item);
+          const isHighlight = isShukurov || isM4;
           return (
             <Link
               key={item.id}
               to={`/tests/${item.id}`}
               className="card link-card"
               style={
-                isHighlight
+                isShukurov
+                  ? {
+                      border: '1.5px solid rgba(245, 158, 11, 0.7)',
+                      background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                      boxShadow: '0 4px 20px rgba(245, 158, 11, 0.15)',
+                    }
+                  : isM4
                   ? {
                       border: '1.5px solid rgba(16, 185, 129, 0.7)',
                       background: 'radial-gradient(circle at top right, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
@@ -296,19 +333,23 @@ export default function Tests() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                   <span
                     style={{
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      background: isShukurov
+                        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                       color: '#ffffff',
                       fontWeight: 700,
                       fontSize: '0.75rem',
                       padding: '3px 10px',
                       borderRadius: '9999px',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                      boxShadow: isShukurov
+                        ? '0 2px 8px rgba(245, 158, 11, 0.4)'
+                        : '0 2px 8px rgba(16, 185, 129, 0.4)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
                     }}
                   >
-                    ⭐️ BMB Rasmiy Mock Test #4 (Tekin)
+                    {isShukurov ? '🔥 Rasmiy Mock (Umid Shukurov)' : '⭐️ BMB Rasmiy Mock #4 (Tekin)'}
                   </span>
                   <span className="badge amber">
                     <ClockIcon size={12} className="ico" /> 180 {t('minutes_suffix')}

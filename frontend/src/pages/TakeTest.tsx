@@ -175,6 +175,14 @@ function entryHasContent(q: Question, a: AnswerEntry): boolean {
 
 function parseTwoPartAnswer(text: string): { a: string; b: string } {
   if (!text) return { a: '', b: '' };
+  try {
+    const obj = JSON.parse(text);
+    if (obj && typeof obj === 'object') {
+      return { a: String(obj.a || ''), b: String(obj.b || '') };
+    }
+  } catch {
+    // plain string format
+  }
   const match = text.match(/a\)\s*(.*?)(?:\s*b\)\s*(.*)|$)/is);
   if (match) {
     return {
@@ -663,7 +671,7 @@ export default function TakeTest() {
             (() => {
               const isTwoPart =
                 (q.text.includes('a)') && q.text.includes('b)')) ||
-                (q.position >= 41 && q.position <= 44);
+                (q.position >= 40 && q.position <= 44);
               if (isTwoPart) {
                 const twoPart = parseTwoPartAnswer(a.text);
                 return (
