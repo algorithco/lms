@@ -1507,24 +1507,7 @@ async def _submit_essay_with_quota(
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return
 
-    # -- 1. Daily AI quota check -------------------------------------------
-    from apps.payments.ai_quota import check_and_consume_ai_quota
-    ai_allowed, _ = await _run_db(check_and_consume_ai_quota, user)
-    if not ai_allowed:
-        _clear_essay_state(context)
-        await send_reply(
-            update,
-            "⚠️ *Sizning bugungi AI limitingiz tugadi!*\n\n"
-            "Cheksiz AI esse tekshiruvi va barcha imkoniyatlar uchun tarifingizni yangilang.",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💳 Tarifni yangilash", callback_data="cb_plans")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-            ]),
-        )
-        return
-
-    # -- 2. Atomic allowance reservation, before anything is persisted ------
+    # -- Atomic allowance reservation, before anything is persisted ---------
     # The key is derived from the Telegram update identity: Telegram delivers
     # updates at least once with a stable update_id, so a redelivered update
     # replays the existing reservation instead of charging the student twice.

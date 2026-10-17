@@ -164,7 +164,6 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
 
     # Ranglar
     HEADER_BG = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
-    ACCENT_BG = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     ROW_ALT_BG = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
     SUMMARY_BG = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 

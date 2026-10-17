@@ -9,6 +9,8 @@ import logging
 import os
 from decimal import Decimal
 from io import BytesIO
+from typing import Any
+
 import requests
 from PIL import Image
 

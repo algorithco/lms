@@ -62,6 +62,8 @@ class ImprovedEssayEndpointTests(TestCase):
     }
 
     def setUp(self) -> None:
+        from django.core.cache import cache
+        cache.clear()
         self.student = User.objects.create_user(
             email="improve@test.com",
             password="testpass123",

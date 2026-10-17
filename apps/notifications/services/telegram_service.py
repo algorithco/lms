@@ -483,6 +483,8 @@ class TelegramService:
 
         Har bir yuborilgan/yuborilmagan xabar NotificationLog ga yoziladi.
         """
+        from apps.notifications.models import NotificationLog
+
         if recipient is None:
             from django.contrib.auth import get_user_model
             User = get_user_model()

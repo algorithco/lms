@@ -13,6 +13,8 @@ from apps.notifications.bot.handlers import (
 
 class TelegramEssaySubmissionTests(TestCase):
     def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
         self.user = User.objects.create_user(
             email="essay-bot@example.test",
             password=None,

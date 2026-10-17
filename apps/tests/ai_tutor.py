@@ -91,7 +91,6 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
 
     wrong_by_topic: dict[str, list[dict]] = {}
     correct_count = 0
-    total_answers = len(answers)
 
     for ans in answers:
         if ans.is_correct is False or (ans.is_correct is None and not ans.selected_choices.exists()):
