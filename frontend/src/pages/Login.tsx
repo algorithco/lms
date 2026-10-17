@@ -108,7 +108,29 @@ export default function Login() {
     }
   };
 
-  useEffect(() => stopPolling, []);
+  useEffect(() => {
+    // 1-Click Auto-login if inside Telegram Mini App (TMA)
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } } })?.Telegram;
+    const tgWebApp = tg?.WebApp;
+    if (tgWebApp?.initData) {
+      try {
+        tgWebApp.ready?.();
+        tgWebApp.expand?.();
+      } catch {
+        /* ignore */
+      }
+      setTgBusy(true);
+      TelegramAuth.loginWithInitData(tgWebApp.initData)
+        .then((res) => {
+          adoptTelegramLogin(res.tokens, res.user);
+        })
+        .catch(() => {
+          setTgBusy(false);
+        });
+    }
+
+    return stopPolling;
+  }, []);
 
   const adoptTelegramLogin = (tokens: { access: string; refresh: string }, user: Record<string, unknown>) => {
     stopPolling();
@@ -122,8 +144,18 @@ export default function Login() {
       const st = await TelegramAuth.status(token);
       if (st.status === 'verified') {
         stopPolling();
-        setTgPhase('code');
-        setTgError(null);
+        setTgBusy(true);
+        try {
+          const res = await TelegramAuth.loginWithToken(token);
+          adoptTelegramLogin(res.tokens, res.user);
+          return;
+        } catch {
+          // If automatic token login fails, fallback to code input
+          setTgPhase('code');
+          setTgError(null);
+        } finally {
+          setTgBusy(false);
+        }
       } else if (st.status !== 'pending') {
         stopPolling();
         setTgPhase('idle');
@@ -346,25 +378,62 @@ export default function Login() {
         </div>
         <div>
           {tgPhase === 'waiting' && (
-            <div>
-              <p className="muted small">{t('telegram_login_step1')}</p>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div style={{ marginTop: 14, padding: 16, borderRadius: 14, background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 20 }}>⚡️</span>
+                <strong style={{ fontSize: 14, color: '#38bdf8' }}>{t('telegram_1click_authenticating')}</strong>
+              </div>
+              <p className="muted small" style={{ margin: '0 0 12px', lineHeight: 1.5 }}>
+                {t('telegram_1click_hint')}
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {tgDeepLink && (
                   <a
                     className="btn"
                     href={tgDeepLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ textDecoration: 'none' }}
+                    style={{
+                      textDecoration: 'none',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      fontWeight: 700,
+                      padding: '8px 14px',
+                    }}
                   >
-                    Open Telegram
+                    {t('telegram_open_btn')}
                   </a>
                 )}
-                <button className="btn" disabled={tgBusy} onClick={() => void confirmTelegramDone()}>
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  disabled={tgBusy}
+                  onClick={() => void confirmTelegramDone()}
+                >
                   {tgBusy ? '…' : t('submit')}
                 </button>
-                <button className="btn" onClick={cancelTelegramAuth}>
+                <button type="button" className="btn sm" onClick={cancelTelegramAuth}>
                   ✕
+                </button>
+              </div>
+
+              {/* Optional fallback toggle for 6-digit code */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed rgba(255, 255, 255, 0.1)' }}>
+                <button
+                  type="button"
+                  onClick={() => setTgPhase('code')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--muted)',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: 0,
+                  }}
+                >
+                  {t('telegram_manual_code_fallback')}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang, type AppLang } from '../i18n/LangContext';
+import { useTranslation } from '../i18n/useTranslation';
 import { useTheme, type Theme } from '../theme/ThemeContext';
 import {
   MonitorIcon,
@@ -29,6 +30,7 @@ export default function Profile() {
   const { user } = useAuth();
   const { lang, setLang } = useLang();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { t } = useTranslation();
 
   if (!user) return null;
 
@@ -113,7 +115,7 @@ export default function Profile() {
                 border: '1px solid rgba(16, 185, 129, 0.3)',
               }}
             >
-              ✓ Faol hisob
+              {t('profile_active_account')}
             </span>
           </div>
           <p className="muted" style={{ margin: '6px 0 0', fontSize: 14 }}>
@@ -127,20 +129,20 @@ export default function Profile() {
         <div className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: 18, marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <UserIcon size={20} style={{ color: 'var(--accent)' }} />
-            Shaxsiy ma'lumotlar
+            {t('profile_personal_info')}
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>To'liq ism</span>
+              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_full_name')}</span>
               <strong style={{ fontSize: 15 }}>{user.full_name || '—'}</strong>
             </div>
             <div>
-              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>Elektron pochta (Email)</span>
+              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_email')}</span>
               <strong style={{ fontSize: 15 }}>{user.email}</strong>
             </div>
             <div>
-              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>Platformadagi rol</span>
+              <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_role')}</span>
               <strong style={{ fontSize: 15, textTransform: 'capitalize' }}>{user.role}</strong>
             </div>
           </div>
@@ -150,19 +152,19 @@ export default function Profile() {
         <div className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: 18, marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <MoonIcon size={20} style={{ color: 'var(--accent)' }} />
-            Interfeys va sozlamalar
+            {t('profile_interface_settings')}
           </h2>
 
           {/* Theme Selector */}
           <div style={{ marginBottom: 20 }}>
             <span className="muted small" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
-              Mavzu (Theme):
+              {t('profile_theme_label')}
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {[
-                { key: 'dark' as Theme, label: "Qorong'i", icon: MoonIcon },
-                { key: 'light' as Theme, label: "Yorug'", icon: SunIcon },
-                { key: 'system' as Theme, label: 'Tizim', icon: MonitorIcon },
+                { key: 'dark' as Theme, label: t('theme_dark'), icon: MoonIcon },
+                { key: 'light' as Theme, label: t('theme_light'), icon: SunIcon },
+                { key: 'system' as Theme, label: t('theme_system'), icon: MonitorIcon },
               ].map((item) => {
                 const isActive = theme === item.key;
                 const Icon = item.icon;
@@ -194,14 +196,15 @@ export default function Profile() {
               })}
             </div>
             <span className="muted small" style={{ display: 'block', marginTop: 6 }}>
-              Hozirgi faol holat: <strong>{resolvedTheme === 'dark' ? "Qorong'i (Dark UI)" : "Yorug' (Light UI)"}</strong>
+              {t('profile_active_theme')}{' '}
+              <strong>{resolvedTheme === 'dark' ? t('profile_dark_ui') : t('profile_light_ui')}</strong>
             </span>
           </div>
 
           {/* Language Selector */}
           <div>
             <span className="muted small" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
-              Interfeys tili (Language):
+              {t('profile_lang_label')}
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {[
@@ -260,11 +263,11 @@ export default function Profile() {
         }}
       >
         <div>
-          <strong style={{ display: 'block', fontSize: 15 }}>Obunani boshqarish yoki yangilash</strong>
-          <span className="muted small">Tariflarni ko'rish va to'lov cheklarini tekshirish</span>
+          <strong style={{ display: 'block', fontSize: 15 }}>{t('profile_manage_sub')}</strong>
+          <span className="muted small">{t('profile_view_plans_receipts')}</span>
         </div>
         <Link to="/subscribe" className="btn primary sm btn-glow" style={{ textDecoration: 'none' }}>
-          Tariflarni ko'rish →
+          {t('profile_view_plans_btn')}
         </Link>
       </div>
     </div>

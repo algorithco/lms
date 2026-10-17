@@ -479,3 +479,32 @@ class TelegramBotFeaturesTests(TestCase):
         reply_text = self.message.reply_text.await_args.args[0]
         self.assertIn("Chekingiz qabul qilindi", reply_text)
 
+    # 15. Telegram Login Widget (1-Click Auth)
+    @override_settings(TELEGRAM_BOT_TOKEN="test_bot_token_12345")
+    def test_telegram_widget_auth_success(self):
+        import hashlib
+        import hmac
+        import time
+        client = APIClient()
+        tg_id = 123456789
+        auth_date = int(time.time())
+        data_to_sign = {
+            "auth_date": auth_date,
+            "first_name": "WidgetUser",
+            "id": tg_id,
+            "username": "widget_user",
+        }
+        check_items = [f"{k}={data_to_sign[k]}" for k in sorted(data_to_sign.keys())]
+        check_string = "\n".join(check_items)
+        secret_key = hashlib.sha256("test_bot_token_12345".encode()).digest()
+        computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+        data_to_sign["hash"] = computed_hash
+
+        resp = client.post("/api/auth/telegram/widget/", data=data_to_sign, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], "ok")
+        self.assertIn("tokens", resp.data)
+        self.assertIn("access", resp.data["tokens"])
+        self.assertEqual(resp.data["user"]["full_name"], "WidgetUser")
+
+

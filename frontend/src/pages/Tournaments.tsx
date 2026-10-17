@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { AwardIcon, ClockIcon, TrophyIcon, UserIcon } from '../components/icons';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface TournamentItem {
   id: number;
@@ -18,6 +19,7 @@ interface TournamentItem {
 }
 
 export default function Tournaments() {
+  const { t } = useTranslation();
   const [tournaments, setTournaments] = useState<TournamentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,21 +58,20 @@ export default function Tournaments() {
       >
         <div style={{ maxWidth: 640 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(245, 158, 11, 0.2)', color: 'var(--accent-dark)', fontWeight: 800, fontSize: 12, marginBottom: 12 }}>
-            <TrophyIcon size={16} /> JONLI YAKSHANBA TURNIRLARI
+            <TrophyIcon size={16} /> {t('tournaments_live_sunday')}
           </div>
           <h1 style={{ fontSize: 28, margin: '0 0 10px', fontWeight: 900 }}>
-            Ona tili va Adabiyotidan Katta E-Sport Ligasi
+            {t('tournaments_hero_title')}
           </h1>
           <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.6 }}>
-            Har yakshanba soat 20:00 da butun O'zbekiston bo'ylab o'quvchilar bir vaqtda bellashadilar.
-            Real-vaqt reytingi, live animatsiya va qimmatbaho Premium obunalar!
+            {t('tournaments_hero_desc')}
           </p>
         </div>
 
         <div style={{ textAlign: 'center', background: 'var(--card)', padding: '18px 24px', borderRadius: 16, border: '1px solid var(--border)' }}>
-          <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>Keyingi Katta Turnir:</span>
-          <strong style={{ fontSize: 20, color: 'var(--accent)', display: 'block' }}>Har Yakshanba 20:00</strong>
-          <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700 }}>🟢 Jonli translyatsiya</span>
+          <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>{t('tournaments_next_label')}</span>
+          <strong style={{ fontSize: 20, color: 'var(--accent)', display: 'block' }}>{t('tournaments_next_schedule')}</strong>
+          <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700 }}>{t('tournaments_live_stream')}</span>
         </div>
       </div>
 
@@ -78,49 +79,49 @@ export default function Tournaments() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 30 }}>
         <div className="card" style={{ padding: 20, textAlign: 'center', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🥇</div>
-          <strong style={{ fontSize: 16, display: 'block', color: 'var(--accent)' }}>1-O'RIN: Oltin Kubok</strong>
+          <strong style={{ fontSize: 16, display: 'block', color: 'var(--accent)' }}>{t('tournaments_prize_1_title')}</strong>
           <span className="muted small" style={{ marginTop: 4, display: 'block' }}>
-            1 oylik bepul Premium obuna + Profilga Oltin Kubok nishoni + Sertifikat
+            {t('tournaments_prize_1_desc')}
           </span>
         </div>
 
         <div className="card" style={{ padding: 20, textAlign: 'center', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🥈</div>
-          <strong style={{ fontSize: 16, display: 'block' }}>2-O'RIN: Kumush Medal</strong>
+          <strong style={{ fontSize: 16, display: 'block' }}>{t('tournaments_prize_2_title')}</strong>
           <span className="muted small" style={{ marginTop: 4, display: 'block' }}>
-            1 oylik bepul Starter obuna + Kumush medal nishoni
+            {t('tournaments_prize_2_desc')}
           </span>
         </div>
 
         <div className="card" style={{ padding: 20, textAlign: 'center', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🥉</div>
-          <strong style={{ fontSize: 16, display: 'block' }}>3-O'RIN: Bronza Medal</strong>
+          <strong style={{ fontSize: 16, display: 'block' }}>{t('tournaments_prize_3_title')}</strong>
           <span className="muted small" style={{ marginTop: 4, display: 'block' }}>
-            1 oylik bepul Starter obuna + Bronza medal nishoni
+            {t('tournaments_prize_3_desc')}
           </span>
         </div>
       </div>
 
       {/* Tournaments List */}
       <h2 style={{ fontSize: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <AwardIcon size={20} style={{ color: 'var(--accent)' }} /> Turnirlar jadvali
+        <AwardIcon size={20} style={{ color: 'var(--accent)' }} /> {t('tournaments_table_title')}
       </h2>
 
       {loading ? (
-        <div className="card" style={{ padding: 30, textAlign: 'center' }}>Yuklanmoqda...</div>
+        <div className="card" style={{ padding: 30, textAlign: 'center' }}>...</div>
       ) : tournaments.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-          <p className="muted" style={{ margin: 0 }}>Hozircha rejalashtirilgan turnirlar mavjud emas. Tez kunda yangi turnir e'lon qilinadi!</p>
+          <p className="muted" style={{ margin: 0 }}>{t('tournaments_empty')}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {tournaments.map((t) => {
-            const isLive = t.status === 'live';
-            const isFinished = t.status === 'finished';
+          {tournaments.map((tItem) => {
+            const isLive = tItem.status === 'live';
+            const isFinished = tItem.status === 'finished';
 
             return (
               <div
-                key={t.id}
+                key={tItem.id}
                 className="card"
                 style={{
                   padding: 24,
@@ -137,44 +138,44 @@ export default function Tournaments() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     {isLive ? (
                       <span style={{ background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 6 }}>
-                        🔴 JONLI (LIVE)
+                        {t('tournaments_status_live')}
                       </span>
                     ) : isFinished ? (
                       <span style={{ background: 'var(--muted)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
-                        YAKUNLANGAN
+                        {t('tournaments_status_finished')}
                       </span>
                     ) : (
                       <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: 'var(--accent-dark)', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 6 }}>
-                        ⏳ KUTILMOQDA
+                        {t('tournaments_status_upcoming')}
                       </span>
                     )}
-                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{t.title}</h3>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{tItem.title}</h3>
                   </div>
 
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <ClockIcon size={14} /> {new Date(t.scheduled_at).toLocaleString('uz-UZ', { dateStyle: 'medium', timeStyle: 'short' })}
+                      <ClockIcon size={14} /> {new Date(tItem.scheduled_at).toLocaleString('uz-UZ', { dateStyle: 'medium', timeStyle: 'short' })}
                     </span>
-                    <span>⏱ {t.duration_minutes} daqiqa</span>
+                    <span>⏱ {tItem.duration_minutes} {t('tournaments_minutes')}</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <UserIcon size={14} /> {t.participants_count} nafar qatnashuvchi
+                      <UserIcon size={14} /> {tItem.participants_count} {t('tournaments_participants')}
                     </span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {t.user_joined && (
+                  {tItem.user_joined && (
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981' }}>
-                      ✓ Siz ro'yxatdansiz {t.user_rank ? `(${t.user_rank}-o'rin, ${t.user_score} ball)` : ''}
+                      {t('tournaments_you_registered')} {tItem.user_rank ? `(${tItem.user_rank}-o'rin, ${tItem.user_score} ball)` : ''}
                     </span>
                   )}
 
                   <Link
-                    to={`/tournaments/${t.id}/live`}
+                    to={`/tournaments/${tItem.id}/live`}
                     className={`btn ${isLive ? 'primary btn-glow' : 'secondary'}`}
                     style={{ textDecoration: 'none', padding: '10px 20px', fontWeight: 800 }}
                   >
-                    {isLive ? "🚀 Turnir xonasiga kirish (Live)" : "Turnir xonasini ochish →"}
+                    {isLive ? t('tournaments_btn_enter_live') : t('tournaments_btn_open')}
                   </Link>
                 </div>
               </div>

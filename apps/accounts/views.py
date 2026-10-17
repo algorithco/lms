@@ -563,3 +563,126 @@ class PasswordResetConfirmAPIView(APIView):
             {"ok": True, "message": "Parol muvaffaqiyatli yangilandi."},
             status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# Telegram Official Login Widget / 1-Click OAuth
+# ---------------------------------------------------------------------------
+class TelegramWidgetAuthView(APIView):
+    """
+    POST /api/auth/telegram/widget/
+    Official Telegram Login Widget (1-Click Auth).
+
+    Payload:
+    {
+        "id": 12345678,
+        "first_name": "...",
+        "last_name": "...",
+        "username": "...",
+        "photo_url": "...",
+        "auth_date": 1718000000,
+        "hash": "..."
+    }
+    """
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+    throttle_scope = "login"
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        import hashlib
+        import hmac
+        import time
+        from django.conf import settings
+        from django.contrib.auth import login
+        from apps.accounts.access import is_platform_admin
+        from apps.accounts.services.telegram_identity import (
+            TelegramIdentityUnverified,
+            get_or_create_telegram_user,
+        )
+
+        data = request.data
+        if not isinstance(data, dict):
+            return Response({"error": "Noto'g'ri so'rov formati."}, status=status.HTTP_400_BAD_REQUEST)
+
+        bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
+        if not bot_token:
+            return Response({"error": "Telegram bot tokeni sozlanmagan."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        received_hash = data.get("hash")
+        if not received_hash or not isinstance(received_hash, str):
+            return Response({"error": "Hash parametri topilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            auth_date = int(data.get("auth_date", 0))
+            if abs(time.time() - auth_date) > 86400:
+                return Response({"error": "Avtorizatsiya muddati tugagan (24 soat)."}, status=status.HTTP_401_UNAUTHORIZED)
+        except (ValueError, TypeError):
+            return Response({"error": "Noto'g'ri auth_date parametri."}, status=status.HTTP_400_BAD_REQUEST)
+
+        check_items = []
+        for k in sorted(data.keys()):
+            if k != "hash" and data[k] is not None:
+                check_items.append(f"{k}={data[k]}")
+        data_check_string = "\n".join(check_items)
+
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        if not hmac.compare_digest(computed_hash, received_hash):
+            return Response({"error": "Telegram ma'lumotlari tasdiqlanmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            tg_id = int(data.get("id"))
+        except (ValueError, TypeError):
+            return Response({"error": "Noto'g'ri Telegram ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+        first_name = str(data.get("first_name", "") or "")
+        last_name = str(data.get("last_name", "") or "")
+        username = str(data.get("username", "") or "")
+        photo_url = str(data.get("photo_url", "") or "")
+
+        try:
+            user, is_new_user = get_or_create_telegram_user({
+                "id": tg_id,
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": username,
+            })
+        except TelegramIdentityUnverified as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.is_active:
+            return Response({"error": "Hisob faol emas."}, status=status.HTTP_403_FORBIDDEN)
+
+        if photo_url and hasattr(user, "profile") and not getattr(user.profile, "picture_url", ""):
+            user.profile.picture_url = photo_url
+            user.profile.save(update_fields=["picture_url"])
+
+        login(request, user)
+        request.session.set_expiry(60 * 60 * 24 * 30)
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "status": "ok",
+            "redirect": "/dashboard/",
+            "user": {
+                "id": user.pk,
+                "email": user.email,
+                "role": getattr(user, "role", "student"),
+                "full_name": user.get_full_name(),
+                "is_active": user.is_active,
+                "language": getattr(user, "language", "uz"),
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+                "is_platform_admin": is_platform_admin(user),
+                "avatar": photo_url or getattr(user.profile, "picture_url", ""),
+            },
+            "tokens": {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+        }, status=status.HTTP_200_OK)
+

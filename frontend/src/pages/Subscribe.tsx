@@ -9,7 +9,7 @@ export default function Subscribe() {
   const { planId } = useParams();
   const [searchParams] = useSearchParams();
   const planQuery = searchParams.get('plan');
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   // Selected plan slug: 'starter' | 'pro' | 'premium'
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
@@ -179,16 +179,16 @@ export default function Subscribe() {
           <CreditCardIcon size={22} className="ico" />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Karta orqali to'lov va obuna</h1>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{t('sub_page_title')}</h1>
           <p className="muted small" style={{ margin: 0 }}>
-            Rasmiy bank kartasiga pul o'tkazing va chekni yuklang
+            {t('sub_page_subtitle')}
           </p>
         </div>
       </div>
 
       {/* Step 1: Select Plan */}
       <div className="card" style={{ marginBottom: 20, padding: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>1. Tarifni tanlang</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t('sub_step1_title')}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {/* Starter */}
           <div
@@ -197,8 +197,8 @@ export default function Subscribe() {
               padding: 20,
               borderRadius: 14,
               cursor: 'pointer',
-              border: selectedPlan === 'starter' ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-              background: selectedPlan === 'starter' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+              border: selectedPlan === 'starter' ? '2px solid #38bdf8' : '1px solid var(--border)',
+              background: selectedPlan === 'starter' ? 'rgba(56, 189, 248, 0.08)' : 'var(--card-2)',
               transition: 'all 0.2s ease',
             }}
           >
@@ -206,18 +206,18 @@ export default function Subscribe() {
               <span style={{ fontSize: 24 }}>⚡️</span>
               {selectedPlan === 'starter' && (
                 <span className="badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
-                  Tanlangan
+                  {t('sub_plan_selected')}
                 </span>
               )}
             </div>
             <strong style={{ fontSize: 18, display: 'block' }}>Starter</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
-              {cardInfo.starter_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
+            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
+              {cardInfo.starter_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
             </p>
             <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>Haftalik 5 ta rasm / 3 ta matn esse</li>
-              <li>Standart Milliy sertifikat testlari</li>
-              <li>Kunlik 20 ta AI repetitor so'rovi</li>
+              <li>{t('sub_plan_starter_f1')}</li>
+              <li>{t('sub_plan_starter_f2')}</li>
+              <li>{t('sub_plan_starter_f3')}</li>
             </ul>
           </div>
 
@@ -229,7 +229,7 @@ export default function Subscribe() {
               borderRadius: 14,
               cursor: 'pointer',
               border: selectedPlan === 'pro' ? '2px solid #fbbf24' : '1px solid rgba(245, 158, 11, 0.3)',
-              background: selectedPlan === 'pro' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.03)',
+              background: selectedPlan === 'pro' ? 'rgba(245, 158, 11, 0.1)' : 'var(--card-2)',
               transition: 'all 0.2s ease',
               position: 'relative',
             }}
@@ -248,25 +248,25 @@ export default function Subscribe() {
                 boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
               }}
             >
-              ⭐ TAVSIYA ETILADI
+              {t('sub_recommended')}
             </span>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 24 }}>🚀</span>
               {selectedPlan === 'pro' && (
                 <span className="badge yellow" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
-                  Tanlangan
+                  {t('sub_plan_selected')}
                 </span>
               )}
             </div>
             <strong style={{ fontSize: 18, display: 'block' }}>Pro</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
-              {cardInfo.pro_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
+            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
+              {cardInfo.pro_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
             </p>
             <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>Haftalik 15 ta esse baholash</li>
-              <li>Barcha CBT va Mock testlar</li>
-              <li>Kunlik 50 ta AI repetitor so'rovi</li>
-              <li>To'liq tahlil va xatolar hisoboti</li>
+              <li>{t('sub_plan_pro_f1')}</li>
+              <li>{t('sub_plan_pro_f2')}</li>
+              <li>{t('sub_plan_pro_f3')}</li>
+              <li>{t('sub_plan_pro_f4')}</li>
             </ul>
           </div>
 
@@ -277,8 +277,8 @@ export default function Subscribe() {
               padding: 20,
               borderRadius: 14,
               cursor: 'pointer',
-              border: selectedPlan === 'premium' ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
-              background: selectedPlan === 'premium' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+              border: selectedPlan === 'premium' ? '2px solid #10b981' : '1px solid var(--border)',
+              background: selectedPlan === 'premium' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-2)',
               transition: 'all 0.2s ease',
               position: 'relative',
             }}
@@ -287,19 +287,19 @@ export default function Subscribe() {
               <span style={{ fontSize: 24 }}>👑</span>
               {selectedPlan === 'premium' && (
                 <span className="badge green" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
-                  Tanlangan
+                  {t('sub_plan_selected')}
                 </span>
               )}
             </div>
             <strong style={{ fontSize: 18, display: 'block' }}>Premium</strong>
-            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
-              {cardInfo.premium_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
+            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: 'var(--ink)' }}>
+              {cardInfo.premium_price.toLocaleString()} <span style={{ fontSize: 14, color: 'var(--muted)' }}>{t('sub_per_month')}</span>
             </p>
             <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
-              <li>Cheksiz esse baholash (12 mezon)</li>
-              <li>Barcha Mock testlar va 1v1 Arena</li>
-              <li>Cheksiz 24/7 AI repetitor</li>
-              <li>Rasmiy PDF Sertifikat & Ustoz tekshiruvi</li>
+              <li>{t('sub_plan_premium_f1')}</li>
+              <li>{t('sub_plan_premium_f2')}</li>
+              <li>{t('sub_plan_premium_f3')}</li>
+              <li>{t('sub_plan_premium_f4')}</li>
             </ul>
           </div>
         </div>
@@ -307,10 +307,10 @@ export default function Subscribe() {
 
       {/* Step 2: Bank Card Details with 1-click copy */}
       <div className="card" style={{ marginBottom: 20, padding: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>2. To'lovni amalga oshiring</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>{t('sub_step2_title')}</h2>
         <p className="muted small" style={{ marginBottom: 16 }}>
-          Istalgan banking ilovasi (Click, Payme, Uzum, Anorbank) orqali quyidagi kartaga{' '}
-          <strong style={{ color: '#fbbf24' }}>{currentPrice.toLocaleString()} so'm</strong> o'tkazing:
+          {t('sub_step2_hint')}{' '}
+          <strong style={{ color: '#fbbf24' }}>{currentPrice.toLocaleString()} {t('sub_per_month').split('/')[0].trim()}</strong>
         </p>
 
         <div
@@ -359,11 +359,11 @@ export default function Subscribe() {
             >
               {copied ? (
                 <>
-                  <CheckIcon size={14} className="ico" /> Nusxalandi!
+                  <CheckIcon size={14} className="ico" /> {t('sub_card_copied')}
                 </>
               ) : (
                 <>
-                  <CopyIcon size={14} className="ico" /> Nusxalash
+                  <CopyIcon size={14} className="ico" /> {t('sub_copy_card')}
                 </>
               )}
             </button>
@@ -371,12 +371,12 @@ export default function Subscribe() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <div>
-              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>Karta egasi</span>
+              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>{t('sub_card_holder')}</span>
               <strong style={{ fontSize: 14, color: '#f8fafc' }}>{cardInfo.card_holder}</strong>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>O'tkaziladigan summa</span>
-              <strong style={{ fontSize: 16, color: '#fbbf24' }}>{currentPrice.toLocaleString()} so'm</strong>
+              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>{t('sub_transfer_amount')}</span>
+              <strong style={{ fontSize: 16, color: '#fbbf24' }}>{currentPrice.toLocaleString()} {t('sub_per_month').split('/')[0].trim()}</strong>
             </div>
           </div>
         </div>
@@ -384,9 +384,9 @@ export default function Subscribe() {
 
       {/* Step 3: Receipt Upload Form */}
       <div className="card" style={{ marginBottom: 24, padding: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>3. To'lov chekini (screenshot) yuklang</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>{t('sub_step3_title')}</h2>
         <p className="muted small" style={{ marginBottom: 16 }}>
-          O'tkazma muvaffaqiyatli yakunlanganligi haqidagi chek yoki kvitansiya rasmini (.jpg, .jpeg, .png) yuklang:
+          {t('sub_step3_hint')}
         </p>
 
         {uploadSuccess && (
@@ -431,12 +431,12 @@ export default function Subscribe() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: dragOver ? '2px dashed #fbbf24' : '2px dashed rgba(255, 255, 255, 0.18)',
+              border: dragOver ? '2px dashed #fbbf24' : '2px dashed var(--border)',
               borderRadius: 14,
               padding: '36px 20px',
               textAlign: 'center',
               cursor: 'pointer',
-              background: dragOver ? 'rgba(245, 158, 11, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+              background: dragOver ? 'rgba(245, 158, 11, 0.05)' : 'var(--card-2)',
               transition: 'all 0.2s ease',
               marginBottom: 16,
             }}
@@ -458,18 +458,18 @@ export default function Subscribe() {
                     maxHeight: 180,
                     maxWidth: '100%',
                     borderRadius: 8,
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    border: '1px solid var(--border)',
                   }}
                 />
-                <span className="small muted">Rasmni o'zgartirish uchun bosing</span>
+                <span className="small muted">{t('sub_change_photo')}</span>
               </div>
             ) : (
               <div>
                 <span style={{ fontSize: 36, display: 'block', marginBottom: 8 }}>📸</span>
                 <strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
-                  Chek rasmini bu yerga tashlang yoki tanlang
+                  {t('sub_drop_receipt')}
                 </strong>
-                <span className="muted small">PNG, JPG yoki JPEG formatda (maksimal 10 MB)</span>
+                <span className="muted small">{t('sub_receipt_formats')}</span>
               </div>
             )}
           </div>
@@ -485,7 +485,7 @@ export default function Subscribe() {
               fontSize: 15,
             }}
           >
-            {uploading ? "Chek yuklanmoqda..." : "To'lov chekini tasdiqlash uchun yuborish 🚀"}
+            {uploading ? t('sub_uploading') : t('sub_submit_btn')}
           </button>
         </form>
       </div>
@@ -493,7 +493,7 @@ export default function Subscribe() {
       {/* Step 4: User's Receipt History */}
       <div className="card" style={{ padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, margin: 0 }}>Mening to'lov cheklarim</h2>
+          <h2 style={{ fontSize: 18, margin: 0 }}>{t('sub_step4_title')}</h2>
           <button
             type="button"
             className="btn sm ghost"
@@ -508,7 +508,7 @@ export default function Subscribe() {
 
         {!loadingReceipts && receipts.length === 0 && (
           <p className="muted small" style={{ margin: 0 }}>
-            Siz hali to'lov cheki yuklamagansiz.
+            {t('sub_no_receipts')}
           </p>
         )}
 
@@ -524,7 +524,7 @@ export default function Subscribe() {
                   ? 'rgba(239, 68, 68, 0.15)'
                   : 'rgba(245, 158, 11, 0.15)';
               const statusText =
-                r.status === 'approved' ? 'Tasdiqlangan' : r.status === 'rejected' ? 'Rad etilgan' : 'Kutilmoqda';
+                r.status === 'approved' ? t('sub_status_approved') : r.status === 'rejected' ? t('sub_status_rejected') : t('sub_status_pending');
 
               return (
                 <div
@@ -535,8 +535,8 @@ export default function Subscribe() {
                     justifyContent: 'space-between',
                     padding: 14,
                     borderRadius: 10,
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
                     flexWrap: 'wrap',
                     gap: 10,
                   }}
@@ -552,28 +552,28 @@ export default function Subscribe() {
                             height: 44,
                             objectFit: 'cover',
                             borderRadius: 6,
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            border: '1px solid var(--border)',
                           }}
                         />
                       </a>
                     )}
                     <div>
                       <strong style={{ fontSize: 14, textTransform: 'capitalize' }}>
-                        {r.plan} tarifi — {Number(r.amount).toLocaleString()} so'm
+                        {r.plan} {t('sub_tariff_label')} — {Number(r.amount).toLocaleString()} {t('sub_per_month').split('/')[0].trim()}
                       </strong>
                       <span className="muted small" style={{ display: 'block' }}>
-                        {new Date(r.created_at).toLocaleDateString('uz-UZ', {
+                        {new Date(r.created_at).toLocaleDateString(lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
                         })}{' '}
-                        · Manba: {r.source.toUpperCase()}
+                        · {t('sub_source_label')} {r.source.toUpperCase()}
                       </span>
                       {r.admin_note && (
                         <span style={{ fontSize: 12, color: '#f87171', display: 'block', marginTop: 2 }}>
-                          Izoh: {r.admin_note}
+                          {t('sub_admin_note')} {r.admin_note}
                         </span>
                       )}
                     </div>

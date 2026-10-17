@@ -703,7 +703,7 @@ export default function Landing() {
                       boxShadow: '0 0 10px #10B981',
                     }}
                   />
-                  Milliy sertifikat — Ona tili va adabiyot (2026 yangi formati)
+                  {t('hero_badge_text')}
                 </span>
               </div>
 
@@ -718,8 +718,8 @@ export default function Landing() {
                   margin: '0 0 20px',
                 }}
               >
-                Milliy sertifikatga{' '}
-                <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                {t('hero_title_1')}{' '}
+                <span className="hero-title-gradient">{t('hero_title_2')}</span>
               </h1>
 
               {/* Subhead */}
@@ -732,8 +732,7 @@ export default function Landing() {
                   margin: '0 0 32px',
                 }}
               >
-                BMB Davlat standarti asosidagi <b style={{ color: '#F59E0B' }}>12 ta mezonli</b> AI Esse tahlili,{' '}
-                <b style={{ color: '#10B981' }}>Fast CBT</b> test simulyatori va jonli 1v1 Arena bellashuvlari.
+                {t('hero_subhead_desc')}
               </p>
 
               {/* 1-Click Action Buttons */}
@@ -766,7 +765,7 @@ export default function Landing() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <span>🚀 Bepul boshlash</span>
+                  <span>{t('hero_cta_start_free')}</span>
                   <span style={{ fontSize: 16 }}>→</span>
                 </button>
 
@@ -797,7 +796,7 @@ export default function Landing() {
                     e.currentTarget.style.background = 'var(--card-2)';
                   }}
                 >
-                  <span>⚡ 1-klikda kirish</span>
+                  <span>{t('hero_cta_login_1click')}</span>
                 </button>
               </div>
 
@@ -814,15 +813,15 @@ export default function Landing() {
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
-                  15 soniyada AI tahlil
+                  {t('trust_ai_speed')}
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
-                  12 ta rasmiy BMB mezoni
+                  {t('trust_bmb_criteria')}
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
-                  1v1 Jonli ELO Arena
+                  {t('trust_elo_arena')}
                 </span>
               </div>
             </div>
@@ -866,7 +865,7 @@ export default function Landing() {
                       boxShadow: demoTab === 'essay' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
                     }}
                   >
-                    ✍️ AI Esse (12 Mezon)
+                    {t('demo_tab_essay')}
                   </button>
                   <button
                     type="button"
@@ -885,7 +884,7 @@ export default function Landing() {
                       boxShadow: demoTab === 'test' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
                     }}
                   >
-                    📚 Fast CBT Test
+                    {t('demo_tab_test')}
                   </button>
                 </div>
 
@@ -904,10 +903,10 @@ export default function Landing() {
                     >
                       <div>
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                          Insho mavzusi
+                          {t('demo_topic_label')}
                         </span>
                         <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
-                          Alisher Navoiy ijodida insonparvarlik gʻoyalari
+                          {t('demo_topic_title')}
                         </h4>
                       </div>
                       <span
@@ -922,7 +921,7 @@ export default function Landing() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        A daraja · 90.8%
+                        {t('demo_grade_badge')}
                       </span>
                     </div>
 
@@ -941,20 +940,20 @@ export default function Landing() {
                       }}
                     >
                       <div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Umumiy ball:</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{t('demo_total_score')}</span>
                         <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
                           54.5 <span style={{ fontSize: 14, color: '#F59E0B' }}>/ 60</span>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Matn hajmi:</span>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>278 soʻz (Yetarli)</div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{t('demo_text_volume')}</span>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>{t('demo_words_count')}</div>
                       </div>
                     </div>
 
                     {/* Criteria Selector Chips */}
                     <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
-                      Mezonni tanlang (jonli tahlil):
+                      {t('demo_select_criterion')}
                     </p>
                     <div
                       style={{
@@ -1048,7 +1047,7 @@ export default function Landing() {
                         e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
                       }}
                     >
-                      O‘z essengizni tahlil qiling →
+                      {t('demo_analyze_own_essay')}
                     </button>
                   </div>
                 )}
@@ -1067,8 +1066,8 @@ export default function Landing() {
                         marginBottom: 12,
                       }}
                     >
-                      <span style={{ color: '#10B981' }}>● 38 / 45-savol</span>
-                      <span>Qolgan vaqt: 01:24:50</span>
+                      <span style={{ color: '#10B981' }}>{t('demo_cbt_question_count')}</span>
+                      <span>{t('demo_cbt_time_left')}</span>
                     </div>
 
                     <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
@@ -1122,8 +1121,8 @@ export default function Landing() {
                             <span>
                               <b>{opt.key})</b> {opt.text}
                             </span>
-                            {showCorrectState && <span>✓ To‘g‘ri</span>}
-                            {showWrongState && <span>✕ Noto‘g‘ri</span>}
+                            {showCorrectState && <span>{t('demo_cbt_correct')}</span>}
+                            {showWrongState && <span>{t('demo_cbt_wrong')}</span>}
                           </button>
                         );
                       })}
@@ -1143,7 +1142,7 @@ export default function Landing() {
                           marginBottom: 16,
                         }}
                       >
-                        <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>💡 Tahlil va izoh:</b>
+                        <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>{t('demo_cbt_analysis_title')}</b>
                         {CBT_QUESTION.explanation}
                       </div>
                     )}
@@ -1164,7 +1163,7 @@ export default function Landing() {
                         transition: 'all 0.2s ease',
                       }}
                     >
-                      To‘liq test sinovini boshlash →
+                      {t('demo_cbt_start_full_test')}
                     </button>
                   </div>
                 )}
@@ -1192,7 +1191,7 @@ export default function Landing() {
                   textTransform: 'uppercase',
                 }}
               >
-                PLATFORMA IMKONIYATLARI
+                {t('features_main_eyebrow')}
               </span>
               <h2
                 style={{
@@ -1202,11 +1201,11 @@ export default function Landing() {
                   margin: '12px 0',
                 }}
               >
-                Milliy sertifikatga tayyorlovchi{' '}
-                <span className="hero-title-gradient">3 ta asosiy yo‘nalish</span>
+                {t('features_main_title_1')}{' '}
+                <span className="hero-title-gradient">{t('features_main_title_2')}</span>
               </h2>
               <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-                BMB talablariga to‘liq moslashtirilgan sunʼiy intellekt va interaktiv tizimlar
+                {t('features_main_subtitle')}
               </p>
             </div>
 
@@ -1256,30 +1255,29 @@ export default function Landing() {
                       border: '1px solid rgba(245, 158, 11, 0.3)',
                     }}
                   >
-                    12 BMB Mezon
+                    {t('feature_card_essay_badge')}
                   </span>
                 </div>
 
                 <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  ✍️ AI Esse Baholash
+                  {t('feature_card_essay_title')}
                 </h3>
                 <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  12 ta rasmiy mezon boʻyicha inshongizni 15 soniya ichida grammatika, uslub, punktuatsiya va dalillanish
-                  darajasigacha chuqur tahlil qilib, aniq tavsiyalar beradi.
+                  {t('feature_card_essay_desc')}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>12 ta BMB mezoniga 100% muvofiqlik</span>
+                    <span>{t('feature_card_essay_bullet1')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>Imlo va punktuatsiya xatolarini ko‘rsatish</span>
+                    <span>{t('feature_card_essay_bullet2')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>A darajaga erishish uchun tavsiyalar</span>
+                    <span>{t('feature_card_essay_bullet3')}</span>
                   </div>
                 </div>
 
@@ -1305,7 +1303,7 @@ export default function Landing() {
                     e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
                   }}
                 >
-                  Esseni sinash →
+                  {t('feature_card_essay_action')}
                 </button>
               </div>
 
@@ -1347,30 +1345,29 @@ export default function Landing() {
                       border: '1px solid rgba(16, 185, 129, 0.3)',
                     }}
                   >
-                    Fast CBT Rejimi
+                    {t('feature_card_cbt_badge')}
                   </span>
                 </div>
 
                 <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  📚 Milliy Sertifikat Testlari
+                  {t('feature_card_cbt_title')}
                 </h3>
                 <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  Haqiqiy CBT imtihon muhiti — 1 tadan ishlash rejimi, aniq vaqt nazorati va har bir savolga professional
-                  ustozlar tahlili.
+                  {t('feature_card_cbt_desc')}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>1 tadan ishlash (Fast CBT interfeys)</span>
+                    <span>{t('feature_card_cbt_bullet1')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>BMB 2026 yangi formati (45 ta savol)</span>
+                    <span>{t('feature_card_cbt_bullet2')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>Har bir savolga batafsil tahliliy izoh</span>
+                    <span>{t('feature_card_cbt_bullet3')}</span>
                   </div>
                 </div>
 
@@ -1396,7 +1393,7 @@ export default function Landing() {
                     e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)';
                   }}
                 >
-                  Testlarni ishlash →
+                  {t('feature_card_cbt_action')}
                 </button>
               </div>
 
@@ -1438,30 +1435,29 @@ export default function Landing() {
                       border: '1px solid rgba(139, 92, 246, 0.3)',
                     }}
                   >
-                    Jonli ELO Duel
+                    {t('feature_card_arena_badge')}
                   </span>
                 </div>
 
                 <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  ⚔️ Real-vaqt 1v1 Arena
+                  {t('feature_card_arena_title')}
                 </h3>
                 <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  Butun respublika oʻquvchilari yoki AI bot bilan 60 soniyalik tezkor bilim jangi. ELO reytingingizni
-                  oshiring va ligalarda yetakchilik qiling!
+                  {t('feature_card_arena_desc')}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>Real vaqtda jonli raqib bilan bellashuv</span>
+                    <span>{t('feature_card_arena_bullet1')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>ELO reytingi va respublika ligalari</span>
+                    <span>{t('feature_card_arena_bullet2')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>60 soniyalik adrenalinli tezkor jang</span>
+                    <span>{t('feature_card_arena_bullet3')}</span>
                   </div>
                 </div>
 
@@ -1487,7 +1483,7 @@ export default function Landing() {
                     e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
                   }}
                 >
-                  Arenada bellashish →
+                  {t('feature_card_arena_action')}
                 </button>
               </div>
             </div>
@@ -1791,11 +1787,11 @@ export default function Landing() {
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
                     <ClockIcon size={18} style={{ color: '#F59E0B' }} />
-                    <span>24/7 Avtomatlashtirilgan AI</span>
+                    <span>{t('foot_ai_24_7')}</span>
                   </li>
                   <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
                     <MapPinIcon size={18} style={{ color: '#F59E0B' }} />
-                    <span>O‘zbekiston, Toshkent</span>
+                    <span>{t('foot_location')}</span>
                   </li>
                 </ul>
               </div>
@@ -1814,7 +1810,7 @@ export default function Landing() {
                 color: 'var(--muted)',
               }}
             >
-              <span>© {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). Barcha huquqlar himoyalangan.</span>
+              <span>© {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). {t('foot_rights')}</span>
               <span>
                 Website{' '}
                 <a

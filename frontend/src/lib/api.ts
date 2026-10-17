@@ -791,6 +791,26 @@ export const TelegramAuth = {
     if (!res.ok) await throwForResponse(res, 'Kod noto‘g‘ri yoki eskirgan.');
     return (await res.json()) as TelegramAuthLogin;
   },
+  loginWithWidget: async (data: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/auth/telegram/widget/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) await throwForResponse(res, 'Telegram orqali kirishda xatolik yuz berdi.');
+    return (await res.json()) as TelegramAuthLogin;
+  },
+  loginWithInitData: async (initData: string) => {
+    const res = await fetch(`${API_BASE}/tma/api/auth/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: initData }),
+    });
+    if (!res.ok) await throwForResponse(res, 'Telegram WebApp avtorizatsiyasida xatolik.');
+    return (await res.json()) as TelegramAuthLogin;
+  },
 };
 
 export interface GoogleAuthVerifyResponse {

@@ -80,6 +80,11 @@ urlpatterns = [
 
     # -- Telegram -------------------------------------------------------------
     path(
+        "telegram/widget/",
+        views.TelegramWidgetAuthView.as_view(),
+        name="telegram_widget_auth",
+    ),
+    path(
         "telegram/connect/",
         views.TelegramConnectView.as_view(),
         name="telegram_connect",

@@ -38,11 +38,13 @@ function getRoleLabel(role?: string, t?: (k: string) => string): string {
 export default function UserNavDropdown() {
   const { user, logout } = useAuth();
   const { lang, setLang, t } = useLang();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const isLight = resolvedTheme === 'light';
 
   // Close on outside click
   useEffect(() => {
@@ -93,9 +95,19 @@ export default function UserNavDropdown() {
           gap: 10,
           padding: '4px 12px 4px 6px',
           borderRadius: 9999,
-          background: open ? 'var(--card-2)' : 'rgba(255, 255, 255, 0.05)',
-          border: open ? '1px solid var(--accent)' : '1px solid var(--border)',
-          color: 'var(--ink)',
+          background: open
+            ? isLight
+              ? '#f1f5f9'
+              : 'var(--card-2)'
+            : isLight
+            ? 'rgba(0, 0, 0, 0.04)'
+            : 'rgba(255, 255, 255, 0.05)',
+          border: open
+            ? '1px solid var(--accent)'
+            : isLight
+            ? '1px solid #cbd5e1'
+            : '1px solid var(--border)',
+          color: isLight ? '#0f172a' : 'var(--ink)',
           cursor: 'pointer',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           boxShadow: open ? '0 0 16px rgba(245, 158, 11, 0.2)' : 'none',
@@ -103,13 +115,13 @@ export default function UserNavDropdown() {
         onMouseEnter={(e) => {
           if (!open) {
             e.currentTarget.style.borderColor = 'var(--border-focus)';
-            e.currentTarget.style.background = 'var(--card-2)';
+            e.currentTarget.style.background = isLight ? '#f1f5f9' : 'var(--card-2)';
           }
         }}
         onMouseLeave={(e) => {
           if (!open) {
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'var(--border)';
+            e.currentTarget.style.background = isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.05)';
           }
         }}
       >
@@ -165,7 +177,7 @@ export default function UserNavDropdown() {
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--muted)' }}
+          style={{ display: 'inline-flex', alignItems: 'center', color: isLight ? '#64748b' : 'var(--muted)' }}
         >
           <ChevronDownIcon size={14} />
         </motion.span>
@@ -186,15 +198,17 @@ export default function UserNavDropdown() {
               top: 'calc(100% + 8px)',
               right: 0,
               width: 290,
-              background: 'var(--dropdown-bg)',
-              border: '1px solid var(--dropdown-border)',
+              background: isLight ? '#ffffff' : 'var(--dropdown-bg)',
+              border: isLight ? '1px solid #e2e8f0' : '1px solid var(--dropdown-border)',
               borderRadius: 16,
-              boxShadow: 'var(--card-shadow, 0 16px 40px rgba(0, 0, 0, 0.35))',
+              boxShadow: isLight
+                ? '0 12px 36px rgba(0, 0, 0, 0.08)'
+                : 'var(--card-shadow, 0 16px 40px rgba(0, 0, 0, 0.35))',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               padding: 12,
               zIndex: 1000,
-              color: 'var(--ink)',
+              color: isLight ? '#0f172a' : 'var(--ink)',
             }}
           >
             {/* Header: User Info Card */}
@@ -204,7 +218,7 @@ export default function UserNavDropdown() {
                 alignItems: 'center',
                 gap: 12,
                 padding: '8px 10px 12px',
-                borderBottom: '1px solid var(--border)',
+                borderBottom: isLight ? '1px solid #f1f5f9' : '1px solid var(--border)',
                 marginBottom: 8,
               }}
             >
@@ -248,6 +262,7 @@ export default function UserNavDropdown() {
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
+                    color: isLight ? '#0f172a' : 'var(--ink)',
                   }}
                 >
                   {user.full_name || 'Foydalanuvchi'}
@@ -256,7 +271,7 @@ export default function UserNavDropdown() {
                   style={{
                     display: 'block',
                     fontSize: 12,
-                    color: 'var(--muted)',
+                    color: isLight ? '#64748b' : 'var(--muted)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -295,17 +310,17 @@ export default function UserNavDropdown() {
                 gap: 10,
                 padding: '9px 12px',
                 borderRadius: 10,
-                color: 'var(--ink)',
+                color: isLight ? '#0f172a' : 'var(--ink)',
                 textDecoration: 'none',
                 fontSize: 13,
                 fontWeight: 600,
                 transition: 'background 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--dropdown-hover)')}
+              onMouseEnter={(e) => (e.currentTarget.style.background = isLight ? '#f8fafc' : 'var(--dropdown-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <UserIcon size={16} style={{ color: 'var(--accent)' }} />
-              <span>Profil ma'lumotlari & Sozlamalar</span>
+              <span>{t('profile_settings_title')}</span>
             </Link>
 
             {/* Item 2: Language Segmented Switcher */}
@@ -318,21 +333,21 @@ export default function UserNavDropdown() {
                   marginBottom: 6,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: 'var(--muted)',
+                  color: isLight ? '#64748b' : 'var(--muted)',
                 }}
               >
                 <GlobeIcon size={14} />
-                <span>Tilni tanlash</span>
+                <span>{t('select_language_title')}</span>
               </div>
               <div
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gap: 4,
-                  background: 'var(--card-2)',
+                  background: isLight ? '#f1f5f9' : 'var(--card-2)',
                   padding: 3,
                   borderRadius: 10,
-                  border: '1px solid var(--border)',
+                  border: isLight ? '1px solid #e2e8f0' : '1px solid var(--border)',
                 }}
               >
                 {[
@@ -354,7 +369,7 @@ export default function UserNavDropdown() {
                         fontWeight: isActive ? 700 : 500,
                         cursor: 'pointer',
                         background: isActive ? 'var(--accent)' : 'transparent',
-                        color: isActive ? '#090d16' : 'var(--ink-soft)',
+                        color: isActive ? '#090d16' : isLight ? '#475569' : 'var(--ink-soft)',
                         transition: 'all 0.15s ease',
                       }}
                     >
@@ -375,27 +390,27 @@ export default function UserNavDropdown() {
                   marginBottom: 6,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: 'var(--muted)',
+                  color: isLight ? '#64748b' : 'var(--muted)',
                 }}
               >
                 <MoonIcon size={14} />
-                <span>Mavzuni tanlash</span>
+                <span>{t('select_theme_title')}</span>
               </div>
               <div
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gap: 4,
-                  background: 'var(--card-2)',
+                  background: isLight ? '#f1f5f9' : 'var(--card-2)',
                   padding: 3,
                   borderRadius: 10,
-                  border: '1px solid var(--border)',
+                  border: isLight ? '1px solid #e2e8f0' : '1px solid var(--border)',
                 }}
               >
                 {[
-                  { key: 'dark' as Theme, label: "Qorong'i", icon: MoonIcon },
-                  { key: 'light' as Theme, label: "Yorug'", icon: SunIcon },
-                  { key: 'system' as Theme, label: 'Tizim', icon: MonitorIcon },
+                  { key: 'dark' as Theme, label: t('theme_dark'), icon: MoonIcon },
+                  { key: 'light' as Theme, label: t('theme_light'), icon: SunIcon },
+                  { key: 'system' as Theme, label: t('theme_system'), icon: MonitorIcon },
                 ].map((item) => {
                   const isActive = theme === item.key;
                   const Icon = item.icon;
@@ -417,7 +432,7 @@ export default function UserNavDropdown() {
                         fontWeight: isActive ? 700 : 500,
                         cursor: 'pointer',
                         background: isActive ? 'var(--accent)' : 'transparent',
-                        color: isActive ? '#090d16' : 'var(--ink-soft)',
+                        color: isActive ? '#090d16' : isLight ? '#475569' : 'var(--ink-soft)',
                         transition: 'all 0.15s ease',
                       }}
                     >
@@ -433,7 +448,7 @@ export default function UserNavDropdown() {
             <div
               style={{
                 height: 1,
-                background: 'var(--border)',
+                background: isLight ? '#f1f5f9' : 'var(--border)',
                 margin: '6px 0',
               }}
             />
@@ -452,18 +467,20 @@ export default function UserNavDropdown() {
                 borderRadius: 10,
                 border: 'none',
                 background: 'transparent',
-                color: '#f43f5e',
+                color: isLight ? '#e11d48' : '#f43f5e',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'background 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244, 63, 94, 0.12)')}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = isLight ? '#fee2e2' : 'rgba(244, 63, 94, 0.12)')
+              }
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <LogOutIcon size={16} />
-              <span>{t('logout') || 'Tizimdan chiqish'}</span>
+              <span>{t('logout')}</span>
             </button>
           </motion.div>
         )}
