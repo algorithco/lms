@@ -953,6 +953,28 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         await admin_panel_handler(update, context)
         return
 
+    # Check for awaiting_create_group state
+    if context.user_data.get("awaiting_create_group"):
+        context.user_data.pop("awaiting_create_group", None)
+        user = await _get_or_create_user_async(update)
+        group_name = raw_text.strip()
+        if len(group_name) < 2:
+            await update.message.reply_text("Iltimos, guruh nomini to'liqroq kiriting.")
+            return
+        from apps.courses.models import StudentGroup
+        grp = await _run_db(lambda: StudentGroup.objects.create(teacher=user, name=group_name))
+        invite_code = grp.invite_code or f"GR-{grp.id}"
+        await update.message.reply_text(
+            f"✅ *Yangi guruh muvaffaqiyatli ochildi!*\n\n"
+            f"🏫 Guruh nomi: *{grp.name}*\n"
+            f"📌 Taklif kodi: `#{invite_code}`\n\n"
+            f"O'quvchilaringizga ushbu kodni yuboring. O'quvchi botga `#{invite_code}` deb yozishi "
+            f"bilanoq guruhga qo'shiladi va unga avtomatik PRO tarifi beriladi!",
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+        return
+
     # Check for #MOCK-XXX or MOCK-XXX code input or awaiting_mock_code
     upper_raw = raw_text.upper().strip()
     is_awaiting_mock = bool(context.user_data.get("awaiting_mock_code"))
@@ -4427,6 +4449,38 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             group_id = _safe_callback_int(data, prefix="tgreport_")
             if group_id is not None:
                 await _group_report_callback(update, context, group_id)
+        elif data == "tgrp_create_new":
+            context.user_data["awaiting_create_group"] = True
+            await edit_or_reply(
+                update,
+                "🏫 *Yangi guruh ochish*\n\n"
+                "Iltimos, yangi guruhingiz nomini yozing:\n"
+                "Masalan: `10-A Ona tili` yoki `Milliy Sertifikat Intensive`",
+                parse_mode="Markdown",
+            )
+        elif data.startswith("ttuition_"):
+            group_id = _safe_callback_int(data, prefix="ttuition_")
+            if group_id is not None:
+                await _tuition_group_callback(update, context, group_id)
+        elif data.startswith("tuitpay_"):
+            tuition_id = _safe_callback_int(data, prefix="tuitpay_")
+            if tuition_id is not None:
+                await _tuition_mark_paid_callback(update, context, tuition_id)
+        elif data.startswith("thwadd_"):
+            group_id = _safe_callback_int(data, prefix="thwadd_")
+            await edit_or_reply(
+                update,
+                f"📚 *Uyga vazifa berish:*\n\n"
+                f"Quyidagi buyruq orqali vazifa bering:\n"
+                f"`/new_homework 44-rasmiy Mock test va Esse tahlili`",
+                parse_mode="Markdown",
+            )
+        elif data.startswith("thw_"):
+            group_id = _safe_callback_int(data, prefix="thw_")
+            if group_id is not None:
+                await _homework_group_callback(update, context, group_id)
+        elif data == "tgrpleaderboard":
+            await group_leaderboard_handler(update, context)
         elif data.startswith(("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")):
             report_id = _safe_report_callback_id(data)
             if report_id is not None:
@@ -5757,6 +5811,356 @@ async def teacher_group_excel_callback(update: Update, context: ContextTypes.DEF
 
 
 @require_role("TEACHER")
+async def create_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create a new group via /create_group <name> or start interactive name input."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    args = context.args or []
+    if args:
+        name = " ".join(args).strip()
+        from apps.courses.models import StudentGroup
+        grp = await _run_db(lambda: StudentGroup.objects.create(teacher=user, name=name))
+        invite_code = grp.invite_code or f"GR-{grp.id}"
+        await update.message.reply_text(
+            f"✅ *Yangi guruh muvaffaqiyatli ochildi!*\n\n"
+            f"🏫 Guruh nomi: *{grp.name}*\n"
+            f"📌 Taklif kodi: `#{invite_code}`\n\n"
+            f"O'quvchilaringizga ushbu kodni yuboring. O'quvchi botga `#{invite_code}` deb yozishi "
+            f"bilanoq guruhga qo'shiladi va unga avtomatik PRO tarifi beriladi!",
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+        return
+
+    context.user_data["awaiting_create_group"] = True
+    await update.message.reply_text(
+        "🏫 *Yangi guruh ochish*\n\n"
+        "Iltimos, ochmoqchi bo'lgan guruhingiz nomini yozing:\n"
+        "Masalan: `10-A Ona tili` yoki `Milliy Sertifikat Intensive`",
+        parse_mode="Markdown",
+    )
+
+
+async def _tuition_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+    """Show tuition billing status for students in the group with one-click payment toggle."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if not group:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+
+    from datetime import date
+    from apps.tuition.models import StudentTuition
+
+    def _sync_and_get_tuition(grp):
+        students = list(grp.students.filter(is_active=True).order_by("first_name", "last_name"))
+        today = date.today()
+        due_date = date(today.year, today.month, 20)
+        recs = []
+        for s in students:
+            rec, _ = StudentTuition.objects.get_or_create(
+                student=s,
+                group=grp,
+                due_date=due_date,
+                defaults={"monthly_fee": 400000, "status": StudentTuition.Status.PENDING},
+            )
+            recs.append(rec)
+        return recs
+
+    records = await _run_db(_sync_and_get_tuition, group)
+    lines = [
+        f"💳 *{group.name} — Oylik to'lovlar holati*",
+        f"Standart oylik to'lov: *400 000 so'm* · Muddati: *20-sana*\n",
+    ]
+
+    unpaid_buttons = []
+    paid_count = 0
+    pending_count = 0
+
+    for idx, tuit in enumerate(records, 1):
+        s_name = tuit.student.get_full_name() or tuit.student.email
+        fee_str = f"{tuit.monthly_fee:,}".replace(",", " ")
+        if tuit.status == StudentTuition.Status.PAID:
+            paid_count += 1
+            lines.append(f"{idx}. *{s_name}* — {fee_str} so'm ✅ *(To'langan)*")
+        else:
+            pending_count += 1
+            lines.append(f"{idx}. *{s_name}* — {fee_str} so'm ❌ *(Qarzdor)*")
+            unpaid_buttons.append([
+                InlineKeyboardButton(
+                    f"✅ To'landi: {s_name[:18]}",
+                    callback_data=f"tuitpay_{tuit.id}",
+                )
+            ])
+
+    lines.append(f"\n📊 *Jami:* {paid_count} to'langan, {pending_count} qarzdor.")
+    if pending_count > 0:
+        lines.append("Quyidagi tugma orqali to'lovni 1-bosishda tasdiqlang 👇")
+
+    keyboard_rows = unpaid_buttons[:8]
+    keyboard_rows.append([
+        InlineKeyboardButton("🔄 Yangilash", callback_data=f"ttuition_{group.id}"),
+        InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
+    ])
+    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard_rows))
+
+
+async def _tuition_mark_paid_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, tuition_id: int) -> None:
+    """One-click payment confirmation by teacher with automatic student & parent notice."""
+    query = update.callback_query
+    from apps.tuition.models import StudentTuition
+    from apps.accounts.models import ParentStudentRelation
+    from apps.notifications.services.telegram_service import TelegramService
+
+    def _mark_paid(t_id):
+        tuit = StudentTuition.objects.select_related("student", "group").filter(id=t_id).first()
+        if not tuit:
+            return None
+        tuit.mark_paid()
+        return tuit
+
+    tuit = await _run_db(_mark_paid, tuition_id)
+    if not tuit:
+        if query:
+            await query.answer("To'lov yozuvi topilmadi.", show_alert=True)
+        return
+
+    student = tuit.student
+    student_name = student.get_full_name() or student.email
+    group_name = tuit.group.name
+    fee_str = f"{tuit.monthly_fee:,}".replace(",", " ")
+
+    if query:
+        await query.answer(f"✅ {student_name} to'lovi tasdiqlandi!", show_alert=True)
+
+    alert_text = (
+        f"🎉 <b>To'lovingiz tasdiqlandi!</b>\n\n"
+        f"Hurmatli <b>{student_name}</b>, ustozingiz <b>{group_name}</b> kursi uchun "
+        f"oylik to'lovingizni (<b>{fee_str} so'm</b>) qabul qildi va tasdiqladi. Rahmat!\n\n"
+        f"<i>GRAND EDUCATION</i>"
+    )
+    student_tg = getattr(student, "telegram_chat_id", None) or getattr(student, "telegram_id", None)
+    if student_tg:
+        try:
+            TelegramService.send_message(chat_id=student_tg, text=alert_text, parse_mode="HTML")
+        except Exception:
+            pass
+
+    parent_rels = await _run_db(
+        lambda: list(ParentStudentRelation.objects.filter(
+            student=student, is_verified=True, parent_telegram_id__isnull=False
+        ))
+    )
+    parent_alert_text = (
+        f"🎉 <b>Hurmatli ota-ona!</b>\n\n"
+        f"Farzandingiz <b>{student_name}</b>ning <b>{group_name}</b> kursi uchun oylik to'lovi (<b>{fee_str} so'm</b>) "
+        f"ustoz tomonidan qabul qilindi va tasdiqlandi.\n\n"
+        f"<i>GRAND EDUCATION Smart Monitoring</i>"
+    )
+    for rel in parent_rels:
+        try:
+            TelegramService.send_message(chat_id=rel.parent_telegram_id, text=parent_alert_text, parse_mode="HTML")
+        except Exception:
+            pass
+
+    await _tuition_group_callback(update, context, tuit.group_id)
+
+
+async def group_leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show learning center groups leaderboard based on average test scores."""
+    from apps.courses.models import StudentGroup
+    from apps.results.models import Result
+    from django.db.models import Avg
+
+    def _calc_leaderboard():
+        groups = StudentGroup.objects.all().prefetch_related("students")
+        board = []
+        for g in groups:
+            st_ids = list(g.students.filter(is_active=True).values_list("id", flat=True))
+            if not st_ids:
+                continue
+            avg_res = Result.objects.filter(student_id__in=st_ids).aggregate(avg=Avg("percentage"))["avg"]
+            avg_pct = round(float(avg_res), 1) if avg_res else 0.0
+            board.append({
+                "group_name": g.name,
+                "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+                "students_count": len(st_ids),
+                "avg_pct": avg_pct,
+            })
+        board.sort(key=lambda x: x["avg_pct"], reverse=True)
+        return board[:10]
+
+    board = await _run_db(_calc_leaderboard)
+    lines = [
+        "🏆 *GRAND EDUCATION — GURUHLAR REYTINGI*",
+        "Markazning eng yuqori o'zlashtirishga ega TOP-10 guruhlari:\n",
+    ]
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    for i, item in enumerate(board):
+        m = medals[i] if i < len(medals) else f"{i+1}."
+        from apps.tests.bmb_grading import calculate_bmb_grade
+        grade = calculate_bmb_grade(item["avg_pct"])["grade"]
+        lines.append(
+            f"{m} *{item['group_name']}* — *{item['avg_pct']}%* (BMB: {grade})\n"
+            f"   👨‍🏫 Ustoz: {item['teacher_name']} · {item['students_count']} o'quvchi\n"
+        )
+    if not board:
+        lines.append("Hozircha guruhlar statistikasi shakllanmagan.")
+
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")]])
+    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
+
+
+@require_role("TEACHER")
+async def export_group_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Export group report to Excel immediately via /export_group_report."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await update.message.reply_text("Sizga tegishli guruh topilmadi.")
+        return
+
+    args = context.args or []
+    target_group = None
+    if args:
+        try:
+            raw_id = args[0].replace("#", "").replace("GR-", "").strip()
+            gid = int(raw_id)
+            target_group = next((g for g in groups if g.id == gid), None)
+        except ValueError:
+            pass
+    if not target_group and len(groups) == 1:
+        target_group = groups[0]
+
+    if target_group:
+        await update.message.reply_text(f"📊 *{target_group.name}* guruhi bo'yicha Excel hisobot tayyorlanmoqda...", parse_mode="Markdown")
+        await _send_group_excel_document(update, context, target_group)
+    else:
+        buttons = [
+            [InlineKeyboardButton(f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}")]
+            for g in groups
+        ]
+        await update.message.reply_text(
+            "📊 *Qaysi guruhingiz hisobotini Excelda yuklamoqchisiz?*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+
+
+async def _homework_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+    """Show homework assignments for the group."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    group = await _load_managed_group(user, group_id)
+    if not group:
+        await edit_or_reply(update, "🏫 Guruh topilmadi yoki sizga tegishli emas.")
+        return
+
+    from apps.courses.models import Homework
+
+    def _get_hws():
+        return list(Homework.objects.filter(group=group).order_by("-created_at")[:5])
+
+    hws = await _run_db(_get_hws)
+    lines = [f"📚 *{group.name} — Uyga vazifalar*", ""]
+    if not hws:
+        lines.append("Ushbu guruhga hali uyga vazifa berilmagan.\n")
+        lines.append("Yangi vazifa berish uchun: `/new_homework <vazifa matni>`")
+    else:
+        for idx, hw in enumerate(hws, 1):
+            due_str = hw.due_date.strftime("%d.%m.%Y %H:%M")
+            lines.append(
+                f"{idx}. *{hw.title}*\n"
+                f"   ⏰ Muddat: *{due_str}*\n"
+            )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Yangi vazifa berish", callback_data=f"thwadd_{group.id}")],
+        [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+    ])
+    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
+
+
+@require_role("TEACHER")
+async def new_homework_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create a homework assignment for the group: /new_homework <vazifa nomi>."""
+    user = await _teacher_from_update(update)
+    if not user:
+        return
+    from apps.attendance.services import teacher_groups
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await update.message.reply_text("Sizga tegishli guruh topilmadi.")
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "📚 *Uyga vazifa berish:*\n\n"
+            "Quyidagi formatda yozing:\n"
+            "`/new_homework 44-rasmiy Mock test va Esse tahlili`\n\n"
+            "Muddat avtomatik ravishda 3 kun qilib belgilanadi va guruhdagi barcha o'quvchilarga Telegram orqali xabar boradi.",
+            parse_mode="Markdown",
+        )
+        return
+
+    hw_title = " ".join(args).strip()
+    target_group = groups[0] # Birinchi guruh
+
+    from apps.courses.models import Homework
+    from django.utils import timezone
+    from datetime import timedelta
+    from apps.notifications.services.telegram_service import TelegramService
+
+    def _create_hw():
+        due_date = timezone.now() + timedelta(days=3)
+        hw = Homework.objects.create(
+            group=target_group,
+            title=hw_title,
+            due_date=due_date,
+            created_by=user,
+        )
+        students = list(target_group.students.filter(is_active=True))
+        return hw, students
+
+    hw, students = await _run_db(_create_hw)
+    due_str = hw.due_date.strftime("%d.%m.%Y %H:%M")
+
+    # O'quvchilarga xabar tarqatish
+    notify_text = (
+        f"📚 <b>Yangi uyga vazifa berildi!</b>\n\n"
+        f"🏫 Guruh: <b>{target_group.name}</b>\n"
+        f"📌 Vazifa: <b>{hw.title}</b>\n"
+        f"⏰ Topshirish muddati (Deadline): <b>{due_str}</b>\n\n"
+        f"<i>Vazifani o'z vaqtida bajarishingizni so'raymiz!</i>"
+    )
+    for s in students:
+        s_tg = getattr(s, "telegram_chat_id", None) or getattr(s, "telegram_id", None)
+        if s_tg:
+            try:
+                TelegramService.send_message(chat_id=s_tg, text=notify_text, parse_mode="HTML")
+            except Exception:
+                pass
+
+    await update.message.reply_text(
+        f"✅ *Uyga vazifa muvaffaqiyatli berildi!*\n\n"
+        f"🏫 Guruh: *{target_group.name}*\n"
+        f"📌 Vazifa: *{hw.title}*\n"
+        f"⏰ Topshirish muddati: *{due_str}*\n"
+        f"👥 *{len(students)} nafar* o'quvchiga eslatma yuborildi.",
+        parse_mode="Markdown",
+        reply_markup=_persistent_menu_keyboard("teacher"),
+    )
+
+
+@require_role("TEACHER")
 async def teacher_test_bank_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show test bank for teachers."""
     from django.conf import settings as _settings
@@ -6299,6 +6703,19 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
         f"• 📄 {result['excused']} sababli\n"
         f"• ❌ {result['absent']} kelmadi"
     )
+
+    # Kelmagan o'quvchilar ota-onalariga ogohlantirish yuborish
+    def _notify_absences(sess):
+        from apps.notifications.tasks_parent import send_parent_absence_alert_task
+        absent_recs = sess.records.filter(status="absent")
+        for rec in absent_recs:
+            try:
+                send_parent_absence_alert_task.delay(sess.id, rec.student_id)
+            except Exception:
+                pass
+
+    await _run_db(_notify_absences, session)
+
     await edit_or_reply(
         update, text, parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
@@ -7075,8 +7492,12 @@ def setup_handlers(app) -> None:
     # Teacher group management, mock creation, attendance and group reports
     app.add_handler(CommandHandler("newmock", newmock_handler))
     app.add_handler(CommandHandler("admin", admin_panel_handler))
-    app.add_handler(CommandHandler("promote_teacher", promote_teacher_handler))
     app.add_handler(CommandHandler("groups", groups_handler))
+    app.add_handler(CommandHandler("my_groups", groups_handler))
+    app.add_handler(CommandHandler("create_group", create_group_handler))
+    app.add_handler(CommandHandler("export_group_report", export_group_report_handler))
+    app.add_handler(CommandHandler("group_leaderboard", group_leaderboard_handler))
+    app.add_handler(CommandHandler("new_homework", new_homework_handler))
     app.add_handler(CommandHandler("attendance", attendance_handler))
     app.add_handler(CommandHandler("attendance_report", attendance_report_handler))
     app.add_handler(CommandHandler("students", students_handler))
