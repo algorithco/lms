@@ -122,6 +122,8 @@ function AnimatedRoutes() {
             <Route path="/games/lugat-match" element={<Navigate to="/games/lugat_match" replace />} />
             <Route path="/games/:slug" element={<PlayGame />} />
             {/* Billing (legacy /subscribe/* shapes) */}
+            <Route path="/plans" element={<Plans />} />
+            <Route path="/premium" element={<Plans />} />
             <Route path="/subscribe" element={<Plans />} />
             <Route path="/subscribe/my" element={<Navigate to="/my-subscription" replace />} />
             <Route path="/subscribe/success" element={<Navigate to="/my-subscription" replace />} />

@@ -129,13 +129,20 @@ def card_info_view(request):
     """GET /api/v1/payments/card-info/ — Public card and plan price settings."""
     card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-    starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 49000
-    premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 99000
+    starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 15000
+    pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 49000
+    premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 60000
     return Response({
         "card_number": card_number,
         "card_holder": card_holder,
         "starter_price": starter_price,
+        "pro_price": pro_price,
         "premium_price": premium_price,
+        "plans": {
+            "starter": {"name": "Starter", "price": starter_price, "label": f"{starter_price:,} so'm/oy".replace(",", " ")},
+            "pro": {"name": "Pro", "price": pro_price, "label": f"{pro_price:,} so'm/oy".replace(",", " ")},
+            "premium": {"name": "Premium", "price": premium_price, "label": f"{premium_price:,} so'm/oy".replace(",", " ")},
+        },
     })
 
 
@@ -145,17 +152,22 @@ def card_info_view(request):
 def payment_receipt_upload_view(request):
     """POST /api/v1/payments/receipts/ — Upload card payment screenshot/receipt."""
     plan = str(request.data.get("plan", "")).strip().lower()
-    if plan not in ("starter", "premium"):
-        return Response({"detail": "Tarif 'starter' yoki 'premium' bo'lishi kerak."}, status=400)
+    if plan not in ("starter", "pro", "premium"):
+        return Response({"detail": "Tarif 'starter', 'pro' yoki 'premium' bo'lishi kerak."}, status=400)
 
     amount_val = request.data.get("amount")
+    default_amounts = {
+        "starter": getattr(settings, "PLAN_STARTER_PRICE", 15000),
+        "pro": getattr(settings, "PLAN_PRO_PRICE", 49000),
+        "premium": getattr(settings, "PLAN_PREMIUM_PRICE", 60000),
+    }
     if amount_val:
         try:
             amount = Decimal(str(amount_val))
         except (InvalidOperation, ValueError):
-            amount = Decimal(getattr(settings, f"PLAN_{plan.upper()}_PRICE", 49000))
+            amount = Decimal(default_amounts.get(plan, 15000))
     else:
-        amount = Decimal(getattr(settings, f"PLAN_{plan.upper()}_PRICE", 49000))
+        amount = Decimal(default_amounts.get(plan, 15000))
 
     receipt_image = request.FILES.get("receipt_image")
     if not receipt_image:

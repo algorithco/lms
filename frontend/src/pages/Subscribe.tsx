@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Billing, PaymentsApi, type PaymentReceiptItem } from '../lib/api';
 import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
 export default function Subscribe() {
   const { planId } = useParams();
+  const [searchParams] = useSearchParams();
+  const planQuery = searchParams.get('plan');
   const { t } = useLang();
 
-  // Selected plan slug: 'starter' | 'premium'
-  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'premium'>('starter');
+  // Selected plan slug: 'starter' | 'pro' | 'premium'
+  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
   const [cardInfo, setCardInfo] = useState({
     card_number: '9860 **** **** ****',
     card_holder: 'KOMILJON R',
-    starter_price: 49000,
-    premium_price: 99000,
+    starter_price: 15000,
+    pro_price: 49000,
+    premium_price: 60000,
   });
   const [copied, setCopied] = useState(false);
 
@@ -37,27 +40,38 @@ export default function Subscribe() {
     PaymentsApi.cardInfo()
       .then((data) => {
         if (data.card_number) {
-          setCardInfo(data);
+          setCardInfo({
+            card_number: data.card_number,
+            card_holder: data.card_holder,
+            starter_price: data.starter_price ?? 15000,
+            pro_price: data.pro_price ?? 49000,
+            premium_price: data.premium_price ?? 60000,
+          });
         }
       })
       .catch(() => {});
 
     loadReceipts();
 
-    // If planId was passed in route, check if it maps to premium or starter
-    if (planId) {
+    if (planQuery === 'pro' || planQuery === 'premium' || planQuery === 'starter') {
+      setSelectedPlan(planQuery);
+    } else if (planId) {
       Billing.plans()
         .then((res) => {
-          const match = res.results.find((p) => String(p.id) === String(planId));
+          const match = res.results.find(
+            (p) => String(p.id) === String(planId) || p.plan_type === planId,
+          );
           if (match && match.plan_type === 'premium') {
             setSelectedPlan('premium');
+          } else if (match && match.plan_type === 'pro') {
+            setSelectedPlan('pro');
           } else if (match && (match.plan_type === 'starter' || match.plan_type === 'start')) {
             setSelectedPlan('starter');
           }
         })
         .catch(() => {});
     }
-  }, [planId]);
+  }, [planId, planQuery]);
 
   const loadReceipts = () => {
     setLoadingReceipts(true);
@@ -104,6 +118,13 @@ export default function Subscribe() {
     }
   };
 
+  const currentPrice =
+    selectedPlan === 'premium'
+      ? cardInfo.premium_price
+      : selectedPlan === 'pro'
+      ? cardInfo.pro_price
+      : cardInfo.starter_price;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -115,7 +136,7 @@ export default function Subscribe() {
     setUploadError(null);
     setUploadSuccess(null);
 
-    const price = selectedPlan === 'premium' ? cardInfo.premium_price : cardInfo.starter_price;
+    const price = currentPrice;
 
     try {
       await PaymentsApi.uploadReceipt(selectedPlan, selectedFile, price);
@@ -133,10 +154,8 @@ export default function Subscribe() {
     }
   };
 
-  const currentPrice = selectedPlan === 'premium' ? cardInfo.premium_price : cardInfo.starter_price;
-
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', paddingBottom: 60 }}>
+    <div style={{ maxWidth: 920, margin: '0 auto', paddingBottom: 60 }}>
       <p style={{ marginBottom: 16 }}>
         <Link to="/plans" className="muted" style={{ textDecoration: 'none' }}>
           ← {t('pay_back_to_plans')}
@@ -170,22 +189,23 @@ export default function Subscribe() {
       {/* Step 1: Select Plan */}
       <div className="card" style={{ marginBottom: 20, padding: 24 }}>
         <h2 style={{ fontSize: 18, marginBottom: 16 }}>1. Tarifni tanlang</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          {/* Starter */}
           <div
             onClick={() => setSelectedPlan('starter')}
             style={{
               padding: 20,
               borderRadius: 14,
               cursor: 'pointer',
-              border: selectedPlan === 'starter' ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.1)',
-              background: selectedPlan === 'starter' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+              border: selectedPlan === 'starter' ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+              background: selectedPlan === 'starter' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.02)',
               transition: 'all 0.2s ease',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 24 }}>⚡️</span>
               {selectedPlan === 'starter' && (
-                <span className="badge yellow" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
+                <span className="badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>
                   Tanlangan
                 </span>
               )}
@@ -194,13 +214,63 @@ export default function Subscribe() {
             <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
               {cardInfo.starter_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
             </p>
-            <ul className="muted small" style={{ paddingLeft: 18, margin: 0 }}>
-              <li>5 ta AI rasmli esse baholash</li>
-              <li>10 ta matnli esse</li>
-              <li>30 ta test ishlash</li>
+            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
+              <li>Haftalik 5 ta rasm / 3 ta matn esse</li>
+              <li>Standart Milliy sertifikat testlari</li>
+              <li>Kunlik 20 ta AI repetitor so'rovi</li>
             </ul>
           </div>
 
+          {/* Pro (Recommended) */}
+          <div
+            onClick={() => setSelectedPlan('pro')}
+            style={{
+              padding: 20,
+              borderRadius: 14,
+              cursor: 'pointer',
+              border: selectedPlan === 'pro' ? '2px solid #fbbf24' : '1px solid rgba(245, 158, 11, 0.3)',
+              background: selectedPlan === 'pro' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.03)',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: -10,
+                right: 16,
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 20,
+                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              ⭐ TAVSIYA ETILADI
+            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 24 }}>🚀</span>
+              {selectedPlan === 'pro' && (
+                <span className="badge yellow" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
+                  Tanlangan
+                </span>
+              )}
+            </div>
+            <strong style={{ fontSize: 18, display: 'block' }}>Pro</strong>
+            <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
+              {cardInfo.pro_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
+            </p>
+            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
+              <li>Haftalik 15 ta esse baholash</li>
+              <li>Barcha CBT va Mock testlar</li>
+              <li>Kunlik 50 ta AI repetitor so'rovi</li>
+              <li>To'liq tahlil va xatolar hisoboti</li>
+            </ul>
+          </div>
+
+          {/* Premium */}
           <div
             onClick={() => setSelectedPlan('premium')}
             style={{
@@ -213,21 +283,6 @@ export default function Subscribe() {
               position: 'relative',
             }}
           >
-            <span
-              style={{
-                position: 'absolute',
-                top: -10,
-                right: 16,
-                background: '#10b981',
-                color: '#fff',
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 20,
-              }}
-            >
-              ⭐ TAVSIYA ETILADI
-            </span>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 24 }}>👑</span>
               {selectedPlan === 'premium' && (
@@ -240,11 +295,11 @@ export default function Subscribe() {
             <p className="stat-value" style={{ margin: '8px 0', fontSize: 22, color: '#f8fafc' }}>
               {cardInfo.premium_price.toLocaleString()} <span style={{ fontSize: 14, color: '#94a3b8' }}>so'm / oy</span>
             </p>
-            <ul className="muted small" style={{ paddingLeft: 18, margin: 0 }}>
-              <li>Cheksiz AI esse baholash (12 mezon)</li>
-              <li>Cheksiz Milliy sertifikat testlari</li>
-              <li>Real-vaqt 1v1 Arena ELO jangi</li>
-              <li>Rasmiy PDF Sertifikat</li>
+            <ul className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}>
+              <li>Cheksiz esse baholash (12 mezon)</li>
+              <li>Barcha Mock testlar va 1v1 Arena</li>
+              <li>Cheksiz 24/7 AI repetitor</li>
+              <li>Rasmiy PDF Sertifikat & Ustoz tekshiruvi</li>
             </ul>
           </div>
         </div>

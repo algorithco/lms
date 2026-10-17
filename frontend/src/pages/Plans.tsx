@@ -127,9 +127,16 @@ export default function Plans() {
 
   // Never show the store a plan that administrators have hidden, nor the
   // sponsored tier (it is granted, not purchased).
-  const visiblePlans = plans.filter(
-    (p) => p.is_public !== false && p.plan_type !== 'teacher_sponsored',
-  );
+  const planOrder: Record<string, number> = {
+    free: 0,
+    starter: 1,
+    start: 1,
+    pro: 2,
+    premium: 3,
+  };
+  const visiblePlans = plans
+    .filter((p) => p.is_public !== false && p.plan_type !== 'teacher_sponsored')
+    .sort((a, b) => (planOrder[a.plan_type] ?? 99) - (planOrder[b.plan_type] ?? 99));
 
   return (
     <div>
@@ -157,7 +164,7 @@ export default function Plans() {
             💳 Karta orqali tezkor to'lov va chek yuklash
           </strong>
           <span className="muted small">
-            Starter (49 000 so'm) yoki Premium (99 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
+            Starter (15 000 so'm), Pro (49 000 so'm) yoki Premium (60 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
           </span>
         </div>
         <Link to="/checkout" className="btn primary sm btn-glow" style={{ textDecoration: 'none', fontWeight: 700 }}>
@@ -187,18 +194,76 @@ export default function Plans() {
         </div>
       )}
 
-      <div className="grid">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 20,
+          marginBottom: 32,
+        }}
+      >
         {visiblePlans.map((p) => {
           const mine = myPlanId === p.id && myActive;
           const free = isFreePlan(p as unknown as Record<string, unknown>);
+          const pro = p.plan_type === 'pro';
           const premium = p.plan_type === 'premium';
           const yearly = Number(p.price_yearly ?? 0);
           return (
-            <div key={p.id} className="card">
-              {premium && <span className="badge green">⭐ {t('pay_recommended')}</span>}
-              <p style={{ fontSize: 28 }}>{planEmoji(p.plan_type)}</p>
-              <strong>{String(p.name)}</strong>
-              <p className="muted small">{String(p.description ?? '')}</p>
+            <div
+              key={p.id}
+              className="card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                border: pro
+                  ? '2px solid rgba(245, 158, 11, 0.6)'
+                  : premium
+                  ? '1px solid rgba(16, 185, 129, 0.4)'
+                  : '1px solid rgba(255, 255, 255, 0.1)',
+                background: pro ? 'rgba(245, 158, 11, 0.04)' : undefined,
+              }}
+            >
+              {pro && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -12,
+                    right: 16,
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+                  }}
+                >
+                  ⭐ Eng ommabop / Tavsiya etiladi
+                </span>
+              )}
+              {premium && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -12,
+                    right: 16,
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                  }}
+                >
+                  👑 Premium VIP
+                </span>
+              )}
+              <p style={{ fontSize: 32, margin: '4px 0 8px' }}>{planEmoji(p.plan_type)}</p>
+              <strong style={{ fontSize: 20 }}>{String(p.name)}</strong>
+              <p className="muted small" style={{ minHeight: 38 }}>
+                {String(p.description ?? '')}
+              </p>
               {free ? (
                 <>
                   <p className="stat-value">{t('pay_free_label')}</p>
@@ -206,7 +271,7 @@ export default function Plans() {
                 </>
               ) : (
                 <>
-                  <p className="stat-value">
+                  <p className="stat-value" style={{ margin: '8px 0 16px' }}>
                     {price(p.price_monthly)} <small className="muted">{t('pay_per_month')}</small>
                   </p>
                   {yearly > 0 && (
@@ -216,9 +281,9 @@ export default function Plans() {
                   )}
                 </>
               )}
-              <ul className="muted small">
+              <ul className="muted small" style={{ flex: 1, marginBottom: 20 }}>
                 {[...featuresFor(p, t), ...quotaFeatures(p, t)].map((f, i) => (
-                  <li key={i}>
+                  <li key={i} style={{ marginBottom: 6 }}>
                     {f.includes('tahlil') || f.includes('Tahlil') ? (
                       <span>
                         <BarChartIcon size={13} className="ico" /> {f}
@@ -234,8 +299,12 @@ export default function Plans() {
               ) : mine ? (
                 <span className="badge green">{t('btn_active')}</span>
               ) : (
-                <Link className="btn primary sm" to={`/subscribe/${p.id}`}>
-                  {t('btn_subscribe')}
+                <Link
+                  className="btn primary sm btn-glow"
+                  style={{ textAlign: 'center', textDecoration: 'none', fontWeight: 700, marginTop: 'auto' }}
+                  to={`/checkout?plan=${p.plan_type}`}
+                >
+                  To'lov qilish & Chek yuklash →
                 </Link>
               )}
             </div>

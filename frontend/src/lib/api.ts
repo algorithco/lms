@@ -1007,16 +1007,28 @@ export const Billing = {
   entitlement: () => api<BillingEntitlement>('/api/v1/billing/entitlement/'),
 };
 
+export interface PlanInfoItem {
+  name: string;
+  price: number;
+  label: string;
+}
+
 export interface CardInfoResponse {
   card_number: string;
   card_holder: string;
   starter_price: number;
+  pro_price?: number;
   premium_price: number;
+  plans?: {
+    starter: PlanInfoItem;
+    pro: PlanInfoItem;
+    premium: PlanInfoItem;
+  };
 }
 
 export interface PaymentReceiptItem {
   id: number;
-  plan: 'starter' | 'premium';
+  plan: 'starter' | 'pro' | 'premium';
   amount: number | string;
   receipt_image: string;
   receipt_image_url: string;
@@ -1029,7 +1041,7 @@ export interface PaymentReceiptItem {
 
 export const PaymentsApi = {
   cardInfo: () => api<CardInfoResponse>('/api/v1/payments/card-info/'),
-  uploadReceipt: (plan: 'starter' | 'premium', file: File, amount?: number) => {
+  uploadReceipt: (plan: 'starter' | 'pro' | 'premium', file: File, amount?: number) => {
     const fd = new FormData();
     fd.append('plan', plan);
     fd.append('receipt_image', file);

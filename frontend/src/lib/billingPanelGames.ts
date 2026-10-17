@@ -93,9 +93,9 @@ export function isFreePlan(plan: Record<string, unknown>): boolean {
 
 export function planEmoji(planType: unknown): string {
   const t = str(planType);
-  if (t === 'premium') return '⭐';
+  if (t === 'premium') return '👑';
   if (t === 'pro') return '🚀';
-  if (t === 'starter') return '🌱';
+  if (t === 'starter' || t === 'start') return '⚡️';
   if (t === 'family') return '👨‍👩‍👧';
   return '💎';
 }

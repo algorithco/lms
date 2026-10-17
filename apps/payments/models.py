@@ -823,6 +823,7 @@ class PaymentReceipt(models.Model):
 
     class PlanChoice(models.TextChoices):
         STARTER = "starter", _("Starter")
+        PRO = "pro", _("Pro")
         PREMIUM = "premium", _("Premium")
 
     class Status(models.TextChoices):

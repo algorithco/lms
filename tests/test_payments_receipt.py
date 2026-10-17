@@ -19,12 +19,12 @@ from apps.payments.services import approve_payment_receipt, reject_payment_recei
 User = get_user_model()
 
 
-def _create_test_image():
+def _create_test_image(color="blue", filename="receipt.jpg"):
     file = io.BytesIO()
-    image = Image.new("RGB", (100, 100), color="blue")
+    image = Image.new("RGB", (100, 100), color=color)
     image.save(file, "JPEG")
     file.seek(0)
-    return SimpleUploadedFile("receipt.jpg", file.read(), content_type="image/jpeg")
+    return SimpleUploadedFile(filename, file.read(), content_type="image/jpeg")
 
 
 @pytest.mark.django_db
@@ -37,9 +37,15 @@ def test_card_info_view():
     assert "card_number" in data
     assert "card_holder" in data
     assert "starter_price" in data
+    assert "pro_price" in data
     assert "premium_price" in data
-    assert data["starter_price"] == 49000
-    assert data["premium_price"] == 99000
+    assert data["starter_price"] == 15000
+    assert data["pro_price"] == 49000
+    assert data["premium_price"] == 60000
+    assert "plans" in data
+    assert data["plans"]["starter"]["price"] == 15000
+    assert data["plans"]["pro"]["price"] == 49000
+    assert data["plans"]["premium"]["price"] == 60000
 
 
 @pytest.mark.django_db
@@ -62,7 +68,7 @@ def test_receipt_upload_and_my_receipts():
         upload_url,
         {
             "plan": "starter",
-            "amount": "49000",
+            "amount": "15000",
             "receipt_image": test_img,
         },
         format="multipart",
@@ -77,16 +83,29 @@ def test_receipt_upload_and_my_receipts():
     receipt = PaymentReceipt.objects.get(id=res_data["id"])
     assert receipt.user == user
     assert receipt.plan == "starter"
-    assert receipt.amount == Decimal("49000.00")
+    assert receipt.amount == Decimal("15000.00")
     assert receipt.status == PaymentReceipt.Status.PENDING
+
+    # Test uploading 'pro' tier
+    response_pro = client.post(
+        upload_url,
+        {
+            "plan": "pro",
+            "amount": "49000",
+            "receipt_image": _create_test_image(color="green", filename="receipt_pro.jpg"),
+        },
+        format="multipart",
+    )
+    assert response_pro.status_code == 201
+    assert response_pro.json()["plan"] == "pro"
 
     # Test GET /api/v1/payments/my-receipts/
     my_url = reverse("webapi:payments-my-receipts")
     my_response = client.get(my_url)
     assert my_response.status_code == 200
     my_data = my_response.json()
-    assert len(my_data["results"]) >= 1
-    assert my_data["results"][0]["id"] == receipt.id
+    assert len(my_data["results"]) >= 2
+    assert any(r["id"] == receipt.id for r in my_data["results"])
 
 
 @pytest.mark.django_db
@@ -110,7 +129,7 @@ def test_approve_payment_receipt():
     receipt = PaymentReceipt.objects.create(
         user=user,
         plan="premium",
-        amount=Decimal("99000"),
+        amount=Decimal("60000"),
         receipt_image=test_img,
         source=PaymentReceipt.Source.WEB,
         status=PaymentReceipt.Status.PENDING,
@@ -135,7 +154,7 @@ def test_approve_payment_receipt():
     payment_record = PaymentHistory.objects.filter(user=user).first()
     assert payment_record is not None
     assert payment_record.status == PaymentHistory.PaymentStatus.COMPLETED
-    assert payment_record.amount == Decimal("99000.00")
+    assert payment_record.amount == Decimal("60000.00")
 
 
 @pytest.mark.django_db
@@ -152,7 +171,7 @@ def test_reject_payment_receipt():
     receipt = PaymentReceipt.objects.create(
         user=user,
         plan="starter",
-        amount=Decimal("49000"),
+        amount=Decimal("15000"),
         receipt_image=test_img,
         source=PaymentReceipt.Source.WEB,
         status=PaymentReceipt.Status.PENDING,
@@ -300,6 +319,20 @@ def test_ai_daily_quota_and_rate_limiting():
     ok21, err21 = check_and_consume_ai_quota(starter_user)
     assert ok21 is False
     assert "Sizning bugungi Starter AI limitingiz tugadi" in err21
+
+    # Pro user: 50 requests per day
+    pro_user = User.objects.create_user(email="pro_student@grandec.uz", password="ValidPassword123!")
+    pro_user.profile.plan = "pro"
+    pro_user.profile.save()
+    assert get_user_plan_tier(pro_user) == "pro"
+
+    for i in range(50):
+        ok, _ = check_and_consume_ai_quota(pro_user)
+        assert ok is True, f"Pro failed at iteration {i}"
+
+    ok51, err51 = check_and_consume_ai_quota(pro_user)
+    assert ok51 is False
+    assert "Sizning bugungi Pro AI limitingiz tugadi" in err51
 
     # Premium user: unlimited requests
     prem_user = User.objects.create_user(email="prem_student@grandec.uz", password="ValidPassword123!")

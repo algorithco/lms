@@ -163,27 +163,43 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
 
 
 def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
-    """Ensure canonical Starter or Premium SubscriptionPlan exists."""
+    """Ensure canonical Starter, Pro, or Premium SubscriptionPlan exists."""
     clean_key = plan_key.lower().strip()
     if clean_key in ("starter", "start"):
         canonical_type = SubscriptionPlan.PlanType.STARTER
         name = "Starter"
-        price_uzs = getattr(settings, "PLAN_STARTER_PRICE", 49000)
-        desc = "Milliy sertifikatga tayyorgarlik uchun Starter tarifi."
+        price_uzs = getattr(settings, "PLAN_STARTER_PRICE", 15000)
+        desc = "Haftalik 5 ta rasm / 3 ta matn esse, standart testlar, kunlik 20 ta AI repetitor so'rovi."
         kwargs = {
             "image_essay_weekly_limit": 5,
-            "text_essay_weekly_limit": 10,
+            "text_essay_weekly_limit": 3,
             "test_limit": 30,
             "text_essay_cooldown_hours": 2,
             "is_unlimited_image_essays": False,
             "is_unlimited_text_essays": False,
             "is_unlimited_tests": False,
         }
+    elif clean_key == "pro":
+        canonical_type = SubscriptionPlan.PlanType.PRO
+        name = "Pro"
+        price_uzs = getattr(settings, "PLAN_PRO_PRICE", 49000)
+        desc = "Haftalik 15 ta esse, barcha CBT va Mock testlar, 50 ta AI repetitor so'rovi."
+        kwargs = {
+            "image_essay_weekly_limit": 15,
+            "text_essay_weekly_limit": 15,
+            "test_limit": 100,
+            "text_essay_cooldown_hours": 1,
+            "is_unlimited_image_essays": False,
+            "is_unlimited_text_essays": False,
+            "is_unlimited_tests": False,
+            "detailed_analytics": True,
+            "pdf_certificate": True,
+        }
     else:
         canonical_type = SubscriptionPlan.PlanType.PREMIUM
         name = "Premium"
-        price_uzs = getattr(settings, "PLAN_PREMIUM_PRICE", 99000)
-        desc = "Barcha imkoniyatlar cheksiz — AI esse, Fast CBT va ELO Arena."
+        price_uzs = getattr(settings, "PLAN_PREMIUM_PRICE", 60000)
+        desc = "Cheksiz esse, barcha Mock testlar, cheksiz 24/7 AI repetitor, PDF sertifikatlar va ustoz tekshiruvi."
         kwargs = {
             "image_essay_weekly_limit": None,
             "text_essay_weekly_limit": None,
@@ -210,6 +226,14 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
             is_public=True,
             **kwargs,
         )
+    else:
+        plan.name = name
+        plan.price_monthly = Decimal(price_uzs)
+        plan.price_yearly = Decimal(price_uzs * 10)
+        plan.description = desc
+        for k, v in kwargs.items():
+            setattr(plan, k, v)
+        plan.save()
     return plan
 
 

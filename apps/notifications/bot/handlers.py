@@ -1892,33 +1892,41 @@ async def plans_and_payment_handler(update: Update, context: ContextTypes.DEFAUL
     from django.conf import settings as _settings
     card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 49000
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 99000
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 15000
+    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 49000
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 60000
 
     text = (
         f"💎 *GRAND EDUCATION TARIF VA OBUNA REJALARI*\n\n"
         f"1️⃣ *⚡️ Starter tarifi — {starter_price:,} so'm / 30 kun*\n"
-        f"• 5 ta AI rasmli esse tahlili (haftasiga)\n"
-        f"• 10 ta AI matnli esse tahlili\n"
-        f"• 30 ta Milliy sertifikat testi\n\n"
-        f"2️⃣ *👑 Premium tarifi — {premium_price:,} so'm / 30 kun*\n"
-        f"• ✍️ Cheksiz AI Esse baholash (12 mezon + AI tahriri)\n"
-        f"• 📚 Cheksiz Milliy Sertifikat testlari (Fast CBT)\n"
-        f"• ⚔️ Cheksiz Real-vaqt 1v1 ELO Arena bellashuvi\n"
-        f"• 📜 Rasmiy PDF Sertifikat va batafsil tahlillar\n\n"
+        f"• 5 ta AI rasmli / 3 ta matn esse (haftasiga)\n"
+        f"• Standart testlar\n"
+        f"• Kunlik 20 ta AI repetitor so'rovi\n\n"
+        f"2️⃣ *🚀 Pro tarifi — {pro_price:,} so'm / 30 kun (Tavsiya etiladi)*\n"
+        f"• Haftalik 15 ta esse baholash\n"
+        f"• Barcha CBT va Mock testlar\n"
+        f"• Kunlik 50 ta AI repetitor so'rovi\n\n"
+        f"3️⃣ *👑 Premium tarifi — {premium_price:,} so'm / 30 kun*\n"
+        f"• ✍️ Cheksiz esse baholash (12 mezon + AI tahriri)\n"
+        f"• 📚 Barcha Mock testlar va Fast CBT\n"
+        f"• 🧠 Cheksiz 24/7 AI repetitor\n"
+        f"• 📜 PDF Sertifikatlar va ustoz tekshiruvi\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💳 *KARTA ORQALI TO'LOV:*\n"
         f"Karta raqami: `{card_number}`\n"
         f"Karta egasi: *{card_holder}*\n\n"
         f"📲 *TO'LOVNI FAOLLASHTIRISH:*\n"
-        f"1. Yuqoridagi kartaga to'lovni o'tkazing.\n"
-        f"2. To'lov chekini (screenshot/kvitansiya) to'g'ridan-to'g'ri shu chatga *rasm* qilib tashlang.\n"
+        f"1. Quyidagi tugmalar orqali kerakli tarifni tanlang.\n"
+        f"2. To'lov chekini (screenshot/kvitansiya) to'g'ridan-to'g'ri shu chatga *rasm* qilib yuboring.\n"
         f"3. Chek kelgach, 5-15 daqiqa ichida admin tekshiradi va obunangiz faollashadi!"
     )
 
     buttons = InlineKeyboardMarkup([
         [
             InlineKeyboardButton(f"⚡️ Starter ({starter_price:,} so'm)", callback_data="pay_plan_starter"),
+            InlineKeyboardButton(f"🚀 Pro ({pro_price:,} so'm)", callback_data="pay_plan_pro"),
+        ],
+        [
             InlineKeyboardButton(f"👑 Premium ({premium_price:,} so'm)", callback_data="pay_plan_premium"),
         ],
         [
@@ -3635,20 +3643,30 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await _dispatch_handler(update, context, premium_handler)
         elif data == "cb_plans":
             await _dispatch_handler(update, context, plans_and_payment_handler)
-        elif data in ("pay_plan_starter", "pay_plan_premium"):
-            selected_slug = "starter" if data == "pay_plan_starter" else "premium"
+        elif data in ("pay_plan_starter", "pay_plan_pro", "pay_plan_premium"):
+            if data == "pay_plan_starter":
+                selected_slug = "starter"
+                plan_name = "Starter"
+            elif data == "pay_plan_pro":
+                selected_slug = "pro"
+                plan_name = "Pro"
+            else:
+                selected_slug = "premium"
+                plan_name = "Premium"
+
             context.user_data["selected_plan_slug"] = selected_slug
             context.user_data["payment_state"] = "awaiting_screenshot"
             from django.conf import settings as _settings
             card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
             card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0) or (49000 if selected_slug == "starter" else 99000)
+            defaults = {"starter": 15000, "pro": 49000, "premium": 60000}
+            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0) or defaults[selected_slug]
             text = (
-                f"💳 *{selected_slug.capitalize()} tarifi uchun to'lov*\n\n"
-                f"💳 Karta: `{card_number}`\n"
-                f"👤 Karta egasi: {card_holder}\n"
-                f"💰 Summa: {price:,} so'm\n\n"
-                f"To'lovni amalga oshirgach, chek skrinshotini ushbu chatga rasm ko'rinishida yuboring."
+                f"💳 To'lov uchun karta: `{card_number}`\n"
+                f"👤 Egasi: {card_holder}\n"
+                f"💎 Tarif: {plan_name}\n"
+                f"💰 To'lov summasi: {price:,} so'm\n\n"
+                f"To'lovni amalga oshirgach, chek skrinshotini ushbu chatga rasm qilib yuboring."
             )
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔙 Boshqa tarif tanlash", callback_data="cb_plans")]
@@ -4129,17 +4147,25 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
         return
 
     from django.conf import settings as _settings
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 49000)
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 99000)
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 15000)
+    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 49000)
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 60000)
 
     # Determine plan slug
     if not selected_slug:
         if "premium" in caption:
             selected_slug = "premium"
+        elif "pro" in caption:
+            selected_slug = "pro"
         else:
             selected_slug = "starter"
 
-    amount = Decimal(premium_price if selected_slug == "premium" else starter_price)
+    price_map = {
+        "starter": starter_price,
+        "pro": pro_price,
+        "premium": premium_price,
+    }
+    amount = Decimal(price_map.get(selected_slug, starter_price))
 
     # Download photo
     file_bytes = None

@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 DAILY_QUOTA_MAP = {
     "free": 1,
     "starter": 20,
+    "pro": 50,
     "premium": None,  # Unlimited
 }
 
 
 def get_user_plan_tier(user: Any) -> str:
-    """Return user's tier: 'free', 'starter', or 'premium'."""
+    """Return user's tier: 'free', 'starter', 'pro', or 'premium'."""
     if not user or not getattr(user, "is_authenticated", False):
         return "free"
 
@@ -34,16 +35,20 @@ def get_user_plan_tier(user: Any) -> str:
     sub = getattr(user, "subscription", None)
     if sub and getattr(sub, "is_active", False):
         plan_type = getattr(sub.plan, "plan_type", "").lower()
-        if plan_type in ("premium", "pro", "family"):
+        if plan_type in ("premium", "family"):
             return "premium"
+        if plan_type == "pro":
+            return "pro"
         if plan_type in ("starter", "start"):
             return "starter"
 
     profile = getattr(user, "profile", None)
     if profile:
         profile_plan = getattr(profile, "plan", "").lower()
-        if profile_plan in ("premium", "pro"):
+        if profile_plan in ("premium", "family"):
             return "premium"
+        if profile_plan == "pro":
+            return "pro"
         if profile_plan in ("starter", "start"):
             return "starter"
 
