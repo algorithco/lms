@@ -6279,7 +6279,7 @@ async def role_select_teacher_callback(update: Update, context: ContextTypes.DEF
         except Exception:
             pass
 
-    user = await _get_or_create_user_async(update)
+    await _get_or_create_user_async(update)
     tg_user = update.effective_user
 
     from django.conf import settings as _settings
@@ -6347,7 +6347,7 @@ async def admin_approve_teacher_callback(update: Update, context: ContextTypes.D
             return u
         return None
 
-    user = await _run_db(_do_approve)
+    await _run_db(_do_approve)
     if query:
         await query.answer("O'qituvchi tasdiqlandi!")
         try:
