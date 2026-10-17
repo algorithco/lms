@@ -50,6 +50,14 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
     for es in essay_subs:
         essays_by_student.setdefault(es.student_id, []).append(es)
 
+    # Kurs to'lovlari (Tuition Billing)
+    from apps.tuition.models import StudentTuition
+    tuitions = StudentTuition.objects.filter(group=group, student_id__in=student_ids).order_by("-due_date")
+    tuition_by_student: dict[int, StudentTuition] = {}
+    for tuit in tuitions:
+        if tuit.student_id not in tuition_by_student:
+            tuition_by_student[tuit.student_id] = tuit
+
     roster = []
     bmb_counts = {"A+": 0, "A": 0, "B+": 0, "B": 0, "C+": 0, "C": 0, "Fail": 0}
     all_pcts: list[float] = []
@@ -108,6 +116,8 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
             "bmb_grade": grade if tests_count > 0 else "—",
             "bmb_title": bmb_info["title"] if tests_count > 0 else "Test topshirmagan",
             "badge_class": bmb_info["badge_class"] if tests_count > 0 else "badge",
+            "tuition_status": (tuition_by_student.get(s.id).status if tuition_by_student.get(s.id) else "pending"),
+            "tuition_label": ("To'langan" if tuition_by_student.get(s.id) and tuition_by_student.get(s.id).status == "paid" else ("Muddati o'tgan" if tuition_by_student.get(s.id) and tuition_by_student.get(s.id).status == "overdue" else "Kutilmoqda")),
             "last_active": last_active or "Faollik yo'q",
         })
 
@@ -262,6 +272,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
         "BMB Sertifikat Darajasi",
         "Esselar soni",
         "O'rtacha esse bali",
+        "To'lov holati",
         "Oxirgi faollik",
     ]
 
@@ -290,6 +301,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
             item["bmb_grade"],
             item["essays_written"],
             f"{item['avg_essay_score']} ball",
+            item.get("tuition_label", "Kutilmoqda"),
             item["last_active"],
         ]
 
@@ -301,7 +313,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
                 cell.fill = row_fill
 
             # Formatlash
-            if col_idx in (1, 4, 5, 7, 8):
+            if col_idx in (1, 4, 5, 7, 8, 10):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
             elif col_idx in (6, 9):
                 cell.alignment = Alignment(horizontal="right", vertical="center")

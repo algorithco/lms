@@ -432,6 +432,16 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,  # every minute — requeues orphaned PENDING
         "options": {"queue": "essay_grading"},
     },
+    # Smart Parent Alerts: Sunday 18:00 weekly growth digest
+    "parent-weekly-digest-sunday": {
+        "task": "notifications.send_parent_weekly_digest",
+        "schedule": crontab(minute=0, hour=18, day_of_week=0),  # Sunday 18:00
+    },
+    # Tuition Billing reminders: daily 09:30 alert for due date & 2-days before
+    "tuition-due-alerts-daily": {
+        "task": "notifications.send_tuition_due_alerts",
+        "schedule": crontab(minute=30, hour=9),  # Daily 09:30
+    },
 }
 
 # ---------------------------------------------------------------------------
