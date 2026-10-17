@@ -13,9 +13,11 @@ from apps.attendance.models import AttendanceRecord, AttendanceSession
 from apps.courses.models import Course, StudentGroup
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.notifications.bot.handlers import (
+    SUPERADMIN_TELEGRAM_ID,
     _arena_keyboard,
     _main_menu_keyboard,
     _persistent_menu_keyboard,
+    admin_panel_handler,
     arena_answer_callback,
     arena_bot_start_callback,
     arena_callback_handler,
@@ -31,10 +33,13 @@ from apps.notifications.bot.handlers import (
     essay_review_callback,
     essay_topic_select_callback,
     essays_handler,
+    groups_handler,
     myattendance_handler,
     myplan_handler,
     mytuition_handler,
+    newmock_handler,
     payment_screenshot_handler,
+    start_handler,
     tests_handler as bot_tests_handler,
 )
 from apps.notifications.bot.quiz import quiz_callback_handler
@@ -506,5 +511,166 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIn("tokens", resp.data)
         self.assertIn("access", resp.data["tokens"])
         self.assertEqual(resp.data["user"]["full_name"], "WidgetUser")
+
+    # 16. Student Role Restrictions (RBAC)
+    def test_student_role_restrictions(self):
+        # Student cannot run /newmock
+        async_to_sync(newmock_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply = self.message.reply_text.await_args.args[0]
+        self.assertIn("faqat o'qituvchilar uchun", reply)
+
+        # Student cannot run /groups
+        self.message.reply_text.reset_mock()
+        async_to_sync(groups_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply = self.message.reply_text.await_args.args[0]
+        self.assertIn("faqat o'qituvchilar uchun", reply)
+
+        # Student cannot run /admin
+        self.message.reply_text.reset_mock()
+        async_to_sync(admin_panel_handler)(self.update, self.context)
+        self.assertTrue(self.message.reply_text.called)
+        reply = self.message.reply_text.await_args.args[0]
+        self.assertIn("faqat administratorlar uchun", reply)
+
+        # Student persistent keyboard check
+        kb = _persistent_menu_keyboard("student")
+        buttons = [btn.text for row in kb.keyboard for btn in row]
+        self.assertIn("✍️ Esse yozish", buttons)
+        self.assertIn("📚 Test ishlash", buttons)
+        self.assertIn("📝 Mock Test (#kod)", buttons)
+        self.assertIn("⚔️ Arena (1v1)", buttons)
+        self.assertNotIn("📝 Yangi Mock yaratish (/newmock)", buttons)
+        self.assertNotIn("📥 Yangi to'lov cheklari (Tasdiqlash)", buttons)
+
+    # 17. Teacher Role Access & Features
+    def test_teacher_role_access(self):
+        teacher = User.objects.create_user(
+            email="teacher-rbac@example.test",
+            password="StrongPassword123!",
+            first_name="Ustoz",
+            last_name="Muallim",
+            role=User.Role.TEACHER,
+            telegram_chat_id=88112233,
+            telegram_identity_verified_at=timezone.now(),
+        )
+        t_msg = SimpleNamespace(
+            text="",
+            reply_text=AsyncMock(),
+            chat=SimpleNamespace(id=teacher.telegram_chat_id, type="private"),
+            message_id=202,
+        )
+        t_update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=teacher.telegram_chat_id,
+                first_name="Ustoz",
+                last_name="Muallim",
+                username="teacher_rbac",
+            ),
+            effective_chat=SimpleNamespace(id=teacher.telegram_chat_id, type="private"),
+            message=t_msg,
+            callback_query=None,
+        )
+
+        # Teacher runs /newmock -> allowed (instructions or prompt sent)
+        async_to_sync(newmock_handler)(t_update, self.context)
+        self.assertTrue(t_msg.reply_text.called)
+        reply = t_msg.reply_text.await_args.args[0]
+        self.assertIn("newmock", reply.lower())
+        self.assertNotIn("faqat o'qituvchilar uchun", reply)
+
+        # Teacher runs /groups
+        t_msg.reply_text.reset_mock()
+        grp = StudentGroup.objects.create(teacher=teacher, name="IELTS-Morning", invite_code="GR-TEST1")
+        grp.students.add(self.user)
+        async_to_sync(groups_handler)(t_update, self.context)
+        self.assertTrue(t_msg.reply_text.called)
+        reply = t_msg.reply_text.await_args.args[0]
+        self.assertIn("IELTS-Morning", reply)
+        self.assertIn("#GR-TEST1", reply)
+
+        # Teacher blocked from admin panel
+        t_msg.reply_text.reset_mock()
+        async_to_sync(admin_panel_handler)(t_update, self.context)
+        self.assertTrue(t_msg.reply_text.called)
+        reply = t_msg.reply_text.await_args.args[0]
+        self.assertIn("faqat administratorlar uchun", reply)
+
+        # Teacher persistent keyboard check
+        kb = _persistent_menu_keyboard("teacher")
+        buttons = [btn.text for row in kb.keyboard for btn in row]
+        self.assertIn("📝 Yangi Mock yaratish (/newmock)", buttons)
+        self.assertIn("👥 Mening guruhlarim", buttons)
+        self.assertIn("📊 O'quvchilar hisoboti (Excel)", buttons)
+        self.assertNotIn("📥 Yangi to'lov cheklari (Tasdiqlash)", buttons)
+
+    # 18. Superadmin Role Access (ID: 5582178765)
+    def test_superadmin_role_access(self):
+        admin_tg_id = SUPERADMIN_TELEGRAM_ID
+        a_msg = SimpleNamespace(
+            text="",
+            reply_text=AsyncMock(),
+            chat=SimpleNamespace(id=admin_tg_id, type="private"),
+            message_id=303,
+        )
+        a_update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=admin_tg_id,
+                first_name="Admin",
+                last_name="Super",
+                username="grandec_admin",
+            ),
+            effective_chat=SimpleNamespace(id=admin_tg_id, type="private"),
+            message=a_msg,
+            callback_query=None,
+        )
+
+        # Admin runs /admin -> gets admin panel
+        async_to_sync(admin_panel_handler)(a_update, self.context)
+        self.assertTrue(a_msg.reply_text.called)
+        reply = a_msg.reply_text.await_args.args[0]
+        self.assertIn("BOSHQARUV PANELI", reply.upper())
+
+        # Admin persistent keyboard check
+        kb = _persistent_menu_keyboard("admin")
+        buttons = [btn.text for row in kb.keyboard for btn in row]
+        self.assertIn("📥 Yangi to'lov cheklari (Tasdiqlash)", buttons)
+        self.assertIn("📈 Umumiy statistika", buttons)
+        self.assertIn("👨‍🏫 O'qituvchilarni tasdiqlash", buttons)
+        self.assertIn("⚙️ Tizim sozlamalari", buttons)
+
+    # 19. First-time User Onboarding Role Selection
+    def test_first_time_user_onboarding_role_selection(self):
+        new_tg_id = 999111222
+        new_msg = SimpleNamespace(
+            text="/start",
+            reply_text=AsyncMock(),
+            chat=SimpleNamespace(id=new_tg_id, type="private"),
+            message_id=404,
+        )
+        new_update = SimpleNamespace(
+            effective_user=SimpleNamespace(
+                id=new_tg_id,
+                first_name="Yangi",
+                last_name="Foydalanuvchi",
+                username="new_user_1",
+            ),
+            effective_chat=SimpleNamespace(id=new_tg_id, type="private"),
+            message=new_msg,
+            callback_query=None,
+        )
+        new_context = SimpleNamespace(args=[], user_data={}, bot=self.context.bot)
+
+        async_to_sync(start_handler)(new_update, new_context)
+        self.assertTrue(new_msg.reply_text.called)
+        reply = new_msg.reply_text.await_args.args[0]
+        self.assertIn("rolingizni tanlang", reply)
+        markup = new_msg.reply_text.await_args.kwargs.get("reply_markup")
+        self.assertIsNotNone(markup)
+        cb_datas = [btn.callback_data for row in markup.inline_keyboard for btn in row]
+        self.assertIn("role_select_student", cb_datas)
+        self.assertIn("role_select_teacher", cb_datas)
+
 
 

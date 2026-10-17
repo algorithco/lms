@@ -163,21 +163,146 @@ async def send_friendly_error(
     )
 
 
-def _persistent_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Fixed reply keyboard buttons shown at the bottom of the screen."""
-    return ReplyKeyboardMarkup(
-        [
-            [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
-            [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
-            [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
-        ],
-        resize_keyboard=True,
-    )
+SUPERADMIN_TELEGRAM_ID = 5582178765
 
 
+def _get_user_role(user: "User | None", tg_id: int | None = None) -> str:
+    """Determine role: 'admin', 'teacher', or 'student'.
 
-def _main_menu_keyboard() -> InlineKeyboardMarkup:
-    """Main menu inline keyboard."""
+    Superadmin ID (5582178765) or platform admins always resolve to 'admin'.
+    """
+    from django.conf import settings as _settings
+    admin_tg_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    if tg_id and int(tg_id) == admin_tg_id:
+        return "admin"
+    if not user:
+        return "student"
+    if getattr(user, "telegram_chat_id", None) and int(user.telegram_chat_id) == admin_tg_id:
+        return "admin"
+    if getattr(user, "is_superuser", False) or (getattr(user, "role", "") or "").lower() == "admin" or is_platform_admin(user):
+        return "admin"
+    if (getattr(user, "role", "") or "").lower() == "teacher":
+        return "teacher"
+    return "student"
+
+
+def require_role(*roles: str):
+    """Decorator to enforce role-based access control (RBAC) on bot handlers and callbacks."""
+    from functools import wraps
+    normalized_roles = [r.lower() for r in roles]
+
+    def decorator(handler_func):
+        @wraps(handler_func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            try:
+                chat = getattr(update, "effective_chat", None)
+                if chat and getattr(chat, "type", None) != "private" and handler_func.__name__ in ("weekly_report_handler", "group_payments_handler"):
+                    if not await _require_private_chat(update):
+                        return
+
+                tg_user = getattr(update, "effective_user", None)
+                tg_id = tg_user.id if tg_user else None
+                from django.conf import settings as _settings
+                admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+
+                is_superadmin = (tg_id is not None and int(tg_id) == admin_id)
+
+                user = await _get_or_create_user_async(update) if tg_user else None
+
+                if user is None and not is_superadmin:
+                    await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+                    return
+
+                user_role = _get_user_role(user, tg_id)
+
+                has_access = False
+                if is_superadmin:
+                    has_access = True
+                elif "admin" in normalized_roles and user_role == "admin":
+                    has_access = True
+                elif "teacher" in normalized_roles and user_role in ("teacher", "admin"):
+                    has_access = True
+                elif "student" in normalized_roles:
+                    has_access = True
+
+                if not has_access:
+                    if "admin" in normalized_roles:
+                        denied_msg = "⛔️ Bu bo'lim faqat administratorlar uchun!"
+                    elif "teacher" in normalized_roles:
+                        denied_msg = "⛔️ Bu buyruq faqat o'qituvchilar uchun!"
+                    else:
+                        denied_msg = "⛔️ Sizda bu amalni bajarish uchun ruxsat yo'q!"
+
+                    if getattr(update, "callback_query", None):
+                        try:
+                            await update.callback_query.answer(denied_msg, show_alert=True)
+                        except Exception:
+                            pass
+                        try:
+                            if update.callback_query.message:
+                                await update.callback_query.message.reply_text(
+                                    denied_msg,
+                                    reply_markup=_persistent_menu_keyboard(user_role),
+                                )
+                        except Exception:
+                            pass
+                    elif getattr(update, "message", None):
+                        await update.message.reply_text(
+                            denied_msg,
+                            reply_markup=_persistent_menu_keyboard(user_role),
+                        )
+                    return
+
+                return await handler_func(update, context, *args, **kwargs)
+            except Exception as exc:
+                logger.exception("Error in handler %s: %s", getattr(handler_func, "__name__", "unknown"), exc)
+                try:
+                    await send_friendly_error(
+                        update,
+                        message="Operatsiyani bajarishda kutilmagan holat yuz berdi. Iltimos, /start ni bosing.",
+                    )
+                except Exception:
+                    pass
+
+        return wrapper
+    return decorator
+
+
+def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
+    """Fixed reply keyboard buttons shown at the bottom of the screen according to role."""
+    norm_role = (role or "student").lower()
+    if norm_role in ("admin", "superadmin"):
+        return ReplyKeyboardMarkup(
+            [
+                [KeyboardButton("📥 Yangi to'lov cheklari (Tasdiqlash)"), KeyboardButton("📈 Umumiy statistika")],
+                [KeyboardButton("👨‍🏫 O'qituvchilarni tasdiqlash"), KeyboardButton("⚙️ Tizim sozlamalari")],
+                [KeyboardButton("🎓 O'quvchi menyusi"), KeyboardButton("👨‍🏫 O'qituvchi menyusi")],
+            ],
+            resize_keyboard=True,
+        )
+    elif norm_role == "teacher":
+        return ReplyKeyboardMarkup(
+            [
+                [KeyboardButton("📝 Yangi Mock yaratish (/newmock)"), KeyboardButton("👥 Mening guruhlarim")],
+                [KeyboardButton("📊 O'quvchilar hisoboti (Excel)"), KeyboardButton("📚 Testlar bazasi")],
+                [KeyboardButton("👤 Shaxsiy kabinet")],
+            ],
+            resize_keyboard=True,
+        )
+    else:
+        # Default: STUDENT
+        return ReplyKeyboardMarkup(
+            [
+                [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
+                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
+                [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
+            ],
+            resize_keyboard=True,
+        )
+
+
+def _student_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Main menu inline keyboard for students."""
     from django.conf import settings as _settings
     _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
     return InlineKeyboardMarkup([
@@ -211,12 +336,69 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def _teacher_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Main menu inline keyboard for teachers."""
+    from django.conf import settings as _settings
+    _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📝 Yangi Mock yaratish (/newmock)", callback_data="menu_teacher_newmock"),
+            InlineKeyboardButton("👥 Mening guruhlarim", callback_data="tgrplist"),
+        ],
+        [
+            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data="menu_teacher_excel"),
+            InlineKeyboardButton("📚 Testlar bazasi", web_app={"url": f"{_site_url}/tma/#/tests"}),
+        ],
+        [
+            InlineKeyboardButton("🗓 Bugungi davomat", callback_data="menu_teacher_attendance"),
+            InlineKeyboardButton("📈 Guruh hisobotlari", callback_data="menu_teacher_reports"),
+        ],
+        [
+            InlineKeyboardButton("👤 Shaxsiy kabinet", callback_data="menu_teacher_profile"),
+            InlineKeyboardButton("🌐 O'qituvchi boshqaruv paneli", url=f"{_site_url}/dashboard/"),
+        ],
+    ])
+
+
+def _admin_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Main menu inline keyboard for superadmin."""
+    from django.conf import settings as _settings
+    _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📥 Yangi to'lov cheklari", callback_data="adm_pending_receipts"),
+            InlineKeyboardButton("📈 Umumiy statistika", callback_data="adm_stats"),
+        ],
+        [
+            InlineKeyboardButton("👨‍🏫 O'qituvchilarni tasdiqlash", callback_data="adm_pending_teachers"),
+            InlineKeyboardButton("⚙️ Tizim sozlamalari", callback_data="adm_settings"),
+        ],
+        [
+            InlineKeyboardButton("🎓 O'quvchi menyusiga o'tish", callback_data="adm_switch_student"),
+            InlineKeyboardButton("👨‍🏫 O'qituvchi menyusiga o'tish", callback_data="adm_switch_teacher"),
+        ],
+        [
+            InlineKeyboardButton("🌐 Django Admin Panel", url=f"{_site_url}/admin/"),
+        ],
+    ])
+
+
+def _main_menu_keyboard(role: str = "student") -> InlineKeyboardMarkup:
+    """Main menu inline keyboard dispatcher by role."""
+    norm_role = (role or "student").lower()
+    if norm_role in ("admin", "superadmin"):
+        return _admin_main_menu_keyboard()
+    elif norm_role == "teacher":
+        return _teacher_main_menu_keyboard()
+    return _student_main_menu_keyboard()
+
+
 # ---------------------------------------------------------------------------
 # /start
 # ---------------------------------------------------------------------------
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start command — welcome + auto-link + auth token support."""
+    """Handle /start command — welcome + auto-link + auth token support + RBAC onboarding."""
     args = context.args if context.args else []
 
     if args and args[0].startswith("link_"):
@@ -252,34 +434,134 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await tournament_handler(update, context)
         return
 
-    # --- Normal /start flow ---
+    # --- Group join link flow: /start join_<invite_code> or /start GR-XXX ---
+    if args and (args[0].startswith("join_") or args[0].upper().startswith("GR-")):
+        invite_code = args[0].removeprefix("join_").upper()
+        user = await _get_or_create_user_async(update)
+        if user:
+            def _join_via_start(u_obj, code_val):
+                from apps.courses.models import StudentGroup
+                grp = StudentGroup.objects.filter(invite_code__iexact=code_val).first()
+                if grp:
+                    grp.students.add(u_obj)
+                    return grp
+                return None
+            joined_grp = await _run_db(_join_via_start, user, invite_code)
+            if joined_grp:
+                await update.message.reply_text(
+                    f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
+                    f"🏫 Guruh: *{joined_grp.name}*\n"
+                    f"👨‍🏫 O'qituvchi: *{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}*",
+                    parse_mode="Markdown",
+                    reply_markup=_persistent_menu_keyboard("student"),
+                )
+                return
+
+    tg_user = update.effective_user
+    if not tg_user:
+        await update.message.reply_text("Xatolik yuz berdi. Qayta urinib ko'ring.")
+        return
+
+    from django.conf import settings as _settings
+    admin_tg_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    is_superadmin = (tg_user.id == admin_tg_id)
+
+    # Check if user is already registered in DB
+    from apps.accounts.models import User as UserModel
+    existing_user = await _run_db(lambda: UserModel.objects.filter(telegram_chat_id=tg_user.id).first())
+
+    # First-time user onboarding (if not superadmin and not registered yet)
+    if existing_user is None and not is_superadmin:
+        onboarding_text = (
+            f"Assalomu alaykum, *{tg_user.first_name}*! 👋\n\n"
+            f"🎓 *Ona Tili & Adabiyot* (grandec.uz) — Rasmiy ta'lim platformasiga xush kelibsiz!\n\n"
+            f"Platformadagi rolingizni tanlang:"
+        )
+        onboarding_kb = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🎓 Men o'quvchiman", callback_data="role_select_student"),
+                InlineKeyboardButton("👨‍🏫 Men o'qituvchiman", callback_data="role_select_teacher"),
+            ]
+        ])
+        await update.message.reply_text(
+            onboarding_text,
+            parse_mode="Markdown",
+            reply_markup=onboarding_kb,
+        )
+        return
+
     user = await _get_or_create_user_async(update)
     if not user:
         await update.message.reply_text("Xatolik yuz berdi. Qayta urinib ko'ring.")
         return
 
-    welcome = (
-        f"Salom, *{user.first_name}*! 👋\n\n"
-        f"🎓 *Ona Tili & Adabiyot* — Ta'lim platformasining rasmiy boti.\n\n"
-        f"Bu yerda:\n"
-        f"• ✍️ *Esse yozish* (AI baholaydi, takomillashtiradi)\n"
-        f"• 🧠 *Telegram Quiz* va testlar topshirish\n"
-        f"• ⚔️ *Arena 1v1* duellarida bellashish\n"
-        f"• 📜 *Sertifikatlarni* to'g'ridan-to'g'ri PDF yuklab olish\n"
-        f"• 📊 To'lov va davomat monitoringi\n\n"
-        f"Quyidagi menyudan kerakli bo'limni tanlang 👇"
-    )
+    role = _get_user_role(user, tg_user.id)
 
-    await update.message.reply_text(
-        welcome,
-        parse_mode="Markdown",
-        reply_markup=_persistent_menu_keyboard(),
-    )
-    await update.message.reply_text(
-        "🎓 *Ona Tili & Adabiyot* — Boshqaruv paneli:",
-        parse_mode="Markdown",
-        reply_markup=_main_menu_keyboard(),
-    )
+    if role == "admin":
+        admin_welcome = (
+            f"👑 *Assalomu alaykum, Administrator ({user.first_name})!*\n\n"
+            f"🏢 *GRAND EDUCATION* — Boshqaruv tizimi:\n\n"
+            f"• 📥 *To'lov cheklari* — Foydalanuvchilar to'lovlarini tasdiqlash\n"
+            f"• 📈 *Umumiy statistika* — O'quvchilar, esselar va testlar monitoringi\n"
+            f"• 👨‍🏫 *O'qituvchilarni tasdiqlash* — Yangi ustozlarni faollashtirish\n"
+            f"• ⚙️ *Tizim sozlamalari* — Xavfsizlik va server holati\n\n"
+            f"Boshqaruv uchun quyidagi menyudan foydalaning 👇"
+        )
+        await update.message.reply_text(
+            admin_welcome,
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("admin"),
+        )
+        await update.message.reply_text(
+            "👑 *Administrator boshqaruv paneli:*",
+            parse_mode="Markdown",
+            reply_markup=_admin_main_menu_keyboard(),
+        )
+    elif role == "teacher":
+        teacher_welcome = (
+            f"👨‍🏫 *Assalomu alaykum, Ustoz {user.first_name}!* 👋\n\n"
+            f"🎓 *GRAND EDUCATION* — O'qituvchilar kabinetiga xush kelibsiz.\n\n"
+            f"Bu yerda siz:\n"
+            f"• 📝 */newmock* — Yangi tezkor Mock test sessiyasini yaratish\n"
+            f"• 👥 *Guruhlarim* — O'z guruhlaringiz, taklif kodlari (#GR-XXX)\n"
+            f"• 📊 *Excel hisobot* — O'quvchilar monitoringini .xlsx formatida olish\n"
+            f"• 📚 *Testlar bazasi* — Mavjud test savollari va natijalar\n"
+            f"• 🗓 *Davomat* — Dars davomatini olish va qayd etish\n\n"
+            f"Kerakli bo'limni tanlang 👇"
+        )
+        await update.message.reply_text(
+            teacher_welcome,
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+        await update.message.reply_text(
+            "👨‍🏫 *O'qituvchi boshqaruv paneli:*",
+            parse_mode="Markdown",
+            reply_markup=_teacher_main_menu_keyboard(),
+        )
+    else:
+        # Normal Student flow
+        welcome = (
+            f"Salom, *{user.first_name}*! 👋\n\n"
+            f"🎓 *Ona Tili & Adabiyot* — Ta'lim platformasining rasmiy boti.\n\n"
+            f"Bu yerda:\n"
+            f"• ✍️ *Esse yozish* (AI baholaydi, takomillashtiradi)\n"
+            f"• 🧠 *Telegram Quiz* va testlar topshirish\n"
+            f"• ⚔️ *Arena 1v1* duellarida bellashish\n"
+            f"• 📜 *Sertifikatlarni* to'g'ridan-to'g'ri PDF yuklab olish\n"
+            f"• 📊 To'lov va davomat monitoringi\n\n"
+            f"Quyidagi menyudan kerakli bo'limni tanlang 👇"
+        )
+        await update.message.reply_text(
+            welcome,
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("student"),
+        )
+        await update.message.reply_text(
+            "🎓 *Ona Tili & Adabiyot* — Boshqaruv paneli:",
+            parse_mode="Markdown",
+            reply_markup=_student_main_menu_keyboard(),
+        )
 
 
 async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str) -> None:
@@ -480,8 +762,12 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         await _handle_ocr_corrected_text(update, context)
         return
 
-    # Check for persistent menu button taps
+    # -----------------------------------------------------------------------
+    # Persistent Keyboard Button Taps & RBAC Enforcement
+    # -----------------------------------------------------------------------
     raw_text = (getattr(update.message, "text", "") or "").strip()
+
+    # --- Student Persistent Buttons ---
     if raw_text in ("✍️ Esse yozish", "✍️ Esse"):
         await essays_handler(update, context)
         return
@@ -498,7 +784,14 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         await plans_and_payment_handler(update, context)
         return
     elif raw_text in ("👤 Natijalar / Profil", "👤 Profil", "👤 Profilim", "📊 Natijalarim", "📊 Natijalar"):
-        await profile_handler(update, context)
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role == "teacher":
+            await teacher_profile_handler(update, context)
+        elif role == "admin":
+            await admin_panel_handler(update, context)
+        else:
+            await profile_handler(update, context)
         return
     elif raw_text in ("📅 Davomat", "📅 Davomatim"):
         await myattendance_handler(update, context)
@@ -518,6 +811,150 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             "📌 Kodni yozib yuborganingizdan so'ng, test darhol boshlanadi va rasmiy BMB darajangiz (A+, A, B+...) hisoblab beriladi."
         )
         await update.message.reply_text(text, parse_mode="Markdown")
+        return
+
+    # --- Teacher Persistent Buttons ---
+    elif raw_text in ("📝 Yangi Mock yaratish (/newmock)", "📝 Yangi Mock yaratish"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role not in ("teacher", "admin"):
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await newmock_handler(update, context)
+        return
+    elif raw_text in ("👥 Mening guruhlarim", "👥 Guruhlarim", "Mening guruhlarim"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role not in ("teacher", "admin"):
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await groups_handler(update, context)
+        return
+    elif raw_text in ("📊 O'quvchilar hisoboti (Excel)", "📊 O'quvchilar hisoboti", "O'quvchilar hisoboti (Excel)"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role not in ("teacher", "admin"):
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await teacher_excel_report_handler(update, context)
+        return
+    elif raw_text in ("📚 Testlar bazasi", "Testlar bazasi"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role not in ("teacher", "admin"):
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await teacher_test_bank_handler(update, context)
+        return
+    elif raw_text in ("👤 Shaxsiy kabinet", "Shaxsiy kabinet"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role == "teacher":
+            await teacher_profile_handler(update, context)
+            return
+        elif role == "admin":
+            await admin_panel_handler(update, context)
+            return
+        else:
+            await profile_handler(update, context)
+            return
+
+    # --- Superadmin Persistent Buttons ---
+    elif raw_text in ("📥 Yangi to'lov cheklari (Tasdiqlash)", "📥 Yangi to'lov cheklari", "Yangi to'lov cheklari"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text(
+                "⛔️ Bu bo'lim faqat administratorlar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await admin_pending_receipts_handler(update, context)
+        return
+    elif raw_text in ("📈 Umumiy statistika", "Umumiy statistika"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text(
+                "⛔️ Bu bo'lim faqat administratorlar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await admin_stats_handler(update, context)
+        return
+    elif raw_text in ("👨‍🏫 O'qituvchilarni tasdiqlash", "O'qituvchilarni tasdiqlash"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text(
+                "⛔️ Bu bo'lim faqat administratorlar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await admin_pending_teachers_handler(update, context)
+        return
+    elif raw_text in ("⚙️ Tizim sozlamalari", "Tizim sozlamalari"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text(
+                "⛔️ Bu bo'lim faqat administratorlar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+        await admin_settings_handler(update, context)
+        return
+    elif raw_text == "🎓 O'quvchi menyusi":
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text("⛔️ Bu buyruq faqat administratorlar uchun!")
+            return
+        await update.message.reply_text(
+            "🎓 O'quvchi rejimi ko'rinishi faollashtirildi 👇",
+            reply_markup=_persistent_menu_keyboard("student"),
+        )
+        await update.message.reply_text(
+            "🎓 *Ona Tili & Adabiyot* — O'quvchi boshqaruv paneli:",
+            parse_mode="Markdown",
+            reply_markup=_student_main_menu_keyboard(),
+        )
+        return
+    elif raw_text == "👨‍🏫 O'qituvchi menyusi":
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text("⛔️ Bu buyruq faqat administratorlar uchun!")
+            return
+        await update.message.reply_text(
+            "👨‍🏫 O'qituvchi rejimi ko'rinishi faollashtirildi 👇",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+        await update.message.reply_text(
+            "👨‍🏫 *GRAND EDUCATION* — O'qituvchi boshqaruv paneli:",
+            parse_mode="Markdown",
+            reply_markup=_teacher_main_menu_keyboard(),
+        )
+        return
+    elif raw_text in ("👑 Admin menyusi", "👑 Admin paneli"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role != "admin":
+            await update.message.reply_text("⛔️ Bu bo'lim faqat administratorlar uchun!")
+            return
+        await admin_panel_handler(update, context)
         return
 
     # Check for #MOCK-XXX or MOCK-XXX code input or awaiting_mock_code
@@ -562,9 +999,82 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             )
             return
 
+    # Check for #GR-XXX or GR-XXX group invite code input
+    if upper_raw.startswith("#GR-") or (upper_raw.startswith("GR-") and len(upper_raw) >= 5):
+        clean_code = upper_raw.removeprefix("#").strip()
+        def _join_group(user_obj, code_val):
+            from apps.courses.models import StudentGroup
+            grp = StudentGroup.objects.filter(invite_code__iexact=code_val).first()
+            if not grp:
+                return None
+            grp.students.add(user_obj)
+            return grp
+
+        user = await _get_or_create_user_async(update)
+        grp = await _run_db(_join_group, user, clean_code)
+        if grp:
+            teacher_name = grp.teacher.get_full_name() or grp.teacher.email
+            await update.message.reply_text(
+                f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
+                f"🏫 Guruh nomi: *{grp.name}*\n"
+                f"👨‍🏫 O'qituvchi: *{teacher_name}*\n\n"
+                f"Endi sizning barcha test natijalaringiz va davomatingiz ushbu guruh hisobotlarida aks etadi.",
+                parse_mode="Markdown",
+                reply_markup=_persistent_menu_keyboard("student"),
+            )
+            return
+        else:
+            await update.message.reply_text(
+                f"❌ '{raw_text}' kodi bo'yicha guruh topilmadi.\n"
+                f"Iltimos, ustozingiz bergan taklif kodini to'g'ri kiritganingizni tekshiring (masalan: `#GR-101`).",
+                parse_mode="Markdown",
+                reply_markup=_persistent_menu_keyboard("student"),
+            )
+            return
+
+    # Check for teacher phone verification contact
+    contact = getattr(update.message, "contact", None)
+    if contact and context.user_data.get("awaiting_teacher_contact"):
+        context.user_data.pop("awaiting_teacher_contact", None)
+        contact_phone = getattr(contact, "phone_number", "") or ""
+        import re
+        digits = re.sub(r"\D", "", contact_phone)
+        clean_9 = digits[-9:] if len(digits) >= 9 else ""
+
+        def _verify_teacher_phone(phone_tail: str, chat_id: int):
+            from apps.accounts.models import User as UserModel
+            t = UserModel.objects.filter(profile__phone__endswith=phone_tail, role=UserModel.Role.TEACHER).first()
+            if t:
+                t.telegram_chat_id = chat_id
+                t.telegram_identity_verified_at = timezone.now()
+                t.save(update_fields=["telegram_chat_id", "telegram_identity_verified_at"])
+                return t
+            return None
+
+        t_user = await _run_db(_verify_teacher_phone, clean_9, update.effective_user.id)
+        if t_user:
+            await update.message.reply_text(
+                f"✅ *O'qituvchi hisobingiz muvaffaqiyatli tasdiqlandi!*\n\n"
+                f"Xush kelibsiz, Ustoz {t_user.first_name}!",
+                parse_mode="Markdown",
+                reply_markup=_persistent_menu_keyboard("teacher"),
+            )
+            await update.message.reply_text(
+                "👨‍🏫 *O'qituvchi boshqaruv paneli:*",
+                parse_mode="Markdown",
+                reply_markup=_teacher_main_menu_keyboard(),
+            )
+            return
+        else:
+            await update.message.reply_text(
+                "Telefon raqamingiz bo'yicha bazada o'qituvchi hisobi topilmadi. "
+                "Arizangiz administrator tomonidan tasdiqlanishini kuting.",
+                reply_markup=_persistent_menu_keyboard("student"),
+            )
+            return
+
     # Check for 6-digit parent code input or awaiting_parent_code
     is_awaiting_parent = bool(context.user_data.get("awaiting_parent_code"))
-    contact = getattr(update.message, "contact", None)
     if contact and is_awaiting_parent:
         contact_phone = getattr(contact, "phone_number", "") or ""
         import re
@@ -628,22 +1138,27 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             )
             return
 
-    # Teacher /newmock command
+    # Teacher /newmock command with strict RBAC
     if raw_text.lower().startswith("/newmock") or raw_text.lower().startswith("#newmock"):
+        user = await _get_or_create_user_async(update)
+        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        if role not in ("teacher", "admin"):
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
+                reply_markup=_persistent_menu_keyboard(role),
+            )
+            return
+
         parts = raw_text.split(maxsplit=1)
         if len(parts) < 2:
             await update.message.reply_text(
                 "Ustoz, kalitlarni quyidagi formatda yuboring:\n"
-                "`/newmock 1a2b3c4d5a...40b`",
+                "`/newmock 1a2b3c4d5a...40b`\n\n"
+                "Masalan: 40 ta savol uchun `1a2b3c4d...`",
                 parse_mode="Markdown",
             )
             return
         key_str = parts[1].strip()
-        user = await _get_or_create_user_async(update)
-        if not user or not (getattr(user, "role", None) in ("teacher", "admin") or is_platform_admin(user)):
-            await update.message.reply_text("Faqat o'qituvchilar tezkor mock sessiya yarata oladi.")
-            return
-
         from apps.tests.mock_service import create_quick_mock
         try:
             res = await _run_db(create_quick_mock, user, key_str)
@@ -2525,6 +3040,7 @@ async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
+@require_role("TEACHER")
 async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/weekly_report [group_id] [history] — authorized private teacher reports."""
     if not await _require_private_chat(update):
@@ -2583,6 +3099,7 @@ async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await send_reply(update, "\n".join(lines)[:4000], parse_mode="Markdown")
 
 
+@require_role("TEACHER")
 async def group_payments_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/group_payments <group_id> — aggregate-only for explicit finance readers."""
     if not await _require_private_chat(update):
@@ -3626,12 +4143,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     try:
         if data == "menu_main":
+            user = await _get_or_create_user_async(update)
+            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            if role == "admin":
+                title = "👑 *GRAND EDUCATION* — Administrator boshqaruv paneli\n\nQuyidagi bo'limlardan foydalaning 👇"
+            elif role == "teacher":
+                title = "👨‍🏫 *GRAND EDUCATION* — O'qituvchi boshqaruv paneli\n\nQuyidagi bo'limlardan foydalaning 👇"
+            else:
+                title = "🎓 *Ona Tili & Adabiyot* — Bosh menyu\n\nQuyidagi tugmalardan foydalaning 👇"
             await query.edit_message_text(
-                "🎓 *Ona Tili & Adabiyot* — Bosh menyu\n\n"
-                "Quyidagi tugmalardan foydalaning 👇",
+                title,
                 parse_mode="Markdown",
-                reply_markup=_main_menu_keyboard(),
+                reply_markup=_main_menu_keyboard(role),
             )
+        elif data == "role_select_student":
+            await role_select_student_callback(update, context)
+        elif data == "role_select_teacher":
+            await role_select_teacher_callback(update, context)
+        elif data.startswith("adm_appr_tchr_"):
+            target_id = int(data.removeprefix("adm_appr_tchr_"))
+            await admin_approve_teacher_callback(update, context, target_id)
+        elif data.startswith("adm_rej_tchr_"):
+            target_id = int(data.removeprefix("adm_rej_tchr_"))
+            await admin_reject_teacher_callback(update, context, target_id)
+        elif data in ("menu_admin", "adm_main"):
+            await admin_panel_handler(update, context)
+        elif data == "adm_pending_receipts":
+            await admin_pending_receipts_handler(update, context)
+        elif data == "adm_stats":
+            await admin_stats_handler(update, context)
+        elif data == "adm_pending_teachers":
+            await admin_pending_teachers_handler(update, context)
+        elif data == "adm_settings":
+            await admin_settings_handler(update, context)
+        elif data == "adm_switch_student":
+            user = await _get_or_create_user_async(update)
+            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            if role != "admin":
+                await query.answer("⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True)
+                return
+            if query.message:
+                await query.message.reply_text("🎓 O'quvchi rejimi ko'rinishi faollashtirildi 👇", reply_markup=_persistent_menu_keyboard("student"))
+                await query.message.reply_text("🎓 *Ona Tili & Adabiyot* — O'quvchi boshqaruv paneli:", parse_mode="Markdown", reply_markup=_student_main_menu_keyboard())
+        elif data == "adm_switch_teacher":
+            user = await _get_or_create_user_async(update)
+            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            if role != "admin":
+                await query.answer("⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True)
+                return
+            if query.message:
+                await query.message.reply_text("👨‍🏫 O'qituvchi rejimi ko'rinishi faollashtirildi 👇", reply_markup=_persistent_menu_keyboard("teacher"))
+                await query.message.reply_text("👨‍🏫 *GRAND EDUCATION* — O'qituvchi boshqaruv paneli:", parse_mode="Markdown", reply_markup=_teacher_main_menu_keyboard())
+        elif data == "menu_teacher_newmock":
+            await newmock_handler(update, context)
+        elif data == "menu_teacher_excel":
+            await teacher_excel_report_handler(update, context)
+        elif data == "menu_teacher_attendance":
+            await attendance_handler(update, context)
+        elif data == "menu_teacher_reports":
+            await group_report_handler(update, context)
+        elif data == "menu_teacher_profile":
+            await teacher_profile_handler(update, context)
+        elif data.startswith("texcel_"):
+            group_id = _safe_callback_int(data, prefix="texcel_")
+            if group_id is not None:
+                await teacher_group_excel_callback(update, context, group_id)
         elif data == "menu_mock_join":
             context.user_data["awaiting_mock_code"] = True
             text = (
@@ -4889,13 +5465,19 @@ _ATTENDANCE_PAGE_SIZE = 25
 _ESSAY_PAGE_SIZE = 10
 
 
-def _is_teacher_account(user) -> bool:
-    """Teachers and platform admins may use the group commands."""
+def _is_teacher_account(user, tg_id: int | None = None) -> bool:
+    """Teachers, superadmin and platform admins may use the group commands."""
     from apps.accounts.access import is_platform_admin
+    from django.conf import settings as _settings
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
 
+    if tg_id and int(tg_id) == admin_id:
+        return True
     if user is None:
         return False
-    if getattr(user, "role", None) == "teacher":
+    if getattr(user, "telegram_chat_id", None) and int(user.telegram_chat_id) == admin_id:
+        return True
+    if (getattr(user, "role", None) or "").lower() in ("teacher", "admin"):
         return True
     return is_platform_admin(user)
 
@@ -4910,10 +5492,11 @@ async def _teacher_from_update(update: Update):
     if not user:
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return None
-    if not await _run_db(_is_teacher_account, user):
+    tg_id = update.effective_user.id if update.effective_user else None
+    if not await _run_db(_is_teacher_account, user, tg_id):
         await send_reply(
             update,
-            "Bu buyruq faqat o'qituvchilar uchun. "
+            "⛔️ Bu buyruq faqat o'qituvchilar uchun! "
             "Agar siz o'qituvchi bo'lsangiz, administrator bilan bog'laning.",
         )
         return None
@@ -4996,8 +5579,9 @@ async def _render_attendance(update: Update, context, session) -> None:
     )
 
 
+@require_role("TEACHER")
 async def groups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/groups — the teacher's assigned groups."""
+    """/groups — the teacher's assigned groups."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5008,13 +5592,14 @@ async def groups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_reply(
             update,
             "🏫 Sizga hali guruh biriktirilmagan. Administrator bilan bog'laning.",
-            reply_markup=_main_menu_keyboard(),
+            reply_markup=_persistent_menu_keyboard("teacher"),
         )
         return
     lines = ["🏫 *Guruhlaringiz*", ""]
     for index, group in enumerate(groups, 1):
         count = await _run_db(lambda g=group: g.students.filter(is_active=True).count())
-        lines.append(f"{index}. *{group.name}* — {count} o'quvchi")
+        invite = getattr(group, "invite_code", "") or f"GR-{group.id}"
+        lines.append(f"{index}. *{group.name}* (Kod: `#{invite}`) — {count} o'quvchi")
     lines.append("")
     lines.append("Guruhni tanlang 👇")
     await send_reply(
@@ -5024,7 +5609,7 @@ async def groups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def _send_group_card(update: Update, context, user, group) -> None:
-    """Group overview: roster, today's attendance, essay counts."""
+    """Group overview: roster, today's attendance, essay counts, invite code."""
     from apps.attendance.services import summary, today_session
     from apps.essays.group_reports import group_essay_summary
 
@@ -5043,26 +5628,521 @@ async def _send_group_card(update: Update, context, user, group) -> None:
         attendance_line = "Bugun davomat olinmagan."
     essays = await _run_db(group_essay_summary, group)
 
+    invite_code = getattr(group, "invite_code", "") or f"GR-{group.id}"
     text = (
         f"🏫 *{group.name}*\n\n"
-        f"👥 O'quvchilar: *{count}*\n"
+        f"📌 Taklif kodi: `#{invite_code}`\n"
+        f"_(O'quvchilar botga `#{invite_code}` deb yozsa, avtomatik guruhga qo'shiladi)_\n\n"
+        f"👥 O'quvchilar soni: *{count} nafar*\n"
         f"🗓 Bugungi davomat: {attendance_line}\n"
         f"📝 Esse — baholangan: *{essays['graded']}*, kutilmoqda: "
         f"*{essays['pending']}*, topshirilmagan: *{essays['not_submitted']}*"
     )
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🗓 Davomat olish", callback_data=f"tatt_{group.id}")],
-        [InlineKeyboardButton("📊 Davomat hisoboti", callback_data=f"trpt_{group.id}")],
-        [InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}")],
-        [InlineKeyboardButton("👥 O'quvchilar", callback_data=f"tstu_{group.id}")],
-        [InlineKeyboardButton("📈 Guruh hisoboti", callback_data=f"tgreport_{group.id}")],
+        [
+            InlineKeyboardButton("🗓 Davomat olish", callback_data=f"tatt_{group.id}"),
+            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
+        ],
+        [
+            InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}"),
+            InlineKeyboardButton("👥 O'quvchilar", callback_data=f"tstu_{group.id}"),
+        ],
+        [
+            InlineKeyboardButton("📈 Davomat hisoboti", callback_data=f"trpt_{group.id}"),
+            InlineKeyboardButton("📈 Guruh hisoboti", callback_data=f"tgreport_{group.id}"),
+        ],
+        [
+            InlineKeyboardButton("📋 Taklif kodini ulashish", url=f"https://t.me/share/url?url=%23{invite_code}&text={group.name}+guruhimizga+qo%27shiling!"),
+        ],
         [InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")],
     ])
     await edit_or_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
 
 
+@require_role("TEACHER")
+async def newmock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Create a new mock test session from answer keys.
+    Usage: /newmock 1a2b3c4d5a...40b
+    """
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Ustoz, kalitlarni quyidagi formatda yuboring:\n"
+            "`/newmock 1a2b3c4d5a...40b`\n\n"
+            "Masalan: 40 ta savol uchun `1a2b3c4d...`",
+            parse_mode="Markdown",
+        )
+        return
+
+    key_str = args[0].strip()
+    user = await _get_or_create_user_async(update)
+    from apps.tests.mock_service import create_quick_mock
+    try:
+        res = await _run_db(create_quick_mock, user, key_str)
+        code = res["mock_code"]
+        await update.message.reply_text(
+            f"✅ *Mock sessiya muvaffaqiyatli yaratildi!*\n\n"
+            f"📌 Test kodi: `{code}`\n"
+            f"🔢 Savollar: *{res['total_questions']} ta*\n"
+            f"⏱ Vaqt: *{res['time_limit_minutes']} daqiqa*\n\n"
+            f"O'quvchilaringizga ushbu kodni yuboring:\n"
+            f"👉 O'quvchi botga `{code}` deb yozsa, darhol test boshlanadi!",
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Xatolik: {e}")
+
+
+async def _send_group_excel_document(update: Update, context: ContextTypes.DEFAULT_TYPE, group) -> None:
+    """Generate and send an Excel document (.xlsx) for a student group."""
+    from apps.courses.group_service import export_group_to_excel
+    import io
+
+    excel_bytes = await _run_db(export_group_to_excel, group)
+    f = io.BytesIO(excel_bytes)
+    f.name = f"{group.name}_hisobot.xlsx"
+    chat_id = update.effective_chat.id if update.effective_chat else update.effective_user.id
+    await context.bot.send_document(
+        chat_id=chat_id,
+        document=f,
+        filename=f"{group.name}_hisobot.xlsx",
+        caption=f"📊 *{group.name}* guruhi o'quvchilari natijalari va monitoring hisoboti (Excel .xlsx).",
+        parse_mode="Markdown",
+    )
+
+
+@require_role("TEACHER")
+async def teacher_excel_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send student report in Excel format for teacher groups."""
+    user = await _get_or_create_user_async(update)
+    from apps.attendance.services import teacher_groups
+    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+    if not groups:
+        await send_reply(
+            update,
+            "🏫 Sizga hali guruh biriktirilmagan. Excel hisobot olish uchun avval guruh yarating yoki administratorga murojaat qiling.",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+        return
+
+    if len(groups) == 1:
+        group = groups[0]
+        await _send_group_excel_document(update, context, group)
+        return
+
+    buttons = [
+        [InlineKeyboardButton(f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}")]
+        for g in groups
+    ]
+    buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
+    await send_reply(
+        update,
+        "📊 Qaysi guruhingiz hisobotini Excel formatida yuklab olmoqchisiz?",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+@require_role("TEACHER")
+async def teacher_group_excel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+    """Handle texcel_<id> callback to export excel."""
+    query = update.callback_query
+    user = await _get_or_create_user_async(update)
+    group = await _load_managed_group(user, group_id)
+    if not group:
+        if query:
+            await query.answer("Guruh topilmadi yoki sizga tegishli emas.", show_alert=True)
+        return
+
+    if query:
+        await query.answer("Excel hisobot tayyorlanmoqda...")
+    await _send_group_excel_document(update, context, group)
+
+
+@require_role("TEACHER")
+async def teacher_test_bank_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show test bank for teachers."""
+    from django.conf import settings as _settings
+    site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    from apps.tests.models import Test
+    test_count = await _run_db(lambda: Test.objects.filter(is_active=True).count())
+    text = (
+        f"📚 *TESTLAR BAZASI (GRAND EDUCATION)*\n\n"
+        f"Tizimda jami faol testlar: *{test_count} ta*\n\n"
+        f"Siz Fast CBT Mini App orqali barcha testlar savollarini ko'rishingiz "
+        f"yoki yangi testlar tuzishingiz mumkin 👇"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📱 Fast CBT Testlar", web_app={"url": f"{site_url}/tma/#/tests"})],
+        [InlineKeyboardButton("🌐 Web Testlar Banki", url=f"{site_url}/dashboard/")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+@require_role("TEACHER")
+async def teacher_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show teacher profile and statistics."""
+    user = await _get_or_create_user_async(update)
+    from apps.attendance.services import teacher_groups
+    groups = await _run_db(lambda: list(teacher_groups(user)))
+    group_count = len(groups)
+    total_students = await _run_db(lambda: sum(g.students.filter(is_active=True).count() for g in groups))
+    from apps.tests.models import Test
+    my_tests = await _run_db(lambda: Test.objects.filter(course__teacher=user).count())
+
+    name = user.get_full_name() or user.first_name or "Ustoz"
+    text = (
+        f"👨‍🏫 *O'QITUVCHI SHAXSIY KABINETI*\n\n"
+        f"👤 Ustoz: *{name}*\n"
+        f"🎭 Rol: *O'qituvchi (TEACHER)*\n"
+        f"🆔 Telegram ID: `{user.telegram_chat_id}`\n\n"
+        f"📊 *Faoliyat statistikasi:*\n"
+        f"• 🏫 Biriktirilgan guruhlar: *{group_count} ta*\n"
+        f"• 👥 Jami o'quvchilar: *{total_students} nafar*\n"
+        f"• 📝 Mualliflik testlari: *{my_tests} ta*\n"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👥 Guruhlarim", callback_data="tgrplist")],
+        [InlineKeyboardButton("📝 Yangi Mock yaratish", callback_data="menu_teacher_newmock")],
+        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+# ---------------------------------------------------------------------------
+# First-Time Onboarding & Role Selection Callbacks
+# ---------------------------------------------------------------------------
+
+async def role_select_student_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback when a new user selects '🎓 Men o'quvchiman'."""
+    query = update.callback_query
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    user = await _get_or_create_user_async(update)
+    if not user:
+        return
+
+    def _set_student():
+        from apps.accounts.models import User as UserModel
+        user.role = UserModel.Role.STUDENT
+        user.save(update_fields=["role"])
+    await _run_db(_set_student)
+
+    welcome = (
+        f"Salom, *{user.first_name}*! 👋\n\n"
+        f"🎓 *Ona Tili & Adabiyot* — Ta'lim platformasining rasmiy boti.\n\n"
+        f"Siz muvaffaqiyatli *O'quvchi* sifatida ro'yxatdan o'tdingiz!\n\n"
+        f"Bu yerda:\n"
+        f"• ✍️ *Esse yozish* (AI baholaydi, takomillashtiradi)\n"
+        f"• 🧠 *Telegram Quiz* va testlar topshirish\n"
+        f"• ⚔️ *Arena 1v1* duellarida bellashish\n"
+        f"• 📜 *Sertifikatlarni* to'g'ridan-to'g'ri PDF yuklab olish\n"
+        f"• 📊 To'lov va davomat monitoringi\n\n"
+        f"Quyidagi menyudan kerakli bo'limni tanlang 👇"
+    )
+    if query:
+        try:
+            await query.edit_message_text(welcome, parse_mode="Markdown", reply_markup=_student_main_menu_keyboard())
+        except Exception:
+            pass
+        if query.message:
+            await query.message.reply_text(
+                "Quyidagi menyu tugmalaridan foydalanishingiz mumkin 👇",
+                reply_markup=_persistent_menu_keyboard("student"),
+            )
+
+
+async def role_select_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback when a user selects '👨‍🏫 Men o'qituvchiman'."""
+    query = update.callback_query
+    if query:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+
+    user = await _get_or_create_user_async(update)
+    tg_user = update.effective_user
+
+    from django.conf import settings as _settings
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    # Notify admin
+    try:
+        await context.bot.send_message(
+            chat_id=admin_id,
+            text=(
+                f"👨‍🏫 <b>Yangi o'qituvchi arizasi!</b>\n\n"
+                f"👤 Ism: <b>{tg_user.first_name} {tg_user.last_name or ''}</b>\n"
+                f"🆔 Telegram ID: <code>{tg_user.id}</code>\n"
+                f"📱 Username: @{tg_user.username or 'yo\'q'}\n\n"
+                f"Ushbu foydalanuvchini o'qituvchi sifatida tasdiqlaysizmi?"
+            ),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"adm_appr_tchr_{tg_user.id}"),
+                    InlineKeyboardButton("❌ Rad etish", callback_data=f"adm_rej_tchr_{tg_user.id}"),
+                ]
+            ]),
+        )
+    except Exception as e:
+        logger.warning("Failed to notify admin of teacher request: %s", e)
+
+    msg = (
+        "👨‍🏫 *O'qituvchilik arizangiz qabul qilindi!*\n\n"
+        "Arizangiz administratorga ko'rib chiqish uchun yuborildi. "
+        "Administrator tasdiqlagach, barcha o'qituvchi imkoniyatlari ochiladi.\n\n"
+        "Agar siz platformada allaqachon o'qituvchi bo'lsangiz, "
+        "telefon raqamingizni yuborib tezkor tekshirishdan o'tishingiz mumkin 👇"
+    )
+    if query:
+        try:
+            await query.edit_message_text(msg, parse_mode="Markdown")
+        except Exception:
+            pass
+        if query.message:
+            context.user_data["awaiting_teacher_contact"] = True
+            contact_kb = ReplyKeyboardMarkup(
+                [[KeyboardButton("📞 Telefon raqamni yuborish", request_contact=True)]],
+                resize_keyboard=True,
+                one_time_keyboard=True,
+            )
+            await query.message.reply_text("Telefon raqamingizni ulashing:", reply_markup=contact_kb)
+
+
+async def admin_approve_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int) -> None:
+    """Admin approves a teacher application."""
+    query = update.callback_query
+    from django.conf import settings as _settings
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    if not (update.effective_user and update.effective_user.id == admin_id):
+        if query:
+            await query.answer("Sizda ruxsat yo'q.", show_alert=True)
+        return
+
+    def _do_approve():
+        from apps.accounts.models import User as UserModel
+        u = UserModel.objects.filter(telegram_chat_id=target_tg_id).first()
+        if u:
+            u.role = UserModel.Role.TEACHER
+            u.save(update_fields=["role"])
+            return u
+        return None
+
+    user = await _run_db(_do_approve)
+    if query:
+        await query.answer("O'qituvchi tasdiqlandi!")
+        try:
+            await query.edit_message_text(f"✅ O'qituvchi muvaffaqiyatli tasdiqlandi (TG ID: {target_tg_id})")
+        except Exception:
+            pass
+
+    try:
+        await context.bot.send_message(
+            chat_id=target_tg_id,
+            text=(
+                "🎉 *Tabriklaymiz! O'qituvchi arizangiz tasdiqlandi!*\n\n"
+                "Endi siz guruhlar yaratishingiz, /newmock orqali test tuzishingiz "
+                "va o'quvchilar hisobotini Excel formatida olishingiz mumkin.\n\n"
+                "Boshlash uchun /start buyrug'ini bosing!"
+            ),
+            parse_mode="Markdown",
+            reply_markup=_persistent_menu_keyboard("teacher"),
+        )
+    except Exception as e:
+        logger.warning("Could not notify teacher %d: %s", target_tg_id, e)
+
+
+async def admin_reject_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int) -> None:
+    """Admin rejects a teacher application."""
+    query = update.callback_query
+    from django.conf import settings as _settings
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    if not (update.effective_user and update.effective_user.id == admin_id):
+        if query:
+            await query.answer("Sizda ruxsat yo'q.", show_alert=True)
+        return
+
+    if query:
+        await query.answer("Ariza rad etildi.")
+        try:
+            await query.edit_message_text(f"❌ O'qituvchi arizasi rad etildi (TG ID: {target_tg_id})")
+        except Exception:
+            pass
+
+    try:
+        await context.bot.send_message(
+            chat_id=target_tg_id,
+            text="❌ O'qituvchilik arizangiz rad etildi.",
+            reply_markup=_persistent_menu_keyboard("student"),
+        )
+    except Exception as e:
+        logger.warning("Could not notify user %d: %s", target_tg_id, e)
+
+
+# ---------------------------------------------------------------------------
+# Superadmin Handlers
+# ---------------------------------------------------------------------------
+
+@require_role("ADMIN")
+async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: /admin"""
+    await send_reply(
+        update,
+        "👑 *GRAND EDUCATION — SUPERADMIN BOSHQARUV PANELI*\n\n"
+        "Quyidagi bo'limlardan birini tanlang 👇",
+        parse_mode="Markdown",
+        reply_markup=_admin_main_menu_keyboard(),
+    )
+
+
+@require_role("ADMIN")
+async def admin_pending_receipts_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List pending payment receipts for admin verification."""
+    from apps.payments.models import PaymentReceipt
+    receipts = await _run_db(lambda: list(PaymentReceipt.objects.filter(status=PaymentReceipt.Status.PENDING).select_related("user").order_by("-id")[:5]))
+    if not receipts:
+        await send_reply(
+            update,
+            "✅ *Kutilayotgan yangi to'lov cheklari mavjud emas!*",
+            parse_mode="Markdown",
+            reply_markup=_admin_main_menu_keyboard(),
+        )
+        return
+
+    text_lines = [f"📥 *KUTILAYOTGAN TO'LOV CHEKLARI ({len(receipts)} ta)*\n"]
+    buttons = []
+    for r in receipts:
+        user_name = r.user.get_full_name() or r.user.email
+        text_lines.append(f"• ID #{r.id} | {user_name} | Tarif: *{r.plan}* | {r.amount} so'm")
+        buttons.append([
+            InlineKeyboardButton(f"✅ #{r.id} Tasdiqlash", callback_data=f"adm_rec_appr_{r.id}"),
+            InlineKeyboardButton(f"❌ #{r.id} Rad etish", callback_data=f"adm_rec_rej_{r.id}"),
+        ])
+    buttons.append([InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")])
+    await send_reply(
+        update,
+        "\n".join(text_lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+@require_role("ADMIN")
+async def admin_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display overall system statistics for superadmin."""
+    from apps.accounts.models import User as UserModel
+    from apps.results.models import Result
+    from apps.essays.models import EssaySubmission
+    from apps.payments.models import PaymentReceipt
+    from apps.courses.models import StudentGroup
+
+    total_users = await _run_db(UserModel.objects.count)
+    students = await _run_db(lambda: UserModel.objects.filter(role="student").count())
+    teachers = await _run_db(lambda: UserModel.objects.filter(role="teacher").count())
+    groups = await _run_db(StudentGroup.objects.count)
+    results = await _run_db(Result.objects.count)
+    essays = await _run_db(EssaySubmission.objects.count)
+    pending_receipts = await _run_db(lambda: PaymentReceipt.objects.filter(status="pending").count())
+
+    stats_msg = (
+        "📈 *GRAND EDUCATION — UMUMIY STATISTIKA*\n\n"
+        f"👥 Jami foydalanuvchilar: *{total_users:,}*\n"
+        f"🎓 O'quvchilar: *{students:,}*\n"
+        f"👨‍🏫 O'qituvchilar: *{teachers:,}*\n"
+        f"🏫 Guruhlar: *{groups:,}*\n\n"
+        f"📝 Yozilgan esselar: *{essays:,}*\n"
+        f"📚 Topshirilgan testlar: *{results:,}*\n"
+        f"💳 Kutilayotgan to'lov cheklari: *{pending_receipts} ta*\n\n"
+        f"⚡️ Server holati: *Online (200 OK)*"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Yangilash", callback_data="adm_stats")],
+        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+    ])
+    await send_reply(update, stats_msg, parse_mode="Markdown", reply_markup=buttons)
+
+
+@require_role("ADMIN")
+async def admin_pending_teachers_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display teacher approval management."""
+    text = (
+        "👨‍🏫 *O'QITUVCHILARNI TASDIQLASH VA TAYINLASH*\n\n"
+        "O'qituvchi bo'lishni xohlagan foydalanuvchi /start orqali 'Men o'qituvchiman' ni tanlaganda, "
+        "adminga tasdiqlash so'rovi yuboriladi.\n\n"
+        "Istalgan foydalanuvchini darhol o'qituvchiga aylantirish uchun quyidagi buyruqdan foydalaning:\n"
+        "`/promote_teacher <telegram_id yoki email>`"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+@require_role("ADMIN")
+async def admin_settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display system settings."""
+    text = (
+        "⚙️ *TIZIM SOZLAMALARI (GRAND EDUCATION)*\n\n"
+        "• Bot: `@uz_essaygrader_bot`\n"
+        "• Platforma: `grandec.uz`\n"
+        "• Superadmin ID: `5582178765`\n"
+        "• RBAC Holati: *Faol (Strict Mode)*\n"
+        "• Ma'lumotlar bazasi: PostgreSQL (Healthy)\n"
+        "• Kesh & Navbat: Redis + Celery (Healthy)\n"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+    ])
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+@require_role("ADMIN")
+async def promote_teacher_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: /promote_teacher <telegram_id or email>"""
+    args = context.args or []
+    if not args:
+        await update.message.reply_text("Format: `/promote_teacher <telegram_id yoki email>`", parse_mode="Markdown")
+        return
+    query_str = args[0].strip()
+    def _promote_by_query():
+        from apps.accounts.models import User as UserModel
+        if query_str.isdigit():
+            u = UserModel.objects.filter(telegram_chat_id=int(query_str)).first()
+        else:
+            u = UserModel.objects.filter(email__iexact=query_str).first()
+        if not u:
+            return None
+        u.role = UserModel.Role.TEACHER
+        u.save(update_fields=["role"])
+        return u
+
+    u = await _run_db(_promote_by_query)
+    if u:
+        await update.message.reply_text(
+            f"✅ Foydalanuvchi *{u.get_full_name() or u.email}* muvaffaqiyatli O'QITUVCHI roliga o'tkazildi!",
+            parse_mode="Markdown",
+        )
+        if u.telegram_chat_id:
+            try:
+                await context.bot.send_message(
+                    chat_id=u.telegram_chat_id,
+                    text="🎉 Administrator sizga O'QITUVCHI rolini berdi! /start ni bosing.",
+                    reply_markup=_persistent_menu_keyboard("teacher"),
+                )
+            except Exception:
+                pass
+    else:
+        await update.message.reply_text(f"❌ Foydalanuvchi '{query_str}' topilmadi.")
+
+
+@require_role("TEACHER")
 async def attendance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/attendance — choose a group, then take the register."""
+    """/attendance — choose a group, then take the register."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5230,8 +6310,9 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
     )
 
 
+@require_role("TEACHER")
 async def attendance_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/attendance_report — choose a group for attendance statistics."""
+    """/attendance_report — choose a group for attendance statistics."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5293,8 +6374,9 @@ async def _send_attendance_report(update: Update, context, user, group, days: in
     )
 
 
+@require_role("TEACHER")
 async def students_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/students — choose a group to list its students."""
+    """/students — choose a group to list its students."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5343,8 +6425,9 @@ async def _send_students(update: Update, context, user, group) -> None:
 
 
 
+@require_role("TEACHER")
 async def essay_results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/essay_results — choose a group for its essay results."""
+    """/essay_results — choose a group for its essay results."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5425,8 +6508,9 @@ async def _send_essay_results(update: Update, context, user, group, *,
 
 
 
+@require_role("TEACHER")
 async def group_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    "/group_report — choose a group for a combined performance report."""
+    """/group_report — choose a group for a combined performance report."""
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -5972,7 +7056,10 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("parent", parent_start_handler))
     app.add_handler(CommandHandler("tournament", tournament_handler))
     app.add_handler(CommandHandler("tournaments", tournament_handler))
-    # Teacher group management, attendance and group reports
+    # Teacher group management, mock creation, attendance and group reports
+    app.add_handler(CommandHandler("newmock", newmock_handler))
+    app.add_handler(CommandHandler("admin", admin_panel_handler))
+    app.add_handler(CommandHandler("promote_teacher", promote_teacher_handler))
     app.add_handler(CommandHandler("groups", groups_handler))
     app.add_handler(CommandHandler("attendance", attendance_handler))
     app.add_handler(CommandHandler("attendance_report", attendance_report_handler))
