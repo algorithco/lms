@@ -87,13 +87,49 @@
   - 180 daqiqalik taymer doimiy tepada ko'rinib turadi (`.take-test-sticky-top`).
 - [x] Barcha qurilmalarda: Variantlar teginish uchun qulay (`min-height: 48px`, faol bosilish effekti).
 
+### 2.9. Telegram Botda Ustoz-Guruh, Kurs To'lovlari (Tuition), Ota-onalar Nazorati va Davomat
+- [x] Ustoz va Guruh nazorati (`apps/notifications/bot/handlers.py`):
+  - Ustoz `/my_groups` yoki `[ 👥 Guruhlarim ]` orqali guruh yaratish va taklif kodini (`#GR-XXX`) olish.
+  - O'quvchi botga ushbu kodni yozishi bilan avtomatik guruhga qo'shiladi va PRO tarifi ulanadi.
+  - `/students` va `[ 👥 O'quvchilar va BMB ]` orqali guruh a'zolari, ishlagan testlari, esselari va rasmiy BMB darajalari (A+, A, B...) to'liq ko'rsatiladi.
+- [x] Kurs to'lovlari (Tuition Billing — Bot orqali):
+  - Yangi model: `StudentTuition` (`student`, `group`, `monthly_fee`, `due_date`, `status: paid/pending/overdue`, `paid_at`).
+  - Ustoz guruh kartasida `[ 💳 To'lov holati ]` tugmasi orqali to'lovlarni ko'rish va 1 tugma bilan `paid` qilish.
+  - Bot avtomatik eslatmalari (`send_tuition_due_alerts_task`): to'lovga 2 kun qolganda va to'lov kunida o'quvchi va ota-onaga Telegram orqali eslatma.
+- [x] Ota-onalar nazorati (Smart Alerts):
+  - `/parent_link <phone>` va `/parent_start <kod>` orqali ota-onani o'quvchiga ulash.
+  - Test topshirilganda darhol ball, foiz va BMB darajasi yuboriladi (`send_parent_test_alert_task`).
+  - Esse baholanganda AI va ustoz xulosasi yetkaziladi (`send_parent_essay_alert_task`).
+  - Yakshanba 18:00 da haftalik jamlangan o'sish hisoboti yuboriladi (`send_parent_weekly_digest_task`).
+- [x] Davomat (Attendance) va Uyga vazifa (Homework):
+  - Dars boshida bot orqali davomat olinadi; darsga kelmagan bolaning ota-onasiga 15 daqiqada ogohlantirish xabari boradi (`send_parent_absence_alert_task`).
+  - `/new_homework <vazifa>` orqali uyga vazifa berish, o'quvchilarga Telegram eslatma yuborish.
+- [x] Guruhlararo reyting va Excel eksport:
+  - `/group_leaderboard` orqali markaz guruhlarining o'rtacha ball bo'yicha TOP-10 reytingi.
+  - `/export_group_report` orqali 1 soniyada guruh natijalarining rasmiy rangli Excel jadvali fayl qilib yuboriladi.
+
+### 2.10. Veb-panel Sinxronizatsiyasi, Sifat Tekshiruvi va Migratsiyalar
+- [x] `apps/courses/group_service.py` & `frontend/src/pages/Groups.tsx`:
+  - Guruh tahlili va talabalar monitoringi jadvaliga "To'lov" ustuni qo'shildi (`To'langan`, `Kutilmoqda`, `Muddati o'tgan`).
+  - Excel eksport fayliga "To'lov holati" ustuni qo'shildi.
+- [x] Migratsiyalar:
+  - `apps/courses/migrations/0005_homework_homeworksubmission.py`
+  - `apps/tuition/migrations/0002_studenttuition.py`
+  - `apps/essays/migrations/0019_alter_essaytopic_word_limit_min.py`
+- [x] Testlar:
+  - `npm run build`: Frontend TypeScript va Vite 0 xatolik bilan yig'ildi.
+  - `pytest tests/test_tuition_student_model.py`: 100% PASS (2/2).
+  - `pytest tests/test_teacher_bot_commands.py`: 100% PASS (27/27).
+  - `pytest tests/test_teacher_group_auto_pro.py` & `test_teacher_group_reports.py`: 100% PASS (23/23).
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va mukammal bajarildi, VPS (`169.58.58.229`) da production deploy yakunlandi va HTTP 200 OK orqali tasdiqlandi.
+- Barcha talablar to'liq va mukammal bajarildi.
 
 ---
 
 ## 4. Keyingi qadamlar
 - Production serverida test va esse natijalari monitoringini olib borish.
 - O'quvchilarning real imtihon ko'rsatkichlarini tahlil qilish.
+

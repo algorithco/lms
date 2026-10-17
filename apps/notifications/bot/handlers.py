@@ -6813,7 +6813,7 @@ async def _send_students(update: Update, context, user, group) -> None:
     from apps.courses.group_service import get_group_full_analytics
 
     analytics = await _run_db(get_group_full_analytics, group)
-    roster = analytics.get("roster", [])
+    roster = analytics.get("students") or analytics.get("roster") or []
     invite_code = getattr(group, "invite_code", "") or f"GR-{group.id}"
     if not roster:
         await edit_or_reply(
@@ -6828,16 +6828,24 @@ async def _send_students(update: Update, context, user, group) -> None:
         )
         return
 
+    group_avg = analytics.get("group_avg_percentage", analytics.get("group_avg_pct", 0))
     lines = [
         f"👥 *{group.name} — O'quvchilar va BMB Monitoringi*",
-        f"Jami a'zolar: *{len(roster)} nafar* · Guruh o'rtacha: *{analytics.get('group_avg_pct', 0)}%*\n",
+        f"Jami a'zolar: *{len(roster)} nafar* · Guruh o'rtacha: *{group_avg}%*\n",
     ]
     for index, s in enumerate(roster, 1):
+        name = s.get("student_name") or s.get("full_name") or s.get("name") or "O'quvchi"
+        tests_count = s.get("tests_count", s.get("tests_taken", 0))
+        avg_test_pct = s.get("avg_test_percentage", s.get("avg_test_pct", 0.0))
+        bmb_grade = s.get("latest_test_grade") or s.get("bmb_grade") or "—"
+        essays_count = s.get("essays_count", s.get("essays_written", 0))
+        latest_essay = s.get("latest_essay_score", s.get("avg_essay_score", "—"))
+        attendance_str = s.get("attendance_pct") or s.get("attendance") or "100%"
         lines.append(
-            f"*{index}. {s['name']}* ({s.get('plan_badge', 'PRO')})\n"
-            f"   📊 Testlar: *{s['tests_count']} ta* (O'rtacha: *{s['avg_test_pct']}%*) · BMB: *{s['bmb_grade']}*\n"
-            f"   📝 Esselar: *{s['essays_count']} ta* (Oxirgi ball: *{s['latest_essay_score']}*)\n"
-            f"   🗓 Davomat: *{s['attendance_pct']}*\n"
+            f"*{index}. {name}* ({s.get('pro_status_label', s.get('plan_badge', 'PRO'))})\n"
+            f"   📊 Testlar: *{tests_count} ta* (O'rtacha: *{avg_test_pct}%*) · BMB: *{bmb_grade}*\n"
+            f"   📝 Esselar: *{essays_count} ta* (Oxirgi ball: *{latest_essay}*)\n"
+            f"   🗓 davomat: *{attendance_str}*\n"
         )
 
     bmb_summary = analytics.get("bmb_counts", {})
