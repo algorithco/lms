@@ -187,6 +187,42 @@
   - `npm run build`: Frontend TypeScript va Vite 0 xatolik bilan yig'ildi.
   - `pytest tests/test_milliy_exam_engine.py tests/test_tuition_student_model.py`: 100% PASS (49/49).
 
+### 2.14. 2 Bosqichli Smart Onboarding, 5 Daqiqalik Placement Quiz, AI Shaxsiy Reja va Kogorta Analitikasi
+- [x] Ma'lumotlar Bazasi va Modellar (`apps/accounts/models.py` & `serializers.py`):
+  * `Profile` modeliga yangi maydonlar kiritildi:
+    - `exam_target`: `national_certificate` | `attestation` | `undecided`
+    - `target_timeline_months`: 1, 3 yoki 6 oy (default: 3)
+    - `target_grade`: `A+`, `A`, `B+`, `Oliy toifa`, `1-toifa` (default: 'A')
+    - `placement_score`: DecimalField (0–5 ball)
+    - `onboarding_completed`: BooleanField (default: False)
+    - `daily_plan_summary`: JSONField (AI tuzgan kunlik test va esse yuklamasi)
+  * `accounts.0013_profile_daily_plan_summary_profile_exam_target_and_more` migratsiyasi yaratildi va muvaffaqiyatli qo'llandi.
+  * `UserProfileSerializer` va `AuthUser` interfeyslariga ushbu maydonlar qo'shildi.
+- [x] 5 Daqiqalik Placement Quiz API (`apps/tests/views_placement.py` & URLs):
+  * `GET /api/v1/tests/placement-quiz/?target=...`:
+    - Yo'nalishga qarab ('national_certificate' yoki 'attestation') bazadagi tasdiqlangan savollardan tasodifiy AYNAN 5 TA savol tanlab olinadi.
+    - Savol matni, kontekst matni (passage) va variantlar (`is_correct` yashirilgan holda) uzatiladi.
+  * `POST /api/v1/tests/placement-quiz/submit/`:
+    - 5 ta savol natijasi tekshiriladi, ball (0–5) va foiz hisoblanadi.
+    - O'quvchi maqsadi va muddatiga mos AI Shaxsiy Kunlik Reja (`daily_plan_summary`: kunlik testlar soni, haftalik esselar, kunlik ajratiladigan vaqt va fokus mavzular) shakllantiriladi.
+    - Profilga `onboarding_completed = True` qilib saqlanadi.
+- [x] 2 Bosqichli Smart Onboarding Modali (`frontend/src/components/OnboardingModal.tsx`):
+  * 1-bosqich: Yo'nalish tanlash (Milliy sertifikat yoki Attestatsiya 2026), Muddat (1, 3, 6 oy), Maqsadli daraja (A+, A, B+ yoki Oliy toifa, 1-toifa).
+  * 2-bosqich: 5:00 daqiqalik orqaga hisoblovchi taymer bilan 5 ta diagnostika savoli ketma-ket chiqadi.
+  * 3-bosqich: Yakuniy natija konfetti bilan, Boshlang'ich daraja nishoni, AI tuzgan kunlik yuklama jadvali va "Boshqaruv paneliga o'tish →" tugmasi.
+- [x] Dashboard Shaxsiy Tavsiyalari (`frontend/src/pages/Dashboard.tsx`):
+  * Milliy sertifikat tanlaganlarga: "🎯 Sizning rejangiz: BMB Milliy sertifikat (Maqsad: A+)" banneri ostida `⭐️ BMB Rasmiy Mock Test (3 soatlik)`, `✍️ 12 mezonli esse`, `⚔️ 1v1 Arena` tavsiyalari.
+  * Attestatsiya tanlaganlarga: "🎯 Sizning rejangiz: O'qituvchilar Attestatsiyasi 2026 (Maqsad: Oliy toifa)" banneri ostida `🎓 Rasmiy Attestatsiya Diagnostika 2026 (50 ta savol)`, `👥 Guruhlar boshqaruvi` tavsiyalari.
+  * Yangi o'quvchi birinchi marta kirganda (`onboarding_completed === false`) onboarding modali avtomatik ochiladi, xohlagan paytda "Rejani qayta sozlash" orqali qayta topshirish mumkin.
+- [x] Admin Kogorta va Segmentatsiya Analitikasi (`apps/webapi/views_panel.py` & `PanelDashboard.tsx`):
+  * `GET /api/v1/panel/analytics/cohorts/` va `dashboard_view` ga integratsiya:
+    - Auditoriya segmentatsiyasi: Milliy sertifikat (soni va foizi), Attestatsiya (soni va foizi), Boshlang'ich placement test o'rtacha bali.
+    - Tayyorgarlik muddatlari taqsimoti: 1 oylik shoshilinch, 3 oylik standart, 6 oylik uzoq muddatli.
+    - Zamonaviy progress barlar va vizual kartochkalar.
+- [x] Sifat, Testlar va Production Tayyorgarligi:
+  * `pytest tests/test_placement_onboarding.py tests/test_milliy_exam_engine.py tests/test_tuition_student_model.py`: **52/52 PASSED (100%)**.
+  * `npm run build`: Frontend TypeScript va Vite 0 xatolik bilan yig'ildi (2.35s).
+
 ---
 
 ## 3. Jarayonda
@@ -195,6 +231,6 @@
 ---
 
 ## 4. Keyingi qadamlar
-- Mobil qurilmalarda real imtihon topshirayotgan foydalanuvchilarning UX qulayligini doimiy kuzatib borish.
-- Telegram orqali kirish (1-klikli login) funksiyasini keyingi bosqichda joriy qilish.
+- O'quvchilar va ustozlar fikr-mulohazalari (NPS so'rovnomasi) asosida kunlik rejalashtirish bildirishnomalarini botga ulash.
+- Telegram 1-klikli login tizimini keyingi bosqichda joriy qilish.
 

@@ -185,6 +185,12 @@ export interface AuthUser {
   is_superuser?: boolean;
   is_platform_admin?: boolean;
   avatar?: string;
+  exam_target?: 'national_certificate' | 'attestation' | 'undecided';
+  target_timeline_months?: number;
+  target_grade?: string;
+  placement_score?: number | string | null;
+  onboarding_completed?: boolean;
+  daily_plan_summary?: Record<string, unknown>;
 }
 
 /** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
@@ -247,6 +253,15 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
       : {}),
     ...(typeof raw.avatar === 'string' && raw.avatar ? { avatar: raw.avatar } : {}),
     ...(typeof raw.picture === 'string' && raw.picture ? { avatar: raw.picture } : {}),
+    exam_target: (raw.exam_target as AuthUser['exam_target']) ?? 'undecided',
+    target_timeline_months: typeof raw.target_timeline_months === 'number' ? raw.target_timeline_months : 3,
+    target_grade: typeof raw.target_grade === 'string' ? raw.target_grade : 'A',
+    placement_score: raw.placement_score !== undefined ? (raw.placement_score as number) : null,
+    onboarding_completed: typeof raw.onboarding_completed === 'boolean' ? raw.onboarding_completed : false,
+    daily_plan_summary:
+      typeof raw.daily_plan_summary === 'object' && raw.daily_plan_summary
+        ? (raw.daily_plan_summary as Record<string, unknown>)
+        : {},
   };
 }
 
@@ -907,6 +922,21 @@ export const Games = {
     }>(`/api/v1/games/${slug}/check/`, { method: 'POST', body: JSON.stringify(payload) }),
 };
 
+export interface CohortAnalyticsResponse {
+  total_onboarded: number;
+  segmentation: {
+    national_certificate: { count: number; percentage: number; label: string };
+    attestation: { count: number; percentage: number; label: string };
+    undecided: { count: number; percentage: number; label: string };
+  };
+  avg_placement_score: number;
+  timeline_breakdown: {
+    months_1: { count: number; label: string };
+    months_3: { count: number; label: string };
+    months_6: { count: number; label: string };
+  };
+}
+
 export interface PanelDashboardResponse {
   tests: { total: number; published: number; draft: number; archived: number };
   questions: number;
@@ -920,10 +950,66 @@ export interface PanelDashboardResponse {
   role_breakdown: { key: string; count: number }[];
   recent_tests: Record<string, unknown>[];
   recent_topics: Record<string, unknown>[];
+  cohort_analytics?: CohortAnalyticsResponse;
 }
+
+export interface PlacementQuestion {
+  id: number;
+  text: string;
+  passage?: string;
+  choices: Array<{ id: number; text: string }>;
+}
+
+export interface PlacementQuizResponse {
+  ok: boolean;
+  target: string;
+  time_limit_seconds: number;
+  total_questions: number;
+  questions: PlacementQuestion[];
+}
+
+export interface PlacementSubmitPayload {
+  target: string;
+  target_timeline_months: number;
+  target_grade: string;
+  answers: Array<{ question_id: number; selected_choice_id: number }>;
+}
+
+export interface PlacementSubmitResponse {
+  ok: boolean;
+  score: number;
+  total: number;
+  percentage: number;
+  initial_level: string;
+  target: string;
+  target_timeline_months: number;
+  target_grade: string;
+  daily_plan: {
+    schedule_label?: string;
+    tests_per_day?: number;
+    essays_per_week?: number;
+    daily_minutes?: number;
+    focus_areas?: string[];
+    recommended_actions?: Array<{ title: string; badge: string; link: string }>;
+    advice?: string;
+  };
+  onboarding_completed: boolean;
+  message?: string;
+}
+
+export const PlacementQuiz = {
+  get: (target = 'national_certificate') =>
+    api<PlacementQuizResponse>(`/api/v1/tests/placement-quiz/?target=${encodeURIComponent(target)}`),
+  submit: (payload: PlacementSubmitPayload) =>
+    api<PlacementSubmitResponse>('/api/v1/tests/placement-quiz/submit/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
 
 export const Panel = {
   dashboard: () => api<PanelDashboardResponse>('/api/v1/panel/dashboard/'),
+  cohorts: () => api<CohortAnalyticsResponse>('/api/v1/panel/analytics/cohorts/'),
   tests: (q = '', status = '') =>
     api<{ results: Record<string, unknown>[]; statuses: { value: string; label: string }[] }>(
       `/api/v1/panel/tests/?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`,

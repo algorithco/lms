@@ -261,6 +261,50 @@ class Profile(models.Model):
         blank=True,
     )
 
+    # -- Onboarding & Placement (EdTech Personalization) -----------------------
+    class ExamTarget(models.TextChoices):
+        NATIONAL_CERTIFICATE = "national_certificate", _("Milliy sertifikat")
+        ATTESTATION = "attestation", _("Attestatsiya 2026")
+        UNDECIDED = "undecided", _("Hali aniqlanmagan")
+
+    exam_target = models.CharField(
+        _("imtihon maqsadi"),
+        max_length=32,
+        choices=ExamTarget.choices,
+        default=ExamTarget.UNDECIDED,
+        db_index=True,
+    )
+    target_timeline_months = models.PositiveSmallIntegerField(
+        _("tayyorgarlik muddati (oy)"),
+        default=3,
+        help_text=_("1, 3 yoki 6 oy"),
+    )
+    target_grade = models.CharField(
+        _("maqsad darajasi"),
+        max_length=32,
+        default="A",
+        help_text=_("A+, A, B+, oliy_toifa, birinchi_toifa"),
+    )
+    placement_score = models.DecimalField(
+        _("placement test bali"),
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("5 ta savoldan nechtasi to'g'ri (0–5)"),
+    )
+    onboarding_completed = models.BooleanField(
+        _("onboarding yakunlanganmi"),
+        default=False,
+        db_index=True,
+    )
+    daily_plan_summary = models.JSONField(
+        _("AI kunlik reja xulosasi"),
+        default=dict,
+        blank=True,
+        help_text=_("AI tuzgan kunlik test va esse yuklamasi"),
+    )
+
     class Meta:
         verbose_name = _("Profil")
         verbose_name_plural = _("Profillar")

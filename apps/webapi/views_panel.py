@@ -1,13 +1,13 @@
 """Panel JSON API — same queries/rules as apps/panel/views.py, JSON in/out."""
 from __future__ import annotations
 
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from apps.accounts.models import User
+from apps.accounts.models import Profile, User
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.payments.models import PaymentRequest, UserSubscription
 from apps.tests.models import (
@@ -69,6 +69,41 @@ def dashboard_view(request):
         Test.objects.select_related("course").order_by("-created_at")[:5]
     )
     recent_topics = EssayTopic.objects.order_by("-created_at")[:5]
+
+    # -- Cohort & Audience Segmentation (Smart Onboarding analytics) -----------
+    onboarded_qs = Profile.objects.filter(onboarding_completed=True)
+    total_onboarded = onboarded_qs.count()
+
+    nat_count = onboarded_qs.filter(exam_target="national_certificate").count()
+    att_count = onboarded_qs.filter(exam_target="attestation").count()
+    und_count = onboarded_qs.filter(exam_target="undecided").count()
+
+    nat_pct = round((nat_count / max(total_onboarded, 1)) * 100, 1)
+    att_pct = round((att_count / max(total_onboarded, 1)) * 100, 1)
+    und_pct = round((und_count / max(total_onboarded, 1)) * 100, 1)
+
+    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(avg=Avg("placement_score"))["avg"]
+    avg_score = round(float(avg_placement), 2) if avg_placement is not None else 0.0
+
+    timeline_1m = onboarded_qs.filter(target_timeline_months=1).count()
+    timeline_3m = onboarded_qs.filter(target_timeline_months=3).count()
+    timeline_6m = onboarded_qs.filter(target_timeline_months=6).count()
+
+    cohort_analytics = {
+        "total_onboarded": total_onboarded,
+        "segmentation": {
+            "national_certificate": {"count": nat_count, "percentage": nat_pct, "label": "Milliy sertifikat"},
+            "attestation": {"count": att_count, "percentage": att_pct, "label": "Attestatsiya 2026"},
+            "undecided": {"count": und_count, "percentage": und_pct, "label": "Noma'lum"},
+        },
+        "avg_placement_score": avg_score,
+        "timeline_breakdown": {
+            "months_1": {"count": timeline_1m, "label": "1 oylik (shoshilinch)"},
+            "months_3": {"count": timeline_3m, "label": "3 oylik (standart)"},
+            "months_6": {"count": timeline_6m, "label": "6 oylik (uzoq muddatli)"},
+        },
+    }
+
     return Response({
         "tests": tests,
         "questions": Question.objects.count(),
@@ -87,6 +122,45 @@ def dashboard_view(request):
         ],
         "recent_tests": TestAdminSerializer(recent_tests, many=True).data,
         "recent_topics": EssayTopicSerializer(recent_topics, many=True).data,
+        "cohort_analytics": cohort_analytics,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsPanelAdmin])
+def cohort_analytics_view(request):
+    """GET /api/v1/panel/analytics/cohorts/"""
+    onboarded_qs = Profile.objects.filter(onboarding_completed=True)
+    total_onboarded = onboarded_qs.count()
+
+    nat_count = onboarded_qs.filter(exam_target="national_certificate").count()
+    att_count = onboarded_qs.filter(exam_target="attestation").count()
+    und_count = onboarded_qs.filter(exam_target="undecided").count()
+
+    nat_pct = round((nat_count / max(total_onboarded, 1)) * 100, 1)
+    att_pct = round((att_count / max(total_onboarded, 1)) * 100, 1)
+    und_pct = round((und_count / max(total_onboarded, 1)) * 100, 1)
+
+    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(avg=Avg("placement_score"))["avg"]
+    avg_score = round(float(avg_placement), 2) if avg_placement is not None else 0.0
+
+    timeline_1m = onboarded_qs.filter(target_timeline_months=1).count()
+    timeline_3m = onboarded_qs.filter(target_timeline_months=3).count()
+    timeline_6m = onboarded_qs.filter(target_timeline_months=6).count()
+
+    return Response({
+        "total_onboarded": total_onboarded,
+        "segmentation": {
+            "national_certificate": {"count": nat_count, "percentage": nat_pct, "label": "Milliy sertifikat"},
+            "attestation": {"count": att_count, "percentage": att_pct, "label": "Attestatsiya 2026"},
+            "undecided": {"count": und_count, "percentage": und_pct, "label": "Noma'lum"},
+        },
+        "avg_placement_score": avg_score,
+        "timeline_breakdown": {
+            "months_1": {"count": timeline_1m, "label": "1 oylik (shoshilinch)"},
+            "months_3": {"count": timeline_3m, "label": "3 oylik (standart)"},
+            "months_6": {"count": timeline_6m, "label": "6 oylik (uzoq muddatli)"},
+        },
     })
 
 

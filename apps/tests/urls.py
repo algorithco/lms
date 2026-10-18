@@ -12,7 +12,7 @@ Endpoints:
 """
 from django.urls import path
 
-from . import views
+from . import views, views_placement
 
 app_name = "tests"
 
@@ -83,5 +83,17 @@ urlpatterns = [
         "mock/<int:test_id>/leaderboard/",
         views.MockLeaderboardView.as_view(),
         name="mock-leaderboard",
+    ),
+
+    # -- 5-Minute Smart Onboarding Placement Quiz -----------------------------
+    path(
+        "placement-quiz/",
+        views_placement.placement_quiz_view,
+        name="placement-quiz",
+    ),
+    path(
+        "placement-quiz/submit/",
+        views_placement.placement_quiz_submit_view,
+        name="placement-quiz-submit",
     ),
 ]

@@ -185,6 +185,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
     plan = serializers.CharField(
         source="profile.plan", read_only=True, default="free",
     )
+    exam_target = serializers.CharField(
+        source="profile.exam_target", read_only=True, default="undecided",
+    )
+    target_timeline_months = serializers.IntegerField(
+        source="profile.target_timeline_months", read_only=True, default=3,
+    )
+    target_grade = serializers.CharField(
+        source="profile.target_grade", read_only=True, default="A",
+    )
+    placement_score = serializers.DecimalField(
+        source="profile.placement_score", max_digits=5, decimal_places=2, read_only=True, allow_null=True,
+    )
+    onboarding_completed = serializers.BooleanField(
+        source="profile.onboarding_completed", read_only=True, default=False,
+    )
+    daily_plan_summary = serializers.JSONField(
+        source="profile.daily_plan_summary", read_only=True, default=dict,
+    )
     is_platform_admin = serializers.SerializerMethodField()
 
     class Meta:
@@ -192,6 +210,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name",
             "role", "phone", "bio", "avatar", "date_of_birth", "plan",
+            "exam_target", "target_timeline_months", "target_grade",
+            "placement_score", "onboarding_completed", "daily_plan_summary",
             "created_at",
             "language", "is_staff", "is_superuser", "is_platform_admin",
         ]

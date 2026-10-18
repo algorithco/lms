@@ -161,6 +161,142 @@ export default function PanelDashboard() {
         </div>
       </div>
 
+      {/* Smart Onboarding Audience Segmentation & Cohort Analytics */}
+      {d.cohort_analytics && (
+        <section style={{ marginTop: 24, marginBottom: 24 }}>
+          <h2>🎯 Auditoriya Segmentatsiyasi va Kogorta Analitikasi</h2>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+            {/* Audience Segmentation Card */}
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>👥 Imtihon yo'nalishlari bo'yicha taqsimot</span>
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* National Certificate */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: 6 }}>
+                    <span style={{ color: '#10B981' }}>🎓 Milliy sertifikat (Abituriyentlar)</span>
+                    <span>
+                      {d.cohort_analytics.segmentation.national_certificate.count} nafar (
+                      {d.cohort_analytics.segmentation.national_certificate.percentage}%)
+                    </span>
+                  </div>
+                  <div style={{ height: 10, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 5, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, d.cohort_analytics.segmentation.national_certificate.percentage))}%`,
+                        height: '100%',
+                        background: '#10B981',
+                        borderRadius: 5,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Attestation */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: 700, marginBottom: 6 }}>
+                    <span style={{ color: '#3B82F6' }}>👨‍🏫 Attestatsiya 2026 (O'qituvchilar)</span>
+                    <span>
+                      {d.cohort_analytics.segmentation.attestation.count} nafar (
+                      {d.cohort_analytics.segmentation.attestation.percentage}%)
+                    </span>
+                  </div>
+                  <div style={{ height: 10, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 5, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, d.cohort_analytics.segmentation.attestation.percentage))}%`,
+                        height: '100%',
+                        background: '#3B82F6',
+                        borderRadius: 5,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
+                    Boshlang'ich placement test o'rtacha bali:
+                  </span>
+                  <strong style={{ color: '#F59E0B', fontSize: '1.05rem' }}>
+                    {d.cohort_analytics.avg_placement_score} / 5.0
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline Breakdown Card */}
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⏱ Tayyorgarlik muddatlari bo'yicha taqsimot</span>
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 10 }}>
+                <div
+                  style={{
+                    padding: '14px 10px',
+                    borderRadius: 12,
+                    background: 'rgba(244, 63, 94, 0.1)',
+                    border: '1px solid rgba(244, 63, 94, 0.25)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#fda4af', fontWeight: 600 }}>1 oylik shoshilinch</span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#f43f5e', marginTop: 4 }}>
+                    {d.cohort_analytics.timeline_breakdown.months_1.count}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '14px 10px',
+                    borderRadius: 12,
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#fde68a', fontWeight: 600 }}>3 oylik standart</span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#f59e0b', marginTop: 4 }}>
+                    {d.cohort_analytics.timeline_breakdown.months_3.count}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '14px 10px',
+                    borderRadius: 12,
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#a7f3d0', fontWeight: 600 }}>6 oylik uzoq muddatli</span>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10B981', marginTop: 4 }}>
+                    {d.cohort_analytics.timeline_breakdown.months_6.count}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                Jami onboardingdan o'tgan o'quvchilar: <strong>{d.cohort_analytics.total_onboarded} nafar</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <h2>{t('panel_users_by_role')}</h2>
       <div className="grid">
         {roles.map((r) => (

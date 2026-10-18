@@ -15,10 +15,15 @@ from . import (
     views_tournaments,
 )
 from apps.organizations import views as views_enterprise
+from apps.tests import views_placement
 
 app_name = "webapi"
 
 urlpatterns = [
+    # -- 5-Minute Placement Quiz (Smart Onboarding) ----------------------
+    path("tests/placement-quiz/", views_placement.placement_quiz_view, name="tests-placement-quiz"),
+    path("tests/placement-quiz/submit/", views_placement.placement_quiz_submit_view, name="tests-placement-quiz-submit"),
+
     # -- Games -----------------------------------------------------------
     path("games/", views_games.hub_view, name="games-hub"),
     path("games/leaderboard/", views_games.leaderboard_view, name="games-leaderboard"),
@@ -26,6 +31,7 @@ urlpatterns = [
     path("games/<slug:slug>/check/", views_games.check_view, name="games-check"),
     # -- Panel -----------------------------------------------------------
     path("panel/dashboard/", views_panel.dashboard_view, name="panel-dashboard"),
+    path("panel/analytics/cohorts/", views_panel.cohort_analytics_view, name="panel-cohort-analytics"),
     path("panel/tests/", views_panel.tests_view, name="panel-tests"),
     path("panel/tests/<int:test_id>/", views_panel.test_detail_view, name="panel-test-detail"),
     path("panel/tests/<int:test_id>/status/", views_panel.test_status_view, name="panel-test-status"),

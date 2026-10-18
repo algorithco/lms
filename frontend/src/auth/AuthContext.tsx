@@ -42,6 +42,8 @@ interface AuthState {
     role?: string;
   }) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<AuthUser | null>;
+  updateUserLocal: (partial: Partial<AuthUser>) => void;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -271,6 +273,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const u = await Auth.me();
+      setUser(u);
+      return u;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const updateUserLocal = useCallback((partial: Partial<AuthUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...partial } : null));
+  }, []);
+
   return (
     <Ctx.Provider
       value={{
@@ -287,6 +303,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         register,
         logout,
+        refreshUser,
+        updateUserLocal,
       }}
     >
       {children}
