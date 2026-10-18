@@ -286,3 +286,8 @@ def _send_email_result(result: Any) -> None:
         )
     except Exception as e:
         logger.error("Email send failed for result %d: %s", result.id, e)
+
+
+# Import parent notification tasks so Celery discovers them
+from apps.notifications import tasks_parent  # noqa: F401
+

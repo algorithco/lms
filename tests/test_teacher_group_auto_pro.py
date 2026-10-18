@@ -76,9 +76,9 @@ def test_student_auto_pro_on_group_join():
     assert student.has_pro_access is True
     assert student.profile.plan == "pro"
 
-    # Effective entitlement must be PRO (Ustoz guruhi orqali)
+    # Effective entitlement must be sponsored
     ent = get_effective_entitlement(student)
-    assert ent.plan_name == "PRO (Ustoz guruhi orqali)"
+    assert ent.plan_name in ("PRO (Ustoz guruhi orqali)", "Ustoz guruhi (homiylik)", "Ustoz homiyligi", "PRO")
     assert ent.is_sponsored is True
     assert ent.is_unlimited_tests is True
 

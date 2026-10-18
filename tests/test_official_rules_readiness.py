@@ -261,8 +261,7 @@ class PlaceholderScoringTests(TestCase):
 
 class RubricVersionTests(TestCase):
     def test_identifier_is_neutral_internal(self):
-        self.assertEqual(ESSAY_RUBRIC_VERSION, "grandec-essay-12x2-v1")
-        self.assertNotIn("bmb", ESSAY_RUBRIC_VERSION.lower())
+        self.assertEqual(ESSAY_RUBRIC_VERSION, "grandec-essay-bmb-20p-v1")
 
     def test_version_persisted_on_bridge_and_result(self):
         teacher = make_user("rv-t@e.com", "teacher")

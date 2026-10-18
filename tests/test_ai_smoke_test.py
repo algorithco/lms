@@ -34,6 +34,7 @@ def _ok_response(content: str = "PONG") -> MagicMock:
     OPENROUTER_API_KEY=OR_KEY,
     ESSAY_AI_MOCK_MODE=False,
     ESSAY_AI_MODEL="",
+    OPENROUTER_AI_MODEL=CHAIN[0],
     OPENROUTER_FALLBACK_MODELS=CHAIN[1:],
 )
 class AiSmokeTestDryRunTests(SimpleTestCase):
@@ -59,6 +60,7 @@ class AiSmokeTestDryRunTests(SimpleTestCase):
     OPENROUTER_API_KEY=OR_KEY,
     ESSAY_AI_MOCK_MODE=False,
     ESSAY_AI_MODEL="",
+    OPENROUTER_AI_MODEL=CHAIN[0],
     OPENROUTER_FALLBACK_MODELS=CHAIN[1:],
 )
 class AiSmokeTestLiveTests(SimpleTestCase):
@@ -131,6 +133,7 @@ class AiSmokeTestNoKeyTests(SimpleTestCase):
     OPENROUTER_API_KEY=OR_KEY,
     ESSAY_AI_MOCK_MODE=False,
     ESSAY_AI_MODEL="",
+    OPENROUTER_AI_MODEL=CHAIN[0],
     OPENROUTER_FALLBACK_MODELS=CHAIN[1:],
 )
 @patch(

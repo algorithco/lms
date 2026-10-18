@@ -32,13 +32,6 @@ def get_user_plan_tier(user: Any) -> str:
     if getattr(user, "is_superuser", False) or getattr(user, "role", None) in ("admin", "teacher"):
         return "premium"
 
-    # Enrolled in teacher group -> auto-delegated PRO (50 AI requests/day)
-    if hasattr(user, "student_groups") and user.student_groups.exists():
-        return "pro"
-
-    if getattr(user, "has_pro_access", False):
-        return "pro"
-
     sub = getattr(user, "subscription", None)
     if sub and getattr(sub, "is_active", False):
         plan_type = getattr(sub.plan, "plan_type", "").lower()
@@ -58,6 +51,13 @@ def get_user_plan_tier(user: Any) -> str:
             return "pro"
         if profile_plan in ("starter", "start"):
             return "starter"
+
+    # Enrolled in teacher group -> auto-delegated PRO (50 AI requests/day)
+    if hasattr(user, "student_groups") and user.student_groups.exists():
+        return "pro"
+
+    if getattr(user, "has_pro_access", False):
+        return "pro"
 
     return "free"
 

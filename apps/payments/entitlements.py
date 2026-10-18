@@ -321,16 +321,15 @@ def get_effective_entitlement(user) -> Entitlement:
     # --- 2. Approved teacher sponsorship ------------------------------------
     sponsorship = _effective_sponsorship(user)
     if sponsorship is not None:
-        sponsored_plan = _plan_by_code(SubscriptionPlan.PlanType.PRO) or _plan_by_code(SubscriptionPlan.PlanType.TEACHER_SPONSORED)
+        sponsored_plan = _plan_by_code(SubscriptionPlan.PlanType.TEACHER_SPONSORED)
         if sponsored_plan is not None:
             merged, contributed = _apply_layer(dict(config), sponsored_plan)
             merged, contributed2 = _apply_layer(merged, sponsorship)
             entitlement_plan = sponsored_plan
             source = SOURCE_SPONSORED
-            plan_name = "PRO (Ustoz guruhi orqali)"
+            plan_name = sponsored_plan.name or "Ustoz homiyligi"
             is_sponsored = True
             expires_at = sponsorship.expires_at
-            merged["is_unlimited_tests"] = True
             return Entitlement(
                 source=source, plan_type=sponsored_plan.plan_type,
                 plan_name=plan_name, is_sponsored=is_sponsored,
@@ -350,7 +349,6 @@ def get_effective_entitlement(user) -> Entitlement:
         entitlement_plan = plan
         is_teacher_sponsored = (
             subscription.purchase_source == UserSubscription.Source.TEACHER_SPONSORED
-            or (hasattr(user, "student_groups") and user.student_groups.exists())
         )
         source = SOURCE_SPONSORED if is_teacher_sponsored else SOURCE_SUBSCRIPTION
         plan_name = "PRO (Ustoz guruhi orqali)" if is_teacher_sponsored else (plan.name if plan else "PRO")
@@ -358,8 +356,6 @@ def get_effective_entitlement(user) -> Entitlement:
         expires_at = subscription.expires_at
         if plan is not None:
             merged, contributed = _apply_layer(dict(config), plan)
-            if is_teacher_sponsored:
-                merged["is_unlimited_tests"] = True
             return Entitlement(
                 source=source, plan_type=plan.plan_type, plan_name=plan_name,
                 is_sponsored=is_sponsored, plan=plan, subscription=subscription,
@@ -375,23 +371,6 @@ def get_effective_entitlement(user) -> Entitlement:
             quota_period_days=period_days,
             is_unlimited_tests=True if is_teacher_sponsored else False,
         )
-
-    # --- 3.5. Enrolled in teacher group (Auto-delegated PRO) ---------------
-    if hasattr(user, "student_groups") and user.student_groups.exists():
-        pro_plan = _plan_by_code(SubscriptionPlan.PlanType.PRO)
-        if pro_plan is not None:
-            merged, contributed = _apply_layer(dict(config), pro_plan)
-            merged["is_unlimited_tests"] = True
-            return Entitlement(
-                source=SOURCE_SPONSORED,
-                plan_type=pro_plan.plan_type,
-                plan_name="PRO (Ustoz guruhi orqali)",
-                is_sponsored=True,
-                plan=pro_plan,
-                expires_at=None,
-                override_fields=contributed,
-                **merged,
-            )
 
     # --- 4. Default / free policy ------------------------------------------
     # The ``free`` plan row (when an administrator has configured one) is the

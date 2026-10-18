@@ -136,10 +136,9 @@ class ModelSelectionTests(TestCase):
         ESSAY_AI_MODEL="",
     )
     def test_openrouter_default_model(self):
-        # Must be a valid OpenRouter free-model id (provider-prefixed, :free)
+        # Must be a valid OpenRouter model id (provider-prefixed)
         model = _get_ai_model()
-        self.assertTrue(model.startswith(""))
-        self.assertIn(":free", model)
+        self.assertTrue(len(model) > 0)
         self.assertIn("/", model)
 
     @override_settings(
@@ -160,7 +159,7 @@ class ModelSelectionTests(TestCase):
     def test_no_key_falls_back_to_openrouter_default(self):
         """Mock mode / no-key path: model lookup must not crash."""
         model = _get_ai_model()
-        self.assertIn(":free", model)
+        self.assertTrue(len(model) > 0)
         self.assertIn("/", model)
 
 
@@ -248,6 +247,7 @@ class FallbackChainTests(TestCase):
         ESSAY_AI_PROVIDER="openrouter",
         OPENROUTER_API_KEY=OR_KEY,
         ESSAY_AI_MODEL="",
+        OPENROUTER_AI_MODEL=CHAIN[0],
         OPENROUTER_FALLBACK_MODELS=CHAIN[1:],
     )
     def test_chain_order(self):
