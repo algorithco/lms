@@ -333,16 +333,47 @@
   * Contabo VPS (`169.58.58.229`) ga avtomatik deploy muvaffaqiyatli amalga oshirildi (`Deploy #39127274923` - 2m35s).
   * `curl -fsS https://grandec.uz/healthz/` -> **HTTP 200 OK** tasdiqlandi.
 
+### 2.19. Titul Varaqa (OMR) Skaneri, IELTS/Multi-level AI Speaking Simulyatori, Gamifikatsiya & Streak, hamda B2B White-Label Hisobotlar
+- [x] 502 Bad Gateway Xatosini Bartaraf Etish va Qat'iy 2 Bosqichli Yo'naltirish:
+  * Backend API da (`/api/v1/profile/switch-subject/` va `/api/v1/tests/placement-quiz/`) barcha holatlar uchun xavfsiz JSON fallback va try-except himoyasi o'rnatildi.
+  * Qat'iy 2 bosqichli fan va imtihon oqimi:
+    - 1-bosqich: `[ 🇺🇿 Ona tili va adabiyot ]` yoki `[ 🇬🇧 English (IELTS & Multi-level) ]`.
+    - 2-bosqich: Ona tilida faqat `[ 🎓 Milliy sertifikat ]` / `[ 👨‍🏫 Attestatsiya 2026 ]`; Ingliz tilida faqat `[ 🎓 IELTS ]` / `[ 🎯 CEFR Multi-level ]`.
+- [x] Titul Varaqa (OMR / Answer Sheet) Avto-Skaneri:
+  * Ikki bosqichli intellektual skanerlash tizimi: Gemini 2.5 Flash Vision AI asosiy dvigateli va OpenCV/Pillow kontur aniqlash fallback tizimi (`apps/tests/omr_service.py`).
+  * Qalam/ruchka bilan bo'yalgan doirachalarni (A, B, C, D) 1-45 gacha aniq o'qish, test kalitlari bilan solishtirish, `TestAttempt` va `StudentAnswer` yozuvlarini yaratish.
+  * Veb interfeys (`frontend/src/pages/ScanOMR.tsx`): suratni sudrab tashlash yoki kameradan yuklash, radar animatsiyasi va tezkor ball kartochkasi.
+  * Telegram bot integratsiyasi (`apps/notifications/bot/handlers.py`): botga titul varaqa fotosurati yuborilganda avtomatik tahlil qilinib, darhol foiz va to'g'ri/xato javoblar hisoboti yuboriladi.
+- [x] IELTS & Multi-level uchun AI Speaking Simulyatori:
+  * Yangi Django ilovasi `apps/speaking`: `SpeakingTopic` (Part 1, Part 2 Cue Card, Part 3) va `SpeakingSubmission` modellari.
+  * MediaRecorder API orqali brauzerda real vaqtda audio yozish kabineti (`frontend/src/pages/SpeakingPractice.tsx`) — 60 soniya tayyorgarlik va 120 soniya javob taymeri bilan.
+  * Gemini Multimodal Audio Evaluator: rasmiy 4 ta mezon (Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation) bo'yicha 0.0–9.0 Band ball hisoblash, batafsil transkript, Band 8+ ilg'or sinonimlar va grammatik tahrirlar.
+- [x] Kundalik Maqsad, Gamifikatsiya va Streak (🔥 Duolingo Uslubida):
+  * `Profile` modelida: `current_streak`, `longest_streak`, `last_activity_date`, `streak_freeze_count`, `xp_points`, `weekly_xp`, `weekly_league` (Bronza, Kumush, Oltin, Olmos).
+  * Har bir topshirilgan test, yozilgan esse yoki speaking uchun avtomatik streak uzaytirilishi va XP ballar berilishi (`apps/accounts/gamification.py`).
+  * O'tkazib yuborilgan kunlarda olov o'chib qolmasligi uchun muzlatish qalqoni (`streak_freeze_count`) tizimi.
+  * Veb-interfeys: Navbar yuqori panelida jonli olov (`🔥 X kun • ⚡ Y XP`), Boshqaruv panelida (Dashboard) Duolingo uslubidagi liga va streak kartochkasi.
+- [x] O'quv Markazlari va Ustozlar uchun White-Label B2B A4 Hisobotlar:
+  * `LearningCenter` va `Profile` modellariga markaz logotipi, brend rangi (`brand_color`), sarlavha va muhr/imzo (`stamp_signature`) maydonlari ulandi.
+  * ReportLab vositasida o'quvchilarning oylik ko'rsatkichlari, test ballari, davomat foizi, BMB/IELTS darajasi va ustoz xulosasini o'z ichiga olgan rasmiy A4 PDF hisobot generatori (`apps/organizations/reports_pdf.py`).
+  * Guruhlar sahifasida (`frontend/src/pages/Groups.tsx`): 1 klikda "📑 Oylik A4 Hisobot (White-Label)" PDF yuklab olish va brending sozlamalari modali.
+- [x] Sifat, Testlar va Sinovlar:
+  * Yangi test paketi: `tests/test_omr_speaking_gamification.py` — 10 ta integratsion test 100% PASS.
+  * Frontend build: `npm run build` — TypeScript va Vite 0 xatolik bilan toza yig'ildi.
+  * Linter va formatlash: `ruff check .` — to'liq toza.
+  * Contabo VPS (`169.58.58.229`) ga muvaffaqiyatli deploy amalga oshirildi va jonli serverda HTTP 200 OK tasdiqlandi.
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq, sifatli va xatosiz bajarildi, CI 100% yashil, tizim barqaror ishlab turibdi.
+- Barcha 5 ta asosiy tizim to'liq ishlab chiqildi, sinovdan o'tkazildi va jonli serverga chiqarildi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Jonli ishlab turgan tizim metrikalari va foydalanuvchilar faoliyatini monitoring qilish.
-- Keyingi topshiriqlar bo'yicha ishlash.
+- Jonli foydalanuvchilarning AI Speaking va Titul varaqa OMR skanerlash tajribasini kuzatish.
+- Foydalanuvchilar fikr-mulohazalari asosida qo'shimcha yangilanishlar kiritish.
+
 
 
 
