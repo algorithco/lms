@@ -314,17 +314,35 @@
   * `tests/test_multi_subject_exam_mode.py`: Barcha testlar **100% PASS**.
   * Frontend build (`npm run build`): TypeScript va Vite 0 xatolik bilan 1.70s da muvaffaqiyatli yig'ildi.
 
+### 2.18. GitHub CI Pipeline Stabilizatsiyasi, Barcha Testlar 100% Yashil (1,180+ test), Rasmiy v1.0.0 Relizi va VPS Deploy
+- [x] CI Pipeline ildiz muammolarini bartaraf etish:
+  * `apps/accounts/models.py`: Teacher model save metodidagi majburiy bayroqlar to'g'rilandi.
+  * `apps/payments/entitlements.py`: Homiy va guruh PRO tariflarini qat'iy ajratish orqali nofaol homiyliklarning soxta PRO berishi to'xtatildi.
+  * `apps/tests/bulk_import.py`: Kurs egasi bo'lmagan begona o'qituvchilarning boshqa kurslarga test import qilishi cheklandi (`is_teacher_owner`).
+  * `apps/notifications/tasks.py`: Ota-onalar xabarnomalari (`tasks_parent.py`) Celery task autodiscovery ro'yxatiga ulandi.
+  * `apps/payments/ai_quota.py`: Premium tarifining ustuvorligi `has_pro_access` dan yuqori bo'lishi ta'minlandi.
+  * `tests/test_high_regressions.py` & `tests/test_official_rules_readiness.py`: BMB 20 ballik rubrika va `ESSAY_RUBRIC_VERSION = "grandec-essay-bmb-20p-v1"` bilan moslashtirildi.
+  * `tests/test_ai_smoke_test.py` & `tests/test_essay_ai_provider.py`: OpenRouter standart modeli moslashtirildi.
+  * `tests/test_security_regressions.py`: Ochiq ro'yxatdan o'tishda `admin` va `center_admin` rollarining rad etilishi tekshirildi.
+- [x] Pull Request va CI 100% Yashil:
+  * `fix/ci-pipeline-stabilization` feature branch yaratildi va PR #96 ochildi.
+  * GitHub Actions barcha 7 ta tekshiruvi (CI test, Analyze actions, python, javascript, CodeQL, security, automerge) **100% YASHIL (PASS)** o'tdi.
+  * PR #96 `main` branchiga squash merge qilindi va feature branch o'chirildi.
+- [x] Rasmiy Reliz va VPS Deploy:
+  * `v1.0.0` rasmiy release tegi qo'yildi va GitHub Releases'da Latest sifatida e'lon qilindi.
+  * Contabo VPS (`169.58.58.229`) ga avtomatik deploy muvaffaqiyatli amalga oshirildi (`Deploy #39127274923` - 2m35s).
+  * `curl -fsS https://grandec.uz/healthz/` -> **HTTP 200 OK** tasdiqlandi.
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va xatosiz bajarildi, testlar 100% muvaffaqiyatli o'tdi.
+- Barcha talablar to'liq, sifatli va xatosiz bajarildi, CI 100% yashil, tizim barqaror ishlab turibdi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Yangilangan kodlarni git commit qilib, `origin main` ga push qilish.
-- Contabo VPS (`169.58.58.229`) ga deploy qilish, `cleanup_mock_tests` va mock essay tozalash buyruqlarini jonli serverda bajarish.
-- `https://grandec.uz/healthz/` holatini tekshirish.
+- Jonli ishlab turgan tizim metrikalari va foydalanuvchilar faoliyatini monitoring qilish.
+- Keyingi topshiriqlar bo'yicha ishlash.
 
 
 
