@@ -155,6 +155,21 @@
   - Production deploy: GitHub Actions orqali VPS ga to'liq yetkazildi va ishga tushirildi.
   - Jonli tekshiruv: `https://grandec.uz/healthz/` va `https://grandec.uz/` -> HTTP 200 OK.
 
+### 2.12. Mobil CBT Imtihonida D Varianti Ko'rinishini To'g'rilash (Zero-Downtime Hotfix)
+- [x] Muammo tahlili: Mobilda pastki qotirilgan (`position: fixed; bottom: 0`) navigatsiya paneli ("Oldingi" / "Keyingi") 4-variant (D varianti) ustiga chiqib, uni to'sib qo'yayotgan edi.
+- [x] Yechim:
+  - `frontend/src/pages/TakeTest.tsx`:
+    * Savol kartochkasi (`.take-test-card.single-view`) va variantlar konteyneriga (`.take-test-choices`) mobilda `paddingBottom: '140px'` bo'sh joy qo'shildi.
+    * Variant tugmalari orasidagi masofa `gap: 10px` (`space-y-2.5`), balandligi `min-height: 48px`, ichki bo'shligi `padding: 14px 16px` (`py-3.5 px-4`) qilib barmoq bilan bosishga moslashtirildi.
+    * Mobilda oxirigacha skroll qilinganda D varianti pastki qotirilgan panel ustidan 70px+ yuqorida to'liq, erkin va ochiq ko'rinishi ta'minlandi.
+  - `frontend/src/index.css`:
+    * `@media (max-width: 767px)` da `.take-test-page-container` uchun `padding-bottom: 160px !important`, `.take-test-card.single-view` va `.take-test-choices` uchun `padding-bottom: 140px !important` qat'iy o'rnatildi.
+- [x] Yig'ish va Deploy:
+  - `npm run build` — 0 xatolik bilan 1.99s da muvaffaqiyatli yig'ildi.
+  - Git commit: `fix(cbt-mobile): add bottom padding to prevent fixed bar overlapping option D`.
+  - Zero-downtime deploy: Foydalanuvchilar yoki faol test topshirayotganlar uzilmagan holda jonli serverga chiqdi.
+  - Jonli tekshiruv: `https://grandec.uz/healthz/` va `https://grandec.uz/` -> HTTP 200 OK.
+
 ---
 
 ## 3. Jarayonda
@@ -163,6 +178,6 @@
 ---
 
 ## 4. Keyingi qadamlar
-- Production serverida test va esse natijalari monitoringini olib borish.
-- O'quvchilarning real imtihon ko'rsatkichlarini tahlil qilish.
+- Mobil qurilmalarda real imtihon topshirayotgan foydalanuvchilarning UX qulayligini doimiy kuzatib borish.
+- Telegram orqali kirish (1-klikli login) funksiyasini keyingi bosqichda joriy qilish.
 
