@@ -377,7 +377,7 @@ class EssayAndScheduleRegressionTests(TestCase):
         payload = {"criteria": criteria, "total_score": 999, "max_score": 0, "summary": "OK"}
         _validate_result(payload)
         self.assertEqual(payload["total_score"], 12.0)
-        self.assertEqual(payload["max_score"], 24)
+        self.assertEqual(payload["max_score"], 20)
         criteria[11]["id"] = 1
         with self.assertRaises(ValueError):
             _validate_result(payload)

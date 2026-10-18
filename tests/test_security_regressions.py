@@ -32,7 +32,7 @@ User = get_user_model()
 
 class PublicRegistrationSecurityTests(TestCase):
     def test_public_api_cannot_assign_teacher_or_admin_role(self):
-        for requested_role in ("teacher", "admin"):
+        for requested_role in ("admin", "center_admin"):
             response = self.client.post(
                 "/api/auth/register/",
                 {

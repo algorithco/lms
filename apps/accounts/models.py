@@ -168,9 +168,6 @@ class User(AbstractUser):
             self.email = self.email.strip().lower()
         else:
             self.email = ""
-        if self.role == self.Role.TEACHER:
-            self.can_create_test = True
-            self.can_create_essay_topic = True
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
