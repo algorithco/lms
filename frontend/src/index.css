@@ -1268,7 +1268,30 @@ img.auth-logo {
 
 @media (max-width: 767px) {
   .take-test-page-container {
-    padding-bottom: 84px;
+    padding-bottom: 160px !important;
+  }
+
+  .take-test-card.single-view {
+    padding-bottom: 140px !important;
+  }
+
+  .take-test-card.single-view .take-test-choices {
+    padding-bottom: 140px !important;
+  }
+
+  .take-test-choices {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .take-test-card .quiz-opt {
+    min-height: 48px !important;
+    padding: 14px 16px !important;
+  }
+
+  .single-q-split.has-passage {
+    padding-bottom: 24px;
   }
 
   .q-palette-grid {

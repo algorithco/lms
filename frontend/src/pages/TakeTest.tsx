@@ -228,6 +228,15 @@ export default function TakeTest() {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const submittedRef = useRef(false);
+  const [isMobile, setIsMobile] = useState<boolean>(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -631,7 +640,15 @@ export default function TakeTest() {
         scale={isSingleView ? 1 : 1.005}
         style={{ borderRadius: 'var(--radius)', marginBottom: isSingleView ? 0 : 12 }}
       >
-        <div id={`question-${q.id}`} className="card" style={{ height: '100%', margin: 0 }}>
+        <div
+          id={`question-${q.id}`}
+          className={`card take-test-card${isSingleView ? ' single-view' : ''}`}
+          style={{
+            height: '100%',
+            margin: 0,
+            paddingBottom: isSingleView && isMobile ? '140px' : undefined,
+          }}
+        >
           {q.section_id != null && (
             <span id={`section-${q.section_id}`} style={{ scrollMarginTop: 80 }} />
           )}
@@ -822,7 +839,15 @@ export default function TakeTest() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div
+                className="take-test-choices"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                  paddingBottom: isSingleView && isMobile ? '140px' : undefined,
+                }}
+              >
                 {q.choices.map((c, ci) => {
                   const on = a.choices.includes(c.id);
                   const letter = String.fromCharCode(65 + ci);
@@ -835,6 +860,13 @@ export default function TakeTest() {
                       aria-pressed={on}
                       onClick={() => pick(q, c.id)}
                       style={{
+                        minHeight: 48,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        width: '100%',
+                        textAlign: 'left',
                         transition: 'all 0.15s ease',
                         boxShadow: on ? '0 0 10px rgba(245, 158, 11, 0.2)' : undefined,
                       }}
@@ -845,7 +877,9 @@ export default function TakeTest() {
                       >
                         {on ? '✓' : letter}
                       </span>
-                      <span style={{ fontWeight: on ? 600 : 400 }}>{c.text}</span>
+                      <span style={{ fontWeight: on ? 600 : 400, flex: 1, wordBreak: 'break-word' }}>
+                        {c.text}
+                      </span>
                     </button>
                   );
                 })}
