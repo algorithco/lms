@@ -8,9 +8,12 @@ import {
   FileText,
   LayoutGrid,
   Keyboard,
+  AlertTriangle,
+  ShieldAlert,
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
 import { Tests as TestsApi } from '../lib/api';
+import AudioPlayerBar from '../components/AudioPlayerBar';
 import {
   GapFillInput,
   MatchingInput,
@@ -56,6 +59,7 @@ interface PassageDef {
   content: string;
   source?: string;
   order: number;
+  audio_url?: string;
 }
 
 interface SectionDef {
@@ -65,6 +69,7 @@ interface SectionDef {
   order: number;
   duration_minutes: number;
   weight: string;
+  audio_url?: string;
 }
 
 interface SectionProgressDef {
@@ -115,6 +120,11 @@ interface AttemptDetail {
   sections?: SectionDef[];
   passages?: PassageDef[];
   section_progress?: SectionProgressDef[];
+  subject?: string;
+  audio_url?: string;
+  is_strict_mode?: boolean;
+  violation_count?: number;
+  cheating_detected?: boolean;
 }
 
 interface SubmitResult {
@@ -233,6 +243,12 @@ export default function TakeTest() {
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
 
+  // Strict Exam Mode (Anti-Cheat)
+  const [violationCount, setViolationCount] = useState<number>(0);
+  const [warningModalOpen, setWarningModalOpen] = useState<boolean>(false);
+  const [cheatedModalOpen, setCheatedModalOpen] = useState<boolean>(false);
+  const lastViolationTimeRef = useRef<number>(0);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -245,6 +261,12 @@ export default function TakeTest() {
       const a = (await TestsApi.attempt(attemptId)) as unknown as AttemptDetail;
       setAttempt(a);
       setRemaining(a.remaining_seconds);
+      if (typeof a.violation_count === 'number') {
+        setViolationCount(a.violation_count);
+      }
+      if (a.cheating_detected) {
+        setCheatedModalOpen(true);
+      }
       const draft = loadDraft(attemptId);
       setAnswers((prev) => {
         if (Object.keys(prev).length > 0) return prev;
@@ -368,6 +390,66 @@ export default function TakeTest() {
     },
     [attempt, answers, saved, failed, attemptId, submitting, t],
   );
+
+  // Strict Exam Mode event listener (tab-switch & window blur tracking)
+  useEffect(() => {
+    const isFinished =
+      !attempt ||
+      attempt.status === 'completed' ||
+      attempt.status === 'timeout' ||
+      attempt.status === 'cancelled' ||
+      attempt.status === 'pending_grading';
+    if (!attempt?.is_strict_mode || isFinished || submitting || result || cheatedModalOpen) return;
+
+    const reportTabViolation = async (reason: string) => {
+      const now = Date.now();
+      if (now - lastViolationTimeRef.current < 2500) return; // 2.5s debounce
+      lastViolationTimeRef.current = now;
+
+      try {
+        const rep = await TestsApi.reportViolation(attemptId, reason);
+        const count = rep.violation_count ?? (violationCount + 1);
+        setViolationCount(count);
+        if (rep.cheating_detected || count >= 3) {
+          setCheatedModalOpen(true);
+          submittedRef.current = true;
+          setSubmitting(true);
+          setTimeout(() => {
+            navigate('/results');
+          }, 3500);
+        } else {
+          setWarningModalOpen(true);
+        }
+      } catch {
+        const next = violationCount + 1;
+        setViolationCount(next);
+        if (next >= 3) {
+          setCheatedModalOpen(true);
+          void doSubmit(true);
+        } else {
+          setWarningModalOpen(true);
+        }
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        void reportTabViolation('tab_switch');
+      }
+    };
+
+    const handleBlur = () => {
+      void reportTabViolation('window_blur');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [attempt, submitting, result, cheatedModalOpen, attemptId, violationCount, navigate, doSubmit]);
 
   useEffect(() => {
     if (remaining === 0 && attempt && !result) {
@@ -638,6 +720,12 @@ export default function TakeTest() {
     Math.max(0, attempt.questions.length - 1),
   );
   const currentQuestion = attempt.questions[safeQIndex];
+  const activeSection = attempt.sections?.find((s) => s.id === currentQuestion?.section_id);
+  const activeAudioUrl =
+    currentQuestion?.passage?.audio_url ||
+    activeSection?.audio_url ||
+    attempt.audio_url ||
+    '';
 
   const renderQuestionCard = (q: Question, i: number, isSingleView: boolean) => {
     const a = answers[q.id] ?? emptyEntry();
@@ -1010,6 +1098,22 @@ export default function TakeTest() {
               <ClockIcon size={16} className="ico" /> {formatClock(remaining)}
             </span>
           )}
+          {attempt.is_strict_mode && (
+            <span
+              className="badge"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                fontWeight: 700,
+                background: violationCount > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                color: violationCount > 0 ? '#f87171' : '#fbbf24',
+                borderColor: violationCount > 0 ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              <ShieldAlert size={14} /> Strict Mode ({violationCount}/3)
+            </span>
+          )}
           <span className="badge" style={{ fontWeight: 700 }}>
             {answeredCount}/{attempt.questions.length} ✓
           </span>
@@ -1025,6 +1129,15 @@ export default function TakeTest() {
           />
         </div>
       </div>
+
+      {/* Audio player for IELTS Listening or multimedia passages */}
+      {activeAudioUrl && (
+        <AudioPlayerBar
+          src={activeAudioUrl}
+          title={attempt.test_title}
+          sectionName={activeSection?.name}
+        />
+      )}
 
       {/* Mode switch, hotkey hints, quick finish button */}
       <div className="test-top-bar">
@@ -1316,6 +1429,147 @@ export default function TakeTest() {
           </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Strict Exam Mode — Warning Modal (Violations 1 and 2) */}
+      {warningModalOpen && !cheatedModalOpen && !finished && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              maxWidth: 480,
+              width: '100%',
+              background: '#1e293b',
+              border: '2px solid #f59e0b',
+              borderRadius: 16,
+              padding: '24px 20px',
+              textAlign: 'center',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(245, 158, 11, 0.25)',
+              color: '#f8fafc',
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '2px solid rgba(245, 158, 11, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                color: '#f59e0b',
+              }}
+            >
+              <AlertTriangle size={32} />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 8, color: '#fef08a' }}>
+              ⚠️ Diqqat! Boshqa oynaga o'tish taqiqlanadi!
+            </h2>
+            <p style={{ fontSize: '0.92rem', color: '#cbd5e1', lineHeight: 1.55, marginBottom: 16 }}>
+              Ushbu test <strong>Strict Exam Mode</strong> (qat'iy nazorat) rejimida o'tkazilmoqda. Siz test oynasidan chiqdingiz yoki boshqa ilovaga o'tdingiz.
+            </p>
+            <div
+              style={{
+                display: 'inline-block',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: 8,
+                padding: '6px 14px',
+                color: '#fca5a5',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                marginBottom: 20,
+              }}
+            >
+              Qoidabuzarlik soni: {violationCount} / 3
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: 20 }}>
+              Ogohlantirish: 3-marta qoidabuzarlik sodir bo'lsa, imtihon avtomatik yakunlanadi va ko'chirish deb baholanadi!
+            </p>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => setWarningModalOpen(false)}
+              style={{ width: '100%', minHeight: 44, fontWeight: 700, fontSize: '0.95rem' }}
+            >
+              Tushundim, testni davom ettirish
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Strict Exam Mode — Cheating Auto-Submitted Modal (3rd Violation) */}
+      {cheatedModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              maxWidth: 480,
+              width: '100%',
+              background: '#0f172a',
+              border: '2px solid #ef4444',
+              borderRadius: 16,
+              padding: '28px 20px',
+              textAlign: 'center',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 35px rgba(239, 68, 68, 0.4)',
+              color: '#f8fafc',
+            }}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '2px solid rgba(239, 68, 68, 0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                color: '#ef4444',
+              }}
+            >
+              <ShieldAlert size={36} />
+            </div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 8, color: '#fca5a5' }}>
+              🚨 Ko'chirishga urinish qayd etildi! (3/3)
+            </h2>
+            <p style={{ fontSize: '0.92rem', color: '#cbd5e1', lineHeight: 1.55, marginBottom: 16 }}>
+              Siz 3 marta boshqa oyna yoki dasturlarga o'tdingiz. Tizim qoidabuzarlikni qayd etdi va testingiz avtomatik yakunlandi.
+            </p>
+            <div style={{ fontSize: '0.84rem', color: '#94a3b8' }}>
+              Natijalar sahifasiga yo'naltirilmoqda…
+            </div>
+          </div>
         </div>
       )}
     </div>

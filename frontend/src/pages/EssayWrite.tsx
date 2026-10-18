@@ -33,6 +33,9 @@ interface TopicInfo {
   id?: number;
   title?: string;
   description?: string;
+  subject?: string;
+  rubric_type?: string;
+  task_type?: string;
   word_limit_min?: number;
   word_limit_max?: number;
   time_limit_minutes?: number;
@@ -68,8 +71,12 @@ export default function EssayWrite() {
   const autoSubmitDone = useRef(false);
 
   const words = useMemo(() => countEssayWords(text), [text]);
-  const minWords = Number(topic?.word_limit_min ?? 200) || 200;
-  const maxWords = Number(topic?.word_limit_max ?? 500) || 500;
+  const isEnglish = topic?.subject === 'english' || topic?.rubric_type?.startsWith('ielts');
+  const isTask1 = topic?.rubric_type === 'ielts_task1' || topic?.task_type === 'task1';
+  const defaultMin = isEnglish ? (isTask1 ? 150 : 250) : 200;
+  const defaultMax = isEnglish ? (isTask1 ? 300 : 500) : 500;
+  const minWords = Number(topic?.word_limit_min ?? defaultMin) || defaultMin;
+  const maxWords = Number(topic?.word_limit_max ?? defaultMax) || defaultMax;
   const timeLimitMin = Number(topic?.time_limit_minutes ?? 0);
   const hasLimit = timeLimitMin > 0;
   const zone = wordZone(words, minWords, maxWords);
@@ -361,17 +368,52 @@ export default function EssayWrite() {
           <p className="muted">{String(topic.description ?? '')}</p>
           <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
             <div className="card">
-              <strong>{t('essay_12_criteria')}</strong>{' '}
-              <span className="muted small">{t('essay_0_2')}</span>
-              <p className="muted small">{t('essay_criteria_hint')}</p>
-              <ul className="muted small" style={{ margin: '0.5rem 0', paddingLeft: '1.2rem' }}>
-                {CRIT_KEYS.map((k, i) => (
-                  <li key={k}>
-                    {String(i + 1).padStart(2, '0')} · {t(k)}
-                  </li>
-                ))}
-              </ul>
-              <p className="muted small">{t('essay_watch_tip')}</p>
+              {isEnglish ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: '1.1rem' }}>🇬🇧</span>
+                    <strong>Official IELTS Writing Assessment (Band 1.0 – 9.0)</strong>
+                  </div>
+                  <p className="muted small">
+                    Your essay will be evaluated across the 4 official IELTS criteria:
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, margin: '0.6rem 0' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                      <strong style={{ fontSize: '0.82rem', color: '#60a5fa', display: 'block' }}>1. {isTask1 ? 'Task Achievement' : 'Task Response'}</strong>
+                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Clear overview, key features, or fully developed position</span>
+                    </div>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                      <strong style={{ fontSize: '0.82rem', color: '#34d399', display: 'block' }}>2. Coherence & Cohesion</strong>
+                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Logical sequencing, clear paragraphing, cohesive devices</span>
+                    </div>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                      <strong style={{ fontSize: '0.82rem', color: '#fbbf24', display: 'block' }}>3. Lexical Resource</strong>
+                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Academic vocabulary, precise collocations, rare errors</span>
+                    </div>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
+                      <strong style={{ fontSize: '0.82rem', color: '#c084fc', display: 'block' }}>4. Grammatical Range & Accuracy</strong>
+                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Complex sentence structures, punctuation, error-free sentences</span>
+                    </div>
+                  </div>
+                  <p className="muted small" style={{ fontSize: '0.76rem' }}>
+                    💡 Min requirement: {minWords} words ({isTask1 ? 'Task 1: ~150-200' : 'Task 2: ~250-320'} words recommended).
+                  </p>
+                </>
+              ) : (
+                <>
+                  <strong>{t('essay_12_criteria')}</strong>{' '}
+                  <span className="muted small">{t('essay_0_2')}</span>
+                  <p className="muted small">{t('essay_criteria_hint')}</p>
+                  <ul className="muted small" style={{ margin: '0.5rem 0', paddingLeft: '1.2rem' }}>
+                    {CRIT_KEYS.map((k, i) => (
+                      <li key={k}>
+                        {String(i + 1).padStart(2, '0')} · {t(k)}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="muted small">{t('essay_watch_tip')}</p>
+                </>
+              )}
             </div>
           </div>
           <div className="form" style={{ maxWidth: '100%' }}>

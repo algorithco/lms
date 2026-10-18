@@ -66,6 +66,10 @@ interface Result {
   graded_at?: string | null;
   poll_after?: number;
   error?: string | null;
+  subject?: string;
+  rubric_type?: string;
+  overall_band?: number | null;
+  cefr_level?: string | null;
 }
 
 function renderHighlightedText(text?: string, errors?: SpellingError[]) {
@@ -249,6 +253,10 @@ export default function EssayResult() {
   const pending = !isEssayTerminal(res.status);
   const done = isEssayDone(res.status);
   const displayScore = res.final_score ?? res.total_score;
+  const isEnglish =
+    res.subject === 'english' ||
+    res.rubric_type?.startsWith('ielts') ||
+    (res.overall_band !== null && res.overall_band !== undefined);
 
   return (
     <div>
@@ -332,32 +340,66 @@ export default function EssayResult() {
             <p className="muted small">{t('essay_grading_mock')}</p>
           )}
           <div className="grid">
-            <div className="card stat">
-              <span className="stat-label">
-                {res.final_score !== null && res.final_score !== undefined
-                  ? t('essay_final_score')
-                  : t('em_overall')}
-              </span>
-              <span className="stat-value">
-                {displayScore ?? '—'}
-                <small className="muted"> / {res.max_score}</small>
-              </span>
-            </div>
-            <div className="card stat">
-              <span className="stat-label">{t('em_overall')}</span>
-              <span className="stat-value">{res.converted_score ?? '—'}</span>
-            </div>
-            <div className="card stat">
-              <span className="stat-label">{t('words')}</span>
-              <span className="stat-value">{res.word_count}</span>
-            </div>
+            {isEnglish ? (
+              <>
+                <div
+                  className="card stat"
+                  style={{
+                    borderColor: 'rgba(245, 158, 11, 0.45)',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(16, 185, 129, 0.08))',
+                  }}
+                >
+                  <span className="stat-label">🏆 IELTS Overall Band Score</span>
+                  <span className="stat-value" style={{ color: '#f59e0b', fontSize: '2rem' }}>
+                    {res.overall_band !== null && res.overall_band !== undefined
+                      ? Number(res.overall_band).toFixed(1)
+                      : displayScore !== null
+                      ? Number(displayScore).toFixed(1)
+                      : '—'}
+                    <small className="muted" style={{ fontSize: '1rem' }}> / 9.0</small>
+                  </span>
+                </div>
+                <div className="card stat">
+                  <span className="stat-label">🎓 CEFR Equivalency</span>
+                  <span className="stat-value" style={{ color: '#10b981' }}>
+                    {res.cefr_level || (displayScore && displayScore >= 7 ? 'C1' : 'B2')}
+                  </span>
+                </div>
+                <div className="card stat">
+                  <span className="stat-label">{t('words')}</span>
+                  <span className="stat-value">{res.word_count}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="card stat">
+                  <span className="stat-label">
+                    {res.final_score !== null && res.final_score !== undefined
+                      ? t('essay_final_score')
+                      : t('em_overall')}
+                  </span>
+                  <span className="stat-value">
+                    {displayScore ?? '—'}
+                    <small className="muted"> / {res.max_score}</small>
+                  </span>
+                </div>
+                <div className="card stat">
+                  <span className="stat-label">{t('em_overall')}</span>
+                  <span className="stat-value">{res.converted_score ?? '—'}</span>
+                </div>
+                <div className="card stat">
+                  <span className="stat-label">{t('words')}</span>
+                  <span className="stat-value">{res.word_count}</span>
+                </div>
+              </>
+            )}
           </div>
           {res.summary && (
             <div className="card" style={{ marginTop: 16 }}>
               <p>{res.summary}</p>
             </div>
           )}
-          <h2>{t('essay_12_criteria')}</h2>
+          <h2>{isEnglish ? '🇬🇧 Official IELTS 4 Criteria (Band 1.0 – 9.0)' : t('essay_12_criteria')}</h2>
           {radarItems.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 28px' }}>
               <HologramRadar3D

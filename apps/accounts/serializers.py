@@ -185,6 +185,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     plan = serializers.CharField(
         source="profile.plan", read_only=True, default="free",
     )
+    active_subject = serializers.CharField(
+        source="profile.active_subject", read_only=True, default="uzbek",
+    )
     exam_target = serializers.CharField(
         source="profile.exam_target", read_only=True, default="undecided",
     )
@@ -210,7 +213,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name",
             "role", "phone", "bio", "avatar", "date_of_birth", "plan",
-            "exam_target", "target_timeline_months", "target_grade",
+            "active_subject", "exam_target", "target_timeline_months", "target_grade",
             "placement_score", "onboarding_completed", "daily_plan_summary",
             "created_at",
             "language", "is_staff", "is_superuser", "is_platform_admin",
@@ -227,7 +230,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     Write serializer — profile ma'lumotlarini tahrirlash.
 
     User modelning o'zini (first_name, last_name) va
-    Profile modelni (phone, bio, avatar, date_of_birth) yangilaydi.
+    Profile modelni (phone, bio, avatar, date_of_birth, active_subject) yangilaydi.
     """
 
     # Profile maydonlari
@@ -243,12 +246,15 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(
         source="profile.date_of_birth", required=False, allow_null=True,
     )
+    active_subject = serializers.CharField(
+        source="profile.active_subject", required=False,
+    )
 
     class Meta:
         model = User
         fields = [
             "first_name", "last_name", "language",
-            "phone", "bio", "avatar", "date_of_birth",
+            "phone", "bio", "avatar", "date_of_birth", "active_subject",
         ]
 
     def update(self, instance: Any, validated_data: dict[str, Any]) -> Any:

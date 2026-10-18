@@ -225,6 +225,28 @@ export default function AttendancePanel() {
     });
   }
 
+  async function quickMark(studentId: number, status: AttendanceStatus) {
+    if (groupId === null) return;
+    setStatus(studentId, status);
+    try {
+      const res = await School.attendanceQuickMark({
+        group_id: groupId,
+        student_id: studentId,
+        status,
+        lesson_date: lessonDate,
+      });
+      if (res.parent_alert_scheduled) {
+        setNotice(
+          `⚠️ "Kelmadi" saqlandi. 15 daqiqadan so'ng ota-onaga Telegram orqali xabar yuboriladi.`
+        );
+      } else {
+        setNotice(`✓ "${statusLabel(t, status)}" darhol saqlandi.`);
+      }
+    } catch {
+      // offline / draft fallback
+    }
+  }
+
   function setLateMinutes(studentId: number, minutes: number) {
     setDraft((prev) => ({
       ...prev,
@@ -440,6 +462,27 @@ export default function AttendancePanel() {
             </div>
           )}
 
+          {/* 1-Click Davomat Info Banner */}
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 8,
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              marginBottom: 12,
+              fontSize: '0.84rem',
+              color: '#93c5fd',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>⚡</span>
+            <span>
+              <strong>1-Click Davomat:</strong> Status tugmasi bosilishi bilanoq darhol saqlanadi. Agar o'quvchi <strong>❌ Kelmadi</strong> deb belgilansa, 15 daqiqalik kutilgandan so'ng ota-onaga Telegram orqali avtomatik ogohlantirish yuboriladi.
+            </span>
+          </div>
+
           <div className="table-wrap">
             <table className="data">
               <thead>
@@ -467,10 +510,16 @@ export default function AttendancePanel() {
                             type="button"
                             className={`btn sm ${row.status === status ? 'primary' : ''}`}
                             aria-pressed={row.status === status}
-                            onClick={() => setStatus(row.student_id, status)}
+                            onClick={() => void quickMark(row.student_id, status)}
                             disabled={disabled}
-                            style={{ marginRight: 4 }}
+                            style={{
+                              marginRight: 6,
+                              minHeight: 44,
+                              minWidth: 78,
+                              fontWeight: row.status === status ? 800 : 500,
+                            }}
                           >
+                            {status === 'present' ? '✅ ' : status === 'late' ? '⚠️ ' : status === 'absent' ? '❌ ' : '📝 '}
                             {statusLabel(t, status)}
                           </button>
                         ))}

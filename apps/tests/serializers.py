@@ -88,6 +88,7 @@ def _passage_payload(passage) -> dict[str, Any] | None:
         "id": passage.id,
         "title": passage.title,
         "content": passage.content,
+        "audio_url": getattr(passage, "audio_url", "") or "",
         "source": passage.source,
         "order": passage.order,
     }
@@ -152,6 +153,7 @@ def _sections_payload(test) -> list[dict[str, Any]]:
     return [
         {
             "id": s.id, "name": s.name, "code": s.code,
+            "audio_url": getattr(s, "audio_url", "") or "",
             "order": s.order, "duration_minutes": s.duration_minutes,
             "weight": str(s.weight),
         }
@@ -178,8 +180,8 @@ class TestListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Test
         fields = [
-            "id", "title", "description", "course", "course_title",
-            "category_slug", "category_name", "mock_code",
+            "id", "subject", "title", "description", "course", "course_title",
+            "category_slug", "category_name", "mock_code", "audio_url", "is_strict_mode",
             "difficulty", "time_limit_minutes", "max_attempts",
             "pass_percentage", "total_questions", "is_active",
             "created_at",
@@ -202,7 +204,8 @@ class TestDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Test
         fields = [
-            "id", "title", "description", "course",
+            "id", "subject", "title", "description", "course",
+            "audio_url", "is_strict_mode",
             "difficulty", "time_limit_minutes", "max_attempts",
             "pass_percentage", "total_questions", "total_points",
             "has_time_limit", "shuffle_questions", "shuffle_choices",
@@ -252,6 +255,9 @@ class AttemptSerializer(serializers.ModelSerializer):
     """
 
     test_title = serializers.CharField(source="test.title", read_only=True)
+    subject = serializers.CharField(source="test.subject", read_only=True)
+    audio_url = serializers.CharField(source="test.audio_url", read_only=True)
+    is_strict_mode = serializers.BooleanField(source="test.is_strict_mode", read_only=True)
     remaining_seconds = serializers.SerializerMethodField()
     time_limit_minutes = serializers.IntegerField(
         source="test.time_limit_minutes", read_only=True,
@@ -264,9 +270,10 @@ class AttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestAttempt
         fields = [
-            "id", "test", "test_title", "status",
-            "started_at", "completed_at",
+            "id", "test", "test_title", "subject", "audio_url", "is_strict_mode",
+            "status", "started_at", "completed_at",
             "score", "percentage", "is_passed",
+            "violation_count", "cheating_detected",
             "remaining_seconds", "time_limit_minutes",
             "total_questions", "answered_count",
         ]
@@ -288,6 +295,9 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     """
 
     test_title = serializers.CharField(source="test.title", read_only=True)
+    subject = serializers.CharField(source="test.subject", read_only=True)
+    audio_url = serializers.CharField(source="test.audio_url", read_only=True)
+    is_strict_mode = serializers.BooleanField(source="test.is_strict_mode", read_only=True)
     remaining_seconds = serializers.SerializerMethodField()
     questions = serializers.SerializerMethodField()
     answered_count = serializers.SerializerMethodField()
@@ -298,9 +308,10 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestAttempt
         fields = [
-            "id", "test", "test_title", "status",
-            "started_at", "completed_at",
+            "id", "test", "test_title", "subject", "audio_url", "is_strict_mode",
+            "status", "started_at", "completed_at",
             "score", "percentage", "is_passed",
+            "violation_count", "cheating_detected",
             "remaining_seconds", "questions", "answered_count",
             "sections", "passages", "section_progress",
         ]

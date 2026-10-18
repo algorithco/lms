@@ -185,7 +185,8 @@ export interface AuthUser {
   is_superuser?: boolean;
   is_platform_admin?: boolean;
   avatar?: string;
-  exam_target?: 'national_certificate' | 'attestation' | 'undecided';
+  active_subject?: 'uzbek' | 'english';
+  exam_target?: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'undecided';
   target_timeline_months?: number;
   target_grade?: string;
   placement_score?: number | string | null;
@@ -237,12 +238,17 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     (typeof raw.full_name === 'string' && raw.full_name.trim()) ||
     `${first} ${last}`.trim() ||
     (typeof raw.email === 'string' ? raw.email : '');
+  const active_subject =
+    raw.active_subject === 'english' || raw.active_subject === 'uzbek'
+      ? (raw.active_subject as 'uzbek' | 'english')
+      : 'uzbek';
   return {
     id: Number(raw.id),
     email: typeof raw.email === 'string' ? raw.email : '',
     role: (raw.role as AuthUser['role']) ?? 'student',
     full_name: full,
     is_active: typeof raw.is_active === 'boolean' ? raw.is_active : true,
+    active_subject,
     ...(first ? { first_name: first } : {}),
     ...(last ? { last_name: last } : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
@@ -463,8 +469,31 @@ export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blo
   return res.blob();
 }
 
+export interface SubjectItem {
+  slug: 'uzbek' | 'english';
+  name: string;
+  description: string;
+  icon: string;
+  is_active: boolean;
+}
+
+export const ProfileApi = {
+  subjects: () => api<SubjectItem[]>('/api/v1/subjects/'),
+  switchSubject: (subject: 'uzbek' | 'english') =>
+    api<{ ok: boolean; active_subject: 'uzbek' | 'english'; user: AuthUser }>('/api/v1/profile/switch-subject/', {
+      method: 'POST',
+      body: JSON.stringify({ subject }),
+    }),
+};
+
 export const Tests = {
-  list: () => api<Paginated<TestSummary>>('/api/tests/'),
+  list: (params?: { subject?: string; category?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.subject) qs.set('subject', params.subject);
+    if (params?.category) qs.set('category', params.category);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return api<Paginated<TestSummary>>(`/api/tests/${query}`);
+  },
   detail: (id: string) => api<Record<string, unknown>>(`/api/tests/${id}/`),
   start: (id: string) =>
     api<Attempt | { attempt_id: number }>(`/api/tests/${id}/start/`, {
@@ -496,6 +525,20 @@ export const Tests = {
   finalize: (attemptId: string) =>
     api<unknown>(`/api/tests/attempts/${attemptId}/finalize/`, {
       method: 'POST',
+    }),
+  reportViolation: (attemptId: string | number, type = 'tab_switch') =>
+    api<{
+      attempt_id: number;
+      violation_count: number;
+      max_violations: number;
+      cheating_detected: boolean;
+      terminated: boolean;
+      status: string;
+      result_id?: number | null;
+      message: string;
+    }>(`/api/tests/attempts/${attemptId}/report-violation/`, {
+      method: 'POST',
+      body: JSON.stringify({ type }),
     }),
 };
 
@@ -1497,6 +1540,27 @@ export const School = {
     `${API_BASE}/api/v1/school/groups/${groupId}/export/pdf/`,
 
   // -- Attendance ----------------------------------------------------------
+  attendanceQuickMark: (payload: {
+    group_id: number | string;
+    student_id: number | string;
+    status: 'present' | 'late' | 'absent' | 'excused';
+    lesson_date?: string;
+    late_minutes?: number;
+    note?: string;
+  }) =>
+    api<{
+      ok: boolean;
+      session_id: number;
+      lesson_date: string;
+      applied: number;
+      parent_alert_scheduled: boolean;
+      parent_alert_scheduled_in_minutes: number;
+      summary: AttendanceSessionSummary;
+      roster: AttendanceRosterRow[];
+    }>('/api/v1/school/attendance/quick-mark/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   attendanceSessions: (params: {
     group_id: number | string;
     start?: string;
@@ -1828,9 +1892,44 @@ export interface EssayGradingProvenance {
   cached?: boolean;
 }
 
+export interface IeltsCriterionScore {
+  band: number;
+  criterion_name: string;
+  feedback: string;
+}
+
+export interface IeltsGradePayload {
+  task_type: 'task1' | 'task2';
+  prompt: string;
+  essay_text: string;
+}
+
+export interface IeltsGradeResponse {
+  task_type: string;
+  word_count: number;
+  min_words: number;
+  overall_band: number;
+  cefr_level: string;
+  criteria: Record<string, IeltsCriterionScore>;
+  general_feedback: string;
+  model_band9_rewrite: string;
+  submission_id?: number | null;
+}
+
 export const Essays = {
-  topics: () => api<{ topics?: unknown[] } & Record<string, unknown>>('/tma/api/essays/topics/'),
-  submissions: () => api<Record<string, unknown>>('/tma/api/essays/'),
+  topics: (params?: { subject?: string; category?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.subject) qs.set('subject', params.subject);
+    if (params?.category) qs.set('category', params.category);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return api<{ topics?: unknown[] } & Record<string, unknown>>(`/tma/api/essays/topics/${query}`);
+  },
+  submissions: (params?: { subject?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.subject) qs.set('subject', params.subject);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return api<Record<string, unknown>>(`/tma/api/essays/${query}`);
+  },
   start: (topicId: number | string, password = '') =>
     api<Record<string, unknown>>(`/tma/api/essays/${topicId}/start/`, {
       method: 'POST',
@@ -1862,6 +1961,11 @@ export const Essays = {
         body: JSON.stringify({ reason: reason || '' }),
       },
     ),
+  ieltsGrade: (payload: IeltsGradePayload) =>
+    api<IeltsGradeResponse>('/api/v1/essays/ielts/grade/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export interface TeacherEssayCard {

@@ -103,6 +103,8 @@ def create_quick_mock(
     time_limit_minutes: int = 120,
     course_id: int | None = None,
     custom_code: str | None = None,
+    is_strict_mode: bool = False,
+    subject: str = "uzbek",
 ) -> dict[str, Any]:
     """
     Bitta qatorli kalitlar orqali 1 soniyada Mock Test sessiya yaratadi.
@@ -133,9 +135,11 @@ def create_quick_mock(
 
     total_q = len(keys)
     test_title = title.strip() if title.strip() else f"Milliy Sertifikat Mock Test ({mock_code})"
+    norm_subject = subject if subject in ("uzbek", "english") else "uzbek"
 
     test = Test.objects.create(
         course=course,
+        subject=norm_subject,
         title=test_title,
         description=f"Tezkor kalitlar asosida yaratilgan {total_q} ta savolli Mock test. Kod: {mock_code}",
         mock_code=mock_code,
@@ -145,6 +149,7 @@ def create_quick_mock(
         difficulty=Test.Difficulty.MEDIUM,
         status=Test.Status.PUBLISHED,
         is_active=True,
+        is_strict_mode=bool(is_strict_mode),
         show_results_immediately=True,
         shuffle_questions=False,
         shuffle_choices=False,
@@ -178,6 +183,8 @@ def create_quick_mock(
         "test_id": test.id,
         "mock_code": mock_code,
         "title": test.title,
+        "subject": test.subject,
+        "is_strict_mode": test.is_strict_mode,
         "total_questions": total_q,
         "time_limit_minutes": test.time_limit_minutes,
         "course_id": course.id,
@@ -217,9 +224,10 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
     """
     from apps.results.models import Result
 
+    test = Test.objects.filter(id=test_id).first()
     results = (
         Result.objects.filter(test_id=test_id)
-        .select_related("student")
+        .select_related("student", "attempt")
         .order_by("-percentage", "time_taken_seconds")
     )
 
@@ -232,6 +240,10 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
         if grade in bmb_counts:
             bmb_counts[grade] += 1
 
+        attempt = getattr(r, "attempt", None)
+        cheating_detected = bool(getattr(attempt, "cheating_detected", False)) if attempt else False
+        violation_count = int(getattr(attempt, "violation_count", 0) or 0) if attempt else 0
+
         ranking.append({
             "rank": idx,
             "student_id": r.student_id,
@@ -243,6 +255,8 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
             "bmb_title": grade_info["title"],
             "badge_class": grade_info["badge_class"],
             "time_taken_seconds": r.time_taken_seconds,
+            "cheating_detected": cheating_detected,
+            "violation_count": violation_count,
             "calculated_at": r.calculated_at.isoformat(),
         })
 
@@ -251,6 +265,7 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
 
     return {
         "test_id": test_id,
+        "is_strict_mode": bool(test.is_strict_mode) if test else False,
         "total_participants": total_candidates,
         "average_percentage": avg_score,
         "bmb_distribution": bmb_counts,

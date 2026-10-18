@@ -381,10 +381,16 @@ def tma_results_view(request: Request) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_essay_topics_view(request: Request) -> Response:
-    """GET /api/telegram/essays/topics/ — Essay topics for TMA."""
+    """GET /api/telegram/essays/topics/?subject=uzbek|english — Essay topics for TMA & Web."""
     from apps.essays.models import EssayTopic, EssaySubmission
+    from apps.tests.views_placement import ensure_multi_subject_seed_data
 
-    topics = EssayTopic.objects.filter(is_active=True).order_by("-created_at")
+    ensure_multi_subject_seed_data()
+    subject_filter = (request.query_params.get("subject") or "").strip().lower()
+    topics_qs = EssayTopic.objects.filter(is_active=True)
+    if subject_filter in ("uzbek", "english"):
+        topics_qs = topics_qs.filter(subject=subject_filter)
+    topics = topics_qs.order_by("-created_at")
 
     # User's submissions per topic
     user_subs = {}
@@ -395,10 +401,6 @@ def tma_essay_topics_view(request: Request) -> Response:
         if current is None:
             user_subs[submission.topic_id] = submission
             continue
-        # Keep the same selection semantics as the start endpoint: a usable
-        # submission wins over an expired one, even when the expired row was
-        # touched later by autosave. Within the same bucket, the most recently
-        # updated row is the one the student should see.
         if (
             (current.is_expired and not submission.is_expired)
             or (
@@ -412,8 +414,12 @@ def tma_essay_topics_view(request: Request) -> Response:
         "topics": [
             {
                 "id": t.id,
+                "subject": t.subject,
+                "rubric_type": t.rubric_type,
+                "category": t.category,
                 "title": t.title,
                 "description": t.description,
+                "sample_outline": t.sample_outline,
                 "word_limit_min": t.word_limit_min,
                 "word_limit_max": t.word_limit_max,
                 "time_limit_minutes": t.time_limit_minutes,
@@ -439,14 +445,14 @@ def tma_essay_topics_view(request: Request) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_essay_submissions_view(request: Request) -> Response:
-    """GET /api/telegram/essays/ — User's essay submissions for TMA."""
+    """GET /api/telegram/essays/?subject=uzbek|english — User's essay submissions for TMA & Web."""
     from apps.essays.models import EssaySubmission
 
-    submissions = (
-        EssaySubmission.objects.filter(student=request.user)
-        .select_related("topic")
-        .order_by("-updated_at")[:20]
-    )
+    subject_filter = (request.query_params.get("subject") or "").strip().lower()
+    qs = EssaySubmission.objects.filter(student=request.user).select_related("topic")
+    if subject_filter in ("uzbek", "english"):
+        qs = qs.filter(topic__subject=subject_filter)
+    submissions = qs.order_by("-updated_at")[:20]
 
     return Response({
         "submissions": [
@@ -454,10 +460,18 @@ def tma_essay_submissions_view(request: Request) -> Response:
                 "id": s.id,
                 "topic_id": s.topic_id,
                 "topic_title": s.topic.title if s.topic else "",
+                "subject": s.topic.subject if s.topic else "uzbek",
+                "rubric_type": s.topic.rubric_type if s.topic else "bmb_12",
                 "status": s.status,
                 "total_score": float(s.total_score) if s.total_score is not None else None,
                 "max_score": s.max_score,
                 "converted_score": s.converted_score,
+                "overall_band": (
+                    float(s.total_score)
+                    if (s.topic and s.topic.subject == "english" and s.total_score is not None)
+                    else None
+                ),
+                "cefr_level": (s.raw_result or {}).get("cefr_level") if isinstance(s.raw_result, dict) else None,
                 "word_count": s.word_count,
                 "graded_at": s.graded_at.isoformat() if s.graded_at else None,
                 "is_off_topic": s.is_off_topic,
@@ -494,11 +508,6 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
         if not topic.check_password(entered):
             return Response({"error": "Noto'g'ri parol"}, status=403)
 
-    # Check existing submission — prefer a still-usable (non-expired) one.
-    # Rationale: several verified submissions can exist per topic (a new one
-    # is created after the previous timer expires). Picking Meta ordering
-    # (-updated_at) could return an expired row touched later by autosave
-    # while a usable submission exists → false 410 "Vaqt tugagan".
     candidates = (
         EssaySubmission.objects.filter(
             student=request.user, topic=topic,
@@ -521,19 +530,25 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
                 {"error": "Vaqt tugagan", "submission_id": latest_expired.id},
                 status=410,
             )
-        existing = None  # no verified submission yet → create below
+        existing = None
+
+    topic_payload = {
+        "id": topic.id,
+        "subject": topic.subject,
+        "rubric_type": topic.rubric_type,
+        "category": topic.category,
+        "title": topic.title,
+        "description": topic.description,
+        "sample_outline": topic.sample_outline,
+        "word_limit_min": topic.word_limit_min,
+        "word_limit_max": topic.word_limit_max,
+        "time_limit_minutes": topic.time_limit_minutes,
+    }
 
     if existing:
         return Response({
             "submission_id": existing.id,
-            "topic": {
-                "id": topic.id,
-                "title": topic.title,
-                "description": topic.description,
-                "word_limit_min": topic.word_limit_min,
-                "word_limit_max": topic.word_limit_max,
-                "time_limit_minutes": topic.time_limit_minutes,
-            },
+            "topic": topic_payload,
             "remaining_seconds": existing.remaining_seconds,
             "essay_text": existing.essay_text,
             "word_count": existing.word_count,
@@ -544,6 +559,7 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
     submission = EssaySubmission.objects.create(
         student=request.user,
         topic=topic,
+        max_score=9 if topic.subject == "english" else 20,
         status=EssaySubmission.Status.DRAFT,
         password_verified_at=timezone.now(),
         source=EssaySubmission.Source.TMA,
@@ -551,14 +567,7 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
 
     return Response({
         "submission_id": submission.id,
-        "topic": {
-            "id": topic.id,
-            "title": topic.title,
-            "description": topic.description,
-            "word_limit_min": topic.word_limit_min,
-            "word_limit_max": topic.word_limit_max,
-            "time_limit_minutes": topic.time_limit_minutes,
-        },
+        "topic": topic_payload,
         "remaining_seconds": submission.remaining_seconds,
         "essay_text": "",
         "word_count": 0,
@@ -750,6 +759,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         raw_errors_by_id = {}
 
     from apps.essays.models import EssayCriterionScore
+    from apps.essays.services import is_ielts_submission
 
     raw_res = submission.raw_result or {}
     spelling_errors = raw_res.get("spelling_errors", [])
@@ -758,14 +768,27 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     teacher_recommendation = raw_res.get("teacher_recommendation", "")
     improved_text = raw_res.get("improved_text") or getattr(submission, "improved_content", "") or ""
     crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
+    ielts_mode = is_ielts_submission(submission) or raw_res.get("rubric_type") in ("ielts_task1", "ielts_task2", "ielts")
 
     response = {
         "id": submission.id,
         "topic_id": submission.topic_id,
         "topic_title": submission.topic.title if submission.topic else "",
+        "subject": submission.topic.subject if submission.topic else ("english" if ielts_mode else "uzbek"),
+        "rubric_type": (
+            submission.topic.rubric_type
+            if submission.topic
+            else (raw_res.get("rubric_type") or "bmb_12")
+        ),
+        "overall_band": (
+            float(raw_res.get("overall_band") or submission.total_score)
+            if ielts_mode and submission.total_score is not None
+            else None
+        ),
+        "cefr_level": raw_res.get("cefr_level") if ielts_mode else None,
         "status": submission.status,
         "total_score": float(submission.total_score) if submission.total_score is not None else None,
-        "max_score": submission.max_score,
+        "max_score": 9 if ielts_mode else submission.max_score,
         "converted_score": submission.converted_score,
         "score_percentage": submission.score_percentage,
         "summary": submission.summary,
@@ -782,9 +805,6 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "weaknesses": weaknesses,
         "teacher_recommendation": teacher_recommendation,
         "improved_text": improved_text,
-        # Grading provenance: tells the student their grade is the shared
-        # validated AI evaluation. It never reveals which other account
-        # submitted the same essay (no ids, timestamps or comments).
         "grading_source": submission.grading_source,
         "cached": submission.grading_source == EssaySubmission.GradingSource.CACHE,
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,
@@ -794,15 +814,13 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
                 "id": c.criterion_id,
                 "name": c.name,
                 "score": float(c.score),
-                "max_score": float(crit_maxes.get(c.criterion_id, 2.0)),
+                "max_score": 9.0 if ielts_mode else float(crit_maxes.get(c.criterion_id, 2.0)),
                 "reason": c.reason,
                 "errors": raw_errors_by_id.get(c.criterion_id, []),
             }
             for c in criteria
         ],
     }
-    # Baholash hali fonda ishlayapti (status=pending) — polling intervalini
-    # client'ga aytamiz (sekundlarda).
     if submission.status == EssaySubmission.Status.PENDING:
         response["poll_after"] = 3
     return Response(response)

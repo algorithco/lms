@@ -55,6 +55,11 @@ urlpatterns = [
         views.FinalizeAttemptView.as_view(),
         name="finalize-attempt",
     ),
+    path(
+        "attempts/<int:attempt_id>/report-violation/",
+        views.ReportViolationView.as_view(),
+        name="report-violation",
+    ),
 
     # -- 24/7 AI Tutor & Diagnostics ------------------------------------------
     path(

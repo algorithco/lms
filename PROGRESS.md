@@ -223,14 +223,51 @@
   * `pytest tests/test_placement_onboarding.py tests/test_milliy_exam_engine.py tests/test_tuition_student_model.py`: **52/52 PASSED (100%)**.
   * `npm run build`: Frontend TypeScript va Vite 0 xatolik bilan yig'ildi (2.35s).
 
+### 2.15. Ko'p Tarmoqli Fanlar Tizimi (Multi-Subject: Uzbek & English IELTS), Audio Pleyer, IELTS 4 Mezonli AI Grader, Anti-Cheat Qat'iy Imtihon Rejimi va BestWay 1-Klikli Davomat
+- [x] Ko'p Tarmoqli Fan Tanlash Arxitekturasi (Subject Switcher):
+  * Backend:
+    - `Subject` modeli (`apps/courses/models.py`): `slug`, `title`, `description`, `icon`, `is_active`, `sort_order`.
+    - `Profile.active_subject` maydoni (`apps/accounts/models.py`): default `'uzbek'`.
+    - `ExamTarget` tanloviga `IELTS = 'ielts'` va `MULTILEVEL = 'multilevel'` qo'shildi.
+    - `Test`, `EssayTopic`, `Course`, `StudentGroup` modellariga `subject` xorijiy/tanlov bog'lanmalari ulandi.
+    - API endpoints: `GET /api/v1/subjects/` va `POST /api/v1/profile/switch-subject/` yaratildi.
+  * Frontend:
+    - Navbar va Onboarding oynasiga premium dizayndagi `SubjectSwitcher` pilli qo'shildi (`[ 🇺🇿 Ona tili ] | [ 🇬🇧 English (IELTS) ]`).
+    - Dashboard va Testlar sahifalari tanlangan fanga qarab bir zumda dinamik filtrlanadi.
+- [x] IELTS & Multi-Level Ekotizimi va Rasmiy 4 Mezonli AI Grader:
+  * Writing Task 1 (150+ so'z) va Task 2 (250+ so'z) uchun maxsus baholash servisi (`grade_ielts_essay`):
+    - Task Achievement / Task Response (Band 1.0 - 9.0)
+    - Coherence and Cohesion (Band 1.0 - 9.0)
+    - Lexical Resource (Band 1.0 - 9.0)
+    - Grammatical Range and Accuracy (Band 1.0 - 9.0)
+    - Overall Band Score (masalan: 7.0, 7.5, 8.0) va CEFR darajasi (B1, B2, C1, C2).
+    - Band 8.5+ model tahriri (Rewrite).
+  * Frontend `EssayWrite.tsx` va `EssayResult.tsx` da IELTS rejimi, so'z hisoblagichi, Hero Band kartochkasi va 4 ta mezon batafsil tahlili render qilindi.
+- [x] CBT Listening Audio Pleyer va Reading Split-View:
+  * `AudioPlayerBar.tsx`: Listening testlari uchun to'xtatish/o'ynatish, tezlikni boshqarish (`1x`, `1.25x`, `1.5x`), ovoz nazorati va taymerga ega zamonaviy pleyer yaratildi.
+  * `Test`, `ExamSection` va `ReadingPassage` modellariga `audio_url` maydoni ulandi.
+- [x] Anti-Cheat Qat'iy Imtihon Rejimi (Strict Exam Mode):
+  * `Test.is_strict_mode` maydoni qo'shildi.
+  * `TestAttempt` modeliga `violation_count`, `cheating_detected` va `violation_logs` maydonlari kiritildi.
+  * `POST /api/tests/attempts/<id>/report-violation/` API orqali tab almashtirish (`tab_switch`) va oyna fokusini yo'qotish (`window_blur`) hodisalari qayd etiladi.
+  * `TakeTest.tsx`: 1- va 2-qoidabuzarlikda jiddiy ogohlantiruvchi modal chiqariladi; 3-qoidabuzarlikda imtihon avtomatik yakunlanib, `cheating_detected = True` deb belgilanadi.
+- [x] BestWay 1-Klikli Davomat Tizimi va Ota-Ona Bildirishnomasi:
+  * `POST /api/v1/school/attendance/quick-mark/` API: 1 klikda o'quvchi davomati `[ ✅ Keldi ] [ ⚠️ Kechikdi ] [ ❌ Kelmadi ] [ 📝 Sababli ]` qilib belgilanadi.
+  * Darsga kelmagan (`absent`) o'quvchi uchun 15 daqiqalik kechiktirish bilan Celery vazifasi (`send_parent_absence_alert_task`) rejalashtiriladi.
+  * `AttendancePanel.tsx` va `Groups.tsx` interfeyslariga 1-klikli davomat jadvali integratsiya qilindi.
+- [x] Sifat, Testlar va Sinovlar:
+  * `tests/test_multi_subject_exam_mode.py`: 5 ta yangi test to'liq o'tdi (**100% PASS**).
+  * Regressiya testlari: `tests/test_tuition_student_model.py` va `tests/test_placement_onboarding.py` (**100% PASS**).
+  * Frontend build (`npm run build`): TypeScript va Vite 0 xatolik bilan yig'ildi (1.74s).
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va mukammal bajarildi.
+- Barcha talablar to'liq va xatosiz bajarildi, testlar 100% muvaffaqiyatli o'tdi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- O'quvchilar va ustozlar fikr-mulohazalari (NPS so'rovnomasi) asosida kunlik rejalashtirish bildirishnomalarini botga ulash.
-- Telegram 1-klikli login tizimini keyingi bosqichda joriy qilish.
+- Yangilangan kodlarni git commit qilib, `origin main` ga push qilish.
+- Contabo VPS (`169.58.58.229`) ga deploy qilish va `https://grandec.uz/healthz/` holatini tekshirish.
 

@@ -158,10 +158,10 @@ def send_parent_weekly_digest_task(self: Any) -> dict[str, Any]:
             try:
                 attendances = AttendanceRecord.objects.filter(
                     student=student,
-                    lesson__date__gte=seven_days_ago.date(),
+                    session__lesson_date__gte=seven_days_ago.date(),
                 )
                 total_lessons = attendances.count()
-                attended_lessons = attendances.filter(is_present=True).count()
+                attended_lessons = attendances.filter(status__in=["present", "late"]).count()
                 att_pct = f"{int((attended_lessons / total_lessons) * 100)}%" if total_lessons > 0 else "100%"
             except Exception:
                 att_pct = "100%"
@@ -262,24 +262,44 @@ def send_parent_essay_alert_task(self: Any, submission_id: int) -> dict[str, Any
 )
 def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) -> dict[str, Any]:
     """
-    O'quvchi darsga kelmaganda ota-onasiga tezkor xabar yuborish.
+    O'quvchi darsga kelmaganda (15 daqiqalik kutish oynasidan so'ng) ota-onasiga Telegram xabar yuborish.
+    Agar o'quvchi 15 daqiqa ichida darsga kelib status 'present' yoki 'late' ga o'zgargan bo'lsa,
+    xabar bekor qilinadi.
     """
     try:
-        from apps.accounts.models import ParentStudentRelation, User
-        from apps.attendance.models import AttendanceSession
+        from apps.accounts.models import ParentStudentLink, ParentStudentRelation, User
+        from apps.attendance.models import AttendanceRecord, AttendanceSession
         from apps.notifications.services.telegram_service import TelegramService
 
         session = AttendanceSession.objects.select_related("group").get(id=session_id)
         student = User.objects.get(id=student_id)
         student_name = student.get_full_name() or student.email
 
+        rec = AttendanceRecord.objects.filter(session_id=session_id, student_id=student_id).first()
+        if rec is not None and rec.status != "absent":
+            return {"status": "cancelled_student_arrived", "current_status": rec.status}
+
+        chat_ids: list[int] = []
         relations = ParentStudentRelation.objects.filter(
             student=student,
             is_verified=True,
             instant_alerts_enabled=True,
             parent_telegram_id__isnull=False,
         )
-        if not relations.exists():
+        for rel in relations:
+            if rel.parent_telegram_id and int(rel.parent_telegram_id) not in chat_ids:
+                chat_ids.append(int(rel.parent_telegram_id))
+
+        links = ParentStudentLink.objects.filter(
+            student=student,
+            is_approved=True,
+        ).select_related("parent")
+        for link in links:
+            parent_tg = getattr(link.parent, "telegram_chat_id", None) or getattr(link.parent, "telegram_id", None)
+            if parent_tg and int(parent_tg) not in chat_ids:
+                chat_ids.append(int(parent_tg))
+
+        if not chat_ids:
             return {"status": "no_active_parent_subscribers"}
 
         date_str = session.lesson_date.strftime("%d.%m.%Y")
@@ -292,17 +312,17 @@ def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) 
         )
 
         sent_count = 0
-        for rel in relations:
+        for chat_id in chat_ids:
             try:
                 TelegramService.send_message(
-                    chat_id=rel.parent_telegram_id,
+                    chat_id=chat_id,
                     text=msg,
                     recipient=student,
                     parse_mode="HTML",
                 )
                 sent_count += 1
             except Exception as exc:
-                logger.warning("Failed to send parent absence alert to %s: %s", rel.parent_telegram_id, exc)
+                logger.warning("Failed to send parent absence alert to %s: %s", chat_id, exc)
 
         return {"status": "sent", "count": sent_count}
     except Exception as exc:

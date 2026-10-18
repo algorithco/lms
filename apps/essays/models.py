@@ -57,7 +57,31 @@ class EssayTopic(models.Model):
         ADABIYOT = "adabiyot", _("Adabiyot")
         TARIX = "tarix", _("Tarix")
         UMUMIY = "umumiy", _("Umumiy")
+        IELTS_TASK1 = "ielts_task1", _("IELTS Writing Task 1")
+        IELTS_TASK2 = "ielts_task2", _("IELTS Writing Task 2")
+        MULTILEVEL = "multilevel", _("Multi-level Writing")
 
+    class RubricType(models.TextChoices):
+        BMB_12 = "bmb_12", _("BMB 12 mezon (Ona tili)")
+        IELTS_TASK1 = "ielts_task1", _("IELTS Writing Task 1 (150+ so'z, Band 1.0–9.0)")
+        IELTS_TASK2 = "ielts_task2", _("IELTS Writing Task 2 (250+ so'z, Band 1.0–9.0)")
+
+    subject = models.CharField(
+        _("fan / yo'nalish"),
+        max_length=20,
+        choices=[
+            ("uzbek", _("Ona tili va adabiyot")),
+            ("english", _("Ingliz tili (IELTS & Multi-level)")),
+        ],
+        default="uzbek",
+        db_index=True,
+    )
+    rubric_type = models.CharField(
+        _("baholash mezoni turi"),
+        max_length=20,
+        choices=RubricType.choices,
+        default=RubricType.BMB_12,
+    )
     title = models.CharField(_("sarlavha"), max_length=300)
     description = models.TextField(
         _("tavsif / ko'rsatma"),
@@ -120,6 +144,7 @@ class EssayTopic(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["is_active"], name="idx_essaytopic_active"),
+            models.Index(fields=["subject", "is_active"], name="idx_essaytopic_subj_act"),
         ]
 
     def __str__(self) -> str:
@@ -1098,7 +1123,15 @@ class EssayCriterionScore(models.Model):
         12: Decimal("1.5"),
     }
 
+    IELTS_CRITERION_NAMES = {
+        1: "Task Achievement / Task Response",
+        2: "Coherence and Cohesion",
+        3: "Lexical Resource",
+        4: "Grammatical Range and Accuracy",
+    }
+
     VALID_SCORES = {0, 0.5, 1, 1.5, 2}
+    IELTS_VALID_SCORES = {Decimal(str(i * 0.5)) for i in range(0, 19)} | {i * 0.5 for i in range(0, 19)}
 
     submission = models.ForeignKey(
         EssaySubmission,
@@ -1119,7 +1152,7 @@ class EssayCriterionScore(models.Model):
         _("ball"),
         max_digits=3,
         decimal_places=1,
-        validators=[MinValueValidator(0), MaxValueValidator(2)],
+        validators=[MinValueValidator(0), MaxValueValidator(9)],
     )
     reason = models.TextField(
         _("izoh"),
@@ -1140,12 +1173,28 @@ class EssayCriterionScore(models.Model):
         ]
 
     def __str__(self) -> str:
+        is_ielts = self.name in self.IELTS_CRITERION_NAMES.values() or (
+            self.submission_id
+            and getattr(self.submission, "topic", None)
+            and (self.submission.topic.subject == "english" or str(self.submission.topic.rubric_type).startswith("ielts"))
+        )
+        if is_ielts:
+            return f"{self.name}: Band {self.score}/9.0"
         max_s = self.CRITERION_MAX_SCORES.get(self.criterion_id, Decimal("2.0"))
         return f"{self.name}: {self.score}/{max_s}"
 
     def clean(self):
-        """Validate score is in allowed set {0, 0.5, 1, 1.5, 2} and does not exceed criterion max."""
+        """Validate score is in allowed set {0, 0.5, 1, 1.5, 2} (or Band 0.0-9.0 for IELTS)."""
         from django.core.exceptions import ValidationError
+        is_ielts = self.name in self.IELTS_CRITERION_NAMES.values() or (
+            self.submission_id
+            and getattr(self.submission, "topic", None)
+            and (self.submission.topic.subject == "english" or str(self.submission.topic.rubric_type).startswith("ielts"))
+        )
+        if is_ielts:
+            if self.score not in self.IELTS_VALID_SCORES or self.score < 0 or self.score > Decimal("9.0"):
+                raise ValidationError(f"IELTS Band ball {self.score} yaroqsiz (0.0 dan 9.0 gacha 0.5 qadam bilan).")
+            return
         max_s = self.CRITERION_MAX_SCORES.get(self.criterion_id, Decimal("2.0"))
         if self.score not in self.VALID_SCORES or self.score > max_s:
             raise ValidationError(

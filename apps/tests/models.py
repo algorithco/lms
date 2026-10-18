@@ -53,6 +53,16 @@ class Test(models.Model):
         PUBLISHED = "published", _("E'lon qilingan")
         ARCHIVED = "archived", _("Arxivlangan")
 
+    subject = models.CharField(
+        _("fan / yo'nalish"),
+        max_length=20,
+        choices=[
+            ("uzbek", _("Ona tili va adabiyot")),
+            ("english", _("Ingliz tili (IELTS & Multi-level)")),
+        ],
+        default="uzbek",
+        db_index=True,
+    )
     title = models.CharField(_("sarlavha"), max_length=255)
     description = models.TextField(_("tavsif"), blank=True)
     course = models.ForeignKey(
@@ -134,6 +144,18 @@ class Test(models.Model):
         db_index=True,
         help_text=_("O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)"),
     )
+    audio_url = models.CharField(
+        _("Listening audio URL"),
+        max_length=500,
+        blank=True,
+        default="",
+        help_text=_("Listening testi uchun audio fayl manzili."),
+    )
+    is_strict_mode = models.BooleanField(
+        _("Strict Exam Mode (Anti-Cheat)"),
+        default=False,
+        help_text=_("Yoqilsa, o'quvchi oynadan chiqsa ogohlantiriladi va 3-urinishda test yakunlanadi."),
+    )
 
     # -- Meta -----------------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
@@ -146,6 +168,7 @@ class Test(models.Model):
         indexes = [
             models.Index(fields=["course"], name="idx_test_course"),
             models.Index(fields=["is_active"], name="idx_test_active"),
+            models.Index(fields=["subject", "is_active"], name="idx_test_subject_active"),
         ]
 
     def __str__(self) -> str:
@@ -199,6 +222,7 @@ class ExamSection(models.Model):
     """
 
     READING = "READING"
+    LISTENING = "LISTENING"
     LANGUAGE = "LANGUAGE"
     LITERATURE = "LITERATURE"
     WRITING = "WRITING"
@@ -213,7 +237,13 @@ class ExamSection(models.Model):
     code = models.CharField(
         _("bo'lim kodi"),
         max_length=20,
-        help_text=_("Masalan: READING, LANGUAGE, LITERATURE, WRITING."),
+        help_text=_("Masalan: READING, LISTENING, LANGUAGE, LITERATURE, WRITING."),
+    )
+    audio_url = models.CharField(
+        _("bo'lim audio URL"),
+        max_length=500,
+        blank=True,
+        default="",
     )
     order = models.PositiveIntegerField(_("tartib"), default=0)
     duration_minutes = models.PositiveIntegerField(
@@ -267,6 +297,13 @@ class ReadingPassage(models.Model):
     )
     title = models.CharField(_("sarlavha"), max_length=255, blank=True)
     content = models.TextField(_("matn"))
+    audio_url = models.CharField(
+        _("audio URL"),
+        max_length=500,
+        blank=True,
+        default="",
+        help_text=_("Listening yoki audio-matn uchun mp3/wav havola."),
+    )
     source = models.CharField(
         _("manba"),
         max_length=255,
@@ -502,6 +539,22 @@ class TestAttempt(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     is_passed = models.BooleanField(_("o'tdimi"), default=False)
+
+    # -- Anti-cheat (Strict Exam Mode) ----------------------------------------
+    violation_count = models.PositiveSmallIntegerField(
+        _("qoidabuzarliklar soni (tab switch)"),
+        default=0,
+    )
+    cheating_detected = models.BooleanField(
+        _("ko'chirishga urinish qayd etildimi"),
+        default=False,
+        db_index=True,
+    )
+    violation_logs = models.JSONField(
+        _("qoidabuzarliklar tarixi"),
+        default=list,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = _("Test urinishi")

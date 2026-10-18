@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin } from '../lib/api';
 import UserNavDropdown from './UserNavDropdown';
+import SubjectSwitcher from './SubjectSwitcher';
 import {
   AwardIcon,
   BarChartIcon,
@@ -139,7 +140,10 @@ export default function Layout() {
               {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
             </button>
             <div className="spacer" />
-            <UserNavDropdown />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SubjectSwitcher size="sm" />
+              <UserNavDropdown />
+            </div>
           </div>
         </header>
         <main className="content">

@@ -13,6 +13,7 @@ import {
 import confetti from 'canvas-confetti';
 import { PlacementQuiz, type PlacementQuestion, type PlacementSubmitResponse } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
+import SubjectSwitcher from './SubjectSwitcher';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -21,14 +22,23 @@ interface OnboardingModalProps {
 }
 
 type Step = 'goals' | 'quiz' | 'result';
+type TargetType = 'national_certificate' | 'attestation' | 'ielts' | 'multilevel';
 
 export default function OnboardingModal({ isOpen, onClose, onSuccess }: OnboardingModalProps) {
-  const { updateUserLocal, refreshUser } = useAuth();
+  const { user, updateUserLocal, refreshUser } = useAuth();
+
+  const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(
+    user?.active_subject === 'english' ? 'english' : 'uzbek',
+  );
 
   // 1-Step: Goals
-  const [examTarget, setExamTarget] = useState<'national_certificate' | 'attestation'>('national_certificate');
+  const [examTarget, setExamTarget] = useState<TargetType>(
+    user?.active_subject === 'english' ? 'ielts' : 'national_certificate',
+  );
   const [timelineMonths, setTimelineMonths] = useState<number>(3);
-  const [targetGrade, setTargetGrade] = useState<string>('A+');
+  const [targetGrade, setTargetGrade] = useState<string>(
+    user?.active_subject === 'english' ? 'Band 7.5' : 'A+',
+  );
 
   // 2-Step: Quiz state
   const [step, setStep] = useState<Step>('goals');
@@ -42,10 +52,14 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Update target grade defaults when exam target changes
-  const handleTargetChange = (target: 'national_certificate' | 'attestation') => {
+  const handleTargetChange = (target: TargetType) => {
     setExamTarget(target);
     if (target === 'attestation') {
       setTargetGrade('Oliy toifa');
+    } else if (target === 'ielts') {
+      setTargetGrade('Band 7.5');
+    } else if (target === 'multilevel') {
+      setTargetGrade('C1 daraja');
     } else {
       setTargetGrade('A+');
     }
@@ -277,69 +291,158 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
           {/* STEP 1: GOALS & TIMELINE */}
           {step === 'goals' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Question 0: Subject Choice */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, marginBottom: 8, color: 'var(--ink)' }}>
+                  📚 Tayyorlanmoqchi bo'lgan faningizni tanlang:
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <SubjectSwitcher
+                    size="md"
+                    onSwitch={(newSub) => {
+                      setActiveSubject(newSub);
+                      if (newSub === 'english') {
+                        handleTargetChange('ielts');
+                      } else {
+                        handleTargetChange('national_certificate');
+                      }
+                    }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                    {activeSubject === 'english'
+                      ? "IELTS Writing (Band 1-9) va CBT Reading/Listening"
+                      : "Ona tili va Adabiyot (BMB 12 mezonli esse & test)"}
+                  </span>
+                </div>
+              </div>
+
               {/* Question 1: Main Goal */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
                   1. Asosiy maqsadingiz nima?
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleTargetChange('national_certificate')}
-                    style={{
-                      padding: '16px',
-                      borderRadius: 14,
-                      border: `2px solid ${examTarget === 'national_certificate' ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                      background: examTarget === 'national_certificate' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ padding: 8, borderRadius: 10, background: 'rgba(16, 185, 129, 0.2)', color: '#10B981' }}>
-                      <GraduationCap size={22} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
-                        🎓 Milliy sertifikat
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                        Abituriyentlar va o'quvchilar uchun (BMB 12 mezon, Ona tili va Adabiyot)
-                      </div>
-                    </div>
-                  </button>
+                  {activeSubject === 'english' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleTargetChange('ielts')}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 14,
+                          border: `2px solid ${examTarget === 'ielts' ? '#6366F1' : 'rgba(255, 255, 255, 0.08)'}`,
+                          background: examTarget === 'ielts' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ padding: 8, borderRadius: 10, background: 'rgba(99, 102, 241, 0.2)', color: '#6366F1' }}>
+                          <GraduationCap size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
+                            🇬🇧 IELTS Academic & General
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                            Writing Task 1/2 (Band 1.0–9.0) va Listening/Reading CBT simulyatori
+                          </div>
+                        </div>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleTargetChange('attestation')}
-                    style={{
-                      padding: '16px',
-                      borderRadius: 14,
-                      border: `2px solid ${examTarget === 'attestation' ? '#3B82F6' : 'rgba(255, 255, 255, 0.08)'}`,
-                      background: examTarget === 'attestation' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ padding: 8, borderRadius: 10, background: 'rgba(59, 130, 246, 0.2)', color: '#3B82F6' }}>
-                      <Award size={22} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
-                        👨‍🏫 Attestatsiya 2026
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                        O'qituvchilar va pedagoglar uchun toifa sinovlari (50 ta savol)
-                      </div>
-                    </div>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTargetChange('multilevel')}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 14,
+                          border: `2px solid ${examTarget === 'multilevel' ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
+                          background: examTarget === 'multilevel' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ padding: 8, borderRadius: 10, background: 'rgba(16, 185, 129, 0.2)', color: '#10B981' }}>
+                          <Award size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
+                            🎯 CEFR Multi-level (B2 / C1)
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                            Milliy sertifikat (ingliz tili) darajali test va insho baholash
+                          </div>
+                        </div>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleTargetChange('national_certificate')}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 14,
+                          border: `2px solid ${examTarget === 'national_certificate' ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
+                          background: examTarget === 'national_certificate' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ padding: 8, borderRadius: 10, background: 'rgba(16, 185, 129, 0.2)', color: '#10B981' }}>
+                          <GraduationCap size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
+                            🎓 Milliy sertifikat
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                            Abituriyentlar va o'quvchilar uchun (BMB 12 mezon, Ona tili va Adabiyot)
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleTargetChange('attestation')}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 14,
+                          border: `2px solid ${examTarget === 'attestation' ? '#3B82F6' : 'rgba(255, 255, 255, 0.08)'}`,
+                          background: examTarget === 'attestation' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ padding: 8, borderRadius: 10, background: 'rgba(59, 130, 246, 0.2)', color: '#3B82F6' }}>
+                          <Award size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
+                            👨‍🏫 Attestatsiya 2026
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                            O'qituvchilar va pedagoglar uchun toifa sinovlari (50 ta savol)
+                          </div>
+                        </div>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -385,7 +488,11 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                   3. Qaysi natija / darajani olmoqchisiz?
                 </label>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {(examTarget === 'attestation'
+                  {(examTarget === 'ielts'
+                    ? ['Band 6.5', 'Band 7.0', 'Band 7.5', 'Band 8.0+']
+                    : examTarget === 'multilevel'
+                    ? ['B2 daraja', 'C1 daraja', 'C2 daraja']
+                    : examTarget === 'attestation'
                     ? ['Oliy toifa', '1-toifa', '2-toifa']
                     : ['A+', 'A', 'B+']
                   ).map((grade) => (

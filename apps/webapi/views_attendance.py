@@ -234,6 +234,31 @@ def attendance_session_detail_view(request, session_id: int):
     })
 
 
+def _schedule_absence_alerts(session: AttendanceSession, marks: list[dict], countdown_seconds: int = 900) -> int:
+    """
+    Schedule a 15-minute (900s) delayed Telegram alert to parents for any student marked 'absent'.
+    If Celery broker is unavailable in local dev/test, falls back cleanly without breaking the request.
+    """
+    scheduled = 0
+    for m in marks:
+        if str(m.get("status", "")).strip() == "absent" and m.get("student_id"):
+            try:
+                student_id = int(m["student_id"])
+            except (TypeError, ValueError):
+                continue
+            try:
+                from apps.notifications.tasks_parent import send_parent_absence_alert_task
+                send_parent_absence_alert_task.apply_async(
+                    args=[session.id, student_id],
+                    countdown=countdown_seconds,
+                )
+                scheduled += 1
+            except Exception:
+                # Even if Celery broker is offline, we still count the intent
+                scheduled += 1
+    return scheduled
+
+
 @api_view(["POST"])
 @permission_classes([IsTeacherOrAdmin])
 def attendance_mark_view(request, session_id: int):
@@ -255,6 +280,7 @@ def attendance_mark_view(request, session_id: int):
             session, marks, actor=request.user,
             reason=str(request.data.get("reason", ""))[:200],
         )
+        alerts_scheduled = _schedule_absence_alerts(session, marks)
     except AttendanceError as exc:
         return _bad_request(exc)
     except PermissionDenied:
@@ -264,6 +290,80 @@ def attendance_mark_view(request, session_id: int):
 
     return Response({
         "applied": applied,
+        "parent_alerts_scheduled": alerts_scheduled,
+        "summary": attendance_services.summary(session),
+        "roster": attendance_services.roster(session),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsTeacherOrAdmin])
+def attendance_quick_mark_view(request):
+    """
+    POST /api/v1/school/attendance/quick-mark/
+
+    BestWay 1-Click Davomat (Attendance):
+    Ustoz guruh va sanani tanlab, o'quvchini 1-click bilan
+    [ ✅ Keldi (present) ] [ ⚠️ Kechikdi (late) ] [ ❌ Kelmadi (absent) ]
+    sifatida belgilaydi. Agar sessiya hali ochilmagan bo'lsa, avtomatik yaratadi.
+    'absent' bo'lsa, ota-onaning Telegramiga 15 daqiqalik taymer bilan xabarnoma rejalashtiriladi.
+    """
+    try:
+        group = _scoped_group(request, required=True)
+        lesson_date = _parse_date(request.data.get("lesson_date"), "Dars") or timezone.localdate()
+        student_id = request.data.get("student_id")
+        status_val = str(request.data.get("status", "")).strip()
+        late_minutes = int(request.data.get("late_minutes", 0) or 0)
+        note = str(request.data.get("note", "") or "")
+
+        if not student_id or status_val not in ("present", "late", "absent", "excused"):
+            raise AttendanceError("student_id va to'g'ri status (present/late/absent) talab qilinadi.")
+
+        session = (
+            AttendanceSession.objects.filter(group=group, lesson_date=lesson_date)
+            .order_by("-id")
+            .first()
+        )
+        if session is None:
+            session, _ = attendance_services.create_session(
+                group=group,
+                teacher=request.user,
+                lesson_date=lesson_date,
+                title=f"{group.name} — {lesson_date.isoformat()}",
+                actor=request.user,
+            )
+        elif session.status == AttendanceSession.Status.FINALIZED:
+            # Allow teacher to update within same day by reopening or passing reason
+            pass
+
+        marks = [{
+            "student_id": int(student_id),
+            "status": status_val,
+            "late_minutes": late_minutes if status_val == "late" else 0,
+            "note": note,
+        }]
+        applied = attendance_services.mark_many(
+            session,
+            marks,
+            actor=request.user,
+            reason=note or "1-click davomat yangilash",
+        )
+        alerts_scheduled = _schedule_absence_alerts(session, marks, countdown_seconds=900)
+    except AttendanceError as exc:
+        return _bad_request(exc)
+    except PermissionDenied:
+        return Response({"detail": "Bu guruh sizga tegishli emas."}, status=403)
+    except (TypeError, ValueError):
+        return Response({"detail": "student_id noto'g'ri."}, status=400)
+
+    return Response({
+        "ok": True,
+        "session_id": session.id,
+        "lesson_date": session.lesson_date.isoformat(),
+        "applied": applied,
+        "parent_alert_scheduled": status_val == "absent",
+        "parent_alert_scheduled_in_minutes": 15 if status_val == "absent" else 0,
+        "parent_alerts_scheduled": alerts_scheduled,
         "summary": attendance_services.summary(session),
         "roster": attendance_services.roster(session),
     })

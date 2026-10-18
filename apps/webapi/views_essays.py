@@ -272,3 +272,72 @@ def student_request_review_view(request, submission_id: int):
         "status": submission.status,
     })
 
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def ielts_grade_view(request):
+    """POST /api/v1/essays/ielts/grade/
+    Payload: {
+      "essay_text": "...",
+      "topic_id": optional int,
+      "topic_title": optional str,
+      "task_type": "ielts_task1" | "ielts_task2"
+    }
+    Evaluates English Writing via the 4 official IELTS criteria (Band 1.0–9.0) and persists an EssaySubmission.
+    """
+    from django.utils import timezone
+    from apps.essays.models import EssayTopic
+    from apps.essays.services import apply_ai_result, grade_ielts_essay
+
+    data = request.data or {}
+    essay_text = str(data.get("essay_text") or "").strip()
+    if not essay_text:
+        return Response({"error": "Please enter your essay text."}, status=400)
+
+    topic_id = data.get("topic_id")
+    topic = EssayTopic.objects.filter(id=topic_id).first() if topic_id else None
+    task_type = str(data.get("task_type") or (topic.rubric_type if topic else "ielts_task2")).strip().lower()
+    if task_type not in ("ielts_task1", "ielts_task2"):
+        task_type = "ielts_task2"
+
+    min_words = topic.word_limit_min if topic else (150 if task_type == "ielts_task1" else 250)
+    topic_title = str(data.get("topic_title") or (topic.title if topic else "IELTS Writing Task")).strip()
+
+    submission = EssaySubmission.objects.create(
+        student=request.user,
+        topic=topic,
+        essay_text=essay_text,
+        word_count=WordCounter.count(essay_text),
+        max_score=9,
+        status=EssaySubmission.Status.PENDING,
+        password_verified_at=timezone.now(),
+        submitted_at=timezone.now(),
+        grading_started_at=timezone.now(),
+        source=EssaySubmission.Source.WEB,
+    )
+
+    result = grade_ielts_essay(
+        essay_text=essay_text,
+        topic_title=topic_title,
+        task_type=task_type,
+        min_words=min_words,
+    )
+    apply_ai_result(submission, result)
+    submission.refresh_from_db()
+
+    return Response({
+        "ok": True,
+        "submission_id": submission.id,
+        "overall_band": result["overall_band"],
+        "cefr_level": result["cefr_level"],
+        "word_count": result["word_count"],
+        "min_words": result["min_words"],
+        "criteria": result["criteria"],
+        "summary": result["summary"],
+        "strengths": result["strengths"],
+        "weaknesses": result["weaknesses"],
+        "teacher_recommendation": result["teacher_recommendation"],
+        "improved_text": result["improved_text"],
+    })
+
+

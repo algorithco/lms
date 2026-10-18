@@ -17,6 +17,35 @@ from apps.core.validators import validate_attachment_upload, validate_image_uplo
 
 
 # ---------------------------------------------------------------------------
+# Subject (Multi-Subject Architecture: uzbek / english)
+# ---------------------------------------------------------------------------
+class Subject(models.Model):
+    """
+    Platform subject/direction (Ona tili va adabiyot, Ingliz tili: IELTS / Multi-level).
+    """
+
+    class SlugChoices(models.TextChoices):
+        UZBEK = "uzbek", _("Ona tili va adabiyot")
+        ENGLISH = "english", _("Ingliz tili (IELTS & Multi-level)")
+
+    name = models.CharField(_("fan nomi"), max_length=120)
+    slug = models.SlugField(_("slug"), max_length=50, unique=True, db_index=True)
+    description = models.TextField(_("tavsif"), blank=True)
+    icon = models.CharField(_("ikonka / bayroq"), max_length=32, default="🇺🇿", blank=True)
+    is_active = models.BooleanField(_("faolmi"), default=True)
+    position = models.PositiveSmallIntegerField(_("tartib"), default=0)
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Fan / Yo'nalish")
+        verbose_name_plural = _("Fanlar / Yo'nalishlar")
+        ordering = ["position", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.icon} {self.name}".strip()
+
+
+# ---------------------------------------------------------------------------
 # Category  (self-referential tree, e.g. "Backend → Django → REST API")
 # ---------------------------------------------------------------------------
 class Category(models.Model):
@@ -85,6 +114,13 @@ class Course(models.Model):
         related_name="courses_taught",
         verbose_name=_("o'qituvchi"),
     )
+    subject = models.CharField(
+        _("fan / yo'nalish"),
+        max_length=20,
+        choices=Subject.SlugChoices.choices,
+        default=Subject.SlugChoices.UZBEK,
+        db_index=True,
+    )
     title = models.CharField(_("sarlavha"), max_length=255)
     slug = models.SlugField(_("slug"), max_length=280, unique=True, blank=True)
     description = models.TextField(_("tavsif"))
@@ -142,6 +178,7 @@ class Course(models.Model):
         indexes = [
             models.Index(fields=["status"], name="idx_course_status"),
             models.Index(fields=["teacher"], name="idx_course_teacher"),
+            models.Index(fields=["subject"], name="idx_course_subject"),
         ]
 
     def __str__(self) -> str:
@@ -211,6 +248,13 @@ class StudentGroup(models.Model):
         on_delete=models.CASCADE,
         related_name="managed_groups",
         verbose_name=_("o'qituvchi"),
+    )
+    subject = models.CharField(
+        _("fan / yo'nalish"),
+        max_length=20,
+        choices=Subject.SlugChoices.choices,
+        default=Subject.SlugChoices.UZBEK,
+        db_index=True,
     )
     name = models.CharField(_("guruh nomi"), max_length=150)
     description = models.TextField(_("tavsif"), blank=True)

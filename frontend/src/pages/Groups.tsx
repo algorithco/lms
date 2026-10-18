@@ -19,9 +19,10 @@ export default function Groups() {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
 
-  // Detail / members / analytics state.
+  // Detail / members / analytics / attendance state.
   const [openGroup, setOpenGroup] = useState<number | null>(null);
-  const [groupTabs, setGroupTabs] = useState<Record<number, 'members' | 'analytics'>>({});
+  const [groupTabs, setGroupTabs] = useState<Record<number, 'members' | 'analytics' | 'attendance'>>({});
+  const [groupAttendance, setGroupAttendance] = useState<Record<string, 'present' | 'absent' | 'late' | 'excused'>>({});
   const [analyticsData, setAnalyticsData] = useState<Record<number, import('../lib/api').GroupFullAnalyticsResponse>>({});
   const [analyticsLoading, setAnalyticsLoading] = useState<number | null>(null);
   const [search, setSearch] = useState('');
@@ -33,6 +34,30 @@ export default function Groups() {
   // Student join by invite code
   const [joinCode, setJoinCode] = useState('');
   const [joinBusy, setJoinBusy] = useState(false);
+
+  const quickMarkStudent = async (
+    groupId: number,
+    studentId: number,
+    status: 'present' | 'absent' | 'late' | 'excused',
+    studentName: string,
+  ) => {
+    const key = `${groupId}_${studentId}`;
+    setGroupAttendance((prev) => ({ ...prev, [key]: status }));
+    try {
+      const res = await School.attendanceQuickMark({
+        group_id: groupId,
+        student_id: studentId,
+        status,
+      });
+      if (res.parent_alert_scheduled) {
+        flash(`⚠️ ${studentName}: "Kelmadi" saqlandi. 15 daqiqadan so'ng ota-onaga Telegram orqali xabar boradi.`);
+      } else {
+        flash(`✓ ${studentName}: ${status === 'present' ? 'Keldi' : status === 'late' ? 'Kechikdi' : 'Sababli'} darhol saqlandi.`);
+      }
+    } catch (e2: unknown) {
+      setErr(errMessage(e2));
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -381,6 +406,13 @@ export default function Groups() {
                       >
                         👥 A‘zolar ({students.length})
                       </button>
+                      <button
+                        type="button"
+                        className={`btn sm ${tab === 'attendance' ? 'primary' : 'ghost'}`}
+                        onClick={() => setGroupTabs((prev) => ({ ...prev, [g.id]: 'attendance' }))}
+                      >
+                        📅 1-Click Davomat
+                      </button>
                     </div>
 
                     {tab === 'analytics' && (
@@ -552,6 +584,96 @@ export default function Groups() {
                           <p className="muted small">{t('grp_no_results')}</p>
                         )}
                       </>
+                    )}
+
+                    {tab === 'attendance' && (
+                      <div style={{ marginTop: 8 }}>
+                        {/* 1-Click Davomat Info Banner */}
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                            marginBottom: 12,
+                            fontSize: '0.84rem',
+                            color: '#93c5fd',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                          <span>
+                            <strong>1-Click Davomat:</strong> O'quvchi yonidagi tugmani bosing — davomat darhol saqlanadi. Agar <strong>❌ Kelmadi</strong> tanlansa, 15 daqiqadan so'ng ota-onasining Telegram botiga avtomatik xabar yuboriladi.
+                          </span>
+                        </div>
+
+                        {students.length === 0 ? (
+                          <p className="muted small">Bu guruhda hali o'quvchilar yo'q.</p>
+                        ) : (
+                          <div className="table-wrap">
+                            <table className="data" style={{ fontSize: '0.86rem' }}>
+                              <thead>
+                                <tr>
+                                  <th>O'quvchi</th>
+                                  <th>1-Click Davomat</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {students.map((s) => {
+                                  const key = `${g.id}_${s.id}`;
+                                  const curStatus = groupAttendance[key];
+                                  return (
+                                    <tr key={s.id}>
+                                      <td>
+                                        <strong>{s.full_name}</strong>
+                                        <div className="muted small">{s.email}</div>
+                                      </td>
+                                      <td>
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                          <button
+                                            type="button"
+                                            className={`btn sm ${curStatus === 'present' ? 'primary' : 'ghost'}`}
+                                            onClick={() => quickMarkStudent(g.id, s.id, 'present', s.full_name)}
+                                            style={{ minHeight: 44, minWidth: 74, fontWeight: curStatus === 'present' ? 800 : 500 }}
+                                          >
+                                            ✅ Keldi
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={`btn sm ${curStatus === 'late' ? 'primary' : 'ghost'}`}
+                                            onClick={() => quickMarkStudent(g.id, s.id, 'late', s.full_name)}
+                                            style={{ minHeight: 44, minWidth: 74, fontWeight: curStatus === 'late' ? 800 : 500 }}
+                                          >
+                                            ⚠️ Kechikdi
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={`btn sm ${curStatus === 'absent' ? 'primary' : 'ghost'}`}
+                                            onClick={() => quickMarkStudent(g.id, s.id, 'absent', s.full_name)}
+                                            style={{ minHeight: 44, minWidth: 74, fontWeight: curStatus === 'absent' ? 800 : 500 }}
+                                          >
+                                            ❌ Kelmadi
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={`btn sm ${curStatus === 'excused' ? 'primary' : 'ghost'}`}
+                                            onClick={() => quickMarkStudent(g.id, s.id, 'excused', s.full_name)}
+                                            style={{ minHeight: 44, minWidth: 74, fontWeight: curStatus === 'excused' ? 800 : 500 }}
+                                          >
+                                            📝 Sababli
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

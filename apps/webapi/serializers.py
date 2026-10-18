@@ -69,6 +69,7 @@ class TestAdminSerializer(serializers.ModelSerializer):
         model = Test
         fields = [
             "id", "title", "description", "course", "course_title",
+            "subject", "audio_url", "is_strict_mode",
             "module", "time_limit_minutes", "max_attempts", "pass_percentage",
             "difficulty", "status", "is_active", "show_results_immediately",
             "shuffle_questions", "shuffle_choices", "q_count", "scoring_profile",
@@ -99,14 +100,14 @@ class ExamSectionSerializer(serializers.ModelSerializer):
         model = ExamSection
         fields = [
             "id", "test", "name", "code", "order",
-            "duration_minutes", "weight",
+            "duration_minutes", "weight", "audio_url",
         ]
 
 
 class ReadingPassageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReadingPassage
-        fields = ["id", "test", "section", "title", "content", "source", "order"]
+        fields = ["id", "test", "section", "title", "content", "source", "audio_url", "order"]
 
 
 class EssayTopicSerializer(serializers.ModelSerializer):
@@ -118,7 +119,7 @@ class EssayTopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = EssayTopic
         fields = [
-            "id", "title", "description", "category",
+            "id", "title", "description", "category", "subject", "rubric_type",
             "word_limit_min", "word_limit_max", "time_limit_minutes",
             "sample_outline", "grammar_strictness", "national_cert_scale",
             "password", "has_password", "is_active", "created_by",
@@ -260,7 +261,7 @@ class StudentGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentGroup
         fields = [
-            "id", "name", "description", "teacher", "teacher_name",
+            "id", "name", "description", "subject", "teacher", "teacher_name",
             "invite_code", "student_count", "students", "created_at",
         ]
         read_only_fields = ["teacher", "invite_code"]

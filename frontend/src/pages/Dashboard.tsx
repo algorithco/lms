@@ -74,12 +74,19 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const handler = () => setTick((v) => v + 1);
+    window.addEventListener('subject-changed', handler);
+    return () => window.removeEventListener('subject-changed', handler);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        const activeSub = user?.active_subject || (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
         const results = await Promise.allSettled([
           Results.stats(),
-          Tests.list(),
+          Tests.list({ subject: activeSub }),
           isStudent ? Certificates.mine() : Promise.resolve(null),
           Results.mine(),
         ]);
@@ -122,7 +129,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [t, navigate, tick, isStudent]);
+  }, [t, navigate, tick, isStudent, user?.active_subject]);
 
   const avg = stats ? num(stats.average_percentage, 0) : null;
 
@@ -138,11 +145,15 @@ export default function Dashboard() {
           className="card"
           style={{
             background:
-              user.exam_target === 'attestation'
+              user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
+                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(79, 70, 229, 0.05) 100%)'
+                : user.exam_target === 'attestation'
                 ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.05) 100%)'
                 : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)',
             borderColor:
-              user.exam_target === 'attestation'
+              user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
+                ? 'rgba(99, 102, 241, 0.35)'
+                : user.exam_target === 'attestation'
                 ? 'rgba(59, 130, 246, 0.35)'
                 : 'rgba(16, 185, 129, 0.35)',
             marginBottom: 20,
@@ -167,20 +178,35 @@ export default function Dashboard() {
                   height: 42,
                   borderRadius: 12,
                   background:
-                    user.exam_target === 'attestation'
+                    user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
+                      ? 'rgba(99, 102, 241, 0.2)'
+                      : user.exam_target === 'attestation'
                       ? 'rgba(59, 130, 246, 0.2)'
                       : 'rgba(16, 185, 129, 0.2)',
-                  color: user.exam_target === 'attestation' ? '#60A5FA' : '#34D399',
+                  color:
+                    user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
+                      ? '#818CF8'
+                      : user.exam_target === 'attestation'
+                      ? '#60A5FA'
+                      : '#34D399',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {user.exam_target === 'attestation' ? <Award size={24} /> : <GraduationCap size={24} />}
+                {user.active_subject === 'english' ? (
+                  <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>🇬🇧</span>
+                ) : user.exam_target === 'attestation' ? (
+                  <Award size={24} />
+                ) : (
+                  <GraduationCap size={24} />
+                )}
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)' }}>
-                  {user.exam_target === 'attestation'
+                  {user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
+                    ? `🎯 Sizning rejangiz: ${user.exam_target === 'multilevel' ? 'CEFR Multi-level (B2/C1)' : 'IELTS (Academic & General)'} (Maqsad: ${user.target_grade || 'Band 7.5'})`
+                    : user.exam_target === 'attestation'
                     ? `🎯 Sizning rejangiz: O'qituvchilar Attestatsiyasi 2026 (Maqsad: ${user.target_grade || 'Oliy toifa'})`
                     : `🎯 Sizning rejangiz: BMB Milliy sertifikat (Maqsad: ${user.target_grade || 'A+'})`}
                 </h3>
@@ -212,7 +238,41 @@ export default function Dashboard() {
 
           {/* Recommended actions pill row */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-            {user.exam_target === 'attestation' ? (
+            {user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel' ? (
+              <>
+                <Link
+                  to="/essays"
+                  className="btn sm"
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.25)',
+                    borderColor: 'rgba(99, 102, 241, 0.45)',
+                    color: '#C7D2FE',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>✍️ IELTS Writing AI Grader (Task 1 & 2)</span>
+                  <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/tests"
+                  className="btn sm ghost"
+                  style={{ fontWeight: 600, textDecoration: 'none' }}
+                >
+                  🎧 CBT Reading & Listening Simulator
+                </Link>
+                <Link
+                  to="/arena"
+                  className="btn sm ghost"
+                  style={{ fontWeight: 600, textDecoration: 'none' }}
+                >
+                  ⚔️ Vocabulary Arena
+                </Link>
+              </>
+            ) : user.exam_target === 'attestation' ? (
               <>
                 <Link
                   to="/tests"

@@ -261,10 +261,25 @@ class Profile(models.Model):
         blank=True,
     )
 
-    # -- Onboarding & Placement (EdTech Personalization) -----------------------
+    # -- Multi-Subject & Onboarding (EdTech Personalization) -------------------
+    class SubjectChoice(models.TextChoices):
+        UZBEK = "uzbek", _("Ona tili va adabiyot")
+        ENGLISH = "english", _("Ingliz tili (IELTS & Multi-level)")
+
+    active_subject = models.CharField(
+        _("faol fan"),
+        max_length=20,
+        choices=SubjectChoice.choices,
+        default=SubjectChoice.UZBEK,
+        db_index=True,
+        help_text=_("Foydalanuvchining hozirgi tanlagan fani: uzbek yoki english"),
+    )
+
     class ExamTarget(models.TextChoices):
         NATIONAL_CERTIFICATE = "national_certificate", _("Milliy sertifikat")
         ATTESTATION = "attestation", _("Attestatsiya 2026")
+        IELTS = "ielts", _("IELTS Academic / General")
+        MULTILEVEL = "multilevel", _("Multi-level (CEFR B1–C1)")
         UNDECIDED = "undecided", _("Hali aniqlanmagan")
 
     exam_target = models.CharField(

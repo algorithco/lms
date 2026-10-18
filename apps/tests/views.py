@@ -77,10 +77,16 @@ class TestListView(generics.ListAPIView):
 
     def get_queryset(self):
         from django.db.models import Count
+        from apps.tests.views_placement import ensure_multi_subject_seed_data
+
+        ensure_multi_subject_seed_data()
         user = self.request.user
         qs = Test.objects.select_related("course").annotate(
             total_questions=Count("questions"),
         )
+        subject = (self.request.query_params.get("subject") or "").strip().lower()
+        if subject in ("uzbek", "english"):
+            qs = qs.filter(subject=subject)
 
         if is_platform_admin(user):
             return qs
@@ -600,6 +606,10 @@ class QuickMockCreateView(APIView):
         title = request.data.get("title", "")
         time_limit = request.data.get("time_limit_minutes", 120)
         custom_code = request.data.get("custom_code")
+        is_strict_mode = bool(request.data.get("is_strict_mode", False))
+        subject = str(request.data.get("subject", "uzbek") or "uzbek").strip().lower()
+        if subject not in ("uzbek", "english"):
+            subject = "uzbek"
 
         try:
             time_limit = int(time_limit)
@@ -615,6 +625,8 @@ class QuickMockCreateView(APIView):
                 title=title,
                 time_limit_minutes=time_limit,
                 custom_code=custom_code,
+                is_strict_mode=is_strict_mode,
+                subject=subject,
             )
             return Response(res, status=status.HTTP_201_CREATED)
         except ValueError as err:
@@ -676,6 +688,8 @@ class QuickMockJoinView(APIView):
             "mock_code": test.mock_code,
             "total_questions": test.total_questions,
             "time_limit_minutes": test.time_limit_minutes,
+            "is_strict_mode": test.is_strict_mode,
+            "subject": test.subject,
             "attempt_id": attempt_id,
         }, status=status.HTTP_200_OK)
 
@@ -692,4 +706,87 @@ class MockLeaderboardView(APIView):
         from apps.tests.mock_service import get_mock_leaderboard
         data = get_mock_leaderboard(test_id)
         return Response(data, status=status.HTTP_200_OK)
+
+
+class ReportViolationView(APIView):
+    """
+    POST /api/tests/attempts/<int:attempt_id>/report-violation/
+
+    Strict Exam Mode: O'quvchi boshqa oynaga o'tganda (visibilitychange / blur)
+    ogohlantirish sonini oshiradi. 3 marta takrorlansa (3/3), test avtomatik
+    yakunlanadi va 'cheating_detected = True' belgisi qo'yiladi.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, attempt_id: int) -> Response:
+        from django.utils import timezone
+
+        attempt = (
+            TestAttempt.objects.select_related("test")
+            .filter(id=attempt_id, student=request.user)
+            .first()
+        )
+        if not attempt:
+            return Response({"error": "Urinish topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        violation_type = str(request.data.get("type", "tab_switch") or "tab_switch")[:64]
+        max_violations = 3
+
+        if attempt.status != TestAttempt.Status.IN_PROGRESS:
+            res_obj = getattr(attempt, "result", None)
+            return Response({
+                "attempt_id": attempt.id,
+                "violation_count": attempt.violation_count,
+                "max_violations": max_violations,
+                "cheating_detected": attempt.cheating_detected,
+                "terminated": attempt.cheating_detected or attempt.violation_count >= max_violations,
+                "status": attempt.status,
+                "result_id": res_obj.id if res_obj else None,
+                "message": "Test allaqachon yakunlangan.",
+            })
+
+        attempt.violation_count = int(attempt.violation_count or 0) + 1
+        logs = list(attempt.violation_logs or [])
+        logs.append({
+            "type": violation_type,
+            "count": attempt.violation_count,
+            "timestamp": timezone.now().isoformat(),
+        })
+        attempt.violation_logs = logs
+
+        terminated = False
+        result_id = None
+
+        if attempt.violation_count >= max_violations:
+            attempt.cheating_detected = True
+            terminated = True
+            attempt.save(update_fields=["violation_count", "cheating_detected", "violation_logs"])
+            try:
+                result = SubmitAttemptService.execute(
+                    attempt_id=attempt.id,
+                    student=request.user,
+                )
+                result_id = result.id
+                attempt.refresh_from_db()
+            except Exception as exc:
+                logger.warning("Auto-submit on 3rd violation failed for attempt %s: %s", attempt.id, exc)
+        else:
+            attempt.save(update_fields=["violation_count", "violation_logs"])
+
+        if terminated:
+            msg = "🚨 Ko'chirishga urinish qayd etildi (3/3 urinish). Test avtomatik yakunlandi!"
+        else:
+            msg = f"⚠️ Diqqat! Boshqa oynaga o'tish taqiqlanadi ({attempt.violation_count}/{max_violations} urinish)"
+
+        return Response({
+            "attempt_id": attempt.id,
+            "violation_count": attempt.violation_count,
+            "max_violations": max_violations,
+            "cheating_detected": attempt.cheating_detected,
+            "terminated": terminated,
+            "status": attempt.status,
+            "result_id": result_id,
+            "message": msg,
+        }, status=status.HTTP_200_OK)
+
 

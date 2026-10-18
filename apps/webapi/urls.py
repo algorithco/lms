@@ -20,9 +20,12 @@ from apps.tests import views_placement
 app_name = "webapi"
 
 urlpatterns = [
-    # -- 5-Minute Placement Quiz (Smart Onboarding) ----------------------
+    # -- 5-Minute Placement Quiz & Multi-Subject Switcher ----------------
     path("tests/placement-quiz/", views_placement.placement_quiz_view, name="tests-placement-quiz"),
     path("tests/placement-quiz/submit/", views_placement.placement_quiz_submit_view, name="tests-placement-quiz-submit"),
+    path("subjects/", views_placement.subjects_list_view, name="subjects-list"),
+    path("profile/switch-subject/", views_placement.switch_subject_view, name="profile-switch-subject"),
+    path("essays/ielts/grade/", views_essays.ielts_grade_view, name="essays-ielts-grade"),
 
     # -- Games -----------------------------------------------------------
     path("games/", views_games.hub_view, name="games-hub"),
@@ -79,6 +82,11 @@ urlpatterns = [
     path("school/import-students/", views_school.import_students_view, name="school-import-students"),
     path("school/import-test/", views_school.import_test_view, name="school-import-test"),
     # -- School: attendance ------------------------------------------------
+    path(
+        "school/attendance/quick-mark/",
+        views_attendance.attendance_quick_mark_view,
+        name="school-attendance-quick-mark",
+    ),
     path(
         "school/attendance/sessions/",
         views_attendance.attendance_sessions_view,

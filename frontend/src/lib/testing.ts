@@ -19,6 +19,9 @@ export interface TestListItem {
   pass_percentage?: number;
   total_questions?: number;
   is_active?: boolean;
+  subject?: 'uzbek' | 'english' | string;
+  audio_url?: string;
+  is_strict_mode?: boolean;
   category_slug?: string;
   category_name?: string;
   mock_code?: string;
@@ -56,8 +59,9 @@ export interface CertListItem {
 }
 
 /** Paginated test list. Backend uses PageNumberPagination (PAGE_SIZE=20). */
-export function listTestsPage(page = 1): Promise<Paginated<TestListItem>> {
-  return api<Paginated<TestListItem>>(`/api/tests/?page=${page}`);
+export function listTestsPage(page = 1, subject?: string): Promise<Paginated<TestListItem>> {
+  const query = subject ? `&subject=${encodeURIComponent(subject)}` : '';
+  return api<Paginated<TestListItem>>(`/api/tests/?page=${page}${query}`);
 }
 
 /** Paginated results list. */

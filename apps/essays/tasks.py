@@ -74,7 +74,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
         apply_ai_result,
         distribute_cached_grade,
         grade_essay,
+        grade_ielts_essay,
         grading_context_for_submission,
+        is_ielts_submission,
         notify_student_essay_graded,
         stamp_grading_cache_key,
     )
@@ -83,6 +85,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     essay_text: str | None = None
     topic_title = ""
     topic_none = False
+    ielts_mode = False
+    ielts_task_type = "ielts_task2"
+    ielts_min_words = 250
     # Shared-cache context/key for this submission (computed without any AI
     # call, so a completed leader can finish the submissions waiting on it).
     cache_context: dict | None = None
@@ -90,9 +95,6 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     try:
         with transaction.atomic():
             submission = (
-                # ``topic`` is nullable, so ``select_related`` creates a LEFT
-                # OUTER JOIN. PostgreSQL cannot lock the nullable side of that
-                # join; lock only the submission row that this claim protects.
                 EssaySubmission.objects.select_for_update(of=("self",))
                 .select_related("topic")
                 .filter(pk=submission_id)
@@ -107,32 +109,26 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             essay_text = (submission.essay_text or "").strip()
             topic_none = submission.topic is None
             topic_title = submission.topic.title if submission.topic else ""
-            if essay_text and submission.status in _GRADEABLE_STATUSES:
+            ielts_mode = is_ielts_submission(submission)
+            if ielts_mode and submission.topic:
+                ielts_task_type = getattr(submission.topic, "rubric_type", "ielts_task2") or "ielts_task2"
+                ielts_min_words = getattr(
+                    submission.topic,
+                    "word_limit_min",
+                    150 if ielts_task_type == "ielts_task1" else 250,
+                )
+            if essay_text and submission.status in _GRADEABLE_STATUSES and not ielts_mode:
                 try:
                     cache_context = grading_context_for_submission(submission)
                     cache_key = stamp_grading_cache_key(submission)
                 except Exception:
-                    # Never let cache bookkeeping block grading itself.
                     logger.exception(
                         "Could not prepare grading cache context: submission=%d",
                         submission_id,
                     )
                     cache_context = None
                     cache_key = ""
-            # Empty/under-min are inline fallbacks — persist inside this short
-            # txn (no LLM needed) and return; no second txn required.
-            if not essay_text:
-                from apps.essays.services import _send_to_teacher
-                # _send_to_teacher does its own save; we are still inside the
-                # outer atomic — run it after committing this claim txn.
-                pass
-            elif not topic_none:
-                from apps.essays.services import WordCounter
-                min_words = submission.topic.word_limit_min
-                if WordCounter.count(essay_text) < min_words:
-                    pass
     except Exception as exc:
-        # Claim txn failed (DB contention); let Celery retry.
         if self.request.retries >= self.max_retries:
             _mark_grading_failed(submission_id, exc)
         logger.warning(
@@ -142,7 +138,6 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
         raise self.retry(exc=exc)
 
     # Resolve inline empty/under-min without LLM (reuse claim data).
-    # We do this outside the claim txn to keep it short; re-lock briefly.
     if essay_text is not None and not essay_text:
         try:
             with transaction.atomic():
@@ -161,13 +156,11 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                 _mark_grading_failed(submission_id, exc)
             raise self.retry(exc=exc)
 
-    if not topic_none and essay_text:
+    if not topic_none and essay_text and not ielts_mode:
         from apps.essays.services import WordCounter
         try:
             with transaction.atomic():
                 locked = (
-                    # Keep the concurrent-worker guard while avoiding a
-                    # PostgreSQL FOR UPDATE on nullable ``topic``.
                     EssaySubmission.objects.select_for_update(of=("self",))
                     .select_related("topic")
                     .filter(pk=submission_id)
@@ -185,17 +178,14 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
 
     # --- Phase B: LLM outside any txn (topic None path may still LLM) -----
     if topic_none:
-        # submit-new form (no topic): legacy behavior grades any non-empty
-        # text without the min-word / PENDING_TEACHER contract.
         try:
             result_llm = grade_essay(
                 essay_text or "", topic_title="", cache_context=cache_context,
             )
         except (ValueError, ImportError, ImproperlyConfigured) as exc:
-            # Handle ImproperlyConfigured as well (not an ImportError).
             from django.core.exceptions import ImproperlyConfigured as _IC
             if isinstance(exc, _IC):
-                pass  # falls through to same handling
+                pass
             try:
                 with transaction.atomic():
                     sub2 = (
@@ -216,7 +206,6 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     _mark_grading_failed(submission_id, e2)
                 raise self.retry(exc=e2)
         except Exception as exc:
-            # Transient / unexpected — let Celery retry.
             if self.request.retries >= self.max_retries:
                 _mark_grading_failed(submission_id, exc)
             logger.warning(
@@ -244,7 +233,6 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                 graded = sub3.status == EssaySubmission.Status.GRADED
                 score = str(sub3.total_score)
             if graded and cache_key:
-                # Complete any other account waiting on the same evaluation.
                 distribute_cached_grade(cache_key, exclude_submission_id=submission_id)
             return {"status": "graded", "total_score": score}
         except Exception as exc:
@@ -254,9 +242,17 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
 
     # Normal topic-based path: LLM outside txn.
     try:
-        result_llm2 = grade_essay(
-            essay_text or "", topic_title=topic_title, cache_context=cache_context,
-        )
+        if ielts_mode:
+            result_llm2 = grade_ielts_essay(
+                essay_text or "",
+                topic_title=topic_title,
+                task_type=ielts_task_type,
+                min_words=ielts_min_words,
+            )
+        else:
+            result_llm2 = grade_essay(
+                essay_text or "", topic_title=topic_title, cache_context=cache_context,
+            )
     except (ValueError, ImportError, ImproperlyConfigured) as ie:
         from django.core.exceptions import ImproperlyConfigured as _IC2
         if isinstance(ie, _IC2):

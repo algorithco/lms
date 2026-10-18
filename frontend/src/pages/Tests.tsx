@@ -67,11 +67,23 @@ export default function Tests() {
     executeJoin();
   };
 
+  const [subjectTick, setSubjectTick] = useState(0);
+
+  useEffect(() => {
+    const handler = () => {
+      setPage(1);
+      setSubjectTick((v) => v + 1);
+    };
+    window.addEventListener('subject-changed', handler);
+    return () => window.removeEventListener('subject-changed', handler);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    listTestsPage(page)
+    const activeSub = (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
+    listTestsPage(page, activeSub)
       .then((p: Paginated<TestListItem>) => {
         if (cancelled) return;
         setTests(p.results ?? []);
@@ -89,7 +101,7 @@ export default function Tests() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, subjectTick]);
 
   const isMockAttest = (item: TestListItem) =>
     item.mock_code === '#MOCK-ATTEST2026' ||
@@ -516,10 +528,40 @@ export default function Tests() {
                     <ClockIcon size={12} className="ico" /> {item.time_limit_minutes ?? 100} {t('minutes_suffix')}
                   </span>
                   <span className="badge blue">Qiyin (Hard)</span>
+                  {item.is_strict_mode && (
+                    <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🔒 Strict Exam
+                    </span>
+                  )}
+                  {item.audio_url && (
+                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🎧 Audio Listening
+                    </span>
+                  )}
+                  {item.subject === 'english' && (
+                    <span style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🇬🇧 English
+                    </span>
+                  )}
                 </div>
               ) : (
-                <div className="toolbar" style={{ marginBottom: 8 }}>
+                <div className="toolbar" style={{ marginBottom: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <span className="badge blue">{String(item.difficulty ?? '—')}</span>
+                  {item.is_strict_mode && (
+                    <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🔒 Strict Exam
+                    </span>
+                  )}
+                  {item.audio_url && (
+                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🎧 Audio
+                    </span>
+                  )}
+                  {item.subject === 'english' && (
+                    <span style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      🇬🇧 English
+                    </span>
+                  )}
                   {(item.time_limit_minutes ?? 0) > 0 && (
                     <span className="badge amber">
                       <ClockIcon size={12} className="ico" /> {item.time_limit_minutes} {t('minutes_suffix')}

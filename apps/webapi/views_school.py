@@ -44,9 +44,13 @@ def groups_view(request):
         teacher = request.user
         if _teacher_groups(request.user).filter(name=name).exists():
             return Response({"detail": "Group with this name exists."}, status=400)
+        subject = str(request.data.get("subject", "uzbek") or "uzbek").strip().lower()
+        if subject not in ("uzbek", "english"):
+            subject = "uzbek"
         group = StudentGroup.objects.create(
             teacher=teacher,
             name=name,
+            subject=subject,
             description=str(request.data.get("description", "")),
         )
         return Response(StudentGroupSerializer(group).data, status=201)
@@ -66,6 +70,10 @@ def group_detail_view(request, group_id: int):
             group.name = str(request.data["name"]).strip() or group.name
         if "description" in request.data:
             group.description = str(request.data.get("description", ""))
+        if "subject" in request.data:
+            sub = str(request.data.get("subject", "")).strip().lower()
+            if sub in ("uzbek", "english"):
+                group.subject = sub
         group.save()
     return Response(
         StudentGroupSerializer(
@@ -236,7 +244,7 @@ def teacher_overview_view(request):
             course__teacher=user, status=Test.Status.PUBLISHED
         )
     recent = (
-        results_qs.select_related("test", "student").order_by("-calculated_at")[:10]
+        results_qs.select_related("test", "student", "attempt").order_by("-calculated_at")[:10]
     )
     # Phase 5: essay queue scoped to assigned groups, effective_score, TEACHER_REVIEWED
     _graded_statuses = [EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
@@ -262,10 +270,13 @@ def teacher_overview_view(request):
         "essay_avg_score": round(float(essay_avg or 0), 1),
         "recent_results": [
             {
-                "student": r.student.get_full_name(),
+                "student": r.student.get_full_name() or r.student.email,
                 "test": r.test.title,
+                "subject": r.test.subject,
                 "percentage": float(r.percentage),
                 "is_passed": r.is_passed,
+                "cheating_detected": bool(getattr(r.attempt, "cheating_detected", False)) if getattr(r, "attempt", None) else False,
+                "violation_count": int(getattr(r.attempt, "violation_count", 0) or 0) if getattr(r, "attempt", None) else 0,
                 "date": r.calculated_at.isoformat(),
             }
             for r in recent

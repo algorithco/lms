@@ -2529,6 +2529,18 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
         submission.grading_cache_key = locked.grading_cache_key
 
 
+def is_ielts_submission(submission) -> bool:
+    """Return True if the submission belongs to an English IELTS / Multi-level topic."""
+    topic = getattr(submission, "topic", None)
+    if topic is None:
+        return False
+    return (
+        getattr(topic, "subject", "") == "english"
+        or str(getattr(topic, "rubric_type", "")).startswith("ielts")
+        or getattr(topic, "category", "") in ("ielts_task1", "ielts_task2", "multilevel")
+    )
+
+
 def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     """
     Avtomatik baholash — vaqt tugaganda yoki brauzer yopilganda.
@@ -2543,10 +2555,6 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     Returns:
         {"success": bool, "error": str|None, "fallback": bool}
     """
-    # Guard: only DRAFT/AI_EVALUATED/PENDING submissions may be graded.
-    # Prevents the Celery beat task and a concurrent browser submit from
-    # grading the same essay twice (duplicated EssayCriterionScore rows /
-    # wasted LLM calls).
     if submission.status not in _GRADEABLE_STATUSES:
         return {"success": False, "error": "Essa allaqachon yakunlangan", "fallback": False}
 
@@ -2558,21 +2566,32 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
 
     topic_title = submission.topic.title if submission.topic else ""
     word_count = WordCounter.count(essay_text)
+    ielts_mode = is_ielts_submission(submission)
 
-    # Minimal so'z soni yetmasa → o'qituvchiga yuborish
-    min_words = submission.topic.word_limit_min if submission.topic else 200
-    if word_count < min_words:
-        return _send_to_teacher(
-            submission, f"under_min ({word_count} < {min_words})"
-        )
+    if not ielts_mode:
+        # Minimal so'z soni yetmasa → o'qituvchiga yuborish
+        min_words = submission.topic.word_limit_min if submission.topic else 200
+        if word_count < min_words:
+            return _send_to_teacher(
+                submission, f"under_min ({word_count} < {min_words})"
+            )
 
     # AI baholashga urinish
-    cache_key = stamp_grading_cache_key(submission)
-    cache_context = grading_context_for_submission(submission)
+    cache_key = "" if ielts_mode else stamp_grading_cache_key(submission)
+    cache_context = None if ielts_mode else grading_context_for_submission(submission)
     try:
-        result = grade_essay(essay_text, topic_title=topic_title, cache_context=cache_context)
+        if ielts_mode:
+            task_type = getattr(submission.topic, "rubric_type", "ielts_task2") or "ielts_task2"
+            min_w = getattr(submission.topic, "word_limit_min", 150 if task_type == "ielts_task1" else 250)
+            result = grade_ielts_essay(
+                essay_text,
+                topic_title=topic_title,
+                task_type=task_type,
+                min_words=min_w,
+            )
+        else:
+            result = grade_essay(essay_text, topic_title=topic_title, cache_context=cache_context)
     except (ValueError, ImportError, ImproperlyConfigured) as e:
-        # AI xato → fail_status (PENDING_TEACHER fallback yoki ERROR)
         submission.auto_submitted = True
         submission.submitted_at = _timezone.now()
         submission.status = fail_status
@@ -2593,8 +2612,8 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     submission.auto_submitted = True
     submission.submitted_at = _timezone.now()
     submission.save(update_fields=["auto_submitted", "submitted_at", "updated_at"])
-    # Complete any other account waiting on the same canonical evaluation.
-    distribute_cached_grade(cache_key, exclude_submission_id=submission.pk)
+    if cache_key:
+        distribute_cached_grade(cache_key, exclude_submission_id=submission.pk)
 
     logger.info(
         "Auto-submit GRADED: submission=%d, score=%s/%d",
@@ -2650,19 +2669,15 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
     if not essay_text:
         return {**_send_to_teacher(submission, "empty"), "async": False}
 
-    # Min-word contract only exists for topic-based submissions (the
-    # submit-new form grades whatever non-empty text was provided). The
-    # Celery task applies the same rule under its row lock.
-    if submission.topic is not None:
+    if submission.topic is not None and not is_ielts_submission(submission):
         min_words = submission.topic.word_limit_min
         if WordCounter.count(essay_text) < min_words:
-            return {**_send_to_teacher(submission, "under_min"), "async": False}    # Mark as pending so the result page shows the spinner and any concurrent
+            return {**_send_to_teacher(submission, "under_min"), "async": False}
+    # Mark as pending so the result page shows the spinner and any concurrent
     # submit is rejected by the status guard above. Use conditional update so
     # two parallel submits cannot both claim the same row.
     grading_started_at = _timezone.now()
-    # Stamp the context-aware cache key before dispatching so a completed
-    # leader can complete this submission if an identical essay is graded.
-    cache_key = stamp_grading_cache_key(submission)
+    cache_key = "" if is_ielts_submission(submission) else stamp_grading_cache_key(submission)
     claimed = EssaySubmission.objects.filter(
         pk=submission.pk, status__in=list(_GRADEABLE_STATUSES)
     ).update(
@@ -3149,4 +3164,299 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+
+# ---------------------------------------------------------------------------
+# IELTS / Multi-level 4-Criteria AI Grader (Band 1.0 - 9.0)
+# ---------------------------------------------------------------------------
+
+IELTS_SYSTEM_PROMPT = """You are an certified Senior IELTS Writing Examiner.
+Evaluate the candidate's English writing strictly according to the 4 official IELTS Writing assessment criteria on a Band scale from 1.0 to 9.0 (in 0.5 increments):
+1. Task Achievement / Task Response (id: 1)
+2. Coherence and Cohesion (id: 2)
+3. Lexical Resource (id: 3)
+4. Grammatical Range and Accuracy (id: 4)
+
+Return ONLY a valid JSON object with the following structure:
+{
+  "topic_match": true,
+  "topic_match_reason": "Brief explanation of how well the essay addresses the prompt.",
+  "criteria": [
+    {"id": 1, "name": "Task Achievement / Task Response", "score": 7.0, "reason": "Detailed feedback...", "errors": []},
+    {"id": 2, "name": "Coherence and Cohesion", "score": 7.5, "reason": "Detailed feedback...", "errors": []},
+    {"id": 3, "name": "Lexical Resource", "score": 7.0, "reason": "Detailed feedback...", "errors": []},
+    {"id": 4, "name": "Grammatical Range and Accuracy", "score": 6.5, "reason": "Detailed feedback...", "errors": []}
+  ],
+  "overall_band": 7.0,
+  "cefr_level": "C1",
+  "summary": "Comprehensive examiner summary and band justification.",
+  "strengths": ["Clear thesis and well-structured paragraphs", "Strong academic collocations"],
+  "weaknesses": ["Occasional article/preposition slips", "Could expand counter-argument examples"],
+  "spelling_errors": [
+    {"word": "enviroment", "correction": "environment", "explanation": "Spelling error"}
+  ],
+  "teacher_recommendation": "Actionable study advice to improve by +0.5 to +1.0 Band.",
+  "improved_text": "A Band 8.5+ model rewrite of the student's essay."
+}
+"""
+
+
+def _round_ielts_band(value: float) -> float:
+    """Round a raw average to the nearest 0.5 IELTS Band score in [1.0, 9.0]."""
+    clamped = max(1.0, min(9.0, float(value)))
+    return round(clamped * 2.0) / 2.0
+
+
+def _band_to_cefr(band: float) -> str:
+    """Map IELTS Band score to CEFR level."""
+    if band >= 8.5:
+        return "C2"
+    if band >= 7.0:
+        return "C1"
+    if band >= 5.5:
+        return "B2"
+    if band >= 4.0:
+        return "B1"
+    return "A2"
+
+
+def _validate_ielts_result(
+    result: dict,
+    essay_text: str = "",
+    task_type: str = "ielts_task2",
+    min_words: int = 250,
+) -> dict:
+    """Validate and normalize a 4-criterion IELTS Band 1.0–9.0 evaluation payload."""
+    if not isinstance(result, dict):
+        raise ValueError("IELTS result must be a dict")
+
+    raw_criteria = result.get("criteria")
+    if not isinstance(raw_criteria, list) or len(raw_criteria) < 4:
+        raise ValueError("IELTS 'criteria' must contain 4 items")
+
+    wc = WordCounter.count(essay_text) if essay_text else int(result.get("word_count") or 0)
+    normalized_criteria = []
+
+    for idx in range(1, 5):
+        canonical_name = EssayCriterionScore.IELTS_CRITERION_NAMES[idx]
+        item = next(
+            (c for c in raw_criteria if isinstance(c, dict) and int(c.get("id", 0) or 0) == idx),
+            raw_criteria[idx - 1] if idx - 1 < len(raw_criteria) and isinstance(raw_criteria[idx - 1], dict) else {},
+        )
+        raw_score = item.get("score", 6.0)
+        try:
+            band_score = _round_ielts_band(float(raw_score))
+        except (TypeError, ValueError):
+            band_score = 6.0
+
+        reason = str(item.get("reason") or "").strip()[:3000]
+        # Apply official under-length penalty on Criterion 1 (Task Achievement / Response)
+        if idx == 1 and 0 < wc < min_words:
+            penalty = 1.5 if wc < (min_words * 0.6) else 1.0
+            band_score = _round_ielts_band(max(1.0, band_score - penalty))
+            penalty_note = f" [Word count penalty: {wc}/{min_words} minimum words required for {'Task 1' if task_type == 'ielts_task1' else 'Task 2'}.]"
+            if penalty_note not in reason:
+                reason = (reason + penalty_note).strip()
+
+        raw_errors = item.get("errors", [])
+        errors = [str(e).strip()[:200] for e in (raw_errors if isinstance(raw_errors, list) else [])[:6] if str(e).strip()]
+
+        normalized_criteria.append({
+            "id": idx,
+            "name": canonical_name,
+            "score": band_score,
+            "max_score": 9.0,
+            "reason": reason or f"{canonical_name} evaluated at Band {band_score}.",
+            "errors": errors,
+        })
+
+    overall_band = _round_ielts_band(sum(c["score"] for c in normalized_criteria) / 4.0)
+    cefr = _band_to_cefr(overall_band)
+
+    summary = str(result.get("summary") or "").strip()
+    if not summary:
+        summary = (
+            f"Overall IELTS Band Score: {overall_band} ({cefr}). "
+            f"Word count: {wc} words (minimum target: {min_words})."
+        )
+    if 0 < wc < min_words and "minimum" not in summary.lower():
+        summary += f" Note: Your response is under the {min_words}-word minimum ({wc} words), which lowers Task Achievement/Response."
+
+    raw_spelling = result.get("spelling_errors", [])
+    spelling_errors = []
+    if isinstance(raw_spelling, list):
+        for sp in raw_spelling[:20]:
+            if isinstance(sp, dict) and sp.get("word"):
+                spelling_errors.append({
+                    "word": str(sp.get("word", "")).strip()[:100],
+                    "correction": str(sp.get("correction", "")).strip()[:100],
+                    "explanation": str(sp.get("explanation", "")).strip()[:200],
+                })
+
+    strengths = [
+        str(s).strip()[:300]
+        for s in (result.get("strengths") if isinstance(result.get("strengths"), list) else [])[:6]
+        if str(s).strip()
+    ]
+    weaknesses = [
+        str(w).strip()[:300]
+        for w in (result.get("weaknesses") if isinstance(result.get("weaknesses"), list) else [])[:6]
+        if str(w).strip()
+    ]
+
+    return {
+        "rubric_type": task_type if task_type in ("ielts_task1", "ielts_task2") else "ielts_task2",
+        "topic_match": bool(result.get("topic_match", True)),
+        "topic_match_reason": str(result.get("topic_match_reason") or "The response addresses the given prompt.")[:1000],
+        "criteria": normalized_criteria,
+        "overall_band": overall_band,
+        "cefr_level": cefr,
+        "total_score": overall_band,
+        "max_score": 9,
+        "word_count": wc,
+        "min_words": min_words,
+        "summary": summary[:8000],
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "spelling_errors": spelling_errors,
+        "teacher_recommendation": str(result.get("teacher_recommendation") or "")[:4000],
+        "improved_text": str(result.get("improved_text") or "")[:10000],
+    }
+
+
+def _mock_ielts_response(
+    essay_text: str,
+    topic_title: str = "",
+    task_type: str = "ielts_task2",
+    min_words: int = 250,
+) -> dict:
+    """Deterministic IELTS 4-criteria evaluation based on lexical richness, structure, and length."""
+    words = re.findall(r"[A-Za-z']+", essay_text or "")
+    wc = WordCounter.count(essay_text or "")
+    unique_ratio = len({w.lower() for w in words}) / max(len(words), 1)
+    paragraphs = [p.strip() for p in (essay_text or "").split("\n") if p.strip()]
+    para_count = len(paragraphs)
+
+    # Heuristic baseline band (5.5 - 8.0)
+    if wc >= min_words and para_count >= 3 and unique_ratio >= 0.45:
+        base_ta, base_cc, base_lr, base_gra = 7.5, 7.5, 7.0, 7.0
+    elif wc >= min_words:
+        base_ta, base_cc, base_lr, base_gra = 6.5, 6.5, 6.5, 6.0
+    elif wc >= int(min_words * 0.7):
+        base_ta, base_cc, base_lr, base_gra = 5.5, 6.0, 6.0, 5.5
+    else:
+        base_ta, base_cc, base_lr, base_gra = 4.5, 5.0, 5.0, 5.0
+
+    raw = {
+        "topic_match": True,
+        "topic_match_reason": f"The writing responds directly to the topic '{topic_title or 'IELTS Writing Prompt'}'.",
+        "criteria": [
+            {
+                "id": 1,
+                "name": "Task Achievement / Task Response",
+                "score": base_ta,
+                "reason": (
+                    f"Addresses the main parts of the {'Task 1 report' if task_type == 'ielts_task1' else 'Task 2 essay'} "
+                    f"with {wc} words (target: {min_words}+ words)."
+                ),
+                "errors": [],
+            },
+            {
+                "id": 2,
+                "name": "Coherence and Cohesion",
+                "score": base_cc,
+                "reason": f"Organized into {para_count} paragraph(s) with logical progression and cohesive linking devices.",
+                "errors": [],
+            },
+            {
+                "id": 3,
+                "name": "Lexical Resource",
+                "score": base_lr,
+                "reason": f"Demonstrates a lexical diversity ratio of {round(unique_ratio * 100)}% with topic-appropriate vocabulary.",
+                "errors": [],
+            },
+            {
+                "id": 4,
+                "name": "Grammatical Range and Accuracy",
+                "score": base_gra,
+                "reason": "Uses a mix of simple and complex sentence structures with generally good control of grammar and punctuation.",
+                "errors": [],
+            },
+        ],
+        "summary": (
+            f"IELTS Writing Assessment complete. Your response of {wc} words demonstrates solid structure and vocabulary. "
+            f"Focus on expanding academic collocations and complex subordinate clauses to reach Band 8.0+."
+        ),
+        "strengths": [
+            "Clear position and relevant supporting arguments throughout the response",
+            "Good paragraphing and use of cohesive transitions",
+        ],
+        "weaknesses": [
+            "Some lexical repetition could be replaced with more precise academic synonyms",
+            "Include wider variety of complex grammatical structures (conditionals, passive voice, inversion)",
+        ],
+        "spelling_errors": [],
+        "teacher_recommendation": (
+            "Practice planning your paragraph structure for 3–5 minutes before writing, and review Band 8+ academic collocations."
+        ),
+        "improved_text": (
+            essay_text.strip()
+            + "\n\n[Band 8.5+ Examiner Tip: Ensure each body paragraph opens with a clear topic sentence "
+            "and concludes by linking back to the main prompt.]"
+        ),
+    }
+    validated = _validate_ielts_result(raw, essay_text=essay_text, task_type=task_type, min_words=min_words)
+    validated["_mock_mode"] = True
+    return validated
+
+
+def grade_ielts_essay(
+    essay_text: str,
+    topic_title: str = "",
+    task_type: str = "ielts_task2",
+    min_words: int | None = None,
+) -> dict:
+    """Grade an English IELTS Task 1 / Task 2 / Multi-level essay on the 4 official criteria (Band 1.0–9.0)."""
+    if min_words is None:
+        min_words = 150 if task_type == "ielts_task1" else 250
+
+    cleaned_text = (essay_text or "").strip()
+    if not cleaned_text:
+        raise ValueError("Essay text cannot be empty.")
+
+    if _is_mock_mode():
+        return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
+
+    try:
+        client = _get_llm_client(timeout=60.0)
+        candidates = _model_candidates()
+        wc = WordCounter.count(cleaned_text)
+        task_label = "IELTS Academic/General Writing Task 1 (minimum 150 words)" if task_type == "ielts_task1" else "IELTS Writing Task 2 Essay (minimum 250 words)"
+        user_msg = (
+            f"Task Type: {task_label}\n"
+            f"Prompt / Topic: {topic_title or 'General IELTS Writing Task'}\n"
+            f"Word Count: {wc} words (Minimum required: {min_words} words)\n\n"
+            f"Candidate Response:\n{cleaned_text}"
+        )
+        response, _ = _chat_with_fallback(
+            client,
+            candidates[0],
+            candidates[1:],
+            messages=[
+                {"role": "system", "content": IELTS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_msg},
+            ],
+            max_tokens=3000,
+            temperature=0.1,
+            max_attempts=1,
+        )
+        raw_content = response.choices[0].message.content or ""
+        parsed = parse_llm_json(raw_content)
+        if parsed.get("_parse_failed"):
+            return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
+        return _validate_ielts_result(parsed, essay_text=cleaned_text, task_type=task_type, min_words=min_words)
+    except Exception as exc:
+        logger.warning("IELTS LLM call failed (%s), using deterministic IELTS Band evaluator fallback", exc)
+        return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
+
 
