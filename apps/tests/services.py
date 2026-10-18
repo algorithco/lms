@@ -54,12 +54,9 @@ from apps.tests.scoring import (
     grade_gap_fill as _grade_gap_fill,
 )
 from apps.tests.scoring import (
+    evaluate_text_answer as _evaluate_text_answer,
     grade_matching as _grade_matching,
-)
-from apps.tests.scoring import (
     normalize_text as _normalize_text,
-)
-from apps.tests.scoring import (
     written_earned as _written_earned,
 )
 
@@ -957,11 +954,8 @@ class SubmitAttemptService:
 
             # -- Grading logic (semantika o'zgarmagan) ----------------------
             if qtype == Question.QuestionType.TEXT_MATCH:
-                # Matnli javob: normalize (kichik harf, bo'shliqlar) va taqqoslash (ko'p variantlar | bilan ajratilgan)
-                student_text = _normalize_text(student_answer.text_answer or "")
-                raw_keys = (question.correct_text or "").split("|")
-                accepted_keys = [_normalize_text(k) for k in raw_keys if k.strip()]
-                is_correct = bool(student_text and any(student_text == k for k in accepted_keys))
+                raw_keys = [k.strip() for k in (question.correct_text or "").split("|") if k.strip()]
+                is_correct = _evaluate_text_answer(student_answer.text_answer, raw_keys)
                 question_scores.append(QuestionScore(
                     question_id=question.id,
                     earned=qmax if is_correct else Decimal("0"), maximum=qmax,

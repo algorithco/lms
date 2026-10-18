@@ -30,6 +30,82 @@ def normalize_text(value: Any, *, case_sensitive: bool = False) -> str:
     return text
 
 
+def unify_apostrophes(text: str) -> str:
+    """O'zbek tilidagi barcha turli apostrof belgilarini standart ' belgisiga keltiradi."""
+    for ch in ("‘", "’", "ʻ", "ʼ", "`", "´"):
+        text = text.replace(ch, "'")
+    return text
+
+
+def clean_punctuation_and_spaces(text: str) -> str:
+    """Taqqoslash uchun tinish belgilarini bo'shliqqa almashtiradi va bo'shliqlarni ixchamlaydi."""
+    for ch in (";", ",", ".", "!", "?", "(", ")", "[", "]", "{", "}", "\"", ":"):
+        text = text.replace(ch, " ")
+    return " ".join(text.split())
+
+
+def evaluate_text_answer(
+    given_text: Any,
+    accepted_keys: list[str],
+    *,
+    case_sensitive: bool = False,
+) -> bool:
+    """
+    Matnli savol (TEXT_MATCH) javobini qabul qilingan kalitlar bilan aqlli taqqoslash:
+    1. To'g'ridan-to'g'ri bo'shliq va registr normalizatsiyasi
+    2. Apostroflar unifikatsiyasi (' ‘ ’ ʻ ʼ `)
+    3. Tinish belgilari yumshatilgan moslik
+    4. 2 talik savollarning 'a) ... b) ...' strukturalarini ajratib taqqoslash
+    """
+    given = normalize_text(given_text, case_sensitive=case_sensitive)
+    if not given:
+        return False
+
+    norm_keys = [normalize_text(k, case_sensitive=case_sensitive) for k in accepted_keys if str(k).strip()]
+    if not norm_keys:
+        return False
+
+    # 1. To'g'ridan-to'g'ri moslik
+    if any(given == k for k in norm_keys):
+        return True
+
+    # 2. Apostroflarni birlashtirib tekshirish
+    u_given = unify_apostrophes(given)
+    u_keys = [unify_apostrophes(k) for k in norm_keys]
+    if any(u_given == k for k in u_keys):
+        return True
+
+    # 3. Tinish belgilari yumshatilgan moslik
+    cp_given = clean_punctuation_and_spaces(u_given)
+    cp_keys = [clean_punctuation_and_spaces(k) for k in u_keys]
+    if any(cp_given == k for k in cp_keys):
+        return True
+
+    # 4. Agar 2 talik savol bo'lsa: "a) ... b) ..." formatini alohida ajratib taqqoslash
+    import re
+
+    def _extract_parts(t: str) -> tuple[str, str] | None:
+        m = re.search(r"a\s*\)\s*(.*?)(?:\s*;?\s*b\s*\)\s*(.*)|$)", t, re.IGNORECASE)
+        if m and m.group(1):
+            part_a = clean_punctuation_and_spaces(unify_apostrophes(m.group(1)))
+            part_b = clean_punctuation_and_spaces(unify_apostrophes(m.group(2) or ""))
+            return part_a, part_b
+        return None
+
+    given_parts = _extract_parts(given)
+    if given_parts and given_parts[0]:
+        g_a, g_b = given_parts
+        for k in norm_keys:
+            k_parts = _extract_parts(k)
+            if k_parts and k_parts[0]:
+                ka_match = (g_a == k_parts[0])
+                kb_match = (g_b == k_parts[1]) if k_parts[1] else True
+                if ka_match and kb_match:
+                    return True
+
+    return False
+
+
 def blank_is_correct(response_text: Any, accepted: list[str], *, case_sensitive: bool = False) -> bool:
     """True when the response matches ANY accepted answer for the blank."""
     given = normalize_text(response_text, case_sensitive=case_sensitive)

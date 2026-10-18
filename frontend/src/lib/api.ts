@@ -465,6 +465,9 @@ export const Tests = {
       gap_answers?: Record<string, string>;
       matching?: Record<string, number | null>;
       written_text?: string;
+      test_id?: number | string;
+      selected_option_id?: number | null;
+      selected_choice_id?: number | null;
     },
   ) =>
     api<unknown>(`/api/tests/attempts/${attemptId}/save-answer/`, {

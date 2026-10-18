@@ -154,7 +154,7 @@ const emptyEntry = (): AnswerEntry => ({
   written: '',
 });
 
-const TEXT_DEBOUNCE_MS = 800;
+const TEXT_DEBOUNCE_MS = 400;
 
 function qtypeLabel(qtype: string, t: (k: string) => string): string {
   if (qtype === 'single') return t('take_single');
@@ -183,18 +183,19 @@ function parseTwoPartAnswer(text: string): { a: string; b: string } {
   } catch {
     // plain string format
   }
-  const match = text.match(/a\)\s*(.*?)(?:\s*b\)\s*(.*)|$)/is);
+  const match = text.match(/a\)\s*(.*?)(?:\s*;?\s*b\)\s*(.*)|$)/is);
   if (match) {
-    return {
-      a: (match[1] || '').trim(),
-      b: (match[2] || '').trim(),
-    };
+    const aVal = (match[1] || '').replace(/;\s*$/, '').trim();
+    const bVal = (match[2] || '').trim();
+    if (aVal || bVal || text.includes('a)')) {
+      return { a: aVal, b: bVal };
+    }
   }
-  const parts = text.split(/[\n,]/);
+  const parts = text.split(/[\n;]/);
   if (parts.length >= 2) {
     return {
       a: parts[0].trim(),
-      b: parts.slice(1).join(', ').trim(),
+      b: parts.slice(1).join('; ').trim(),
     };
   }
   return { a: text.trim(), b: '' };
@@ -204,7 +205,7 @@ function formatTwoPartAnswer(valA: string, valB: string): string {
   const cleanA = valA.trim();
   const cleanB = valB.trim();
   if (!cleanA && !cleanB) return '';
-  if (cleanA && cleanB) return `a) ${cleanA} b) ${cleanB}`;
+  if (cleanA && cleanB) return `a) ${cleanA}; b) ${cleanB}`;
   if (cleanA) return `a) ${cleanA}`;
   return `b) ${cleanB}`;
 }
@@ -384,34 +385,51 @@ export default function TakeTest() {
         setSaved((s) => ({ ...s, [q.id]: false }));
         return;
       }
-      setFailed((f) => {
-        if (!(q.id in f)) return f;
-        const next = { ...f };
-        delete next[q.id];
-        return next;
-      });
-      try {
-        const res = (await TestsApi.saveAnswer(attemptId, {
-          question_id: q.id,
-          choice_ids: cur.choices,
-          text_answer: cur.text,
-          gap_answers: cur.gaps,
-          matching: cur.matching,
-          written_text: q.question_type === 'written' ? cur.written : undefined,
-        })) as unknown as { remaining_seconds?: number | null };
-        setSaved((s) => ({ ...s, [q.id]: true }));
-        if (typeof res?.remaining_seconds === 'number') {
-          setRemaining(res.remaining_seconds);
+
+      let lastErr: unknown = null;
+      // 3 martagacha avtomatik qayta urinish (retry)
+      for (let attemptNum = 1; attemptNum <= 3; attemptNum++) {
+        try {
+          const payload = {
+            test_id: attempt?.test,
+            question_id: q.id,
+            choice_ids: cur.choices,
+            selected_option_id: cur.choices.length === 1 ? cur.choices[0] : undefined,
+            selected_choice_id: cur.choices.length === 1 ? cur.choices[0] : undefined,
+            text_answer: cur.text,
+            gap_answers: cur.gaps,
+            matching: cur.matching,
+            written_text: q.question_type === 'written' ? cur.written : undefined,
+          };
+          const res = (await TestsApi.saveAnswer(attemptId, payload)) as unknown as {
+            remaining_seconds?: number | null;
+          };
+          setSaved((s) => ({ ...s, [q.id]: true }));
+          setFailed((f) => {
+            if (!(q.id in f)) return f;
+            const next = { ...f };
+            delete next[q.id];
+            return next;
+          });
+          if (typeof res?.remaining_seconds === 'number') {
+            setRemaining(res.remaining_seconds);
+          }
+          return; // Success!
+        } catch (e) {
+          lastErr = e;
+          if (attemptNum < 3) {
+            await new Promise((resolve) => setTimeout(resolve, attemptNum * 350));
+          }
         }
-      } catch (e) {
-        setSaved((s) => ({ ...s, [q.id]: false }));
-        setFailed((f) => ({
-          ...f,
-          [q.id]: e instanceof Error ? e.message : t('take_save_failed'),
-        }));
       }
+
+      setSaved((s) => ({ ...s, [q.id]: false }));
+      setFailed((f) => ({
+        ...f,
+        [q.id]: lastErr instanceof Error ? lastErr.message : t('take_save_failed'),
+      }));
     },
-    [answers, attemptId, t],
+    [answers, attempt, attemptId, t],
   );
 
   const saveDebounced = useCallback(
@@ -426,30 +444,22 @@ export default function TakeTest() {
 
   const pick = useCallback(
     (q: Question, choiceId: number) => {
-      let chosen: number[] = [];
-      setAnswers((prev) => {
-        const cur = prev[q.id] ?? emptyEntry();
-        const has = cur.choices.includes(choiceId);
-        chosen =
-          q.question_type === 'multiple'
-            ? has
-              ? cur.choices.filter((c) => c !== choiceId)
-              : [...cur.choices, choiceId]
-            : [choiceId];
-        const next = { ...prev, [q.id]: { ...cur, choices: chosen } };
-        persist(next);
-        return next;
-      });
-      setSaved((s) => ({ ...s, [q.id]: false }));
       const cur = answers[q.id] ?? emptyEntry();
       const has = cur.choices.includes(choiceId);
-      const choices =
+      const chosen =
         q.question_type === 'multiple'
           ? has
             ? cur.choices.filter((c) => c !== choiceId)
             : [...cur.choices, choiceId]
           : [choiceId];
-      save(q, { ...cur, choices });
+      const nextEntry: AnswerEntry = { ...cur, choices: chosen };
+      setAnswers((prev) => {
+        const next = { ...prev, [q.id]: nextEntry };
+        persist(next);
+        return next;
+      });
+      setSaved((s) => ({ ...s, [q.id]: false }));
+      save(q, nextEntry);
     },
     [answers, persist, save],
   );
@@ -497,54 +507,54 @@ export default function TakeTest() {
   }, [singleMode, attempt, currentQIndex, submitting, confirmOpen, result, pick]);
 
   const editText = (q: Question, text: string) => {
+    const cur = answers[q.id] ?? emptyEntry();
+    const nextEntry: AnswerEntry = { ...cur, choices: [], text };
     setAnswers((prev) => {
-      const cur = prev[q.id] ?? emptyEntry();
-      const next = { ...prev, [q.id]: { ...cur, choices: [], text } };
+      const next = { ...prev, [q.id]: nextEntry };
       persist(next);
       return next;
     });
     setSaved((s) => ({ ...s, [q.id]: false }));
-    // Debounced autosave for text (legacy oninput parity without flooding).
-    const cur = answers[q.id] ?? emptyEntry();
-    saveDebounced(q, { ...cur, choices: [], text });
+    // Debounced autosave for text (400ms)
+    saveDebounced(q, nextEntry);
   };
 
   const editGap = (q: Question, position: number, value: string) => {
     const cur = answers[q.id] ?? emptyEntry();
     const gaps = { ...cur.gaps, [String(position)]: value };
-    const next = { ...cur, gaps };
+    const nextEntry: AnswerEntry = { ...cur, gaps };
     setAnswers((prev) => {
-      const updated = { ...prev, [q.id]: next };
-      persist(updated);
-      return updated;
+      const next = { ...prev, [q.id]: nextEntry };
+      persist(next);
+      return next;
     });
     setSaved((s) => ({ ...s, [q.id]: false }));
-    saveDebounced(q, next);
+    saveDebounced(q, nextEntry);
   };
 
   const editMatching = (q: Question, promptId: number, optionId: number | null) => {
     const cur = answers[q.id] ?? emptyEntry();
     const matching = { ...cur.matching, [String(promptId)]: optionId };
-    const next = { ...cur, matching };
+    const nextEntry: AnswerEntry = { ...cur, matching };
     setAnswers((prev) => {
-      const updated = { ...prev, [q.id]: next };
-      persist(updated);
-      return updated;
+      const next = { ...prev, [q.id]: nextEntry };
+      persist(next);
+      return next;
     });
     setSaved((s) => ({ ...s, [q.id]: false }));
-    save(q, next);
+    save(q, nextEntry);
   };
 
   const editWritten = (q: Question, written: string) => {
     const cur = answers[q.id] ?? emptyEntry();
-    const next = { ...cur, written };
+    const nextEntry: AnswerEntry = { ...cur, written };
     setAnswers((prev) => {
-      const updated = { ...prev, [q.id]: next };
-      persist(updated);
-      return updated;
+      const next = { ...prev, [q.id]: nextEntry };
+      persist(next);
+      return next;
     });
     setSaved((s) => ({ ...s, [q.id]: false }));
-    saveDebounced(q, next);
+    saveDebounced(q, nextEntry);
   };
 
   const retryFailed = async () => {
@@ -707,7 +717,8 @@ export default function TakeTest() {
                         }}
                         onBlur={() => {
                           if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                          if (a.text.trim()) save(q, a);
+                          const cur = answers[q.id] ?? emptyEntry();
+                          if (cur.text.trim()) save(q, cur);
                         }}
                         placeholder={t('two_part_placeholder_a')}
                         style={{
@@ -734,7 +745,8 @@ export default function TakeTest() {
                         }}
                         onBlur={() => {
                           if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                          if (a.text.trim()) save(q, a);
+                          const cur = answers[q.id] ?? emptyEntry();
+                          if (cur.text.trim()) save(q, cur);
                         }}
                         placeholder={t('two_part_placeholder_b')}
                         style={{
@@ -758,7 +770,8 @@ export default function TakeTest() {
                   onChange={(e) => editText(q, e.target.value)}
                   onBlur={() => {
                     if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                    if (a.text.trim()) save(q, a);
+                    const cur = answers[q.id] ?? emptyEntry();
+                    if (cur.text.trim()) save(q, cur);
                   }}
                   placeholder={t('take_text_ph')}
                   style={{ width: '100%', marginTop: 8 }}
@@ -791,7 +804,8 @@ export default function TakeTest() {
               onChange={(value) => editWritten(q, value)}
               onBlur={() => {
                 if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
-                if (a.written.trim()) save(q, a);
+                const cur = answers[q.id] ?? emptyEntry();
+                if (cur.written.trim()) save(q, cur);
               }}
             />
           ) : (

@@ -389,11 +389,26 @@ class SaveAnswerSerializer(serializers.Serializer):
     question_id = serializers.IntegerField(
         help_text="Javob berilayotgan savol ID si.",
     )
+    test_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="Test ID si (ixtiyoriy tekshirish uchun).",
+    )
     choice_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         default=list,
         help_text="Tanlangan variant ID lari ro'yxati (choice savollari uchun).",
+    )
+    selected_option_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="Bitta variant tanlanganda (backward compat).",
+    )
+    selected_choice_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="Bitta variant tanlanganda (backward compat).",
     )
     text_answer = serializers.CharField(
         required=False,
@@ -419,6 +434,14 @@ class SaveAnswerSerializer(serializers.Serializer):
         default="",
         help_text="WRITTEN qoralama matni (uzun; autosave).",
     )
+
+    def validate(self, attrs):
+        choice_ids = list(attrs.get("choice_ids") or [])
+        single_opt = attrs.get("selected_option_id") or attrs.get("selected_choice_id")
+        if single_opt and single_opt not in choice_ids:
+            choice_ids.append(single_opt)
+        attrs["choice_ids"] = choice_ids
+        return attrs
 
     def validate_choice_ids(self, value: list[int]) -> list[int]:
         """Choice ID lar musbat son ekanligini tekshirish."""

@@ -166,10 +166,23 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             gap_review: list[dict[str, Any]] = []
             matching_review: list[dict[str, Any]] = []
             written_review: dict[str, Any] | None = None
+            student_text_answer = ""
+            correct_text_answer = ""
+
+            if reveal_answers and q.correct_text:
+                raw_keys = [k.strip() for k in q.correct_text.split("|") if k.strip()]
+                correct_text_answer = raw_keys[0] if raw_keys else q.correct_text
+                if not correct_choices:
+                    correct_choices = [{"id": 0, "text": correct_text_answer}]
+
             if answer:
+                student_text_answer = (answer.text_answer or "").strip()
                 selected = list(
                     answer.selected_choices.values("id", "text")
                 )
+                if not selected and student_text_answer:
+                    selected = [{"id": 0, "text": student_text_answer}]
+
                 is_correct = answer.is_correct if reveal_answers else None
                 if q.question_type == "matching":
                     option_text = {o.id: o.text for o in q.matching_options.all()}
@@ -219,6 +232,8 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                 "section_id": q.section_id,
                 "correct_choices": correct_choices,
                 "selected_choices": selected,
+                "student_answer_text": student_text_answer,
+                "correct_text": correct_text_answer,
                 "gap_review": gap_review,
                 "matching_review": matching_review,
                 "written_review": written_review,

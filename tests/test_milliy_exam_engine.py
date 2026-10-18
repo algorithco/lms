@@ -401,7 +401,7 @@ class WrittenBridgeTests(TestCase):
         ans = StudentAnswer.objects.get(attempt=attempt, question=self.q)
         bridge = ExamWrittenBridge.objects.get(answer=ans)
         self.assertIsNotNone(bridge.essay_submission)
-        self.assertEqual(bridge.rubric_version, "grandec-essay-12x2-v1")
+        self.assertEqual(bridge.rubric_version, "grandec-essay-bmb-20p-v1")
         self.assertEqual(
             EssaySubmission.objects.filter(pk=bridge.essay_submission_id).count(), 1)
         result = Result.objects.get(attempt=attempt)
@@ -442,15 +442,15 @@ class WrittenBridgeTests(TestCase):
         self._grade_bridge(bridge, Decimal("18"))
         with no_dispatch():
             out = SubmitAttemptService.finalize_pending_grading(attempt.id, self.student)
-        # 18/24 of 10 points = 7.50; percentage 75 >= 50 → passed.
+        # 18/20 of 10 points = 9.00; percentage 90 >= 50 → passed.
         self.assertEqual(out.grading_status, "graded")
-        self.assertEqual(out.writing_score, Decimal("7.50"))
+        self.assertEqual(out.writing_score, Decimal("9.00"))
         self.assertTrue(out.is_passed)
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, TestAttempt.Status.COMPLETED)
         result = Result.objects.get(attempt=attempt)
         self.assertEqual(result.grading_status, "graded")
-        self.assertEqual(result.rubric_version, "grandec-essay-12x2-v1")
+        self.assertEqual(result.rubric_version, "grandec-essay-bmb-20p-v1")
         self.assertEqual(result.scoring_version, "default:v1")
         # Default profile is UNVERIFIED → graded but no certificate.
         from apps.certificates.services.generation import certificate_status

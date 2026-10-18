@@ -398,10 +398,24 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
                 **({"is_correct": c.is_correct} if reveal_answers else {}),
             })
 
+        correct_text = ""
+        if reveal_answers and q.correct_text:
+            raw_keys = [k.strip() for k in q.correct_text.split("|") if k.strip()]
+            correct_text = raw_keys[0] if raw_keys else q.correct_text
+            if not choices:
+                choices.append({"id": 0, "text": correct_text, "is_correct": True})
+
+        student_text = (sa.text_answer or "") if sa else ""
+        if student_text and not selected_ids:
+            choices.append({"id": -1, "text": student_text, "is_correct": bool(is_correct)})
+            selected_ids.add(-1)
+
         question_details.append({
             "question_text": q.text,
             "question_type": q.question_type,
             "points": q.points,
+            "correct_text": correct_text,
+            "text_answer": student_text,
             **({"is_correct": is_correct} if reveal_answers else {}),
             "choices": choices,
             "selected_ids": list(selected_ids),

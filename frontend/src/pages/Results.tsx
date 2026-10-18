@@ -56,6 +56,8 @@ interface QuestionDetail {
   points: number;
   correct_choices: { id: number; text: string }[];
   selected_choices: { id: number; text: string }[];
+  correct_text?: string;
+  student_answer_text?: string;
   is_correct: boolean | null;
   explanation?: string;
 }
@@ -641,11 +643,37 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       <h4 style={{ marginTop: '20px' }}>{t('rd_analysis')}</h4>
       <div style={{ display: 'grid', gap: 12 }}>
         {(detail.question_details ?? []).map((qd) => {
-          const selectedIds = new Set((qd.selected_choices ?? []).map((c) => c.id));
           const isWrong = qd.is_correct === false;
           const selectedChoiceId = qd.selected_choices?.[0]?.id ?? null;
           const expl = explanations[qd.question_id];
           const isThisLoading = explainingId === qd.question_id;
+
+          // Student javobini aniqlash (variant yoki ochiq matn)
+          const studentAnswerDisplay =
+            (qd.selected_choices ?? []).length > 0
+              ? qd.selected_choices.map((c) => c.text).filter(Boolean).join(', ')
+              : (qd.student_answer_text || '').trim() || 'Javob berilmagan';
+
+          // Rasmiy to'g'ri javobni aniqlash (barcha savol turlarida yashil blokda ko'rinadi)
+          let correctAnswerDisplay =
+            (qd.correct_choices ?? []).length > 0
+              ? qd.correct_choices.map((c) => c.text).filter(Boolean).join(', ')
+              : (qd.correct_text || '').trim();
+
+          if (!correctAnswerDisplay && qd.explanation) {
+            const m = qd.explanation.match(/To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?(.*?)['"»]?(?:\.|\n|$)/i);
+            if (m && m[1]) {
+              correctAnswerDisplay = m[1].trim();
+            }
+          }
+          if (!correctAnswerDisplay) {
+            correctAnswerDisplay = '—';
+          }
+
+          // AI tushuntirishini toza qoida va tahlil qilib ko'rsatish
+          const explanationClean = qd.explanation
+            ? qd.explanation.replace(/^To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?[^.'"]+['"»]?[.]?\s*/i, '').trim() || qd.explanation
+            : '';
 
           return (
             <div
@@ -690,9 +718,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                     <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       ❌ Sizning javobingiz:
                     </strong>{' '}
-                    {(qd.selected_choices ?? []).length > 0
-                      ? qd.selected_choices.map((c) => c.text).join(', ')
-                      : 'Belgilanmagan'}
+                    <span>{studentAnswerDisplay}</span>
                   </div>
                 )}
 
@@ -710,8 +736,8 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                   <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     ✅ To‘g‘ri javob:
                   </strong>{' '}
-                  {(qd.correct_choices ?? []).map((c) => c.text).join(', ')}
-                  {qd.is_correct && selectedIds.size > 0 && (
+                  <span>{correctAnswerDisplay}</span>
+                  {qd.is_correct && (
                     <span className="small muted" style={{ marginLeft: 6 }}>
                       (Siz ham to‘g‘ri belgiladingiz)
                     </span>
@@ -720,7 +746,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
               </div>
 
               {/* 💡 Nega bu javob xato? AI tushuntirishi (Ochiq tursin) */}
-              {qd.explanation && (
+              {explanationClean && (
                 <div
                   style={{
                     marginTop: 10,
@@ -736,7 +762,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
                   <strong style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <span>💡</span> {isWrong ? 'Nega bu javob xato? AI tushuntirishi:' : t('bmb_rule_explanation')}
                   </strong>
-                  <span>{qd.explanation}</span>
+                  <span>{explanationClean}</span>
                 </div>
               )}
 
