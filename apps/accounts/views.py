@@ -306,6 +306,68 @@ class TelegramConnectStatusView(APIView):
         return Response({"status": state})
 
 
+class DirectTelegramLinkView(APIView):
+    """POST /api/auth/telegram/direct-link/
+    Allows an authenticated user to bind or update their telegram_chat_id directly.
+    Payload: { "telegram_chat_id": 5582178765 }
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Telegram ID to'g'ridan-to'g'ri bog'lash",
+        description="Foydalanuvchi hisobiga telegram_chat_id ni saqlaydi va bildirishnomalarni faollashtiradi.",
+        responses={200: {"description": "Telegram bog'landi"}, 400: {"description": "Xatolik"}},
+        tags=["Auth"],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from django.utils import timezone
+        chat_id_raw = request.data.get("telegram_chat_id")
+        if not chat_id_raw:
+            return Response(
+                {"error": "Telegram ID kiritilishi shart."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            chat_id = int(str(chat_id_raw).strip())
+            if chat_id <= 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Telegram ID musbat butun son bo'lishi kerak."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing = User.objects.filter(telegram_chat_id=chat_id).exclude(id=request.user.id).first()
+        if existing:
+            if request.user.is_superuser or request.user.is_staff or getattr(request.user, "role", "") == "admin":
+                existing.telegram_chat_id = None
+                existing.save(update_fields=["telegram_chat_id"])
+            else:
+                return Response(
+                    {"error": "Ushbu Telegram ID allaqachon boshqa hisobga bog'langan."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        user = request.user
+        user.telegram_chat_id = chat_id
+        user.telegram_identity_verified_at = timezone.now()
+        user.save(update_fields=["telegram_chat_id", "telegram_identity_verified_at"])
+
+        try:
+            from apps.attendance.models import NotificationPreference
+            pref, _ = NotificationPreference.objects.get_or_create(user=user)
+            pref.telegram_enabled = True
+            pref.save(update_fields=["telegram_enabled"])
+        except Exception:
+            pass
+
+        return Response({
+            "ok": True,
+            "telegram_chat_id": user.telegram_chat_id,
+            "message": f"Telegram ID ({chat_id}) muvaffaqiyatli bog'landi! Bildirishnomalar va to'lov kvitansiyalari ushbu akkauntga yo'naltiriladi.",
+        }, status=status.HTTP_200_OK)
+
+
 # ---------------------------------------------------------------------------
 # Django Session Bridge (for React SPA: WS arena + session-only JSON views)
 # ---------------------------------------------------------------------------

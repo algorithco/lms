@@ -380,15 +380,41 @@
   * Contabo VPS (`169.58.58.229`) ga muvaffaqiyatli deploy amalga oshirildi.
   * Jonli tekshiruv: `curl.exe -i "https://grandec.uz/api/tests/4/"` va `5/` so'rovlari **HTTP 200 OK** bilan savollar va matnlarni to'liq qaytardi.
 
+### 2.21. Fanlar Bo'yicha Qat'iy Segregatsiya, Admin Panel Guruh & Davomat Tizimi va Telegram ID Bog'lash
+- [x] Frontend Fan Segregatsiyasi va Xavfsiz Fallbacklar:
+  * `frontend/src/components/Layout.tsx`: `activeSubject` dinamik kuzatiladi (`subject-changed` event va profil).
+  * `activeSubject === 'uzbek'` bo'lganda: `AI Speaking` butunlay menyudan yashirildi. Faqat: Boshqaruv paneli, Testlar, Titul (OMR), Esselar, Arena, Turnirlar, Reyting ko'rsatiladi.
+  * `activeSubject === 'english'` bo'lganda: `Titul (OMR)` menyudan yashirildi. "CBT Reading & Listening", "AI Speaking (IELTS & Multi-level)" va "IELTS Writing" ko'rsatiladi.
+  * `frontend/src/pages/Dashboard.tsx` va `Tests.tsx`: Bo'sh ma'lumotlar va bo'sh testlar holatida qulab tushmaydigan chiroyli empty-state ko'rsatiladi.
+- [x] Kurs Modeli va Migratsiya:
+  * `StudentGroup` modeliga `monthly_fee = models.PositiveIntegerField(default=400000)` qo'shildi (`apps/courses/migrations/0007_studentgroup_monthly_fee.py`).
+- [x] Admin Panel Guruh va Davomat API va Interfeysi (`/panel`):
+  * `GET` va `POST /api/v1/panel/groups/`: Guruhlarni ro'yxatga olish va yangi guruh ochish (avtomatik `#GR-XXX` taklif kodi va oylik to'lov bilan).
+  * `GET /api/v1/panel/teachers/`: O'qituvchilar ro'yxatini qaytarish.
+  * `GET /api/v1/panel/attendance/`: Har bir guruh bo'yicha jonli davomat statistikasi (darslar soni, hozir, kech, yo'q, davomat foizi).
+  * `GET /api/v1/panel/attendance/export/`: `openpyxl` vositasida rasmiy Excel (`.xlsx`) hisobotini yuklab olish.
+  * `frontend/src/pages/PanelDashboard.tsx`: "➕ Yangi Guruh Ochish" modali, guruhlar va davomat jadvali, taklif kodini 1 klikda nusxalash va "📥 Oylik Davomat Hisoboti (Excel)" yuklab olish tugmasi.
+- [x] Telegram Hisobini To'g'ridan-to'g'ri Bog'lash:
+  * `apps/accounts/views.py`: `DirectTelegramLinkView` (`/api/v1/accounts/link-telegram/`) yaratildi. Admin/superadmin va foydalanuvchilar o'zlarining Telegram ID larini (xususan `5582178765`) to'g'ridan-to'g'ri biriktirib, bildirishnomalarni faollashtirish imkoniga ega bo'ldi.
+  * `frontend/src/pages/Profile.tsx`: Telegram hisobini bog'lash kartochkasi integratsiya qilindi.
+- [x] Sifat, Testlar va Sinovlar:
+  * Yangi test paketi: `tests/test_panel_groups_attendance.py` — 5/5 PASSED (100%).
+  * Bot menyu sinovi: `tests/test_telegram_bot_features.py` — 27/27 PASSED (100%).
+  * Frontend build: `npm run build` — 0 xato bilan toza yig'ildi.
+  * Linter: `ruff check` — 0 xato.
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va xatosiz bajarildi, test topshirish sahifasi 100% barqaror ishlamoqda.
+- Barcha talablar bajarildi, o'zgarishlarni Git repozitoriyaga commit qilish va serverga deploy qilish.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Jonli foydalanuvchilar faoliyatini kuzatish.
+- O'zgarishlarni commit qilib, `origin main` ga push qilish.
+- Contabo VPS (`169.58.58.229`) ga ulanib, migratsiyani qo'llash va xizmatlarni yangilash.
+- Jonli serverda Telegram ID `5582178765` va endpointlarning 200 OK ekanligini tasdiqlash.
+
 
 
 

@@ -94,6 +94,11 @@ urlpatterns = [
         views.TelegramConnectStatusView.as_view(),
         name="telegram_connect_status",
     ),
+    path(
+        "telegram/direct-link/",
+        views.DirectTelegramLinkView.as_view(),
+        name="telegram_direct_link",
+    ),
 
     # -- Google OAuth ----------------------------------------------------------
     path(

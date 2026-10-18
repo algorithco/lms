@@ -192,6 +192,8 @@ export interface AuthUser {
   placement_score?: number | string | null;
   onboarding_completed?: boolean;
   daily_plan_summary?: Record<string, unknown>;
+  telegram_chat_id?: number | null;
+  telegram_identity_verified_at?: string | null;
 }
 
 /** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
@@ -268,6 +270,9 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
       typeof raw.daily_plan_summary === 'object' && raw.daily_plan_summary
         ? (raw.daily_plan_summary as Record<string, unknown>)
         : {},
+    telegram_chat_id: typeof raw.telegram_chat_id === 'number' ? raw.telegram_chat_id : null,
+    telegram_identity_verified_at:
+      typeof raw.telegram_identity_verified_at === 'string' ? raw.telegram_identity_verified_at : null,
   };
 }
 
@@ -489,6 +494,11 @@ export const ProfileApi = {
     }>('/api/v1/profile/switch-subject/', {
       method: 'POST',
       body: JSON.stringify({ subject, exam_target }),
+    }),
+  linkTelegram: (telegram_chat_id: number) =>
+    api<{ ok: boolean; telegram_chat_id: number; message: string }>('/api/v1/accounts/link-telegram/', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_chat_id }),
     }),
 };
 
@@ -1111,7 +1121,61 @@ export const Panel = {
     }),
   toggleBlock: (id: number | string) =>
     api<Record<string, unknown>>(`/api/v1/panel/users/${id}/block/`, { method: 'POST' }),
+  groups: () => api<{ results: PanelGroupItem[] }>('/api/v1/panel/groups/'),
+  createGroup: (payload: { name: string; subject: string; teacher_id: number; monthly_fee?: number }) =>
+    api<PanelGroupItem & { message?: string }>('/api/v1/panel/groups/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  teachers: () => api<{ results: PanelTeacherItem[] }>('/api/v1/panel/teachers/'),
+  attendance: () => api<{ results: PanelAttendanceItem[] }>('/api/v1/panel/attendance/'),
+  exportAttendanceUrl: '/api/v1/panel/attendance/export/',
 };
+
+export interface PanelGroupItem {
+  id: number;
+  name: string;
+  subject: 'uzbek' | 'english';
+  subject_display: string;
+  teacher_id: number;
+  teacher_name: string;
+  teacher_email: string;
+  student_count: number;
+  invite_code: string;
+  monthly_fee: number;
+  created_at: string;
+}
+
+export interface PanelTeacherItem {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
+export interface PanelAttendanceSessionItem {
+  id: number;
+  lesson_date: string;
+  status: string;
+  present: number;
+  late: number;
+  absent: number;
+}
+
+export interface PanelAttendanceItem {
+  group_id: number;
+  group_name: string;
+  subject: string;
+  subject_display: string;
+  teacher_name: string;
+  student_count: number;
+  total_sessions: number;
+  present_count: number;
+  late_count: number;
+  absent_count: number;
+  attendance_rate: number;
+  recent_sessions: PanelAttendanceSessionItem[];
+}
 
 /**
  * One commercial quota bucket from GET /api/v1/billing/entitlement/.

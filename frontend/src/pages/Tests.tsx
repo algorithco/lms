@@ -606,14 +606,18 @@ export default function Tests() {
       )}
 
       {!loading && !err && tests.length === 0 && (
-        <div className="card">
-          <h3>{t('no_tests_title')}</h3>
-          <p className="muted">{t('no_tests_hint')}</p>
+        <div className="card" style={{ padding: '28px 20px', textAlign: 'center' }}>
+          <h3>{activeSub === 'english' ? '🎧 CBT Reading & Listening Testlar' : t('no_tests_title')}</h3>
+          <p className="muted" style={{ maxWidth: 520, margin: '8px auto 0' }}>
+            {activeSub === 'english'
+              ? 'Hozircha ochiq CBT testlar tayyorlanmoqda. Yuqoridagi "English CBT Mock & Exam Access" maydoniga o\'qituvchingiz bergan test kodini kiritib testni boshlashingiz mumkin.'
+              : t('no_tests_hint')}
+          </p>
         </div>
       )}
 
       {!loading && !err && tests.length > 0 && visible.length === 0 && (
-        <div className="card">
+        <div className="card" style={{ padding: '24px 20px', textAlign: 'center' }}>
           <p className="muted">{t('test_no_match')}</p>
         </div>
       )}

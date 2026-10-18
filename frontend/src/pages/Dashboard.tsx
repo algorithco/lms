@@ -302,13 +302,6 @@ export default function Dashboard() {
                   <span>AI Speaking Simulyatori</span>
                 </Link>
                 <Link
-                  to="/tests/scan-omr"
-                  className="btn sm ghost"
-                  style={{ fontWeight: 600, textDecoration: 'none' }}
-                >
-                  <CameraIcon size={14} /> Titul (OMR) Skaner
-                </Link>
-                <Link
                   to="/tests"
                   className="btn sm ghost"
                   style={{ fontWeight: 600, textDecoration: 'none' }}
@@ -676,11 +669,15 @@ export default function Dashboard() {
       <h2>{t('available_tests')}</h2>
       <p className="muted">{t('available_tests_hint')}</p>
       {available.length === 0 ? (
-        <div className="card">
-          <h3>{t('no_tests_title')}</h3>
-          <p className="muted">{t('no_tests_hint')}</p>
+        <div className="card" style={{ padding: '28px 20px', textAlign: 'center' }}>
+          <h3>{isEnglish ? '🎧 English CBT Reading & Listening Testlar' : t('no_tests_title')}</h3>
+          <p className="muted" style={{ maxWidth: 500, margin: '8px auto 16px' }}>
+            {isEnglish
+              ? 'Hozircha ommaviy CBT testlar tayyorlanmoqda. Shuningdek o\'qituvchingiz bergan mock test kodi orqali testga qo\'shilishingiz mumkin.'
+              : t('no_tests_hint')}
+          </p>
           <Link className="btn primary" to="/tests">
-            {t('view_tests')}
+            {isEnglish ? 'CBT Testlar sahifasiga o\'tish' : t('view_tests')}
           </Link>
         </div>
       ) : (

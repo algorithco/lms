@@ -215,6 +215,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "role", "phone", "bio", "avatar", "date_of_birth", "plan",
             "active_subject", "exam_target", "target_timeline_months", "target_grade",
             "placement_score", "onboarding_completed", "daily_plan_summary",
+            "telegram_chat_id", "telegram_identity_verified_at",
             "created_at",
             "language", "is_staff", "is_superuser", "is_platform_admin",
         ]

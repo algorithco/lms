@@ -273,6 +273,11 @@ class StudentGroup(models.Model):
         db_index=True,
         help_text=_("O'quvchilar qo'shilishi uchun unikal kod (masalan: GR-101)"),
     )
+    monthly_fee = models.PositiveIntegerField(
+        _("oylik to'lov (so'm)"),
+        default=400000,
+        help_text=_("O'quvchilar uchun oylik to'lov summasi."),
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 

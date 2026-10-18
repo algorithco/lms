@@ -50,6 +50,27 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [streakData, setStreakData] = useState<StreakInfoResponse | null>(null);
+  const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
+    return (user?.active_subject as 'uzbek' | 'english') ||
+      (localStorage.getItem('lms_subject') as 'uzbek' | 'english') ||
+      'uzbek';
+  });
+
+  useEffect(() => {
+    if (user?.active_subject) {
+      setActiveSubject(user.active_subject as 'uzbek' | 'english');
+    }
+  }, [user?.active_subject]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<'uzbek' | 'english'>;
+      const next = customEvent.detail || (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
+      setActiveSubject(next);
+    };
+    window.addEventListener('subject-changed', handler);
+    return () => window.removeEventListener('subject-changed', handler);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -83,18 +104,43 @@ export default function Layout() {
         <nav className="side-nav" aria-label="Ilova bo'limlari">
           <Section title={t('main')}>
             <NavLink to="/dashboard" className={linkClass} onClick={close}><LayoutDashboardIcon size={16} className="ico" /> {t('dashboard')}</NavLink>
-            <NavLink to="/tests" className={linkClass} onClick={close}><FileTextIcon size={16} className="ico" /> {t('tests')}</NavLink>
-            <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}><CameraIcon size={16} className="ico" /> Titul (OMR)</NavLink>
-            <NavLink to="/speaking" className={linkClass} onClick={close}><MicIcon size={16} className="ico" /> AI Speaking</NavLink>
+            {activeSubject === 'english' ? (
+              <>
+                <NavLink to="/tests" className={linkClass} onClick={close}>
+                  <FileTextIcon size={16} className="ico" /> CBT Reading & Listening
+                </NavLink>
+                <NavLink to="/speaking" className={linkClass} onClick={close}>
+                  <MicIcon size={16} className="ico" /> AI Speaking (IELTS & Multi-level)
+                </NavLink>
+                <NavLink to="/essays" className={linkClass} onClick={close}>
+                  <PenLineIcon size={16} className="ico" /> IELTS Writing
+                </NavLink>
+              </>
+            ) : (
+              <>
+                <NavLink to="/tests" className={linkClass} onClick={close}>
+                  <FileTextIcon size={16} className="ico" /> {t('tests')}
+                </NavLink>
+                <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}>
+                  <CameraIcon size={16} className="ico" /> Titul (OMR)
+                </NavLink>
+                <NavLink to="/essays" className={linkClass} onClick={close}>
+                  <PenLineIcon size={16} className="ico" /> {t('essays')}
+                </NavLink>
+              </>
+            )}
             {isStudent && (
               <NavLink to="/results" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> {t('my_results')}</NavLink>
             )}
             {isStudent && (
               <NavLink to="/certificates" className={linkClass} onClick={close}><AwardIcon size={16} className="ico" /> {t('my_certificates')}</NavLink>
             )}
-            <NavLink to="/games" className={linkClass} onClick={close}><GamepadIcon size={16} className="ico" /> {t('games')}</NavLink>
-            <NavLink to="/essays" className={linkClass} onClick={close}><PenLineIcon size={16} className="ico" /> {t('essays')}</NavLink>
-            <NavLink to="/arena" className={linkClass} onClick={close}><SwordsIcon size={16} className="ico" /> {t('arena')}</NavLink>
+            {activeSubject === 'uzbek' && (
+              <NavLink to="/games" className={linkClass} onClick={close}><GamepadIcon size={16} className="ico" /> {t('games')}</NavLink>
+            )}
+            <NavLink to="/arena" className={linkClass} onClick={close}>
+              <SwordsIcon size={16} className="ico" /> {activeSubject === 'english' ? 'Vocabulary Arena' : t('arena')}
+            </NavLink>
             <NavLink to="/tournaments" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> Turnirlar</NavLink>
             <NavLink to="/essay-leaderboard" className={linkClass} onClick={close}><AwardIcon size={16} className="ico" /> {t('leaderboard')}</NavLink>
           </Section>

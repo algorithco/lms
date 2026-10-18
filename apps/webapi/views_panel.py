@@ -491,3 +491,258 @@ def user_block_view(request, user_id: int):
             # token_blacklist must stay non-fatal for the admin action
             pass
     return Response(UserAdminSerializer(target).data)
+
+
+# ---------------------------------------------------------------------------
+# Panel: Groups & Teacher Assignment
+# ---------------------------------------------------------------------------
+@api_view(["GET", "POST"])
+@permission_classes([IsPanelAdmin])
+def panel_groups_view(request):
+    """GET /api/v1/panel/groups/ — List groups for admin.
+    POST /api/v1/panel/groups/ — Create group with teacher & auto invite_code.
+    """
+    from apps.courses.models import StudentGroup
+    import secrets
+
+    if request.method == "POST":
+        data = request.data or {}
+        name = str(data.get("name") or "").strip()
+        if not name:
+            return Response({"error": "Guruh nomi kiritilishi shart."}, status=400)
+
+        subject = str(data.get("subject") or "uzbek").strip().lower()
+        if subject not in ("uzbek", "english"):
+            subject = "uzbek"
+
+        teacher_id = data.get("teacher_id")
+        if not teacher_id:
+            return Response({"error": "Ustoz tanlanishi shart."}, status=400)
+
+        teacher = get_object_or_404(User, id=teacher_id)
+        monthly_fee_raw = data.get("monthly_fee", 400000)
+        try:
+            monthly_fee = max(0, int(monthly_fee_raw))
+        except (ValueError, TypeError):
+            monthly_fee = 400000
+
+        invite_code = f"GR-{secrets.token_hex(3).upper()}"
+        while StudentGroup.objects.filter(invite_code=invite_code).exists():
+            invite_code = f"GR-{secrets.token_hex(3).upper()}"
+
+        group = StudentGroup.objects.create(
+            name=name,
+            subject=subject,
+            teacher=teacher,
+            invite_code=invite_code,
+            monthly_fee=monthly_fee,
+        )
+
+        return Response({
+            "id": group.id,
+            "name": group.name,
+            "subject": group.subject,
+            "subject_display": "Ingliz tili (IELTS & Multi-level)" if group.subject == "english" else "Ona tili va adabiyot",
+            "teacher_id": teacher.id,
+            "teacher_name": teacher.get_full_name() or teacher.email,
+            "teacher_email": teacher.email,
+            "student_count": 0,
+            "invite_code": group.invite_code,
+            "monthly_fee": group.monthly_fee,
+            "created_at": group.created_at,
+            "message": f"'{group.name}' guruhi muvaffaqiyatli ochildi! Taklif kodi: #{group.invite_code}",
+        }, status=201)
+
+    # GET
+    groups = (
+        StudentGroup.objects.select_related("teacher")
+        .prefetch_related("students")
+        .order_by("-created_at")
+    )
+    results = []
+    for g in groups:
+        results.append({
+            "id": g.id,
+            "name": g.name,
+            "subject": g.subject,
+            "subject_display": "Ingliz tili (IELTS & Multi-level)" if g.subject == "english" else "Ona tili va adabiyot",
+            "teacher_id": g.teacher_id,
+            "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+            "teacher_email": g.teacher.email,
+            "student_count": g.students.count(),
+            "invite_code": g.invite_code or f"GR-{g.id:03d}",
+            "monthly_fee": getattr(g, "monthly_fee", 400000),
+            "created_at": g.created_at,
+        })
+    return Response({"results": results})
+
+
+@api_view(["GET"])
+@permission_classes([IsPanelAdmin])
+def panel_teachers_view(request):
+    """GET /api/v1/panel/teachers/ — List active teachers for group assignment."""
+    teachers = User.objects.filter(
+        Q(role="teacher") | Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True),
+        is_active=True,
+    ).order_by("first_name", "last_name", "email")
+    return Response({
+        "results": [
+            {
+                "id": u.id,
+                "full_name": u.get_full_name() or u.email,
+                "email": u.email,
+                "role": u.role,
+            }
+            for u in teachers
+        ]
+    })
+
+
+# ---------------------------------------------------------------------------
+# Panel: Attendance Monitoring & Excel Export
+# ---------------------------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsPanelAdmin])
+def panel_attendance_overview_view(request):
+    """GET /api/v1/panel/attendance/ — Live attendance stats across all groups."""
+    from apps.attendance.models import AttendanceRecord, AttendanceSession
+    from apps.courses.models import StudentGroup
+
+    groups = (
+        StudentGroup.objects.select_related("teacher")
+        .prefetch_related("students")
+        .order_by("-created_at")
+    )
+    results = []
+    for g in groups:
+        sessions = AttendanceSession.objects.filter(group=g).order_by("-lesson_date", "-id")
+        total_sessions = sessions.count()
+        rec_qs = AttendanceRecord.objects.filter(session__group=g)
+        present = rec_qs.filter(status="present").count()
+        late = rec_qs.filter(status="late").count()
+        absent = rec_qs.filter(status="absent").count()
+        total_records = present + late + absent
+        rate = round((present + late * 0.5) / max(total_records, 1) * 100, 1) if total_records > 0 else 100.0
+
+        recent_sessions = []
+        for s in sessions[:3]:
+            s_recs = s.records.all()
+            recent_sessions.append({
+                "id": s.id,
+                "lesson_date": s.lesson_date.strftime("%d.%m.%Y"),
+                "status": s.status,
+                "present": s_recs.filter(status="present").count(),
+                "late": s_recs.filter(status="late").count(),
+                "absent": s_recs.filter(status="absent").count(),
+            })
+
+        results.append({
+            "group_id": g.id,
+            "group_name": g.name,
+            "subject": g.subject,
+            "subject_display": "Ingliz tili (IELTS)" if g.subject == "english" else "Ona tili",
+            "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+            "student_count": g.students.count(),
+            "total_sessions": total_sessions,
+            "present_count": present,
+            "late_count": late,
+            "absent_count": absent,
+            "attendance_rate": rate,
+            "recent_sessions": recent_sessions,
+        })
+    return Response({"results": results})
+
+
+@api_view(["GET"])
+@permission_classes([IsPanelAdmin])
+def panel_attendance_export_view(request):
+    """GET /api/v1/panel/attendance/export/ — Export monthly attendance report to Excel."""
+    import io
+    from django.http import HttpResponse
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    from apps.attendance.models import AttendanceRecord, AttendanceSession
+    from apps.courses.models import StudentGroup
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Davomat Hisoboti"
+
+    ws.merge_cells("A1:J1")
+    today_str = timezone.localdate().strftime("%d.%m.%Y")
+    ws["A1"] = f"GRAND EDUCATION — BARCHA GURUHLAR DAVOMAT HISOBOTI ({today_str})"
+    ws["A1"].font = Font(name="Arial", size=13, bold=True, color="FFFFFF")
+    ws["A1"].fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 36
+
+    headers = [
+        "№", "Guruh nomi", "Fan", "Ustoz", "O'quvchilar soni",
+        "Darslar soni", "Kelganlar", "Kech qolganlar", "Kelmaganlar", "Davomat ko'rsatkichi"
+    ]
+    ws.append(headers)
+    ws.row_dimensions[2].height = 24
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=2, column=col_idx)
+        cell.font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    groups = StudentGroup.objects.select_related("teacher").prefetch_related("students").order_by("name")
+    for idx, g in enumerate(groups, 1):
+        sessions = AttendanceSession.objects.filter(group=g)
+        tot_s = sessions.count()
+        recs = AttendanceRecord.objects.filter(session__group=g)
+        p_cnt = recs.filter(status="present").count()
+        l_cnt = recs.filter(status="late").count()
+        a_cnt = recs.filter(status="absent").count()
+        tot_r = p_cnt + l_cnt + a_cnt
+        pct = round((p_cnt + l_cnt * 0.5) / max(tot_r, 1) * 100, 1) if tot_r > 0 else 100.0
+
+        row = [
+            idx,
+            g.name,
+            "Ingliz tili (IELTS)" if g.subject == "english" else "Ona tili va adabiyot",
+            g.teacher.get_full_name() or g.teacher.email,
+            g.students.count(),
+            tot_s,
+            p_cnt,
+            l_cnt,
+            a_cnt,
+            f"{pct}%",
+        ]
+        ws.append(row)
+        curr_row = ws.max_row
+        ws.row_dimensions[curr_row].height = 20
+        for c_idx in range(1, 11):
+            c = ws.cell(row=curr_row, column=c_idx)
+            c.border = thin_border
+            c.alignment = Alignment(
+                horizontal="left" if c_idx in (2, 4) else "center",
+                vertical="center",
+            )
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    filename = f"grandec_davomat_{timezone.localdate().strftime('%Y_%m_%d')}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

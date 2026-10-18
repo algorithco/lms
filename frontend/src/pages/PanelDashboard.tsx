@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { Panel, type PanelDashboardResponse } from '../lib/api';
+import {
+  Panel,
+  type PanelDashboardResponse,
+  type PanelGroupItem,
+  type PanelTeacherItem,
+  type PanelAttendanceItem,
+} from '../lib/api';
 import { num, str } from '../lib/billingPanelGames';
 import {
+  CheckIcon,
+  CopyIcon,
   CreditCardIcon,
+  DownloadIcon,
   FileTextIcon,
+  FolderOpenIcon,
   PenLineIcon,
   ScrollTextIcon,
   ShieldCheckIcon,
   TargetIcon,
   UsersIcon,
+  XIcon,
 } from '../components/icons';
 
 /**
@@ -26,6 +37,83 @@ export default function PanelDashboard() {
   const { t } = useLang();
   const [d, setD] = useState<PanelDashboardResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Groups, Teachers, and Attendance Management
+  const [groups, setGroups] = useState<PanelGroupItem[]>([]);
+  const [teachers, setTeachers] = useState<PanelTeacherItem[]>([]);
+  const [attendance, setAttendance] = useState<PanelAttendanceItem[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+
+  // Group Create Modal State
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupSubject, setGroupSubject] = useState<'uzbek' | 'english'>('uzbek');
+  const [groupTeacherId, setGroupTeacherId] = useState<number | ''>('');
+  const [groupMonthlyFee, setGroupMonthlyFee] = useState(400000);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupSuccessMsg, setGroupSuccessMsg] = useState<string | null>(null);
+  const [groupErrorMsg, setGroupErrorMsg] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const loadGroupsAndAttendance = () => {
+    setGroupsLoading(true);
+    Promise.allSettled([
+      Panel.groups(),
+      Panel.teachers(),
+      Panel.attendance(),
+    ]).then(([gRes, tRes, aRes]) => {
+      if (gRes.status === 'fulfilled') setGroups(gRes.value.results || []);
+      if (tRes.status === 'fulfilled') {
+        const tList = tRes.value.results || [];
+        setTeachers(tList);
+        if (tList.length > 0) {
+          setGroupTeacherId((prev) => (prev ? prev : tList[0].id));
+        }
+      }
+      if (aRes.status === 'fulfilled') setAttendance(aRes.value.results || []);
+      setGroupsLoading(false);
+    });
+  };
+
+  useEffect(() => {
+    loadGroupsAndAttendance();
+  }, []);
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupName.trim()) {
+      setGroupErrorMsg('Iltimos, guruh nomini kiriting.');
+      return;
+    }
+    if (!groupTeacherId) {
+      setGroupErrorMsg('Iltimos, ustozni tanlang.');
+      return;
+    }
+    setCreatingGroup(true);
+    setGroupErrorMsg(null);
+    setGroupSuccessMsg(null);
+    try {
+      const res = await Panel.createGroup({
+        name: groupName.trim(),
+        subject: groupSubject,
+        teacher_id: Number(groupTeacherId),
+        monthly_fee: groupMonthlyFee,
+      });
+      setGroupSuccessMsg(res.message || `Guruh muvaffaqiyatli ochildi! Taklif kodi: #${res.invite_code}`);
+      setGroupName('');
+      loadGroupsAndAttendance();
+    } catch (createErr) {
+      setGroupErrorMsg(createErr instanceof Error ? createErr.message : 'Guruh yaratishda xatolik yuz berdi.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2500);
+  };
 
   useEffect(() => {
     Panel.dashboard()
@@ -110,6 +198,21 @@ export default function PanelDashboard() {
             {t('panel_active')}: {num(users.active)} · {t('panel_blocked')}: {num(users.blocked)}
           </span>
         </Link>
+        <button
+          type="button"
+          className="card stat admin-action"
+          style={{ cursor: 'pointer', textAlign: 'left', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)' }}
+          onClick={() => {
+            setIsGroupModalOpen(true);
+            setGroupSuccessMsg(null);
+            setGroupErrorMsg(null);
+          }}
+        >
+          <span className="stat-label" style={{ color: '#f59e0b', fontWeight: 700 }}>
+            <FolderOpenIcon size={15} className="ico" /> ➕ Yangi Guruh Ochish
+          </span>
+          <span className="muted small">Ustoz biriktirish va #GR-XXX taklif kodi yaratish</span>
+        </button>
       </div>
 
       <h2>{t('panel_platform')}</h2>
@@ -306,6 +409,392 @@ export default function PanelDashboard() {
           </div>
         ))}
       </div>
+
+      {/* 👥 Guruhlar va Davomat Monitoringi Section */}
+      <section style={{ marginTop: 32, marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>👥</span> Guruhlar va Davomat Monitoringi
+            </h2>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              Barcha faol guruhlar ro'yxati, ustozlar, taklif kodlari va so'nggi darslar davomat ko'rsatkichlari.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <a
+              href="/api/v1/panel/attendance/export/"
+              download
+              className="btn sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              <DownloadIcon size={14} />
+              <span>📥 Oylik Davomat Hisoboti (Excel)</span>
+            </a>
+            <button
+              type="button"
+              className="btn primary sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+              onClick={() => {
+                setIsGroupModalOpen(true);
+                setGroupSuccessMsg(null);
+                setGroupErrorMsg(null);
+              }}
+            >
+              <span>➕ Yangi Guruh Qo'shish</span>
+            </button>
+          </div>
+        </div>
+
+        {groupsLoading ? (
+          <p className="muted">Guruhlar yuklanmoqda…</p>
+        ) : groups.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '32px 20px' }}>
+            <span style={{ fontSize: '2.5rem' }}>👥</span>
+            <h3>Hozircha o'quv guruhlari mavjud emas</h3>
+            <p className="muted" style={{ maxWidth: 440, margin: '8px auto 16px' }}>
+              O'quv markazingiz yoki repetitorlik yo'nalishingiz uchun yangi guruh oching va o'quvchilarga taklif kodini bering.
+            </p>
+            <button
+              type="button"
+              className="btn primary sm"
+              onClick={() => setIsGroupModalOpen(true)}
+            >
+              ➕ Birinchi guruhni ochish
+            </button>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Guruh nomi</th>
+                  <th>Fan</th>
+                  <th>Ustoz</th>
+                  <th>Taklif kodi</th>
+                  <th>O'quvchilar</th>
+                  <th>Davomat ko'rsatkichi</th>
+                  <th>So'nggi darslar</th>
+                  <th>Oylik to'lov</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((g) => {
+                  const att = attendance.find((a) => a.group_id === g.id);
+                  const isEng = g.subject === 'english';
+                  return (
+                    <tr key={g.id}>
+                      <td>
+                        <strong>{g.name}</strong>
+                      </td>
+                      <td>
+                        <span className={`badge ${isEng ? 'blue' : 'amber'}`}>
+                          {isEng ? '🇬🇧 English' : '🇺🇿 Ona tili'}
+                        </span>
+                      </td>
+                      <td>
+                        <div>
+                          <strong>{g.teacher_name}</strong>
+                          <span className="muted small" style={{ display: 'block' }}>{g.teacher_email}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="badge"
+                          style={{
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            background: copiedCode === g.invite_code ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.15)',
+                            borderColor: copiedCode === g.invite_code ? '#10b981' : 'rgba(245, 158, 11, 0.4)',
+                            color: copiedCode === g.invite_code ? '#10b981' : '#f59e0b',
+                            fontWeight: 800,
+                            letterSpacing: '0.5px',
+                          }}
+                          onClick={() => handleCopyCode(g.invite_code)}
+                          title="Nusxa olish uchun bosing"
+                        >
+                          {copiedCode === g.invite_code ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
+                          <span>#{g.invite_code}</span>
+                        </button>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700 }}>{g.student_count} nafar</span>
+                      </td>
+                      <td>
+                        {att ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 60, height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${Math.min(100, Math.max(0, att.attendance_rate))}%`,
+                                  height: '100%',
+                                  background: att.attendance_rate >= 80 ? '#10b981' : att.attendance_rate >= 60 ? '#f59e0b' : '#ef4444',
+                                  borderRadius: 3,
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>{att.attendance_rate}%</span>
+                          </div>
+                        ) : (
+                          <span className="muted small">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {att && att.recent_sessions && att.recent_sessions.length > 0 ? (
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {att.recent_sessions.map((s) => (
+                              <span
+                                key={s.id}
+                                style={{
+                                  fontSize: '0.72rem',
+                                  padding: '2px 6px',
+                                  borderRadius: 6,
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                }}
+                                title={`${s.lesson_date}: ${s.present} keldi, ${s.late} kech, ${s.absent} kelmadi`}
+                              >
+                                {s.lesson_date.slice(0, 5)}: 🟢{s.present} 🔴{s.absent}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="muted small">0 ta dars</span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: 'var(--ink)' }}>
+                          {Number(g.monthly_fee || 400000).toLocaleString()} so'm
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Yangi Guruh Ochish Modal Oynasi */}
+      {isGroupModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsGroupModalOpen(false);
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              background: 'var(--card, #1e293b)',
+              border: '1px solid var(--border, #334155)',
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+                ➕ Yangi O'quv Guruhi Ochish
+              </h3>
+              <button
+                type="button"
+                className="btn ghost sm"
+                style={{ padding: 4 }}
+                onClick={() => setIsGroupModalOpen(false)}
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+
+            {groupSuccessMsg && (
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  color: '#10b981',
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  marginBottom: 16,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                ✅ {groupSuccessMsg}
+              </div>
+            )}
+
+            {groupErrorMsg && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#f87171',
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  marginBottom: 16,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                ⚠️ {groupErrorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateGroup}>
+              {/* Guruh nomi */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
+                  Guruh nomi <span style={{ color: '#f43f5e' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Masalan: IELTS Target Band 7.5 (Ertalabki)"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {/* Fan yo'nalishi (Segmented Switcher) */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
+                  Fan yo'nalishi <span style={{ color: '#f43f5e' }}>*</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setGroupSubject('uzbek')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: groupSubject === 'uzbek' ? '2px solid #f59e0b' : '1px solid var(--border)',
+                      background: groupSubject === 'uzbek' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                      color: groupSubject === 'uzbek' ? '#f59e0b' : 'var(--ink)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>🇺🇿</span>
+                    <span>Ona tili</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGroupSubject('english')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: groupSubject === 'english' ? '2px solid #3b82f6' : '1px solid var(--border)',
+                      background: groupSubject === 'english' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                      color: groupSubject === 'english' ? '#38bdf8' : 'var(--ink)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English (IELTS)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Ustoz biriktirish (Teacher dropdown) */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
+                  Guruhga mas'ul ustoz <span style={{ color: '#f43f5e' }}>*</span>
+                </label>
+                <select
+                  required
+                  value={groupTeacherId}
+                  onChange={(e) => setGroupTeacherId(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Ustozni tanlang...</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name} ({t.email}) — {t.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Oylik to'lov summasi */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: 6 }}>
+                  Oylik to'lov summasi (so'm)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="10000"
+                  placeholder="400000"
+                  value={groupMonthlyFee}
+                  onChange={(e) => setGroupMonthlyFee(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+                <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+                  Taklif kodi (#GR-XXX) yaratilgach, o'quvchilar ushbu kod orqali guruhga qo'shiladi.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => setIsGroupModalOpen(false)}
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="btn primary sm"
+                  disabled={creatingGroup}
+                  style={{ fontWeight: 800 }}
+                >
+                  {creatingGroup ? 'Yaratilmoqda…' : '🚀 Guruhni ochish va kod biriktirish'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <h2>{t('panel_recent_tests')}</h2>
       {recentTests.length === 0 ? (

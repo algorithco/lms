@@ -294,9 +294,8 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
         return ReplyKeyboardMarkup(
             [
                 [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
-                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("📷 Titul varaqni tekshirish")],
-                [KeyboardButton("⚔️ Arena (1v1)"), KeyboardButton("👤 Natijalar / Profil")],
-                [KeyboardButton("💳 Tariflar / Obuna")],
+                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
+                [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
             ],
             resize_keyboard=True,
         )

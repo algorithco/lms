@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from apps.accounts import google_auth as google_auth_views
+from apps.accounts import views as views_accounts
 from apps.accounts import views_gamification
 from . import (
     views_attendance,
@@ -65,6 +66,11 @@ urlpatterns = [
     path("panel/users/", views_panel.users_view, name="panel-users"),
     path("panel/users/<int:user_id>/role/", views_panel.user_role_view, name="panel-user-role"),
     path("panel/users/<int:user_id>/block/", views_panel.user_block_view, name="panel-user-block"),
+    path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
+    path("panel/teachers/", views_panel.panel_teachers_view, name="panel-teachers"),
+    path("panel/attendance/", views_panel.panel_attendance_overview_view, name="panel-attendance"),
+    path("panel/attendance/export/", views_panel.panel_attendance_export_view, name="panel-attendance-export"),
+    path("accounts/link-telegram/", views_accounts.DirectTelegramLinkView.as_view(), name="accounts-link-telegram"),
     # -- Billing ---------------------------------------------------------
     path("billing/plans/", views_billing.plans_view, name="billing-plans"),
     path("billing/my/", views_billing.my_view, name="billing-my"),
