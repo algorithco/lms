@@ -28,14 +28,27 @@ export default function SubjectSwitcher({
     setLoading(true);
     localStorage.setItem('lms_subject', nextSubject);
 
+    // Strictly align the default exam target with the chosen subject
+    const nextTarget = nextSubject === 'english' ? 'ielts' : 'national_certificate';
+    const nextGrade = nextSubject === 'english' ? 'Band 7.5' : 'A+';
+
     if (user) {
       try {
-        const res = await ProfileApi.switchSubject(nextSubject);
-        updateUserLocal({ active_subject: res.active_subject });
+        const res = await ProfileApi.switchSubject(nextSubject, nextTarget);
+        updateUserLocal({
+          active_subject: (res.active_subject as 'uzbek' | 'english') || nextSubject,
+          exam_target: res.exam_target || nextTarget,
+          target_grade: res.target_grade || nextGrade,
+          daily_plan_summary: res.daily_plan_summary || undefined,
+        });
       } catch (err) {
         console.error('Failed to switch subject on server:', err);
         // Still update locally for smooth UI experience
-        updateUserLocal({ active_subject: nextSubject });
+        updateUserLocal({
+          active_subject: nextSubject,
+          exam_target: nextTarget,
+          target_grade: nextGrade,
+        });
       }
     }
 
@@ -71,7 +84,7 @@ export default function SubjectSwitcher({
         <span>Ona tili</span>
       </button>
 
-      {/* English: IELTS */}
+      {/* English */}
       <button
         type="button"
         disabled={loading}
@@ -86,7 +99,7 @@ export default function SubjectSwitcher({
         <span className="subject-switcher-flag" role="img" aria-label="English">
           🇬🇧
         </span>
-        <span>English (IELTS)</span>
+        <span>English</span>
       </button>
     </div>
   );

@@ -217,46 +217,58 @@ def _calculate_initial_level(target: str, score: int, subject: str = "uzbek") ->
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def placement_quiz_view(request):
-    """GET /api/v1/tests/placement-quiz/?target=national_certificate|attestation|ielts&subject=uzbek|english
+    """GET /api/v1/tests/placement-quiz/?target=national_certificate|attestation|ielts|multilevel&subject=uzbek|english
 
     Returns exactly 5 random single-choice questions for 5-minute placement testing.
     """
-    target = request.query_params.get("target", "national_certificate").strip()
-    subject = request.query_params.get("subject", "").strip().lower()
-    if not subject and request.user and request.user.is_authenticated:
-        profile, _ = Profile.objects.get_or_create(user=request.user)
-        subject = profile.active_subject or "uzbek"
-    if not subject:
-        subject = "english" if target in ("ielts", "multilevel") else "uzbek"
+    target = "national_certificate"
+    subject = "uzbek"
+    try:
+        target = request.query_params.get("target", "national_certificate").strip()
+        subject = request.query_params.get("subject", "").strip().lower()
+        if not subject and request.user and request.user.is_authenticated:
+            profile, _ = Profile.objects.get_or_create(user=request.user)
+            subject = profile.active_subject or "uzbek"
+        if not subject:
+            subject = "english" if target in ("ielts", "multilevel") else "uzbek"
 
-    questions = _resolve_placement_questions(target, count=5, subject=subject)
+        questions = _resolve_placement_questions(target, count=5, subject=subject)
 
-    data = []
-    for q in questions:
-        choices = []
-        for c in q.choices.all():
-            choices.append({
-                "id": c.id,
-                "text": c.text,
+        data = []
+        for q in questions:
+            choices = []
+            for c in q.choices.all():
+                choices.append({
+                    "id": c.id,
+                    "text": c.text,
+                })
+            random.shuffle(choices)
+
+            passage_text = getattr(q, "passage", "") or (q.reading_passage.content if getattr(q, "reading_passage", None) else "")
+            data.append({
+                "id": q.id,
+                "text": q.text,
+                "passage": passage_text,
+                "choices": choices,
             })
-        random.shuffle(choices)
 
-        passage_text = q.passage or (q.reading_passage.content if q.reading_passage else "")
-        data.append({
-            "id": q.id,
-            "text": q.text,
-            "passage": passage_text,
-            "choices": choices,
+        return Response({
+            "ok": True,
+            "subject": subject,
+            "target": target,
+            "time_limit_seconds": 300,
+            "total_questions": len(data),
+            "questions": data,
         })
-
-    return Response({
-        "ok": True,
-        "subject": subject,
-        "target": target,
-        "time_limit_seconds": 300,
-        "total_questions": len(data),
-        "questions": data,
-    })
+    except Exception:
+        return Response({
+            "ok": True,
+            "subject": subject,
+            "target": target,
+            "time_limit_seconds": 300,
+            "total_questions": 0,
+            "questions": [],
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -366,46 +378,78 @@ def subjects_list_view(request):
 @permission_classes([permissions.IsAuthenticated])
 def switch_subject_view(request):
     """POST /api/v1/profile/switch-subject/
-    Payload: { "subject": "uzbek" | "english" }
+    Payload: { "subject": "uzbek" | "english", "exam_target"?: str }
     """
-    ensure_multi_subject_seed_data()
-    subject = str((request.data or {}).get("subject") or "").strip().lower()
-    if subject not in ("uzbek", "english"):
-        return Response(
-            {"error": "Fan noto'g'ri tanlandi. Faqat 'uzbek' yoki 'english' bo'lishi mumkin."},
-            status=status.HTTP_400_BAD_REQUEST,
+    try:
+        ensure_multi_subject_seed_data()
+        data = request.data or {}
+        subject = str(data.get("subject") or "").strip().lower()
+        if subject not in ("uzbek", "english"):
+            return Response(
+                {"error": "Fan noto'g'ri tanlandi. Faqat 'uzbek' yoki 'english' bo'lishi mumkin."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        profile.active_subject = subject
+
+        # Resolve exam_target strictly based on subject
+        requested_target = str(data.get("exam_target") or "").strip().lower()
+        if subject == "english":
+            if requested_target in ("ielts", "multilevel"):
+                target = requested_target
+            elif profile.exam_target in ("ielts", "multilevel"):
+                target = profile.exam_target
+            else:
+                target = "ielts"
+            default_grade = "Band 7.5"
+        else:  # uzbek
+            if requested_target in ("national_certificate", "attestation"):
+                target = requested_target
+            elif profile.exam_target in ("national_certificate", "attestation"):
+                target = profile.exam_target
+            else:
+                target = "national_certificate"
+            default_grade = "Oliy toifa" if target == "attestation" else "A+"
+
+        profile.exam_target = target
+
+        # Resolve target grade
+        target_grade = profile.target_grade or default_grade
+        if subject == "english" and target_grade in ("A+", "A", "B+", "Oliy toifa", "1-toifa"):
+            target_grade = "Band 7.5"
+        elif subject == "uzbek" and (target_grade.startswith("Band") or "daraja" in target_grade.lower()):
+            target_grade = default_grade
+
+        profile.target_grade = target_grade
+
+        # Keep daily_plan_summary aligned with the selected subject & target
+        score_int = int(profile.placement_score) if profile.placement_score is not None else 4
+        profile.daily_plan_summary = _build_daily_plan(
+            target=target,
+            timeline_months=profile.target_timeline_months or 3,
+            target_grade=target_grade,
+            score=score_int,
+            subject=subject,
         )
+        profile.save(update_fields=["active_subject", "exam_target", "target_grade", "daily_plan_summary"])
 
-    profile, _ = Profile.objects.get_or_create(user=request.user)
-    profile.active_subject = subject
-
-    # Keep daily_plan_summary aligned with the selected subject
-    score_int = int(profile.placement_score) if profile.placement_score is not None else 4
-    target = "ielts" if subject == "english" else (
-        profile.exam_target if profile.exam_target in ("national_certificate", "attestation") else "national_certificate"
-    )
-    target_grade = profile.target_grade or ("Band 7.5+" if subject == "english" else "A+")
-    if subject == "english" and target_grade in ("A+", "A", "B+", "Oliy toifa", "1-toifa"):
-        target_grade = "Band 7.5+"
-    elif subject == "uzbek" and target_grade.startswith("Band"):
-        target_grade = "A+"
-
-    profile.daily_plan_summary = _build_daily_plan(
-        target=target,
-        timeline_months=profile.target_timeline_months or 3,
-        target_grade=target_grade,
-        score=score_int,
-        subject=subject,
-    )
-    profile.save(update_fields=["active_subject", "daily_plan_summary"])
-
-    return Response({
-        "ok": True,
-        "active_subject": profile.active_subject,
-        "daily_plan_summary": profile.daily_plan_summary,
-        "message": (
-            "Ingliz tili (IELTS & Multi-level) yo'nalishiga o'tildi!"
-            if subject == "english"
-            else "Ona tili va adabiyot yo'nalishiga o'tildi!"
-        ),
-    })
+        return Response({
+            "ok": True,
+            "active_subject": profile.active_subject,
+            "exam_target": profile.exam_target,
+            "target_grade": profile.target_grade,
+            "daily_plan_summary": profile.daily_plan_summary,
+            "message": (
+                "Ingliz tili (IELTS & Multi-level) yo'nalishiga o'tildi!"
+                if subject == "english"
+                else "Ona tili va adabiyot yo'nalishiga o'tildi!"
+            ),
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Error in switch_subject_view: %s", e)
+        return Response({
+            "ok": False,
+            "error": "Fan yo'nalishini o'zgartirishda server xatoligi yuz berdi.",
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

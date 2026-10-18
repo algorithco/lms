@@ -107,29 +107,39 @@ class ResultStatsView(APIView):
 
     def get(self, request: Request, *args, **kwargs) -> Response:
         """Statistika hisoblash."""
-        qs = result_queryset_for_user(request.user)
+        try:
+            qs = result_queryset_for_user(request.user)
 
-        stats = qs.aggregate(
-            total_tests_taken=Count("id"),
-            total_passed=Count("id", filter=Q(is_passed=True)),
-            total_failed=Count("id", filter=Q(is_passed=False)),
-            average_percentage=Avg("percentage"),
-            best_percentage=Avg("percentage"),  # will use Max below
-            total_time_spent_seconds=Sum("time_taken_seconds"),
-        )
+            stats = qs.aggregate(
+                total_tests_taken=Count("id"),
+                total_passed=Count("id", filter=Q(is_passed=True)),
+                total_failed=Count("id", filter=Q(is_passed=False)),
+                average_percentage=Avg("percentage"),
+                best_percentage=Avg("percentage"),  # will use Max below
+                total_time_spent_seconds=Sum("time_taken_seconds"),
+            )
 
-        # Best percentage (Max)
-        from django.db.models import Max
-        best = qs.aggregate(best=Max("percentage"))["best"]
-        stats["best_percentage"] = float(best) if best else 0.0
-        stats["average_percentage"] = (
-            round(float(stats["average_percentage"] or 0), 2)
-        )
-        stats["total_time_spent_seconds"] = (
-            stats["total_time_spent_seconds"] or 0
-        )
+            # Best percentage (Max)
+            from django.db.models import Max
+            best = qs.aggregate(best=Max("percentage"))["best"]
+            stats["best_percentage"] = float(best) if best else 0.0
+            stats["average_percentage"] = (
+                round(float(stats["average_percentage"] or 0), 2)
+            )
+            stats["total_time_spent_seconds"] = (
+                stats["total_time_spent_seconds"] or 0
+            )
 
-        serializer = ResultStatsSerializer(data=stats)
-        serializer.is_valid(raise_exception=True)
+            serializer = ResultStatsSerializer(data=stats)
+            serializer.is_valid(raise_exception=True)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({
+                "total_tests_taken": 0,
+                "total_passed": 0,
+                "total_failed": 0,
+                "average_percentage": 0.0,
+                "best_percentage": 0.0,
+                "total_time_spent_seconds": 0,
+            }, status=status.HTTP_200_OK)

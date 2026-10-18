@@ -109,7 +109,7 @@ export default function Dashboard() {
         }
         if (failed.length > 0) {
           const msgs = failed.map((x) => (x as PromiseRejectedResult).reason?.message ?? '').filter(Boolean);
-          if (msgs.length) setErr(msgs[0]);
+          console.warn('Dashboard non-critical partial load rejection:', msgs);
         }
         setStats(s ?? null);
         setTestCount(tlist ? tlist.count : null);
@@ -133,6 +133,15 @@ export default function Dashboard() {
 
   const avg = stats ? num(stats.average_percentage, 0) : null;
 
+  const currentSubject: 'uzbek' | 'english' =
+    user?.active_subject === 'english' || localStorage.getItem('lms_subject') === 'english'
+      ? 'english'
+      : 'uzbek';
+  const isEnglish = currentSubject === 'english';
+  const effectiveTarget = isEnglish
+    ? (user?.exam_target === 'multilevel' ? 'multilevel' : 'ielts')
+    : (user?.exam_target === 'attestation' ? 'attestation' : 'national_certificate');
+
   return (
     <div>
       <h1>
@@ -144,18 +153,16 @@ export default function Dashboard() {
         <div
           className="card"
           style={{
-            background:
-              user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
-                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(79, 70, 229, 0.05) 100%)'
-                : user.exam_target === 'attestation'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)',
-            borderColor:
-              user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
-                ? 'rgba(99, 102, 241, 0.35)'
-                : user.exam_target === 'attestation'
-                ? 'rgba(59, 130, 246, 0.35)'
-                : 'rgba(16, 185, 129, 0.35)',
+            background: isEnglish
+              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(79, 70, 229, 0.05) 100%)'
+              : effectiveTarget === 'attestation'
+              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.05) 100%)'
+              : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)',
+            borderColor: isEnglish
+              ? 'rgba(99, 102, 241, 0.35)'
+              : effectiveTarget === 'attestation'
+              ? 'rgba(59, 130, 246, 0.35)'
+              : 'rgba(16, 185, 129, 0.35)',
             marginBottom: 20,
             padding: '20px 24px',
             borderRadius: 16,
@@ -177,26 +184,24 @@ export default function Dashboard() {
                   width: 42,
                   height: 42,
                   borderRadius: 12,
-                  background:
-                    user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
-                      ? 'rgba(99, 102, 241, 0.2)'
-                      : user.exam_target === 'attestation'
-                      ? 'rgba(59, 130, 246, 0.2)'
-                      : 'rgba(16, 185, 129, 0.2)',
-                  color:
-                    user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
-                      ? '#818CF8'
-                      : user.exam_target === 'attestation'
-                      ? '#60A5FA'
-                      : '#34D399',
+                  background: isEnglish
+                    ? 'rgba(99, 102, 241, 0.2)'
+                    : effectiveTarget === 'attestation'
+                    ? 'rgba(59, 130, 246, 0.2)'
+                    : 'rgba(16, 185, 129, 0.2)',
+                  color: isEnglish
+                    ? '#818CF8'
+                    : effectiveTarget === 'attestation'
+                    ? '#60A5FA'
+                    : '#34D399',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {user.active_subject === 'english' ? (
+                {isEnglish ? (
                   <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>🇬🇧</span>
-                ) : user.exam_target === 'attestation' ? (
+                ) : effectiveTarget === 'attestation' ? (
                   <Award size={24} />
                 ) : (
                   <GraduationCap size={24} />
@@ -204,9 +209,9 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--ink)' }}>
-                  {user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel'
-                    ? `🎯 Sizning rejangiz: ${user.exam_target === 'multilevel' ? 'CEFR Multi-level (B2/C1)' : 'IELTS (Academic & General)'} (Maqsad: ${user.target_grade || 'Band 7.5'})`
-                    : user.exam_target === 'attestation'
+                  {isEnglish
+                    ? `🎯 Sizning rejangiz: ${effectiveTarget === 'multilevel' ? 'CEFR Multi-level (B2/C1)' : 'IELTS (Academic & General)'} (Maqsad: ${user.target_grade || (effectiveTarget === 'multilevel' ? 'C1' : 'Band 7.5')})`
+                    : effectiveTarget === 'attestation'
                     ? `🎯 Sizning rejangiz: O'qituvchilar Attestatsiyasi 2026 (Maqsad: ${user.target_grade || 'Oliy toifa'})`
                     : `🎯 Sizning rejangiz: BMB Milliy sertifikat (Maqsad: ${user.target_grade || 'A+'})`}
                 </h3>
@@ -232,13 +237,13 @@ export default function Dashboard() {
               }}
             >
               <RefreshCw size={13} />
-              Rejani qayta sozlash
+              🔄 Yo'nalishni qayta sozlash
             </button>
           </div>
 
           {/* Recommended actions pill row */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-            {user.active_subject === 'english' || user.exam_target === 'ielts' || user.exam_target === 'multilevel' ? (
+            {isEnglish ? (
               <>
                 <Link
                   to="/essays"
@@ -254,7 +259,7 @@ export default function Dashboard() {
                     gap: 6,
                   }}
                 >
-                  <span>✍️ IELTS Writing AI Grader (Task 1 & 2)</span>
+                  <span>✍️ {effectiveTarget === 'multilevel' ? 'CEFR Writing Grader' : 'IELTS Writing AI Grader (Task 1 & 2)'}</span>
                   <ArrowRight size={14} />
                 </Link>
                 <Link
@@ -272,7 +277,7 @@ export default function Dashboard() {
                   ⚔️ Vocabulary Arena
                 </Link>
               </>
-            ) : user.exam_target === 'attestation' ? (
+            ) : effectiveTarget === 'attestation' ? (
               <>
                 <Link
                   to="/tests"

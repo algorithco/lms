@@ -479,10 +479,16 @@ export interface SubjectItem {
 
 export const ProfileApi = {
   subjects: () => api<SubjectItem[]>('/api/v1/subjects/'),
-  switchSubject: (subject: 'uzbek' | 'english') =>
-    api<{ ok: boolean; active_subject: 'uzbek' | 'english'; user: AuthUser }>('/api/v1/profile/switch-subject/', {
+  switchSubject: (subject: 'uzbek' | 'english', exam_target?: string) =>
+    api<{
+      ok: boolean;
+      active_subject: 'uzbek' | 'english';
+      exam_target: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'undecided';
+      target_grade: string;
+      daily_plan_summary: Record<string, unknown>;
+    }>('/api/v1/profile/switch-subject/', {
       method: 'POST',
-      body: JSON.stringify({ subject }),
+      body: JSON.stringify({ subject, exam_target }),
     }),
 };
 

@@ -65,6 +65,39 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
     }
   };
 
+  // Sync state whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const sub =
+        user?.active_subject === 'english' || localStorage.getItem('lms_subject') === 'english'
+          ? 'english'
+          : 'uzbek';
+      setActiveSubject(sub);
+      const tgt: TargetType =
+        sub === 'english'
+          ? user?.exam_target === 'multilevel'
+            ? 'multilevel'
+            : 'ielts'
+          : user?.exam_target === 'attestation'
+          ? 'attestation'
+          : 'national_certificate';
+      setExamTarget(tgt);
+      setTimelineMonths(user?.target_timeline_months || 3);
+      setTargetGrade(
+        user?.target_grade ||
+          (sub === 'english'
+            ? tgt === 'multilevel'
+              ? 'C1 daraja'
+              : 'Band 7.5'
+            : tgt === 'attestation'
+            ? 'Oliy toifa'
+            : 'A+'),
+      );
+      setStep('goals');
+      setErrorMsg(null);
+    }
+  }, [isOpen, user]);
+
   // Timer for quiz
   useEffect(() => {
     if (!isOpen || step !== 'quiz' || timeLeft <= 0 || submitting) return;
