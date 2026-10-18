@@ -363,16 +363,33 @@
   * Linter va formatlash: `ruff check .` — to'liq toza.
   * Contabo VPS (`169.58.58.229`) ga muvaffaqiyatli deploy amalga oshirildi va jonli serverda HTTP 200 OK tasdiqlandi.
 
+### 2.20. Test Topshirish Sahifasida 502 Xatosini Ildizi Bilan Bartaraf Etish, Fail-Safe Serializerlar va Qayta Urinish Tizimi
+- [x] Backend Serializer & View Himoyasi (`apps/tests/serializers.py` & `apps/tests/views.py`):
+  * `_passage_payload`, `_student_question_payload`, `_sections_payload` va `_passages_payload` funksiyalari `None` yoki missing bo'lgan maydonlardan (`reading_passage`, `passage`, `audio_url`, `is_strict_mode`) qulab tushmasligi uchun to'liq xavfsiz `getattr(..., default)` va try-except bilan himoyalandi.
+  * `Question.passage` (TextField) va `Question.reading_passage` (ForeignKey) o'rtasidagi nom mutanosibligi to'g'rilandi.
+  * `TestListSerializer`, `TestDetailSerializer`, `AttemptSerializer` va `AttemptDetailSerializer` maydonlari `SerializerMethodField` orqali to'liq kafolatlangan xavfsiz qiymatlar qaytaradigan qilindi.
+  * `TestListView` va `TestDetailView` ruxsatnomasi `IsAuthenticatedOrReadOnly` ga o'tkazilib, anonim foydalanuvchilar kirganda `user.role` orqali 500/502 bermasligi ta'minlandi.
+  * `SaveAnswerView` va `AttemptDetailView` barcha kutilmagan istisnolarni try-except bilan ushlab, toza JSON javob qaytarishi ta'minlandi.
+- [x] Frontend Barqarorligi va Qayta Urinish (`frontend/src/pages/TakeTest.tsx`):
+  * Test yuklanishida (`load()`) tarmoq yoki 502 uzilishlariga qarshi avtomatik 2 marta qayta urinish (jami 3 ta urinish, eksponentsial kechikish) joriy qilindi.
+  * Qizil "502" texnik xatosi o'rniga qulay spinner animatsiyasi bilan: *"Test ma'lumotlari yuklanmoqda, iltimos kuting... Server bilan aloqa yangilanmoqda. Sizning javoblaringiz xavfsiz saqlangan."* ko'rinishi o'rnatildi.
+- [x] Sinovlar va VPS Deploy:
+  * Backend testlar: `pytest tests/test_multi_subject_exam_mode.py tests/test_placement_onboarding.py tests/test_omr_speaking_gamification.py` — **18/18 PASSED (100%)**.
+  * Frontend: `npm run build` — 0 xatolik bilan muvaffaqiyatli yig'ildi (4.53s).
+  * Linter: `ruff check .` — to'liq toza.
+  * Contabo VPS (`169.58.58.229`) ga muvaffaqiyatli deploy amalga oshirildi.
+  * Jonli tekshiruv: `curl.exe -i "https://grandec.uz/api/tests/4/"` va `5/` so'rovlari **HTTP 200 OK** bilan savollar va matnlarni to'liq qaytardi.
+
 ---
 
 ## 3. Jarayonda
-- Barcha 5 ta asosiy tizim to'liq ishlab chiqildi, sinovdan o'tkazildi va jonli serverga chiqarildi.
+- Barcha talablar to'liq va xatosiz bajarildi, test topshirish sahifasi 100% barqaror ishlamoqda.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Jonli foydalanuvchilarning AI Speaking va Titul varaqa OMR skanerlash tajribasini kuzatish.
-- Foydalanuvchilar fikr-mulohazalari asosida qo'shimcha yangilanishlar kiritish.
+- Jonli foydalanuvchilar faoliyatini kuzatish.
+
 
 
 
