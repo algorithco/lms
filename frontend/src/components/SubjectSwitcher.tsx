@@ -44,70 +44,49 @@ export default function SubjectSwitcher({
     setLoading(false);
   };
 
-  const isLg = size === 'lg';
-  const isSm = size === 'sm';
+  const isSelected = (sub: 'uzbek' | 'english') => currentSubject === sub;
+  const sizeClass = size === 'sm' ? 'size-sm' : size === 'lg' ? 'size-lg' : '';
 
   return (
     <div
       role="group"
       aria-label="Fan tanlash"
-      className={`inline-flex items-center p-1 rounded-full border shadow-sm transition-all duration-200 ${
-        isLg ? 'p-1.5' : isSm ? 'p-0.5' : 'p-1'
-      } bg-slate-100 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700/80 ${className}`}
-      style={{ minHeight: isSm ? '36px' : '44px' }}
+      className={`subject-switcher-container bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 inline-flex items-center gap-1 ${className}`}
     >
-      {/* Uzbek Subject Pill */}
+      {/* Uzbek: Ona tili */}
       <button
         type="button"
         disabled={loading}
         onClick={() => handleSelect('uzbek')}
-        aria-pressed={currentSubject === 'uzbek'}
-        className={`flex items-center justify-center gap-1.5 rounded-full font-medium transition-all duration-200 touch-manipulation select-none ${
-          isLg
-            ? 'px-4 py-2 text-sm min-h-[44px]'
-            : isSm
-            ? 'px-2.5 py-1 text-xs min-h-[34px]'
-            : 'px-3.5 py-1.5 text-xs sm:text-sm min-h-[40px] sm:min-h-[44px]'
-        } ${
-          currentSubject === 'uzbek'
-            ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-500/20 font-semibold'
-            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+        aria-pressed={isSelected('uzbek')}
+        className={`subject-switcher-btn ${sizeClass} ${
+          isSelected('uzbek')
+            ? 'active bg-amber-500 text-slate-950 font-semibold shadow-sm rounded-lg py-1.5 px-3.5 transition-all'
+            : 'text-slate-400 hover:text-white py-1.5 px-3.5 transition-all'
         }`}
       >
-        <span className="text-base leading-none" role="img" aria-label="O'zbekiston">
+        <span className="subject-switcher-flag" role="img" aria-label="O'zbekiston">
           🇺🇿
         </span>
-        <span className="truncate">Ona tili</span>
-        {currentSubject === 'uzbek' && (
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse hidden sm:inline-block" />
-        )}
+        <span>Ona tili</span>
       </button>
 
-      {/* English (IELTS & Multi-level) Subject Pill */}
+      {/* English: IELTS */}
       <button
         type="button"
         disabled={loading}
         onClick={() => handleSelect('english')}
-        aria-pressed={currentSubject === 'english'}
-        className={`flex items-center justify-center gap-1.5 rounded-full font-medium transition-all duration-200 touch-manipulation select-none ${
-          isLg
-            ? 'px-4 py-2 text-sm min-h-[44px]'
-            : isSm
-            ? 'px-2.5 py-1 text-xs min-h-[34px]'
-            : 'px-3.5 py-1.5 text-xs sm:text-sm min-h-[40px] sm:min-h-[44px]'
-        } ${
-          currentSubject === 'english'
-            ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-500/20 font-semibold'
-            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+        aria-pressed={isSelected('english')}
+        className={`subject-switcher-btn ${sizeClass} ${
+          isSelected('english')
+            ? 'active bg-amber-500 text-slate-950 font-semibold shadow-sm rounded-lg py-1.5 px-3.5 transition-all'
+            : 'text-slate-400 hover:text-white py-1.5 px-3.5 transition-all'
         }`}
       >
-        <span className="text-base leading-none" role="img" aria-label="English">
+        <span className="subject-switcher-flag" role="img" aria-label="English">
           🇬🇧
         </span>
-        <span className="truncate">English (IELTS)</span>
-        {currentSubject === 'english' && (
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse hidden sm:inline-block" />
-        )}
+        <span>English (IELTS)</span>
       </button>
     </div>
   );

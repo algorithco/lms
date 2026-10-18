@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang, type AppLang } from '../i18n/LangContext';
 import { useTranslation } from '../i18n/useTranslation';
 import { useTheme, type Theme } from '../theme/ThemeContext';
+import { isPlatformAdmin } from '../lib/api';
 import {
   MonitorIcon,
   MoonIcon,
@@ -90,20 +91,38 @@ export default function Profile() {
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
               {user.full_name || 'Foydalanuvchi'}
             </h1>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                padding: '3px 10px',
-                borderRadius: 20,
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: 'var(--accent-dark)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-              }}
-            >
-              {user.role}
-            </span>
+            {isPlatformAdmin(user) ? (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  padding: '3px 12px',
+                  borderRadius: 20,
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.25))',
+                  color: '#fbbf24',
+                  border: '1px solid rgba(245, 158, 11, 0.5)',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.2)',
+                }}
+              >
+                🛡️ {user.is_superuser ? "TO'LIQ HUQUQLI SUPERADMIN" : "ADMIN"}
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  padding: '3px 10px',
+                  borderRadius: 20,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: 'var(--accent-dark)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                {user.role}
+              </span>
+            )}
             <span
               style={{
                 fontSize: 11,
@@ -118,9 +137,32 @@ export default function Profile() {
               {t('profile_active_account')}
             </span>
           </div>
-          <p className="muted" style={{ margin: '6px 0 0', fontSize: 14 }}>
-            {user.email}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              {user.email}
+            </p>
+            {isPlatformAdmin(user) && (
+              <Link
+                to="/panel"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#f59e0b',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>🛡️ Admin Panelga o'tish →</span>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 

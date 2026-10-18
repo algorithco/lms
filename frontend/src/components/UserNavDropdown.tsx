@@ -4,12 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../auth/AuthContext';
 import { useLang, type AppLang } from '../i18n/LangContext';
 import { useTheme, type Theme } from '../theme/ThemeContext';
+import { isPlatformAdmin } from '../lib/api';
 import {
   ChevronDownIcon,
   GlobeIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
+  ShieldCheckIcon,
   SunIcon,
   UserIcon,
 } from './icons';
@@ -73,6 +75,7 @@ export default function UserNavDropdown() {
   if (!user) return null;
 
   const initials = getInitials(user.full_name, user.email);
+  const isAdmin = isPlatformAdmin(user);
 
   const handleLogout = async () => {
     setOpen(false);
@@ -289,15 +292,50 @@ export default function UserNavDropdown() {
                     letterSpacing: 0.5,
                     padding: '2px 8px',
                     borderRadius: 6,
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    color: 'var(--accent-dark)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    background: isAdmin
+                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.25))'
+                      : 'rgba(245, 158, 11, 0.15)',
+                    color: isAdmin ? '#fbbf24' : 'var(--accent-dark)',
+                    border: isAdmin
+                      ? '1px solid rgba(245, 158, 11, 0.45)'
+                      : '1px solid rgba(245, 158, 11, 0.25)',
                   }}
                 >
-                  {getRoleLabel(user.role, t)}
+                  {isAdmin
+                    ? (user.is_superuser ? '🛡️ SUPERADMIN' : '🛡️ ADMIN')
+                    : getRoleLabel(user.role, t)}
                 </span>
               </div>
             </div>
+
+            {/* Admin Panel Direct Link for Admins */}
+            {isAdmin && (
+              <Link
+                to="/panel"
+                onClick={() => setOpen(false)}
+                role="menuitem"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  color: '#f59e0b',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  textDecoration: 'none',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 6,
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(245, 158, 11, 0.22)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)')}
+              >
+                <ShieldCheckIcon size={16} style={{ color: '#f59e0b' }} />
+                <span>🛡️ Admin Panel</span>
+              </Link>
+            )}
 
             {/* Item 1: Profile & Settings Link */}
             <Link

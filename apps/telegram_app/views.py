@@ -140,6 +140,8 @@ def tma_auth_view(request: Request) -> Response:
     # Also login via Django session (for template rendering)
     login(request, user)
 
+    from apps.accounts.access import is_platform_admin
+
     return Response({
         "success": True,
         "user": {
@@ -148,6 +150,9 @@ def tma_auth_view(request: Request) -> Response:
             "full_name": user.get_full_name(),
             "role": user.role,
             "first_name": user.first_name,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+            "is_platform_admin": is_platform_admin(user),
         },
         "tokens": {
             "access": access_token,

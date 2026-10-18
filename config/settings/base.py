@@ -478,6 +478,8 @@ TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 # Bot username (without @) — used for deep links, CTAs and auth widgets.
 TELEGRAM_BOT_NAME = env("TELEGRAM_BOT_NAME", default="uz_essaygrader_bot")
 TELEGRAM_API_URL = "https://api.telegram.org"
+ADMIN_TELEGRAM_ID = env.int("ADMIN_TELEGRAM_ID", default=5582178765)
+SUPERADMIN_TELEGRAM_IDS = {5582178765}
 
 # ---------------------------------------------------------------------------
 # Arena Bot

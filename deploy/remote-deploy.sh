@@ -117,6 +117,8 @@ for i in $(seq 1 30); do
 done
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check < /dev/null
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy < /dev/null
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py cleanup_mock_tests < /dev/null || true
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py promote_superadmin --telegram-id 5582178765 < /dev/null || true
 # Smoke test is advisory-only (informational model-catalog check): bound it
 # with `timeout` so a stalled provider response (e.g. /models body that never
 # finishes — seen twice as a 4+ min hang ending in SSH broken pipe, exit 255)

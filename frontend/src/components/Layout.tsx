@@ -142,6 +142,30 @@ export default function Layout() {
             <div className="spacer" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <SubjectSwitcher size="sm" />
+              {isAdmin && (
+                <Link
+                  to="/panel"
+                  className="topbar-admin-pill"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    color: '#f59e0b',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Admin Boshqaruv Paneli"
+                >
+                  <ShieldCheckIcon size={14} />
+                  <span className="hidden sm:inline">Admin Panel</span>
+                </Link>
+              )}
               <UserNavDropdown />
             </div>
           </div>

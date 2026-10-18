@@ -260,6 +260,33 @@
   * Regressiya testlari: `tests/test_tuition_student_model.py` va `tests/test_placement_onboarding.py` (**100% PASS**).
   * Frontend build (`npm run build`): TypeScript va Vite 0 xatolik bilan yig'ildi (1.74s).
 
+### 2.16. Premium Segmented Pill Fan Tanlash (Subject Toggle), Eski Mock Testlarni Tozalash va Telegram ID 5582178765 Superadmin Tizimi
+- [x] Premium Segmented Pill Fan Tanlash Interfeysi (`frontend/src/components/SubjectSwitcher.tsx` & `index.css`):
+  * Yopishib qolgan va ortiqcha tushuntirish matnli gibrid blok olib tashlandi.
+  * Zamonaviy Segmented Pill dizayni:
+    - Konteyner: `bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 inline-flex items-center gap-1`.
+    - Tugmalar: `[ 🇺🇿 Ona tili ]` va `[ 🇬🇧 English (IELTS) ]`.
+    - Tanlangani: `bg-amber-500 text-slate-950 font-semibold shadow-sm rounded-lg py-1.5 px-3.5 transition-all`.
+    - Tanlanmagani: `text-slate-400 hover:text-white py-1.5 px-3.5 transition-all`.
+  * `OnboardingModal.tsx`: Yonidagi ortiqcha matn olib tashlanib, faqat toza va ixcham switcher qoldirildi.
+  * `Layout.tsx` & `UserNavDropdown.tsx`: Navbar va menyuda to'liq moslashtirildi.
+- [x] Ortiqcha Testlarni Bazadan Tozalash (`apps/tests/management/commands/cleanup_mock_tests.py`):
+  * Seederlar tomonidan kiritilgan eski testlarni (`#MOCK-SHUKUROV`, `#MOCK-BMB04` va h.k.) avtomatik tozalovchi Django management command yaratildi.
+  * Testlar bo'limida faqat o'quvchi va ustozlar yaratgan amaldagi testlar qolishi ta'minlandi.
+  * Deploy skripti (`deploy/remote-deploy.sh`) orqali VPS da avtomatik ishga tushishi biriktirildi.
+- [x] Saytda Ham To'liq Superadmin (Telegram ID: 5582178765):
+  * `apps/accounts/services/telegram_identity.py`: `check_and_promote_superadmin_telegram` funksiyasi ulandi. Foydalanuvchi Telegram ID 5582178765 bilan ro'yxatdan o'tganda yoki kirganda avtomatik `is_superuser = True`, `is_staff = True`, `role = 'admin'` va `profile.plan = 'pro'` ga o'tkaziladi.
+  * `apps/accounts/signals.py`: `user_logged_in` signali orqali har safar tizimga kirganda superadmin huquqlari tasdiqlanadi.
+  * `apps/accounts/management/commands/promote_superadmin.py`: `python manage.py promote_superadmin --telegram-id 5582178765` buyrug'i yaratildi va sinovdan o'tkazildi.
+  * Frontend (`Profile.tsx`, `Layout.tsx`, `UserNavDropdown.tsx`):
+    - "🛡️ TO'LIQ HUQUQLI SUPERADMIN" / "ADMIN" oltin nishoni.
+    - Yuqori panel va profil menyusida to'g'ridan-to'g'ri `[ 🛡️ Admin Panel ]` ga o'tish tugmasi.
+    - To'lovlar, guruhlar va tizim boshqaruviga 100% cheklovsiz kirish.
+- [x] Sifat, Testlar va Sinovlar:
+  * `tests/test_superadmin_and_cleanup.py`: 4 ta yangi test 100% muvaffaqiyatli o'tdi.
+  * Barcha 9 ta multi-subject va superadmin testlari: **9/9 PASSED (100%)**.
+  * Frontend build (`npm run build`): 0 xatolik bilan 1.69s da muvaffaqiyatli yig'ildi.
+
 ---
 
 ## 3. Jarayonda
@@ -269,5 +296,7 @@
 
 ## 4. Keyingi qadamlar
 - Yangilangan kodlarni git commit qilib, `origin main` ga push qilish.
-- Contabo VPS (`169.58.58.229`) ga deploy qilish va `https://grandec.uz/healthz/` holatini tekshirish.
+- Contabo VPS (`169.58.58.229`) ga deploy qilish, `cleanup_mock_tests` va `promote_superadmin` buyruqlarini jonli serverda bajarish.
+- `https://grandec.uz/healthz/` holatini tekshirish.
+
 

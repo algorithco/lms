@@ -296,7 +296,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, marginBottom: 8, color: 'var(--ink)' }}>
                   📚 Tayyorlanmoqchi bo'lgan faningizni tanlang:
                 </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ marginTop: 4 }}>
                   <SubjectSwitcher
                     size="md"
                     onSwitch={(newSub) => {
@@ -308,11 +308,6 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                       }
                     }}
                   />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                    {activeSubject === 'english'
-                      ? "IELTS Writing (Band 1-9) va CBT Reading/Listening"
-                      : "Ona tili va Adabiyot (BMB 12 mezonli esse & test)"}
-                  </span>
                 </div>
               </div>
 

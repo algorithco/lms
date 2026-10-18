@@ -665,9 +665,10 @@ class TelegramWidgetAuthView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
+        is_admin = is_platform_admin(user)
         return Response({
             "status": "ok",
-            "redirect": "/dashboard/",
+            "redirect": "/panel" if is_admin else "/dashboard",
             "user": {
                 "id": user.pk,
                 "email": user.email,
@@ -677,7 +678,7 @@ class TelegramWidgetAuthView(APIView):
                 "language": getattr(user, "language", "uz"),
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
-                "is_platform_admin": is_platform_admin(user),
+                "is_platform_admin": is_admin,
                 "avatar": photo_url or getattr(user.profile, "picture_url", ""),
             },
             "tokens": {
