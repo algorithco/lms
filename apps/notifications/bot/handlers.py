@@ -283,9 +283,9 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
     elif norm_role == "teacher":
         return ReplyKeyboardMarkup(
             [
-                [KeyboardButton("📝 Yangi Mock yaratish (/newmock)"), KeyboardButton("👥 Mening guruhlarim")],
-                [KeyboardButton("📊 O'quvchilar hisoboti (Excel)"), KeyboardButton("📚 Testlar bazasi")],
-                [KeyboardButton("👤 Shaxsiy kabinet")],
+                [KeyboardButton("📝 Yangi Mock yaratish (/newmock)"), KeyboardButton("📷 Titul varaqni tekshirish")],
+                [KeyboardButton("👥 Mening guruhlarim"), KeyboardButton("📊 O'quvchilar hisoboti (Excel)")],
+                [KeyboardButton("📚 Testlar bazasi"), KeyboardButton("👤 Shaxsiy kabinet")],
             ],
             resize_keyboard=True,
         )
@@ -294,8 +294,9 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
         return ReplyKeyboardMarkup(
             [
                 [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
-                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
-                [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
+                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("📷 Titul varaqni tekshirish")],
+                [KeyboardButton("⚔️ Arena (1v1)"), KeyboardButton("👤 Natijalar / Profil")],
+                [KeyboardButton("💳 Tariflar / Obuna")],
             ],
             resize_keyboard=True,
         )
@@ -769,6 +770,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("📚 Test ishlash", "📚 Test topshirish", "🧠 Test / Quiz", "🧠 Quiz", "📝 Testlar"):
         await tests_handler(update, context)
+        return
+    elif raw_text in ("📷 Titul varaqni tekshirish", "📷 Titul varaq", "/omr", "Titul varaq"):
+        await omr_scan_prompt_handler(update, context)
         return
     elif raw_text in ("⚔️ Arena (1v1)", "⚔️ Arena"):
         await arena_handler(update, context)
@@ -4828,8 +4832,87 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     await query.edit_message_text(text, parse_mode="Markdown")
 
 
+async def omr_scan_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt user to upload a photo of their OMR answer sheet."""
+    context.user_data["omr_state"] = "awaiting_photo"
+    text = (
+        "📷 <b>Titul varaqa (OMR) avto-skaneri</b>\n\n"
+        "Iltimos, o'quvchi to'ldirgan javoblar varaqasining (titul varaq) aniq va yorug' rasmini ushbu chatga yuboring.\n\n"
+        "💡 <i>Tavsiyalar:</i>\n"
+        "• Titul varaq to'g'ri burchak ostida suratga olingan bo'lsin\n"
+        "• Test kodi (#MOCK-...) va belgilangan doirachalar aniq ko'rinsin\n"
+        "• Tizim 2-3 soniyada to'g'ri kalitlar bilan solishtirib, to'liq tahlil va ballni chiqarib beradi!"
+    )
+    await send_reply(update, text, parse_mode="HTML")
+
+
+async def omr_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Process uploaded OMR sheet photo, grade it, and reply with instant scorecard."""
+    if not update.message or not update.message.photo:
+        return False
+
+    caption = (update.message.caption or "").lower()
+    is_omr = (
+        context.user_data.get("omr_state") == "awaiting_photo"
+        or any(w in caption for w in ("titul", "omr", "varaq", "answer sheet"))
+    )
+    if not is_omr:
+        return False
+
+    context.user_data.pop("omr_state", None)
+    status_msg = await update.message.reply_text("⏳ <i>Titul varaqa skanerlanmoqda va doirachalar tahlil qilinmoqda...</i>", parse_mode="HTML")
+
+    try:
+        photo = update.message.photo[-1]
+        file_obj = await photo.get_file()
+        file_bytes = await file_obj.download_as_bytearray()
+
+        import io
+        from apps.tests.omr_service import grade_omr_sheet
+
+        user = await _get_or_create_user_async(update)
+        img_buffer = io.BytesIO(file_bytes)
+        img_buffer.name = "sheet.jpg"
+
+        result = await _run_db(grade_omr_sheet, img_buffer, user=user)
+
+        preview_lines = []
+        for b in result.get("breakdown", [])[:15]:
+            mark = "✅" if b["is_correct"] else "❌"
+            preview_lines.append(f"{mark} {b['question_number']}-savol: Siz: {b['selected_answer']} (To'g'ri: {b['correct_answer']})")
+
+        preview_text = "\n".join(preview_lines)
+        if len(result.get("breakdown", [])) > 15:
+            preview_text += f"\n<i>... va yana {len(result['breakdown']) - 15} ta savol</i>"
+
+        pass_badge = "🎉 O'TDI" if result.get("is_passed") else "⚠️ O'TMADI"
+
+        msg = (
+            f"✅ <b>Titul varaqa muvaffaqiyatli tekshirildi!</b>\n\n"
+            f"📋 <b>Test:</b> {result.get('test_title', 'Mock Test')}\n"
+            f"🎯 <b>Natija:</b> {result.get('correct_count')}/{result.get('total_questions')} ta to'g'ri ({result.get('percentage')}%)\n"
+            f"🏅 <b>Daraja / Toifa:</b> {result.get('grade')}\n"
+            f"⚡ <b>To'plangan XP:</b> +{result.get('xp_earned', 25)} XP (🔥 Streak yangilandi!)\n"
+            f"Holat: <b>{pass_badge}</b>\n\n"
+            f"<b>Savollar bo'yicha tahlil:</b>\n"
+            f"{preview_text}\n\n"
+            f"🔗 Saytda ko'rish: https://grandec.uz/tests/scan-omr/"
+        )
+
+        await status_msg.edit_text(msg, parse_mode="HTML")
+        return True
+    except Exception as e:
+        logger.exception("OMR photo processing error: %s", e)
+        await status_msg.edit_text(f"❌ Titul varaqani tahlil qilishda xatolik: {e}")
+        return True
+
+
 async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle photo messages — check if it's a payment screenshot and create PaymentReceipt."""
+    # Check if this photo is an OMR answer sheet
+    if await omr_photo_handler(update, context):
+        return
+
     # Never intercept essay image submissions
     if context.user_data.get("essay_state") == "awaiting_photo" or context.user_data.get("active_topic_id"):
         return

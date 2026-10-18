@@ -40,6 +40,26 @@ class LearningCenter(models.Model):
     is_active = models.BooleanField(_("Faolmi"), default=True)
     phone = models.CharField(_("Aloqa telefoni"), max_length=25, blank=True)
     address = models.CharField(_("Manzil"), max_length=255, blank=True)
+    stamp_signature = models.ImageField(
+        _("Muhr / Imzo tasviri"),
+        upload_to="centers/stamps/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text=_("PDF hisobot va sertifikatlarga qo'yiladigan shaffof muhr/imzo."),
+    )
+    brand_color = models.CharField(
+        _("Brend rangi"),
+        max_length=20,
+        default="#0F766E",
+        help_text=_("HEX rang kodi, masalan #0F766E"),
+    )
+    header_title = models.CharField(
+        _("Hisobot sarlavhasi"),
+        max_length=200,
+        blank=True,
+        default="",
+        help_text=_("Rasmiy hisobot sarlavhasi, masalan 'GRAND EDUCATION Hamkor Markazi'"),
+    )
     created_at = models.DateTimeField(_("Yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Yangilangan"), auto_now=True)
 

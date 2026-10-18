@@ -317,6 +317,75 @@ class Profile(models.Model):
         help_text=_("AI tuzgan kunlik test va esse yuklamasi"),
     )
 
+    # -- Gamification & Streak (🔥 Duolingo Style) ----------------------------
+    current_streak = models.PositiveIntegerField(
+        _("joriy streak"),
+        default=0,
+        help_text=_("Ketma-ket kunlik faollik (kunlar soni)."),
+    )
+    longest_streak = models.PositiveIntegerField(
+        _("eng uzun streak"),
+        default=0,
+        help_text=_("Foydalanuvchining eng yuqori natijasi."),
+    )
+    last_activity_date = models.DateField(
+        _("oxirgi faollik sanasi"),
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    streak_freeze_count = models.PositiveSmallIntegerField(
+        _("streak muzlatish qalqoni"),
+        default=1,
+        help_text=_("O'tkazib yuborilgan 1 kunni qutqaruvchi qalqon."),
+    )
+    xp_points = models.PositiveIntegerField(
+        _("jami XP ballari"),
+        default=0,
+        db_index=True,
+    )
+    weekly_xp = models.PositiveIntegerField(
+        _("haftalik XP"),
+        default=0,
+        db_index=True,
+    )
+
+    class LeagueChoice(models.TextChoices):
+        BRONZE = "bronze", _("Bronza")
+        SILVER = "silver", _("Kumush")
+        GOLD = "gold", _("Oltin")
+        DIAMOND = "diamond", _("Olmos")
+
+    weekly_league = models.CharField(
+        _("haftalik liga"),
+        max_length=20,
+        choices=LeagueChoice.choices,
+        default=LeagueChoice.BRONZE,
+        db_index=True,
+    )
+
+    # -- Teacher / Center White-Label Branding (B2B) ---------------------------
+    center_name = models.CharField(
+        _("o'quv markazi nomi"),
+        max_length=200,
+        blank=True,
+        default="",
+        help_text=_("Ustoz yoki markazning rasmiy nomi (sertifikat va hisobotlar uchun)."),
+    )
+    center_logo = models.ImageField(
+        _("markaz logotipi"),
+        upload_to="centers/logos/%Y/%m/",
+        blank=True,
+        null=True,
+    )
+    stamp_signature = models.ImageField(
+        _("muhr / imzo tasviri"),
+        upload_to="centers/stamps/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text=_("PDF hisobot va sertifikatlarga qo'yiladigan shaffof muhr/imzo."),
+    )
+
     class Meta:
         verbose_name = _("Profil")
         verbose_name_plural = _("Profillar")

@@ -1,7 +1,7 @@
-"""React SPA API — mounted at /api/v1/ (additive, HTML views untouched)."""
-from django.urls import path
+from django.urls import include, path
 
 from apps.accounts import google_auth as google_auth_views
+from apps.accounts import views_gamification
 from . import (
     views_attendance,
     views_billing,
@@ -15,7 +15,7 @@ from . import (
     views_tournaments,
 )
 from apps.organizations import views as views_enterprise
-from apps.tests import views_placement
+from apps.tests import views_omr, views_placement
 
 app_name = "webapi"
 
@@ -26,6 +26,20 @@ urlpatterns = [
     path("subjects/", views_placement.subjects_list_view, name="subjects-list"),
     path("profile/switch-subject/", views_placement.switch_subject_view, name="profile-switch-subject"),
     path("essays/ielts/grade/", views_essays.ielts_grade_view, name="essays-ielts-grade"),
+
+    # -- OMR Answer Sheet Auto-Scanner -----------------------------------
+    path("tests/scan-omr/", views_omr.ScanOMRView.as_view(), name="tests-scan-omr"),
+
+    # -- AI Speaking Simulator -------------------------------------------
+    path("speaking/", include("apps.speaking.urls")),
+
+    # -- Gamification, Daily Goals & Streak ------------------------------
+    path("gamification/streak/", views_gamification.UserStreakView.as_view(), name="gamification-streak"),
+    path("gamification/league/", views_gamification.WeeklyLeagueView.as_view(), name="gamification-league"),
+
+    # -- White-Label B2B Branding & Monthly Reports ----------------------
+    path("organizations/branding/", views_enterprise.branding_update_view, name="organizations-branding"),
+    path("school/groups/<int:group_id>/export/monthly-report-pdf/", views_enterprise.monthly_report_pdf_view, name="school-group-monthly-report-pdf"),
 
     # -- Games -----------------------------------------------------------
     path("games/", views_games.hub_view, name="games-hub"),

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -23,6 +24,7 @@ from apps.organizations.models import CenterBranch, LearningCenter
 from apps.results.models import Result
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def _get_user_center(user) -> LearningCenter | None:
@@ -306,4 +308,152 @@ def enterprise_report_export_view(request):
             r.calculated_at.strftime("%Y-%m-%d %H:%M") if r.calculated_at else "",
         ])
 
+    return response
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def branding_update_view(request):
+    """
+    GET /api/v1/organizations/branding/
+    POST /api/v1/organizations/branding/
+    Accepts:
+      - center_name: str
+      - header_title: str
+      - brand_color: str
+      - center_logo: file
+      - stamp_signature: file
+    """
+    user = request.user
+    center = _get_user_center(user)
+    if not center and (user.role in ("teacher", "admin", "center_admin") or user.is_staff):
+        center = LearningCenter.objects.create(
+            name=f"{user.get_full_name() or user.first_name or 'Grand'} Ta'lim Markazi",
+            owner=user,
+            student_seat_limit=100,
+            subscription_expires_at=timezone.now() + timedelta(days=365),
+        )
+    profile, _ = Profile.objects.get_or_create(user=user)
+
+    if request.method == "POST":
+        center_name = str(request.data.get("center_name") or "").strip()
+        header_title = str(request.data.get("header_title") or "").strip()
+        brand_color = str(request.data.get("brand_color") or "").strip()
+        logo_file = request.FILES.get("center_logo")
+        stamp_file = request.FILES.get("stamp_signature")
+
+        if center_name:
+            profile.center_name = center_name
+            if center:
+                center.name = center_name
+        if header_title and center:
+            center.header_title = header_title
+        if brand_color and center:
+            center.brand_color = brand_color
+        if logo_file:
+            profile.center_logo = logo_file
+            if center:
+                center.logo = logo_file
+        if stamp_file:
+            profile.stamp_signature = stamp_file
+            if center:
+                center.stamp_signature = stamp_file
+
+        profile.save()
+        if center:
+            center.save()
+
+    logo_url = (center.logo.url if center and center.logo else (profile.center_logo.url if profile.center_logo else None))
+    stamp_url = (center.stamp_signature.url if center and center.stamp_signature else (profile.stamp_signature.url if profile.stamp_signature else None))
+
+    return Response({
+        "success": True,
+        "center_name": (center.name if center else profile.center_name) or "GRAND EDUCATION Hamkor Markazi",
+        "header_title": (center.header_title if center else "") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
+        "brand_color": (center.brand_color if center else "#0F766E") or "#0F766E",
+        "center_logo_url": logo_url,
+        "stamp_signature_url": stamp_url,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def monthly_report_pdf_view(request, group_id: int):
+    """
+    GET /api/v1/school/groups/<group_id>/export/monthly-report-pdf/
+    Generates an A4 PDF parent/director monthly report with center branding.
+    """
+    from apps.courses.models import StudentGroup
+    from apps.attendance.models import AttendanceRecord
+    from apps.essays.models import EssaySubmission
+    from .reports_pdf import generate_monthly_group_report_pdf
+
+    group = get_object_or_404(StudentGroup, pk=group_id)
+
+    # Security check: only group's teacher or admin/staff
+    if group.teacher_id != request.user.id and request.user.role not in ("teacher", "admin") and not request.user.is_staff:
+        return Response({"error": "Sizda ushbu guruh hisobotini yuklash huquqi yo'q."}, status=status.HTTP_403_FORBIDDEN)
+
+    center = _get_user_center(group.teacher)
+    profile, _ = Profile.objects.get_or_create(user=group.teacher)
+
+    branding = {
+        "center_name": (center.name if center else profile.center_name) or "GRAND EDUCATION",
+        "header_title": (center.header_title if center else "") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
+        "brand_color": (center.brand_color if center else "#0F766E") or "#0F766E",
+        "stamp_signature_path": (center.stamp_signature.path if center and center.stamp_signature else (profile.stamp_signature.path if profile.stamp_signature else None)),
+    }
+
+    students = list(group.students.all())
+    roster_data = []
+    total_tests_taken = 0
+    total_percentage_sum = 0.0
+    total_essays_count = 0
+    total_att_sum = 0.0
+
+    for s in students:
+        s_results = Result.objects.filter(student=s)
+        test_count = s_results.count()
+        avg_score = round(float(s_results.aggregate(avg=Avg("percentage"))["avg"] or 0), 1) if test_count > 0 else 0.0
+
+        # Attendance
+        total_sessions = AttendanceRecord.objects.filter(student=s, session__group=group).count()
+        presents = AttendanceRecord.objects.filter(student=s, session__group=group, status="present").count()
+        att_rate = round((presents / total_sessions * 100), 1) if total_sessions > 0 else 100.0
+
+        # Essays
+        essays_done = EssaySubmission.objects.filter(student=s, status__in=["graded", "teacher_reviewed"]).count()
+
+        total_tests_taken += test_count
+        total_percentage_sum += avg_score
+        total_essays_count += essays_done
+        total_att_sum += att_rate
+
+        overall_grade = "A'lo" if avg_score >= 85 and att_rate >= 90 else "Yaxshi" if avg_score >= 65 and att_rate >= 75 else "Qoniqarli"
+
+        roster_data.append({
+            "name": s.get_full_name() or s.email.split("@")[0],
+            "attendance_rate": att_rate,
+            "tests_taken": test_count,
+            "avg_score": avg_score,
+            "essays_done": essays_done,
+            "overall_grade": overall_grade,
+        })
+
+    num_students = len(students)
+    summary_stats = {
+        "total_students": num_students,
+        "avg_attendance": round(total_att_sum / num_students, 1) if num_students > 0 else 100.0,
+        "avg_test_score": round(total_percentage_sum / num_students, 1) if num_students > 0 else 0.0,
+        "total_essays": total_essays_count,
+    }
+
+    try:
+        pdf_bytes = generate_monthly_group_report_pdf(group, branding, roster_data, summary_stats)
+    except Exception as e:
+        logger.exception("Error generating monthly report PDF: %s", e)
+        return Response({"error": f"PDF generatsiyasida xatolik: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="monthly-report-group-{group.id}.pdf"'
     return response

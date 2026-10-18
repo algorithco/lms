@@ -53,6 +53,10 @@ const Tournaments = lazyPage(() => import('./pages/Tournaments'));
 const TournamentLive = lazyPage(() => import('./pages/TournamentLive'));
 const EnterpriseDashboard = lazyPage(() => import('./pages/EnterpriseDashboard'));
 const VerifyCertificate = lazyPage(() => import('./pages/VerifyCertificate'));
+const ScanOMR = lazyPage(() => import('./pages/ScanOMR'));
+const SpeakingTopics = lazyPage(() => import('./pages/SpeakingTopics'));
+const SpeakingPractice = lazyPage(() => import('./pages/SpeakingPractice'));
+const SpeakingResult = lazyPage(() => import('./pages/SpeakingResult'));
 
 import AuthModal from './components/AuthModal';
 
@@ -106,10 +110,16 @@ function AnimatedRoutes() {
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/take/:attemptId" element={<TakeTest />} />
+            <Route path="/tests/scan-omr" element={<ScanOMR />} />
+            <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />
             <Route path="/results" element={<Results />} />
             {/* Legacy /results/<id>/ deep link */}
             <Route path="/results/:id" element={<Results />} />
             <Route path="/certificates" element={<MyCertificates />} />
+            {/* AI Speaking Simulator (IELTS & Multi-level) */}
+            <Route path="/speaking" element={<SpeakingTopics />} />
+            <Route path="/speaking/practice/:topicId" element={<SpeakingPractice />} />
+            <Route path="/speaking/result/:id" element={<SpeakingResult />} />
             {/* Essays */}
             <Route path="/essays" element={<EssayTopics />} />
             {/* Legacy password-gate page → topics (gate is inline in write flow) */}

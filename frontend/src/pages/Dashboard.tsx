@@ -2,13 +2,31 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { AuthExpiredError, Certificates, PaymentsApi, Results, School, Tests, Tuition, type PaymentReceiptItem, type TuitionOverview, type WeeklyReportRow } from '../lib/api';
+import {
+  AuthExpiredError,
+  Certificates,
+  GamificationApi,
+  PaymentsApi,
+  Results,
+  School,
+  Tests,
+  Tuition,
+  type LeagueLeaderboardResponse,
+  type PaymentReceiptItem,
+  type StreakInfoResponse,
+  type TuitionOverview,
+  type WeeklyReportRow,
+} from '../lib/api';
 import { num, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
 import {
   AwardIcon,
+  CameraIcon,
   ClockIcon,
   FileTextIcon,
+  FlameIcon,
+  MicIcon,
   TrophyIcon,
+  ZapIcon,
 } from '../components/icons';
 import UsageLimits from '../components/UsageLimits';
 import TiltCard from '../components/TiltCard';
@@ -46,6 +64,8 @@ export default function Dashboard() {
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReportRow[]>([]);
   const [pendingReceipt, setPendingReceipt] = useState<PaymentReceiptItem | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [streak, setStreak] = useState<StreakInfoResponse | null>(null);
+  const [league, setLeague] = useState<LeagueLeaderboardResponse | null>(null);
 
   useEffect(() => {
     if (user && user.onboarding_completed === false) {
@@ -70,8 +90,10 @@ export default function Dashboard() {
         setPendingReceipt(pending || null);
       }
     }).catch(() => {});
+    GamificationApi.streak().then((res) => { if (alive) setStreak(res); }).catch(() => {});
+    GamificationApi.league().then((res) => { if (alive) setLeague(res); }).catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const handler = () => setTick((v) => v + 1);
@@ -263,6 +285,30 @@ export default function Dashboard() {
                   <ArrowRight size={14} />
                 </Link>
                 <Link
+                  to="/speaking"
+                  className="btn sm"
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.25)',
+                    borderColor: 'rgba(168, 85, 247, 0.45)',
+                    color: '#E9D5FF',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <MicIcon size={14} />
+                  <span>AI Speaking Simulyatori</span>
+                </Link>
+                <Link
+                  to="/tests/scan-omr"
+                  className="btn sm ghost"
+                  style={{ fontWeight: 600, textDecoration: 'none' }}
+                >
+                  <CameraIcon size={14} /> Titul (OMR) Skaner
+                </Link>
+                <Link
                   to="/tests"
                   className="btn sm ghost"
                   style={{ fontWeight: 600, textDecoration: 'none' }}
@@ -297,6 +343,13 @@ export default function Dashboard() {
                   <ArrowRight size={14} />
                 </Link>
                 <Link
+                  to="/tests/scan-omr"
+                  className="btn sm ghost"
+                  style={{ fontWeight: 600, textDecoration: 'none' }}
+                >
+                  <CameraIcon size={14} /> Titul (OMR) Skaner
+                </Link>
+                <Link
                   to="/groups"
                   className="btn sm ghost"
                   style={{ fontWeight: 600, textDecoration: 'none' }}
@@ -322,6 +375,13 @@ export default function Dashboard() {
                 >
                   <span>⭐️ BMB Rasmiy Mock Test (3 soatlik)</span>
                   <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/tests/scan-omr"
+                  className="btn sm ghost"
+                  style={{ fontWeight: 600, textDecoration: 'none' }}
+                >
+                  <CameraIcon size={14} /> Titul (OMR) Skaner
                 </Link>
                 <Link
                   to="/essays"
@@ -424,6 +484,127 @@ export default function Dashboard() {
             <h3>{report.period_label}</h3>
             <p className="muted">{t('weekly_attendance')}: {String((report.summary.attendance as Record<string, unknown> | undefined)?.attendance_percentage ?? '—')}% · {t('weekly_essays')}: {String((report.summary.essays as Record<string, unknown> | undefined)?.graded ?? 0)} · {t('weekly_tests')}: {String((report.summary.tests as Record<string, unknown> | undefined)?.completed_attempts ?? 0)}</p>
           </article>)}
+        </section>
+      )}
+
+      {/* Duolingo-Style Gamification: Daily Streak & Weekly League */}
+      {streak && (
+        <section
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(234, 88, 12, 0.04) 100%)',
+            borderColor: 'rgba(245, 158, 11, 0.25)',
+            marginBottom: 20,
+            padding: '18px 22px',
+            borderRadius: 16,
+          }}
+          aria-label="Gamifikatsiya va streak"
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, alignItems: 'center' }}>
+            {/* Streak Counter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 14,
+                  background: streak.is_active_today
+                    ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)'
+                    : 'rgba(245, 158, 11, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: streak.is_active_today ? '#fff' : '#f59e0b',
+                  boxShadow: streak.is_active_today ? '0 4px 14px rgba(234, 88, 12, 0.4)' : 'none',
+                }}
+              >
+                <FlameIcon size={28} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f59e0b' }}>
+                    {streak.current_streak} kunlik streak!
+                  </span>
+                  {streak.is_active_today && (
+                    <span style={{ fontSize: '0.72rem', background: '#10b981', color: '#fff', padding: '2px 6px', borderRadius: 6, fontWeight: 700 }}>
+                      Faol
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted, #94a3b8)' }}>
+                  {streak.is_active_today
+                    ? 'Bugungi maqsad bajarildi, olov yonmoqda! 🔥'
+                    : 'Streakni yo\'qotmaslik uchun bugun test yoki mashq bajaring!'}
+                </p>
+              </div>
+            </div>
+
+            {/* Daily Goal & XP */}
+            <div
+              style={{
+                background: 'rgba(0, 0, 0, 0.2)',
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted, #94a3b8)', fontWeight: 600 }}>
+                  Jami Tajriba (XP)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ZapIcon size={16} style={{ color: '#fbbf24' }} />
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fbbf24' }}>
+                    {streak.xp_points} XP
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#6ee7b7', marginLeft: 4 }}>
+                    (+{streak.weekly_xp} bu hafta)
+                  </span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--muted, #94a3b8)' }}>Muzlatgich</span>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#93c5fd' }}>
+                  ❄️ {streak.streak_freeze_count} ta
+                </div>
+              </div>
+            </div>
+
+            {/* League Badge */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(0, 0, 0, 0.2)',
+                padding: '10px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted, #94a3b8)', fontWeight: 600 }}>
+                  Haftalik Liga
+                </span>
+                <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#e2e8f0', textTransform: 'capitalize' }}>
+                  {streak.weekly_league === 'diamond' ? '💎 Olmos Ligasi' :
+                   streak.weekly_league === 'gold' ? '🥇 Oltin Ligasi' :
+                   streak.weekly_league === 'silver' ? '🥈 Kumush Ligasi' : '🥉 Bronza Ligasi'}
+                </div>
+              </div>
+              {league && (
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--muted, #94a3b8)' }}>Reyting</span>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#f59e0b' }}>
+                    #{league.user_rank || '—'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 

@@ -2048,3 +2048,161 @@ export const ArenaLobby = {
     }),
   queue: () => api<Record<string, unknown>>('/arena/api/queue/', { method: 'POST' }),
 };
+
+// -- OMR Answer Sheet Scanner -----------------------------------------------
+export interface OmrScanBreakdown {
+  question_number: number;
+  question_text: string;
+  selected_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+  is_blank: boolean;
+  points: number;
+  max_points: number;
+}
+
+export interface OmrScanResponse {
+  ok: boolean;
+  test_id: number;
+  test_title: string;
+  mock_code: string;
+  subject: string;
+  total_questions: number;
+  correct_count: number;
+  incorrect_count: number;
+  blank_count: number;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  grade: string;
+  is_passed: boolean;
+  pass_percentage: number;
+  attempt_id?: number | null;
+  xp_earned?: number;
+  breakdown: OmrScanBreakdown[];
+  error?: string;
+}
+
+export const OmrApi = {
+  scan: (formData: FormData) =>
+    api<OmrScanResponse>('/api/v1/tests/scan-omr/', {
+      method: 'POST',
+      body: formData,
+    }),
+};
+
+// -- AI Speaking Simulator --------------------------------------------------
+export interface SpeakingTopicItem {
+  id: number;
+  title: string;
+  subject: string;
+  part: 'part1' | 'part2' | 'part3' | 'multilevel';
+  part_label: string;
+  prompt: string;
+  bullet_points: string[];
+  follow_up_questions?: string[];
+  prep_time_seconds: number;
+  speak_time_seconds: number;
+  difficulty: string;
+  difficulty_label: string;
+}
+
+export interface SpeakingSubmissionDetail {
+  id: number;
+  topic_id: number;
+  topic_title: string;
+  part: string;
+  part_label: string;
+  audio_url?: string | null;
+  duration_seconds: number;
+  transcript: string;
+  fluency_score: number;
+  lexical_score: number;
+  grammar_score: number;
+  pronunciation_score: number;
+  overall_band: number;
+  feedback: {
+    summary?: string;
+    fluency_feedback?: string;
+    lexical_feedback?: string;
+    grammar_feedback?: string;
+    pronunciation_feedback?: string;
+    vocabulary_suggestions?: { original: string; improved: string; explanation: string }[];
+    grammar_corrections?: { incorrect: string; corrected: string; rule: string }[];
+  };
+  status: string;
+  created_at: string;
+}
+
+export const SpeakingApi = {
+  topics: (params?: { part?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.part) qs.set('part', params.part);
+    const q = qs.toString() ? `?${qs.toString()}` : '';
+    return api<{ count: number; results: SpeakingTopicItem[] }>(`/api/v1/speaking/topics/${q}`);
+  },
+  topic: (id: number | string) => api<SpeakingTopicItem>(`/api/v1/speaking/topics/${id}/`),
+  submit: (formData: FormData) =>
+    api<{ ok: boolean; submission: SpeakingSubmissionDetail }>('/api/v1/speaking/submit/', {
+      method: 'POST',
+      body: formData,
+    }),
+  submission: (id: number | string) => api<SpeakingSubmissionDetail>(`/api/v1/speaking/submissions/${id}/`),
+  mySubmissions: () => api<{ count: number; results: SpeakingSubmissionDetail[] }>('/api/v1/speaking/my-submissions/'),
+};
+
+// -- Gamification & Streak --------------------------------------------------
+export interface StreakInfoResponse {
+  current_streak: number;
+  longest_streak: number;
+  is_active_today: boolean;
+  streak_freeze_count: number;
+  xp_points: number;
+  weekly_xp: number;
+  weekly_league: 'bronze' | 'silver' | 'gold' | 'diamond';
+  daily_goal_completed: boolean;
+}
+
+export interface LeagueParticipant {
+  rank: number;
+  user_id: number;
+  name: string;
+  avatar_url?: string | null;
+  weekly_xp: number;
+  is_current_user: boolean;
+  tier_badge: string;
+}
+
+export interface LeagueLeaderboardResponse {
+  league: string;
+  league_title: string;
+  user_rank?: number | null;
+  participants: LeagueParticipant[];
+  resets_in_hours: number;
+}
+
+export const GamificationApi = {
+  streak: () => api<StreakInfoResponse>('/api/v1/gamification/streak/'),
+  league: () => api<LeagueLeaderboardResponse>('/api/v1/gamification/league/'),
+};
+
+// -- White-Label B2B Branding -----------------------------------------------
+export interface BrandingInfoResponse {
+  success: boolean;
+  center_name: string;
+  header_title: string;
+  brand_color: string;
+  center_logo_url?: string | null;
+  stamp_signature_url?: string | null;
+}
+
+export const WhiteLabelApi = {
+  get: () => api<BrandingInfoResponse>('/api/v1/organizations/branding/'),
+  update: (formData: FormData) =>
+    api<BrandingInfoResponse>('/api/v1/organizations/branding/', {
+      method: 'POST',
+      body: formData,
+    }),
+  monthlyReportPdfUrl: (groupId: number | string) =>
+    `${API_BASE}/api/v1/school/groups/${groupId}/export/monthly-report-pdf/`,
+};

@@ -398,6 +398,12 @@ class SubmitAttemptView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        try:
+            from apps.accounts.gamification import record_user_activity
+            xp = 25 if getattr(result, "is_passed", False) else 15
+            record_user_activity(request.user, xp_amount=xp, activity_type="test")
+        except Exception:
+            pass
 
         return Response(
             {

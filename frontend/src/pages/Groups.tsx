@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLang } from '../i18n/LangContext';
-import { School } from '../lib/api';
-import { FolderOpenIcon, UsersIcon, XIcon } from '../components/icons';
+import { School, WhiteLabelApi } from '../lib/api';
+import { FolderOpenIcon, SettingsIcon, UsersIcon, XIcon } from '../components/icons';
 import type { GroupMember, SchoolGroup } from '../lib/school';
 import { errMessage, getGroupDetail } from '../lib/school';
 
@@ -13,6 +13,17 @@ export default function Groups() {
   const [ok, setOk] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+
+  // White-Label B2B Branding Modal State
+  const [brandingOpen, setBrandingOpen] = useState(false);
+  const [centerName, setCenterName] = useState('');
+  const [headerTitle, setHeaderTitle] = useState('');
+  const [brandColor, setBrandColor] = useState('#1e3a8a');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [stampFile, setStampFile] = useState<File | null>(null);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
+  const [currentStampUrl, setCurrentStampUrl] = useState<string | null>(null);
+  const [savingBranding, setSavingBranding] = useState(false);
 
   // Inline edit state (PATCH /api/v1/school/groups/<id>/).
   const [editing, setEditing] = useState<number | null>(null);
@@ -122,6 +133,42 @@ export default function Groups() {
     flash(`Guruh taklif kodi nusxalandi: ${code}`);
   };
 
+  const openBrandingModal = async () => {
+    setBrandingOpen(true);
+    try {
+      const res = await WhiteLabelApi.get();
+      setCenterName(res.center_name || '');
+      setHeaderTitle(res.header_title || '');
+      setBrandColor(res.brand_color || '#1e3a8a');
+      setCurrentLogoUrl(res.center_logo_url || null);
+      setCurrentStampUrl(res.stamp_signature_url || null);
+    } catch {
+      // fallback
+    }
+  };
+
+  const saveBranding = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingBranding(true);
+    try {
+      const fd = new FormData();
+      fd.append('center_name', centerName);
+      fd.append('header_title', headerTitle);
+      fd.append('brand_color', brandColor);
+      if (logoFile) fd.append('center_logo', logoFile);
+      if (stampFile) fd.append('stamp_signature', stampFile);
+      const res = await WhiteLabelApi.update(fd);
+      flash('Markaz brendi va hisobot sozlamalari muvaffaqiyatli saqlandi!');
+      setCurrentLogoUrl(res.center_logo_url || null);
+      setCurrentStampUrl(res.stamp_signature_url || null);
+      setBrandingOpen(false);
+    } catch (e2: unknown) {
+      setErr(errMessage(e2));
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
   // POST /api/v1/school/groups/ — parity with group_form.html create.
   const create = async (e: FormEvent) => {
     e.preventDefault();
@@ -224,10 +271,31 @@ export default function Groups() {
 
   return (
     <div>
-      <h1>
-        <FolderOpenIcon size={24} className="ico" /> {t('groups')}
-      </h1>
-      <p className="muted small">{t('td_groups_hint')}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>
+            <FolderOpenIcon size={24} className="ico" /> {t('groups')}
+          </h1>
+          <p className="muted small" style={{ margin: '4px 0 0' }}>{t('td_groups_hint')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={openBrandingModal}
+          className="btn sm"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(99, 102, 241, 0.15)',
+            borderColor: 'rgba(99, 102, 241, 0.35)',
+            color: '#a5b4fc',
+            fontWeight: 600,
+          }}
+        >
+          <SettingsIcon size={14} />
+          <span>🎨 Markaz brendi & muhri (White-Label)</span>
+        </button>
+      </div>
       {err && <p className="error">{err}</p>}
       {ok && <p className="badge green">{ok}</p>}
 
@@ -439,6 +507,23 @@ export default function Groups() {
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderColor: '#ef4444', color: '#ef4444' }}
                               >
                                 <span>📄</span> PDF Hisobot
+                              </a>
+                              <a
+                                href={WhiteLabelApi.monthlyReportPdfUrl(g.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn sm"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  background: 'rgba(99, 102, 241, 0.15)',
+                                  borderColor: '#6366f1',
+                                  color: '#818cf8',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <span>📑</span> Oylik A4 Hisobot (White-Label)
                               </a>
                             </div>
 
@@ -680,6 +765,165 @@ export default function Groups() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* White-Label B2B Branding Modal */}
+      {brandingOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setBrandingOpen(false)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: 520,
+              width: '100%',
+              margin: 0,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0f172a',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+              borderRadius: 16,
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>🎨</span> Markaz Brendi & White-Label Sozlamalari
+              </h2>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => setBrandingOpen(false)}
+                aria-label="Yopish"
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+            <p className="muted small" style={{ marginBottom: 16 }}>
+              Ushbu ma'lumotlar ota-onalar yig'ilishi va direktorlar uchun generatsiya qilinadigan rasmiy A4 Oylik PDF hisobotlarida to'liq aks etadi.
+            </p>
+
+            <form onSubmit={saveBranding} style={{ display: 'grid', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                  O'quv markazi / Maktab nomi
+                </label>
+                <input
+                  type="text"
+                  value={centerName}
+                  onChange={(e) => setCenterName(e.target.value)}
+                  placeholder="Masalan: GRAND EDUCATION Karmana filiali"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                  Hisobot bosh sarlavhasi (Header Title)
+                </label>
+                <input
+                  type="text"
+                  value={headerTitle}
+                  onChange={(e) => setHeaderTitle(e.target.value)}
+                  placeholder="Masalan: OYLIK AKADEMIK VA BMB DIAGNOSTIKA HISOBOTI"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 12, alignItems: 'center' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                    Brend rangi
+                  </label>
+                  <input
+                    type="color"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    style={{ height: 40, width: '100%', padding: 2, cursor: 'pointer', borderRadius: 8 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                    Rang kodi (HEX)
+                  </label>
+                  <input
+                    type="text"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    placeholder="#1e3a8a"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                  O'quv markazi logotipi (PNG / JPG)
+                </label>
+                {currentLogoUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <img src={currentLogoUrl} alt="Logo" style={{ height: 36, objectFit: 'contain' }} />
+                    <span className="small muted">Joriy logotip yuklangan</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>
+                  Rasmiy muhr yoki rahbar imzosi (Shaffof PNG tavsiya etiladi)
+                </label>
+                {currentStampUrl && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <img src={currentStampUrl} alt="Muhr" style={{ height: 44, objectFit: 'contain' }} />
+                    <span className="small muted">Joriy muhr yuklangan</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setStampFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => setBrandingOpen(false)}
+                  disabled={savingBranding}
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="btn primary sm"
+                  disabled={savingBranding}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  {savingBranding ? 'Saqlanmoqda...' : '💾 Sozlamalarni saqlash'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

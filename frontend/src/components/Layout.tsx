@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin } from '../lib/api';
+import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin, GamificationApi, type StreakInfoResponse } from '../lib/api';
 import UserNavDropdown from './UserNavDropdown';
 import SubjectSwitcher from './SubjectSwitcher';
 import {
   AwardIcon,
   BarChartIcon,
+  CameraIcon,
   CreditCardIcon,
   CrownIcon,
   FileTextIcon,
+  FlameIcon,
   FolderOpenIcon,
   GamepadIcon,
   HomeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   MenuIcon,
+  MicIcon,
   PenLineIcon,
   ReceiptIcon,
   ShieldCheckIcon,
@@ -25,6 +28,7 @@ import {
   UploadIcon,
   UserPlusIcon,
   UsersIcon,
+  ZapIcon,
   XIcon,
 } from './icons';
 
@@ -45,6 +49,14 @@ export default function Layout() {
   const { t } = useLang();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [streakData, setStreakData] = useState<StreakInfoResponse | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    GamificationApi.streak()
+      .then((res) => setStreakData(res))
+      .catch(() => {});
+  }, [user]);
 
   const onLogout = async () => {
     await logout();
@@ -72,6 +84,8 @@ export default function Layout() {
           <Section title={t('main')}>
             <NavLink to="/dashboard" className={linkClass} onClick={close}><LayoutDashboardIcon size={16} className="ico" /> {t('dashboard')}</NavLink>
             <NavLink to="/tests" className={linkClass} onClick={close}><FileTextIcon size={16} className="ico" /> {t('tests')}</NavLink>
+            <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}><CameraIcon size={16} className="ico" /> Titul (OMR)</NavLink>
+            <NavLink to="/speaking" className={linkClass} onClick={close}><MicIcon size={16} className="ico" /> AI Speaking</NavLink>
             {isStudent && (
               <NavLink to="/results" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> {t('my_results')}</NavLink>
             )}
@@ -141,6 +155,29 @@ export default function Layout() {
             </button>
             <div className="spacer" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {streakData && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#f59e0b',
+                  }}
+                  title={`Ketma-ketlik (Streak): ${streakData.current_streak} kun | Jami: ${streakData.xp_points} XP`}
+                >
+                  <FlameIcon size={14} style={{ color: streakData.is_active_today ? '#ea580c' : '#f59e0b' }} />
+                  <span>{streakData.current_streak}</span>
+                  <span style={{ opacity: 0.4 }}>•</span>
+                  <ZapIcon size={12} style={{ color: '#fbbf24' }} />
+                  <span>{streakData.xp_points} XP</span>
+                </div>
+              )}
               <SubjectSwitcher size="sm" />
               {isAdmin && (
                 <Link

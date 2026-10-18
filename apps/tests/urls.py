@@ -12,7 +12,7 @@ Endpoints:
 """
 from django.urls import path
 
-from . import views, views_placement
+from . import views, views_omr, views_placement
 
 app_name = "tests"
 
@@ -100,5 +100,12 @@ urlpatterns = [
         "placement-quiz/submit/",
         views_placement.placement_quiz_submit_view,
         name="placement-quiz-submit",
+    ),
+
+    # -- OMR Answer Sheet Auto-Scanner ----------------------------------------
+    path(
+        "scan-omr/",
+        views_omr.ScanOMRView.as_view(),
+        name="scan-omr",
     ),
 ]
