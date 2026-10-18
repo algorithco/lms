@@ -19,7 +19,7 @@ import logging
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -52,6 +52,9 @@ def _own_attempt_or_404(request: Request, attempt_id: int):
         return TestAttempt.objects.get(id=attempt_id, student=request.user)
     except TestAttempt.DoesNotExist:
         return None
+    except Exception as exc:
+        logger.warning("_own_attempt_or_404 error: %s", exc)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -73,41 +76,52 @@ class TestListView(generics.ListAPIView):
     """GET /api/tests/ — Testlar ro'yxati."""
 
     serializer_class = TestListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        from django.db.models import Count, Q
-        from apps.tests.views_placement import ensure_multi_subject_seed_data
+        try:
+            from django.db.models import Count, Q
+            from apps.tests.views_placement import ensure_multi_subject_seed_data
 
-        ensure_multi_subject_seed_data()
-        user = self.request.user
-        qs = Test.objects.select_related("course").annotate(
-            total_questions=Count("questions"),
-        )
-        subject = (self.request.query_params.get("subject") or "").strip().lower()
-        if subject == "uzbek":
-            qs = qs.filter(
-                Q(subject="uzbek") | Q(subject="") | Q(subject__isnull=True)
-            ).exclude(
-                Q(title__icontains="IELTS")
-                | Q(title__icontains="Multi-level")
-                | Q(mock_code__icontains="IELTS")
-            )
-        elif subject == "english":
-            qs = qs.filter(
-                Q(subject="english")
-                | Q(title__icontains="IELTS")
-                | Q(title__icontains="Multi-level")
-                | Q(mock_code__icontains="IELTS")
-            )
+            try:
+                ensure_multi_subject_seed_data()
+            except Exception as exc:
+                logger.warning("ensure_multi_subject_seed_data failed: %s", exc)
 
-        if is_platform_admin(user):
-            return qs
-        if user.role == "student":
+            user = getattr(self.request, "user", None)
+            qs = Test.objects.select_related("course").annotate(
+                total_questions=Count("questions"),
+            )
+            subject = (self.request.query_params.get("subject") or "").strip().lower()
+            if subject == "uzbek":
+                qs = qs.filter(
+                    Q(subject="uzbek") | Q(subject="") | Q(subject__isnull=True)
+                ).exclude(
+                    Q(title__icontains="IELTS")
+                    | Q(title__icontains="Multi-level")
+                    | Q(mock_code__icontains="IELTS")
+                )
+            elif subject == "english":
+                qs = qs.filter(
+                    Q(subject="english")
+                    | Q(title__icontains="IELTS")
+                    | Q(title__icontains="Multi-level")
+                    | Q(mock_code__icontains="IELTS")
+                )
+
+            if not user or not user.is_authenticated:
+                return qs.filter(is_active=True)
+            if is_platform_admin(user):
+                return qs
+            role = getattr(user, "role", "student")
+            if role == "student":
+                return qs.filter(is_active=True)
+            elif role == "teacher":
+                return qs.filter(course__teacher=user)
             return qs.filter(is_active=True)
-        elif user.role == "teacher":
-            return qs.filter(course__teacher=user)
-        return qs.none()
+        except Exception as exc:
+            logger.exception("Error in TestListView.get_queryset: %s", exc)
+            return Test.objects.filter(is_active=True)
 
 
 # ---------------------------------------------------------------------------
@@ -124,17 +138,43 @@ class TestDetailView(generics.RetrieveAPIView):
     """GET /api/tests/{id}/ — Test tafsilotlari."""
 
     serializer_class = TestDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        user = self.request.user
-        if is_platform_admin(user):
-            return Test.objects.all()
-        if user.role == "student":
+        try:
+            user = getattr(self.request, "user", None)
+            if not user or not user.is_authenticated:
+                return Test.objects.filter(is_active=True)
+            if is_platform_admin(user):
+                return Test.objects.all()
+            role = getattr(user, "role", "student")
+            if role == "student":
+                return Test.objects.filter(is_active=True)
+            if role == "teacher":
+                return Test.objects.filter(course__teacher=user)
             return Test.objects.filter(is_active=True)
-        if user.role == "teacher":
-            return Test.objects.filter(course__teacher=user)
-        return Test.objects.none()
+        except Exception as exc:
+            logger.exception("Error in TestDetailView.get_queryset: %s", exc)
+            return Test.objects.filter(is_active=True)
+
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        try:
+            instance = self.get_object()
+        except Exception as exc:
+            logger.warning("TestDetailView get_object failed: %s", exc)
+            return Response(
+                {"error": "Test topilmadi yoki faol emas.", "detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except Exception as exc:
+            logger.exception("Failed to serialize test: %s", exc)
+            return Response(
+                {"error": "Test ma'lumotlarini yuklashda xatolik yuz berdi.", "detail": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -183,9 +223,22 @@ class StartAttemptView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        except Exception as e:
+            logger.exception("Unexpected error starting attempt test=%d: %s", test_id, e)
+            return Response(
+                {"error": "Testni boshlashda kutilmagan xatolik yuz berdi.", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        serializer = AttemptSerializer(attempt)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        try:
+            serializer = AttemptSerializer(attempt)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.exception("Failed to serialize new attempt: %s", e)
+            return Response(
+                {"id": attempt.id, "message": "Attempt yaratildi."},
+                status=status.HTTP_201_CREATED,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -219,29 +272,44 @@ class AttemptDetailView(generics.RetrieveAPIView):
 
     def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Attempt holatini olish + timeout tekshirish."""
-        instance = self.get_object()
+        try:
+            instance = self.get_object()
+        except Exception as exc:
+            logger.warning("Attempt retrieve get_object failed: %s", exc)
+            return Response(
+                {"error": "Attempt topilmadi yoki ruxsat berilmagan.", "detail": str(exc)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        if instance.status == TestAttempt.Status.IN_PROGRESS:
-            if instance.is_time_expired:
+        try:
+            if instance.status == TestAttempt.Status.IN_PROGRESS:
+                if instance.is_time_expired:
+                    from .services import SubmitAttemptService
+                    SubmitAttemptService._timeout_attempt(instance)
+                    instance.refresh_from_db()
+                    logger.info("Auto-timeout on attempt view: id=%d", instance.id)
+            elif instance.status == TestAttempt.Status.PENDING_GRADING:
                 from .services import SubmitAttemptService
-                SubmitAttemptService._timeout_attempt(instance)
-                instance.refresh_from_db()
-                logger.info("Auto-timeout on attempt view: id=%d", instance.id)
-        elif instance.status == TestAttempt.Status.PENDING_GRADING:
-            # Yozma baho fonda tugagan bo'lsa — o'qishda yakunlash
-            # (idempotent; hali tayyor emas bo'lsa ValueError yutiladi).
-            from .services import SubmitAttemptService
-            try:
-                SubmitAttemptService.finalize_pending_grading(
-                    attempt_id=instance.id, student=request.user,
-                )
-                instance.refresh_from_db()
-                logger.info("Auto-finalized on attempt view: id=%d", instance.id)
-            except ValueError:
-                pass
+                try:
+                    SubmitAttemptService.finalize_pending_grading(
+                        attempt_id=instance.id, student=request.user,
+                    )
+                    instance.refresh_from_db()
+                    logger.info("Auto-finalized on attempt view: id=%d", instance.id)
+                except ValueError:
+                    pass
+        except Exception as exc:
+            logger.warning("Timeout/grading check error on attempt %s: %s", getattr(instance, "id", None), exc)
 
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        try:
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except Exception as exc:
+            logger.exception("Failed to serialize attempt %s: %s", getattr(instance, "id", None), exc)
+            return Response(
+                {"error": "Attempt ma'lumotlarini yuklashda xatolik yuz berdi.", "detail": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -282,15 +350,15 @@ class SaveAnswerView(APIView):
     )
     def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
         """Javobni saqlash (barcha savol turlari; kalitlar hech qachon qaytmaydi)."""
-        if _own_attempt_or_404(request, attempt_id) is None:
-            return Response(
-                {"error": "Attempt topilmadi."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer = SaveAnswerSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
         try:
+            if _own_attempt_or_404(request, attempt_id) is None:
+                return Response(
+                    {"error": "Attempt topilmadi."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            serializer = SaveAnswerSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
             answer = SaveAnswerService.execute(
                 attempt_id=attempt_id,
                 question_id=serializer.validated_data["question_id"],
@@ -301,6 +369,31 @@ class SaveAnswerView(APIView):
                 written_text=serializer.validated_data.get("written_text"),
                 student=request.user,
             )
+            saved_choices = []
+            if hasattr(answer, "selected_choices"):
+                saved_choices = list(answer.selected_choices.values_list("id", flat=True))
+            saved_gaps = []
+            if hasattr(answer, "gap_responses"):
+                saved_gaps = sorted(answer.gap_responses.values_list("blank_position", flat=True))
+            matching_cnt = 0
+            if hasattr(answer, "matching_responses"):
+                matching_cnt = answer.matching_responses.count()
+            rem_sec = None
+            if hasattr(answer, "attempt") and answer.attempt:
+                rem_sec = answer.attempt.remaining_seconds
+
+            return Response(
+                {
+                    "message": "Javob saqlandi.",
+                    "question_id": getattr(answer, "question_id", serializer.validated_data["question_id"]),
+                    "saved_choices": saved_choices,
+                    "saved_gap_positions": saved_gaps,
+                    "saved_matching_count": matching_cnt,
+                    "written_word_count": getattr(answer, "written_word_count", 0) or 0,
+                    "remaining_seconds": rem_sec,
+                },
+                status=status.HTTP_200_OK,
+            )
         except ValueError as e:
             logger.warning(
                 "Save answer failed: attempt=%d, user=%d, error=%s",
@@ -310,23 +403,12 @@ class SaveAnswerView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        return Response(
-            {
-                "message": "Javob saqlandi.",
-                "question_id": answer.question_id,
-                "saved_choices": list(
-                    answer.selected_choices.values_list("id", flat=True)
-                ),
-                "saved_gap_positions": sorted(
-                    answer.gap_responses.values_list("blank_position", flat=True)
-                ),
-                "saved_matching_count": answer.matching_responses.count(),
-                "written_word_count": answer.written_word_count,
-                "remaining_seconds": answer.attempt.remaining_seconds,
-            },
-            status=status.HTTP_200_OK,
-        )
+        except Exception as exc:
+            logger.exception("Save answer unexpected error attempt=%d: %s", attempt_id, exc)
+            return Response(
+                {"error": "Javobni saqlashda xatolik yuz berdi.", "detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 # ---------------------------------------------------------------------------

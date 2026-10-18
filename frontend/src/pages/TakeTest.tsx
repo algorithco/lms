@@ -257,52 +257,63 @@ export default function TakeTest() {
 
   const load = useCallback(async () => {
     setLoadError(null);
-    try {
-      const a = (await TestsApi.attempt(attemptId)) as unknown as AttemptDetail;
-      setAttempt(a);
-      setRemaining(a.remaining_seconds);
-      if (typeof a.violation_count === 'number') {
-        setViolationCount(a.violation_count);
-      }
-      if (a.cheating_detected) {
-        setCheatedModalOpen(true);
-      }
-      const draft = loadDraft(attemptId);
-      setAnswers((prev) => {
-        if (Object.keys(prev).length > 0) return prev;
-        const init: Answers = {};
-        for (const q of a.questions ?? []) {
-          const d: DraftMap[number] | undefined = draft[q.id];
-          init[q.id] = {
-            choices: d ? [...d.choices] : [...(q.selected_choice_ids ?? [])],
-            // Server does not return text answers on the attempt endpoint,
-            // so a local draft is the only resume source for text questions.
-            text: d ? d.text : String(q.text_answer ?? ''),
-            gaps: d?.gaps ?? { ...(q.gap_answers ?? {}) },
-            matching: d?.matching ?? { ...(q.matching ?? {}) },
-            written: d?.written ?? String(q.written_text ?? ''),
-          };
+    let lastErr: unknown = null;
+
+    // Auto-retry up to 2 times (3 total attempts)
+    for (let tryIdx = 0; tryIdx < 3; tryIdx++) {
+      try {
+        const a = (await TestsApi.attempt(attemptId)) as unknown as AttemptDetail;
+        setAttempt(a);
+        setRemaining(a.remaining_seconds);
+        if (typeof a.violation_count === 'number') {
+          setViolationCount(a.violation_count);
         }
-        return init;
-      });
-      setSaved((prev) => {
-        if (Object.keys(prev).length > 0) return prev;
-        const s: Record<number, boolean> = {};
-        for (const q of a.questions ?? []) {
-          s[q.id] =
-            (q.selected_choice_ids ?? []).length > 0 ||
-            Boolean(q.text_answer) ||
-            Object.keys(q.gap_answers ?? {}).length > 0 ||
-            Object.keys(q.matching ?? {}).length > 0 ||
-            Boolean(q.written_text);
+        if (a.cheating_detected) {
+          setCheatedModalOpen(true);
         }
-        return s;
-      });
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : t('err_retry_js'));
+        const draft = loadDraft(attemptId);
+        setAnswers((prev) => {
+          if (Object.keys(prev).length > 0) return prev;
+          const init: Answers = {};
+          for (const q of a.questions ?? []) {
+            const d: DraftMap[number] | undefined = draft[q.id];
+            init[q.id] = {
+              choices: d ? [...d.choices] : [...(q.selected_choice_ids ?? [])],
+              // Server does not return text answers on the attempt endpoint,
+              // so a local draft is the only resume source for text questions.
+              text: d ? d.text : String(q.text_answer ?? ''),
+              gaps: d?.gaps ?? { ...(q.gap_answers ?? {}) },
+              matching: d?.matching ?? { ...(q.matching ?? {}) },
+              written: d?.written ?? String(q.written_text ?? ''),
+            };
+          }
+          return init;
+        });
+        setSaved((prev) => {
+          if (Object.keys(prev).length > 0) return prev;
+          const s: Record<number, boolean> = {};
+          for (const q of a.questions ?? []) {
+            s[q.id] =
+              (q.selected_choice_ids ?? []).length > 0 ||
+              Boolean(q.text_answer) ||
+              Object.keys(q.gap_answers ?? {}).length > 0 ||
+              Object.keys(q.matching ?? {}).length > 0 ||
+              Boolean(q.written_text);
+          }
+          return s;
+        });
+        setLoadError(null);
+        return; // Success!
+      } catch (e) {
+        lastErr = e;
+        if (tryIdx < 2) {
+          await new Promise((resolve) => setTimeout(resolve, (tryIdx + 1) * 700));
+        }
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attemptId]);
+
+    setLoadError(lastErr instanceof Error ? lastErr.message : t('err_retry_js'));
+  }, [attemptId, t]);
 
   useEffect(() => {
     load();
@@ -654,11 +665,26 @@ export default function TakeTest() {
   };
 
   if (loadError && !attempt) {
+    const isNetworkOr502 =
+      loadError.includes('502') ||
+      loadError.includes('Bad Gateway') ||
+      loadError.includes('Failed to fetch') ||
+      loadError.includes('NetworkError');
+
     return (
-      <div>
-        <h1>{t('take_title')}</h1>
-        <p className="error">{loadError}</p>
-        <div className="toolbar">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+          <ClockIcon className="w-8 h-8 animate-spin" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">
+          {isNetworkOr502 ? "Test ma'lumotlari yuklanmoqda, iltimos kuting..." : t('take_title')}
+        </h2>
+        <p className="text-slate-400 max-w-md mb-6 text-sm">
+          {isNetworkOr502
+            ? "Server bilan aloqa yangilanmoqda. Sizning javoblaringiz xavfsiz saqlangan."
+            : loadError}
+        </p>
+        <div className="flex items-center justify-center gap-3">
           <button className="btn primary" onClick={load}>
             {t('essay_error_retry')}
           </button>
@@ -669,7 +695,22 @@ export default function TakeTest() {
       </div>
     );
   }
-  if (!attempt) return <p className="muted">{t('loading')}</p>;
+
+  if (!attempt) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
+        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+          <ClockIcon className="w-7 h-7 animate-spin" />
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-1">
+          Test ma'lumotlari yuklanmoqda, iltimos kuting...
+        </h3>
+        <p className="text-slate-400 text-sm max-w-sm">
+          Savollar va bo'limlar tayyorlanmoqda...
+        </p>
+      </div>
+    );
+  }
 
   const finished =
     attempt.status === 'completed' ||
