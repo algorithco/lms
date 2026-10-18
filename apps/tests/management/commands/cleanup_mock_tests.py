@@ -45,18 +45,29 @@ class Command(BaseCommand):
         tests_qs = Test.objects.filter(mock_code__in=unique_codes)
         found_count = tests_qs.count()
 
-        if found_count == 0:
-            self.stdout.write(self.style.WARNING("No matching mock tests found in the database."))
-            return
+        if found_count > 0:
+            deleted_summary = []
+            for test in tests_qs:
+                deleted_summary.append(f"ID={test.id}, Title='{test.title}', Code='{test.mock_code}'")
 
-        deleted_summary = []
-        for test in tests_qs:
-            deleted_summary.append(f"ID={test.id}, Title='{test.title}', Code='{test.mock_code}'")
-
-        count, deleted_breakdown = tests_qs.delete()
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Successfully deleted {found_count} test(s) ({count} related objects):\n"
-                + "\n".join(f"  - {item}" for item in deleted_summary)
+            count, deleted_breakdown = tests_qs.delete()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Successfully deleted {found_count} test(s) ({count} related objects):\n"
+                    + "\n".join(f"  - {item}" for item in deleted_summary)
+                )
             )
-        )
+        else:
+            self.stdout.write(self.style.WARNING("No matching mock tests found in the database."))
+
+        # Clean legacy mock essay topics (Remote Work, Renewable Energy, Artificial Intelligence)
+        from apps.essays.models import EssayTopic
+
+        sample_titles = ["Remote Work", "Renewable Energy", "Artificial Intelligence"]
+        for sample in sample_titles:
+            del_count, _ = EssayTopic.objects.filter(title__icontains=sample).delete()
+            if del_count:
+                self.stdout.write(
+                    self.style.SUCCESS(f"Cleaned up mock essays matching '{sample}': {del_count} deleted.")
+                )
+

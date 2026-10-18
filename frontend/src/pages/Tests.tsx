@@ -17,7 +17,10 @@ export default function Tests() {
   const [hasPrev, setHasPrev] = useState(false);
   const [query, setQuery] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'milliy' | 'attestatsiya' | 'arena'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'milliy' | 'attestatsiya' | 'arena' | 'ielts' | 'multilevel'>('all');
+  const [activeSub, setActiveSub] = useState<'uzbek' | 'english'>(() => {
+    return (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
+  });
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +73,11 @@ export default function Tests() {
   const [subjectTick, setSubjectTick] = useState(0);
 
   useEffect(() => {
-    const handler = () => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<'uzbek' | 'english'>;
+      const next = customEvent.detail || (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
+      setActiveSub(next);
+      setCategoryFilter('all');
       setPage(1);
       setSubjectTick((v) => v + 1);
     };
@@ -82,7 +89,6 @@ export default function Tests() {
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    const activeSub = (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
     listTestsPage(page, activeSub)
       .then((p: Paginated<TestListItem>) => {
         if (cancelled) return;
@@ -101,7 +107,35 @@ export default function Tests() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, subjectTick]);
+  }, [page, activeSub, subjectTick]);
+
+  const isEnglishTest = (item: TestListItem) => {
+    const title = String(item.title ?? '').toLowerCase();
+    const course = String(item.course_title ?? '').toLowerCase();
+    const mock = String(item.mock_code ?? '').toLowerCase();
+    const subj = String((item as Record<string, unknown>).subject ?? '').toLowerCase();
+    return (
+      subj === 'english' ||
+      title.includes('ielts') ||
+      title.includes('multi-level') ||
+      title.includes('cefr') ||
+      course.includes('ielts') ||
+      mock.includes('ielts')
+    );
+  };
+
+  const isIeltsTest = (item: TestListItem) => {
+    const title = String(item.title ?? '').toLowerCase();
+    const course = String(item.course_title ?? '').toLowerCase();
+    const mock = String(item.mock_code ?? '').toLowerCase();
+    return title.includes('ielts') || course.includes('ielts') || mock.includes('ielts');
+  };
+
+  const isMultiLevelTest = (item: TestListItem) => {
+    const title = String(item.title ?? '').toLowerCase();
+    const course = String(item.course_title ?? '').toLowerCase();
+    return title.includes('multi-level') || title.includes('cefr') || course.includes('multi-level');
+  };
 
   const isMockAttest = (item: TestListItem) =>
     item.mock_code === '#MOCK-ATTEST2026' ||
@@ -132,6 +166,17 @@ export default function Tests() {
       const matchDiff = !difficulty || String(item.difficulty ?? '') === difficulty;
       if (!matchSearch || !matchDiff) return false;
 
+      // Strict subject segregation
+      const isEng = isEnglishTest(item);
+      if (activeSub === 'uzbek' && isEng) return false;
+      if (activeSub === 'english' && !isEng) return false;
+
+      if (activeSub === 'english') {
+        if (categoryFilter === 'ielts') return isIeltsTest(item);
+        if (categoryFilter === 'multilevel') return isMultiLevelTest(item);
+        return true;
+      }
+
       if (categoryFilter === 'attestatsiya') {
         return isMockAttest(item);
       }
@@ -155,7 +200,7 @@ export default function Tests() {
       const bWeight = isMockAttest(b) ? 3 : isMockBmbDiag(b) ? 2 : isMock4(b) ? 1 : 0;
       return bWeight - aWeight;
     });
-  }, [tests, query, difficulty, categoryFilter]);
+  }, [tests, query, difficulty, categoryFilter, activeSub]);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
@@ -183,145 +228,210 @@ export default function Tests() {
       <p className="muted">{t('available_tests_hint')}</p>
 
       {/* 🎯 Mock Testga Kod Bilan Qo'shilish */}
-      <div
-        className="card"
-        style={{
-          margin: '16px 0 20px',
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.35)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#10b981' }}>
-              <span>🎯</span> Mock Testga Kod Bilan Qo‘shilish
-            </strong>
-            <p className="muted small" style={{ margin: '4px 0 0' }}>
-              Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
-            </p>
-            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn sm"
-                style={{
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  border: '1px solid #8b5cf6',
-                  color: '#a78bfa',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  padding: '4px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.2s ease',
-                }}
-                disabled={mockBusy}
-                onClick={() => {
-                  setMockCode('#MOCK-ATTEST2026');
-                  executeJoin('#MOCK-ATTEST2026');
-                }}
-              >
-                🎓 #MOCK-ATTEST2026 (Attestatsiya Diagnostika 2026) →
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1px solid #f59e0b',
-                  color: '#f59e0b',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  padding: '4px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.2s ease',
-                }}
-                disabled={mockBusy}
-                onClick={() => {
-                  setMockCode('#MOCK-BMB-DIAGNOSTIC');
-                  executeJoin('#MOCK-BMB-DIAGNOSTIC');
-                }}
-              >
-                🔥 #MOCK-BMB-DIAGNOSTIC (BMB Rasmiy Mock Test) →
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid #10b981',
-                  color: '#10b981',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  padding: '4px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.2s ease',
-                }}
-                disabled={mockBusy}
-                onClick={() => {
-                  setMockCode('#MOCK-BMB04');
-                  executeJoin('#MOCK-BMB04');
-                }}
-              >
-                ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4) →
-              </button>
+      {activeSub === 'english' ? (
+        <div
+          className="card"
+          style={{
+            margin: '16px 0 20px',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#38bdf8' }}>
+                <span>🎯</span> English CBT Mock & Exam Access
+              </strong>
+              <p className="muted small" style={{ margin: '4px 0 0' }}>
+                Enter your instructor's test code or practice code to begin:
+              </p>
             </div>
+            <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={mockCode}
+                onChange={(e) => {
+                  setMockCode(e.target.value);
+                  if (mockErr) setMockErr(null);
+                }}
+                placeholder="#IELTS-CBT-01"
+                required
+                style={{
+                  width: '180px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                }}
+              />
+              <button className="btn primary sm" disabled={mockBusy}>
+                {mockBusy ? 'Connecting…' : '🚀 Start Exam'}
+              </button>
+            </form>
           </div>
-          <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={mockCode}
-              onChange={(e) => {
-                setMockCode(e.target.value);
-                if (mockErr) setMockErr(null);
-              }}
-              placeholder="#MOCK-BMB-DIAGNOSTIC"
-              required
+          {mockErr && (
+            <div
               style={{
-                width: '180px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
               }}
-            />
-            <button className="btn primary sm" disabled={mockBusy}>
-              {mockBusy ? 'Ulanmoqda…' : '🚀 Testni boshlash'}
-            </button>
-          </form>
+            >
+              <span>⚠️</span>
+              <span>{mockErr}</span>
+            </div>
+          )}
         </div>
-        {mockErr && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: '10px 14px',
-              borderRadius: 8,
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#f87171',
-              fontSize: 13,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <span>⚠️</span>
-            <span>{mockErr}</span>
+      ) : (
+        <div
+          className="card"
+          style={{
+            margin: '16px 0 20px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#10b981' }}>
+                <span>🎯</span> Mock Testga Kod Bilan Qo‘shilish
+              </strong>
+              <p className="muted small" style={{ margin: '4px 0 0' }}>
+                Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
+              </p>
+              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid #8b5cf6',
+                    color: '#a78bfa',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.2s ease',
+                  }}
+                  disabled={mockBusy}
+                  onClick={() => {
+                    setMockCode('#MOCK-ATTEST2026');
+                    executeJoin('#MOCK-ATTEST2026');
+                  }}
+                >
+                  🎓 #MOCK-ATTEST2026 (Attestatsiya Diagnostika 2026) →
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid #f59e0b',
+                    color: '#f59e0b',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.2s ease',
+                  }}
+                  disabled={mockBusy}
+                  onClick={() => {
+                    setMockCode('#MOCK-BMB-DIAGNOSTIC');
+                    executeJoin('#MOCK-BMB-DIAGNOSTIC');
+                  }}
+                >
+                  🔥 #MOCK-BMB-DIAGNOSTIC (BMB Rasmiy Mock Test) →
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid #10b981',
+                    color: '#10b981',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.2s ease',
+                  }}
+                  disabled={mockBusy}
+                  onClick={() => {
+                    setMockCode('#MOCK-BMB04');
+                    executeJoin('#MOCK-BMB04');
+                  }}
+                >
+                  ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4) →
+                </button>
+              </div>
+            </div>
+            <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={mockCode}
+                onChange={(e) => {
+                  setMockCode(e.target.value);
+                  if (mockErr) setMockErr(null);
+                }}
+                placeholder="#MOCK-BMB-DIAGNOSTIC"
+                required
+                style={{
+                  width: '180px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                }}
+              />
+              <button className="btn primary sm" disabled={mockBusy}>
+                {mockBusy ? 'Ulanmoqda…' : '🚀 Testni boshlash'}
+              </button>
+            </form>
           </div>
-        )}
-      </div>
+          {mockErr && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                borderRadius: 8,
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span>⚠️</span>
+              <span>{mockErr}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 🏷 Toifalar Bo'limi (Category Filter) */}
       <div
@@ -333,54 +443,101 @@ export default function Tests() {
           alignItems: 'center',
         }}
       >
-        <button
-          type="button"
-          className={`btn sm ${categoryFilter === 'all' ? 'primary' : 'ghost'}`}
-          onClick={() => setCategoryFilter('all')}
-          style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
-        >
-          🌐 Barchasi
-        </button>
-        <button
-          type="button"
-          className={`btn sm ${categoryFilter === 'milliy' ? 'primary' : 'ghost'}`}
-          onClick={() => setCategoryFilter('milliy')}
-          style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
-        >
-          📜 Milliy Sertifikat
-        </button>
-        <button
-          type="button"
-          className={`btn sm ${categoryFilter === 'attestatsiya' ? 'primary' : 'ghost'}`}
-          onClick={() => setCategoryFilter('attestatsiya')}
-          style={{
-            borderRadius: 20,
-            padding: '6px 16px',
-            fontWeight: 700,
-            borderColor: categoryFilter === 'attestatsiya' ? '#8b5cf6' : undefined,
-            background: categoryFilter === 'attestatsiya' ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : undefined,
-            color: categoryFilter === 'attestatsiya' ? '#fff' : undefined,
-            boxShadow: categoryFilter === 'attestatsiya' ? '0 0 12px rgba(139, 92, 246, 0.4)' : undefined,
-          }}
-        >
-          🎓 Attestatsiya (Ustozlar uchun)
-        </button>
-        <button
-          type="button"
-          className={`btn sm ${categoryFilter === 'arena' ? 'primary' : 'ghost'}`}
-          onClick={() => setCategoryFilter('arena')}
-          style={{
-            borderRadius: 20,
-            padding: '6px 16px',
-            fontWeight: 700,
-            borderColor: categoryFilter === 'arena' ? '#f59e0b' : undefined,
-            background: categoryFilter === 'arena' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : undefined,
-            color: categoryFilter === 'arena' ? '#111' : undefined,
-            boxShadow: categoryFilter === 'arena' ? '0 0 12px rgba(245, 158, 11, 0.4)' : undefined,
-          }}
-        >
-          ⚔️ 1v1 Arena
-        </button>
+        {activeSub === 'english' ? (
+          <>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'all' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('all')}
+              style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
+            >
+              🌐 All Tests
+            </button>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'ielts' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('ielts')}
+              style={{
+                borderRadius: 20,
+                padding: '6px 16px',
+                fontWeight: 700,
+                borderColor: categoryFilter === 'ielts' ? '#f59e0b' : undefined,
+                background: categoryFilter === 'ielts' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : undefined,
+                color: categoryFilter === 'ielts' ? '#0f172a' : undefined,
+                boxShadow: categoryFilter === 'ielts' ? '0 0 12px rgba(245, 158, 11, 0.4)' : undefined,
+              }}
+            >
+              🎓 IELTS (Academic & General)
+            </button>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'multilevel' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('multilevel')}
+              style={{
+                borderRadius: 20,
+                padding: '6px 16px',
+                fontWeight: 700,
+                borderColor: categoryFilter === 'multilevel' ? '#10b981' : undefined,
+                background: categoryFilter === 'multilevel' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
+                color: categoryFilter === 'multilevel' ? '#0f172a' : undefined,
+                boxShadow: categoryFilter === 'multilevel' ? '0 0 12px rgba(16, 185, 129, 0.4)' : undefined,
+              }}
+            >
+              🎯 CEFR Multi-level (B2/C1)
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'all' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('all')}
+              style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
+            >
+              🌐 Barchasi
+            </button>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'milliy' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('milliy')}
+              style={{ borderRadius: 20, padding: '6px 16px', fontWeight: 700 }}
+            >
+              📜 Milliy Sertifikat
+            </button>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'attestatsiya' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('attestatsiya')}
+              style={{
+                borderRadius: 20,
+                padding: '6px 16px',
+                fontWeight: 700,
+                borderColor: categoryFilter === 'attestatsiya' ? '#8b5cf6' : undefined,
+                background: categoryFilter === 'attestatsiya' ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : undefined,
+                color: categoryFilter === 'attestatsiya' ? '#fff' : undefined,
+                boxShadow: categoryFilter === 'attestatsiya' ? '0 0 12px rgba(139, 92, 246, 0.4)' : undefined,
+              }}
+            >
+              🎓 Attestatsiya (Ustozlar uchun)
+            </button>
+            <button
+              type="button"
+              className={`btn sm ${categoryFilter === 'arena' ? 'primary' : 'ghost'}`}
+              onClick={() => setCategoryFilter('arena')}
+              style={{
+                borderRadius: 20,
+                padding: '6px 16px',
+                fontWeight: 700,
+                borderColor: categoryFilter === 'arena' ? '#f59e0b' : undefined,
+                background: categoryFilter === 'arena' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : undefined,
+                color: categoryFilter === 'arena' ? '#111' : undefined,
+                boxShadow: categoryFilter === 'arena' ? '0 0 12px rgba(245, 158, 11, 0.4)' : undefined,
+              }}
+            >
+              ⚔️ 1v1 Arena
+            </button>
+          </>
+        )}
       </div>
 
       {categoryFilter === 'arena' && (

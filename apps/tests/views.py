@@ -76,7 +76,7 @@ class TestListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        from django.db.models import Count
+        from django.db.models import Count, Q
         from apps.tests.views_placement import ensure_multi_subject_seed_data
 
         ensure_multi_subject_seed_data()
@@ -85,8 +85,21 @@ class TestListView(generics.ListAPIView):
             total_questions=Count("questions"),
         )
         subject = (self.request.query_params.get("subject") or "").strip().lower()
-        if subject in ("uzbek", "english"):
-            qs = qs.filter(subject=subject)
+        if subject == "uzbek":
+            qs = qs.filter(
+                Q(subject="uzbek") | Q(subject="") | Q(subject__isnull=True)
+            ).exclude(
+                Q(title__icontains="IELTS")
+                | Q(title__icontains="Multi-level")
+                | Q(mock_code__icontains="IELTS")
+            )
+        elif subject == "english":
+            qs = qs.filter(
+                Q(subject="english")
+                | Q(title__icontains="IELTS")
+                | Q(title__icontains="Multi-level")
+                | Q(mock_code__icontains="IELTS")
+            )
 
         if is_platform_admin(user):
             return qs

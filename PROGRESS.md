@@ -287,6 +287,33 @@
   * Barcha 9 ta multi-subject va superadmin testlari: **9/9 PASSED (100%)**.
   * Frontend build (`npm run build`): 0 xatolik bilan 1.69s da muvaffaqiyatli yig'ildi.
 
+### 2.17. Esselar (/essays) va Testlar (/tests) Bo'limida Qat'iy Fan/Toifa Segregatsiyasi, Sun'iy Mavzularni Tozalash va UI/UX Mukammallashtirish
+- [x] Sun'iy / Keraksiz Esse Mavzularini Bazadan Tozalash:
+  * Namuna mavzular ("Remote Work", "Renewable Energy", "Artificial Intelligence") bazadan tozalanishi uchun `cleanup_mock_tests` boshqaruv buyrug'iga to'liq integratsiya qilindi.
+  * `apps/tests/views_placement.py` dagi namuna mavzularni avtomatik qayta yaratish funksiyasi olib tashlandi — endi platformada faqat foydalanuvchi/ustozlar o'zlari kiritgan esselar va testlar saqlanadi.
+  * `deploy/remote-deploy.sh` ga `python manage.py shell` orqali jonli bazadagi namuna mavzularni o'chirish buyrug'i kiritildi.
+- [x] Fan va Imtihon Toifasi Bo'yicha Qat'iy Segregatsiya:
+  * Backend (`apps/telegram_app/views.py`):
+    - `tma_essay_topics_view` va `tma_essay_submissions_view` endpointlariga `subject` va `category` parametrlari bo'yicha qat'iy filtrlash qo'shildi.
+    - `subject=uzbek` so'ralganda, barcha IELTS, Multi-level va CEFR mavzulari 100% chiqarib tashlanadi (exclude).
+    - `subject=english` so'ralganda, faqat ingliz tili mavzulari qaytadi; `category=ielts` so'ralganda faqat IELTS Task 1 & 2 mavzulari, `category=multilevel` so'ralganda faqat CEFR Multi-level mavzulari filtrlangan holda beriladi.
+  * Backend (`apps/tests/views.py`):
+    - `TestListView` da `subject=uzbek` va `subject=english` bo'yicha qat'iy ajratish o'rnatildi.
+  * Frontend (`frontend/src/pages/EssayTopics.tsx`):
+    - Fan almashganda (`subject-changed` hodisasi) sahifa darhol yangilanadi.
+    - "🇺🇿 Ona tili" tanlanganda: faqat BMB Milliy sertifikat va Adabiyot esselari ko'rinadi.
+    - "🇬🇧 English" tanlanganda: sahifa yuqorisida 2 ta toza sub-tab chiqariladi:
+      `[ 🎓 IELTS (Academic & General) ]`    `[ 🎯 CEFR Multi-level (B2/C1) ]`
+    - Har bir mavzu kartochkasida toifasi rangli toza nishon bilan ko'rinadi (`[🎓 IELTS Task 1]`, `[🎓 IELTS Task 2]`, `[🎯 CEFR Multi-level]`, `[📜 Milliy sertifikat]`, `[📚 Adabiyot]`).
+    - Topshirilgan esselar jadvalida (`My Writing Submissions`) ham mos toifalar va IELTS/Multi-level uchun Band ballari render qilinadi.
+  * Frontend (`frontend/src/pages/Tests.tsx`):
+    - "🇺🇿 Ona tili"da: Milliy Sertifikat, Attestatsiya va 1v1 Arena toifalari hamda Attestatsiya / BMB rasmiy mock tugmalari.
+    - "🇬🇧 English"da: All Tests, IELTS (Academic & General) va CEFR Multi-level toifalari hamda English CBT Mock access paneli.
+- [x] Sifat, Testlar va Sinovlar:
+  * `tests/test_superadmin_and_cleanup.py`: Mock esselarni tozalash va qat'iy API segregatsiyasi testlari yozildi va 6/6 test muvaffaqiyatli o'tdi (**100% PASS**).
+  * `tests/test_multi_subject_exam_mode.py`: Barcha testlar **100% PASS**.
+  * Frontend build (`npm run build`): TypeScript va Vite 0 xatolik bilan 1.70s da muvaffaqiyatli yig'ildi.
+
 ---
 
 ## 3. Jarayonda
@@ -296,7 +323,8 @@
 
 ## 4. Keyingi qadamlar
 - Yangilangan kodlarni git commit qilib, `origin main` ga push qilish.
-- Contabo VPS (`169.58.58.229`) ga deploy qilish, `cleanup_mock_tests` va `promote_superadmin` buyruqlarini jonli serverda bajarish.
+- Contabo VPS (`169.58.58.229`) ga deploy qilish, `cleanup_mock_tests` va mock essay tozalash buyruqlarini jonli serverda bajarish.
 - `https://grandec.uz/healthz/` holatini tekshirish.
+
 
 

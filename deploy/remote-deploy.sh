@@ -118,6 +118,7 @@ done
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py migrate --check < /dev/null
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py check --deploy < /dev/null
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py cleanup_mock_tests < /dev/null || true
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py shell -c "from apps.essays.models import EssayTopic; EssayTopic.objects.filter(title__icontains='Remote Work').delete(); EssayTopic.objects.filter(title__icontains='Renewable Energy').delete(); EssayTopic.objects.filter(title__icontains='Artificial Intelligence').delete(); print('Cleaned up mock essays.')" < /dev/null || true
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T web python manage.py promote_superadmin --telegram-id 5582178765 < /dev/null || true
 # Smoke test is advisory-only (informational model-catalog check): bound it
 # with `timeout` so a stalled provider response (e.g. /models body that never

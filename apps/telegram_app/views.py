@@ -386,15 +386,52 @@ def tma_results_view(request: Request) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_essay_topics_view(request: Request) -> Response:
-    """GET /api/telegram/essays/topics/?subject=uzbek|english — Essay topics for TMA & Web."""
+    """GET /api/telegram/essays/topics/?subject=uzbek|english&category=ielts|multilevel — Essay topics for TMA & Web."""
     from apps.essays.models import EssayTopic, EssaySubmission
     from apps.tests.views_placement import ensure_multi_subject_seed_data
+    from django.db.models import Q
 
     ensure_multi_subject_seed_data()
     subject_filter = (request.query_params.get("subject") or "").strip().lower()
+    category_filter = (request.query_params.get("category") or "").strip().lower()
     topics_qs = EssayTopic.objects.filter(is_active=True)
-    if subject_filter in ("uzbek", "english"):
-        topics_qs = topics_qs.filter(subject=subject_filter)
+
+    if subject_filter == "english":
+        topics_qs = topics_qs.filter(
+            Q(subject="english")
+            | Q(category__in=["ielts_task1", "ielts_task2", "multilevel"])
+            | Q(rubric_type__in=["ielts_task1", "ielts_task2"])
+            | Q(title__icontains="IELTS")
+            | Q(title__icontains="Multi-level")
+            | Q(title__icontains="CEFR")
+        )
+        if category_filter == "ielts":
+            topics_qs = topics_qs.filter(
+                Q(category__in=["ielts_task1", "ielts_task2"])
+                | Q(rubric_type__in=["ielts_task1", "ielts_task2"])
+                | Q(title__icontains="IELTS")
+            ).exclude(
+                Q(category="multilevel") | Q(title__icontains="Multi-level")
+            )
+        elif category_filter in ("multilevel", "multi-level", "cefr"):
+            topics_qs = topics_qs.filter(
+                Q(category="multilevel")
+                | Q(title__icontains="Multi-level")
+                | Q(title__icontains="CEFR")
+            ).exclude(
+                Q(category__in=["ielts_task1", "ielts_task2"]) | Q(title__icontains="IELTS")
+            )
+    elif subject_filter == "uzbek":
+        topics_qs = topics_qs.filter(
+            Q(subject="uzbek") | Q(subject="") | Q(subject__isnull=True)
+        ).exclude(
+            Q(category__in=["ielts_task1", "ielts_task2", "multilevel"])
+            | Q(rubric_type__in=["ielts_task1", "ielts_task2"])
+            | Q(title__icontains="IELTS")
+            | Q(title__icontains="Multi-level")
+            | Q(title__icontains="CEFR")
+        )
+
     topics = topics_qs.order_by("-created_at")
 
     # User's submissions per topic
@@ -450,13 +487,50 @@ def tma_essay_topics_view(request: Request) -> Response:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_essay_submissions_view(request: Request) -> Response:
-    """GET /api/telegram/essays/?subject=uzbek|english — User's essay submissions for TMA & Web."""
+    """GET /api/telegram/essays/?subject=uzbek|english&category=ielts|multilevel — User's essay submissions for TMA & Web."""
     from apps.essays.models import EssaySubmission
+    from django.db.models import Q
 
     subject_filter = (request.query_params.get("subject") or "").strip().lower()
+    category_filter = (request.query_params.get("category") or "").strip().lower()
     qs = EssaySubmission.objects.filter(student=request.user).select_related("topic")
-    if subject_filter in ("uzbek", "english"):
-        qs = qs.filter(topic__subject=subject_filter)
+
+    if subject_filter == "english":
+        qs = qs.filter(
+            Q(topic__subject="english")
+            | Q(topic__category__in=["ielts_task1", "ielts_task2", "multilevel"])
+            | Q(topic__rubric_type__in=["ielts_task1", "ielts_task2"])
+            | Q(topic__title__icontains="IELTS")
+            | Q(topic__title__icontains="Multi-level")
+            | Q(topic__title__icontains="CEFR")
+        )
+        if category_filter == "ielts":
+            qs = qs.filter(
+                Q(topic__category__in=["ielts_task1", "ielts_task2"])
+                | Q(topic__rubric_type__in=["ielts_task1", "ielts_task2"])
+                | Q(topic__title__icontains="IELTS")
+            ).exclude(
+                Q(topic__category="multilevel") | Q(topic__title__icontains="Multi-level")
+            )
+        elif category_filter in ("multilevel", "multi-level", "cefr"):
+            qs = qs.filter(
+                Q(topic__category="multilevel")
+                | Q(topic__title__icontains="Multi-level")
+                | Q(topic__title__icontains="CEFR")
+            ).exclude(
+                Q(topic__category__in=["ielts_task1", "ielts_task2"]) | Q(topic__title__icontains="IELTS")
+            )
+    elif subject_filter == "uzbek":
+        qs = qs.filter(
+            Q(topic__subject="uzbek") | Q(topic__subject="") | Q(topic__subject__isnull=True)
+        ).exclude(
+            Q(topic__category__in=["ielts_task1", "ielts_task2", "multilevel"])
+            | Q(topic__rubric_type__in=["ielts_task1", "ielts_task2"])
+            | Q(topic__title__icontains="IELTS")
+            | Q(topic__title__icontains="Multi-level")
+            | Q(topic__title__icontains="CEFR")
+        )
+
     submissions = qs.order_by("-updated_at")[:20]
 
     return Response({
@@ -466,6 +540,7 @@ def tma_essay_submissions_view(request: Request) -> Response:
                 "topic_id": s.topic_id,
                 "topic_title": s.topic.title if s.topic else "",
                 "subject": s.topic.subject if s.topic else "uzbek",
+                "category": s.topic.category if s.topic else "",
                 "rubric_type": s.topic.rubric_type if s.topic else "bmb_12",
                 "status": s.status,
                 "total_score": float(s.total_score) if s.total_score is not None else None,
