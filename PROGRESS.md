@@ -403,17 +403,23 @@
   * Frontend build: `npm run build` — 0 xato bilan toza yig'ildi.
   * Linter: `ruff check` — 0 xato.
 
+- [x] Contabo VPS (`169.58.58.229`) Deploy va Jonli Sinov:
+  * GitHub Actions CI/CD (`build.yml` va `deploy.yml`) 100% muvaffaqiyatli yakunlandi.
+  * Barcha konteynerlar (`web`, `celery-worker`, `celery-beat`, `bot`, `nginx`, `redis`, `db`) jonli serverda `(healthy)` holatda ishlamoqda.
+  * Jonli tekshiruv: `curl.exe https://grandec.uz/healthz/` -> `{"status":"ok","db":true,"version":"1.6.0"}` (HTTP 200 OK).
+  * Panel guruhlar va davomat monitoringi endpointlari jonli bazadagi ma'lumotlar bilan muvaffaqiyatli tekshirildi.
+  * Superadmin hisobi `admin@grandec.uz` (Telegram ID: `5582178765`, `is_superuser=True`, `role='admin'`) paroli bilan to'liq sozlandi va JWT autentifikatsiyasi orqali sinovdan o'tkazildi.
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar bajarildi, o'zgarishlarni Git repozitoriyaga commit qilish va serverga deploy qilish.
+- Barcha talablar to'liq va muvaffaqiyatli bajarildi, tizim barqaror ishlamoqda.
 
 ---
 
 ## 4. Keyingi qadamlar
-- O'zgarishlarni commit qilib, `origin main` ga push qilish.
-- Contabo VPS (`169.58.58.229`) ga ulanib, migratsiyani qo'llash va xizmatlarni yangilash.
-- Jonli serverda Telegram ID `5582178765` va endpointlarning 200 OK ekanligini tasdiqlash.
+- Platformaning jonli faoliyatini va foydalanuvchilar oqimini kuzatib borish.
+
 
 
 
