@@ -385,7 +385,10 @@ def placement_quiz_submit_view(request):
     profile.exam_target = target
     profile.target_timeline_months = timeline_months
     profile.target_grade = target_grade
-    profile.placement_score = Decimal(str(correct_count))
+    if answers:
+        profile.placement_score = Decimal(str(correct_count))
+    elif profile.placement_score is None:
+        profile.placement_score = Decimal("4.00")
     profile.onboarding_completed = True
     profile.daily_plan_summary = daily_plan
     profile.save(

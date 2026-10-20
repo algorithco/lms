@@ -316,6 +316,22 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         source="profile.active_subject",
         required=False,
     )
+    exam_target = serializers.CharField(
+        source="profile.exam_target",
+        required=False,
+    )
+    target_timeline_months = serializers.IntegerField(
+        source="profile.target_timeline_months",
+        required=False,
+    )
+    target_grade = serializers.CharField(
+        source="profile.target_grade",
+        required=False,
+    )
+    onboarding_completed = serializers.BooleanField(
+        source="profile.onboarding_completed",
+        required=False,
+    )
 
     class Meta:
         model = User
@@ -328,6 +344,10 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "avatar",
             "date_of_birth",
             "active_subject",
+            "exam_target",
+            "target_timeline_months",
+            "target_grade",
+            "onboarding_completed",
         ]
 
     def update(self, instance: Any, validated_data: dict[str, Any]) -> Any:
@@ -354,7 +374,12 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         # Profile maydonlarini yangilash
         profile = instance.profile
         for attr, value in profile_data.items():
-            setattr(profile, attr, value)
+            if attr == "onboarding_completed":
+                setattr(profile, attr, bool(value) or profile.onboarding_completed)
+            else:
+                setattr(profile, attr, value)
+        if "exam_target" in profile_data or "target_grade" in profile_data:
+            profile.onboarding_completed = True
         profile.save()
 
         return instance

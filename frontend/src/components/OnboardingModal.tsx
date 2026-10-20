@@ -72,6 +72,64 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitResult, setSubmitResult] = useState<PlacementSubmitResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [savingPlan, setSavingPlan] = useState<boolean>(false);
+
+  const persistLocalPlan = useCallback((tgt: TargetType, tl: number, gr: string) => {
+    localStorage.setItem('grandec_onboarding_done', 'true');
+    localStorage.setItem(
+      'grandec_user_plan',
+      JSON.stringify({
+        target: tgt,
+        timeline: `${tl} oy`,
+        grade: gr,
+      }),
+    );
+  }, []);
+
+  const handleSkip = useCallback(() => {
+    persistLocalPlan(examTarget, timelineMonths, targetGrade);
+    updateUserLocal({
+      onboarding_completed: true,
+      exam_target: examTarget,
+      target_timeline_months: timelineMonths,
+      target_grade: targetGrade,
+    });
+    // Silently notify backend so onboarding_completed persists on profile
+    PlacementQuiz.submit({
+      target: examTarget,
+      target_timeline_months: timelineMonths,
+      target_grade: targetGrade,
+      answers: [],
+    }).catch(() => {});
+    onClose();
+  }, [examTarget, timelineMonths, targetGrade, persistLocalPlan, updateUserLocal, onClose]);
+
+  const handleSavePlanOnly = async () => {
+    setSavingPlan(true);
+    setErrorMsg(null);
+    try {
+      persistLocalPlan(examTarget, timelineMonths, targetGrade);
+      const res = await PlacementQuiz.submit({
+        target: examTarget,
+        target_timeline_months: timelineMonths,
+        target_grade: targetGrade,
+        answers: [],
+      });
+      updateUserLocal({
+        exam_target: examTarget,
+        target_timeline_months: timelineMonths,
+        target_grade: targetGrade,
+        onboarding_completed: true,
+        daily_plan_summary: res.daily_plan as Record<string, unknown>,
+      });
+      onClose();
+      if (onSuccess) onSuccess();
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Rejani saqlashda xatolik yuz berdi.");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   // Update target grade defaults when exam target changes
   const handleTargetChange = (target: TargetType) => {
@@ -151,6 +209,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
 
   // Start 5-minute quiz
   const handleStartQuiz = async () => {
+    persistLocalPlan(examTarget, timelineMonths, targetGrade);
     setLoadingQuiz(true);
     setErrorMsg(null);
     try {
@@ -197,6 +256,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
         answers: answersList,
       });
 
+      persistLocalPlan(examTarget, timelineMonths, targetGrade);
       setSubmitResult(res);
       updateUserLocal({
         exam_target: examTarget,
@@ -316,25 +376,48 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
             </div>
           </div>
 
-          {step === 'quiz' && (
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {step === 'quiz' && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 20,
+                  background: timeLeft <= 60 ? 'rgba(244, 63, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  border: `1px solid ${timeLeft <= 60 ? '#f43f5e' : '#f59e0b'}`,
+                  color: timeLeft <= 60 ? '#f43f5e' : '#f59e0b',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                }}
+              >
+                <Clock size={16} />
+                <span>{formatTimer(timeLeft)}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSkip}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
                 padding: '6px 12px',
-                borderRadius: 20,
-                background: timeLeft <= 60 ? 'rgba(244, 63, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                border: `1px solid ${timeLeft <= 60 ? '#f43f5e' : '#f59e0b'}`,
-                color: timeLeft <= 60 ? '#f43f5e' : '#f59e0b',
+                borderRadius: 10,
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                color: 'var(--ink-muted)',
+                fontSize: '0.8rem',
                 fontWeight: 700,
-                fontSize: '0.9rem',
+                cursor: 'pointer',
               }}
+              title="O'tkazib yuborish (Keyinroq sozlash)"
             >
-              <Clock size={16} />
-              <span>{formatTimer(timeLeft)}</span>
-            </div>
-          )}
+              <span>✕ O&apos;tkazib yuborish</span>
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -582,38 +665,84 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 </div>
               </div>
 
-              {/* Action Button */}
-              <button
-                type="button"
-                onClick={handleStartQuiz}
-                disabled={loadingQuiz}
-                style={{
-                  marginTop: 10,
-                  width: '100%',
-                  padding: '15px',
-                  borderRadius: 12,
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                  border: 'none',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  cursor: loadingQuiz ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  boxShadow: '0 8px 20px -4px rgba(16, 185, 129, 0.4)',
-                }}
-              >
-                {loadingQuiz ? (
-                  "Diagnostika test savollari tayyorlanmoqda..."
-                ) : (
-                  <>
-                    <span>5 daqiqalik diagnostikani boshlash</span>
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleStartQuiz}
+                    disabled={loadingQuiz || savingPlan}
+                    style={{
+                      flex: 2,
+                      minWidth: '220px',
+                      padding: '14px 18px',
+                      borderRadius: 12,
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: '0.96rem',
+                      cursor: loadingQuiz || savingPlan ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      boxShadow: '0 8px 20px -4px rgba(16, 185, 129, 0.4)',
+                    }}
+                  >
+                    {loadingQuiz ? (
+                      "Diagnostika test savollari tayyorlanmoqda..."
+                    ) : (
+                      <>
+                        <span>5 daqiqalik diagnostikani boshlash</span>
+                        <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSavePlanOnly}
+                    disabled={loadingQuiz || savingPlan}
+                    style={{
+                      flex: 1,
+                      minWidth: '150px',
+                      padding: '14px 16px',
+                      borderRadius: 12,
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: 'var(--ink)',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      cursor: loadingQuiz || savingPlan ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    {savingPlan ? "Saqlanmoqda..." : "💾 Rejani saqlash"}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--ink-muted)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: '6px',
+                    textAlign: 'center',
+                  }}
+                >
+                  ✕ O&apos;tkazib yuborish (Keyinroq sozlash va darhol testlarni ishlash)
+                </button>
+              </div>
             </div>
           )}
 

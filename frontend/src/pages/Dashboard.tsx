@@ -68,6 +68,10 @@ export default function Dashboard() {
   const [league, setLeague] = useState<LeagueLeaderboardResponse | null>(null);
 
   useEffect(() => {
+    const isDone = localStorage.getItem('grandec_onboarding_done') === 'true';
+    if (isDone || user?.onboarding_completed === true) {
+      return;
+    }
     if (user && user.onboarding_completed === false) {
       setOnboardingOpen(true);
     }
@@ -259,7 +263,7 @@ export default function Dashboard() {
               }}
             >
               <RefreshCw size={13} />
-              🔄 Yo'nalishni qayta sozlash
+              🔄 Rejani qayta sozlash
             </button>
           </div>
 

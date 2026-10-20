@@ -496,6 +496,21 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
 ---
 
+
+### 2.26. Onboarding Loopini To'xtatish va 100% Tillar Pariteti (Hero & Features)
+- [x] Onboarding Modal Loopini To'xtatish:
+  * `frontend/src/components/OnboardingModal.tsx`: Foydalanuvchi "Diagnostikani boshlash", "Rejani saqlash" yoki "✕ O'tkazib yuborish"ni bosganda `localStorage.setItem('grandec_onboarding_done', 'true')` va `grandec_user_plan` xotirada saqlanadi.
+  * Modal sarlavhasi va pastki qismiga "✕ O'tkazib yuborish (Keyinroq sozlash)" tugmasi qo'shildi.
+  * "💾 Rejani saqlash" tugmasi qo'shilib, test topshirmasdan ham maqsadni profilga biriktirish imkoniyati yaratildi.
+  * `frontend/src/pages/Dashboard.tsx`: `localStorage.getItem('grandec_onboarding_done') === 'true'` yoki `user.onboarding_completed === true` bo'lganda modal avtomatik ochilmaydi. Faqat "🔄 Rejani qayta sozlash" bosilganda ochiladi.
+  * `apps/accounts/serializers.py` va `apps/tests/views_placement.py`: `exam_target`, `target_timeline_months`, `target_grade`, va `onboarding_completed=True` bazada saqlanishi mustahkamlandi.
+- [x] 100% Tillar Pariteti (Hero & Features Localization):
+  * `frontend/src/i18n/translations.json`: Barcha Hero sarlavhalari (IELTS, Multi-level, Attestatsiya, Milliy sertifikat), subheadlar, CTA tugmalari, ishonch nishonlari, demo kartochka va bo'lim kartalari uchun 63 ta yangi kalit UZ, RU, EN tillarida 100% to'ldirildi.
+  * `frontend/src/pages/Landing.tsx`: Hardcoded o'zbekcha matnlar `t(...)` hookiga o'tkazildi. EN yoki RU tanlanganda bitta ham o'zbekcha jumla qolmaydi.
+- [x] QA & Testlar:
+  * Frontend: `npm run build` (`tsc -b && vite build`) — 0 ta xato bilan muvaffaqiyatli yig'ildi.
+  * Backend: `ruff check apps/` — 0 ta xato; `pytest tests/test_spa_contract.py` — 20/20 PASSED (100%).
+
 ## 3. Jarayonda
 - Feature branch va Pull Request yaratish, GitHub Actions orqali yangi rasmiy Release e'lon qilish va VPS ga deploy qilish.
 

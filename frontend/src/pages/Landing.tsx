@@ -1014,8 +1014,8 @@ export default function Landing() {
                   aria-pressed={landingSubject === 'uzbek'}
                 >
                   <span style={{ fontSize: 18 }}>🇺🇿</span>
-                  <span>Ona tili va Adabiyot</span>
-                  <span className="switcher-subtag">Milliy & Attestatsiya</span>
+                  <span>{t('hero_sub_uzbek_title')}</span>
+                  <span className="switcher-subtag">{t('hero_sub_uzbek_tag')}</span>
                 </button>
 
                 {/* 🇬🇧 English */}
@@ -1026,8 +1026,8 @@ export default function Landing() {
                   aria-pressed={landingSubject === 'english'}
                 >
                   <span style={{ fontSize: 18 }}>🇬🇧</span>
-                  <span>English (Ingliz tili)</span>
-                  <span className="switcher-subtag">IELTS & Multi-level</span>
+                  <span>{t('hero_sub_english_title')}</span>
+                  <span className="switcher-subtag">{t('hero_sub_english_tag')}</span>
                 </button>
               </div>
 
@@ -1041,7 +1041,7 @@ export default function Landing() {
                   transition={{ duration: 0.18 }}
                   className="hero-exam-switcher"
                   role="group"
-                  aria-label="Imtihon yo'nalishini tanlang"
+                  aria-label={t('hero_exam_select_aria')}
                 >
                   {landingSubject === 'english' ? (
                     <>
@@ -1052,8 +1052,8 @@ export default function Landing() {
                         aria-pressed={selectedTrack === 'ielts'}
                       >
                         <span style={{ fontSize: 16 }}>🎓</span>
-                        <span>IELTS (Academic & General)</span>
-                        <span className="exam-btn-badge">Band 1.0–9.0</span>
+                        <span>{t('hero_track_ielts_title')}</span>
+                        <span className="exam-btn-badge">{t('hero_track_ielts_badge')}</span>
                       </button>
                       <button
                         type="button"
@@ -1062,8 +1062,8 @@ export default function Landing() {
                         aria-pressed={selectedTrack === 'multilevel'}
                       >
                         <span style={{ fontSize: 16 }}>🎯</span>
-                        <span>CEFR Multi-level (B2 / C1)</span>
-                        <span className="exam-btn-badge">Davlat BMB</span>
+                        <span>{t('hero_track_multilevel_title')}</span>
+                        <span className="exam-btn-badge">{t('hero_track_multilevel_badge')}</span>
                       </button>
                     </>
                   ) : (
@@ -1075,8 +1075,8 @@ export default function Landing() {
                         aria-pressed={selectedTrack === 'national_certificate'}
                       >
                         <span style={{ fontSize: 16 }}>🎓</span>
-                        <span>Milliy sertifikat (BMB)</span>
-                        <span className="exam-btn-badge">A / A+ sertifikat</span>
+                        <span>{t('hero_track_national_title')}</span>
+                        <span className="exam-btn-badge">{t('hero_track_national_badge')}</span>
                       </button>
                       <button
                         type="button"
@@ -1085,8 +1085,8 @@ export default function Landing() {
                         aria-pressed={selectedTrack === 'attestation'}
                       >
                         <span style={{ fontSize: 16 }}>👨‍🏫</span>
-                        <span>Attestatsiya 2026</span>
-                        <span className="exam-btn-badge">70% ustama</span>
+                        <span>{t('hero_track_attestation_title')}</span>
+                        <span className="exam-btn-badge">{t('hero_track_attestation_badge')}</span>
                       </button>
                     </>
                   )}
@@ -1149,12 +1149,12 @@ export default function Landing() {
                         }}
                       />
                       {selectedTrack === 'ielts'
-                        ? '🎯 IELTS Academic & General (Band 1.0–9.0)'
+                        ? t('hero_pill_ielts')
                         : selectedTrack === 'multilevel'
-                        ? '🎯 Davlat CEFR Multi-level imtihoni (B2 / C1 darajasi)'
+                        ? t('hero_pill_multilevel')
                         : selectedTrack === 'attestation'
-                        ? "👨‍🏫 O'qituvchilar Attestatsiyasi (70% ustama va toifa sinovlari)"
-                        : '⭐️ BMB Davlat standarti — Ona tili va adabiyot (2026 yangi formati)'}
+                        ? t('hero_pill_attestation')
+                        : t('hero_pill_national')}
                     </span>
                   </div>
 
@@ -1171,23 +1171,23 @@ export default function Landing() {
                   >
                     {selectedTrack === 'ielts' ? (
                       <>
-                        IELTS imtihoniga{' '}
-                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                        {t('hero_h1_ielts_pre')}{' '}
+                        <span className="hero-title-gradient">{t('hero_h1_ielts_grad')}</span>
                       </>
                     ) : selectedTrack === 'multilevel' ? (
                       <>
-                        Multi-level sertifikatiga{' '}
-                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                        {t('hero_h1_multi_pre')}{' '}
+                        <span className="hero-title-gradient">{t('hero_h1_multi_grad')}</span>
                       </>
                     ) : selectedTrack === 'attestation' ? (
                       <>
-                        Pedagoglar Attestatsiyasiga{' '}
-                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                        {t('hero_h1_attest_pre')}{' '}
+                        <span className="hero-title-gradient">{t('hero_h1_attest_grad')}</span>
                       </>
                     ) : (
                       <>
-                        Milliy sertifikatga{' '}
-                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                        {t('hero_h1_nat_pre')}{' '}
+                        <span className="hero-title-gradient">{t('hero_h1_nat_grad')}</span>
                       </>
                     )}
                   </h1>
@@ -1203,12 +1203,12 @@ export default function Landing() {
                     }}
                   >
                     {selectedTrack === 'ielts'
-                      ? 'Rasmiy 4 ta mezon (TR, CC, LR, GRA) boʻyicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va Cambridge CBT Listening/Reading simulyatori.'
+                      ? t('hero_sub_ielts')
                       : selectedTrack === 'multilevel'
-                      ? 'BMB/CEFR talablari asosidagi yozma insho (Writing) tahlili, rasmiy 35 talik Reading/Listening testlari va Speaking amaliyoti.'
+                      ? t('hero_sub_multi')
                       : selectedTrack === 'attestation'
-                      ? 'Mutaxassislik fani (35 ta), Kasbiy standart (5 ta) va Pedagogik mahorat (10 ta) savollarini oʻz ichiga olgan 50 talik rasmiy diagnostika.'
-                      : 'BMB standarti asosidagi 12 ta mezonli AI Esse tahlili, Fast CBT test simulyatori va jonli 1v1 Arena bellashuvlari.'}
+                      ? t('hero_sub_attest')
+                      : t('hero_sub_nat')}
                   </p>
 
                   {/* 1-Click Action Buttons */}
@@ -1253,12 +1253,12 @@ export default function Landing() {
                     >
                       <span>
                         {selectedTrack === 'ielts'
-                          ? 'IELTS tayyorgarligini boshlash'
+                          ? t('hero_cta_ielts_btn')
                           : selectedTrack === 'multilevel'
-                          ? 'Multi-level sinovini boshlash'
+                          ? t('hero_cta_multi_btn')
                           : selectedTrack === 'attestation'
-                          ? 'Attestatsiya diagnostikasini boshlash'
-                          : t('hero_cta_start_free')}
+                          ? t('hero_cta_attest_btn')
+                          : t('hero_cta_nat_btn')}
                       </span>
                       <span style={{ fontSize: 16 }}>→</span>
                     </button>
@@ -1309,60 +1309,60 @@ export default function Landing() {
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          15 soniyada Band Score (1.0–9.0)
+                          {t('hero_trust_ielts_1')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          4 ta rasmiy IELTS mezoni
+                          {t('hero_trust_ielts_2')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          Real-vaqt AI Speaking tahlili
+                          {t('hero_trust_ielts_3')}
                         </span>
                       </>
                     ) : selectedTrack === 'multilevel' ? (
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          B2 / C1 ball kafolati
+                          {t('hero_trust_multi_1')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          Rasmiy DTM/BMB formati
+                          {t('hero_trust_multi_2')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#6366F1' }} />
-                          Interaktiv CBT simulyator
+                          {t('hero_trust_multi_3')}
                         </span>
                       </>
                     ) : selectedTrack === 'attestation' ? (
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          50 talik toʻliq format
+                          {t('hero_trust_attest_1')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          70% ustama kafolati
+                          {t('hero_trust_attest_2')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#3B82F6' }} />
-                          Boʻlimlar boʻyicha tahlil
+                          {t('hero_trust_attest_3')}
                         </span>
                       </>
                     ) : (
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
-                          15s AI Esse tahlili
+                          {t('hero_trust_nat_1')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
-                          12 ta rasmiy BMB mezoni
+                          {t('hero_trust_nat_2')}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
-                          Real-vaqt 1v1 Arena
+                          {t('hero_trust_nat_3')}
                         </span>
                       </>
                     )}
@@ -1521,7 +1521,7 @@ export default function Landing() {
                                 marginBottom: 10,
                               }}
                             >
-                              4 ta rasmiy IELTS mezoni (Bosib ko&apos;ring):
+                              {t('demo_ielts_criteria_hint')}
                             </span>
 
                             <div
@@ -1790,7 +1790,7 @@ export default function Landing() {
                             </div>
 
                             <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-                              <span style={{ fontWeight: 800, color: 'var(--ink)' }}>AI Tahlili: </span>
+                              <span style={{ fontWeight: 800, color: 'var(--ink)' }}>{t('demo_ai_analysis_label')}{' '}</span>
                               {SPEAKING_DEMO.feedback}
                             </p>
                           </div>
@@ -2056,7 +2056,7 @@ export default function Landing() {
                                 marginBottom: 10,
                               }}
                             >
-                              4 ta CEFR mezoni (Bosib ko&apos;ring):
+                              {t('demo_multi_criteria_hint')}
                             </span>
 
                             <div
@@ -3088,7 +3088,7 @@ export default function Landing() {
                         </div>
                       </div>
                       <button type="button" onClick={() => handleAction('/speaking')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38BDF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        Writing sinovini boshlash →
+                        {t('feat_ielts_w_btn')}
                       </button>
                     </div>
 
@@ -3102,10 +3102,10 @@ export default function Landing() {
                         </span>
                       </div>
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        AI Speaking Simulyatori
+                        {t('feat_ielts_spk_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Real-vaqt ovozli suhbat, talaffuz (Pronunciation) va ravonlik (Fluency) diagnostikasi hamda darhol tavsiyalar.
+                        {t('feat_ielts_spk_sub')}
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3122,7 +3122,7 @@ export default function Landing() {
                         </div>
                       </div>
                       <button type="button" onClick={() => handleAction('/speaking')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        Speaking mashqini boshlash →
+                        {t('feat_ielts_spk_btn')}
                       </button>
                     </div>
 
@@ -3136,10 +3136,10 @@ export default function Landing() {
                         </span>
                       </div>
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        Cambridge CBT Simulyatori
+                        {t('feat_ielts_cbt_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Listening va Reading boʻyicha toʻliq kompyuterlashtirilgan sinov muhiti, audio pleyer va rasmiy qolip.
+                        {t('feat_ielts_cbt_sub')}
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3156,7 +3156,7 @@ export default function Landing() {
                         </div>
                       </div>
                       <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: '#818CF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        CBT Testni boshlash →
+                        {t('feat_ielts_cbt_btn')}
                       </button>
                     </div>
                   </>
@@ -3195,7 +3195,7 @@ export default function Landing() {
                         </div>
                       </div>
                       <button type="button" onClick={() => handleAction('/essays')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: '#818CF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        Writing yozishni boshlash →
+                        {t('feat_multi_w_btn')}
                       </button>
                     </div>
 
@@ -3209,10 +3209,10 @@ export default function Landing() {
                         </span>
                       </div>
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        Multi-level CBT Testlari
+                        {t('feat_multi_cbt_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Rasmiy DTM/BMB formati boʻyicha 5 ta qismdan iborat Reading va Listening imtihon simulyatori.
+                        {t('feat_multi_cbt_sub')}
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3229,7 +3229,7 @@ export default function Landing() {
                         </div>
                       </div>
                       <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38BDF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
-                        Multi-level testini boshlash →
+                        {t('feat_multi_cbt_btn')}
                       </button>
                     </div>
 
