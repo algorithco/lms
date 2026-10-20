@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Mic, Headphones, Play, Pause } from 'lucide-react';
@@ -7,7 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
 import { School, landingFor } from '../lib/api';
-import TrendChart from '../components/TrendChart';
+import TrendChart, { type TrendPoint } from '../components/TrendChart';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -16,10 +15,8 @@ import confetti from 'canvas-confetti';
 import {
   BotIcon,
   CheckIcon,
-  ClockIcon,
   FileTextIcon,
   LightbulbIcon,
-  MapPinIcon,
   MenuIcon,
   MoonIcon,
   PenLineIcon,
@@ -30,8 +27,12 @@ import {
 } from '../components/icons';
 
 // ---------------------------------------------------------------------------
-// 12 BMB Milliy Sertifikat Essay Assessment Criteria (Uzbek Track)
+// TYPES & DATA DEFINITIONS
 // ---------------------------------------------------------------------------
+export type MainSubject = 'uzbek' | 'english';
+export type ExamTrack = 'ielts' | 'multilevel' | 'national_certificate' | 'attestation';
+
+// 12 BMB Milliy Sertifikat Essay Assessment Criteria (Uzbek Track)
 interface CriterionData {
   id: number;
   name: string;
@@ -46,148 +47,127 @@ interface CriterionData {
 const ESSAY_12_CRITERIA: CriterionData[] = [
   {
     id: 1,
-    name: 'Mavzuning toʻliq ochib berilishi',
-    score: '5 / 5',
+    name: "Mavzuni to'g'ri va to'liq tushunish",
+    score: '5.0 / 5',
     max: 5,
     percent: 100,
-    desc: 'Asosiy gʻoya va muammo teran ochilgan, mavzudan chetlanish kuzatilmadi.',
-    advice: 'Tezis va unga berilgan dalillar ketma-ketligi ideal darajada.',
+    desc: "Mavzu mohiyati chuqur tahlil qilingan, asosiy g'oyadan chetga chiqilmagan.",
+    advice: "A'lo daraja! Muallif konsepsiyasi va mavzuning dolzarbligi mukammal yoritilgan.",
     category: 'content',
   },
   {
     id: 2,
-    name: 'Matn kompozitsiyasi va tuzilishi',
-    score: '4.5 / 5',
+    name: 'Fikriy izchillik va mantiqiy reja',
+    score: '5.0 / 5',
     max: 5,
-    percent: 90,
-    desc: 'Kirish, asosiy qism va xulosa mutanosib va mantiqan mustahkam bogʻlangan.',
-    advice: 'Kirish qismida muammo dolzarbligini yana bir jumla bilan kuchaytirish mumkin.',
+    percent: 100,
+    desc: "Kirish, asosiy qism va xulosa o'rtasidagi mantiqiy aloqadorlik benuqson.",
+    advice: "Har bir xatboshi alohida mikromavzuni ochib beradi va umumiy g'oyaga xizmat qiladi.",
     category: 'content',
   },
   {
     id: 3,
-    name: 'Fikrlarning dalillanishi va iqtiboslar',
+    name: 'Mustaqil mulohaza va dalillar',
     score: '4.5 / 5',
     max: 5,
     percent: 90,
-    desc: 'Alisher Navoiy asarlaridan keltirilgan misollar va baytlar oʻrinli.',
-    advice: 'Badiiy tahlil bilan birga hayotiy misol keltirilgani bahoni oshirdi.',
+    desc: 'Shaxsiy tahlil mustahkam, biroq tarixiy qiyos biroz kuchaytirilishi mumkin.',
+    advice: "Zamonaviy hayotiy misollar va adabiy paralellardan foydalanish tavsiya etiladi.",
     category: 'content',
   },
   {
     id: 4,
-    name: 'Grammatik qoidalar va sintaksis',
-    score: '4.5 / 5',
+    name: 'Badiiy asar matniga tayanish',
+    score: '5.0 / 5',
     max: 5,
-    percent: 90,
-    desc: 'Murakkab qoʻshma gaplar va soʻz birikmalari grammatik toʻgʻri shakllantirilgan.',
-    advice: 'Ergashgan qoʻshma gaplarda bogʻlovchi vositalar toʻgʻri tanlangan.',
-    category: 'grammar',
+    percent: 100,
+    desc: "Alisher Navoiy 'Xamsa'sidan olingan baytlar o'rinli keltirilgan va tahlil qilingan.",
+    advice: "Matndan olingan iqtiboslar qahramon ruhiyatini ochib berishda to'liq qo'llangan.",
+    category: 'content',
   },
   {
     id: 5,
-    name: 'Orfografiya (imlo) qoidalari',
-    score: '4 / 5',
-    max: 5,
-    percent: 80,
-    desc: '1 ta noaniq imlo xatosi aniqlandi: "yondosh" soʻzi adabiy tilda "yondash" yoziladi.',
-    advice: 'Davlat taʼlim standarti boʻyicha imlo qoidalariga qatʼiy rioya qiling.',
-    category: 'grammar',
-  },
-  {
-    id: 6,
-    name: 'Punktuatsiya va tinish belgilari',
-    score: '3.5 / 5',
-    max: 5,
-    percent: 70,
-    desc: 'Ajratilgan va uyushiq boʻlaklar orasida 2 ta vergul tushirib qoldirilgan.',
-    advice: 'Kirish soʻzlar va ergash gaplarni bogʻlovchi vergullarga eʼtibor qarating.',
-    category: 'grammar',
-  },
-  {
-    id: 7,
-    name: 'Uslubiy ravonlik va adabiy til meʼyori',
+    name: "Adabiyotshunoslik atamalarining o'rinliligi",
     score: '4.5 / 5',
     max: 5,
     percent: 90,
-    desc: 'Soʻz takroriga yoʻl qoʻyilmagan, nutq ifodali va tasirchan.',
-    advice: 'Fikr bayonidagi balandparvozlik meʼyorda saqlangan.',
+    desc: "Tazod, istiora, tashxis kabi badiiy san'atlar to'g'ri qo'llangan.",
+    advice: "Yana bir nechta mumtoz poetika atamalarini integratsiya qilish tavsiya etiladi.",
+    category: 'style',
+  },
+  {
+    id: 6,
+    name: "Lug'at boyligi va obrazlilik",
+    score: '4.5 / 5',
+    max: 5,
+    percent: 90,
+    desc: "Fikrni ifodalashda serqirra va jarangdor so'zlar qo'llangan, takrorlar kam.",
+    advice: "Sinonimik qatorlardan unumli foydalanilgan, ifoda kuchi yuqori.",
+    category: 'style',
+  },
+  {
+    id: 7,
+    name: 'Uslubiy ravonlik va ifoda aniqligi',
+    score: '5.0 / 5',
+    max: 5,
+    percent: 100,
+    desc: "Uslubiy g'alizliklar yo'q, jumlalar silliq va o'qilishi oson.",
+    advice: "Badiiy-publitsistik uslub me'yorlariga to'liq rioya qilingan.",
     category: 'style',
   },
   {
     id: 8,
-    name: 'Leksik boylik va sinonimlar',
+    name: "Xulosa va umumlashtirish salmog'i",
     score: '4.5 / 5',
     max: 5,
     percent: 90,
-    desc: 'Badiiy tasvir vositalari va boy adabiy leksika muvaffaqiyatli qoʻllangan.',
-    advice: 'Sinonimik qatorlardan unumli foydalanilgan.',
-    category: 'style',
+    desc: "Xulosa asosiy g'oyani umumlashtiradi, yakuniy ta'sirchan chaqiriq mavjud.",
+    advice: "Xulosa qismida shaxsiy ijtimoiy pozitsiya yanada aniq ko'rsatilsa maqsadga muvofiq.",
+    category: 'content',
   },
   {
     id: 9,
-    name: 'Kirish qismining dolzarbligi',
+    name: 'Imlo qoidalariga rioya etilishi',
     score: '4.5 / 5',
     max: 5,
     percent: 90,
-    desc: 'Mavzuga jalb qiluvchi kuchli tezis va falsafiy savol bilan boshlangan.',
-    advice: 'Oʻquvchini oʻyga toldiruvchi boshlanma.',
-    category: 'content',
+    desc: "1 ta juz'iy imlo xatosi aniqlandi (tutruq/tuturuq).",
+    advice: "Lotin alifbosi orfografik qoidalariga e'tibor qarating.",
+    category: 'grammar',
   },
   {
     id: 10,
-    name: 'Xulosa va mustaqil dunyoqarash',
-    score: '5 / 5',
+    name: "Tinish belgilarining to'g'ri qo'llanishi",
+    score: '4.5 / 5',
     max: 5,
-    percent: 100,
-    desc: 'Muallifning shaxsiy nuqtayi nazari va qatʼiy xulosasi toʻliq yoritilgan.',
-    advice: 'Xulosa asosiy gʻoyaga toʻliq javob beradi.',
-    category: 'content',
+    percent: 90,
+    desc: "Murakkab qo'shma gaplarda vergul va tire qo'llash qoidalariga mos.",
+    advice: "Kirish so'zlar atrofidagi vergullarga e'tibor bering.",
+    category: 'grammar',
   },
   {
     id: 11,
-    name: 'Abzaslararo mantiqiy oʻtishlar',
-    score: '4 / 5',
+    name: 'Grammatik qoidalar va gap qurilishi',
+    score: '4.5 / 5',
     max: 5,
-    percent: 80,
-    desc: 'Fikrlar oqimi ravon va keyingi fikrga silliq ulanadi.',
-    advice: '2 va 3-abzaslar orasidagi bogʻlovchi jumlani biroz silliqlash mumkin.',
-    category: 'style',
+    percent: 90,
+    desc: "Kelishik va egalik qo'shimchalari to'g'ri biriktirilgan.",
+    advice: "Ega va kesim moslashuvida muvozanat saqlangan.",
+    category: 'grammar',
   },
   {
     id: 12,
-    name: 'Matn hajmi va meʼyoriy koʻlam',
-    score: '5 / 5',
+    name: "Matn kompozitsiyasi va hajm me'yori",
+    score: '3.0 / 5',
     max: 5,
-    percent: 100,
-    desc: 'Belgilangan 250-300 soʻz talabiga toʻliq mos (278 soʻz yozilgan).',
-    advice: 'Hajm koʻlami BMB talabiga 100% mos.',
-    category: 'style',
+    percent: 60,
+    desc: "Matn hajmi 320 so'z (standart me'yor: 350-400 so'z).",
+    advice: "Hajmni yana 30-40 so'zga kengaytirib, yakuniy qismni to'ldirish tavsiya etiladi.",
+    category: 'content',
   },
 ];
 
-// Interactive CBT Sample Question (Uzbek Track)
-interface CbtSampleQuestion {
-  question: string;
-  options: { key: string; text: string; correct: boolean }[];
-  explanation: string;
-}
-
-const CBT_QUESTION: CbtSampleQuestion = {
-  question: "Alisher Navoiyning 'Xamsa' tarkibiga kirmaydigan dostonini aniqlang:",
-  options: [
-    { key: 'A', text: 'Hayrat ul-abror', correct: false },
-    { key: 'B', text: 'Farhod va Shirin', correct: false },
-    { key: 'C', text: 'Lison ut-tayr', correct: true },
-    { key: 'D', text: 'Saddi Iskandariy', correct: false },
-  ],
-  explanation:
-    "'Lison ut-tayr' (Qushlar tili) Navoiyning alohida falsafiy dostoni boʻlib, 'Xamsa' beshligiga kirmaydi. 'Xamsa' beshligiga: Hayrat ul-abror, Farhod va Shirin, Layli va Majnun, Sab'ai sayyor hamda Saddi Iskandariy dostonlari kiradi.",
-};
-
-// ---------------------------------------------------------------------------
-// 4 Official IELTS Writing Criteria (English Track)
-// ---------------------------------------------------------------------------
+// IELTS 4 Official Assessment Criteria
 interface IeltsCriterionData {
   id: number;
   name: string;
@@ -195,7 +175,7 @@ interface IeltsCriterionData {
   score: string;
   band: number;
   desc: string;
-  advice: string;
+  feedback: string;
   highlights: string[];
 }
 
@@ -206,9 +186,9 @@ const IELTS_4_CRITERIA: IeltsCriterionData[] = [
     code: 'TR',
     score: '7.5 / 9.0',
     band: 7.5,
-    desc: 'Barcha savol qismlari toʻliq va teran ochilgan. Asosiy argumentlar aniq keltirilib, izchil pozitsiya saqlangan.',
-    advice: '2-asosiy qismda yana bitta empirik dalil (misol) keltirilsa, ball 8.0+ darajaga koʻtariladi.',
-    highlights: ['Well-developed position', 'Relevant arguments', 'Clear thesis statement'],
+    desc: 'Addresses all parts of the prompt with clear, well-supported arguments and relevant examples.',
+    feedback: 'Clear position presented throughout; fully developed stance on AI automation impacts.',
+    highlights: ['unprecedented shift', 'cognitive automation', 'reskilling initiatives'],
   },
   {
     id: 2,
@@ -216,9 +196,9 @@ const IELTS_4_CRITERIA: IeltsCriterionData[] = [
     code: 'CC',
     score: '7.0 / 9.0',
     band: 7.0,
-    desc: 'Paragraflar mantiqan toʻgʻri taqsimlangan. Fikrlar ketma-ketligi silliq va bogʻlovchi vositalar oʻrinli qoʻllangan.',
-    advice: 'Paragraflararo oʻtishda faqat "Moreover", "Furthermore" bilan cheklanmay, murakkab jumlalar bilan bogʻlang.',
-    highlights: ['Logical sequencing', 'Clear central topic', 'Diverse cohesive devices'],
+    desc: 'Information is logically organized with clear progression and cohesive devices.',
+    feedback: 'Paragraphs each hold a distinct focus; transitions flow smoothly with accurate linkers.',
+    highlights: ['Consequently', 'In contrast', 'From an economic standpoint'],
   },
   {
     id: 3,
@@ -226,9 +206,9 @@ const IELTS_4_CRITERIA: IeltsCriterionData[] = [
     code: 'LR',
     score: '8.0 / 9.0',
     band: 8.0,
-    desc: 'Keng va murakkab akademik soʻz boyligi hamda tabiiy kollokatsiyalar (soʻz birikmalari) muvaffaqiyatli ishlatilgan.',
-    advice: '"paradigm shift", "pedagogical efficacy", "heuristic adaptability" kabi Band 8+ soʻzlar oʻrinli tanlangan.',
-    highlights: ['Sophisticated collocations', 'Precise academic vocabulary', 'Natural phrasing'],
+    desc: 'Wide range of vocabulary with very natural, sophisticated collocations and precise usage.',
+    feedback: "Excellent academic style: 'alleviate workforce displacement', 'technological singularity'.",
+    highlights: ['workforce displacement', 'synergistic symbiosis', 'ubiquitous integration'],
   },
   {
     id: 4,
@@ -236,68 +216,185 @@ const IELTS_4_CRITERIA: IeltsCriterionData[] = [
     code: 'GRA',
     score: '7.5 / 9.0',
     band: 7.5,
-    desc: 'Murakkab ergash gaplar, inversion va passiv konstruksiyalardan yuqori aniqlikda foydalanilgan.',
-    advice: 'Kollektiv otlar va nisbiy olmoshlar moslashuvidagi 1 ta kichik punktuatsion holatga eʼtibor qarating.',
-    highlights: ['Wide syntactic variety', 'Complex sentence structures', 'High accuracy rate'],
+    desc: 'Wide range of complex structures used with good flexibility and rare minor errors.',
+    feedback: 'Skillful conditional clauses, passive constructions, and varied sentence openings.',
+    highlights: ['Were governments to intervene', 'not only mitigates but also enhances'],
   },
 ];
 
-// Interactive Speaking Sample (English Track)
-interface SpeakingDemoData {
-  part: string;
-  topic: string;
-  overallBand: number;
-  scores: {
-    fluency: number;
-    pronunciation: number;
-    lexical: number;
-    grammar: number;
-  };
-  duration: string;
-  transcript: string;
-  highlightWords: string[];
-  aiFeedback: string;
+// CEFR Multi-level 4 Criteria
+interface MultilevelCriterionData {
+  id: number;
+  name: string;
+  code: string;
+  score: string;
+  max: number;
+  percent: number;
+  desc: string;
+  feedback: string;
+  highlights: string[];
 }
 
-const SPEAKING_DEMO: SpeakingDemoData = {
-  part: 'Part 2: Long Turn (Cue Card)',
-  topic: 'Describe an educational journey that significantly influenced your life',
-  overallBand: 7.5,
+const MULTILEVEL_4_CRITERIA: MultilevelCriterionData[] = [
+  {
+    id: 1,
+    name: 'Content (Mavzu mazmuni)',
+    code: 'CONTENT',
+    score: '4.5 / 5.0',
+    max: 5,
+    percent: 90,
+    desc: "Topshiriqdagi barcha bandlar to'liq, dalillar va mantiqiy asoslar bilan yoritilgan.",
+    feedback: "Taklif etilgan velosiped ijarasi tizimi shahardagi tirbandlikni kamaytirish va ekologiyani yaxshilashga qaratilgan amaliy takliflar bilan to'liq ochib berilgan.",
+    highlights: ['practical recommendations', 'urban transit', 'congestion relief'],
+  },
+  {
+    id: 2,
+    name: 'Communicative Achievement (Registr)',
+    code: 'COMM',
+    score: '4.0 / 5.0',
+    max: 5,
+    percent: 80,
+    desc: "Rasmiy xat shakli, odob va munosib ishchan uslub (formal register) saqlangan.",
+    feedback: "Shahar hokimiyatiga murojaat uchun mos muloyim va professional iboralar qo'llangan ('I would urge the council to consider...').",
+    highlights: ['formal register', 'polite persuasion', 'appropriate tone'],
+  },
+  {
+    id: 3,
+    name: 'Organisation (Matn tuzilishi)',
+    code: 'ORG',
+    score: '4.5 / 5.0',
+    max: 5,
+    percent: 90,
+    desc: "Paragraflar mantiqiy ketma-ketlikda tuzilgan va bog'lovchi vositalar bilan bog'langan.",
+    feedback: "Kirish, asosiy takliflar va xulosa aniq ajratilgan. 'Furthermore', 'Consequently', 'To mitigate this challenge' kabi bog'lovchilar o'rinli ishlatilgan.",
+    highlights: ['Furthermore', 'Consequently', 'To mitigate this challenge'],
+  },
+  {
+    id: 4,
+    name: 'Language (Leksika va grammatika)',
+    code: 'LANG',
+    score: '4.0 / 5.0',
+    max: 5,
+    percent: 80,
+    desc: "CEFR C1 darajasiga mos boy so'z boyligi va murakkab sintaktik tuzilmalar.",
+    feedback: "'sustainable transit infrastructure', 'alleviate commuter bottleneck', 'subsidize operational costs' kabi ilg'or leksika qo'llangan.",
+    highlights: ['sustainable transit infrastructure', 'alleviate commuter bottleneck', 'subsidize'],
+  },
+];
+
+// Attestation 2026 Categories & Diagnostics
+interface AttestationCategory {
+  id: number;
+  name: string;
+  total: number;
+  correct: number;
+  percent: number;
+  desc: string;
+}
+
+const ATTESTATION_CATEGORIES: AttestationCategory[] = [
+  {
+    id: 1,
+    name: 'Mutaxassislik fani (Ona tili va adabiyot)',
+    total: 35,
+    correct: 32,
+    percent: 91.4,
+    desc: "Grammatika, fonetika, leksikologiya va adabiyot tarixi bo'yicha chuqurlashtirilgan savollar.",
+  },
+  {
+    id: 2,
+    name: "Kasbiy standart va me'yoriy hujjatlar",
+    total: 5,
+    correct: 5,
+    percent: 100,
+    desc: "Xalq ta'limi tizimi qonunchiligi, o'qituvchi kasbiy standarti va etikasi.",
+  },
+  {
+    id: 3,
+    name: 'Pedagogik mahorat va baholash metodikasi',
+    total: 10,
+    correct: 9,
+    percent: 90,
+    desc: "Formativ baholash, inklyuziv ta'lim, darsni rejalashtirish va interaktiv metodlar.",
+  },
+];
+
+const ATTESTATION_QUESTION = {
+  subject: 'Pedagogik mahorat & Metodika (Savol #38)',
+  passage: "O'quvchilarning mustaqil fikrlashi va mas'uliyatini oshirish uchun zamonaviy formativ baholash vositalari qo'llaniladi.",
+  question: "Dars jarayonida formativ baholash (assessment for learning) vositalaridan foydalanishda o'quvchining o'z-o'zini baholash (self-assessment) qobiliyatini rivojlantirish uchun eng samarali usul qaysi?",
+  options: [
+    { key: 'A', text: "Faqat chorak oxirida yakuniy test natijalariga qarab reyting e'lon qilish" },
+    { key: 'B', text: "O'quvchilarga aniq deskriptorli rubrika berib, o'z ishini tekshirish va xatolar ustida refleksiya qilishga undash", correct: true },
+    { key: 'C', text: "O'quvchilar javoblarini faqat o'zaro solishtirib differensial ball qo'yish" },
+    { key: 'D', text: "Barcha mustaqil topshiriqlarni faqat o'qituvchi tomonidan baholab berish" },
+  ],
+  explanation: "To'g'ri javob: B. O'z-o'zini baholash (self-assessment) samarali bo'lishi uchun o'quvchi aniq mezonlar (rubrics) asosida o'z natijasini baholashi va xatolarini mustaqil tahlil qilishi lozim.",
+};
+
+const CBT_QUESTION_UZBEK = {
+  subject: 'Ona tili va adabiyot (Milliy Sertifikat)',
+  passage: "Alisher Navoiy 'Hayrat ul-abror' dostonida insoniylik, odob va nutq madaniyatiga alohida fasllar bag'ishlaydi.",
+  question: "Navoiyning 'Hayrat ul-abror' dostonida keltirilgan 'Sher va durroj' masalining asosiy g'oyaviy xulosasi nimadan iborat?",
+  options: [
+    { key: 'A', text: "Ilm olish va ustozga ehtirom ko'rsatish" },
+    { key: 'B', text: "Tilga ehtiyot bo'lish, noo'rin so'zlash balosidan ogoh bo'lish", correct: true },
+    { key: 'C', text: "Saxovat va saxiylik fazilatining ulug'ligi" },
+    { key: 'D', text: "Davlatni boshqarish va podshohlar adolati" },
+  ],
+  explanation: "To'g'ri javob: B. Masalda durroj qushining noo'rin sayrashi uning ovchi tomonidan ushlanishiga sabab bo'lgani bayon qilinib, tilni tiyish o'rgatiladi.",
+};
+
+const CBT_QUESTION_IELTS = {
+  subject: 'Cambridge IELTS (Academic Reading)',
+  passage: "Spaced retrieval practice optimizes synaptic consolidation by interrupting memory decay curves at precise neurocognitive intervals.",
+  question: "Why does spaced repetition outperform massed cramming in long-term memory retention?",
+  options: [
+    { key: 'A', text: 'It completely eliminates the necessity for active retrieval cues' },
+    { key: 'B', text: 'It forces neural pathways to reconsolidate memory traces at optimal decay intervals', correct: true },
+    { key: 'C', text: 'It bypasses the prefrontal cortex directly into procedural memory' },
+    { key: 'D', text: 'It reduces neurotransmitter depletion during single 20-minute sessions' },
+  ],
+  explanation: "Correct answer: B. Cognitive retrieval research demonstrates that testing memory at expanding intervals forces synaptic re-encoding.",
+};
+
+const CBT_QUESTION_MULTILEVEL = {
+  subject: 'CEFR Multi-level (Reading Part 3)',
+  passage: "Decentralized renewable microgrids allow localized power distribution without sole reliance on the traditional central power grid during peak surge hours.",
+  question: "What is identified as the primary operational advantage of decentralized microgrids during peak demand?",
+  options: [
+    { key: 'A', text: 'They eliminate the necessity of electrical substations entirely' },
+    { key: 'B', text: 'They distribute battery storage dynamically, preventing central grid overloads', correct: true },
+    { key: 'C', text: 'They reduce initial capital expenditures by over eighty percent' },
+    { key: 'D', text: 'They depend exclusively on wind generation without battery storage' },
+  ],
+  explanation: "Correct answer: B. The passage emphasizes that localized distribution with dynamic battery storage buffers peak demand, avoiding grid-wide failure.",
+};
+
+const SPEAKING_DEMO = {
+  part: 'IELTS Speaking Part 2 (Cue Card)',
+  topic: 'Describe an artificial intelligence tool you recently used that boosted your productivity.',
+  targetScore: 'Band 7.5',
   scores: {
-    fluency: 8.0,
-    pronunciation: 7.0,
+    fluency: 7.5,
+    pronunciation: 8.0,
     lexical: 8.0,
     grammar: 7.5,
   },
-  duration: '0:42 / 1:30',
   transcript:
-    'When I first commenced my studies in modern pedagogy, I realized the profound transformative power of interactive learning paradigms. It not only broadened my cognitive horizon, but also inspired me to persevere in rigorous academic research...',
-  highlightWords: ['commenced', 'profound transformative power', 'cognitive horizon', 'persevere'],
-  aiFeedback:
-    "💡 'commenced' va 'cognitive horizon' kabi ifodalar Lexical Resource ballini 8.0 ga chiqardi. Talaffuzda intonatsiya tabiiy, Band 8.0 darajasidagi ravonlik saqlangan.",
+    "'Over the past six months, I have extensively utilized an AI-driven learning platform that generates tailored spaced repetition quizzes. What struck me most was its ability to instantly synthesize complex academic passages into bite-sized retrieval questions, which markedly optimized my preparation schedule.'",
+  feedback:
+    "Natural discourse markers, minimal hesitation, consistent intonation rhythm, and precise academic collocations ('synthesize', 'retrieval', 'markedly').",
 };
 
-// Interactive Cambridge CBT Question (English Track)
-interface EnglishCbtQuestion {
-  section: string;
-  question: string;
-  options: { key: string; text: string; correct: boolean }[];
-  explanation: string;
-}
-
-const ENGLISH_CBT_QUESTION: EnglishCbtQuestion = {
-  section: 'Academic Reading — Passage 2',
-  question:
-    'According to cognitive psychologists, what is the primary neurobiological advantage of spaced repetition in memory consolidation?',
-  options: [
-    { key: 'A', text: 'Accelerating superficial cramming before high-stakes exams', correct: false },
-    { key: 'B', text: 'Strengthening synaptic neural pathways through timed retrieval intervals', correct: true },
-    { key: 'C', text: 'Completely eliminating mental fatigue during prolonged study sessions', correct: false },
-    { key: 'D', text: 'Minimizing the total number of vocabulary items required for fluency', correct: false },
-  ],
-  explanation:
-    "To'g'ri javob: B. Tadqiqotlarga ko'ra, oraliq takrorlash (spaced repetition) neyronlar orasidagi sinaptik bog'lanishlarni mustahkamlaydi va ma'lumotni qisqa muddatli xotiradan uzoq muddatli xotiraga o'tkazishni ta'minlaydi.",
-};
+// Top navigation anchor links
+const sectionNav: [string, string][] = [
+  ['nav_features', '#features'],
+  ['nav_how', '#how-it-works'],
+  ['nav_comparison', '#comparison'],
+  ['nav_pricing', '#pricing'],
+  ['nav_faq', '#faq'],
+];
 
 export default function Landing() {
   const { t } = useLang();
@@ -307,39 +404,89 @@ export default function Landing() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // -------------------------------------------------------------------------
-  // DUAL-TRACK SUBJECT STATE (Uzbek vs English)
+  // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
   // -------------------------------------------------------------------------
-  const [landingSubject, setLandingSubject] = useState<'uzbek' | 'english'>(() => {
+  const [landingSubject, setLandingSubject] = useState<MainSubject>(() => {
+    const track = localStorage.getItem('grandec_selected_track');
+    if (track === 'ielts' || track === 'multilevel') return 'english';
+    if (track === 'national_certificate' || track === 'attestation') return 'uzbek';
     const saved = localStorage.getItem('landing_subject') || localStorage.getItem('lms_subject');
     return saved === 'english' ? 'english' : 'uzbek';
   });
 
-  const handleSubjectSwitch = (sub: 'uzbek' | 'english') => {
+  const [selectedTrack, setSelectedTrack] = useState<ExamTrack>(() => {
+    const track = localStorage.getItem('grandec_selected_track') as ExamTrack | null;
+    if (track && ['ielts', 'multilevel', 'national_certificate', 'attestation'].includes(track)) {
+      return track;
+    }
+    const savedSub = localStorage.getItem('landing_subject') || localStorage.getItem('lms_subject');
+    return savedSub === 'english' ? 'ielts' : 'national_certificate';
+  });
+
+  const handleSubjectSwitch = (sub: MainSubject) => {
     if (sub === landingSubject) return;
     setLandingSubject(sub);
+    let newTrack: ExamTrack = sub === 'english' ? 'ielts' : 'national_certificate';
+    if (sub === 'english' && (selectedTrack === 'ielts' || selectedTrack === 'multilevel')) {
+      newTrack = selectedTrack;
+    } else if (sub === 'uzbek' && (selectedTrack === 'national_certificate' || selectedTrack === 'attestation')) {
+      newTrack = selectedTrack;
+    }
+    setSelectedTrack(newTrack);
     localStorage.setItem('landing_subject', sub);
     localStorage.setItem('lms_subject', sub);
+    localStorage.setItem('grandec_selected_track', newTrack);
     window.dispatchEvent(new CustomEvent('subject-changed', { detail: sub }));
   };
 
-  // Hero interactive demo widget modes
-  const [demoTabUzbek, setDemoTabUzbek] = useState<'essay' | 'test'>('essay');
-  const [selectedCritUzbek, setSelectedCritUzbek] = useState<CriterionData>(ESSAY_12_CRITERIA[0]);
-  const [selectedOptionKeyUzbek, setSelectedOptionKeyUzbek] = useState<string | null>(null);
+  const handleTrackSwitch = (track: ExamTrack) => {
+    setSelectedTrack(track);
+    const sub: MainSubject = track === 'ielts' || track === 'multilevel' ? 'english' : 'uzbek';
+    setLandingSubject(sub);
+    localStorage.setItem('landing_subject', sub);
+    localStorage.setItem('lms_subject', sub);
+    localStorage.setItem('grandec_selected_track', track);
+    window.dispatchEvent(new CustomEvent('subject-changed', { detail: sub }));
+  };
 
-  const [demoTabEnglish, setDemoTabEnglish] = useState<'writing' | 'speaking' | 'cbt'>('writing');
-  const [selectedCritEnglish, setSelectedCritEnglish] = useState<IeltsCriterionData>(IELTS_4_CRITERIA[0]);
-  const [selectedOptionKeyEnglish, setSelectedOptionKeyEnglish] = useState<string | null>(null);
+  // Demo tabs per track
+  const [demoTabIelts, setDemoTabIelts] = useState<'writing' | 'speaking' | 'cbt'>('writing');
+  const [demoTabMultilevel, setDemoTabMultilevel] = useState<'writing' | 'cbt'>('writing');
+  const [demoTabNatCert, setDemoTabNatCert] = useState<'essay' | 'test'>('essay');
+  const [demoTabAttestation, setDemoTabAttestation] = useState<'test' | 'diagnostic'>('test');
+
+  // Selected criterion details
+  const [selectedCritNatCert, setSelectedCritNatCert] = useState<CriterionData>(ESSAY_12_CRITERIA[0]);
+  const [selectedCritIelts, setSelectedCritIelts] = useState<IeltsCriterionData>(IELTS_4_CRITERIA[0]);
+  const [selectedCritMultilevel, setSelectedCritMultilevel] = useState<MultilevelCriterionData>(MULTILEVEL_4_CRITERIA[0]);
+
+  // Selected interactive options for questions
+  const [selectedOptionNatCert, setSelectedOptionNatCert] = useState<string | null>(null);
+  const [selectedOptionIelts, setSelectedOptionIelts] = useState<string | null>(null);
+  const [selectedOptionMultilevel, setSelectedOptionMultilevel] = useState<string | null>(null);
+  const [selectedOptionAttestation, setSelectedOptionAttestation] = useState<string | null>(null);
+
+  // Speaking playback state
   const [isSpeakingPlaying, setIsSpeakingPlaying] = useState<boolean>(false);
 
   // Live platform stats
   const [stats, setStats] = useState<{
     totals: { tests: number; students: number; essays_graded: number };
+    daily?: { labels: string[]; attempts: number[]; avg: number[] };
   } | null>(null);
 
-  // Newsletter
-  const [newsEmail, setNewsEmail] = useState('');
-  const [newsDone, setNewsDone] = useState(false);
+  const trendData = useMemo<TrendPoint[]>(() => {
+    if (!stats?.daily?.labels) return [];
+    const { labels, attempts, avg } = stats.daily;
+    return labels.map((l, i) => ({
+      date: l,
+      attempts: attempts[i] ?? 0,
+      avg: avg[i] ?? 0,
+      certs: 0,
+      students: 0,
+      essays: 0,
+    }));
+  }, [stats]);
 
   const startTo = user ? landingFor(user) : '/register';
 
@@ -363,37 +510,10 @@ export default function Landing() {
     };
   }, [mobileOpen]);
 
-  // Section nav
-  const sectionNav: [string, string][] = [
-    ['nav_features', '#features'],
-    ['nav_stats', '#stats'],
-    ['nav_how', '#how'],
-  ];
-
-  // 12-month platform growth trend
-  const trend = useMemo(() => {
-    const attempts = [120, 150, 140, 180, 210, 260, 240, 300, 330, 310, 360, 420];
-    const avg = [62, 64, 63, 68, 70, 72, 71, 76, 78, 77, 82, 85];
-    const certs = [8, 12, 10, 18, 22, 30, 28, 40, 48, 45, 60, 72];
-    const students = [60, 95, 140, 190, 260, 340, 420, 520, 640, 780, 940, 1100];
-    const essays = [20, 35, 30, 55, 70, 90, 85, 120, 140, 135, 170, 200];
-    const today = new Date();
-    return attempts.map((a, k) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - (11 - k), 1);
-      return {
-        date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`,
-        attempts: a,
-        avg: avg[k],
-        certs: certs[k],
-        students: students[k],
-        essays: essays[k],
-      };
-    });
-  }, []);
-
-  const handleCbtOptionClickUzbek = (key: string) => {
-    setSelectedOptionKeyUzbek(key);
-    if (key === 'C') {
+  // Option click handlers with celebratory confetti
+  const handleOptionNatCert = (key: string) => {
+    setSelectedOptionNatCert(key);
+    if (key === 'B') {
       try {
         confetti({
           particleCount: 40,
@@ -407,8 +527,8 @@ export default function Landing() {
     }
   };
 
-  const handleCbtOptionClickEnglish = (key: string) => {
-    setSelectedOptionKeyEnglish(key);
+  const handleOptionIelts = (key: string) => {
+    setSelectedOptionIelts(key);
     if (key === 'B') {
       try {
         confetti({
@@ -423,15 +543,42 @@ export default function Landing() {
     }
   };
 
-  const subscribeNews = (e: FormEvent) => {
-    e.preventDefault();
-    if (newsEmail.trim()) {
-      setNewsEmail('');
-      setNewsDone(true);
+  const handleOptionMultilevel = (key: string) => {
+    setSelectedOptionMultilevel(key);
+    if (key === 'B') {
+      try {
+        confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#38BDF8', '#6366F1', '#10B981'],
+        });
+      } catch {
+        /* ignore */
+      }
     }
   };
 
+  const handleOptionAttestation = (key: string) => {
+    setSelectedOptionAttestation(key);
+    if (key === 'B') {
+      try {
+        confetti({
+          particleCount: 45,
+          spread: 70,
+          origin: { y: 0.65 },
+          colors: ['#F59E0B', '#10B981', '#3B82F6'],
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+
+
   const handleAction = (destination: string) => {
+    localStorage.setItem('grandec_selected_track', selectedTrack);
     localStorage.setItem('landing_subject', landingSubject);
     localStorage.setItem('lms_subject', landingSubject);
     if (user) {
@@ -471,86 +618,98 @@ export default function Landing() {
     >
       <SEO
         title={
-          landingSubject === 'english'
-            ? 'IELTS & Multi-level LMS | AI Writing & Speaking Simulator'
+          selectedTrack === 'ielts'
+            ? 'IELTS Academic & General LMS | AI Writing & Speaking Simulator'
+            : selectedTrack === 'multilevel'
+            ? 'CEFR Multi-level LMS | Davlat BMB Imtihoni & AI Insho'
+            : selectedTrack === 'attestation'
+            ? 'Pedagoglar Attestatsiyasi 2026 | 70% Ustama & Toifa Testlari'
             : 'Ona tili va adabiyot LMS | Milliy sertifikat & AI Esse'
         }
         description={
-          landingSubject === 'english'
-            ? "IELTS Band 1.0–9.0 va CEFR Multi-level bo'yicha AI Writing tahlili, AI Speaking simulyatori va Cambridge CBT testlari — GRAND EDUCATION."
-            : "Ona tili va adabiyotidan Milliy sertifikatga tayyorlovchi LMS platformasi — GRAND EDUCATION (grandec.uz). 12 mezonli AI Esse tahlili, Fast CBT simulyatori va 1v1 Arena."
+          selectedTrack === 'ielts'
+            ? "IELTS Band 1.0–9.0 bo'yicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va Cambridge CBT Listening/Reading — GRAND EDUCATION."
+            : selectedTrack === 'multilevel'
+            ? "Davlat CEFR Multi-level (B2/C1) imtihoniga tayyorlovchi rasmiy CBT testlar va AI Writing insho tahlili."
+            : selectedTrack === 'attestation'
+            ? "O'qituvchilar attestatsiyasi 2026: 50 talik rasmiy sinov (mutaxassislik, kasbiy standart, pedagogik mahorat) va toifa diagnostikasi."
+            : "BMB Davlat standarti bo'yicha 12 ta mezonli AI Esse tahlili, 45 talik testlar va 1v1 intellektual Arena."
         }
-        canonical="/"
         jsonLd={jsonLdData}
       />
 
-      {/* BACKGROUND: Subtle Dot Matrix + Radial Ambient Glow */}
-      <div className="subtle-dot-bg" aria-hidden="true" />
-      <div className="radial-glow-hero" aria-hidden="true" />
+      {/* Global Background Glow */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(1200px, 100vw)',
+          height: 600,
+          background:
+            landingSubject === 'english'
+              ? 'radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.08) 40%, transparent 70%)'
+              : 'radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.15), rgba(139, 92, 246, 0.08) 40%, transparent 70%)',
+          pointerEvents: 'none',
+          zIndex: 0,
+          transition: 'background 0.4s ease',
+        }}
+      />
 
       {/* NAVBAR */}
-      <nav
-        className="landing-nav"
+      <header
+        className="landing-header"
         style={{
-          position: 'fixed',
+          position: 'sticky',
           top: 0,
-          left: 0,
-          right: 0,
           zIndex: 50,
-          background: 'var(--topbar-bg)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
+          background: 'var(--header-bg)',
           borderBottom: '1px solid var(--border)',
+          transition: 'background 0.3s ease, border-color 0.3s ease',
         }}
-        aria-label="Asosiy navigatsiya"
       >
         <div
           style={{
             margin: '0 auto',
             maxWidth: 1200,
-            padding: '0 20px',
-            height: '4.25rem',
+            padding: '12px 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 16,
           }}
         >
-          {/* Logo */}
+          {/* Brand Logo */}
           <Link
             to="/"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 12,
               textDecoration: 'none',
-              minWidth: 0,
+              color: 'inherit',
             }}
-            aria-label="GRANDEC LMS Bosh sahifasi"
           >
-            <div
+            <img
+              src="/grandec.png"
+              alt="GRAND EDUCATION"
               style={{
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                objectFit: 'cover',
+                boxShadow:
+                  landingSubject === 'english'
+                    ? '0 0 16px rgba(56, 189, 248, 0.35)'
+                    : '0 0 16px rgba(245, 158, 11, 0.35)',
               }}
-            >
-              <img
-                src="/grandec.png"
-                alt="GRANDEC"
-                style={{ width: 26, height: 26, objectFit: 'cover' }}
-              />
-            </div>
-            <div>
+            />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span
                 style={{
-                  display: 'block',
                   fontSize: 16,
                   fontWeight: 900,
                   letterSpacing: '-0.02em',
@@ -562,19 +721,25 @@ export default function Landing() {
               </span>
               <span
                 style={{
-                  display: 'block',
                   fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: '0.18em',
-                  color: '#F59E0B',
+                  fontWeight: 700,
+                  letterSpacing: '0.12em',
+                  color: landingSubject === 'english' ? '#38BDF8' : '#F59E0B',
+                  textTransform: 'uppercase',
                 }}
               >
-                LMS PLATFORMA
+                {selectedTrack === 'ielts'
+                  ? 'IELTS Band 7.5+ AI'
+                  : selectedTrack === 'multilevel'
+                  ? 'CEFR Multi-level (B2/C1)'
+                  : selectedTrack === 'attestation'
+                  ? 'Attestatsiya 2026'
+                  : 'Milliy Sertifikat'}
               </span>
             </div>
           </Link>
 
-          {/* Desktop Nav Items */}
+          {/* Desktop Nav Anchors */}
           <div
             className="landing-desktop-nav"
             style={{
@@ -678,36 +843,34 @@ export default function Landing() {
             <button
               type="button"
               className="landing-burger-btn"
-              aria-label={mobileOpen ? 'Menyuni yopish' : 'Menyuni ochish'}
-              onClick={() => setMobileOpen((v) => !v)}
+              onClick={() => setMobileOpen(true)}
+              aria-label="Menyu ochish"
               style={{
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 borderRadius: 10,
-                border: '1px solid var(--border)',
                 background: 'var(--card-2)',
+                border: '1px solid var(--border)',
                 color: 'var(--ink)',
-                cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.2s ease',
+                cursor: 'pointer',
               }}
             >
-              {mobileOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
+              <MenuIcon size={20} />
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
       {/* MOBILE DRAWER */}
       {mobileOpen && (
-        <>
+        <div style={{ position: 'relative', zIndex: 100 }}>
           <div
             style={{
               position: 'fixed',
               inset: 0,
-              zIndex: 90,
               background: 'rgba(4, 7, 13, 0.75)',
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
@@ -822,11 +985,12 @@ export default function Landing() {
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* MAIN HERO SECTION */}
-      <main id="main-content" style={{ position: 'relative', zIndex: 1, paddingTop: '5.5rem' }}>
+      {/* MAIN CONTENT WRAPPER */}
+      <main id="main-content">
+        {/* HERO SECTION */}
         <section id="hero" style={{ padding: '36px 20px 60px' }}>
           <div
             style={{
@@ -834,11 +998,12 @@ export default function Landing() {
               maxWidth: 1200,
             }}
           >
-            {/* DUAL-TRACK SEGMENTED PILL SWITCHER */}
-            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 28 }}>
+            {/* 2-LEVEL HIERARCHICAL SELECTOR (Subject & Exam Selector) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+              {/* Level 1: Main Subject Switcher */}
               <div
                 role="group"
-                aria-label="Asosiy yo'nalishni tanlang"
+                aria-label="Asosiy fanni tanlang"
                 className="hero-subject-switcher"
               >
                 {/* 🇺🇿 Ona tili */}
@@ -850,7 +1015,7 @@ export default function Landing() {
                 >
                   <span style={{ fontSize: 18 }}>🇺🇿</span>
                   <span>Ona tili va Adabiyot</span>
-                  <span className="switcher-subtag">Milliy sertifikat</span>
+                  <span className="switcher-subtag">Milliy & Attestatsiya</span>
                 </button>
 
                 {/* 🇬🇧 English */}
@@ -861,10 +1026,72 @@ export default function Landing() {
                   aria-pressed={landingSubject === 'english'}
                 >
                   <span style={{ fontSize: 18 }}>🇬🇧</span>
-                  <span>English (IELTS & Multi-level)</span>
-                  <span className="switcher-subtag">Band 1–9</span>
+                  <span>English (Ingliz tili)</span>
+                  <span className="switcher-subtag">IELTS & Multi-level</span>
                 </button>
               </div>
+
+              {/* Level 2: Exam Direction Switcher */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={landingSubject}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="hero-exam-switcher"
+                  role="group"
+                  aria-label="Imtihon yo'nalishini tanlang"
+                >
+                  {landingSubject === 'english' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleTrackSwitch('ielts')}
+                        className={`hero-exam-btn ${selectedTrack === 'ielts' ? 'active active-eng' : ''}`}
+                        aria-pressed={selectedTrack === 'ielts'}
+                      >
+                        <span style={{ fontSize: 16 }}>🎓</span>
+                        <span>IELTS (Academic & General)</span>
+                        <span className="exam-btn-badge">Band 1.0–9.0</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTrackSwitch('multilevel')}
+                        className={`hero-exam-btn ${selectedTrack === 'multilevel' ? 'active active-eng' : ''}`}
+                        aria-pressed={selectedTrack === 'multilevel'}
+                      >
+                        <span style={{ fontSize: 16 }}>🎯</span>
+                        <span>CEFR Multi-level (B2 / C1)</span>
+                        <span className="exam-btn-badge">Davlat BMB</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleTrackSwitch('national_certificate')}
+                        className={`hero-exam-btn ${selectedTrack === 'national_certificate' ? 'active active-uz' : ''}`}
+                        aria-pressed={selectedTrack === 'national_certificate'}
+                      >
+                        <span style={{ fontSize: 16 }}>🎓</span>
+                        <span>Milliy sertifikat (BMB)</span>
+                        <span className="exam-btn-badge">A / A+ sertifikat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTrackSwitch('attestation')}
+                        className={`hero-exam-btn ${selectedTrack === 'attestation' ? 'active active-uz' : ''}`}
+                        aria-pressed={selectedTrack === 'attestation'}
+                      >
+                        <span style={{ fontSize: 16 }}>👨‍🏫</span>
+                        <span>Attestatsiya 2026</span>
+                        <span className="exam-btn-badge">70% ustama</span>
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {/* HERO GRID */}
@@ -877,16 +1104,16 @@ export default function Landing() {
               }}
               className="hero-grid"
             >
-              {/* Left Column: Headlines & 1-Click CTAs */}
+              {/* Left Column: Dynamic Headlines & 1-Click CTAs */}
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={landingSubject}
+                  key={selectedTrack}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
-                  transition={{ duration: 0.24, ease: 'easeOut' }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
                 >
-                  {/* Badge */}
+                  {/* Dynamic Badge */}
                   <div style={{ marginBottom: 20 }}>
                     <span
                       style={{
@@ -921,9 +1148,13 @@ export default function Landing() {
                           boxShadow: `0 0 10px ${landingSubject === 'english' ? '#38BDF8' : '#10B981'}`,
                         }}
                       />
-                      {landingSubject === 'english'
-                        ? '🎯 IELTS Band 1.0–9.0 · CEFR Multi-level (B2/C1)'
-                        : '⭐️ Milliy sertifikat & Attestatsiya 2026 (Yangi format)'}
+                      {selectedTrack === 'ielts'
+                        ? '🎯 IELTS Academic & General (Band 1.0–9.0)'
+                        : selectedTrack === 'multilevel'
+                        ? '🎯 Davlat CEFR Multi-level imtihoni (B2 / C1 darajasi)'
+                        : selectedTrack === 'attestation'
+                        ? "👨‍🏫 O'qituvchilar Attestatsiyasi (70% ustama va toifa sinovlari)"
+                        : '⭐️ BMB Davlat standarti — Ona tili va adabiyot (2026 yangi formati)'}
                     </span>
                   </div>
 
@@ -938,9 +1169,19 @@ export default function Landing() {
                       margin: '0 0 20px',
                     }}
                   >
-                    {landingSubject === 'english' ? (
+                    {selectedTrack === 'ielts' ? (
                       <>
-                        IELTS va Multi-level imtihonlariga{' '}
+                        IELTS imtihoniga{' '}
+                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                      </>
+                    ) : selectedTrack === 'multilevel' ? (
+                      <>
+                        Multi-level sertifikatiga{' '}
+                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                      </>
+                    ) : selectedTrack === 'attestation' ? (
+                      <>
+                        Pedagoglar Attestatsiyasiga{' '}
                         <span className="hero-title-gradient">AI bilan tayyorlaning</span>
                       </>
                     ) : (
@@ -961,9 +1202,13 @@ export default function Landing() {
                       margin: '0 0 32px',
                     }}
                   >
-                    {landingSubject === 'english'
-                      ? 'Rasmiy 4 ta mezon boʻyicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va toʻliq CBT Reading & Listening simulyatori.'
-                      : 'BMB Davlat standarti asosidagi 12 ta mezonli AI Esse tahlili, Fast CBT test simulyatori va jonli 1v1 Arena bellashuvlari.'}
+                    {selectedTrack === 'ielts'
+                      ? 'Rasmiy 4 ta mezon (TR, CC, LR, GRA) boʻyicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va Cambridge CBT Listening/Reading simulyatori.'
+                      : selectedTrack === 'multilevel'
+                      ? 'BMB/CEFR talablari asosidagi yozma insho (Writing) tahlili, rasmiy 35 talik Reading/Listening testlari va Speaking amaliyoti.'
+                      : selectedTrack === 'attestation'
+                      ? 'Mutaxassislik fani (35 ta), Kasbiy standart (5 ta) va Pedagogik mahorat (10 ta) savollarini oʻz ichiga olgan 50 talik rasmiy diagnostika.'
+                      : 'BMB standarti asosidagi 12 ta mezonli AI Esse tahlili, Fast CBT test simulyatori va jonli 1v1 Arena bellashuvlari.'}
                   </p>
 
                   {/* 1-Click Action Buttons */}
@@ -978,7 +1223,17 @@ export default function Landing() {
                   >
                     <button
                       type="button"
-                      onClick={() => handleAction(landingSubject === 'english' ? '/speaking' : '/essays')}
+                      onClick={() =>
+                        handleAction(
+                          selectedTrack === 'ielts'
+                            ? '/speaking'
+                            : selectedTrack === 'multilevel'
+                            ? '/tests'
+                            : selectedTrack === 'attestation'
+                            ? '/tests'
+                            : '/essays',
+                        )
+                      }
                       className="btn-glow"
                       style={{
                         display: 'inline-flex',
@@ -996,7 +1251,15 @@ export default function Landing() {
                         transition: 'all 0.2s ease',
                       }}
                     >
-                      <span>{t('hero_cta_start_free')}</span>
+                      <span>
+                        {selectedTrack === 'ielts'
+                          ? 'IELTS tayyorgarligini boshlash'
+                          : selectedTrack === 'multilevel'
+                          ? 'Multi-level sinovini boshlash'
+                          : selectedTrack === 'attestation'
+                          ? 'Attestatsiya diagnostikasini boshlash'
+                          : t('hero_cta_start_free')}
+                      </span>
                       <span style={{ fontSize: 16 }}>→</span>
                     </button>
 
@@ -1042,11 +1305,11 @@ export default function Landing() {
                       color: '#94a3b8',
                     }}
                   >
-                    {landingSubject === 'english' ? (
+                    {selectedTrack === 'ielts' ? (
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          Instant Band Score (1.0–9.0)
+                          15 soniyada Band Score (1.0–9.0)
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
@@ -1054,22 +1317,52 @@ export default function Landing() {
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          AI Speaking & Audio tahlil
+                          Real-vaqt AI Speaking tahlili
+                        </span>
+                      </>
+                    ) : selectedTrack === 'multilevel' ? (
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          B2 / C1 ball kafolati
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          Rasmiy DTM/BMB formati
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#6366F1' }} />
+                          Interaktiv CBT simulyator
+                        </span>
+                      </>
+                    ) : selectedTrack === 'attestation' ? (
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          50 talik toʻliq format
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          70% ustama kafolati
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#3B82F6' }} />
+                          Boʻlimlar boʻyicha tahlil
                         </span>
                       </>
                     ) : (
                       <>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
-                          {t('trust_ai_speed')}
+                          15s AI Esse tahlili
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
-                          {t('trust_bmb_criteria')}
+                          12 ta rasmiy BMB mezoni
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
-                          {t('trust_elo_arena')}
+                          Real-vaqt 1v1 Arena
                         </span>
                       </>
                     )}
@@ -1081,7 +1374,7 @@ export default function Landing() {
               <div>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={landingSubject}
+                    key={selectedTrack}
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
@@ -1093,10 +1386,8 @@ export default function Landing() {
                       backdropFilter: 'blur(16px)',
                     }}
                   >
-                    {/* ----------------------------------------------------------------- */}
-                    {/* UZBEK TRACK DEMO WIDGET */}
-                    {/* ----------------------------------------------------------------- */}
-                    {landingSubject === 'uzbek' && (
+                    {/* TRACK 1: IELTS DEMO WIDGET */}
+                    {selectedTrack === 'ielts' && (
                       <div>
                         {/* Segmented Demo Tabs */}
                         <div
@@ -1112,332 +1403,541 @@ export default function Landing() {
                         >
                           <button
                             type="button"
-                            onClick={() => setDemoTabUzbek('essay')}
+                            onClick={() => setDemoTabIelts('writing')}
                             style={{
                               flex: 1,
                               padding: '10px 14px',
                               borderRadius: 10,
                               fontSize: 13,
-                              fontWeight: 800,
-                              border: 'none',
+                              fontWeight: 700,
                               cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabIelts === 'writing' ? '#38BDF8' : 'transparent',
+                              color: demoTabIelts === 'writing' ? '#090d16' : 'var(--muted)',
                               transition: 'all 0.2s ease',
-                              background: demoTabUzbek === 'essay' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
-                              color: demoTabUzbek === 'essay' ? '#F59E0B' : 'var(--muted)',
-                              boxShadow: demoTabUzbek === 'essay' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
                             }}
                           >
-                            ✍️ AI Esse (12 Mezon)
+                            ✍️ Writing Task 2
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDemoTabUzbek('test')}
+                            onClick={() => setDemoTabIelts('speaking')}
                             style={{
                               flex: 1,
                               padding: '10px 14px',
                               borderRadius: 10,
                               fontSize: 13,
-                              fontWeight: 800,
-                              border: 'none',
+                              fontWeight: 700,
                               cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabIelts === 'speaking' ? '#38BDF8' : 'transparent',
+                              color: demoTabIelts === 'speaking' ? '#090d16' : 'var(--muted)',
                               transition: 'all 0.2s ease',
-                              background: demoTabUzbek === 'test' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                              color: demoTabUzbek === 'test' ? '#10B981' : 'var(--muted)',
-                              boxShadow: demoTabUzbek === 'test' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
                             }}
                           >
-                            📚 Fast CBT Test
+                            🎙 AI Speaking
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabIelts('cbt')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabIelts === 'cbt' ? '#38BDF8' : 'transparent',
+                              color: demoTabIelts === 'cbt' ? '#090d16' : 'var(--muted)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            🎧 CBT Reading
                           </button>
                         </div>
 
-                        {/* TAB 1: AI ESSE DEMO */}
-                        {demoTabUzbek === 'essay' && (
+                        {/* IELTS Tab 1: Writing Task 2 */}
+                        {demoTabIelts === 'writing' && (
                           <div>
-                            {/* Demo Topic Header */}
                             <div
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                gap: 10,
-                                marginBottom: 12,
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                                  Namuna Esse Tahlili
-                                </span>
-                                <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
-                                  Alisher Navoiy ijodida insonparvarlik gʻoyalari
-                                </h4>
-                              </div>
-                              <span
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: 8,
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  background: 'rgba(16, 185, 129, 0.15)',
-                                  color: '#34D399',
-                                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                A Daraja (90.8%)
-                              </span>
-                            </div>
-
-                            {/* Score summary bar */}
-                            <div
-                              className="demo-score-box"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 16px',
-                                borderRadius: 14,
-                                background: 'var(--card-2)',
-                                border: '1px solid rgba(245, 158, 11, 0.25)',
-                                marginBottom: 16,
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Umumiy BMB Ball</span>
-                                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
-                                  54.5 <span style={{ fontSize: 14, color: '#F59E0B' }}>/ 60</span>
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Matn Hajmi</span>
-                                <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>278 ta soʻz</div>
-                              </div>
-                            </div>
-
-                            {/* Criteria Selector Chips */}
-                            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
-                              Mezonni tanlang va tavsiyalarni koʻring:
-                            </p>
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 6,
                                 marginBottom: 14,
                               }}
                             >
-                              {ESSAY_12_CRITERIA.slice(0, 6).map((crit) => {
-                                const isSel = selectedCritUzbek.id === crit.id;
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+                                Academic Writing Task 2
+                              </span>
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '4px 12px',
+                                  borderRadius: 999,
+                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                                  color: '#38BDF8',
+                                  fontWeight: 800,
+                                  fontSize: 13,
+                                }}
+                              >
+                                <span>Overall Band 7.5</span>
+                                <span style={{ fontSize: 11, opacity: 0.8 }}>(C1 Proficient)</span>
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: 14,
+                                borderRadius: 12,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                fontSize: 13,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.6,
+                                marginBottom: 18,
+                              }}
+                            >
+                              <p style={{ margin: '0 0 8px', fontWeight: 700, color: '#38BDF8' }}>
+                                &ldquo;The impact of artificial intelligence on modern employment: positive or negative?&rdquo;
+                              </p>
+                              <p style={{ margin: 0, fontStyle: 'italic', fontSize: 12 }}>
+                                &ldquo;While automation precipitates structural displacement across legacy sectors, it simultaneously spurs high-order cognitive occupations, necessitating state-subsidized reskilling initiatives...&rdquo;
+                              </p>
+                            </div>
+
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: 'var(--muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                marginBottom: 10,
+                              }}
+                            >
+                              4 ta rasmiy IELTS mezoni (Bosib ko&apos;ring):
+                            </span>
+
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: 8,
+                                marginBottom: 16,
+                              }}
+                            >
+                              {IELTS_4_CRITERIA.map((crit) => {
+                                const isSelected = selectedCritIelts.id === crit.id;
                                 return (
                                   <button
                                     key={crit.id}
                                     type="button"
-                                    onClick={() => setSelectedCritUzbek(crit)}
+                                    onClick={() => setSelectedCritIelts(crit)}
                                     style={{
-                                      padding: '6px 10px',
-                                      borderRadius: 8,
-                                      fontSize: 11,
-                                      fontWeight: 700,
+                                      padding: '10px 12px',
+                                      borderRadius: 12,
+                                      background: isSelected
+                                        ? 'rgba(56, 189, 248, 0.18)'
+                                        : 'var(--card-2)',
+                                      border: isSelected
+                                        ? '1px solid #38BDF8'
+                                        : '1px solid var(--border)',
+                                      textAlign: 'left',
                                       cursor: 'pointer',
-                                      border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.5)' : 'var(--border)'}`,
-                                      background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
-                                      color: isSel ? '#F59E0B' : 'var(--ink-soft)',
-                                      transition: 'all 0.15s ease',
+                                      transition: 'all 0.18s ease',
                                     }}
                                   >
-                                    {crit.id}. {crit.name.split(' ')[0]} ({crit.score})
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        marginBottom: 4,
+                                      }}
+                                    >
+                                      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--ink)' }}>
+                                        {crit.code}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 12,
+                                          fontWeight: 800,
+                                          color: '#38BDF8',
+                                        }}
+                                      >
+                                        Band {crit.band}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: 'var(--muted)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {crit.name}
+                                    </div>
                                   </button>
                                 );
                               })}
                             </div>
 
-                            {/* Active Criterion Critique Box */}
-                            <div
-                              className="active-critique-box"
+                            {/* Detail Panel */}
+                            <motion.div
+                              key={selectedCritIelts.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.18 }}
                               style={{
-                                padding: '14px',
+                                padding: 14,
                                 borderRadius: 14,
-                                background: 'var(--card-2)',
-                                border: '1px solid rgba(245, 158, 11, 0.25)',
-                                marginBottom: 16,
+                                background: 'rgba(56, 189, 248, 0.08)',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <b style={{ fontSize: 13, color: '#F59E0B' }}>
-                                  {selectedCritUzbek.id}. {selectedCritUzbek.name}
-                                </b>
-                                <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCritUzbek.score}</span>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--ink)' }}>
+                                  {selectedCritIelts.name}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    padding: '2px 8px',
+                                    borderRadius: 6,
+                                    background: '#38BDF8',
+                                    color: '#090d16',
+                                  }}
+                                >
+                                  {selectedCritIelts.score}
+                                </span>
                               </div>
-                              <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 6px', lineHeight: 1.5 }}>
-                                {selectedCritUzbek.desc}
+                              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                                {selectedCritIelts.desc}
                               </p>
                               <div
                                 style={{
-                                  fontSize: 11,
-                                  color: 'var(--muted)',
-                                  background: 'rgba(245, 158, 11, 0.08)',
-                                  padding: '6px 10px',
-                                  borderRadius: 8,
+                                  fontSize: 12,
+                                  color: '#38BDF8',
                                   display: 'flex',
-                                  alignItems: 'center',
+                                  alignItems: 'flex-start',
                                   gap: 6,
                                 }}
                               >
-                                <LightbulbIcon size={14} style={{ color: '#F59E0B', flexShrink: 0 }} />
-                                <span>{selectedCritUzbek.advice}</span>
+                                <span style={{ fontWeight: 800 }}>AI:</span>
+                                <span>{selectedCritIelts.feedback}</span>
                               </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleAction('/essays')}
-                              style={{
-                                width: '100%',
-                                padding: '11px',
-                                borderRadius: 12,
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                border: '1px solid rgba(245, 158, 11, 0.35)',
-                                color: '#F59E0B',
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
-                              }}
-                            >
-                              ✍️ Oʻz essemni tahlil qilish →
-                            </button>
+                            </motion.div>
                           </div>
                         )}
 
-                        {/* TAB 2: FAST CBT TEST DEMO */}
-                        {demoTabUzbek === 'test' && (
+                        {/* IELTS Tab 2: AI Speaking */}
+                        {demoTabIelts === 'speaking' && (
                           <div>
                             <div
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                fontSize: 12,
-                                fontWeight: 700,
-                                color: 'var(--muted)',
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+                                {SPEAKING_DEMO.part}
+                              </span>
+                              <span
+                                style={{
+                                  padding: '4px 12px',
+                                  borderRadius: 999,
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                                  color: '#34D399',
+                                  fontWeight: 800,
+                                  fontSize: 13,
+                                }}
+                              >
+                                {SPEAKING_DEMO.targetScore}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: 14,
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#38BDF8', marginBottom: 6 }}>
+                                Cue Card Topic:
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 12 }}>
+                                {SPEAKING_DEMO.topic}
+                              </div>
+
+                              {/* Audio Waveform Simulator */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 12,
+                                  padding: '12px 16px',
+                                  borderRadius: 12,
+                                  background: 'rgba(9, 13, 22, 0.6)',
+                                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setIsSpeakingPlaying(!isSpeakingPlaying)}
+                                  style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 999,
+                                    background: '#38BDF8',
+                                    border: 'none',
+                                    color: '#090d16',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 10px rgba(56, 189, 248, 0.4)',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {isSpeakingPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
+                                </button>
+
+                                {/* Animated waveform bars */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    flex: 1,
+                                    height: 32,
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  {[12, 24, 18, 30, 16, 28, 22, 14, 26, 32, 20, 10, 26, 18, 30, 22, 16, 28, 20, 14, 26].map(
+                                    (h, i) => (
+                                      <div
+                                        key={i}
+                                        className={`waveform-bar ${isSpeakingPlaying ? 'playing' : ''}`}
+                                        style={{
+                                          height: isSpeakingPlaying ? undefined : `${h}px`,
+                                          animationDelay: `${(i % 5) * 0.12}s`,
+                                        }}
+                                      />
+                                    ),
+                                  )}
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#38BDF8' }}>
+                                  {isSpeakingPlaying ? '0:24 / 1:45' : '1:45'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Sub-scores */}
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gap: 8,
+                                marginBottom: 14,
+                              }}
+                            >
+                              {[
+                                ['Fluency', SPEAKING_DEMO.scores.fluency],
+                                ['Pronunciation', SPEAKING_DEMO.scores.pronunciation],
+                                ['Lexical', SPEAKING_DEMO.scores.lexical],
+                                ['Grammar', SPEAKING_DEMO.scores.grammar],
+                              ].map(([label, score]) => (
+                                <div
+                                  key={label}
+                                  style={{
+                                    padding: '8px 10px',
+                                    borderRadius: 10,
+                                    background: 'var(--card-2)',
+                                    border: '1px solid var(--border)',
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>
+                                    {label}
+                                  </div>
+                                  <div style={{ fontSize: 14, fontWeight: 900, color: '#38BDF8' }}>
+                                    {score}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                              <span style={{ fontWeight: 800, color: 'var(--ink)' }}>AI Tahlili: </span>
+                              {SPEAKING_DEMO.feedback}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* IELTS Tab 3: CBT Reading */}
+                        {demoTabIelts === 'cbt' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 marginBottom: 12,
                               }}
                             >
-                              <span style={{ color: '#10B981' }}>Savol 1 / 1</span>
-                              <span>⏱ 00:45</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
+                                {CBT_QUESTION_IELTS.subject}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: 6,
+                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  color: '#38BDF8',
+                                }}
+                              >
+                                Cambridge Model
+                              </span>
                             </div>
 
-                            <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                              {CBT_QUESTION.question}
-                            </h4>
+                            <div
+                              style={{
+                                padding: 12,
+                                borderRadius: 12,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                fontSize: 12,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.55,
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#38BDF8' }}>Passage: </span>
+                              {CBT_QUESTION_IELTS.passage}
+                            </div>
 
-                            {/* Choices */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                              {CBT_QUESTION.options.map((opt) => {
-                                const isChosen = selectedOptionKeyUzbek === opt.key;
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
+                              {CBT_QUESTION_IELTS.question}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                              {CBT_QUESTION_IELTS.options.map((opt) => {
+                                const isSelected = selectedOptionIelts === opt.key;
                                 const isCorrect = opt.correct;
-                                const showCorrectState = selectedOptionKeyUzbek !== null && isCorrect;
-                                const showWrongState = isChosen && !isCorrect;
+                                let bg = 'var(--card-2)';
+                                let border = '1px solid var(--border)';
+                                let textCol = 'var(--ink)';
+
+                                if (isSelected) {
+                                  if (isCorrect) {
+                                    bg = 'rgba(16, 185, 129, 0.18)';
+                                    border = '1px solid #10B981';
+                                    textCol = '#10B981';
+                                  } else {
+                                    bg = 'rgba(239, 68, 68, 0.18)';
+                                    border = '1px solid #EF4444';
+                                    textCol = '#EF4444';
+                                  }
+                                }
 
                                 return (
                                   <button
                                     key={opt.key}
                                     type="button"
-                                    onClick={() => handleCbtOptionClickUzbek(opt.key)}
+                                    onClick={() => handleOptionIelts(opt.key)}
                                     style={{
                                       display: 'flex',
                                       alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      width: '100%',
-                                      padding: '11px 14px',
+                                      gap: 10,
+                                      padding: '10px 14px',
                                       borderRadius: 12,
-                                      fontSize: 13,
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
+                                      background: bg,
+                                      border,
+                                      color: textCol,
+                                      fontSize: 12,
+                                      fontWeight: 600,
                                       textAlign: 'left',
-                                      transition: 'all 0.2s ease',
-                                      background: showCorrectState
-                                        ? 'rgba(16, 185, 129, 0.2)'
-                                        : showWrongState
-                                        ? 'rgba(239, 68, 68, 0.2)'
-                                        : 'var(--card-2)',
-                                      border: `1px solid ${
-                                        showCorrectState
-                                          ? '#10B981'
-                                          : showWrongState
-                                          ? '#ef4444'
-                                          : 'var(--border)'
-                                      }`,
-                                      color: showCorrectState
-                                        ? '#34D399'
-                                        : showWrongState
-                                        ? '#f87171'
-                                        : 'var(--ink)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.18s ease',
                                     }}
                                   >
-                                    <span>
-                                      <b>{opt.key})</b> {opt.text}
+                                    <span
+                                      style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 6,
+                                        background: isSelected ? 'currentColor' : 'var(--border)',
+                                        color: isSelected ? '#090d16' : 'var(--muted)',
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      {opt.key}
                                     </span>
-                                    {showCorrectState && <span>✓ Toʻgʻri</span>}
-                                    {showWrongState && <span>✕ Xato</span>}
+                                    <span>{opt.text}</span>
                                   </button>
                                 );
                               })}
                             </div>
 
-                            {/* Explanation */}
-                            {selectedOptionKeyUzbek && (
-                              <div
+                            {selectedOptionIelts && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 style={{
-                                  padding: '12px 14px',
+                                  padding: 12,
                                   borderRadius: 12,
-                                  background: 'rgba(16, 185, 129, 0.1)',
-                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  background:
+                                    selectedOptionIelts === 'B'
+                                      ? 'rgba(16, 185, 129, 0.1)'
+                                      : 'rgba(239, 68, 68, 0.1)',
+                                  border:
+                                    selectedOptionIelts === 'B'
+                                      ? '1px solid rgba(16, 185, 129, 0.3)'
+                                      : '1px solid rgba(239, 68, 68, 0.3)',
                                   fontSize: 12,
-                                  color: '#cbd5e1',
-                                  lineHeight: 1.5,
-                                  marginBottom: 16,
+                                  color: selectedOptionIelts === 'B' ? '#34D399' : '#F87171',
                                 }}
                               >
-                                <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>💡 Ilmiy tahlil:</b>
-                                {CBT_QUESTION.explanation}
-                              </div>
+                                {CBT_QUESTION_IELTS.explanation}
+                              </motion.div>
                             )}
-
-                            <button
-                              type="button"
-                              onClick={() => handleAction('/tests')}
-                              style={{
-                                width: '100%',
-                                padding: '11px',
-                                borderRadius: 12,
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                border: '1px solid rgba(16, 185, 129, 0.35)',
-                                color: '#10B981',
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                              }}
-                            >
-                              Toʻliq testni boshlash →
-                            </button>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* ----------------------------------------------------------------- */}
-                    {/* ENGLISH TRACK DEMO WIDGET */}
-                    {/* ----------------------------------------------------------------- */}
-                    {landingSubject === 'english' && (
+                    {/* TRACK 2: MULTI-LEVEL DEMO WIDGET */}
+                    {selectedTrack === 'multilevel' && (
                       <div>
-                        {/* Segmented Demo Tabs: Writing | Speaking | CBT */}
+                        {/* Segmented Demo Tabs */}
                         <div
                           className="demo-tabs-wrap"
                           style={{
@@ -1451,536 +1951,1017 @@ export default function Landing() {
                         >
                           <button
                             type="button"
-                            onClick={() => setDemoTabEnglish('writing')}
+                            onClick={() => setDemoTabMultilevel('writing')}
                             style={{
                               flex: 1,
-                              padding: '10px 8px',
+                              padding: '10px 14px',
                               borderRadius: 10,
-                              fontSize: 12,
-                              fontWeight: 800,
-                              border: 'none',
+                              fontSize: 13,
+                              fontWeight: 700,
                               cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabMultilevel === 'writing' ? '#6366F1' : 'transparent',
+                              color: demoTabMultilevel === 'writing' ? '#FFFFFF' : 'var(--muted)',
                               transition: 'all 0.2s ease',
-                              background: demoTabEnglish === 'writing' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
-                              color: demoTabEnglish === 'writing' ? '#F59E0B' : 'var(--muted)',
-                              boxShadow: demoTabEnglish === 'writing' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
                             }}
                           >
-                            ✍️ IELTS Writing
+                            ✍️ Multi-level Writing
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDemoTabEnglish('speaking')}
+                            onClick={() => setDemoTabMultilevel('cbt')}
                             style={{
                               flex: 1,
-                              padding: '10px 8px',
+                              padding: '10px 14px',
                               borderRadius: 10,
-                              fontSize: 12,
-                              fontWeight: 800,
-                              border: 'none',
+                              fontSize: 13,
+                              fontWeight: 700,
                               cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabMultilevel === 'cbt' ? '#6366F1' : 'transparent',
+                              color: demoTabMultilevel === 'cbt' ? '#FFFFFF' : 'var(--muted)',
                               transition: 'all 0.2s ease',
-                              background: demoTabEnglish === 'speaking' ? 'rgba(56, 189, 248, 0.18)' : 'transparent',
-                              color: demoTabEnglish === 'speaking' ? '#38BDF8' : 'var(--muted)',
-                              boxShadow: demoTabEnglish === 'speaking' ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none',
                             }}
                           >
-                            🎙 AI Speaking
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDemoTabEnglish('cbt')}
-                            style={{
-                              flex: 1,
-                              padding: '10px 8px',
-                              borderRadius: 10,
-                              fontSize: 12,
-                              fontWeight: 800,
-                              border: 'none',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              background: demoTabEnglish === 'cbt' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                              color: demoTabEnglish === 'cbt' ? '#10B981' : 'var(--muted)',
-                              boxShadow: demoTabEnglish === 'cbt' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
-                            }}
-                          >
-                            🎧 CBT Reading
+                            📚 Reading CBT
                           </button>
                         </div>
 
-                        {/* TAB 1: IELTS WRITING AI */}
-                        {demoTabEnglish === 'writing' && (
+                        {/* Multi-level Tab 1: Writing */}
+                        {demoTabMultilevel === 'writing' && (
                           <div>
-                            {/* Topic Header */}
                             <div
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                gap: 10,
-                                marginBottom: 12,
+                                marginBottom: 14,
                               }}
                             >
-                              <div>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                                  Academic Task 2
-                                </span>
-                                <h4 style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-                                  The impact of AI on traditional education systems
-                                </h4>
-                              </div>
-                              <span
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+                                Formal Proposal (Part 2)
+                              </span>
+                              <div
                                 style={{
-                                  padding: '4px 10px',
-                                  borderRadius: 8,
-                                  fontSize: 11,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '4px 12px',
+                                  borderRadius: 999,
+                                  background: 'rgba(99, 102, 241, 0.15)',
+                                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                                  color: '#818CF8',
                                   fontWeight: 800,
-                                  background: 'rgba(245, 158, 11, 0.15)',
-                                  color: '#F59E0B',
-                                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                                  whiteSpace: 'nowrap',
+                                  fontSize: 13,
                                 }}
                               >
-                                Band 7.5 (C1)
-                              </span>
+                                <span>Score: 17 / 20</span>
+                                <span style={{ fontSize: 11, opacity: 0.8 }}>(C1 Certified)</span>
+                              </div>
                             </div>
 
-                            {/* Score summary bar */}
                             <div
-                              className="demo-score-box"
                               style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 16px',
-                                borderRadius: 14,
+                                padding: 14,
+                                borderRadius: 12,
                                 background: 'var(--card-2)',
-                                border: '1px solid rgba(245, 158, 11, 0.25)',
-                                marginBottom: 16,
+                                border: '1px solid var(--border)',
+                                fontSize: 13,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.6,
+                                marginBottom: 18,
                               }}
                             >
-                              <div>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Overall Band Score</span>
-                                <div style={{ fontSize: 22, fontWeight: 900, color: '#F59E0B' }}>
-                                  7.5 <span style={{ fontSize: 13, color: 'var(--muted)' }}>/ 9.0</span>
-                                </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span style={{ fontWeight: 700, color: '#818CF8' }}>
+                                  Municipal Bike-Sharing System Proposal
+                                </span>
+                                <span style={{ fontSize: 11, color: '#10B981', fontWeight: 700 }}>
+                                  184 words (Optimal)
+                                </span>
                               </div>
-                              <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Word Count</span>
-                                <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>284 words</div>
-                              </div>
+                              <p style={{ margin: 0, fontStyle: 'italic', fontSize: 12 }}>
+                                &ldquo;To mitigate persistent rush-hour bottlenecks across the city center, I urge the council to inaugurate a docked bicycle-sharing network, subsidizing initial infrastructural outlays...&rdquo;
+                              </p>
                             </div>
 
-                            {/* 4 Official IELTS Criteria Chips */}
-                            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
-                              Rasmiy 4 ta baholash mezonini koʻring:
-                            </p>
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: 'var(--muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                marginBottom: 10,
+                              }}
+                            >
+                              4 ta CEFR mezoni (Bosib ko&apos;ring):
+                            </span>
+
                             <div
                               style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(2, 1fr)',
-                                gap: 6,
-                                marginBottom: 14,
+                                gap: 8,
+                                marginBottom: 16,
                               }}
                             >
-                              {IELTS_4_CRITERIA.map((crit) => {
-                                const isSel = selectedCritEnglish.id === crit.id;
+                              {MULTILEVEL_4_CRITERIA.map((crit) => {
+                                const isSelected = selectedCritMultilevel.id === crit.id;
                                 return (
                                   <button
                                     key={crit.id}
                                     type="button"
-                                    onClick={() => setSelectedCritEnglish(crit)}
+                                    onClick={() => setSelectedCritMultilevel(crit)}
                                     style={{
-                                      padding: '8px 10px',
-                                      borderRadius: 10,
-                                      fontSize: 11,
-                                      fontWeight: 700,
+                                      padding: '10px 12px',
+                                      borderRadius: 12,
+                                      background: isSelected
+                                        ? 'rgba(99, 102, 241, 0.18)'
+                                        : 'var(--card-2)',
+                                      border: isSelected
+                                        ? '1px solid #6366F1'
+                                        : '1px solid var(--border)',
+                                      textAlign: 'left',
                                       cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.6)' : 'var(--border)'}`,
-                                      background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
-                                      color: isSel ? '#F59E0B' : 'var(--ink-soft)',
-                                      transition: 'all 0.15s ease',
+                                      transition: 'all 0.18s ease',
                                     }}
                                   >
-                                    <span>{crit.code}</span>
-                                    <b>{crit.score}</b>
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        marginBottom: 4,
+                                      }}
+                                    >
+                                      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--ink)' }}>
+                                        {crit.code}
+                                      </span>
+                                      <span style={{ fontSize: 12, fontWeight: 800, color: '#818CF8' }}>
+                                        {crit.score}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: 'var(--muted)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {crit.name}
+                                    </div>
                                   </button>
                                 );
                               })}
                             </div>
 
-                            {/* Active Criterion Box */}
-                            <div
-                              className="active-critique-box"
+                            {/* Detail Panel */}
+                            <motion.div
+                              key={selectedCritMultilevel.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.18 }}
                               style={{
-                                padding: '14px',
+                                padding: 14,
                                 borderRadius: 14,
-                                background: 'var(--card-2)',
-                                border: '1px solid rgba(245, 158, 11, 0.25)',
-                                marginBottom: 16,
+                                background: 'rgba(99, 102, 241, 0.08)',
+                                border: '1px solid rgba(99, 102, 241, 0.25)',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <b style={{ fontSize: 13, color: '#F59E0B' }}>
-                                  {selectedCritEnglish.name} ({selectedCritEnglish.code})
-                                </b>
-                                <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCritEnglish.score}</span>
-                              </div>
-                              <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.5 }}>
-                                {selectedCritEnglish.desc}
-                              </p>
-
-                              {/* Highlights badges */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                                {selectedCritEnglish.highlights.map((h) => (
-                                  <span
-                                    key={h}
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      padding: '2px 8px',
-                                      borderRadius: 6,
-                                      background: 'rgba(56, 189, 248, 0.12)',
-                                      color: '#38BDF8',
-                                      border: '1px solid rgba(56, 189, 248, 0.25)',
-                                    }}
-                                  >
-                                    ✓ {h}
-                                  </span>
-                                ))}
-                              </div>
-
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: 'var(--muted)',
-                                  background: 'rgba(245, 158, 11, 0.08)',
-                                  padding: '6px 10px',
-                                  borderRadius: 8,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                }}
-                              >
-                                <LightbulbIcon size={14} style={{ color: '#F59E0B', flexShrink: 0 }} />
-                                <span>{selectedCritEnglish.advice}</span>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleAction('/essays')}
-                              style={{
-                                width: '100%',
-                                padding: '11px',
-                                borderRadius: 12,
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                border: '1px solid rgba(245, 158, 11, 0.35)',
-                                color: '#F59E0B',
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                              }}
-                            >
-                              ✍️ IELTS Writing tahlil qilish →
-                            </button>
-                          </div>
-                        )}
-
-                        {/* TAB 2: AI SPEAKING SIMULATOR */}
-                        {demoTabEnglish === 'speaking' && (
-                          <div>
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 10,
-                                marginBottom: 12,
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase' }}>
-                                  {SPEAKING_DEMO.part}
-                                </span>
-                                <h4 style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
-                                  {SPEAKING_DEMO.topic}
-                                </h4>
-                              </div>
-                              <span
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: 8,
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  background: 'rgba(56, 189, 248, 0.15)',
-                                  color: '#38BDF8',
-                                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                Band {SPEAKING_DEMO.overallBand}
-                              </span>
-                            </div>
-
-                            {/* Audio waveform simulator */}
-                            <div
-                              style={{
-                                padding: '14px 16px',
-                                borderRadius: 14,
-                                background: 'var(--card-2)',
-                                border: '1px solid rgba(56, 189, 248, 0.25)',
-                                marginBottom: 14,
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setIsSpeakingPlaying((p) => !p)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    padding: '6px 12px',
-                                    borderRadius: 10,
-                                    background: isSpeakingPlaying ? '#38BDF8' : 'rgba(56, 189, 248, 0.15)',
-                                    color: isSpeakingPlaying ? '#090D16' : '#38BDF8',
-                                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                                    cursor: 'pointer',
-                                    fontSize: 12,
-                                    fontWeight: 800,
-                                    transition: 'all 0.2s ease',
-                                  }}
-                                >
-                                  {isSpeakingPlaying ? <Pause size={14} /> : <Play size={14} />}
-                                  <span>{isSpeakingPlaying ? "To'xtatish" : "Eshitish"}</span>
-                                </button>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#38BDF8' }}>
-                                  {SPEAKING_DEMO.duration}
-                                </span>
-                              </div>
-
-                              {/* Equalizer bars */}
                               <div
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'space-between',
-                                  height: 32,
-                                  gap: 3,
-                                  padding: '0 4px',
+                                  marginBottom: 6,
                                 }}
                               >
-                                {[18, 24, 12, 28, 32, 20, 26, 30, 16, 22, 28, 14, 26, 32, 20, 15, 25, 29, 18].map(
-                                  (h, idx) => (
-                                    <div
-                                      key={idx}
-                                      className={`waveform-bar ${isSpeakingPlaying ? 'playing' : ''}`}
-                                      style={{
-                                        height: isSpeakingPlaying ? undefined : `${h * 0.75}px`,
-                                        animationDelay: `${idx * 0.05}s`,
-                                      }}
-                                    />
-                                  ),
-                                )}
-                              </div>
-                            </div>
-
-                            {/* 4-Criteria Score Grid */}
-                            <div
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(4, 1fr)',
-                                gap: 6,
-                                marginBottom: 12,
-                                textAlign: 'center',
-                              }}
-                            >
-                              {[
-                                { label: 'Fluency', val: SPEAKING_DEMO.scores.fluency, color: '#34D399' },
-                                { label: 'Pronun.', val: SPEAKING_DEMO.scores.pronunciation, color: '#F59E0B' },
-                                { label: 'Lexical', val: SPEAKING_DEMO.scores.lexical, color: '#38BDF8' },
-                                { label: 'Grammar', val: SPEAKING_DEMO.scores.grammar, color: '#A78BFA' },
-                              ].map((item) => (
-                                <div
-                                  key={item.label}
+                                <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--ink)' }}>
+                                  {selectedCritMultilevel.name}
+                                </span>
+                                <span
                                   style={{
-                                    padding: '8px 4px',
-                                    borderRadius: 10,
-                                    background: 'var(--card-2)',
-                                    border: '1px solid var(--border)',
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    padding: '2px 8px',
+                                    borderRadius: 6,
+                                    background: '#6366F1',
+                                    color: '#FFFFFF',
                                   }}
                                 >
-                                  <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700 }}>{item.label}</div>
-                                  <div style={{ fontSize: 15, fontWeight: 900, color: item.color, marginTop: 2 }}>
-                                    {item.val.toFixed(1)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* AI Transcription & Feedback */}
-                            <div
-                              style={{
-                                padding: '12px 14px',
-                                borderRadius: 12,
-                                background: 'rgba(56, 189, 248, 0.08)',
-                                border: '1px solid rgba(56, 189, 248, 0.25)',
-                                fontSize: 12,
-                                color: 'var(--ink-soft)',
-                                lineHeight: 1.5,
-                                marginBottom: 16,
-                              }}
-                            >
-                              <div style={{ fontSize: 11, fontWeight: 800, color: '#38BDF8', marginBottom: 4 }}>
-                                🎙 AI Transkripsiya (Excerpt):
+                                  {selectedCritMultilevel.score}
+                                </span>
                               </div>
-                              <p style={{ margin: '0 0 6px', fontStyle: 'italic', color: '#cbd5e1' }}>
-                                "{SPEAKING_DEMO.transcript.slice(0, 160)}..."
+                              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                                {selectedCritMultilevel.desc}
                               </p>
-                              <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                                {SPEAKING_DEMO.aiFeedback}
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: '#818CF8',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 6,
+                                }}
+                              >
+                                <span style={{ fontWeight: 800 }}>AI:</span>
+                                <span>{selectedCritMultilevel.feedback}</span>
                               </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleAction('/speaking')}
-                              style={{
-                                width: '100%',
-                                padding: '11px',
-                                borderRadius: 12,
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                border: '1px solid rgba(56, 189, 248, 0.35)',
-                                color: '#38BDF8',
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                              }}
-                            >
-                              🎙 Speaking trenajyorni sinash →
-                            </button>
+                            </motion.div>
                           </div>
                         )}
 
-                        {/* TAB 3: CBT READING & LISTENING */}
-                        {demoTabEnglish === 'cbt' && (
+                        {/* Multi-level Tab 2: Reading CBT */}
+                        {demoTabMultilevel === 'cbt' && (
                           <div>
                             <div
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                fontSize: 12,
-                                fontWeight: 700,
-                                color: 'var(--muted)',
                                 marginBottom: 12,
                               }}
                             >
-                              <span style={{ color: '#10B981' }}>{ENGLISH_CBT_QUESTION.section}</span>
-                              <span>⏱ 00:55</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
+                                {CBT_QUESTION_MULTILEVEL.subject}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: 6,
+                                  background: 'rgba(99, 102, 241, 0.15)',
+                                  color: '#818CF8',
+                                }}
+                              >
+                                DTM / BMB Standarti
+                              </span>
                             </div>
 
-                            <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                              {ENGLISH_CBT_QUESTION.question}
-                            </h4>
+                            <div
+                              style={{
+                                padding: 12,
+                                borderRadius: 12,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                fontSize: 12,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.55,
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#818CF8' }}>Passage: </span>
+                              {CBT_QUESTION_MULTILEVEL.passage}
+                            </div>
 
-                            {/* Choices */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                              {ENGLISH_CBT_QUESTION.options.map((opt) => {
-                                const isChosen = selectedOptionKeyEnglish === opt.key;
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
+                              {CBT_QUESTION_MULTILEVEL.question}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                              {CBT_QUESTION_MULTILEVEL.options.map((opt) => {
+                                const isSelected = selectedOptionMultilevel === opt.key;
                                 const isCorrect = opt.correct;
-                                const showCorrectState = selectedOptionKeyEnglish !== null && isCorrect;
-                                const showWrongState = isChosen && !isCorrect;
+                                let bg = 'var(--card-2)';
+                                let border = '1px solid var(--border)';
+                                let textCol = 'var(--ink)';
+
+                                if (isSelected) {
+                                  if (isCorrect) {
+                                    bg = 'rgba(16, 185, 129, 0.18)';
+                                    border = '1px solid #10B981';
+                                    textCol = '#10B981';
+                                  } else {
+                                    bg = 'rgba(239, 68, 68, 0.18)';
+                                    border = '1px solid #EF4444';
+                                    textCol = '#EF4444';
+                                  }
+                                }
 
                                 return (
                                   <button
                                     key={opt.key}
                                     type="button"
-                                    onClick={() => handleCbtOptionClickEnglish(opt.key)}
+                                    onClick={() => handleOptionMultilevel(opt.key)}
                                     style={{
                                       display: 'flex',
                                       alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      width: '100%',
-                                      padding: '10px 12px',
+                                      gap: 10,
+                                      padding: '10px 14px',
                                       borderRadius: 12,
+                                      background: bg,
+                                      border,
+                                      color: textCol,
                                       fontSize: 12,
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
+                                      fontWeight: 600,
                                       textAlign: 'left',
-                                      transition: 'all 0.2s ease',
-                                      background: showCorrectState
-                                        ? 'rgba(16, 185, 129, 0.2)'
-                                        : showWrongState
-                                        ? 'rgba(239, 68, 68, 0.2)'
-                                        : 'var(--card-2)',
-                                      border: `1px solid ${
-                                        showCorrectState
-                                          ? '#10B981'
-                                          : showWrongState
-                                          ? '#ef4444'
-                                          : 'var(--border)'
-                                      }`,
-                                      color: showCorrectState
-                                        ? '#34D399'
-                                        : showWrongState
-                                        ? '#f87171'
-                                        : 'var(--ink)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.18s ease',
                                     }}
                                   >
-                                    <span>
-                                      <b>{opt.key})</b> {opt.text}
+                                    <span
+                                      style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 6,
+                                        background: isSelected ? 'currentColor' : 'var(--border)',
+                                        color: isSelected ? '#090d16' : 'var(--muted)',
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      {opt.key}
                                     </span>
-                                    {showCorrectState && <span>✓ Correct</span>}
-                                    {showWrongState && <span>✕ Incorrect</span>}
+                                    <span>{opt.text}</span>
                                   </button>
                                 );
                               })}
                             </div>
 
-                            {/* Explanation */}
-                            {selectedOptionKeyEnglish && (
-                              <div
+                            {selectedOptionMultilevel && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 style={{
-                                  padding: '12px 14px',
+                                  padding: 12,
                                   borderRadius: 12,
-                                  background: 'rgba(16, 185, 129, 0.1)',
-                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  background:
+                                    selectedOptionMultilevel === 'B'
+                                      ? 'rgba(16, 185, 129, 0.1)'
+                                      : 'rgba(239, 68, 68, 0.1)',
+                                  border:
+                                    selectedOptionMultilevel === 'B'
+                                      ? '1px solid rgba(16, 185, 129, 0.3)'
+                                      : '1px solid rgba(239, 68, 68, 0.3)',
                                   fontSize: 12,
-                                  color: '#cbd5e1',
-                                  lineHeight: 1.5,
-                                  marginBottom: 16,
+                                  color: selectedOptionMultilevel === 'B' ? '#34D399' : '#F87171',
                                 }}
                               >
-                                <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>💡 Key Explanation:</b>
-                                {ENGLISH_CBT_QUESTION.explanation}
-                              </div>
+                                {CBT_QUESTION_MULTILEVEL.explanation}
+                              </motion.div>
                             )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                            <button
-                              type="button"
-                              onClick={() => handleAction('/tests')}
+                    {/* TRACK 3: NATIONAL CERTIFICATE DEMO WIDGET */}
+                    {selectedTrack === 'national_certificate' && (
+                      <div>
+                        {/* Segmented Demo Tabs */}
+                        <div
+                          className="demo-tabs-wrap"
+                          style={{
+                            display: 'flex',
+                            background: 'var(--card-2)',
+                            borderRadius: 14,
+                            padding: 4,
+                            marginBottom: 20,
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabNatCert('essay')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabNatCert === 'essay' ? '#F59E0B' : 'transparent',
+                              color: demoTabNatCert === 'essay' ? '#090d16' : 'var(--muted)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            ✍️ AI Esse (12 Mezon)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabNatCert('test')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabNatCert === 'test' ? '#F59E0B' : 'transparent',
+                              color: demoTabNatCert === 'test' ? '#090d16' : 'var(--muted)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            📚 Fast CBT Test
+                          </button>
+                        </div>
+
+                        {/* NatCert Tab 1: 12 Mezonli Esse */}
+                        {demoTabNatCert === 'essay' && (
+                          <div>
+                            <div
                               style={{
-                                width: '100%',
-                                padding: '11px',
-                                borderRadius: 12,
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                border: '1px solid rgba(16, 185, 129, 0.35)',
-                                color: '#10B981',
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 14,
                               }}
                             >
-                              🎧 Cambridge CBT testini boshlash →
-                            </button>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+                                Alisher Navoiy &apos;Xamsa&apos;si tahlili
+                              </span>
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '4px 12px',
+                                  borderRadius: 999,
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                                  color: '#F59E0B',
+                                  fontWeight: 800,
+                                  fontSize: 13,
+                                }}
+                              >
+                                <span>54.5 / 60 ball</span>
+                                <span style={{ fontSize: 11, opacity: 0.8 }}>(A daraja - 90.8%)</span>
+                              </div>
+                            </div>
+
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: 'var(--muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                marginBottom: 10,
+                              }}
+                            >
+                              12 ta rasmiy BMB mezonlari (Bosib ko&apos;ring):
+                            </span>
+
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gap: 6,
+                                marginBottom: 16,
+                              }}
+                            >
+                              {ESSAY_12_CRITERIA.map((crit) => {
+                                const isSelected = selectedCritNatCert.id === crit.id;
+                                return (
+                                  <button
+                                    key={crit.id}
+                                    type="button"
+                                    onClick={() => setSelectedCritNatCert(crit)}
+                                    style={{
+                                      padding: '8px 4px',
+                                      borderRadius: 10,
+                                      background: isSelected
+                                        ? 'rgba(245, 158, 11, 0.2)'
+                                        : 'var(--card-2)',
+                                      border: isSelected
+                                        ? '1px solid #F59E0B'
+                                        : '1px solid var(--border)',
+                                      textAlign: 'center',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.18s ease',
+                                    }}
+                                  >
+                                    <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink)' }}>
+                                      #{crit.id}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        color: crit.percent >= 90 ? '#10B981' : '#F59E0B',
+                                      }}
+                                    >
+                                      {crit.score.split(' ')[0]}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Detail Panel */}
+                            <motion.div
+                              key={selectedCritNatCert.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.18 }}
+                              style={{
+                                padding: 14,
+                                borderRadius: 14,
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--ink)' }}>
+                                  #{selectedCritNatCert.id}. {selectedCritNatCert.name}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    padding: '2px 8px',
+                                    borderRadius: 6,
+                                    background: '#F59E0B',
+                                    color: '#090d16',
+                                  }}
+                                >
+                                  {selectedCritNatCert.score}
+                                </span>
+                              </div>
+                              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                                {selectedCritNatCert.desc}
+                              </p>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: '#F59E0B',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 6,
+                                }}
+                              >
+                                <span style={{ fontWeight: 800 }}>Tavsiya:</span>
+                                <span>{selectedCritNatCert.advice}</span>
+                              </div>
+                            </motion.div>
+                          </div>
+                        )}
+
+                        {/* NatCert Tab 2: Fast CBT Test */}
+                        {demoTabNatCert === 'test' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 12,
+                              }}
+                            >
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
+                                {CBT_QUESTION_UZBEK.subject}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: 6,
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#F59E0B',
+                                }}
+                              >
+                                Rasmiy BMB 2026
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: 12,
+                                borderRadius: 12,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                fontSize: 12,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.55,
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#F59E0B' }}>Matn: </span>
+                              {CBT_QUESTION_UZBEK.passage}
+                            </div>
+
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
+                              {CBT_QUESTION_UZBEK.question}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                              {CBT_QUESTION_UZBEK.options.map((opt) => {
+                                const isSelected = selectedOptionNatCert === opt.key;
+                                const isCorrect = opt.correct;
+                                let bg = 'var(--card-2)';
+                                let border = '1px solid var(--border)';
+                                let textCol = 'var(--ink)';
+
+                                if (isSelected) {
+                                  if (isCorrect) {
+                                    bg = 'rgba(16, 185, 129, 0.18)';
+                                    border = '1px solid #10B981';
+                                    textCol = '#10B981';
+                                  } else {
+                                    bg = 'rgba(239, 68, 68, 0.18)';
+                                    border = '1px solid #EF4444';
+                                    textCol = '#EF4444';
+                                  }
+                                }
+
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => handleOptionNatCert(opt.key)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 10,
+                                      padding: '10px 14px',
+                                      borderRadius: 12,
+                                      background: bg,
+                                      border,
+                                      color: textCol,
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      textAlign: 'left',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.18s ease',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 6,
+                                        background: isSelected ? 'currentColor' : 'var(--border)',
+                                        color: isSelected ? '#090d16' : 'var(--muted)',
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      {opt.key}
+                                    </span>
+                                    <span>{opt.text}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {selectedOptionNatCert && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                style={{
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  background:
+                                    selectedOptionNatCert === 'B'
+                                      ? 'rgba(16, 185, 129, 0.1)'
+                                      : 'rgba(239, 68, 68, 0.1)',
+                                  border:
+                                    selectedOptionNatCert === 'B'
+                                      ? '1px solid rgba(16, 185, 129, 0.3)'
+                                      : '1px solid rgba(239, 68, 68, 0.3)',
+                                  fontSize: 12,
+                                  color: selectedOptionNatCert === 'B' ? '#34D399' : '#F87171',
+                                }}
+                              >
+                                {CBT_QUESTION_UZBEK.explanation}
+                              </motion.div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TRACK 4: ATTESTATION DEMO WIDGET */}
+                    {selectedTrack === 'attestation' && (
+                      <div>
+                        {/* Segmented Demo Tabs */}
+                        <div
+                          className="demo-tabs-wrap"
+                          style={{
+                            display: 'flex',
+                            background: 'var(--card-2)',
+                            borderRadius: 14,
+                            padding: 4,
+                            marginBottom: 20,
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabAttestation('test')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabAttestation === 'test' ? '#F59E0B' : 'transparent',
+                              color: demoTabAttestation === 'test' ? '#090d16' : 'var(--muted)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            👨‍🏫 Attestatsiya Testi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabAttestation('diagnostic')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: 'none',
+                              background: demoTabAttestation === 'diagnostic' ? '#F59E0B' : 'transparent',
+                              color: demoTabAttestation === 'diagnostic' ? '#090d16' : 'var(--muted)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            📊 Toifa Diagnostikasi
+                          </button>
+                        </div>
+
+                        {/* Attestation Tab 1: Test Savoli */}
+                        {demoTabAttestation === 'test' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 12,
+                              }}
+                            >
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
+                                {ATTESTATION_QUESTION.subject}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: 6,
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#F59E0B',
+                                }}
+                              >
+                                Rasmiy Attestatsiya 2026
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: 12,
+                                borderRadius: 12,
+                                background: 'var(--card-2)',
+                                border: '1px solid var(--border)',
+                                fontSize: 12,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.55,
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#F59E0B' }}>Metodik Tavsif: </span>
+                              {ATTESTATION_QUESTION.passage}
+                            </div>
+
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
+                              {ATTESTATION_QUESTION.question}
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                              {ATTESTATION_QUESTION.options.map((opt) => {
+                                const isSelected = selectedOptionAttestation === opt.key;
+                                const isCorrect = opt.correct;
+                                let bg = 'var(--card-2)';
+                                let border = '1px solid var(--border)';
+                                let textCol = 'var(--ink)';
+
+                                if (isSelected) {
+                                  if (isCorrect) {
+                                    bg = 'rgba(16, 185, 129, 0.18)';
+                                    border = '1px solid #10B981';
+                                    textCol = '#10B981';
+                                  } else {
+                                    bg = 'rgba(239, 68, 68, 0.18)';
+                                    border = '1px solid #EF4444';
+                                    textCol = '#EF4444';
+                                  }
+                                }
+
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => handleOptionAttestation(opt.key)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 10,
+                                      padding: '10px 14px',
+                                      borderRadius: 12,
+                                      background: bg,
+                                      border,
+                                      color: textCol,
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      textAlign: 'left',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.18s ease',
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 6,
+                                        background: isSelected ? 'currentColor' : 'var(--border)',
+                                        color: isSelected ? '#090d16' : 'var(--muted)',
+                                        fontWeight: 800,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      {opt.key}
+                                    </span>
+                                    <span>{opt.text}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {selectedOptionAttestation && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                style={{
+                                  padding: 12,
+                                  borderRadius: 12,
+                                  background:
+                                    selectedOptionAttestation === 'B'
+                                      ? 'rgba(16, 185, 129, 0.1)'
+                                      : 'rgba(239, 68, 68, 0.1)',
+                                  border:
+                                    selectedOptionAttestation === 'B'
+                                      ? '1px solid rgba(16, 185, 129, 0.3)'
+                                      : '1px solid rgba(239, 68, 68, 0.3)',
+                                  fontSize: 12,
+                                  color: selectedOptionAttestation === 'B' ? '#34D399' : '#F87171',
+                                }}
+                              >
+                                {ATTESTATION_QUESTION.explanation}
+                              </motion.div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Attestation Tab 2: Toifa Diagnostikasi */}
+                        {demoTabAttestation === 'diagnostic' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 14,
+                              }}
+                            >
+                              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+                                50 talik Rasmiy Diagnostika
+                              </span>
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  padding: '4px 12px',
+                                  borderRadius: 999,
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                                  color: '#34D399',
+                                  fontWeight: 800,
+                                  fontSize: 13,
+                                }}
+                              >
+                                <span>46 / 50 ball (92%)</span>
+                                <span style={{ fontSize: 11, opacity: 0.8 }}>(Oliy Toifa)</span>
+                              </div>
+                            </div>
+
+                            {/* 3 Categories Breakdown */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                              {ATTESTATION_CATEGORIES.map((cat) => (
+                                <div
+                                  key={cat.id}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 12,
+                                    background: 'var(--card-2)',
+                                    border: '1px solid var(--border)',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      marginBottom: 6,
+                                    }}
+                                  >
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                                      {cat.name}
+                                    </span>
+                                    <span style={{ fontSize: 12, fontWeight: 800, color: '#F59E0B' }}>
+                                      {cat.correct} / {cat.total} ({cat.percent}%)
+                                    </span>
+                                  </div>
+                                  <div
+                                    style={{
+                                      width: '100%',
+                                      height: 6,
+                                      borderRadius: 999,
+                                      background: 'rgba(255, 255, 255, 0.08)',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: `${cat.percent}%`,
+                                        height: '100%',
+                                        borderRadius: 999,
+                                        background: cat.percent >= 90 ? '#10B981' : '#F59E0B',
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Attestation summary badge */}
+                            <div
+                              style={{
+                                padding: 14,
+                                borderRadius: 14,
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 10,
+                                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                                  color: '#090d16',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 900,
+                                  fontSize: 20,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                🏆
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 800, color: '#F59E0B' }}>
+                                  Oliy toifa va 70% oylik ustama kafolatlandi!
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                                  Sinov natijangiz Davlat attestatsiya komissiyasi mezonlariga toʻliq javob beradi.
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2001,7 +2982,7 @@ export default function Landing() {
           }}
         >
           <div style={{ margin: '0 auto', maxWidth: 1200 }}>
-            <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
+            <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 48px' }}>
               <span
                 style={{
                   fontSize: 11,
@@ -2011,7 +2992,13 @@ export default function Landing() {
                   textTransform: 'uppercase',
                 }}
               >
-                {landingSubject === 'english' ? 'CAMBRIDGE & CEFR ECOSYSTEM' : t('features_main_eyebrow')}
+                {selectedTrack === 'ielts'
+                  ? 'CAMBRIDGE & IDP IELTS ECOSYSTEM'
+                  : selectedTrack === 'multilevel'
+                  ? 'BMB / CEFR RASMIY STANDARTI'
+                  : selectedTrack === 'attestation'
+                  ? 'PEDAGOGLAR ATTESTATSIYASI 2026'
+                  : t('features_main_eyebrow')}
               </span>
               <h2
                 style={{
@@ -2021,10 +3008,20 @@ export default function Landing() {
                   margin: '12px 0',
                 }}
               >
-                {landingSubject === 'english' ? (
+                {selectedTrack === 'ielts' ? (
                   <>
-                    IELTS & Multi-level imkoniyatlari{' '}
+                    IELTS Band 7.5+ ga erishish imkoniyatlari{' '}
                     <span className="hero-title-gradient">bitta platformada</span>
+                  </>
+                ) : selectedTrack === 'multilevel' ? (
+                  <>
+                    Davlat Multi-level (B2/C1) imkoniyatlari{' '}
+                    <span className="hero-title-gradient">bitta platformada</span>
+                  </>
+                ) : selectedTrack === 'attestation' ? (
+                  <>
+                    Toifa oshirish va 70% ustama olish uchun{' '}
+                    <span className="hero-title-gradient">maxsus tizim</span>
                   </>
                 ) : (
                   <>
@@ -2034,8 +3031,12 @@ export default function Landing() {
                 )}
               </h2>
               <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-                {landingSubject === 'english'
-                  ? 'IELTS Band 7.5+ va Multi-level C1 darajasiga erishish uchun eng soʻnggi AI texnologiyalari.'
+                {selectedTrack === 'ielts'
+                  ? 'Writing Task 1 & 2, real-vaqt Speaking simulyatori va Cambridge CBT testlari.'
+                  : selectedTrack === 'multilevel'
+                  ? 'DTM/BMB formati boʻyicha yozma insho, 35 talik CBT testlar va leksik trenajyorlar.'
+                  : selectedTrack === 'attestation'
+                  ? '50 talik rasmiy sinov formati, pedagogik mahorat va toifa ehtimolligi kalkulyatori.'
                   : t('features_main_subtitle')}
               </p>
             </div>
@@ -2043,7 +3044,7 @@ export default function Landing() {
             {/* 3 Core Direction Cards Grid */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={landingSubject}
+                key={selectedTrack}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
@@ -2054,57 +3055,238 @@ export default function Landing() {
                   gap: 24,
                 }}
               >
-                {landingSubject === 'uzbek' ? (
+                {/* IELTS 3 Cards */}
+                {selectedTrack === 'ielts' && (
                   <>
-                    {/* Uzbek Card 1: AI Esse */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(245, 158, 11, 0.12)',
-                            border: '1px solid rgba(245, 158, 11, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#F59E0B',
-                            boxShadow: '0 0 20px rgba(245, 158, 11, 0.15)',
-                          }}
-                        >
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38BDF8' }}>
                           <PenLineIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(245, 158, 11, 0.15)',
-                            color: '#F59E0B',
-                            border: '1px solid rgba(245, 158, 11, 0.3)',
-                          }}
-                        >
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          Task 1 & 2
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        IELTS Writing AI Grader
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Cambridge 4 ta mezoni (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq baholash, xatolar tuzatmasi va Band prognozi.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Task 1 (Grafiklar) va Task 2 (Esse) toʻliq qoʻllab-quvvatlash</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Akademik lugʻat boyligi va sinonimlar tavsiyasi</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Band 7.5+ namunaviy insholar bilan solishtirish</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/speaking')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38BDF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Writing sinovini boshlash →
+                      </button>
+                    </div>
+
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
+                          <Mic size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          Part 1, 2, 3
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        AI Speaking Simulyatori
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Real-vaqt ovozli suhbat, talaffuz (Pronunciation) va ravonlik (Fluency) diagnostikasi hamda darhol tavsiyalar.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>Part 2 Cue Card va 1 daqiqalik tayyorgarlik taymeri</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>Grammatik va talaffuz xatolarini audio orqali koʻrsatish</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>Jonli ELO reyting va boshqa oʻquvchilar bilan solishtirish</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/speaking')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Speaking mashqini boshlash →
+                      </button>
+                    </div>
+
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818CF8' }}>
+                          <Headphones size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+                          Reading & Listening
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        Cambridge CBT Simulyatori
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Listening va Reading boʻyicha toʻliq kompyuterlashtirilgan sinov muhiti, audio pleyer va rasmiy qolip.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>Cambridge 10–19 rasmiy test savollari</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>Vaqt nazorati va avtomatik Band hisoblash</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>Tezkor xatolar ustida ishlash rejimi</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: '#818CF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        CBT Testni boshlash →
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Multi-level 3 Cards */}
+                {selectedTrack === 'multilevel' && (
+                  <>
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818CF8' }}>
+                          <PenLineIcon size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+                          B2 / C1 Insho
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        CEFR Writing AI Tahlili
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Davlat BMB standarti boʻyicha rasmiy insho va rasmiy xatlar tekshiruvi, leksik boylik va grammatik aniqlik.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>Part 1 (Xat/Email) va Part 2 (Esse) 20 ballik tizimda</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>B2 va C1 darajasiga mos soʻz birikmalari tahlili</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#818CF8' }} />
+                          <span>Xatolar tuzatmasi bilan bir zumda hisobot</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/essays')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: '#818CF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Writing yozishni boshlash →
+                      </button>
+                    </div>
+
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38BDF8' }}>
+                          <FileTextIcon size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                          35 talik Savollar
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        Multi-level CBT Testlari
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Rasmiy DTM/BMB formati boʻyicha 5 ta qismdan iborat Reading va Listening imtihon simulyatori.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Haqiqiy imtihon interfeysi va taymer</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Savollar boʻyicha batafsil izoh va tushuntirish</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>B1, B2, C1 darajasi ehtimolligi kalkulyatori</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38BDF8', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Multi-level testini boshlash →
+                      </button>
+                    </div>
+
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
+                          <SwordsIcon size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          B1 · B2 · C1
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        Lugʻat va Grammatika Arenasi
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        CEFR darajalari uchun maxsus leksik mini-trenajyorlar va boshqa abituriyentlar bilan 1v1 viktorinalar.
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>Oxford 3000 & 5000 soʻzlar bazasi</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>1v1 intellektual bellashuv va ball toʻplash</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#34D399' }} />
+                          <span>Kundalik soʻz yodlash maratoni (Streak)</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => handleAction('/arena')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Arenaga kirish →
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* National Certificate 3 Cards */}
+                {selectedTrack === 'national_certificate' && (
+                  <>
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+                          <PenLineIcon size={26} />
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
                           {t('feature_card_essay_badge')}
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feature_card_essay_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feature_card_essay_desc')}
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
@@ -2119,446 +3301,183 @@ export default function Landing() {
                           <span>{t('feature_card_essay_bullet3')}</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/essays')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          color: '#F59E0B',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
+                      <button type="button" onClick={() => handleAction('/essays')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', color: '#F59E0B', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
                         {t('feature_card_essay_action')}
                       </button>
                     </div>
 
-                    {/* Uzbek Card 2: CBT Tests */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(16, 185, 129, 0.12)',
-                            border: '1px solid rgba(16, 185, 129, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#10B981',
-                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
-                          }}
-                        >
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                           <FileTextIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#34D399',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                          }}
-                        >
-                          {t('feature_card_cbt_badge')}
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          {t('feature_card_tests_badge')}
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        {t('feature_card_cbt_title')}
+                        {t('feature_card_tests_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        {t('feature_card_cbt_desc')}
+                        {t('feature_card_tests_desc')}
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>{t('feature_card_cbt_bullet1')}</span>
+                          <span>{t('feature_card_tests_bullet1')}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>{t('feature_card_cbt_bullet2')}</span>
+                          <span>{t('feature_card_tests_bullet2')}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>{t('feature_card_cbt_bullet3')}</span>
+                          <span>{t('feature_card_tests_bullet3')}</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/tests')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          color: '#34D399',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {t('feature_card_cbt_action')}
+                      <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        {t('feature_card_tests_action')}
                       </button>
                     </div>
 
-                    {/* Uzbek Card 3: 1v1 Arena */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(139, 92, 246, 0.12)',
-                            border: '1px solid rgba(139, 92, 246, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#A78BFA',
-                            boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
-                          }}
-                        >
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(139, 92, 246, 0.12)', border: '1px solid rgba(139, 92, 246, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8B5CF6' }}>
                           <SwordsIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(139, 92, 246, 0.15)',
-                            color: '#A78BFA',
-                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                          }}
-                        >
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
                           {t('feature_card_arena_badge')}
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feature_card_arena_title')}
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feature_card_arena_desc')}
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
                           <span>{t('feature_card_arena_bullet1')}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
                           <span>{t('feature_card_arena_bullet2')}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
                           <span>{t('feature_card_arena_bullet3')}</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/arena')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(139, 92, 246, 0.15)',
-                          border: '1px solid rgba(139, 92, 246, 0.35)',
-                          color: '#A78BFA',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
+                      <button type="button" onClick={() => handleAction('/arena')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.35)', color: '#A78BFA', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
                         {t('feature_card_arena_action')}
                       </button>
                     </div>
                   </>
-                ) : (
+                )}
+
+                {/* Attestation 3 Cards */}
+                {selectedTrack === 'attestation' && (
                   <>
-                    {/* English Card 1: IELTS Writing AI Grader */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(245, 158, 11, 0.12)',
-                            border: '1px solid rgba(245, 158, 11, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#F59E0B',
-                            boxShadow: '0 0 20px rgba(245, 158, 11, 0.15)',
-                          }}
-                        >
-                          <PenLineIcon size={26} />
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+                          <FileTextIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(245, 158, 11, 0.15)',
-                            color: '#F59E0B',
-                            border: '1px solid rgba(245, 158, 11, 0.3)',
-                          }}
-                        >
-                          IELTS Band 1.0–9.0
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                          50 talik Format
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        IELTS Writing AI Grader (Task 1 & 2)
+                        Attestatsiya Simulyatori
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Rasmiy 4 ta mezon (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq ekspertiza, ilgʻor akademik sinonimlar va aniq Band Score.
+                        Mutaxassislik fani (35), Kasbiy standart (5) va Pedagogik mahorat (10) savollarini oʻz ichiga olgan rasmiy sinov formati.
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          <span>Task 1 (Grafik/Jadval) va Task 2 tahlili</span>
+                          <span>Haqiqiy davlat test tizimiga 100% mos vaqt taymeri</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          <span>Band 8+ akademik kollokatsiyalar taklifi</span>
+                          <span>Grammatika va adabiyot boʻyicha chuqur tahlillar</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          <span>CEFR darajasi (B2, C1, C2) muvofiqligi</span>
+                          <span>Barcha xatolarni boʻlimlar boʻyicha koʻrsatish</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/essays')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          color: '#F59E0B',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        Writing topshirish →
+                      <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', color: '#F59E0B', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        50 talik testni boshlash →
                       </button>
                     </div>
 
-                    {/* English Card 2: AI Speaking Simulator */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(56, 189, 248, 0.12)',
-                            border: '1px solid rgba(56, 189, 248, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#38BDF8',
-                            boxShadow: '0 0 20px rgba(56, 189, 248, 0.15)',
-                          }}
-                        >
-                          <Mic size={26} />
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                          <LightbulbIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(56, 189, 248, 0.15)',
-                            color: '#38BDF8',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                          }}
-                        >
-                          Gemini Multimodal Speech AI
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          Metodika & Keyslar
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        AI Speaking Simulyatori
+                        Pedagogik Mahorat Trenajyori
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Part 1, Part 2 (Cue Card 1 daqiqa tayyorgarlik) va Part 3 savollariga ovozli javob bering. Talaffuz va ravonlik tahlili.
+                        Yangi milliy oʻquv dasturi, 4K koʻnikmalari va formativ baholash metodikasi boʻyicha amaliy keys savollari.
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          <span>Jonli audio toʻlqin va aniq transkripsiya</span>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Dars tahlili va interaktiv metodlar boʻyicha amaliyot</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          <span>Talaffuz (Pronunciation) va ravonlik bahosi</span>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Inklyuziv taʻlim va oʻquvchi psixologiyasi savollari</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          <span>Grammatik tahrirlar va Band 8+ sinonimlar</span>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Davlat taʻlim standarti qonunchiligi asosidagi keyslar</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/speaking')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(56, 189, 248, 0.15)',
-                          border: '1px solid rgba(56, 189, 248, 0.35)',
-                          color: '#38BDF8',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        Speakingni sinash →
+                      <button type="button" onClick={() => handleAction('/tests')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Metodik keyslarni yechish →
                       </button>
                     </div>
 
-                    {/* English Card 3: Cambridge CBT Reading & Listening */}
-                    <div
-                      className="glass-card lcard-hover"
-                      style={{
-                        borderRadius: 24,
-                        padding: '32px 28px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
+                    <div className="glass-card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <div
-                          style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 16,
-                            background: 'rgba(16, 185, 129, 0.12)',
-                            border: '1px solid rgba(16, 185, 129, 0.28)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#10B981',
-                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
-                          }}
-                        >
-                          <Headphones size={26} />
+                        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
+                          <TrophyIcon size={26} />
                         </div>
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#34D399',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                          }}
-                        >
-                          Cambridge CBT Standard
+                        <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 800, background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                          70% Ustama
                         </span>
                       </div>
-
                       <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                        CBT Reading & Listening
+                        Toifa va Ustama Prognozi
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Rasmiy British Council va IDP kompyuterlashtirilgan formati. Audio boshqaruvi, interaktiv savollar va lahzalik aniq Band.
+                        1-toifa va Oliy toifaga erishish ehtimolligi hamda oylik maoshga qoʻshiladigan 70% ustama kalkulyatori.
                       </p>
-
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>Haqiqiy Cambridge test formatlari</span>
+                          <CheckIcon size={16} style={{ color: '#3B82F6' }} />
+                          <span>86+ ball bilan Oliy toifa uchun individual reja</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>Audio pleer va interaktiv skript matni</span>
+                          <CheckIcon size={16} style={{ color: '#3B82F6' }} />
+                          <span>Kuchsiz boʻlimlarni avtomatik aniqlash va kuchaytirish</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          <span>Tezkor xatolar ustida ishlash rejimi</span>
+                          <CheckIcon size={16} style={{ color: '#3B82F6' }} />
+                          <span>Attestatsiyagacha qolgan vaqt boʻyicha tayyorgarlik</span>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAction('/tests')}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: 12,
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          color: '#34D399',
-                          fontWeight: 800,
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        CBT Testni boshlash →
+                      <button type="button" onClick={() => handleAction('/profile')} style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.35)', color: '#60A5FA', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        Toifa rejasini tuzish →
                       </button>
                     </div>
                   </>
@@ -2571,7 +3490,6 @@ export default function Landing() {
         {/* STATS SECTION */}
         <section id="stats" style={{ padding: '40px 20px 60px' }}>
           <div style={{ margin: '0 auto', maxWidth: 1200 }}>
-            {/* Platform totals */}
             {stats && (
               <div
                 style={{
@@ -2583,241 +3501,621 @@ export default function Landing() {
                 }}
               >
                 {[
-                  { label: t('total_tests'), value: stats.totals.tests, Icon: FileTextIcon, color: '#F59E0B' },
-                  { label: t('students'), value: stats.totals.students, Icon: TrophyIcon, color: '#10B981' },
-                  { label: t('total_essays'), value: stats.totals.essays_graded, Icon: PenLineIcon, color: '#8B5CF6' },
-                ].map((item) => (
+                  { label: t('stats_students'), val: stats.totals.students.toLocaleString('uz-UZ'), Icon: BotIcon, col: '#10B981' },
+                  { label: t('stats_tests'), val: stats.totals.tests.toLocaleString('uz-UZ'), Icon: FileTextIcon, col: '#F59E0B' },
+                  { label: t('stats_essays'), val: stats.totals.essays_graded.toLocaleString('uz-UZ'), Icon: PenLineIcon, col: '#8B5CF6' },
+                ].map((item, i) => (
                   <div
-                    key={item.label}
-                    className="glass-card lcard-hover"
+                    key={i}
+                    className="glass-card"
                     style={{
+                      flex: '1 1 240px',
+                      maxWidth: 360,
                       borderRadius: 18,
-                      padding: '16px 28px',
+                      padding: '20px 24px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 16,
-                      minWidth: 180,
                     }}
                   >
                     <div
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
+                        width: 48,
+                        height: 48,
+                        borderRadius: 14,
+                        background: `${item.col}1A`,
+                        border: `1px solid ${item.col}33`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: `rgba(${
-                          item.color === '#F59E0B' ? '245,158,11' : item.color === '#10B981' ? '16,185,129' : '139,92,246'
-                        }, 0.12)`,
-                        color: item.color,
+                        color: item.col,
                       }}
                     >
                       <item.Icon size={22} />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
-                        {Number(item.value).toLocaleString()}
-                      </p>
-                      <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+                      <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1 }}>
+                        {item.val}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>
                         {item.label}
-                      </p>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+            {trendData.length > 0 && <TrendChart data={trendData} />}
+          </div>
+        </section>
 
-            {/* Platform Growth TrendChart */}
-            <div style={{ marginTop: 20 }}>
-              <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <span
+        {/* HOW IT WORKS SECTION */}
+        <HowItWorks />
+
+        {/* COMPARISON TABLE */}
+        <section
+          id="comparison"
+          style={{
+            padding: '70px 20px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ margin: '0 auto', maxWidth: 960 }}>
+            <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 40px' }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  letterSpacing: '0.22em',
+                  color: '#F59E0B',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('cmp_eyebrow')}
+              </span>
+              <h2
+                style={{
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)',
+                  fontWeight: 900,
+                  color: 'var(--ink)',
+                  margin: '12px 0',
+                }}
+              >
+                {t('cmp_title_1')}{' '}
+                <span className="hero-title-gradient">{t('cmp_title_2')}</span>
+              </h2>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
+                {t('cmp_subtitle')}
+              </p>
+            </div>
+
+            <div
+              className="glass-card"
+              style={{
+                borderRadius: 20,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.4fr 1fr 1fr',
+                  padding: '16px 20px',
+                  background: 'var(--card-2)',
+                  borderBottom: '1px solid var(--border)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--muted)',
+                }}
+              >
+                <div>{t('cmp_col_param')}</div>
+                <div style={{ textAlign: 'center' }}>{t('cmp_col_traditional')}</div>
+                <div style={{ textAlign: 'center', color: '#F59E0B' }}>GRAND EDUCATION AI</div>
+              </div>
+
+              {[
+                [t('cmp_row_speed'), t('cmp_row_speed_trad'), t('cmp_row_speed_grand'), true],
+                [t('cmp_row_criteria'), t('cmp_row_criteria_trad'), t('cmp_row_criteria_grand'), true],
+                [t('cmp_row_practice'), t('cmp_row_practice_trad'), t('cmp_row_practice_grand'), true],
+                [t('cmp_row_analytics'), t('cmp_row_analytics_trad'), t('cmp_row_analytics_grand'), true],
+                [t('cmp_row_cost'), t('cmp_row_cost_trad'), t('cmp_row_cost_grand'), true],
+              ].map(([param, trad, grand, isGood], i) => (
+                <div
+                  key={i}
                   style={{
-                    fontSize: 11,
-                    fontWeight: 900,
-                    letterSpacing: '0.2em',
-                    color: '#F59E0B',
-                    textTransform: 'uppercase',
+                    display: 'grid',
+                    gridTemplateColumns: '1.4fr 1fr 1fr',
+                    padding: '16px 20px',
+                    borderBottom: i < 4 ? '1px solid var(--border)' : 'none',
+                    fontSize: 13,
+                    alignItems: 'center',
                   }}
                 >
-                  {t('an_platform_growth')}
-                </span>
-              </div>
-              <TrendChart data={trend} />
+                  <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{param}</div>
+                  <div style={{ textAlign: 'center', color: 'var(--muted)' }}>{trad}</div>
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      fontWeight: 800,
+                      color: isGood ? '#10B981' : '#F59E0B',
+                    }}
+                  >
+                    {grand}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* HOW IT WORKS */}
-        <HowItWorks />
-      </main>
+        {/* PRICING SECTION */}
+        <section
+          id="pricing"
+          style={{
+            padding: '70px 20px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ margin: '0 auto', maxWidth: 1040 }}>
+            <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  letterSpacing: '0.22em',
+                  color: '#F59E0B',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('pricing_eyebrow')}
+              </span>
+              <h2
+                style={{
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
+                  fontWeight: 900,
+                  color: 'var(--ink)',
+                  margin: '12px 0',
+                }}
+              >
+                {t('pricing_title_1')}{' '}
+                <span className="hero-title-gradient">{t('pricing_title_2')}</span>
+              </h2>
+              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
+                {t('pricing_subtitle')}
+              </p>
+            </div>
 
-      {/* FOOTER */}
-      <footer style={{ marginTop: 20 }}>
-        <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(245,158,11,.35), rgba(16,185,129,.2), transparent)' }} />
-        <div className="land-foot-bg" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div style={{ margin: '0 auto', maxWidth: 1200, padding: '60px 20px 36px', width: '100%' }}>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: 36,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: 24,
+                alignItems: 'stretch',
               }}
             >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <img src="/grandec.png" alt="GRANDEC" style={{ width: 34, height: 34, objectFit: 'cover' }} />
-                  <div>
-                    <b style={{ display: 'block', fontSize: 16, color: 'var(--ink)' }}>GRAND EDUCATION</b>
-                    <small style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', color: '#F59E0B' }}>
-                      LMS PLATFORM
-                    </small>
-                  </div>
+              {/* Free Plan */}
+              <div
+                className="glass-card lcard-hover"
+                style={{
+                  borderRadius: 22,
+                  padding: 30,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  {t('plan_free_name')}
                 </div>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', marginTop: 16 }}>
-                  {t('foot_mission')}
-                </p>
-              </div>
-
-              <div>
-                <h4 style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.2em', color: '#F59E0B', margin: '0 0 18px', textTransform: 'uppercase' }}>
-                  {t('foot_pages')}
-                </h4>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
-                  {sectionNav.map(([k, href]) => (
-                    <li key={k}>
-                      <a href={href} style={{ color: 'var(--muted)', textDecoration: 'none' }}>
-                        {t(k)}
-                      </a>
-                    </li>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                  {t('plan_free_desc')}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--ink)' }}>0</span>
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / umrbod</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                  {[
+                    t('plan_free_f1'),
+                    t('plan_free_f2'),
+                    t('plan_free_f3'),
+                    t('plan_free_f4'),
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckIcon size={16} style={{ color: '#10B981' }} />
+                      <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
+                    </div>
                   ))}
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => openAuthModal('login')}
-                      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}
-                    >
-                      {t('login')}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => openAuthModal('register')}
-                      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}
-                    >
-                      {t('register')}
-                    </button>
-                  </li>
-                </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAction('/register')}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('plan_free_cta')}
+                </button>
               </div>
 
-              <div>
-                <h4 style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.2em', color: '#F59E0B', margin: '0 0 18px', textTransform: 'uppercase' }}>
-                  {t('foot_news')}
-                </h4>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--muted)', margin: '0 0 14px' }}>
-                  {t('foot_newsletter_desc')}
-                </p>
-                {newsDone ? (
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#10B981', margin: 0 }}>
-                    {t('foot_subscribed_toast')}
-                  </p>
-                ) : (
-                  <form onSubmit={subscribeNews} style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="email"
-                      required
-                      placeholder={t('foot_email_placeholder')}
-                      value={newsEmail}
-                      onChange={(e) => setNewsEmail(e.target.value)}
-                      aria-label="Email manzil"
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        padding: '10px 14px',
-                        borderRadius: 12,
-                        background: 'var(--card-2)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--ink)',
-                        fontSize: 13,
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      style={{
-                        padding: '10px 16px',
-                        borderRadius: 12,
-                        background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                        color: '#090d16',
-                        fontWeight: 800,
-                        fontSize: 13,
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {t('foot_subscribe')}
-                    </button>
-                  </form>
-                )}
+              {/* Pro Plan (Popular) */}
+              <div
+                className="glass-card lcard-hover"
+                style={{
+                  borderRadius: 22,
+                  padding: 30,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  border: '2px solid rgba(245, 158, 11, 0.45)',
+                  boxShadow: '0 8px 32px rgba(245, 158, 11, 0.15)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -12,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    padding: '4px 14px',
+                    borderRadius: 999,
+                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                    color: '#090d16',
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Eng Ommabop
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  {t('plan_pro_name')}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                  {t('plan_pro_desc')}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: '#F59E0B' }}>49 000</span>
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / oy</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                  {[
+                    t('plan_pro_f1'),
+                    t('plan_pro_f2'),
+                    t('plan_pro_f3'),
+                    t('plan_pro_f4'),
+                    t('plan_pro_f5'),
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                      <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAction('/subscribe')}
+                  className="btn-glow"
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                    border: 'none',
+                    color: '#090d16',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('plan_pro_cta')}
+                </button>
               </div>
 
-              <div>
-                <h4 style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.2em', color: '#F59E0B', margin: '0 0 18px', textTransform: 'uppercase' }}>
-                  {t('foot_contact')}
-                </h4>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 14 }}>
-                  <li style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <BotIcon size={18} style={{ color: '#F59E0B' }} />
-                    <a
-                      href="https://t.me/uz_essaygrader_bot"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: '#F59E0B', textDecoration: 'none' }}
-                    >
-                      @uz_essaygrader_bot
-                    </a>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
-                    <ClockIcon size={18} style={{ color: '#F59E0B' }} />
-                    <span>{t('foot_ai_24_7')}</span>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)' }}>
-                    <MapPinIcon size={18} style={{ color: '#F59E0B' }} />
-                    <span>{t('foot_location')}</span>
-                  </li>
-                </ul>
+              {/* Master Plan */}
+              <div
+                className="glass-card lcard-hover"
+                style={{
+                  borderRadius: 22,
+                  padding: 30,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  {t('plan_master_name')}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                  {t('plan_master_desc')}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--ink)' }}>89 000</span>
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / oy</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                  {[
+                    t('plan_master_f1'),
+                    t('plan_master_f2'),
+                    t('plan_master_f3'),
+                    t('plan_master_f4'),
+                    t('plan_master_f5'),
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
+                      <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAction('/subscribe')}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('plan_master_cta')}
+                </button>
               </div>
             </div>
+          </div>
+        </section>
 
-            <div
+        {/* FAQ SECTION */}
+        <section
+          id="faq"
+          style={{
+            padding: '70px 20px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ margin: '0 auto', maxWidth: 840 }}>
+            <div style={{ textAlign: 'center', marginBottom: 44 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  letterSpacing: '0.22em',
+                  color: '#F59E0B',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('faq_eyebrow')}
+              </span>
+              <h2
+                style={{
+                  fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)',
+                  fontWeight: 900,
+                  color: 'var(--ink)',
+                  margin: '12px 0',
+                }}
+              >
+                {t('faq_title_1')}{' '}
+                <span className="hero-title-gradient">{t('faq_title_2')}</span>
+              </h2>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                [t('faq_q1'), t('faq_a1')],
+                [t('faq_q2'), t('faq_a2')],
+                [t('faq_q3'), t('faq_a3')],
+                [t('faq_q4'), t('faq_a4')],
+                [t('faq_q5'), t('faq_a5')],
+              ].map(([q, a], i) => (
+                <details
+                  key={i}
+                  className="glass-card"
+                  style={{
+                    borderRadius: 16,
+                    padding: '16px 20px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <summary
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: 'var(--ink)',
+                      listStyle: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>{q}</span>
+                    <span style={{ fontSize: 18, color: '#F59E0B' }}>+</span>
+                  </summary>
+                  <p
+                    style={{
+                      margin: '12px 0 0',
+                      fontSize: 13,
+                      color: 'var(--muted)',
+                      lineHeight: 1.65,
+                    }}
+                  >
+                    {a}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* BOTTOM CTA BANNER */}
+        <section style={{ padding: '40px 20px 80px' }}>
+          <div
+            style={{
+              margin: '0 auto',
+              maxWidth: 1040,
+              borderRadius: 28,
+              padding: '48px 32px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              background:
+                landingSubject === 'english'
+                  ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(99, 102, 241, 0.12))'
+                  : 'linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(139, 92, 246, 0.12))',
+              border:
+                landingSubject === 'english'
+                  ? '1px solid rgba(56, 189, 248, 0.3)'
+                  : '1px solid rgba(245, 158, 11, 0.3)',
+            }}
+          >
+            <h2
               style={{
-                marginTop: 44,
-                paddingTop: 24,
-                borderTop: '1px solid var(--border)',
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'space-between',
-                gap: 12,
-                fontSize: 13,
-                color: 'var(--muted)',
+                fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
+                fontWeight: 900,
+                color: 'var(--ink)',
+                margin: '0 0 16px',
               }}
             >
-              <span>© {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). {t('foot_rights')}</span>
-              <span>
-                Website{' '}
-                <a
-                  href="https://www.instagram.com/rozievkomiljon/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-400 hover:text-amber-300 transition-colors underline underline-offset-4"
-                  style={{ color: '#fbbf24', textDecoration: 'underline', textUnderlineOffset: 4, transition: 'color 0.2s' }}
-                >
-                  Komiljon Ro'ziyev
-                </a>{' '}
-                tomonidan tayyorlandi
-              </span>
+              {selectedTrack === 'ielts'
+                ? 'IELTS Band 7.5+ ga erishishga tayyormisiz?'
+                : selectedTrack === 'multilevel'
+                ? 'Multi-level C1 sertifikatini olishga tayyormisiz?'
+                : selectedTrack === 'attestation'
+                ? 'Oliy toifa va 70% ustama sinoviga tayyormisiz?'
+                : t('cta_banner_title')}
+            </h2>
+            <p
+              style={{
+                fontSize: 15,
+                color: 'var(--muted)',
+                maxWidth: 580,
+                margin: '0 auto 32px',
+                lineHeight: 1.65,
+              }}
+            >
+              {selectedTrack === 'ielts'
+                ? 'Hozir roʻyxatdan oʻting va birinchi Writing hamda Speaking sinovini mutlaqo bepul topshiring!'
+                : selectedTrack === 'multilevel'
+                ? '35 talik namunaviy test va yozma insho tahlilidan bepul foydalaning.'
+                : selectedTrack === 'attestation'
+                ? '50 talik sinov diagnostikasini ishlab, toifa ehtimolligingizni aniqlang.'
+                : t('cta_banner_subtitle')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handleAction('/register')}
+                className="btn-glow"
+                style={{
+                  padding: '14px 32px',
+                  borderRadius: 14,
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: '#090d16',
+                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
+                }}
+              >
+                {t('cta_banner_btn')} →
+              </button>
             </div>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer
+        style={{
+          borderTop: '1px solid var(--border)',
+          background: 'var(--header-bg)',
+          padding: '48px 20px 32px',
+        }}
+      >
+        <div style={{ margin: '0 auto', maxWidth: 1200 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 36,
+              marginBottom: 40,
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <img src="/grandec.png" alt="GRANDEC" style={{ width: 32, height: 32, borderRadius: 8 }} />
+                <span style={{ fontWeight: 900, fontSize: 16, color: 'var(--ink)' }}>GRAND EDUCATION</span>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
+                {t('foot_desc')}
+              </p>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                {t('foot_col_platform')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                <Link to="/essays" style={{ color: 'var(--muted)', textDecoration: 'none' }}>AI Esse Grader</Link>
+                <Link to="/tests" style={{ color: 'var(--muted)', textDecoration: 'none' }}>CBT Testlar</Link>
+                <Link to="/speaking" style={{ color: 'var(--muted)', textDecoration: 'none' }}>AI Speaking</Link>
+                <Link to="/arena" style={{ color: 'var(--muted)', textDecoration: 'none' }}>1v1 Arena</Link>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                {t('foot_col_legal')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                <Link to="/terms" style={{ color: 'var(--muted)', textDecoration: 'none' }}>{t('foot_terms')}</Link>
+                <Link to="/privacy" style={{ color: 'var(--muted)', textDecoration: 'none' }}>{t('foot_privacy')}</Link>
+                <Link to="/public-offer" style={{ color: 'var(--muted)', textDecoration: 'none' }}>{t('foot_offer')}</Link>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                {t('foot_col_contact')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+                <a href="https://t.me/uz_essaygrader_bot" target="_blank" rel="noreferrer" style={{ color: '#F59E0B', textDecoration: 'none' }}>
+                  @uz_essaygrader_bot
+                </a>
+                <span>Toshkent, Oʻzbekiston</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderTop: '1px solid var(--border)',
+              paddingTop: 24,
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              gap: 12,
+              fontSize: 12,
+              color: 'var(--muted)',
+            }}
+          >
+            <span>&copy; {new Date().getFullYear()} GRAND EDUCATION (grandec.uz). {t('foot_rights')}</span>
+            <span>
+              Website <a href="https://www.instagram.com/rozievkomiljon/" target="_blank" rel="noopener noreferrer" style={{ color: '#fbbf24', textDecoration: 'underline' }}>Komiljon Roziyev</a> tomonidan ishlab chiqilgan
+            </span>
           </div>
         </div>
       </footer>
@@ -2832,70 +4130,126 @@ export default function Landing() {
           width: 4px;
           border-radius: 999px;
           background: #38BDF8;
-          transition: height 0.15s ease;
+          transition: height 0.2s ease;
         }
         .waveform-bar.playing {
-          animation: wavePulse 0.8s ease-in-out infinite;
+          animation: wavePulse 0.9s ease-in-out infinite;
         }
         .hero-subject-switcher {
           display: inline-flex;
           align-items: center;
           gap: 6px;
+          padding: 5px;
           background: var(--card-2);
-          padding: 6px;
-          border-radius: 18px;
           border: 1px solid var(--border);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          border-radius: 999px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+          max-width: 100%;
         }
         .hero-switcher-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 18px;
-          border-radius: 14px;
-          border: 1px solid transparent;
-          cursor: pointer;
-          font-size: 14px;
+          padding: 8px 18px;
+          border-radius: 999px;
+          font-size: 13px;
           font-weight: 700;
           color: var(--muted);
           background: transparent;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
         }
         .hero-switcher-btn:hover {
           color: var(--ink);
-          background: rgba(255, 255, 255, 0.04);
         }
         .hero-switcher-btn.active {
           background: linear-gradient(135deg, #F59E0B, #FBBF24);
-          color: #090D16;
-          font-weight: 800;
-          box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+          color: #090d16;
+          box-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);
         }
-        .switcher-subtag {
+        .hero-exam-switcher {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .hero-exam-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          min-height: 42px;
+          background: var(--card-2);
+          border: 1px solid var(--border);
+          color: var(--muted);
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .hero-exam-btn:hover {
+          border-color: rgba(245, 158, 11, 0.4);
+          color: var(--ink);
+        }
+        .hero-exam-btn.active.active-eng {
+          background: rgba(56, 189, 248, 0.16);
+          border: 1px solid #38BDF8;
+          color: #38BDF8;
+          box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25);
+        }
+        .hero-exam-btn.active.active-uz {
+          background: rgba(245, 158, 11, 0.16);
+          border: 1px solid #F59E0B;
+          color: #F59E0B;
+          box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+        }
+        .exam-btn-badge {
           font-size: 11px;
           font-weight: 800;
           padding: 2px 7px;
           border-radius: 6px;
-          background: rgba(0, 0, 0, 0.12);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .switcher-subtag {
+          font-size: 11px;
+          font-weight: 800;
+          padding: 2px 8px;
+          border-radius: 6px;
+          background: rgba(9, 13, 22, 0.22);
           color: inherit;
-          opacity: 0.9;
         }
         .hero-switcher-btn:not(.active) .switcher-subtag {
-          background: rgba(255, 255, 255, 0.08);
+          background: var(--border);
           color: var(--muted);
         }
         @media (max-width: 640px) {
           .hero-subject-switcher {
             width: 100%;
+            border-radius: 16px;
             flex-direction: column;
             gap: 4px;
+            padding: 4px;
           }
           .hero-switcher-btn {
             width: 100%;
+            border-radius: 12px;
             justify-content: center;
             padding: 10px 14px;
+          }
+          .hero-exam-switcher {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+          .hero-exam-btn {
+            width: 100%;
+            justify-content: center;
+            min-height: 44px;
           }
         }
         @media (min-width: 900px) {

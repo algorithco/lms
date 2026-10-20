@@ -28,6 +28,9 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   const { user, updateUserLocal, refreshUser } = useAuth();
 
   const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
+    const track = localStorage.getItem('grandec_selected_track');
+    if (track === 'ielts' || track === 'multilevel') return 'english';
+    if (track === 'national_certificate' || track === 'attestation') return 'uzbek';
     if (user?.active_subject === 'english') return 'english';
     const saved = localStorage.getItem('landing_subject') || localStorage.getItem('lms_subject');
     return saved === 'english' ? 'english' : 'uzbek';
@@ -35,6 +38,10 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
 
   // 1-Step: Goals
   const [examTarget, setExamTarget] = useState<TargetType>(() => {
+    const track = localStorage.getItem('grandec_selected_track') as TargetType | null;
+    if (track && ['ielts', 'multilevel', 'national_certificate', 'attestation'].includes(track)) {
+      return track;
+    }
     const isEng =
       user?.active_subject === 'english' ||
       localStorage.getItem('landing_subject') === 'english' ||
@@ -43,6 +50,11 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   });
   const [timelineMonths, setTimelineMonths] = useState<number>(3);
   const [targetGrade, setTargetGrade] = useState<string>(() => {
+    const track = localStorage.getItem('grandec_selected_track');
+    if (track === 'attestation') return 'Oliy toifa';
+    if (track === 'ielts') return 'Band 7.5';
+    if (track === 'multilevel') return 'C1 daraja';
+    if (track === 'national_certificate') return 'A+';
     const isEng =
       user?.active_subject === 'english' ||
       localStorage.getItem('landing_subject') === 'english' ||
@@ -78,31 +90,41 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   // Sync state whenever modal opens
   useEffect(() => {
     if (isOpen) {
-      const sub =
-        user?.active_subject === 'english' ||
-        localStorage.getItem('landing_subject') === 'english' ||
-        localStorage.getItem('lms_subject') === 'english'
-          ? 'english'
-          : 'uzbek';
+      const track = localStorage.getItem('grandec_selected_track') as TargetType | null;
+      let sub: 'uzbek' | 'english';
+      let tgt: TargetType;
+
+      if (track && ['ielts', 'multilevel', 'national_certificate', 'attestation'].includes(track)) {
+        tgt = track;
+        sub = (track === 'ielts' || track === 'multilevel') ? 'english' : 'uzbek';
+      } else {
+        sub =
+          user?.active_subject === 'english' ||
+          localStorage.getItem('landing_subject') === 'english' ||
+          localStorage.getItem('lms_subject') === 'english'
+            ? 'english'
+            : 'uzbek';
+        tgt =
+          sub === 'english'
+            ? user?.exam_target === 'multilevel'
+              ? 'multilevel'
+              : 'ielts'
+            : user?.exam_target === 'attestation'
+            ? 'attestation'
+            : 'national_certificate';
+      }
+
       setActiveSubject(sub);
-      const tgt: TargetType =
-        sub === 'english'
-          ? user?.exam_target === 'multilevel'
-            ? 'multilevel'
-            : 'ielts'
-          : user?.exam_target === 'attestation'
-          ? 'attestation'
-          : 'national_certificate';
       setExamTarget(tgt);
       setTimelineMonths(user?.target_timeline_months || 3);
       setTargetGrade(
         user?.target_grade ||
-          (sub === 'english'
-            ? tgt === 'multilevel'
-              ? 'C1 daraja'
-              : 'Band 7.5'
-            : tgt === 'attestation'
+          (tgt === 'attestation'
             ? 'Oliy toifa'
+            : tgt === 'ielts'
+            ? 'Band 7.5'
+            : tgt === 'multilevel'
+            ? 'C1 daraja'
             : 'A+'),
       );
       setStep('goals');

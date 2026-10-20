@@ -31,6 +31,32 @@
   * Backend: 
 uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
+### 2.24. Qat'iy 2 Bosqichli Tanlov Tizimi (Hierarchical Subject & Exam Selector) va 4 Yo'nalishli Dinamik Hero (Landing 2.1)
+- [x] 2 Bosqichli Hierarxik Tanlov Tizimi (Hero & Navbar):
+  * 1-daraja (Asosiy fan): [ 🇺🇿 Ona tili va Adabiyot ] va [ 🇬🇧 English (Ingliz tili) ].
+  * 2-daraja (Imtihon yo'nalishi):
+    - Ingliz tili tanlanganda: [ 🎓 IELTS (Academic & General) ] va [ 🎯 CEFR Multi-level (B2 / C1) ].
+    - Ona tili tanlanganda: [ 🎓 Milliy sertifikat (BMB) ] va [ 👨‍🏫 Attestatsiya 2026 ].
+  * Framer Motion animatsiyalari bilan silliq almashinuv, tanlov localStorage.setItem('grandec_selected_track', ...) ga yoziladi va Onboarding modali bilan to'liq sinxronlashadi.
+- [x] 4 Yo'nalish Uchun Alohida Dinamik Hero Matnlari va Ishonch Nishonlari:
+  * IELTS: 🎯 IELTS Academic & General (Band 1.0–9.0), 15 soniyada Band Score, 4 ta rasmiy IELTS mezoni, Real-vaqt AI Speaking tahlili.
+  * Multi-level: 🎯 Davlat CEFR Multi-level imtihoni (B2 / C1 darajasi), B2/C1 ball kafolati, Rasmiy DTM/BMB formati, Interaktiv CBT simulyator.
+  * Milliy sertifikat: ⭐️ BMB Davlat standarti — Ona tili va adabiyot (2026), 15s AI Esse tahlili, 12 ta rasmiy BMB mezoni, Real-vaqt 1v1 Arena.
+  * Attestatsiya 2026: 👨‍🏫 O'qituvchilar Attestatsiyasi (70% ustama), 50 talik to'liq format, 70% ustama kafolati, Bo'limlar bo'yicha tahlil.
+- [x] 4 Yo'nalish Uchun Alohida Interaktiv Hero Live Demo Vidjeti:
+  * IELTS: Writing Task 2 (Band 7.5, 4 ta TR/CC/LR/GRA mezonlari), AI Speaking (Part 2 Cue Card, Band 7.5, ovoz to'lqini simulyatori), Cambridge CBT Reading.
+  * Multi-level: Formal proposal (184 so'z, C1, 4 ta CEFR mezonlari), DTM/BMB 35 talik Reading CBT.
+  * Milliy sertifikat: Navoiy essesi (54.5/60, A daraja, 12 BMB mezoni), Navoiy Fast CBT Test.
+  * Attestatsiya 2026: Pedagogik mahorat savoli (formativ baholash, konfetti), 50 talik Toifa Diagnostikasi (46/50 ball, 92%, Oliy toifa 70% ustama).
+- [x] 4 Yo'nalish Uchun Alohida Dinamik Imkoniyatlar (Features) Bloki:
+  * Har bir imtihon turi uchun 3 tadan ixtisoslashgan karta (IELTS Writing + Speaking + CBT; Multi-level Writing + 35 talik test + Lug'at Arenasi; Milliy sertifikat Esse + Test + 1v1 Arena; Attestatsiya 50 talik test + Metodik keyslar + Toifa/Ustama monitoringi).
+- [x] Sifat Nazorati (QA Gate):
+  * Frontend: oxlint 0 xato, 	sc -b && vite build 0 xato bilan 2.77 soniyada muvaffaqiyatli yig'ildi.
+  * Backend: 
+uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
+
+---
+
 ---
 
 ---
