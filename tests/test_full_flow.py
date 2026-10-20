@@ -11,6 +11,7 @@ Covers:
     7. Throttling configuration
     8. OpenAPI schema generation
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -33,6 +34,7 @@ from .conftest import LMSBaseTestCase
 # ============================================================================
 # 1. AUTH & JWT
 # ============================================================================
+
 
 class AuthJWTTests(LMSBaseTestCase):
     """Student registration, login, token refresh, logout."""
@@ -163,6 +165,7 @@ class AuthJWTTests(LMSBaseTestCase):
 # 2. TEST START & TIME LIMIT
 # ============================================================================
 
+
 class TestStartTests(LMSBaseTestCase):
     """Testni boshlash va vaqt chegarasi nazorati."""
 
@@ -201,9 +204,11 @@ class TestStartTests(LMSBaseTestCase):
         # 3 ta attempt yaratish (max_attempts=3)
         for _ in range(3):
             TestAttempt.objects.create(
-                test=self.test, student=self.student,
+                test=self.test,
+                student=self.student,
                 status=TestAttempt.Status.COMPLETED,
-                score=Decimal("50"), percentage=Decimal("50"),
+                score=Decimal("50"),
+                percentage=Decimal("50"),
                 is_passed=False,
             )
 
@@ -226,6 +231,7 @@ class TestStartTests(LMSBaseTestCase):
 # ============================================================================
 # 3. ANSWER AUTO-SAVE
 # ============================================================================
+
 
 class AnswerSaveTests(LMSBaseTestCase):
     """Single va multiple choice javoblarni auto-save."""
@@ -298,6 +304,7 @@ class AnswerSaveTests(LMSBaseTestCase):
 # ============================================================================
 # 4. TEST SUBMIT & SCORE CALCULATION
 # ============================================================================
+
 
 class SubmitTests(LMSBaseTestCase):
     """Testni topshirish va ball avto-hisoblash."""
@@ -381,7 +388,7 @@ class SubmitTests(LMSBaseTestCase):
 
         result = response.data["result"]
         self.assertEqual(result["correct_answers"], 2)  # Q1 + Q3
-        self.assertEqual(result["wrong_answers"], 1)     # Q2 (partial)
+        self.assertEqual(result["wrong_answers"], 1)  # Q2 (partial)
         # 20/30 = 66.67%
         self.assertGreater(Decimal(result["percentage"]), Decimal("60"))
         self.assertTrue(result["is_passed"])
@@ -461,6 +468,7 @@ class SubmitTests(LMSBaseTestCase):
 # 5. PDF CERTIFICATE GENERATION (SYNCHRONOUS)
 # ============================================================================
 
+
 class CertificateGenerationTests(LMSBaseTestCase):
     """PDF sertifikat generatsiya — CELERY_TASK_ALWAYS_EAGER=True bilan."""
 
@@ -489,7 +497,9 @@ class CertificateGenerationTests(LMSBaseTestCase):
             format="json",
         )
 
-        response = client.post(f"/api/tests/attempts/{attempt_id}/submit/", format="json")
+        response = client.post(
+            f"/api/tests/attempts/{attempt_id}/submit/", format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["result"]["is_passed"])
 
@@ -539,7 +549,11 @@ class CertificateGenerationTests(LMSBaseTestCase):
         attempt_id = resp.data["id"]
 
         # To'g'ri javoblar
-        for q, c in [(self.q1, self.q1_c1), (self.q2, [self.q2_c1.id, self.q2_c2.id]), (self.q3, self.q3_c1)]:
+        for q, c in [
+            (self.q1, self.q1_c1),
+            (self.q2, [self.q2_c1.id, self.q2_c2.id]),
+            (self.q3, self.q3_c1),
+        ]:
             choice_ids = c if isinstance(c, list) else [c.id]
             client.post(
                 f"/api/tests/attempts/{attempt_id}/save-answer/",
@@ -554,12 +568,14 @@ class CertificateGenerationTests(LMSBaseTestCase):
 
         # LMS-YYYY-XXXXXX format
         import re
+
         self.assertRegex(cert.certificate_number, r"^LMS-\d{4}-\d{6}$")
 
 
 # ============================================================================
 # 6. CERTIFICATE VERIFY API
 # ============================================================================
+
 
 class CertificateVerifyTests(LMSBaseTestCase):
     """Sertifikat haqiqiyligini tekshirish API."""
@@ -568,21 +584,30 @@ class CertificateVerifyTests(LMSBaseTestCase):
         super().setUp()
         # Sertifikat yaratish
         self.attempt = TestAttempt.objects.create(
-            test=self.test, student=self.student,
+            test=self.test,
+            student=self.student,
             status=TestAttempt.Status.COMPLETED,
-            score=Decimal("30"), percentage=Decimal("100"),
+            score=Decimal("30"),
+            percentage=Decimal("100"),
             is_passed=True,
         )
         self.result = Result.objects.create(
-            attempt=self.attempt, student=self.student,
-            test=self.test, course=self.course,
-            total_questions=3, correct_answers=3, wrong_answers=0,
-            score=Decimal("30"), max_score=Decimal("30"),
-            percentage=Decimal("100"), is_passed=True,
+            attempt=self.attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=3,
+            correct_answers=3,
+            wrong_answers=0,
+            score=Decimal("30"),
+            max_score=Decimal("30"),
+            percentage=Decimal("100"),
+            is_passed=True,
             time_taken_seconds=120,
         )
         # PDF generatsiya (synchronous)
         from apps.results.tasks import generate_certificate_task
+
         generate_certificate_task(result_id=self.result.id)
         self.cert = Certificate.objects.get(result=self.result)
 
@@ -646,31 +671,39 @@ class CertificateVerifyTests(LMSBaseTestCase):
         # Paginated response: {"count": N, "results": [...]}
         if isinstance(response.data, dict) and "results" in response.data:
             self.assertEqual(response.data["count"], 1)
-            self.assertEqual(response.data["results"][0]["certificate_number"], self.cert.certificate_number)
+            self.assertEqual(
+                response.data["results"][0]["certificate_number"],
+                self.cert.certificate_number,
+            )
         else:
             self.assertEqual(len(response.data), 1)
-            self.assertEqual(response.data[0]["certificate_number"], self.cert.certificate_number)
+            self.assertEqual(
+                response.data[0]["certificate_number"], self.cert.certificate_number
+            )
 
 
 # ============================================================================
 # 7. THROTTLING
 # ============================================================================
 
+
 # Base.py'dagi throttle shartnomasi. Development sozlamalarida throttling
 # o'chirilgan (tez hasher testlarni rate-limitga urib yubormasligi uchun),
 # shuning uchun bu shartnomaviy testlar config'ni lokal ravishda tiklaydi.
-@override_settings(REST_FRAMEWORK={
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "30/minute",      # Anonymous: 30 requests per minute
-        "user": "100/minute",     # Authenticated: 100 requests per minute
-        "test-start": "5/hour",   # Test start: 5 per hour
-        "test-submit": "10/hour", # Test submit: 10 per hour
-    },
-})
+@override_settings(
+    REST_FRAMEWORK={
+        "DEFAULT_THROTTLE_CLASSES": [
+            "rest_framework.throttling.AnonRateThrottle",
+            "rest_framework.throttling.UserRateThrottle",
+        ],
+        "DEFAULT_THROTTLE_RATES": {
+            "anon": "30/minute",  # Anonymous: 30 requests per minute
+            "user": "100/minute",  # Authenticated: 100 requests per minute
+            "test-start": "5/hour",  # Test start: 5 per hour
+            "test-submit": "10/hour",  # Test submit: 10 per hour
+        },
+    }
+)
 class ThrottlingTests(LMSBaseTestCase):
     """Rate limiting sozlamalarini tekshirish."""
 
@@ -697,6 +730,7 @@ class ThrottlingTests(LMSBaseTestCase):
 # 8. OPENAPI SCHEMA
 # ============================================================================
 
+
 class OpenAPISchemaTests(LMSBaseTestCase):
     """Swagger/Redoc schema generatsiyasi."""
 
@@ -704,11 +738,12 @@ class OpenAPISchemaTests(LMSBaseTestCase):
     def _parse_schema(response) -> dict:
         """Parse OpenAPI schema from response (YAML or JSON)."""
         import yaml
-        if hasattr(response, 'render') and not response.is_rendered:
+
+        if hasattr(response, "render") and not response.is_rendered:
             response.render()
         content = response.content
         if isinstance(content, bytes):
-            content = content.decode('utf-8')
+            content = content.decode("utf-8")
         return yaml.safe_load(content)
 
     def test_schema_endpoint(self):
@@ -769,16 +804,19 @@ class OpenAPISchemaTests(LMSBaseTestCase):
 
         self.assertIn("jwtAuth", security_schemes)
         self.assertEqual(
-            security_schemes["jwtAuth"]["type"], "http",
+            security_schemes["jwtAuth"]["type"],
+            "http",
         )
         self.assertEqual(
-            security_schemes["jwtAuth"]["scheme"], "bearer",
+            security_schemes["jwtAuth"]["scheme"],
+            "bearer",
         )
 
 
 # ============================================================================
 # 9. ENVIRONMENT & SETTINGS
 # ============================================================================
+
 
 class SettingsTests(LMSBaseTestCase):
     """Django-environ va settings sozlamalari."""
@@ -791,7 +829,7 @@ class SettingsTests(LMSBaseTestCase):
         """DEBUG sozlamasi env orqali o'zgarishi."""
         # base.py env('DEBUG', default=False) ishlaydi
         # development.py DEBUG=True bilan override qiladi
-        self.assertIn('DEBUG', dir(settings))
+        self.assertIn("DEBUG", dir(settings))
 
     def test_spectacular_settings(self):
         """drf-spectacular sozlamalari to'g'ri."""
@@ -815,6 +853,7 @@ class SettingsTests(LMSBaseTestCase):
 # ============================================================================
 # 10. EDGE CASES
 # ============================================================================
+
 
 class EdgeCaseTests(LMSBaseTestCase):
     """Edge cases va xatolik holatlari."""
@@ -840,16 +879,26 @@ class EdgeCaseTests(LMSBaseTestCase):
 
         # Yangi test yaratish
         other_test = Test.objects.create(
-            title="Other Test", course=self.course,
-            description="Other", time_limit_minutes=10,
-            pass_percentage=60, max_attempts=3, is_active=True,
+            title="Other Test",
+            course=self.course,
+            description="Other",
+            time_limit_minutes=10,
+            pass_percentage=60,
+            max_attempts=3,
+            is_active=True,
         )
         other_q = Question.objects.create(
-            test=other_test, text="Other Q", question_type="single",
-            points=Decimal("10"), position=1,
+            test=other_test,
+            text="Other Q",
+            question_type="single",
+            points=Decimal("10"),
+            position=1,
         )
         other_c = Choice.objects.create(
-            question=other_q, text="Other C", is_correct=True, position=1,
+            question=other_q,
+            text="Other C",
+            is_correct=True,
+            position=1,
         )
 
         # Boshqa testga tegishli javob
@@ -863,4 +912,5 @@ class EdgeCaseTests(LMSBaseTestCase):
 
 # Need to import User for conftest
 from django.contrib.auth import get_user_model
+
 User = get_user_model()

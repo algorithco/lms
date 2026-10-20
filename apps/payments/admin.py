@@ -15,6 +15,7 @@ Conventions kept from the original file
   are refused, and ``save_model`` is a no-op — a stray POST can never rewrite
   billing history.
 """
+
 from django.contrib import admin, messages
 from django.utils import timezone
 from django.utils.html import format_html
@@ -77,9 +78,14 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             "Identifikatsiya va narx",
             {
                 "fields": (
-                    "name", "plan_type", "description",
-                    "price_monthly", "price_yearly", "price_uzs_display",
-                    "duration_days", "quota_period_days",
+                    "name",
+                    "plan_type",
+                    "description",
+                    "price_monthly",
+                    "price_yearly",
+                    "price_uzs_display",
+                    "duration_days",
+                    "quota_period_days",
                 ),
             },
         ),
@@ -122,8 +128,7 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
                     "is_unlimited_tests",
                 ),
                 "description": (
-                    "Cheksizlikni chegarani 0 qilib emas, shu belgilar bilan "
-                    "ifodalang."
+                    "Cheksizlikni chegarani 0 qilib emas, shu belgilar bilan ifodalang."
                 ),
             },
         ),
@@ -131,9 +136,14 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             "Qo'shimcha imkoniyatlar",
             {
                 "fields": (
-                    "max_tests_per_day", "max_essays_per_week", "max_ai_grading",
-                    "detailed_analytics", "pdf_certificate", "priority_support",
-                    "unlimited_tests", "unlimited_essays",
+                    "max_tests_per_day",
+                    "max_essays_per_week",
+                    "max_ai_grading",
+                    "detailed_analytics",
+                    "pdf_certificate",
+                    "priority_support",
+                    "unlimited_tests",
+                    "unlimited_essays",
                 ),
                 "classes": ("collapse",),
             },
@@ -142,15 +152,22 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             "Sotuv va ko'rinish",
             {
                 "fields": (
-                    "is_public", "is_active", "sort_order", "purchasable_display",
+                    "is_public",
+                    "is_active",
+                    "sort_order",
+                    "purchasable_display",
                 ),
             },
         ),
         (
             "Nusxa (sotib olinganda muzlatiladi)",
             {
-                "fields": ("quota_snapshot_display", "code_display",
-                           "created_at", "updated_at"),
+                "fields": (
+                    "quota_snapshot_display",
+                    "code_display",
+                    "created_at",
+                    "updated_at",
+                ),
                 "description": (
                     "Sotib olingan obuna shu konfiguratsiyani o'zida saqlaydi — "
                     "keyin rejani o'zgartirish eski xaridga ta'sir qilmaydi."
@@ -198,23 +215,40 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "user", "plan", "status", "purchase_source", "started_at",
-        "expires_at", "payment_method", "payment_reference", "is_trial",
+        "user",
+        "plan",
+        "status",
+        "purchase_source",
+        "started_at",
+        "expires_at",
+        "payment_method",
+        "payment_reference",
+        "is_trial",
     )
     list_filter = ("status", "plan", "purchase_source", "payment_method", "is_trial")
-    search_fields = ("user__email", "user__first_name", "user__last_name",
-                     "payment_id", "payment_reference")
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "payment_id",
+        "payment_reference",
+    )
     raw_id_fields = ("user", "plan")
     date_hierarchy = "started_at"
     readonly_fields = (
-        "payment_id", "payment_reference", "plan_snapshot",
-        "entitlement_snapshot", "created_at", "updated_at",
+        "payment_id",
+        "payment_reference",
+        "plan_snapshot",
+        "entitlement_snapshot",
+        "created_at",
+        "updated_at",
     )
     actions = ("revoke_selected", "mark_expired")
 
     def has_change_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_delete_permission(self, request, obj=None):
@@ -274,20 +308,45 @@ class SubscriptionUsageAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "user", "kind", "status", "counts_towards_quota", "period_start",
-        "plan_type_snapshot", "source", "submission", "test_attempt",
-        "created_at", "committed_at", "released_at",
+        "user",
+        "kind",
+        "status",
+        "counts_towards_quota",
+        "period_start",
+        "plan_type_snapshot",
+        "source",
+        "submission",
+        "test_attempt",
+        "created_at",
+        "committed_at",
+        "released_at",
     )
-    list_filter = ("kind", "status", "counts_towards_quota", "source",
-                   "plan_type_snapshot")
+    list_filter = (
+        "kind",
+        "status",
+        "counts_towards_quota",
+        "source",
+        "plan_type_snapshot",
+    )
     search_fields = ("user__email", "idempotency_key", "note")
     raw_id_fields = ("user", "submission", "test_attempt")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     readonly_fields = (
-        "user", "kind", "status", "idempotency_key", "period_start",
-        "counts_towards_quota", "plan_type_snapshot", "source", "submission",
-        "test_attempt", "created_at", "committed_at", "released_at", "note",
+        "user",
+        "kind",
+        "status",
+        "idempotency_key",
+        "period_start",
+        "counts_towards_quota",
+        "plan_type_snapshot",
+        "source",
+        "submission",
+        "test_attempt",
+        "created_at",
+        "committed_at",
+        "released_at",
+        "note",
     )
 
     def has_add_permission(self, request):
@@ -321,12 +380,23 @@ class SubscriptionOverrideAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "user", "is_active", "image_essay_weekly_limit",
-        "text_essay_weekly_limit", "text_essay_cooldown_hours", "test_limit",
-        "is_unlimited_text_essays", "expires_at", "granted_by", "updated_at",
+        "user",
+        "is_active",
+        "image_essay_weekly_limit",
+        "text_essay_weekly_limit",
+        "text_essay_cooldown_hours",
+        "test_limit",
+        "is_unlimited_text_essays",
+        "expires_at",
+        "granted_by",
+        "updated_at",
     )
-    list_filter = ("is_active", "is_unlimited_image_essays",
-                   "is_unlimited_text_essays", "is_unlimited_tests")
+    list_filter = (
+        "is_active",
+        "is_unlimited_image_essays",
+        "is_unlimited_text_essays",
+        "is_unlimited_tests",
+    )
     search_fields = ("user__email", "user__first_name", "user__last_name", "reason")
     raw_id_fields = ("user", "granted_by")
     date_hierarchy = "created_at"
@@ -334,7 +404,8 @@ class SubscriptionOverrideAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request):
@@ -342,7 +413,8 @@ class SubscriptionOverrideAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def save_model(self, request, obj, form, change):
@@ -355,7 +427,8 @@ class SubscriptionOverrideAdmin(admin.ModelAdmin):
             student=obj.user,
             action=(
                 EntitlementAuditLog.Action.UPDATE_OVERRIDE
-                if change else EntitlementAuditLog.Action.GRANT_OVERRIDE
+                if change
+                else EntitlementAuditLog.Action.GRANT_OVERRIDE
             ),
             details={
                 "image_essay_weekly_limit": obj.image_essay_weekly_limit,
@@ -413,14 +486,24 @@ class TeacherSponsorshipAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "student", "group_display", "teacher_display", "is_active",
-        "approved_at", "expires_at", "image_essay_weekly_limit",
-        "text_essay_weekly_limit", "created_at",
+        "student",
+        "group_display",
+        "teacher_display",
+        "is_active",
+        "approved_at",
+        "expires_at",
+        "image_essay_weekly_limit",
+        "text_essay_weekly_limit",
+        "created_at",
     )
     list_filter = ("is_active", "approved_at", "expires_at")
     search_fields = (
-        "student__email", "student__first_name", "student__last_name",
-        "group__name", "group__teacher__email", "note",
+        "student__email",
+        "student__first_name",
+        "student__last_name",
+        "group__name",
+        "group__teacher__email",
+        "note",
     )
     raw_id_fields = ("student", "group", "approved_by")
     date_hierarchy = "created_at"
@@ -439,7 +522,8 @@ class TeacherSponsorshipAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request):
@@ -447,7 +531,8 @@ class TeacherSponsorshipAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     @admin.action(
@@ -464,10 +549,15 @@ class TeacherSponsorshipAdmin(admin.ModelAdmin):
                 sponsorship.approved_by = request.user
                 sponsorship.is_active = True
                 sponsorship.revoked_at = None
-                sponsorship.save(update_fields=[
-                    "approved_at", "approved_by", "is_active", "revoked_at",
-                    "updated_at",
-                ])
+                sponsorship.save(
+                    update_fields=[
+                        "approved_at",
+                        "approved_by",
+                        "is_active",
+                        "revoked_at",
+                        "updated_at",
+                    ]
+                )
                 approved += 1
                 logs.append(
                     EntitlementAuditLog(
@@ -478,7 +568,8 @@ class TeacherSponsorshipAdmin(admin.ModelAdmin):
                             "group": sponsorship.group_id,
                             "expires_at": (
                                 sponsorship.expires_at.isoformat()
-                                if sponsorship.expires_at else None
+                                if sponsorship.expires_at
+                                else None
                             ),
                         },
                     )
@@ -536,18 +627,38 @@ class TelegramOrderAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "payload", "user", "plan", "amount_stars", "currency", "status",
-        "telegram_payment_charge_id", "created_at", "paid_at",
+        "payload",
+        "user",
+        "plan",
+        "amount_stars",
+        "currency",
+        "status",
+        "telegram_payment_charge_id",
+        "created_at",
+        "paid_at",
     )
     list_filter = ("status", "currency", "plan")
-    search_fields = ("payload", "telegram_payment_charge_id",
-                     "provider_payment_charge_id", "user__email")
+    search_fields = (
+        "payload",
+        "telegram_payment_charge_id",
+        "provider_payment_charge_id",
+        "user__email",
+    )
     raw_id_fields = ("user", "plan")
     date_hierarchy = "created_at"
     readonly_fields = (
-        "user", "plan", "payload", "amount_stars", "currency", "status",
-        "telegram_payment_charge_id", "provider_payment_charge_id",
-        "raw_payload", "created_at", "updated_at", "paid_at",
+        "user",
+        "plan",
+        "payload",
+        "amount_stars",
+        "currency",
+        "status",
+        "telegram_payment_charge_id",
+        "provider_payment_charge_id",
+        "raw_payload",
+        "created_at",
+        "updated_at",
+        "paid_at",
     )
 
     def has_add_permission(self, request):
@@ -599,8 +710,13 @@ class EntitlementAuditLogAdmin(admin.ModelAdmin):
 @admin.register(PaymentRequest)
 class PaymentRequestAdmin(admin.ModelAdmin):
     list_display = (
-        "user", "plan", "amount", "status", "reviewed_by",
-        "created_at", "reviewed_at",
+        "user",
+        "plan",
+        "amount",
+        "status",
+        "reviewed_by",
+        "created_at",
+        "reviewed_at",
     )
     list_filter = ("status", "plan")
     search_fields = ("user__email", "user__first_name")
@@ -609,7 +725,8 @@ class PaymentRequestAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request):
@@ -617,15 +734,21 @@ class PaymentRequestAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return can_manage_payments(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
 
 @admin.register(PaymentHistory)
 class PaymentHistoryAdmin(admin.ModelAdmin):
     list_display = (
-        "user", "plan", "amount", "currency", "payment_method",
-        "status", "created_at",
+        "user",
+        "plan",
+        "amount",
+        "currency",
+        "payment_method",
+        "status",
+        "created_at",
     )
     list_filter = ("status", "payment_method", "currency")
     search_fields = ("user__email", "payment_id")
@@ -660,7 +783,7 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
             return format_html(
                 '<a href="{}" target="_blank">'
                 '<img src="{}" style="max-height: 50px; border-radius: 4px; border: 1px solid #ddd;" />'
-                '</a>',
+                "</a>",
                 obj.receipt_image.url,
                 obj.receipt_image.url,
             )
@@ -672,7 +795,7 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
             return format_html(
                 '<a href="{}" target="_blank">'
                 '<img src="{}" style="max-width: 480px; max-height: 600px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />'
-                '</a>',
+                "</a>",
                 obj.receipt_image.url,
                 obj.receipt_image.url,
             )
@@ -700,7 +823,9 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
         rejected_count = 0
         for receipt in queryset:
             if receipt.status == PaymentReceipt.Status.PENDING:
-                reject_payment_receipt(receipt, note="Admin tomonidan rad etildi", admin_user=request.user)
+                reject_payment_receipt(
+                    receipt, note="Admin tomonidan rad etildi", admin_user=request.user
+                )
                 rejected_count += 1
         self.message_user(
             request,
@@ -709,10 +834,14 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
         )
 
     def has_change_permission(self, request, obj=None):
-        return can_manage_payments(request.user) and super().has_change_permission(request, obj)
+        return can_manage_payments(request.user) and super().has_change_permission(
+            request, obj
+        )
 
     def has_add_permission(self, request):
         return can_manage_payments(request.user) and super().has_add_permission(request)
 
     def has_delete_permission(self, request, obj=None):
-        return can_manage_payments(request.user) and super().has_delete_permission(request, obj)
+        return can_manage_payments(request.user) and super().has_delete_permission(
+            request, obj
+        )

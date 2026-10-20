@@ -11,6 +11,7 @@ Endpoints:
     GET  /essays/teacher/review/            — Teacher review queue
     POST /essays/teacher/<submission_id>/review/  — Submit teacher review
 """
+
 from __future__ import annotations
 
 import logging
@@ -64,10 +65,22 @@ MAX_ESSAY_LENGTH = 50_000
 # config/settings/base.py DEFAULT_THROTTLE_RATES.
 
 _THROTTLE_PERIODS: dict[str, int] = {
-    "second": 1, "seconds": 1, "sec": 1, "secs": 1, "s": 1,
-    "minute": 60, "minutes": 60, "min": 60, "mins": 60, "m": 60,
-    "hour": 3600, "hours": 3600, "h": 3600,
-    "day": 86400, "days": 86400, "d": 86400,
+    "second": 1,
+    "seconds": 1,
+    "sec": 1,
+    "secs": 1,
+    "s": 1,
+    "minute": 60,
+    "minutes": 60,
+    "min": 60,
+    "mins": 60,
+    "m": 60,
+    "hour": 3600,
+    "hours": 3600,
+    "h": 3600,
+    "day": 86400,
+    "days": 86400,
+    "d": 86400,
 }
 
 
@@ -107,11 +120,19 @@ def _throttle_check(request: HttpRequest, scope: str) -> HttpResponse | None:
 
     # Identify actor: authenticated user -> per-user, else per-IP
     user = getattr(request, "user", None)
-    if user is not None and getattr(user, "is_authenticated", False) and getattr(user, "pk", None):
+    if (
+        user is not None
+        and getattr(user, "is_authenticated", False)
+        and getattr(user, "pk", None)
+    ):
         key = f"essay_throttle:{scope}:u:{user.pk}"
     else:
         xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "anon")
+        ip = (
+            xff.split(",")[0].strip()
+            if xff
+            else request.META.get("REMOTE_ADDR", "anon")
+        )
         key = f"essay_throttle:{scope}:ip:{ip}"
 
     cnt = cache.get(key, 0)
@@ -150,6 +171,7 @@ def _essay_throttle(scope: str):
 def _t(request: HttpRequest, key: str) -> str:
     """Translate a key in the request user's language (for JS i18n bundles)."""
     from apps.core.translations import t as translate, get_user_language
+
     return translate(key, get_user_language(request))
 
 
@@ -165,9 +187,11 @@ def teacher_required(view_func):
     @wraps(view_func)
     def _wrapped(request: HttpRequest, *args, **kwargs):
         user = request.user
-        if not (user.is_authenticated and user.is_active and (
-            user.role == "teacher" or is_platform_admin(user)
-        )):
+        if not (
+            user.is_authenticated
+            and user.is_active
+            and (user.role == "teacher" or is_platform_admin(user))
+        ):
             raise PermissionDenied("Faqat o'qituvchi va adminlar uchun.")
         return view_func(request, *args, **kwargs)
 
@@ -177,6 +201,7 @@ def teacher_required(view_func):
 # ---------------------------------------------------------------------------
 # Student: Topic List
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def essay_topics_view(request: HttpRequest) -> HttpResponse:
@@ -188,6 +213,7 @@ def essay_topics_view(request: HttpRequest) -> HttpResponse:
 # Student: Password Gate (parol bilan himoyalangan mavzu kirishi)
 # ---------------------------------------------------------------------------
 
+
 @login_required
 def essay_password_gate_view(request: HttpRequest, topic_id: int) -> HttpResponse:
     """GET /essays/<id>/start/ — SPA shell (password gate lives in React)."""
@@ -195,7 +221,9 @@ def essay_password_gate_view(request: HttpRequest, topic_id: int) -> HttpRespons
     return serve_spa_shell(request, fallback="/essays")
 
 
-def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> HttpResponse:
+def _ensure_submission_and_redirect(
+    request: HttpRequest, topic: EssayTopic
+) -> HttpResponse:
     """Mavjud submission topish yoki yangisini yaratish, keyin write sahifasiga redirect."""
     from django.utils import timezone
 
@@ -223,7 +251,9 @@ def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> 
 
     logger.info(
         "Essay started: submission=%d, student=%d, topic=%d",
-        submission.id, request.user.id, topic.id,
+        submission.id,
+        request.user.id,
+        topic.id,
     )
 
     return redirect("essays:write", submission_id=submission.id)
@@ -232,6 +262,7 @@ def _ensure_submission_and_redirect(request: HttpRequest, topic: EssayTopic) -> 
 # ---------------------------------------------------------------------------
 # Student: Write Essay (submission_id-based, not topic_id)
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def essay_write_view(request: HttpRequest, submission_id: int) -> HttpResponse:
@@ -243,6 +274,7 @@ def essay_write_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Student: Autosave (HTMX)
 # ---------------------------------------------------------------------------
+
 
 @login_required
 @_essay_throttle("user")
@@ -257,7 +289,10 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
 
     if len(essay_text) > MAX_ESSAY_LENGTH:
         return JsonResponse(
-            {"ok": False, "error": f"Esse juda uzun ({len(essay_text)}). Maksimal {MAX_ESSAY_LENGTH}."},
+            {
+                "ok": False,
+                "error": f"Esse juda uzun ({len(essay_text)}). Maksimal {MAX_ESSAY_LENGTH}.",
+            },
             status=400,
         )
 
@@ -291,13 +326,18 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
                 source="website-autosubmit",
             )
         except QuotaDenied as exc:
-            return _quota_denied_response(request, exc, "essays/autosave_result_partial.html", {
-                "time_expired": True,
-                "auto_submitted": False,
-                "quota_denied": True,
-                "error": exc.message,
-                "submission": submission,
-            })
+            return _quota_denied_response(
+                request,
+                exc,
+                "essays/autosave_result_partial.html",
+                {
+                    "time_expired": True,
+                    "auto_submitted": False,
+                    "quota_denied": True,
+                    "error": exc.message,
+                    "submission": submission,
+                },
+            )
 
         # Avtomatik baholash — sekin LLM chaqiruvi fonda (Celery yoki thread)
         result = start_grading(submission)
@@ -326,12 +366,16 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
                 f"Vaqt tugadi. Baholashda xatolik: {result['error']}",
             )
 
-        return render(request, "essays/autosave_result_partial.html", {
-            "time_expired": True,
-            "auto_submitted": True,
-            "fallback": result["fallback"],
-            "submission": submission,
-        })
+        return render(
+            request,
+            "essays/autosave_result_partial.html",
+            {
+                "time_expired": True,
+                "auto_submitted": True,
+                "fallback": result["fallback"],
+                "submission": submission,
+            },
+        )
 
     # Oddiy autosave (vaqt hali bor)
     if submission.status == EssaySubmission.Status.DRAFT:
@@ -341,17 +385,24 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
 
     word_info = WordCounter.get_word_status(essay_text, submission.topic)
 
-    return render(request, "essays/word_counter_partial.html", {
-        "word_info": word_info,
-        "submission": submission,
-    })
+    return render(
+        request,
+        "essays/word_counter_partial.html",
+        {
+            "word_info": word_info,
+            "submission": submission,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # Student: Submit for AI Grading
 # ---------------------------------------------------------------------------
 
-def _quota_denied_response(request, exc, template_name: str, context: dict, *, status: int = 429):
+
+def _quota_denied_response(
+    request, exc, template_name: str, context: dict, *, status: int = 429
+):
     """Render the legacy quota-denial partial, degrading to JSON.
 
     The Grandec SPA no longer serves these HTML fragments — it submits essays
@@ -381,6 +432,7 @@ def _quota_denied_response(request, exc, template_name: str, context: dict, *, s
 def _js_i18n(request) -> dict:
     """JS i18n bundle for the standalone submit form (request user's language)."""
     from apps.core.translations import t as translate, get_user_language
+
     lang = get_user_language(request)
     return {
         "js_need_more": translate("essay_js_need_more", lang),
@@ -407,36 +459,52 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
     # To'liq baholangan → bloklash. Baho hali yo'q → qayta baholashga ruxsat.
     if essay_has_grade_result(submission):
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": "Bu esse allaqachon baholangan.",
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": "Bu esse allaqachon baholangan.",
+            },
+        )
 
     # Baholash hali davom etmoqda — queue'ga takror qo'shish shart emas;
     # frontend natija sahifasiga o'tib, statusni poll qiladi.
     if submission.status == EssaySubmission.Status.PENDING:
-        return render(request, "essays/submit_result_partial.html", {
-            "success": True,
-            "submission": submission,
-            "async_grading": True,
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": True,
+                "submission": submission,
+                "async_grading": True,
+            },
+        )
 
     # Server-side vaqt nazorati
     if submission.password_verified_at and submission.is_expired:
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": "Vaqt tugadi. Essingizni endi yubora olmaysiz.",
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": "Vaqt tugadi. Essingizni endi yubora olmaysiz.",
+            },
+        )
 
     # Word count validation
     if submission.topic is not None:
         min_words = submission.topic.word_limit_min
         word_count = WordCounter.count(submission.essay_text)
         if word_count < min_words:
-            return render(request, "essays/submit_result_partial.html", {
-                "success": False,
-                "error": f"Kamida {min_words} so'z kerak. Hozir: {word_count} so'z.",
-            })
+            return render(
+                request,
+                "essays/submit_result_partial.html",
+                {
+                    "success": False,
+                    "error": f"Kamida {min_words} so'z kerak. Hozir: {word_count} so'z.",
+                },
+            )
     else:
         # Topic-less legacy submissions: no min-word contract; only require
         # non-empty text (already enforced by essay text saving).
@@ -444,15 +512,19 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
     # --- Daily AI Quota Check -----------------------------------------------
     from apps.payments.ai_quota import check_and_consume_ai_quota
+
     ai_allowed, ai_err = check_and_consume_ai_quota(request.user)
     if not ai_allowed:
-        return JsonResponse({
-            "ok": False,
-            "error": ai_err,
-            "quota_denied": True,
-            "code": "quota_exceeded",
-            "redirect_url": "/pricing/",
-        }, status=429)
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": ai_err,
+                "quota_denied": True,
+                "code": "quota_exceeded",
+                "redirect_url": "/pricing/",
+            },
+            status=429,
+        )
 
     # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
     # Limit FAQAT haqiqiy yangi baholash ishi uchun sarflanadi: yuqoridagi
@@ -470,12 +542,18 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
             source="website",
         )
     except QuotaDenied as exc:
-        return _quota_denied_response(request, exc, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": exc.message,
-            "quota_denied": True,
-            "retry_after": exc.retry_after_seconds,
-        }, status=429)
+        return _quota_denied_response(
+            request,
+            exc,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": exc.message,
+                "quota_denied": True,
+                "retry_after": exc.retry_after_seconds,
+            },
+            status=429,
+        )
 
     # AI baholashni fon rejimiga yuklash — grade_essay() 30–90 soniya davom
     # etadigan tashqi LLM chaqiruvi: Celery worker'da, broker tushsa
@@ -487,10 +565,14 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     if not result.get("success"):
         # Baholash navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
         release_usage(reservation)
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": result.get("error") or "AI baholash boshlanmadi.",
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": result.get("error") or "AI baholash boshlanmadi.",
+            },
+        )
 
     # Baholash qabul qilindi va navbatga qo'yildi → limit bir marta sarflandi.
     # Natija hali tayyor bo'lmasa ham xizmat ko'rsatildi, shuning uchun
@@ -500,21 +582,30 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     if result["fallback"] and not result.get("async"):
         # Bo'sh / kam so'zli matn → o'qituvchiga yuborildi (defensive —
         # word-count validation yuqorida allaqachon o'tgan)
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": result.get("error") or "Esse o'qituvchiga yuborildi.",
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": result.get("error") or "Esse o'qituvchiga yuborildi.",
+            },
+        )
 
-    return render(request, "essays/submit_result_partial.html", {
-        "success": True,
-        "submission": submission,
-        "async_grading": result.get("async", False),
-    })
+    return render(
+        request,
+        "essays/submit_result_partial.html",
+        {
+            "success": True,
+            "submission": submission,
+            "async_grading": result.get("async", False),
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # Student: Grading Status (polling endpoint for async grading)
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonResponse:
@@ -529,7 +620,9 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
         {"status": "error", "error": "...", "result_url": ..., "can_retry": true} — xatolik
     """
     submission = get_object_or_404(
-        EssaySubmission, id=submission_id, student=request.user,
+        EssaySubmission,
+        id=submission_id,
+        student=request.user,
     )
     expire_overdue_pending_grading(submission)
 
@@ -546,7 +639,9 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
 
     if status == EssaySubmission.Status.PENDING:
         data["poll_after"] = 3
-        data["message"] = "AI baholash fonda davom etmoqda. Sahifa avtomatik yangilanadi."
+        data["message"] = (
+            "AI baholash fonda davom etmoqda. Sahifa avtomatik yangilanadi."
+        )
     elif status in (
         EssaySubmission.Status.GRADED,
         EssaySubmission.Status.AI_EVALUATED,
@@ -573,6 +668,7 @@ def essay_grading_status_view(request: HttpRequest, submission_id: int) -> JsonR
 # Student: View Result (unified — handles 12-mezon AND legacy 30-point)
 # ---------------------------------------------------------------------------
 
+
 @login_required
 def essay_result_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     """GET /essays/result/<id>/ — SPA shell (React Router owns /essays/result/:id)."""
@@ -584,6 +680,7 @@ def essay_result_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 # 12-Mezon Grading: View Result (alias)
 # ---------------------------------------------------------------------------
 
+
 @login_required
 def essay_detail_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     """GET essay detail — SPA shell (alias of the result route)."""
@@ -594,6 +691,7 @@ def essay_detail_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # 12-Mezon Grading: Improved Version (AI)
 # ---------------------------------------------------------------------------
+
 
 @login_required
 @_essay_throttle("essay-improve")
@@ -624,14 +722,18 @@ def essay_improve_view(request: HttpRequest, submission_id: int) -> HttpResponse
 
     if not getattr(submission, "improved_content", None):
         from apps.payments.ai_quota import check_and_consume_ai_quota
+
         allowed, err_msg = check_and_consume_ai_quota(request.user)
         if not allowed:
-            return JsonResponse({
-                "ok": False,
-                "error": err_msg,
-                "code": "quota_exceeded",
-                "redirect_url": "/pricing/",
-            }, status=429)
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": err_msg,
+                    "code": "quota_exceeded",
+                    "redirect_url": "/pricing/",
+                },
+                status=429,
+            )
 
     from .services import generate_improved_essay
 
@@ -648,30 +750,43 @@ def essay_improve_view(request: HttpRequest, submission_id: int) -> HttpResponse
             status=500,
         )
 
-    return JsonResponse({
-        "ok": True,
-        # True only when this request generated a new version; False on cache hits.
-        "improved": bool(getattr(submission, "_improved_fresh", False)),
-        "content": content,
-        "word_count": WordCounter.count(content),
-    })
+    return JsonResponse(
+        {
+            "ok": True,
+            # True only when this request generated a new version; False on cache hits.
+            "improved": bool(getattr(submission, "_improved_fresh", False)),
+            "content": content,
+            "word_count": WordCounter.count(content),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Student: Request Teacher Review
 # ---------------------------------------------------------------------------
 
-def _render_review_result(request: HttpRequest, context: dict, status: int = 200) -> HttpResponse:
+
+def _render_review_result(
+    request: HttpRequest, context: dict, status: int = 200
+) -> HttpResponse:
     from django.template import TemplateDoesNotExist
+
     try:
-        return render(request, "essays/review_request_partial.html", context, status=status)
+        return render(
+            request, "essays/review_request_partial.html", context, status=status
+        )
     except TemplateDoesNotExist:
-        return JsonResponse({
-            "ok": context.get("success", True),
-            "success": context.get("success", True),
-            "error": context.get("error"),
-            "submission_id": context.get("submission").id if context.get("submission") else None,
-        }, status=status)
+        return JsonResponse(
+            {
+                "ok": context.get("success", True),
+                "success": context.get("success", True),
+                "error": context.get("error"),
+                "submission_id": context.get("submission").id
+                if context.get("submission")
+                else None,
+            },
+            status=status,
+        )
 
 
 @login_required
@@ -688,6 +803,7 @@ def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpR
     if not reason and request.body:
         try:
             import json as _json
+
             data = _json.loads(request.body)
             if isinstance(data, dict):
                 reason = data.get("reason", "")
@@ -696,30 +812,43 @@ def essay_request_review_view(request: HttpRequest, submission_id: int) -> HttpR
 
     try:
         TeacherReviewService.request_teacher_review(
-            submission, request.user, reason,
+            submission,
+            request.user,
+            reason,
         )
     except ValueError as e:
-        return _render_review_result(request, {
-            "success": False,
-            "error": str(e),
-        }, status=400)
+        return _render_review_result(
+            request,
+            {
+                "success": False,
+                "error": str(e),
+            },
+            status=400,
+        )
 
     submission.refresh_from_db()
 
     logger.info(
         "Teacher review requested: submission=%d, reason=%s",
-        submission.id, submission.teacher_review_reason[:100] if submission.teacher_review_reason else "",
+        submission.id,
+        submission.teacher_review_reason[:100]
+        if submission.teacher_review_reason
+        else "",
     )
 
-    return _render_review_result(request, {
-        "success": True,
-        "submission": submission,
-    })
+    return _render_review_result(
+        request,
+        {
+            "success": True,
+            "submission": submission,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # Teacher: Review Queue
 # ---------------------------------------------------------------------------
+
 
 @login_required
 @teacher_required
@@ -732,6 +861,7 @@ def teacher_essay_queue_view(request: HttpRequest) -> HttpResponse:
 # Teacher: Review Single Essay
 # ---------------------------------------------------------------------------
 
+
 @login_required
 @teacher_required
 def teacher_review_view(request: HttpRequest, submission_id: int) -> HttpResponse:
@@ -739,19 +869,21 @@ def teacher_review_view(request: HttpRequest, submission_id: int) -> HttpRespons
     submission = get_object_or_404(EssaySubmission, id=submission_id)
     if not can_review_submission(request.user, submission):
         raise PermissionDenied
-    return serve_spa_shell(
-        request, fallback=f"/teacher/essays/{submission_id}/review"
-    )
+    return serve_spa_shell(request, fallback=f"/teacher/essays/{submission_id}/review")
 
 
 @login_required
 @teacher_required
 @require_POST
-def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> HttpResponse:
+def teacher_submit_review_view(
+    request: HttpRequest, submission_id: int
+) -> HttpResponse:
     """Ustoz bahosini saqlash — 12 mezon, 24 ballik tizim."""
     submission = get_object_or_404(
         EssaySubmission.objects.select_related(
-            "student", "topic", "assigned_reviewer",
+            "student",
+            "topic",
+            "assigned_reviewer",
         ),
         id=submission_id,
     )
@@ -765,24 +897,37 @@ def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> Http
         raw = request.POST.get(f"score_{cid}", "0")
         raw_str = str(raw).strip() if raw is not None else ""
         if raw_str == "":
-            return render(request, "essays/teacher_review_result_partial.html", {
-                "success": False,
-                "error": f"Mezon #{cid}: ball kiritilmadi.",
-            })
+            return render(
+                request,
+                "essays/teacher_review_result_partial.html",
+                {
+                    "success": False,
+                    "error": f"Mezon #{cid}: ball kiritilmadi.",
+                },
+            )
         try:
             val = float(raw_str)
         except (ValueError, TypeError):
-            return render(request, "essays/teacher_review_result_partial.html", {
-                "success": False,
-                "error": f"Mezon #{cid}: ball noto'g'ri format '{raw_str}'.",
-            })
+            return render(
+                request,
+                "essays/teacher_review_result_partial.html",
+                {
+                    "success": False,
+                    "error": f"Mezon #{cid}: ball noto'g'ri format '{raw_str}'.",
+                },
+            )
         # Reject NaN/inf explicitly.
         import math
+
         if not math.isfinite(val) or val not in allowed:
-            return render(request, "essays/teacher_review_result_partial.html", {
-                "success": False,
-                "error": f"Mezon #{cid}: ball {raw_str} yaroqsiz. Ruxsat: {sorted(allowed)}",
-            })
+            return render(
+                request,
+                "essays/teacher_review_result_partial.html",
+                {
+                    "success": False,
+                    "error": f"Mezon #{cid}: ball {raw_str} yaroqsiz. Ruxsat: {sorted(allowed)}",
+                },
+            )
         criteria_scores[cid] = val
 
     teacher_comments = request.POST.get("teacher_comments", "")
@@ -795,28 +940,38 @@ def teacher_submit_review_view(request: HttpRequest, submission_id: int) -> Http
             teacher_comments=teacher_comments,
         )
     except ValueError as e:
-        return render(request, "essays/teacher_review_result_partial.html", {
-            "success": False,
-            "error": str(e),
-        })
+        return render(
+            request,
+            "essays/teacher_review_result_partial.html",
+            {
+                "success": False,
+                "error": str(e),
+            },
+        )
 
     submission.refresh_from_db()
 
     logger.info(
         "Teacher review finalized: submission=%d, final_score=%s",
-        submission.id, review.final_score,
+        submission.id,
+        review.final_score,
     )
 
-    return render(request, "essays/teacher_review_result_partial.html", {
-        "success": True,
-        "review": review,
-        "submission": submission,
-    })
+    return render(
+        request,
+        "essays/teacher_review_result_partial.html",
+        {
+            "success": True,
+            "review": review,
+            "submission": submission,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
 # 12-Mezon Grading: Submit Essay
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def essay_create_view(request: HttpRequest) -> HttpResponse:
@@ -838,12 +993,16 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
         )
     if len(essay_text) > MAX_ESSAY_LENGTH:
         return JsonResponse(
-            {"ok": False, "error": f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi."},
+            {
+                "ok": False,
+                "error": f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi.",
+            },
             status=400,
         )
 
     # Create pending submission
     from apps.essays.services import WordCounter as _WC
+
     submission = EssaySubmission.objects.create(
         student=request.user,
         essay_text=essay_text,
@@ -854,7 +1013,9 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
 
     logger.info(
         "Essay submission created: id=%d, student=%d, word_count=%d",
-        submission.id, request.user.id, submission.word_count,
+        submission.id,
+        request.user.id,
+        submission.word_count,
     )
 
     # --- AI baholashni fon rejimiga yuklash ---
@@ -863,14 +1024,21 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
     result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
 
     if not result.get("success"):
-        return render(request, "essays/submit_result_partial.html", {
-            "success": False,
-            "error": result.get("error") or "AI baholash boshlanmadi.",
-        })
+        return render(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": result.get("error") or "AI baholash boshlanmadi.",
+            },
+        )
 
     if result["fallback"] and not result.get("async"):
         return JsonResponse(
-            {"ok": False, "error": result.get("error") or "Esse o'qituvchiga yuborildi."},
+            {
+                "ok": False,
+                "error": result.get("error") or "Esse o'qituvchiga yuborildi.",
+            },
             status=502,
         )
 

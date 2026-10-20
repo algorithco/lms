@@ -1,7 +1,10 @@
 import pytest
 from django.contrib.auth import get_user_model
 from apps.courses.models import StudentGroup
-from apps.courses.group_service import join_group_by_invite_code, get_group_full_analytics
+from apps.courses.group_service import (
+    join_group_by_invite_code,
+    get_group_full_analytics,
+)
 from apps.payments.models import SubscriptionPlan
 from apps.payments.entitlements import get_effective_entitlement
 from apps.payments.ai_quota import get_user_plan_tier
@@ -78,7 +81,12 @@ def test_student_auto_pro_on_group_join():
 
     # Effective entitlement must be sponsored
     ent = get_effective_entitlement(student)
-    assert ent.plan_name in ("PRO (Ustoz guruhi orqali)", "Ustoz guruhi (homiylik)", "Ustoz homiyligi", "PRO")
+    assert ent.plan_name in (
+        "PRO (Ustoz guruhi orqali)",
+        "Ustoz guruhi (homiylik)",
+        "Ustoz homiyligi",
+        "PRO",
+    )
     assert ent.is_sponsored is True
     assert ent.is_unlimited_tests is True
 

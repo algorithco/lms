@@ -1,6 +1,7 @@
 """
 Web API endpoints for Sunday Live League & Tournaments.
 """
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -37,19 +38,21 @@ def tournament_list_view(request):
                 user_score = float(part.score)
                 user_rank = part.rank
 
-        data.append({
-            "id": t.id,
-            "title": t.title,
-            "description": t.description,
-            "scheduled_at": t.scheduled_at,
-            "duration_minutes": t.duration_minutes,
-            "status": t.status,
-            "prize_fund_description": t.prize_fund_description,
-            "participants_count": t.participants_count,
-            "user_joined": user_joined,
-            "user_score": user_score,
-            "user_rank": user_rank,
-        })
+        data.append(
+            {
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "scheduled_at": t.scheduled_at,
+                "duration_minutes": t.duration_minutes,
+                "status": t.status,
+                "prize_fund_description": t.prize_fund_description,
+                "participants_count": t.participants_count,
+                "user_joined": user_joined,
+                "user_score": user_score,
+                "user_rank": user_rank,
+            }
+        )
 
     return Response({"tournaments": data})
 
@@ -68,7 +71,9 @@ def tournament_detail_view(request, pk):
 
     my_part_data = None
     if user:
-        part = TournamentParticipant.objects.filter(tournament=tournament, user=user).first()
+        part = TournamentParticipant.objects.filter(
+            tournament=tournament, user=user
+        ).first()
         if part:
             my_part_data = {
                 "joined": True,
@@ -82,7 +87,11 @@ def tournament_detail_view(request, pk):
     questions_data = []
     if tournament.test:
         letters = ["A", "B", "C", "D", "E", "F"]
-        for q in tournament.test.questions.all().prefetch_related("choices").order_by("position"):
+        for q in (
+            tournament.test.questions.all()
+            .prefetch_related("choices")
+            .order_by("position")
+        ):
             options_dict = {}
             choices = list(q.choices.all().order_by("position"))
             if choices:
@@ -96,29 +105,33 @@ def tournament_detail_view(request, pk):
                     "C": getattr(q, "option_c", ""),
                     "D": getattr(q, "option_d", ""),
                 }
-            questions_data.append({
-                "id": q.id,
-                "text": q.text,
-                "options": options_dict,
-                "order": getattr(q, "position", 1),
-            })
+            questions_data.append(
+                {
+                    "id": q.id,
+                    "text": q.text,
+                    "options": options_dict,
+                    "order": getattr(q, "position", 1),
+                }
+            )
 
-    return Response({
-        "tournament": {
-            "id": tournament.id,
-            "title": tournament.title,
-            "description": tournament.description,
-            "scheduled_at": tournament.scheduled_at,
-            "duration_minutes": tournament.duration_minutes,
-            "status": tournament.status,
-            "prize_fund_description": tournament.prize_fund_description,
-            "participants_count": tournament.participants_count,
-            "questions_count": len(questions_data),
-        },
-        "questions": questions_data,
-        "my_participation": my_part_data,
-        "leaderboard": get_tournament_leaderboard(tournament.id),
-    })
+    return Response(
+        {
+            "tournament": {
+                "id": tournament.id,
+                "title": tournament.title,
+                "description": tournament.description,
+                "scheduled_at": tournament.scheduled_at,
+                "duration_minutes": tournament.duration_minutes,
+                "status": tournament.status,
+                "prize_fund_description": tournament.prize_fund_description,
+                "participants_count": tournament.participants_count,
+                "questions_count": len(questions_data),
+            },
+            "questions": questions_data,
+            "my_participation": my_part_data,
+            "leaderboard": get_tournament_leaderboard(tournament.id),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -129,18 +142,23 @@ def tournament_join_view(request, pk):
     """
     tournament = get_object_or_404(Tournament, id=pk)
     if tournament.status == Tournament.Status.FINISHED:
-        return Response({"error": "Ushbu turnir allaqachon yakunlangan."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Ushbu turnir allaqachon yakunlangan."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     participant, created = TournamentParticipant.objects.get_or_create(
         tournament=tournament,
         user=request.user,
     )
-    return Response({
-        "success": True,
-        "joined": True,
-        "is_finished": participant.is_finished,
-        "message": f"Siz '{tournament.title}' turniriga muvaffaqiyatli ro'yxatdan o'tdingiz!",
-    })
+    return Response(
+        {
+            "success": True,
+            "joined": True,
+            "is_finished": participant.is_finished,
+            "message": f"Siz '{tournament.title}' turniriga muvaffaqiyatli ro'yxatdan o'tdingiz!",
+        }
+    )
 
 
 @api_view(["POST"])
@@ -160,11 +178,13 @@ def tournament_submit_view(request, pk):
         time_taken_seconds=time_taken,
     )
 
-    return Response({
-        "success": True,
-        "result": result,
-        "leaderboard": get_tournament_leaderboard(tournament.id),
-    })
+    return Response(
+        {
+            "success": True,
+            "result": result,
+            "leaderboard": get_tournament_leaderboard(tournament.id),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -174,12 +194,14 @@ def tournament_leaderboard_view(request, pk):
     Public leaderboard for a tournament.
     """
     tournament = get_object_or_404(Tournament, id=pk)
-    return Response({
-        "tournament_id": tournament.id,
-        "title": tournament.title,
-        "status": tournament.status,
-        "leaderboard": get_tournament_leaderboard(tournament.id),
-    })
+    return Response(
+        {
+            "tournament_id": tournament.id,
+            "title": tournament.title,
+            "status": tournament.status,
+            "leaderboard": get_tournament_leaderboard(tournament.id),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -189,7 +211,10 @@ def tournament_finalize_view(request, pk):
     Admin: Finalize tournament and grant awards.
     """
     if not (request.user.role == "admin" or request.user.is_staff):
-        return Response({"error": "Faqat admin turnirni yakunlashi mumkin."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"error": "Faqat admin turnirni yakunlashi mumkin."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     res = finalize_tournament_awards(pk)
     return Response(res)

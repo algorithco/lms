@@ -64,7 +64,8 @@ def make_plan(plan_type: str, **overrides) -> SubscriptionPlan:
     }
     defaults.update(overrides)
     plan, _created = SubscriptionPlan.objects.get_or_create(
-        plan_type=plan_type, defaults=defaults,
+        plan_type=plan_type,
+        defaults=defaults,
     )
     for field, value in defaults.items():
         setattr(plan, field, value)
@@ -108,7 +109,9 @@ class OrderCreationTests(_StarsFixture):
 
     def test_sponsored_plan_cannot_be_purchased(self):
         plan = make_plan(
-            "teacher_sponsored", telegram_stars_price=STARS, is_public=True,
+            "teacher_sponsored",
+            telegram_stars_price=STARS,
+            is_public=True,
         )
         with self.assertRaises(ValueError) as ctx:
             create_order(self.student, plan)
@@ -122,7 +125,10 @@ class OrderCreationTests(_StarsFixture):
 
     def test_inactive_plan_cannot_be_purchased(self):
         plan = make_plan(
-            "family", telegram_stars_price=STARS, is_public=True, is_active=False,
+            "family",
+            telegram_stars_price=STARS,
+            is_public=True,
+            is_active=False,
         )
         with self.assertRaises(ValueError):
             create_order(self.student, plan)
@@ -190,14 +196,18 @@ class PreCheckoutTests(_StarsFixture):
 
     def test_wrong_currency_is_rejected(self):
         ok, error, _order = validate_pre_checkout(
-            payload=self.order.payload, currency="USD", total_amount=STARS,
+            payload=self.order.payload,
+            currency="USD",
+            total_amount=STARS,
         )
         self.assertFalse(ok)
         self.assertIn("valyuta", error)
 
     def test_mismatched_amount_is_rejected(self):
         ok, error, _order = validate_pre_checkout(
-            payload=self.order.payload, currency="XTR", total_amount=STARS + 1,
+            payload=self.order.payload,
+            currency="XTR",
+            total_amount=STARS + 1,
         )
         self.assertFalse(ok)
         self.assertIn("summasi", error)
@@ -205,7 +215,9 @@ class PreCheckoutTests(_StarsFixture):
     def test_cancelled_order_is_rejected(self):
         cancel_order(self.order)
         ok, error, _order = validate_pre_checkout(
-            payload=self.order.payload, currency="XTR", total_amount=STARS,
+            payload=self.order.payload,
+            currency="XTR",
+            total_amount=STARS,
         )
         self.assertFalse(ok)
         self.assertIn("holati", error)
@@ -214,14 +226,18 @@ class PreCheckoutTests(_StarsFixture):
         self.plan.telegram_stars_price = STARS + 50
         self.plan.save(update_fields=["telegram_stars_price", "updated_at"])
         ok, error, _order = validate_pre_checkout(
-            payload=self.order.payload, currency="XTR", total_amount=STARS,
+            payload=self.order.payload,
+            currency="XTR",
+            total_amount=STARS,
         )
         self.assertFalse(ok)
         self.assertIn("narxi", error)
 
     def test_valid_pre_checkout_activates_nothing(self):
         ok, error, order = validate_pre_checkout(
-            payload=self.order.payload, currency="XTR", total_amount=STARS,
+            payload=self.order.payload,
+            currency="XTR",
+            total_amount=STARS,
         )
         self.assertTrue(ok)
         self.assertIsNone(error)
@@ -267,7 +283,8 @@ class PaymentActivationTests(_StarsFixture):
     def test_amount_mismatch_fails_the_order_without_activating(self):
         order = create_order(self.student, self.plan)
         ok, _message, subscription = self._activate(
-            order, total_amount=STARS - 1,
+            order,
+            total_amount=STARS - 1,
         )
         self.assertFalse(ok)
         self.assertIsNone(subscription)
@@ -286,7 +303,8 @@ class PaymentActivationTests(_StarsFixture):
         self.assertEqual(subscription.status, UserSubscription.Status.ACTIVE)
         self.assertEqual(subscription.plan_id, self.plan.pk)
         self.assertEqual(
-            subscription.purchase_source, UserSubscription.Source.TELEGRAM_BOT,
+            subscription.purchase_source,
+            UserSubscription.Source.TELEGRAM_BOT,
         )
         self.assertEqual(subscription.payment_method, "stars")
         self.assertEqual(subscription.payment_reference, "tg-charge-ok")
@@ -313,7 +331,8 @@ class PaymentActivationTests(_StarsFixture):
         first_expiry = subscription.expires_at
 
         again_ok, again_message, again_subscription = self._activate(
-            order, charge_id="tg-charge-dup",
+            order,
+            charge_id="tg-charge-dup",
         )
         self.assertTrue(again_ok)
         self.assertEqual(again_message, "To'lov allaqachon tasdiqlangan.")
@@ -330,7 +349,9 @@ class PaymentActivationTests(_StarsFixture):
 
     def test_refund_revokes_access_and_is_audited(self):
         order = create_order(self.student, self.plan)
-        _ok, _message, subscription = self._activate(order, charge_id="tg-charge-refund")
+        _ok, _message, subscription = self._activate(
+            order, charge_id="tg-charge-refund"
+        )
 
         self.assertTrue(refund_order(order))
         order.refresh_from_db()
@@ -361,18 +382,24 @@ class SubscriptionLifecycleTests(TestCase):
             role="student",
         )
         self.start_plan = make_plan(
-            "start", text_essay_weekly_limit=3, image_essay_weekly_limit=5,
+            "start",
+            text_essay_weekly_limit=3,
+            image_essay_weekly_limit=5,
             duration_days=30,
         )
         self.pro_plan = make_plan(
-            "pro", is_unlimited_text_essays=True, is_unlimited_image_essays=True,
-            is_unlimited_tests=True, duration_days=30,
+            "pro",
+            is_unlimited_text_essays=True,
+            is_unlimited_image_essays=True,
+            is_unlimited_tests=True,
+            duration_days=30,
         )
 
     def test_first_activation_starts_now_for_the_full_duration(self):
         before = timezone.now()
         subscription = grant_subscription(
-            self.student, self.start_plan,
+            self.student,
+            self.start_plan,
             source=UserSubscription.Source.WEBSITE,
             payment_method="card",
             payment_reference="receipt-1",
@@ -422,7 +449,8 @@ class SubscriptionLifecycleTests(TestCase):
     def test_expire_overdue_flips_only_past_due_subscriptions(self):
         active = grant_subscription(self.student, self.start_plan)
         other = User.objects.create_user(
-            email="lifecycle-other@example.test", password="StrongPass123!",
+            email="lifecycle-other@example.test",
+            password="StrongPass123!",
             role="student",
         )
         stale = grant_subscription(other, self.start_plan)
@@ -468,17 +496,20 @@ class SubscriptionLifecycleTests(TestCase):
         subscription = grant_subscription(self.student, self.start_plan)
         renewed = grant_subscription(self.student, self.start_plan)
         self.assertEqual(
-            renewed.plan_snapshot.get("text_essay_weekly_limit"), 3,
+            renewed.plan_snapshot.get("text_essay_weekly_limit"),
+            3,
         )
 
         self.start_plan.text_essay_weekly_limit = 99
         self.start_plan.save(update_fields=["text_essay_weekly_limit", "updated_at"])
         renewed.refresh_from_db()
         self.assertEqual(
-            renewed.plan_snapshot.get("text_essay_weekly_limit"), 3,
+            renewed.plan_snapshot.get("text_essay_weekly_limit"),
+            3,
         )
         self.assertEqual(
-            renewed.entitlement_snapshot.get("text_essay_weekly_limit"), 3,
+            renewed.entitlement_snapshot.get("text_essay_weekly_limit"),
+            3,
         )
         self.assertNotEqual(subscription.pk, None)
 
@@ -520,19 +551,26 @@ class ActivationDurabilityTests(_StarsFixture):
         """
         self.plan.text_essay_weekly_limit = 3
         self.plan.image_essay_weekly_limit = 5
-        self.plan.save(update_fields=[
-            "text_essay_weekly_limit", "image_essay_weekly_limit", "updated_at",
-        ])
+        self.plan.save(
+            update_fields=[
+                "text_essay_weekly_limit",
+                "image_essay_weekly_limit",
+                "updated_at",
+            ]
+        )
 
         subscription = grant_subscription(self.student, self.plan)
         self.assertEqual(
-            subscription.plan_snapshot.get("text_essay_weekly_limit"), 3,
+            subscription.plan_snapshot.get("text_essay_weekly_limit"),
+            3,
         )
         self.assertEqual(
-            subscription.entitlement_snapshot.get("text_essay_weekly_limit"), 3,
+            subscription.entitlement_snapshot.get("text_essay_weekly_limit"),
+            3,
         )
         self.assertEqual(
-            subscription.entitlement_snapshot.get("image_essay_weekly_limit"), 5,
+            subscription.entitlement_snapshot.get("image_essay_weekly_limit"),
+            5,
         )
 
     def test_plan_edit_after_purchase_does_not_rewrite_the_snapshot(self):
@@ -546,5 +584,6 @@ class ActivationDurabilityTests(_StarsFixture):
 
         subscription = UserSubscription.objects.get(user=self.student)
         self.assertEqual(
-            subscription.plan_snapshot.get("text_essay_weekly_limit"), 3,
+            subscription.plan_snapshot.get("text_essay_weekly_limit"),
+            3,
         )

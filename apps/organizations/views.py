@@ -1,6 +1,7 @@
 """
 Views for B2B SaaS Enterprise Learning Center Hub.
 """
+
 from __future__ import annotations
 
 import csv
@@ -67,10 +68,15 @@ def enterprise_dashboard_view(request):
     seat_limit = center.student_seat_limit
 
     today = timezone.now().date()
-    active_today = Result.objects.filter(
-        student__in=students,
-        calculated_at__date=today,
-    ).values("student").distinct().count()
+    active_today = (
+        Result.objects.filter(
+            student__in=students,
+            calculated_at__date=today,
+        )
+        .values("student")
+        .distinct()
+        .count()
+    )
 
     results_qs = Result.objects.filter(student__in=students)
     avg_score = results_qs.aggregate(avg=Avg("percentage"))["avg"] or 0.0
@@ -96,14 +102,21 @@ def enterprise_dashboard_view(request):
     for branch in center.branches.all():
         b_students = students.filter(branch=branch)
         b_count = b_students.count()
-        b_avg = Result.objects.filter(student__in=b_students).aggregate(avg=Avg("percentage"))["avg"] or 0.0
-        branches_data.append({
-            "id": branch.id,
-            "name": branch.name,
-            "students_count": b_count,
-            "avg_score": round(float(b_avg), 1),
-            "phone": branch.phone,
-        })
+        b_avg = (
+            Result.objects.filter(student__in=b_students).aggregate(
+                avg=Avg("percentage")
+            )["avg"]
+            or 0.0
+        )
+        branches_data.append(
+            {
+                "id": branch.id,
+                "name": branch.name,
+                "students_count": b_count,
+                "avg_score": round(float(b_avg), 1),
+                "phone": branch.phone,
+            }
+        )
     branches_data.sort(key=lambda x: x["avg_score"], reverse=True)
 
     # Teachers ranking
@@ -112,50 +125,63 @@ def enterprise_dashboard_view(request):
     for t in teachers:
         # Teachers might have groups or assigned students
         t_students = students.filter(branch=t.branch) if t.branch else students
-        t_avg = Result.objects.filter(student__in=t_students).aggregate(avg=Avg("percentage"))["avg"] or 0.0
-        teachers_data.append({
-            "id": t.id,
-            "name": t.get_full_name() or t.email,
-            "email": t.email,
-            "students_count": t_students.count(),
-            "avg_score": round(float(t_avg), 1),
-            "branch_name": t.branch.name if t.branch else "Umumiy",
-        })
+        t_avg = (
+            Result.objects.filter(student__in=t_students).aggregate(
+                avg=Avg("percentage")
+            )["avg"]
+            or 0.0
+        )
+        teachers_data.append(
+            {
+                "id": t.id,
+                "name": t.get_full_name() or t.email,
+                "email": t.email,
+                "students_count": t_students.count(),
+                "avg_score": round(float(t_avg), 1),
+                "branch_name": t.branch.name if t.branch else "Umumiy",
+            }
+        )
     teachers_data.sort(key=lambda x: x["avg_score"], reverse=True)
 
     # Recent results
     recent_results = []
-    for r in results_qs.select_related("student", "test").order_by("-calculated_at")[:8]:
-        recent_results.append({
-            "id": r.id,
-            "student_name": r.student.get_full_name(),
-            "test_title": r.test.title,
-            "percentage": float(r.percentage),
-            "is_passed": r.is_passed,
-            "created_at": r.calculated_at,
-        })
+    for r in results_qs.select_related("student", "test").order_by("-calculated_at")[
+        :8
+    ]:
+        recent_results.append(
+            {
+                "id": r.id,
+                "student_name": r.student.get_full_name(),
+                "test_title": r.test.title,
+                "percentage": float(r.percentage),
+                "is_passed": r.is_passed,
+                "created_at": r.calculated_at,
+            }
+        )
 
-    return Response({
-        "center": {
-            "id": center.id,
-            "name": center.name,
-            "slug": center.slug,
-            "student_seat_limit": seat_limit,
-            "remaining_seats": center.remaining_seats,
-            "subscription_expires_at": center.subscription_expires_at,
-            "is_active": center.is_active,
-        },
-        "stats": {
-            "total_students": total_students,
-            "seat_limit": seat_limit,
-            "active_today": active_today,
-            "avg_score": round(float(avg_score), 1),
-            "bmb_grade": bmb_grade,
-        },
-        "branches": branches_data,
-        "teachers": teachers_data,
-        "recent_results": recent_results,
-    })
+    return Response(
+        {
+            "center": {
+                "id": center.id,
+                "name": center.name,
+                "slug": center.slug,
+                "student_seat_limit": seat_limit,
+                "remaining_seats": center.remaining_seats,
+                "subscription_expires_at": center.subscription_expires_at,
+                "is_active": center.is_active,
+            },
+            "stats": {
+                "total_students": total_students,
+                "seat_limit": seat_limit,
+                "active_today": active_today,
+                "avg_score": round(float(avg_score), 1),
+                "bmb_grade": bmb_grade,
+            },
+            "branches": branches_data,
+            "teachers": teachers_data,
+            "recent_results": recent_results,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -167,7 +193,10 @@ def enterprise_bulk_import_view(request):
     """
     center = _get_user_center(request.user)
     if not center:
-        return Response({"error": "Sizda o'quv markazi biriktirilmagan."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Sizda o'quv markazi biriktirilmagan."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     students_payload = request.data.get("students")
     csv_file = request.FILES.get("file")
@@ -179,15 +208,22 @@ def enterprise_bulk_import_view(request):
             decoded = csv_file.read().decode("utf-8-sig")
             reader = csv.DictReader(io.StringIO(decoded))
             for row in reader:
-                rows_to_import.append({
-                    "first_name": row.get("first_name") or row.get("ism") or "O'quvchi",
-                    "last_name": row.get("last_name") or row.get("familiya") or "",
-                    "email": row.get("email") or "",
-                    "phone": row.get("phone") or row.get("telefon") or "",
-                    "branch_name": row.get("branch") or row.get("filial") or "",
-                })
+                rows_to_import.append(
+                    {
+                        "first_name": row.get("first_name")
+                        or row.get("ism")
+                        or "O'quvchi",
+                        "last_name": row.get("last_name") or row.get("familiya") or "",
+                        "email": row.get("email") or "",
+                        "phone": row.get("phone") or row.get("telefon") or "",
+                        "branch_name": row.get("branch") or row.get("filial") or "",
+                    }
+                )
         except Exception as e:
-            return Response({"error": f"CSV faylni o'qishda xatolik: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": f"CSV faylni o'qishda xatolik: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     elif isinstance(students_payload, list):
         rows_to_import = students_payload
 
@@ -224,7 +260,10 @@ def enterprise_bulk_import_view(request):
             if not raw_email:
                 # generate unique email if not provided
                 import uuid
-                clean_phone = "".join(filter(str.isdigit, phone)) or uuid.uuid4().hex[:6]
+
+                clean_phone = (
+                    "".join(filter(str.isdigit, phone)) or uuid.uuid4().hex[:6]
+                )
                 raw_email = f"student_{clean_phone}@grandec.uz"
 
             branch = None
@@ -261,13 +300,15 @@ def enterprise_bulk_import_view(request):
                 else:
                     skipped_count += 1
 
-    return Response({
-        "success": True,
-        "imported": imported_count,
-        "skipped": skipped_count,
-        "total_students": center.total_students_count,
-        "message": f"{imported_count} ta o'quvchi muvaffaqiyatli markazga qo'shildi! Standart parol: Grand2026!",
-    })
+    return Response(
+        {
+            "success": True,
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "total_students": center.total_students_count,
+            "message": f"{imported_count} ta o'quvchi muvaffaqiyatli markazga qo'shildi! Standart parol: Grand2026!",
+        }
+    )
 
 
 @api_view(["GET"])
@@ -278,35 +319,47 @@ def enterprise_report_export_view(request):
     """
     center = _get_user_center(request.user)
     if not center:
-        return Response({"error": "Markaz topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "Markaz topilmadi."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     students = center.users.filter(role="student")
-    results = Result.objects.filter(student__in=students).select_related("student", "test")
+    results = Result.objects.filter(student__in=students).select_related(
+        "student", "test"
+    )
 
     response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
-    response["Content-Disposition"] = f'attachment; filename="{center.slug}_monthly_report.csv"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="{center.slug}_monthly_report.csv"'
+    )
 
     writer = csv.writer(response)
-    writer.writerow([
-        "GRAND EDUCATION — B2B ENTERPRISE MONITORING HISOBOTI",
-        f"Markaz: {center.name}",
-        f"Sana: {timezone.now().strftime('%Y-%m-%d %H:%M')}",
-    ])
+    writer.writerow(
+        [
+            "GRAND EDUCATION — B2B ENTERPRISE MONITORING HISOBOTI",
+            f"Markaz: {center.name}",
+            f"Sana: {timezone.now().strftime('%Y-%m-%d %H:%M')}",
+        ]
+    )
     writer.writerow([])
-    writer.writerow(["№", "O'quvchi", "Filial", "Test", "Ball", "Foiz", "Natija", "Sana"])
+    writer.writerow(
+        ["№", "O'quvchi", "Filial", "Test", "Ball", "Foiz", "Natija", "Sana"]
+    )
 
     for idx, r in enumerate(results.order_by("-calculated_at")[:1000], start=1):
         branch_name = r.student.branch.name if r.student.branch else "—"
-        writer.writerow([
-            idx,
-            r.student.get_full_name(),
-            branch_name,
-            r.test.title,
-            r.score,
-            f"{r.percentage}%",
-            "O'tdi" if r.is_passed else "O'tmadi",
-            r.calculated_at.strftime("%Y-%m-%d %H:%M") if r.calculated_at else "",
-        ])
+        writer.writerow(
+            [
+                idx,
+                r.student.get_full_name(),
+                branch_name,
+                r.test.title,
+                r.score,
+                f"{r.percentage}%",
+                "O'tdi" if r.is_passed else "O'tmadi",
+                r.calculated_at.strftime("%Y-%m-%d %H:%M") if r.calculated_at else "",
+            ]
+        )
 
     return response
 
@@ -326,7 +379,9 @@ def branding_update_view(request):
     """
     user = request.user
     center = _get_user_center(user)
-    if not center and (user.role in ("teacher", "admin", "center_admin") or user.is_staff):
+    if not center and (
+        user.role in ("teacher", "admin", "center_admin") or user.is_staff
+    ):
         center = LearningCenter.objects.create(
             name=f"{user.get_full_name() or user.first_name or 'Grand'} Ta'lim Markazi",
             owner=user,
@@ -363,17 +418,29 @@ def branding_update_view(request):
         if center:
             center.save()
 
-    logo_url = (center.logo.url if center and center.logo else (profile.center_logo.url if profile.center_logo else None))
-    stamp_url = (center.stamp_signature.url if center and center.stamp_signature else (profile.stamp_signature.url if profile.stamp_signature else None))
+    logo_url = (
+        center.logo.url
+        if center and center.logo
+        else (profile.center_logo.url if profile.center_logo else None)
+    )
+    stamp_url = (
+        center.stamp_signature.url
+        if center and center.stamp_signature
+        else (profile.stamp_signature.url if profile.stamp_signature else None)
+    )
 
-    return Response({
-        "success": True,
-        "center_name": (center.name if center else profile.center_name) or "GRAND EDUCATION Hamkor Markazi",
-        "header_title": (center.header_title if center else "") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
-        "brand_color": (center.brand_color if center else "#0F766E") or "#0F766E",
-        "center_logo_url": logo_url,
-        "stamp_signature_url": stamp_url,
-    })
+    return Response(
+        {
+            "success": True,
+            "center_name": (center.name if center else profile.center_name)
+            or "GRAND EDUCATION Hamkor Markazi",
+            "header_title": (center.header_title if center else "")
+            or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
+            "brand_color": (center.brand_color if center else "#0F766E") or "#0F766E",
+            "center_logo_url": logo_url,
+            "stamp_signature_url": stamp_url,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -391,17 +458,30 @@ def monthly_report_pdf_view(request, group_id: int):
     group = get_object_or_404(StudentGroup, pk=group_id)
 
     # Security check: only group's teacher or admin/staff
-    if group.teacher_id != request.user.id and request.user.role not in ("teacher", "admin") and not request.user.is_staff:
-        return Response({"error": "Sizda ushbu guruh hisobotini yuklash huquqi yo'q."}, status=status.HTTP_403_FORBIDDEN)
+    if (
+        group.teacher_id != request.user.id
+        and request.user.role not in ("teacher", "admin")
+        and not request.user.is_staff
+    ):
+        return Response(
+            {"error": "Sizda ushbu guruh hisobotini yuklash huquqi yo'q."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     center = _get_user_center(group.teacher)
     profile, _ = Profile.objects.get_or_create(user=group.teacher)
 
     branding = {
-        "center_name": (center.name if center else profile.center_name) or "GRAND EDUCATION",
-        "header_title": (center.header_title if center else "") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
+        "center_name": (center.name if center else profile.center_name)
+        or "GRAND EDUCATION",
+        "header_title": (center.header_title if center else "")
+        or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI",
         "brand_color": (center.brand_color if center else "#0F766E") or "#0F766E",
-        "stamp_signature_path": (center.stamp_signature.path if center and center.stamp_signature else (profile.stamp_signature.path if profile.stamp_signature else None)),
+        "stamp_signature_path": (
+            center.stamp_signature.path
+            if center and center.stamp_signature
+            else (profile.stamp_signature.path if profile.stamp_signature else None)
+        ),
     }
 
     students = list(group.students.all())
@@ -414,46 +494,77 @@ def monthly_report_pdf_view(request, group_id: int):
     for s in students:
         s_results = Result.objects.filter(student=s)
         test_count = s_results.count()
-        avg_score = round(float(s_results.aggregate(avg=Avg("percentage"))["avg"] or 0), 1) if test_count > 0 else 0.0
+        avg_score = (
+            round(float(s_results.aggregate(avg=Avg("percentage"))["avg"] or 0), 1)
+            if test_count > 0
+            else 0.0
+        )
 
         # Attendance
-        total_sessions = AttendanceRecord.objects.filter(student=s, session__group=group).count()
-        presents = AttendanceRecord.objects.filter(student=s, session__group=group, status="present").count()
-        att_rate = round((presents / total_sessions * 100), 1) if total_sessions > 0 else 100.0
+        total_sessions = AttendanceRecord.objects.filter(
+            student=s, session__group=group
+        ).count()
+        presents = AttendanceRecord.objects.filter(
+            student=s, session__group=group, status="present"
+        ).count()
+        att_rate = (
+            round((presents / total_sessions * 100), 1) if total_sessions > 0 else 100.0
+        )
 
         # Essays
-        essays_done = EssaySubmission.objects.filter(student=s, status__in=["graded", "teacher_reviewed"]).count()
+        essays_done = EssaySubmission.objects.filter(
+            student=s, status__in=["graded", "teacher_reviewed"]
+        ).count()
 
         total_tests_taken += test_count
         total_percentage_sum += avg_score
         total_essays_count += essays_done
         total_att_sum += att_rate
 
-        overall_grade = "A'lo" if avg_score >= 85 and att_rate >= 90 else "Yaxshi" if avg_score >= 65 and att_rate >= 75 else "Qoniqarli"
+        overall_grade = (
+            "A'lo"
+            if avg_score >= 85 and att_rate >= 90
+            else "Yaxshi"
+            if avg_score >= 65 and att_rate >= 75
+            else "Qoniqarli"
+        )
 
-        roster_data.append({
-            "name": s.get_full_name() or s.email.split("@")[0],
-            "attendance_rate": att_rate,
-            "tests_taken": test_count,
-            "avg_score": avg_score,
-            "essays_done": essays_done,
-            "overall_grade": overall_grade,
-        })
+        roster_data.append(
+            {
+                "name": s.get_full_name() or s.email.split("@")[0],
+                "attendance_rate": att_rate,
+                "tests_taken": test_count,
+                "avg_score": avg_score,
+                "essays_done": essays_done,
+                "overall_grade": overall_grade,
+            }
+        )
 
     num_students = len(students)
     summary_stats = {
         "total_students": num_students,
-        "avg_attendance": round(total_att_sum / num_students, 1) if num_students > 0 else 100.0,
-        "avg_test_score": round(total_percentage_sum / num_students, 1) if num_students > 0 else 0.0,
+        "avg_attendance": round(total_att_sum / num_students, 1)
+        if num_students > 0
+        else 100.0,
+        "avg_test_score": round(total_percentage_sum / num_students, 1)
+        if num_students > 0
+        else 0.0,
         "total_essays": total_essays_count,
     }
 
     try:
-        pdf_bytes = generate_monthly_group_report_pdf(group, branding, roster_data, summary_stats)
+        pdf_bytes = generate_monthly_group_report_pdf(
+            group, branding, roster_data, summary_stats
+        )
     except Exception as e:
         logger.exception("Error generating monthly report PDF: %s", e)
-        return Response({"error": f"PDF generatsiyasida xatolik: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": f"PDF generatsiyasida xatolik: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="monthly-report-group-{group.id}.pdf"'
+    response["Content-Disposition"] = (
+        f'inline; filename="monthly-report-group-{group.id}.pdf"'
+    )
     return response

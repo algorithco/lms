@@ -5,19 +5,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0002_alter_testattempt_unique_together'),
+        ("tests", "0002_alter_testattempt_unique_together"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='testattempt',
-            index=models.Index(fields=['status', 'student', 'started_at'], name='idx_att_status_stu_time'),
+            model_name="testattempt",
+            index=models.Index(
+                fields=["status", "student", "started_at"],
+                name="idx_att_status_stu_time",
+            ),
         ),
         migrations.AddIndex(
-            model_name='testattempt',
-            index=models.Index(fields=['test', 'student', 'status'], name='idx_att_test_stu_status'),
+            model_name="testattempt",
+            index=models.Index(
+                fields=["test", "student", "status"], name="idx_att_test_stu_status"
+            ),
         ),
     ]

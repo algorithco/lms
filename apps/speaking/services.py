@@ -8,6 +8,7 @@ according to the 4 official IELTS criteria:
 3. Grammatical Range and Accuracy (0.0 - 9.0)
 4. Pronunciation (0.0 - 9.0)
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -33,12 +34,15 @@ def _round_to_half_band(score: float) -> Decimal:
 
 def _gemini_evaluate_audio(audio_file, topic: SpeakingTopic) -> Dict[str, Any] | None:
     """Send audio to Gemini 2.5 Flash for multimodal speech grading."""
-    api_key = getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "GOOGLE_API_KEY", "")
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or getattr(
+        settings, "GOOGLE_API_KEY", ""
+    )
     if not api_key:
         return None
 
     try:
         from google import genai
+
         client = genai.Client(api_key=api_key)
 
         audio_file.seek(0)
@@ -88,11 +92,11 @@ def _gemini_evaluate_audio(audio_file, topic: SpeakingTopic) -> Dict[str, Any] |
             '    "pronunciation_feedback": "...",\n'
             '    "vocabulary_suggestions": [\n'
             '      {"original": "very interesting", "improved": "fascinating / captivating", "explanation": "Higher band descriptor"}\n'
-            '    ],\n'
+            "    ],\n"
             '    "grammar_corrections": [\n'
             '      {"incorrect": "...", "corrected": "...", "rule": "..."}\n'
-            '    ]\n'
-            '  }\n'
+            "    ]\n"
+            "  }\n"
             "}"
         )
 
@@ -105,7 +109,9 @@ def _gemini_evaluate_audio(audio_file, topic: SpeakingTopic) -> Dict[str, Any] |
         )
 
         text = response.text or ""
-        clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
+        clean_json = re.sub(
+            r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE
+        )
         data = json.loads(clean_json)
         if isinstance(data, dict) and "overall_band" in data:
             return data
@@ -115,7 +121,9 @@ def _gemini_evaluate_audio(audio_file, topic: SpeakingTopic) -> Dict[str, Any] |
     return None
 
 
-def _fallback_speaking_evaluation(topic: SpeakingTopic, duration_seconds: int = 45) -> Dict[str, Any]:
+def _fallback_speaking_evaluation(
+    topic: SpeakingTopic, duration_seconds: int = 45
+) -> Dict[str, Any]:
     """Fallback evaluation engine for local testing and offline modes."""
     # Compute baseline scores
     fc = 6.5

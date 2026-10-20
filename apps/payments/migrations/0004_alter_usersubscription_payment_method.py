@@ -4,15 +4,29 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('payments', '0003_paymentrequest_admin_note_paymentrequest_reviewed_by_and_more'),
+        (
+            "payments",
+            "0003_paymentrequest_admin_note_paymentrequest_reviewed_by_and_more",
+        ),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='usersubscription',
-            name='payment_method',
-            field=models.CharField(blank=True, choices=[('click', 'Click'), ('payme', 'Payme'), ('uzcard', 'UzCard'), ('stripe', 'Stripe'), ('card', 'Karta (admin tasdiqlagan)'), ('free', 'Bepul')], max_length=50, verbose_name="to'lov usuli"),
+            model_name="usersubscription",
+            name="payment_method",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("click", "Click"),
+                    ("payme", "Payme"),
+                    ("uzcard", "UzCard"),
+                    ("stripe", "Stripe"),
+                    ("card", "Karta (admin tasdiqlagan)"),
+                    ("free", "Bepul"),
+                ],
+                max_length=50,
+                verbose_name="to'lov usuli",
+            ),
         ),
     ]

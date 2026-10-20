@@ -1,4 +1,5 @@
 """Regression coverage for Critical/High authorization findings."""
+
 from __future__ import annotations
 
 import json
@@ -17,7 +18,10 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import ParentStudentLink
-from apps.accounts.services.telegram_link import confirm_link_challenge, link_challenge_status
+from apps.accounts.services.telegram_link import (
+    confirm_link_challenge,
+    link_challenge_status,
+)
 from apps.courses.models import Category, Course
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.essays.services import TeacherReviewService, can_review_submission
@@ -71,14 +75,17 @@ class PublicRegistrationSecurityTests(TestCase):
 
     @patch("apps.notifications.services.email_service.EmailService.send_welcome")
     def test_public_web_registration_ignores_teacher_role(self, send_welcome):
-        response = self.client.post("/register/", {
-            "email": "web-student@example.com",
-            "password": "StrongPass123!",
-            "password_confirm": "StrongPass123!",
-            "first_name": "Web",
-            "last_name": "Student",
-            "role": "teacher",
-        })
+        response = self.client.post(
+            "/register/",
+            {
+                "email": "web-student@example.com",
+                "password": "StrongPass123!",
+                "password_confirm": "StrongPass123!",
+                "first_name": "Web",
+                "last_name": "Student",
+                "role": "teacher",
+            },
+        )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             User.objects.get(email="web-student@example.com").role,
@@ -88,10 +95,14 @@ class PublicRegistrationSecurityTests(TestCase):
     def test_teacher_promotion_is_admin_only(self):
         student = User.objects.create_user(email="promote@example.com", password="pass")
         teacher = User.objects.create_user(
-            email="ordinary-teacher@example.com", password="pass", role=User.Role.TEACHER,
+            email="ordinary-teacher@example.com",
+            password="pass",
+            role=User.Role.TEACHER,
         )
         admin = User.objects.create_user(
-            email="platform-admin@example.com", password="pass", role=User.Role.ADMIN,
+            email="platform-admin@example.com",
+            password="pass",
+            role=User.Role.ADMIN,
         )
         self.client.force_login(teacher)
         self.client.post(f"/manage-teachers/{student.pk}/promote/")
@@ -105,10 +116,13 @@ class PublicRegistrationSecurityTests(TestCase):
 
 class TelegramIdentitySecurityTests(TestCase):
     @patch("apps.telegram_app.views.TelegramMiniAppService.validate_init_data")
-    def test_non_numeric_signed_identity_is_rejected_without_credentials(self, validate):
+    def test_non_numeric_signed_identity_is_rejected_without_credentials(
+        self, validate
+    ):
         validate.return_value = {"id": "12345", "username": "anything"}
         response = self.client.post(
-            "/tma/api/auth/", {"init_data": "signed"},
+            "/tma/api/auth/",
+            {"init_data": "signed"},
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 401)
@@ -197,15 +211,21 @@ class TelegramIdentitySecurityTests(TestCase):
 
     def test_inactive_jwt_cannot_use_tma_or_push_adapters(self):
         inactive = User.objects.create_user(
-            email="inactive-adapter@example.com", password="pass", is_active=False,
+            email="inactive-adapter@example.com",
+            password="pass",
+            is_active=False,
         )
         token = str(RefreshToken.for_user(inactive).access_token)
         headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
-        self.assertEqual(self.client.get("/tma/api/profile/", **headers).status_code, 401)
+        self.assertEqual(
+            self.client.get("/tma/api/profile/", **headers).status_code, 401
+        )
         self.assertEqual(
             self.client.post(
                 "/api/notifications/push/subscribe/",
-                data="{}", content_type="application/json", **headers,
+                data="{}",
+                content_type="application/json",
+                **headers,
             ).status_code,
             401,
         )
@@ -213,11 +233,14 @@ class TelegramIdentitySecurityTests(TestCase):
     @patch("apps.telegram_app.views.TelegramMiniAppService.validate_init_data")
     def test_legacy_numeric_link_requires_reconciliation(self, validate):
         legacy = User.objects.create_user(
-            email="legacy@example.com", password=None, telegram_chat_id=7000,
+            email="legacy@example.com",
+            password=None,
+            telegram_chat_id=7000,
         )
         validate.return_value = {"id": 7000, "username": "legacy"}
         response = self.client.post(
-            "/tma/api/auth/", {"init_data": "signed"},
+            "/tma/api/auth/",
+            {"init_data": "signed"},
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 409)
@@ -226,7 +249,9 @@ class TelegramIdentitySecurityTests(TestCase):
         self.assertIsNone(legacy.telegram_identity_verified_at)
 
     def test_link_requires_signed_bot_confirmation_and_cannot_be_replayed(self):
-        user = User.objects.create_user(email="link@example.com", password="StrongPass123!")
+        user = User.objects.create_user(
+            email="link@example.com", password="StrongPass123!"
+        )
         client = APIClient()
         client.force_authenticate(user)
         response = client.post("/api/auth/telegram/connect/", {}, format="json")
@@ -245,12 +270,16 @@ class TelegramIdentitySecurityTests(TestCase):
     def test_link_rejects_numeric_id_owned_by_another_account(self):
         user = User.objects.create_user(email="link2@example.com", password="pass")
         owner = User.objects.create_user(
-            email="owner2@example.com", password=None,
-            telegram_chat_id=7200, telegram_identity_verified_at=timezone.now(),
+            email="owner2@example.com",
+            password=None,
+            telegram_chat_id=7200,
+            telegram_identity_verified_at=timezone.now(),
         )
         client = APIClient()
         client.force_authenticate(user)
-        token = client.post("/api/auth/telegram/connect/", {}, format="json").data["token"]
+        token = client.post("/api/auth/telegram/connect/", {}, format="json").data[
+            "token"
+        ]
         self.assertEqual(confirm_link_challenge(token, 7200), "conflict")
         user.refresh_from_db()
         owner.refresh_from_db()
@@ -259,17 +288,29 @@ class TelegramIdentitySecurityTests(TestCase):
 
     def test_legacy_reconciliation_requires_matching_id_and_evidence(self):
         user = User.objects.create_user(
-            email="reconcile@example.com", password=None, telegram_chat_id=7300,
+            email="reconcile@example.com",
+            password=None,
+            telegram_chat_id=7300,
         )
         with self.assertRaises(CommandError):
-            call_command("reconcile_telegram_identity", user_id=user.pk, telegram_id=7301, evidence="ticket-1")
+            call_command(
+                "reconcile_telegram_identity",
+                user_id=user.pk,
+                telegram_id=7301,
+                evidence="ticket-1",
+            )
         user.refresh_from_db()
         self.assertIsNone(user.telegram_identity_verified_at)
         with self.assertRaises(CommandError):
-            call_command("reconcile_telegram_identity", user_id=user.pk, telegram_id=7300)
+            call_command(
+                "reconcile_telegram_identity", user_id=user.pk, telegram_id=7300
+            )
         call_command(
-            "reconcile_telegram_identity", user_id=user.pk,
-            telegram_id=7300, evidence="ticket-1", stdout=io.StringIO(),
+            "reconcile_telegram_identity",
+            user_id=user.pk,
+            telegram_id=7300,
+            evidence="ticket-1",
+            stdout=io.StringIO(),
         )
         user.refresh_from_db()
         self.assertIsNotNone(user.telegram_identity_verified_at)
@@ -279,6 +320,7 @@ class TelegramWebhookSecurityTests(TestCase):
     @override_settings(TELEGRAM_WEBHOOK_MODE=True, TELEGRAM_WEBHOOK_SECRET="")
     def test_deployment_check_rejects_missing_secret_in_webhook_mode(self):
         from django.core.checks import run_checks
+
         errors = run_checks(include_deployment_checks=True)
         self.assertIn("notifications.E001", [error.id for error in errors])
 
@@ -325,19 +367,29 @@ class TelegramWebhookSecurityTests(TestCase):
 class AuthorizationMatrixSecurityTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="owner@example.com", password="x", role=User.Role.TEACHER,
+            email="owner@example.com",
+            password="x",
+            role=User.Role.TEACHER,
         )
         self.other_teacher = User.objects.create_user(
-            email="other@example.com", password="x", role=User.Role.TEACHER,
+            email="other@example.com",
+            password="x",
+            role=User.Role.TEACHER,
         )
         self.student = User.objects.create_user(
-            email="student@example.com", password="x", role=User.Role.STUDENT,
+            email="student@example.com",
+            password="x",
+            role=User.Role.STUDENT,
         )
         self.parent = User.objects.create_user(
-            email="parent@example.com", password="x", role=User.Role.PARENT,
+            email="parent@example.com",
+            password="x",
+            role=User.Role.PARENT,
         )
         self.admin = User.objects.create_user(
-            email="admin@example.com", password="x", role=User.Role.ADMIN,
+            email="admin@example.com",
+            password="x",
+            role=User.Role.ADMIN,
         )
         category = Category.objects.create(name="Security")
         self.course = Course.objects.create(
@@ -404,6 +456,7 @@ class AuthorizationMatrixSecurityTests(TestCase):
         from apps.payments.admin import PaymentRequestAdmin
         from apps.payments.models import PaymentRequest
         from django.test import RequestFactory
+
         request = RequestFactory().get("/admin/payments/paymentrequest/")
         request.user = self.teacher
         admin = PaymentRequestAdmin(PaymentRequest, AdminSite())
@@ -411,8 +464,10 @@ class AuthorizationMatrixSecurityTests(TestCase):
         self.assertFalse(admin.has_change_permission(request))
         self.assertFalse(admin.has_delete_permission(request))
         from django.contrib.auth.models import Permission
+
         permission = Permission.objects.get(
-            codename="change_paymentrequest", content_type__app_label="payments",
+            codename="change_paymentrequest",
+            content_type__app_label="payments",
         )
         self.teacher.user_permissions.add(permission)
         self.assertTrue(can_manage_payments(User.objects.get(pk=self.teacher.pk)))
@@ -428,10 +483,14 @@ class AuthorizationMatrixSecurityTests(TestCase):
 
     def test_teacher_cannot_review_unrelated_essay_via_web(self):
         topic = EssayTopic.objects.create(
-            title="Teacher owned", description="", created_by=self.teacher,
+            title="Teacher owned",
+            description="",
+            created_by=self.teacher,
         )
         submission = EssaySubmission.objects.create(
-            student=self.student, topic=topic, essay_text="Text",
+            student=self.student,
+            topic=topic,
+            essay_text="Text",
             status=EssaySubmission.Status.PENDING_TEACHER,
             assigned_reviewer=self.teacher,
         )

@@ -3,6 +3,7 @@ Web views — Minimal views kept for backward compatibility with tests
 and legacy flows. All page rendering is now handled by the React SPA.
 These views serve the baked SPA shell so that direct navigation works.
 """
+
 from __future__ import annotations
 
 import logging
@@ -86,7 +87,9 @@ class SecurePasswordResetView(PasswordResetView):
         if not settings.DEBUG:
             site = urlsplit(settings.SITE_URL)
             if site.scheme != "https" or not site.netloc or site.path not in ("", "/"):
-                raise ImproperlyConfigured("SITE_URL must be an HTTPS origin for password reset.")
+                raise ImproperlyConfigured(
+                    "SITE_URL must be an HTTPS origin for password reset."
+                )
             options["domain_override"] = site.netloc
         form.save(**options)
         return HttpResponseRedirect(self.get_success_url())
@@ -96,8 +99,12 @@ def password_reset_done_view(request: HttpRequest) -> HttpResponse:
     return serve_spa_shell(request, fallback="/login")
 
 
-def password_reset_confirm_view(request: HttpRequest, uidb64: str, token: str) -> HttpResponse:
-    return serve_spa_shell(request, fallback=f"/password-reset/confirm/{uidb64}/{token}")
+def password_reset_confirm_view(
+    request: HttpRequest, uidb64: str, token: str
+) -> HttpResponse:
+    return serve_spa_shell(
+        request, fallback=f"/password-reset/confirm/{uidb64}/{token}"
+    )
 
 
 def password_reset_complete_view(request: HttpRequest) -> HttpResponse:
@@ -107,6 +114,7 @@ def password_reset_complete_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Auth Views — serve SPA shell for browser compatibility
 # ---------------------------------------------------------------------------
+
 
 class LoginView(View):
     """Serve SPA shell for /login/ — React handles the actual login page."""
@@ -121,7 +129,7 @@ class LoginView(View):
 
 class RegisterView(View):
     """Serve SPA shell for /register/ — React handles the actual registration page.
-    
+
     POST is handled to preserve test behavior: web form registration ignores
     role parameter and always creates a student.
     """
@@ -142,12 +150,16 @@ class RegisterView(View):
         # Basic validation
         if not email or not password or not password_confirm:
             if request.headers.get("accept") == "application/json":
-                return JsonResponse({"error": _t("incorrect_credentials", _lang)}, status=400)
+                return JsonResponse(
+                    {"error": _t("incorrect_credentials", _lang)}, status=400
+                )
             return serve_spa_shell(request, fallback="/register")
 
         if password != password_confirm:
             if request.headers.get("accept") == "application/json":
-                return JsonResponse({"error": _t("incorrect_credentials", _lang)}, status=400)
+                return JsonResponse(
+                    {"error": _t("incorrect_credentials", _lang)}, status=400
+                )
             return serve_spa_shell(request, fallback="/register")
 
         if User.objects.filter(email__iexact=email).exists():
@@ -191,13 +203,19 @@ def set_language_view(request: HttpRequest, lang: str) -> HttpResponse:
     # A referrer is untrusted input; keep the return URL on this host.
     referer = request.META.get("HTTP_REFERER", "/")
     if not url_has_allowed_host_and_scheme(
-        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+        referer,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
     ):
         referer = "/"
     response = redirect(referer)
     response.set_cookie(
-        "language", lang, max_age=365 * 24 * 60 * 60,
-        secure=settings.SESSION_COOKIE_SECURE, httponly=True, samesite="Lax",
+        "language",
+        lang,
+        max_age=365 * 24 * 60 * 60,
+        secure=settings.SESSION_COOKIE_SECURE,
+        httponly=True,
+        samesite="Lax",
     )
     return response
 
@@ -205,6 +223,7 @@ def set_language_view(request: HttpRequest, lang: str) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Dashboard Views — serve SPA shell
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def dashboard_view(request: HttpRequest) -> HttpResponse:
@@ -215,6 +234,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Home / Landing Page
 # ---------------------------------------------------------------------------
+
 
 def home_view(request: HttpRequest) -> HttpResponse:
     """Landing page — serve SPA shell."""
@@ -237,6 +257,7 @@ def home_view(request: HttpRequest) -> HttpResponse:
 # Result Detail View — preserved for security tests
 # ---------------------------------------------------------------------------
 
+
 @login_required
 def result_detail_view(request: HttpRequest, result_id: int) -> HttpResponse:
     """Result detail — permission check: only owner or teacher of the student."""
@@ -249,18 +270,23 @@ def result_detail_view(request: HttpRequest, result_id: int) -> HttpResponse:
     # Teacher of the student can view
     if request.user.role == "teacher":
         from apps.courses.models import StudentGroup
+
         student_groups = StudentGroup.objects.filter(students=result.student)
         teacher_groups = StudentGroup.objects.filter(teacher=request.user)
-        if student_groups.filter(id__in=teacher_groups.values_list("id", flat=True)).exists():
+        if student_groups.filter(
+            id__in=teacher_groups.values_list("id", flat=True)
+        ).exists():
             return serve_spa_shell(request, fallback=f"/results/{result_id}")
 
     # Admin can view
     from apps.accounts.access import is_platform_admin
+
     if is_platform_admin(request.user):
         return serve_spa_shell(request, fallback=f"/results/{result_id}")
 
     # Deny access
     from django.core.exceptions import PermissionDenied
+
     raise PermissionDenied()
 
 
@@ -269,6 +295,7 @@ def result_detail_view(request: HttpRequest, result_id: int) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 from apps.accounts.access import is_platform_admin
+
 
 @login_required
 def manage_teachers_view(request: HttpRequest) -> HttpResponse:
@@ -284,7 +311,7 @@ def promote_user_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """Promote user to teacher — platform admin only."""
     if not is_platform_admin(request.user):
         raise PermissionDenied()
-    
+
     target = get_object_or_404(User, id=user_id)
     target.role = User.Role.TEACHER
     target.save(update_fields=["role"])
@@ -297,7 +324,7 @@ def demote_user_view(request: HttpRequest, user_id: int) -> HttpResponse:
     """Demote user to student — platform admin only."""
     if not is_platform_admin(request.user):
         raise PermissionDenied()
-    
+
     target = get_object_or_404(User, id=user_id)
     target.role = User.Role.STUDENT
     target.save(update_fields=["role"])

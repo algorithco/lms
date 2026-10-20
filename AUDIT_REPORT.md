@@ -219,15 +219,21 @@ The test interface has NO bottom navigation bar showing:
 ```python
 # Grading algorithm:
 for question in all_questions:
-    correct_choice_ids = set(question.choices.filter(is_correct=True).values_list("id", flat=True))
-    selected_choice_ids = set(student_answer.selected_choices.values_list("id", flat=True))
-    
+    correct_choice_ids = set(
+        question.choices.filter(is_correct=True).values_list("id", flat=True)
+    )
+    selected_choice_ids = set(
+        student_answer.selected_choices.values_list("id", flat=True)
+    )
+
     if question.question_type == Question.QuestionType.SINGLE_CHOICE:
-        is_correct = (correct_choice_ids == selected_choice_ids)
+        is_correct = correct_choice_ids == selected_choice_ids
     else:  # MULTIPLE_CHOICE
         # BARCHA to'g'ri tanlangan bo'lsa — 100%, otherwise 0
-        is_correct = (correct_choice_ids == selected_choice_ids and len(selected_choice_ids) > 0)
-    
+        is_correct = (
+            correct_choice_ids == selected_choice_ids and len(selected_choice_ids) > 0
+        )
+
     if is_correct:
         total_score += question.points
 ```
@@ -453,10 +459,10 @@ ERRORS (TypeScript):
 class QuestionType(models.TextChoices):
     SINGLE_CHOICE = "single"
     MULTIPLE_CHOICE = "multiple"
-    GAP_FILL = "gap_fill"           # matndan hurratcha ajratish
-    MATCHING = "matching"           # juftlashtirish
-    WRITTEN = "written"             # yozma/jazma javob
-    READING_PASSAGE = "reading"     # matnli savol (passage'ga havola)
+    GAP_FILL = "gap_fill"  # matndan hurratcha ajratish
+    MATCHING = "matching"  # juftlashtirish
+    WRITTEN = "written"  # yozma/jazma javob
+    READING_PASSAGE = "reading"  # matnli savol (passage'ga havola)
 ```
 
 2. **For WRITTEN questions:**
@@ -485,11 +491,17 @@ class ReadingPassage(models.Model):
     text = models.TextField()  # matn
     test = models.ForeignKey(Test, related_name="passages", on_delete=models.CASCADE)
     position = models.PositiveIntegerField()
-    
+
+
 class Question(models.Model):
     # ... existing fields ...
-    passage = models.ForeignKey(ReadingPassage, null=True, blank=True,
-                               related_name="questions", on_delete=models.SET_NULL)
+    passage = models.ForeignKey(
+        ReadingPassage,
+        null=True,
+        blank=True,
+        related_name="questions",
+        on_delete=models.SET_NULL,
+    )
 ```
 
 **UI:** Split layout — passage on left/top, questions on right/bottom, or passage as collapsible sidebar.
@@ -527,6 +539,7 @@ The Milliy sertifikat likely requires:
 ```python
 class NationalCertificateAttempt(models.Model):
     """Aggregated attempt across multiple test sections."""
+
     student = ForeignKey(User)
     test = ForeignKey(Test)  # the main 29-yanvar test
     mcq_result = ForeignKey(Result, related_name="national_mcq")

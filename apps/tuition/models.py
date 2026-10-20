@@ -17,6 +17,7 @@ Every amount here is *configured* by an administrator. The models ship with no
 default price: a policy with no amount invoices nothing, so the platform can
 never invent a fee a centre did not set.
 """
+
 from __future__ import annotations
 
 from calendar import monthrange
@@ -78,40 +79,61 @@ class CourseBillingPolicy(models.Model):
 
     name = models.CharField(_("nomi"), max_length=150)
     course = models.ForeignKey(
-        "courses.Course", on_delete=models.CASCADE, null=True, blank=True,
-        related_name="billing_policies", verbose_name=_("kurs"),
+        "courses.Course",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="billing_policies",
+        verbose_name=_("kurs"),
     )
     group = models.ForeignKey(
-        "courses.StudentGroup", on_delete=models.CASCADE, null=True, blank=True,
-        related_name="billing_policies", verbose_name=_("guruh"),
+        "courses.StudentGroup",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="billing_policies",
+        verbose_name=_("guruh"),
     )
     amount_uzs = models.PositiveIntegerField(
-        _("summa (so'm)"), default=0,
+        _("summa (so'm)"),
+        default=0,
         help_text=_("0 — narx belgilanmagan; bu holda hisob-faktura yaratilmaydi."),
     )
     billing_frequency = models.CharField(
-        _("davriylik"), max_length=12, choices=Frequency.choices,
+        _("davriylik"),
+        max_length=12,
+        choices=Frequency.choices,
         default=Frequency.MONTHLY,
     )
     due_day = models.PositiveSmallIntegerField(
-        _("to'lov kuni"), default=10,
+        _("to'lov kuni"),
+        default=10,
         help_text=_("1–31. Oyning kunlari yetmasa, oxirgi kun olinadi."),
     )
     grace_days = models.PositiveSmallIntegerField(_("imtiyozli kunlar"), default=0)
     mid_month_policy = models.CharField(
-        _("oy o'rtasida qo'shilish"), max_length=12,
-        choices=MidMonthPolicy.choices, default=MidMonthPolicy.SKIP,
+        _("oy o'rtasida qo'shilish"),
+        max_length=12,
+        choices=MidMonthPolicy.choices,
+        default=MidMonthPolicy.SKIP,
     )
     installment_allowed = models.BooleanField(_("bo'lib to'lash mumkin"), default=False)
     installments = models.PositiveSmallIntegerField(_("bo'lib to'lash soni"), default=1)
-    effective_from = models.DateField(_("kuchga kirgan sana"), default=timezone.localdate)
+    effective_from = models.DateField(
+        _("kuchga kirgan sana"), default=timezone.localdate
+    )
     effective_until = models.DateField(_("amal qilish tugashi"), null=True, blank=True)
     payment_instructions = models.TextField(
-        _("to'lov bo'yicha ko'rsatma"), blank=True,
-        help_text=_("Masalan: karta raqami va to'lov izohi. Public guruhga yuborilmaydi."),
+        _("to'lov bo'yicha ko'rsatma"),
+        blank=True,
+        help_text=_(
+            "Masalan: karta raqami va to'lov izohi. Public guruhga yuborilmaydi."
+        ),
     )
     accepted_methods = models.JSONField(
-        _("qabul qilinadigan usullar"), default=list, blank=True,
+        _("qabul qilinadigan usullar"),
+        default=list,
+        blank=True,
     )
     #: ``{"before": [3], "due": [0], "overdue": [3, 7, 14],
     #: "quiet_start": 21, "quiet_end": 8}`` — day offsets relative to the due
@@ -127,14 +149,17 @@ class CourseBillingPolicy(models.Model):
         ordering = ["-effective_from", "name"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(course__isnull=False) | models.Q(group__isnull=False),
+                condition=models.Q(course__isnull=False)
+                | models.Q(group__isnull=False),
                 name="tuition_policy_needs_course_or_group",
             ),
         ]
 
     def __str__(self) -> str:
-        scope = self.group.name if self.group_id else (
-            self.course.title if self.course_id else "—"
+        scope = (
+            self.group.name
+            if self.group_id
+            else (self.course.title if self.course_id else "—")
         )
         return f"{self.name} ({scope}) — {self.amount_uzs} so'm"
 
@@ -143,7 +168,9 @@ class CourseBillingPolicy(models.Model):
         if not (1 <= int(self.due_day) <= 31):
             errors["due_day"] = _("To'lov kuni 1 va 31 orasida bo'lishi kerak.")
         if self.effective_until and self.effective_until < self.effective_from:
-            errors["effective_until"] = _("Tugash sanasi boshlanish sanasidan keyin bo'lishi kerak.")
+            errors["effective_until"] = _(
+                "Tugash sanasi boshlanish sanasidan keyin bo'lishi kerak."
+            )
         if self.installments < 1:
             errors["installments"] = _("Bo'lib to'lash soni kamida 1.")
         if errors:
@@ -199,42 +226,66 @@ class StudentTuitionAgreement(models.Model):
         ENDED = "ended", _("Tugagan")
 
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name="tuition_agreements", verbose_name=_("o'quvchi"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tuition_agreements",
+        verbose_name=_("o'quvchi"),
     )
     enrollment = models.ForeignKey(
-        "courses.Enrollment", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_agreements", verbose_name=_("yozilish"),
+        "courses.Enrollment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_agreements",
+        verbose_name=_("yozilish"),
     )
     billing_policy = models.ForeignKey(
-        CourseBillingPolicy, on_delete=models.CASCADE,
-        related_name="agreements", verbose_name=_("to'lov siyosati"),
+        CourseBillingPolicy,
+        on_delete=models.CASCADE,
+        related_name="agreements",
+        verbose_name=_("to'lov siyosati"),
     )
     negotiated_amount_uzs = models.PositiveIntegerField(
-        _("kelishilgan summa"), null=True, blank=True,
+        _("kelishilgan summa"),
+        null=True,
+        blank=True,
         help_text=_("Bo'sh bo'lsa — siyosatdagi summa ishlatiladi."),
     )
     discount_kind = models.CharField(
-        _("chegirma turi"), max_length=16, choices=DiscountKind.choices,
+        _("chegirma turi"),
+        max_length=16,
+        choices=DiscountKind.choices,
         default=DiscountKind.NONE,
     )
     discount_percent = models.DecimalField(
-        _("chegirma foizi"), max_digits=5, decimal_places=2, default=0,
+        _("chegirma foizi"),
+        max_digits=5,
+        decimal_places=2,
+        default=0,
         validators=[MinValueValidator(0)],
     )
     discount_amount_uzs = models.PositiveIntegerField(_("chegirma summasi"), default=0)
     scholarship_note = models.CharField(
-        _("stipendiya izohi"), max_length=200, blank=True,
+        _("stipendiya izohi"),
+        max_length=200,
+        blank=True,
     )
     effective_from = models.DateField(_("kuchga kirgan"), default=timezone.localdate)
     effective_until = models.DateField(_("tugashi"), null=True, blank=True)
     status = models.CharField(
-        _("holat"), max_length=12, choices=Status.choices,
-        default=Status.ACTIVE, db_index=True,
+        _("holat"),
+        max_length=12,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
     )
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_agreements_created", verbose_name=_("yaratgan"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_agreements_created",
+        verbose_name=_("yaratgan"),
     )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
@@ -258,7 +309,11 @@ class StudentTuitionAgreement(models.Model):
         if self.discount_kind == self.DiscountKind.PERCENT:
             if not (0 <= float(self.discount_percent) <= 100):
                 raise ValidationError(
-                    {"discount_percent": _("Chegirma foizi 0 va 100 orasida bo'lishi kerak.")}
+                    {
+                        "discount_percent": _(
+                            "Chegirma foizi 0 va 100 orasida bo'lishi kerak."
+                        )
+                    }
                 )
 
     def is_effective_on(self, on_date: date) -> bool:
@@ -311,62 +366,108 @@ class CourseInvoice(models.Model):
     }
 
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name="course_invoices", verbose_name=_("o'quvchi"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="course_invoices",
+        verbose_name=_("o'quvchi"),
     )
     policy = models.ForeignKey(
-        CourseBillingPolicy, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="invoices", verbose_name=_("siyosat"),
+        CourseBillingPolicy,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        verbose_name=_("siyosat"),
     )
     course = models.ForeignKey(
-        "courses.Course", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_invoices", verbose_name=_("kurs"),
+        "courses.Course",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_invoices",
+        verbose_name=_("kurs"),
     )
     enrollment = models.ForeignKey(
-        "courses.Enrollment", on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_invoices", verbose_name=_("yozilish"),
+        "courses.Enrollment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_invoices",
+        verbose_name=_("yozilish"),
     )
     agreement = models.ForeignKey(
-        StudentTuitionAgreement, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="invoices", verbose_name=_("shartnoma"),
+        StudentTuitionAgreement,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+        verbose_name=_("shartnoma"),
     )
     scope_key = models.CharField(
-        _("qamrov kaliti"), max_length=64,
+        _("qamrov kaliti"),
+        max_length=64,
         help_text=_("Takroriy hisob-fakturani oldini oluvchi deterministik kalit."),
     )
     billing_period_start = models.DateField(_("davr boshlanishi"), db_index=True)
     billing_period_end = models.DateField(_("davr tugashi"))
     period_label = models.CharField(_("davr"), max_length=32, blank=True)
     base_amount_uzs = models.DecimalField(
-        _("asosiy summa"), max_digits=12, decimal_places=2, default=0,
+        _("asosiy summa"),
+        max_digits=12,
+        decimal_places=2,
+        default=0,
     )
     discount_amount_uzs = models.DecimalField(
-        _("chegirma"), max_digits=12, decimal_places=2, default=0,
+        _("chegirma"),
+        max_digits=12,
+        decimal_places=2,
+        default=0,
     )
     amount_due_uzs = models.DecimalField(
-        _("to'lanadigan summa"), max_digits=12, decimal_places=2, default=0,
+        _("to'lanadigan summa"),
+        max_digits=12,
+        decimal_places=2,
+        default=0,
     )
     paid_amount_uzs = models.DecimalField(
-        _("tasdiqlangan to'lov"), max_digits=12, decimal_places=2, default=0,
+        _("tasdiqlangan to'lov"),
+        max_digits=12,
+        decimal_places=2,
+        default=0,
     )
     pending_amount_uzs = models.DecimalField(
-        _("tekshirilayotgan to'lov"), max_digits=12, decimal_places=2, default=0,
+        _("tekshirilayotgan to'lov"),
+        max_digits=12,
+        decimal_places=2,
+        default=0,
     )
     discount_kind = models.CharField(
-        _("chegirma turi"), max_length=16, blank=True, default="",
+        _("chegirma turi"),
+        max_length=16,
+        blank=True,
+        default="",
     )
     is_installment = models.BooleanField(_("bo'lib to'lash"), default=False)
-    installment_number = models.PositiveSmallIntegerField(_("bo'lib to'lash raqami"), default=1)
+    installment_number = models.PositiveSmallIntegerField(
+        _("bo'lib to'lash raqami"), default=1
+    )
     due_date = models.DateField(_("to'lov muddati"), db_index=True)
     grace_until = models.DateField(_("imtiyoz tugashi"), null=True, blank=True)
     status = models.CharField(
-        _("holat"), max_length=24, choices=Status.choices,
-        default=Status.UNPAID, db_index=True,
+        _("holat"),
+        max_length=24,
+        choices=Status.choices,
+        default=Status.UNPAID,
+        db_index=True,
     )
     note = models.CharField(_("izoh"), max_length=200, blank=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_invoices_created", verbose_name=_("yaratgan"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_invoices_created",
+        verbose_name=_("yaratgan"),
     )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
@@ -400,7 +501,9 @@ class CourseInvoice(models.Model):
     @property
     def is_open(self) -> bool:
         return self.status not in {
-            self.Status.PAID, self.Status.WAIVED, self.Status.CANCELLED,
+            self.Status.PAID,
+            self.Status.WAIVED,
+            self.Status.CANCELLED,
         }
 
     @property
@@ -422,43 +525,72 @@ class CoursePayment(models.Model):
         REFUNDED = "refunded", _("Qaytarilgan")
 
     invoice = models.ForeignKey(
-        CourseInvoice, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="payments", verbose_name=_("hisob-faktura"),
+        CourseInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
+        verbose_name=_("hisob-faktura"),
     )
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name="course_payments", verbose_name=_("o'quvchi"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="course_payments",
+        verbose_name=_("o'quvchi"),
     )
     amount_uzs = models.DecimalField(
-        _("summa"), max_digits=12, decimal_places=2,
+        _("summa"),
+        max_digits=12,
+        decimal_places=2,
         validators=[MinValueValidator(0)],
     )
     method = models.CharField(
-        _("usul"), max_length=12, choices=PaymentMethod.choices,
+        _("usul"),
+        max_length=12,
+        choices=PaymentMethod.choices,
         default=PaymentMethod.CARD,
     )
     reference = models.CharField(
-        _("to'lov havolasi/raqami"), max_length=120, blank=True, default="",
+        _("to'lov havolasi/raqami"),
+        max_length=120,
+        blank=True,
+        default="",
     )
     proof = models.FileField(
-        _("to'lov dalili"), upload_to="tuition/proofs/%Y/%m/",
-        blank=True, null=True, validators=[validate_attachment_upload],
+        _("to'lov dalili"),
+        upload_to="tuition/proofs/%Y/%m/",
+        blank=True,
+        null=True,
+        validators=[validate_attachment_upload],
     )
     note = models.TextField(_("izoh"), blank=True)
     submitted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_payments_submitted", verbose_name=_("topshirgan"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_payments_submitted",
+        verbose_name=_("topshirgan"),
     )
     verified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_payments_verified", verbose_name=_("tasdiqlagan"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_payments_verified",
+        verbose_name=_("tasdiqlagan"),
     )
     verified_at = models.DateTimeField(_("tasdiqlangan vaqt"), null=True, blank=True)
     status = models.CharField(
-        _("holat"), max_length=24, choices=Status.choices,
-        default=Status.PENDING_VERIFICATION, db_index=True,
+        _("holat"),
+        max_length=24,
+        choices=Status.choices,
+        default=Status.PENDING_VERIFICATION,
+        db_index=True,
     )
-    rejection_reason = models.CharField(_("rad etish sababi"), max_length=200, blank=True)
+    rejection_reason = models.CharField(
+        _("rad etish sababi"), max_length=200, blank=True
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 
@@ -504,20 +636,34 @@ class PaymentReminderLog(models.Model):
         SKIPPED = "skipped", _("O'tkazib yuborildi")
 
     invoice = models.ForeignKey(
-        CourseInvoice, on_delete=models.CASCADE,
-        related_name="reminders", verbose_name=_("hisob-faktura"),
+        CourseInvoice,
+        on_delete=models.CASCADE,
+        related_name="reminders",
+        verbose_name=_("hisob-faktura"),
     )
     recipient = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_reminders", verbose_name=_("qabul qiluvchi"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_reminders",
+        verbose_name=_("qabul qiluvchi"),
     )
     stage = models.CharField(_("bosqich"), max_length=24, choices=Stage.choices)
     channel = models.CharField(
-        _("kanal"), max_length=16, choices=Channel.choices, default=Channel.TELEGRAM,
+        _("kanal"),
+        max_length=16,
+        choices=Channel.choices,
+        default=Channel.TELEGRAM,
     )
-    idempotency_key = models.CharField(_("idempotentlik kaliti"), max_length=200, unique=True)
+    idempotency_key = models.CharField(
+        _("idempotentlik kaliti"), max_length=200, unique=True
+    )
     status = models.CharField(
-        _("holat"), max_length=16, choices=Status.choices, default=Status.PENDING,
+        _("holat"),
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
     )
     error = models.TextField(_("xatolik"), blank=True)
     sent_at = models.DateTimeField(_("yuborilgan"), null=True, blank=True)
@@ -548,7 +694,10 @@ class TuitionAuditLog(models.Model):
         INVOICE_UPDATED = "invoice_updated", _("Hisob-faktura o'zgartirildi")
         INVOICE_CANCELLED = "invoice_cancelled", _("Hisob-faktura bekor qilindi")
         INVOICE_ADJUSTED = "invoice_adjusted", _("Hisob-faktura tuzatildi")
-        INVOICE_MARKED_OVERDUE = "invoice_marked_overdue", _("Muddati o'tgan deb belgilandi")
+        INVOICE_MARKED_OVERDUE = (
+            "invoice_marked_overdue",
+            _("Muddati o'tgan deb belgilandi"),
+        )
         PAYMENT_SUBMITTED = "payment_submitted", _("To'lov topshirildi")
         PAYMENT_VERIFIED = "payment_verified", _("To'lov tasdiqlandi")
         PAYMENT_REJECTED = "payment_rejected", _("To'lov rad etildi")
@@ -556,28 +705,50 @@ class TuitionAuditLog(models.Model):
         REMINDER_SENT = "reminder_sent", _("Eslatma yuborildi")
 
     actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_audit_entries", verbose_name=_("bajargan"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_audit_entries",
+        verbose_name=_("bajargan"),
     )
-    action = models.CharField(_("amal"), max_length=32, choices=Action.choices, db_index=True)
+    action = models.CharField(
+        _("amal"), max_length=32, choices=Action.choices, db_index=True
+    )
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="tuition_audit_entries_about", verbose_name=_("o'quvchi"),
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tuition_audit_entries_about",
+        verbose_name=_("o'quvchi"),
     )
     policy = models.ForeignKey(
-        CourseBillingPolicy, on_delete=models.SET_NULL, null=True, blank=True,
+        CourseBillingPolicy,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="audit_entries",
     )
     agreement = models.ForeignKey(
-        StudentTuitionAgreement, on_delete=models.SET_NULL, null=True, blank=True,
+        StudentTuitionAgreement,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="audit_entries",
     )
     invoice = models.ForeignKey(
-        CourseInvoice, on_delete=models.SET_NULL, null=True, blank=True,
+        CourseInvoice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="audit_entries",
     )
     payment = models.ForeignKey(
-        CoursePayment, on_delete=models.SET_NULL, null=True, blank=True,
+        CoursePayment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="audit_entries",
     )
     field = models.CharField(_("maydon"), max_length=48, blank=True)
@@ -652,10 +823,11 @@ class StudentTuition(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.student_id} · {self.group_id} · {self.monthly_fee} ({self.status})"
+        return (
+            f"{self.student_id} · {self.group_id} · {self.monthly_fee} ({self.status})"
+        )
 
     def mark_paid(self) -> None:
         self.status = self.Status.PAID
         self.paid_at = timezone.now()
         self.save(update_fields=["status", "paid_at", "updated_at"])
-

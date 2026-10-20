@@ -1,6 +1,7 @@
 """
 Notifications views — Telegram webhook + Web Push subscription endpoints.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +16,11 @@ from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -82,7 +87,10 @@ def telegram_webhook_view(request: HttpRequest) -> HttpResponse:
 
     header = request.META.get("HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN", "")
     if not secrets.compare_digest(header, secret):
-        logger.warning("Webhook rejected: bad secret token (ip=%s)", request.META.get("REMOTE_ADDR", "?"))
+        logger.warning(
+            "Webhook rejected: bad secret token (ip=%s)",
+            request.META.get("REMOTE_ADDR", "?"),
+        )
         return HttpResponse("Unauthorized", status=401)
 
     # Telegram updates are small; reject oversized authenticated payloads
@@ -115,6 +123,7 @@ def telegram_webhook_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 # Web Push Subscription
 # ---------------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
@@ -192,7 +201,9 @@ def push_unsubscribe_view(request: HttpRequest) -> HttpResponse:
         from apps.notifications.models import PushSubscription
 
         if endpoint:
-            PushSubscription.objects.filter(user=user, endpoint=endpoint).update(is_active=False)
+            PushSubscription.objects.filter(user=user, endpoint=endpoint).update(
+                is_active=False
+            )
         else:
             PushSubscription.objects.filter(user=user).update(is_active=False)
 

@@ -11,6 +11,7 @@ A teacher can only ever reach their own groups, students, sessions and essays.
 A group id the caller does not own is rejected as "not found" without
 disclosing whether that group exists at all.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -63,6 +64,7 @@ _PREFERENCE_FIELDS = (
 # ---------------------------------------------------------------------------
 # Small helpers
 # ---------------------------------------------------------------------------
+
 
 def _message(exc) -> str:
     """Readable message from an :class:`AttendanceError`."""
@@ -123,11 +125,7 @@ def _scoped_group(request, *, required: bool = True) -> StudentGroup | None:
         group_id = int(raw)
     except (TypeError, ValueError):
         raise AttendanceError("group_id noto'g'ri.")
-    group = (
-        attendance_services.teacher_groups(request.user)
-        .filter(pk=group_id)
-        .first()
-    )
+    group = attendance_services.teacher_groups(request.user).filter(pk=group_id).first()
     if group is None:
         raise AttendanceError("Guruh topilmadi.")
     return group
@@ -138,7 +136,9 @@ def _session(request, session_id: int) -> AttendanceSession:
     return attendance_services.get_session_for_user(request.user, session_id)
 
 
-def _int_param(request, name: str, default: int, *, minimum: int = 0, maximum: int | None = None) -> int:
+def _int_param(
+    request, name: str, default: int, *, minimum: int = 0, maximum: int | None = None
+) -> int:
     raw = request.GET.get(name)
     if raw in (None, ""):
         return default
@@ -156,6 +156,7 @@ def _int_param(request, name: str, default: int, *, minimum: int = 0, maximum: i
 # ---------------------------------------------------------------------------
 # Attendance sessions
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsTeacherOrAdmin])
@@ -180,16 +181,22 @@ def attendance_sessions_view(request):
         if end:
             qs = qs.filter(lesson_date__lte=end)
         sessions = qs.order_by("-lesson_date", "-start_time", "-id")[:limit]
-        return Response({
-            "results": AttendanceSessionSerializer(sessions, many=True).data,
-            "count": len(sessions),
-        })
+        return Response(
+            {
+                "results": AttendanceSessionSerializer(sessions, many=True).data,
+                "count": len(sessions),
+            }
+        )
 
     try:
         group = _scoped_group(request, required=True)
-        lesson_date = _parse_date(
-            request.data.get("lesson_date"), "Dars",
-        ) or timezone.localdate()
+        lesson_date = (
+            _parse_date(
+                request.data.get("lesson_date"),
+                "Dars",
+            )
+            or timezone.localdate()
+        )
         start_time = _parse_time(request.data.get("start_time"))
         end_time = _parse_time(request.data.get("end_time"))
         session, created = attendance_services.create_session(
@@ -228,13 +235,17 @@ def attendance_session_detail_view(request, session_id: int):
     except AttendanceSession.DoesNotExist:
         return Response({"detail": "Davomat darsi topilmadi."}, status=404)
 
-    return Response({
-        **attendance_services.summary(session),
-        "roster": attendance_services.roster(session),
-    })
+    return Response(
+        {
+            **attendance_services.summary(session),
+            "roster": attendance_services.roster(session),
+        }
+    )
 
 
-def _schedule_absence_alerts(session: AttendanceSession, marks: list[dict], countdown_seconds: int = 900) -> int:
+def _schedule_absence_alerts(
+    session: AttendanceSession, marks: list[dict], countdown_seconds: int = 900
+) -> int:
     """
     Schedule a 15-minute (900s) delayed Telegram alert to parents for any student marked 'absent'.
     If Celery broker is unavailable in local dev/test, falls back cleanly without breaking the request.
@@ -247,7 +258,10 @@ def _schedule_absence_alerts(session: AttendanceSession, marks: list[dict], coun
             except (TypeError, ValueError):
                 continue
             try:
-                from apps.notifications.tasks_parent import send_parent_absence_alert_task
+                from apps.notifications.tasks_parent import (
+                    send_parent_absence_alert_task,
+                )
+
                 send_parent_absence_alert_task.apply_async(
                     args=[session.id, student_id],
                     countdown=countdown_seconds,
@@ -277,7 +291,9 @@ def attendance_mark_view(request, session_id: int):
         if not isinstance(marks, list) or not marks:
             raise AttendanceError("marks ro'yxati yoki student_id/status kerak.")
         applied = attendance_services.mark_many(
-            session, marks, actor=request.user,
+            session,
+            marks,
+            actor=request.user,
             reason=str(request.data.get("reason", ""))[:200],
         )
         alerts_scheduled = _schedule_absence_alerts(session, marks)
@@ -288,12 +304,14 @@ def attendance_mark_view(request, session_id: int):
     except AttendanceSession.DoesNotExist:
         return Response({"detail": "Davomat darsi topilmadi."}, status=404)
 
-    return Response({
-        "applied": applied,
-        "parent_alerts_scheduled": alerts_scheduled,
-        "summary": attendance_services.summary(session),
-        "roster": attendance_services.roster(session),
-    })
+    return Response(
+        {
+            "applied": applied,
+            "parent_alerts_scheduled": alerts_scheduled,
+            "summary": attendance_services.summary(session),
+            "roster": attendance_services.roster(session),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -310,14 +328,18 @@ def attendance_quick_mark_view(request):
     """
     try:
         group = _scoped_group(request, required=True)
-        lesson_date = _parse_date(request.data.get("lesson_date"), "Dars") or timezone.localdate()
+        lesson_date = (
+            _parse_date(request.data.get("lesson_date"), "Dars") or timezone.localdate()
+        )
         student_id = request.data.get("student_id")
         status_val = str(request.data.get("status", "")).strip()
         late_minutes = int(request.data.get("late_minutes", 0) or 0)
         note = str(request.data.get("note", "") or "")
 
         if not student_id or status_val not in ("present", "late", "absent", "excused"):
-            raise AttendanceError("student_id va to'g'ri status (present/late/absent) talab qilinadi.")
+            raise AttendanceError(
+                "student_id va to'g'ri status (present/late/absent) talab qilinadi."
+            )
 
         session = (
             AttendanceSession.objects.filter(group=group, lesson_date=lesson_date)
@@ -336,19 +358,23 @@ def attendance_quick_mark_view(request):
             # Allow teacher to update within same day by reopening or passing reason
             pass
 
-        marks = [{
-            "student_id": int(student_id),
-            "status": status_val,
-            "late_minutes": late_minutes if status_val == "late" else 0,
-            "note": note,
-        }]
+        marks = [
+            {
+                "student_id": int(student_id),
+                "status": status_val,
+                "late_minutes": late_minutes if status_val == "late" else 0,
+                "note": note,
+            }
+        ]
         applied = attendance_services.mark_many(
             session,
             marks,
             actor=request.user,
             reason=note or "1-click davomat yangilash",
         )
-        alerts_scheduled = _schedule_absence_alerts(session, marks, countdown_seconds=900)
+        alerts_scheduled = _schedule_absence_alerts(
+            session, marks, countdown_seconds=900
+        )
     except AttendanceError as exc:
         return _bad_request(exc)
     except PermissionDenied:
@@ -356,17 +382,19 @@ def attendance_quick_mark_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "student_id noto'g'ri."}, status=400)
 
-    return Response({
-        "ok": True,
-        "session_id": session.id,
-        "lesson_date": session.lesson_date.isoformat(),
-        "applied": applied,
-        "parent_alert_scheduled": status_val == "absent",
-        "parent_alert_scheduled_in_minutes": 15 if status_val == "absent" else 0,
-        "parent_alerts_scheduled": alerts_scheduled,
-        "summary": attendance_services.summary(session),
-        "roster": attendance_services.roster(session),
-    })
+    return Response(
+        {
+            "ok": True,
+            "session_id": session.id,
+            "lesson_date": session.lesson_date.isoformat(),
+            "applied": applied,
+            "parent_alert_scheduled": status_val == "absent",
+            "parent_alert_scheduled_in_minutes": 15 if status_val == "absent" else 0,
+            "parent_alerts_scheduled": alerts_scheduled,
+            "summary": attendance_services.summary(session),
+            "roster": attendance_services.roster(session),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -383,11 +411,13 @@ def attendance_mark_all_present_view(request, session_id: int):
     except AttendanceSession.DoesNotExist:
         return Response({"detail": "Davomat darsi topilmadi."}, status=404)
 
-    return Response({
-        "marked": count,
-        "summary": attendance_services.summary(session),
-        "roster": attendance_services.roster(session),
-    })
+    return Response(
+        {
+            "marked": count,
+            "summary": attendance_services.summary(session),
+            "roster": attendance_services.roster(session),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -404,7 +434,9 @@ def attendance_finalize_view(request, session_id: int):
         result = attendance_services.finalize_and_notify(
             session,
             actor=request.user,
-            mark_unmarked_as_absent=bool(request.data.get("mark_unmarked_as_absent", False)),
+            mark_unmarked_as_absent=bool(
+                request.data.get("mark_unmarked_as_absent", False)
+            ),
             reason=str(request.data.get("reason", ""))[:200],
         )
     except AttendanceError as exc:
@@ -423,21 +455,28 @@ def attendance_finalize_view(request, session_id: int):
 # Attendance reports
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
 def attendance_report_view(request):
     """Group attendance statistics, per-day breakdown, or a teacher overview."""
     try:
         if request.GET.get("overview") in {"1", "true", "True"}:
-            return Response(attendance_services.teacher_attendance_overview(request.user))
+            return Response(
+                attendance_services.teacher_attendance_overview(request.user)
+            )
 
         start = _parse_date(request.GET.get("start"), "Boshlanish")
         end = _parse_date(request.GET.get("end"), "Tugash")
         group = _scoped_group(request, required=True)
-        report = attendance_services.group_attendance_report(group, start=start, end=end)
+        report = attendance_services.group_attendance_report(
+            group, start=start, end=end
+        )
         if request.GET.get("daily") in {"1", "true", "True"}:
             report["daily"] = attendance_services.group_daily_breakdown(
-                group, start=start, end=end,
+                group,
+                start=start,
+                end=end,
             )
     except AttendanceError as exc:
         return _bad_request(exc)
@@ -472,7 +511,10 @@ def attendance_student_view(request, student_id: int):
 
     return Response(
         attendance_services.student_attendance_report(
-            target, start=start, end=end, group=group,
+            target,
+            start=start,
+            end=end,
+            group=group,
         )
     )
 
@@ -480,6 +522,7 @@ def attendance_student_view(request, student_id: int):
 # ---------------------------------------------------------------------------
 # Classroom observations
 # ---------------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @permission_classes([IsTeacherOrAdmin])
@@ -512,7 +555,9 @@ def observation_create_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "student_id/session_id noto'g'ri."}, status=400)
     except PermissionDenied:
-        return Response({"detail": "Bu o'quvchi sizning guruhingizda emas."}, status=403)
+        return Response(
+            {"detail": "Bu o'quvchi sizning guruhingizda emas."}, status=403
+        )
     except AttendanceSession.DoesNotExist:
         return Response({"detail": "Davomat darsi topilmadi."}, status=404)
 
@@ -552,7 +597,9 @@ def observation_detail_view(request, observation_id: int):
     except AttendanceError as exc:
         return _bad_request(exc)
     except PermissionDenied:
-        return Response({"detail": "Faqat yozgan o'qituvchi tuzatishi mumkin."}, status=403)
+        return Response(
+            {"detail": "Faqat yozgan o'qituvchi tuzatishi mumkin."}, status=403
+        )
 
     return Response(ClassroomObservationSerializer(observation).data)
 
@@ -565,7 +612,9 @@ def observation_confirm_view(request, observation_id: int):
         observation = _own_observation(request, observation_id)
         send = bool(request.data.get("send", True))
         observation = attendance_services.confirm_observation(
-            observation, actor=request.user, send=send,
+            observation,
+            actor=request.user,
+            send=send,
             reason=str(request.data.get("reason", ""))[:200],
         )
         if send:
@@ -582,7 +631,9 @@ def observation_confirm_view(request, observation_id: int):
     except AttendanceError as exc:
         return _bad_request(exc)
     except PermissionDenied:
-        return Response({"detail": "Faqat yozgan o'qituvchi tasdiqlashi mumkin."}, status=403)
+        return Response(
+            {"detail": "Faqat yozgan o'qituvchi tasdiqlashi mumkin."}, status=403
+        )
 
     return Response(ClassroomObservationSerializer(observation).data)
 
@@ -590,6 +641,7 @@ def observation_confirm_view(request, observation_id: int):
 # ---------------------------------------------------------------------------
 # Group essay reporting
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
@@ -625,14 +677,17 @@ def essay_summary_view(request):
     try:
         if request.GET.get("overview") in {"1", "true", "True"}:
             days = _int_param(request, "days", 30, minimum=1, maximum=365)
-            return Response(group_reports.teacher_essay_overview(request.user, days=days))
+            return Response(
+                group_reports.teacher_essay_overview(request.user, days=days)
+            )
 
         group = _scoped_group(request, required=True)
         assignment = None
         assignment_id = request.GET.get("assignment_id")
         if assignment_id:
             assignment = EssayAssignment.objects.filter(
-                pk=int(assignment_id), group=group,
+                pk=int(assignment_id),
+                group=group,
             ).first()
             if assignment is None:
                 return Response({"detail": "Topshiriq topilmadi."}, status=404)
@@ -663,22 +718,28 @@ def assignments_view(request):
         )
         if group is not None:
             qs = qs.filter(group=group)
-        return Response({
-            "results": [
-                {
-                    "id": assignment.pk,
-                    "topic_id": assignment.topic_id,
-                    "topic_title": assignment.topic.title if assignment.topic_id else "",
-                    "group_id": assignment.group_id,
-                    "group_name": assignment.group.name,
-                    "due_at": assignment.due_at.isoformat() if assignment.due_at else None,
-                    "instructions": assignment.instructions,
-                    "is_active": assignment.is_active,
-                    "created_at": assignment.created_at.isoformat(),
-                }
-                for assignment in qs[:200]
-            ],
-        })
+        return Response(
+            {
+                "results": [
+                    {
+                        "id": assignment.pk,
+                        "topic_id": assignment.topic_id,
+                        "topic_title": assignment.topic.title
+                        if assignment.topic_id
+                        else "",
+                        "group_id": assignment.group_id,
+                        "group_name": assignment.group.name,
+                        "due_at": assignment.due_at.isoformat()
+                        if assignment.due_at
+                        else None,
+                        "instructions": assignment.instructions,
+                        "is_active": assignment.is_active,
+                        "created_at": assignment.created_at.isoformat(),
+                    }
+                    for assignment in qs[:200]
+                ],
+            }
+        )
 
     try:
         group = _scoped_group(request, required=True)
@@ -704,13 +765,16 @@ def assignments_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "topic_id noto'g'ri."}, status=400)
 
-    return Response({
-        "id": assignment.pk,
-        "topic_id": assignment.topic_id,
-        "group_id": assignment.group_id,
-        "due_at": assignment.due_at.isoformat() if assignment.due_at else None,
-        "completion": group_reports.assignment_completion(assignment),
-    }, status=201)
+    return Response(
+        {
+            "id": assignment.pk,
+            "topic_id": assignment.topic_id,
+            "group_id": assignment.group_id,
+            "due_at": assignment.due_at.isoformat() if assignment.due_at else None,
+            "completion": group_reports.assignment_completion(assignment),
+        },
+        status=201,
+    )
 
 
 @api_view(["GET"])
@@ -733,6 +797,7 @@ def assignment_completion_view(request, assignment_id: int):
 # ---------------------------------------------------------------------------
 # Notification preferences
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET", "PATCH"])
 @permission_classes([IsTeacherOrAdmin])
@@ -757,6 +822,7 @@ def notification_preferences_view(request):
 # Group notification destinations (administrator-managed)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET", "POST"])
 @permission_classes([IsPanelAdmin])
 def notification_destinations_view(request):
@@ -767,11 +833,14 @@ def notification_destinations_view(request):
     """
     if request.method == "GET":
         qs = GroupNotificationDestination.objects.select_related("group").order_by(
-            "group__name", "title",
+            "group__name",
+            "title",
         )
-        return Response({
-            "results": GroupNotificationDestinationSerializer(qs, many=True).data,
-        })
+        return Response(
+            {
+                "results": GroupNotificationDestinationSerializer(qs, many=True).data,
+            }
+        )
 
     chat_id = request.data.get("chat_id")
     try:
@@ -780,9 +849,14 @@ def notification_destinations_view(request):
         return Response({"detail": "chat_id noto'g'ri."}, status=400)
 
     destination_type = str(
-        request.data.get("destination_type", GroupNotificationDestination.DestinationType.PARENT_PUBLIC),
+        request.data.get(
+            "destination_type",
+            GroupNotificationDestination.DestinationType.PARENT_PUBLIC,
+        ),
     )
-    if destination_type not in dict(GroupNotificationDestination.DestinationType.choices):
+    if destination_type not in dict(
+        GroupNotificationDestination.DestinationType.choices
+    ):
         return Response({"detail": "Manzil turi noto'g'ri."}, status=400)
 
     group = None
@@ -794,7 +868,9 @@ def notification_destinations_view(request):
 
     allowed = request.data.get("allowed_categories") or ["attendance_summary"]
     if not isinstance(allowed, list) or not all(isinstance(c, str) for c in allowed):
-        return Response({"detail": "allowed_categories ro'yxat bo'lishi kerak."}, status=400)
+        return Response(
+            {"detail": "allowed_categories ro'yxat bo'lishi kerak."}, status=400
+        )
 
     destination, created = GroupNotificationDestination.objects.get_or_create(
         group=group,
@@ -834,18 +910,27 @@ def notification_destination_approve_view(request, destination_id: int):
     if "allowed_categories" in request.data:
         allowed = request.data["allowed_categories"]
         if not isinstance(allowed, list):
-            return Response({"detail": "allowed_categories ro'yxat bo'lishi kerak."}, status=400)
+            return Response(
+                {"detail": "allowed_categories ro'yxat bo'lishi kerak."}, status=400
+            )
         destination.allowed_categories = allowed
-    destination.save(update_fields=[
-        "is_approved", "approved_by", "approved_at", "is_enabled",
-        "allowed_categories", "updated_at",
-    ])
+    destination.save(
+        update_fields=[
+            "is_approved",
+            "approved_by",
+            "approved_at",
+            "is_enabled",
+            "allowed_categories",
+            "updated_at",
+        ]
+    )
     return Response(GroupNotificationDestinationSerializer(destination).data)
 
 
 # ---------------------------------------------------------------------------
 # Parent view of their own children's attendance
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -858,7 +943,9 @@ def parent_attendance_view(request):
     from apps.accounts.access import is_platform_admin
     from apps.accounts.models import ParentStudentLink
 
-    links = ParentStudentLink.objects.filter(parent=request.user, is_approved=True).select_related("student")
+    links = ParentStudentLink.objects.filter(
+        parent=request.user, is_approved=True
+    ).select_related("student")
     if not links.exists() and not is_platform_admin(request.user):
         return Response({"children": []})
 

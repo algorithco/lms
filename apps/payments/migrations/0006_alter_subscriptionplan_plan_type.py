@@ -4,15 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('payments', '0005_alter_paymentrequest_status'),
+        ("payments", "0005_alter_paymentrequest_status"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='subscriptionplan',
-            name='plan_type',
-            field=models.CharField(choices=[('free', 'Bepul'), ('starter', 'Starter'), ('pro', 'Pro'), ('premium', 'Premium'), ('family', 'Oila')], max_length=20, unique=True, verbose_name='reja turi'),
+            model_name="subscriptionplan",
+            name="plan_type",
+            field=models.CharField(
+                choices=[
+                    ("free", "Bepul"),
+                    ("starter", "Starter"),
+                    ("pro", "Pro"),
+                    ("premium", "Premium"),
+                    ("family", "Oila"),
+                ],
+                max_length=20,
+                unique=True,
+                verbose_name="reja turi",
+            ),
         ),
     ]

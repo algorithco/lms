@@ -4,6 +4,7 @@ Notifications app — Telegram Bot integration and notification logging.
 Models:
     NotificationLog — audit trail for every notification sent.
 """
+
 from datetime import timedelta
 
 from django.conf import settings
@@ -122,7 +123,10 @@ class NotificationLog(models.Model):
     #: key is UNIQUE: the second attempt is rejected instead of sending a
     #: duplicate message to a parent or a group.
     dedup_key = models.CharField(
-        _("idempotentlik kaliti"), max_length=200, blank=True, default="",
+        _("idempotentlik kaliti"),
+        max_length=200,
+        blank=True,
+        default="",
     )
 
     # -- Timestamps -----------------------------------------------------------
@@ -157,6 +161,7 @@ class PushSubscription(models.Model):
     """
     Web Push subscription — brauzer push notification uchun.
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -278,6 +283,7 @@ class TelegramAuthToken(models.Model):
     @property
     def is_expired(self) -> bool:
         from django.utils import timezone
+
         return timezone.now() > self.created_at + TELEGRAM_AUTH_TOKEN_TTL
 
     def generate_short_code(self) -> str:
@@ -288,7 +294,9 @@ class TelegramAuthToken(models.Model):
 
         for _ in range(10):
             code = f"{secrets.randbelow(1_000_000):06d}"
-            if TelegramAuthToken.objects.filter(short_code=code, consumed_at__isnull=True).exists():
+            if TelegramAuthToken.objects.filter(
+                short_code=code, consumed_at__isnull=True
+            ).exists():
                 continue
             self.short_code = code
             # If attached to an existing row, persist atomically; collision

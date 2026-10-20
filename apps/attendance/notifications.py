@@ -16,6 +16,7 @@ Everything is driven by the canonical sender
 :class:`apps.notifications.services.telegram_service.TelegramService`, so every
 attempt lands in the existing ``NotificationLog`` audit trail.
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,8 +54,16 @@ STATUS_LABELS_UZ = {
 # Delivery primitive with idempotency
 # ---------------------------------------------------------------------------
 
-def _deliver(*, chat_id: int, text: str, dedup_key: str, notification_type: str,
-             recipient=None, title: str = "") -> dict:
+
+def _deliver(
+    *,
+    chat_id: int,
+    text: str,
+    dedup_key: str,
+    notification_type: str,
+    recipient=None,
+    title: str = "",
+) -> dict:
     """Send one Telegram message at most once for a given ``dedup_key``.
 
     Returns ``{"success": bool, "duplicate": bool, "error": str|None}``.
@@ -84,7 +93,8 @@ def _deliver(*, chat_id: int, text: str, dedup_key: str, notification_type: str,
         if not NotificationLog.objects.filter(dedup_key=dedup_key).exists():
             logger.exception(
                 "Notification reservation failed for an unexpected reason "
-                "(dedup_key=%s)", dedup_key,
+                "(dedup_key=%s)",
+                dedup_key,
             )
             raise
         logger.info("Duplicate notification suppressed (dedup_key=%s)", dedup_key)
@@ -120,16 +130,16 @@ def _deliver(*, chat_id: int, text: str, dedup_key: str, notification_type: str,
 # Parent notifications
 # ---------------------------------------------------------------------------
 
+
 def _parents_for(student):
     """Approved, Telegram-linked parents of *student*.
 
     An unapproved ``ParentStudentLink`` discloses nothing — not even the fact
     that a link was requested.
     """
-    links = (
-        ParentStudentLink.objects.filter(student=student, is_approved=True)
-        .select_related("parent")
-    )
+    links = ParentStudentLink.objects.filter(
+        student=student, is_approved=True
+    ).select_related("parent")
     parents = []
     for link in links:
         parent = link.parent
@@ -288,6 +298,7 @@ def notify_parents_of_observation(observation: ClassroomObservation) -> dict:
 # Group (aggregate-only) notifications
 # ---------------------------------------------------------------------------
 
+
 def group_summary_text(session: AttendanceSession) -> str:
     """Aggregate attendance line — deliberately free of any student name."""
     from .services import summary
@@ -316,8 +327,9 @@ def destinations_for(group, category: str):
     return [destination for destination in candidates if destination.accepts(category)]
 
 
-def send_group_attendance_summary(session: AttendanceSession, *,
-                                  category: str = CATEGORY_ATTENDANCE_SUMMARY) -> dict:
+def send_group_attendance_summary(
+    session: AttendanceSession, *, category: str = CATEGORY_ATTENDANCE_SUMMARY
+) -> dict:
     """Publish the aggregate summary to approved group/parent destinations.
 
     Only :data:`CATEGORY_ATTENDANCE_SUMMARY` text (no names) is ever sent here.
@@ -351,8 +363,15 @@ def send_group_attendance_summary(session: AttendanceSession, *,
 # Teacher notifications
 # ---------------------------------------------------------------------------
 
-def notify_teacher(*, teacher, text: str, dedup_key: str, title: str = "",
-                   notification_type: str = "general") -> dict:
+
+def notify_teacher(
+    *,
+    teacher,
+    text: str,
+    dedup_key: str,
+    title: str = "",
+    notification_type: str = "general",
+) -> dict:
     """Targeted teacher notice. Deduplicated so batches never spam."""
     if teacher is None or not getattr(teacher, "telegram_chat_id", None):
         return {"success": False, "duplicate": False, "error": "teacher not linked"}
@@ -413,7 +432,11 @@ def notify_student_essay_graded(submission) -> dict:
     Reuses the existing essay notification contract and adds the parent copy.
     """
     student = submission.student
-    score = submission.final_score if submission.final_score is not None else submission.total_score
+    score = (
+        submission.final_score
+        if submission.final_score is not None
+        else submission.total_score
+    )
     max_score = submission.max_score
     text = (
         "📝 *Esse baholandi*\n\n"
@@ -423,7 +446,9 @@ def notify_student_essay_graded(submission) -> dict:
 
     results = {"sent": 0, "duplicates": 0, "failed": 0}
     if getattr(student, "telegram_chat_id", None) and getattr(
-        student, "telegram_identity_verified_at", None,
+        student,
+        "telegram_identity_verified_at",
+        None,
     ):
         outcome = _deliver(
             chat_id=student.telegram_chat_id,
@@ -433,7 +458,9 @@ def notify_student_essay_graded(submission) -> dict:
             recipient=student,
             title="Esse baholandi",
         )
-        results["sent"] += 1 if outcome.get("success") and not outcome.get("duplicate") else 0
+        results["sent"] += (
+            1 if outcome.get("success") and not outcome.get("duplicate") else 0
+        )
         results["duplicates"] += 1 if outcome.get("duplicate") else 0
 
     for parent in _parents_for(student):
@@ -453,6 +480,8 @@ def notify_student_essay_graded(submission) -> dict:
             recipient=parent,
             title="Esse baholandi",
         )
-        results["sent"] += 1 if outcome.get("success") and not outcome.get("duplicate") else 0
+        results["sent"] += (
+            1 if outcome.get("success") and not outcome.get("duplicate") else 0
+        )
         results["duplicates"] += 1 if outcome.get("duplicate") else 0
     return results

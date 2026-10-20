@@ -1,4 +1,5 @@
 """Unit and integration tests for OMR Scanner, AI Speaking Simulator, Gamification & White-Label B2B."""
+
 from datetime import date, timedelta
 from decimal import Decimal
 import io
@@ -199,12 +200,18 @@ def test_speaking_submission_evaluation(student_user):
         title="Describe an influential teacher",
         part="part2",
         prompt="Describe an influential teacher that made a difference in your life.",
-        bullet_points=["Who they were", "What subject they taught", "Why they influenced you"],
+        bullet_points=[
+            "Who they were",
+            "What subject they taught",
+            "Why they influenced you",
+        ],
         prep_time_seconds=60,
         speak_time_seconds=120,
     )
 
-    dummy_audio = SimpleUploadedFile("speech.webm", b"RIFF....dummy_webm_data", content_type="audio/webm")
+    dummy_audio = SimpleUploadedFile(
+        "speech.webm", b"RIFF....dummy_webm_data", content_type="audio/webm"
+    )
 
     mock_payload = {
         "fluency_score": 7.0,
@@ -215,12 +222,18 @@ def test_speaking_submission_evaluation(student_user):
         "transcript": "Today I would like to talk about my mathematics teacher...",
         "feedback": {
             "summary": "Great speech",
-            "vocabulary_suggestions": [{"original": "good teacher", "improved": "inspiring pedagogue"}],
-            "grammar_corrections": [{"incorrect": "he teach me", "corrected": "he taught me"}],
+            "vocabulary_suggestions": [
+                {"original": "good teacher", "improved": "inspiring pedagogue"}
+            ],
+            "grammar_corrections": [
+                {"incorrect": "he teach me", "corrected": "he taught me"}
+            ],
         },
     }
 
-    with patch("apps.speaking.services._gemini_evaluate_audio", return_value=mock_payload):
+    with patch(
+        "apps.speaking.services._gemini_evaluate_audio", return_value=mock_payload
+    ):
         evaluated_sub = evaluate_speaking_submission(
             audio_file=dummy_audio,
             topic_id=topic.id,
@@ -244,7 +257,9 @@ def test_omr_answer_evaluation(sample_test_with_questions, student_user):
     img_io = io.BytesIO()
     img.save(img_io, format="JPEG")
     img_io.seek(0)
-    uploaded = SimpleUploadedFile("test_sheet.jpg", img_io.read(), content_type="image/jpeg")
+    uploaded = SimpleUploadedFile(
+        "test_sheet.jpg", img_io.read(), content_type="image/jpeg"
+    )
 
     mock_extracted = {
         "test_code": "MOCK-42",
@@ -252,8 +267,13 @@ def test_omr_answer_evaluation(sample_test_with_questions, student_user):
         "answers": {"1": "A", "2": "B"},
     }
 
-    with patch("apps.tests.omr_service._extract_answers_with_gemini", return_value=mock_extracted):
-        report = grade_omr_sheet(uploaded, test_id=sample_test_with_questions.id, user=student_user)
+    with patch(
+        "apps.tests.omr_service._extract_answers_with_gemini",
+        return_value=mock_extracted,
+    ):
+        report = grade_omr_sheet(
+            uploaded, test_id=sample_test_with_questions.id, user=student_user
+        )
 
         assert report["ok"] is True
         assert report["total_score"] == 2
@@ -266,7 +286,9 @@ def test_omr_answer_evaluation(sample_test_with_questions, student_user):
 
 
 @pytest.mark.django_db
-def test_omr_scan_endpoint_with_image(api_client, student_user, sample_test_with_questions):
+def test_omr_scan_endpoint_with_image(
+    api_client, student_user, sample_test_with_questions
+):
     api_client.force_authenticate(user=student_user)
 
     img = Image.new("RGB", (400, 600), color=(255, 255, 255))
@@ -276,7 +298,9 @@ def test_omr_scan_endpoint_with_image(api_client, student_user, sample_test_with
     img_io = io.BytesIO()
     img.save(img_io, format="JPEG")
     img_io.seek(0)
-    uploaded = SimpleUploadedFile("omr_test.jpg", img_io.read(), content_type="image/jpeg")
+    uploaded = SimpleUploadedFile(
+        "omr_test.jpg", img_io.read(), content_type="image/jpeg"
+    )
 
     mock_extracted = {
         "test_code": "MOCK-42",
@@ -284,7 +308,10 @@ def test_omr_scan_endpoint_with_image(api_client, student_user, sample_test_with
         "answers": {"1": "A", "2": "B"},
     }
 
-    with patch("apps.tests.omr_service._extract_answers_with_gemini", return_value=mock_extracted):
+    with patch(
+        "apps.tests.omr_service._extract_answers_with_gemini",
+        return_value=mock_extracted,
+    ):
         res = api_client.post(
             "/api/v1/tests/scan-omr/",
             {"image": uploaded, "mock_code": "MOCK-42"},
@@ -326,7 +353,9 @@ def test_whitelabel_branding_api(api_client, teacher_user):
 
 
 @pytest.mark.django_db
-def test_whitelabel_monthly_report_pdf(api_client, teacher_user, student_group, sample_test_with_questions, student_user):
+def test_whitelabel_monthly_report_pdf(
+    api_client, teacher_user, student_group, sample_test_with_questions, student_user
+):
     api_client.force_authenticate(user=teacher_user)
 
     # Create a completed test attempt for student

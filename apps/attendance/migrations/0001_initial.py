@@ -7,170 +7,602 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('courses', '0003_alter_course_thumbnail_alter_lesson_attachment'),
+        ("courses", "0003_alter_course_thumbnail_alter_lesson_attachment"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AttendanceSession',
+            name="AttendanceSession",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('lesson_date', models.DateField(db_index=True, verbose_name='dars sanasi')),
-                ('start_time', models.TimeField(blank=True, null=True, verbose_name='boshlanish vaqti')),
-                ('end_time', models.TimeField(blank=True, null=True, verbose_name='tugash vaqti')),
-                ('status', models.CharField(choices=[('draft', 'Qoralama'), ('finalized', 'Yakunlangan'), ('cancelled', 'Bekor qilingan')], db_index=True, default='draft', max_length=20, verbose_name='holat')),
-                ('title', models.CharField(blank=True, max_length=120, verbose_name='izoh')),
-                ('idempotency_key', models.CharField(blank=True, help_text="Bot callback'ini takror yuborishda dublikat yaratmaslik uchun.", max_length=120, null=True, unique=True, verbose_name='idempotentlik kaliti')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('finalized_at', models.DateTimeField(blank=True, null=True, verbose_name='yakunlangan vaqt')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_attendance_sessions', to=settings.AUTH_USER_MODEL)),
-                ('finalized_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='finalized_attendance_sessions', to=settings.AUTH_USER_MODEL)),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_sessions', to='courses.studentgroup', verbose_name='guruh')),
-                ('teacher', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_sessions', to=settings.AUTH_USER_MODEL, verbose_name="o'qituvchi")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "lesson_date",
+                    models.DateField(db_index=True, verbose_name="dars sanasi"),
+                ),
+                (
+                    "start_time",
+                    models.TimeField(
+                        blank=True, null=True, verbose_name="boshlanish vaqti"
+                    ),
+                ),
+                (
+                    "end_time",
+                    models.TimeField(
+                        blank=True, null=True, verbose_name="tugash vaqti"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Qoralama"),
+                            ("finalized", "Yakunlangan"),
+                            ("cancelled", "Bekor qilingan"),
+                        ],
+                        db_index=True,
+                        default="draft",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(blank=True, max_length=120, verbose_name="izoh"),
+                ),
+                (
+                    "idempotency_key",
+                    models.CharField(
+                        blank=True,
+                        help_text="Bot callback'ini takror yuborishda dublikat yaratmaslik uchun.",
+                        max_length=120,
+                        null=True,
+                        unique=True,
+                        verbose_name="idempotentlik kaliti",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "finalized_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="yakunlangan vaqt"
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="created_attendance_sessions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "finalized_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="finalized_attendance_sessions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attendance_sessions",
+                        to="courses.studentgroup",
+                        verbose_name="guruh",
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attendance_sessions",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'qituvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Davomat darsi',
-                'verbose_name_plural': 'Davomat darslari',
-                'ordering': ['-lesson_date', '-start_time', '-id'],
+                "verbose_name": "Davomat darsi",
+                "verbose_name_plural": "Davomat darslari",
+                "ordering": ["-lesson_date", "-start_time", "-id"],
             },
         ),
         migrations.CreateModel(
-            name='AttendanceRecord',
+            name="AttendanceRecord",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('status', models.CharField(choices=[('present', 'Keldi'), ('absent', 'Kelmadi'), ('late', 'Kechikdi'), ('excused', 'Sababli')], db_index=True, max_length=16, verbose_name='holat')),
-                ('late_minutes', models.PositiveIntegerField(default=0, verbose_name='kechikish (daqiqa)')),
-                ('note', models.CharField(blank=True, max_length=200, verbose_name='izoh')),
-                ('marked_at', models.DateTimeField(default=django.utils.timezone.now, verbose_name='belgilangan vaqt')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('marked_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='marked_attendance_records', to=settings.AUTH_USER_MODEL)),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_records', to=settings.AUTH_USER_MODEL, verbose_name="o'quvchi")),
-                ('session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='records', to='attendance.attendancesession', verbose_name='davomat darsi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("present", "Keldi"),
+                            ("absent", "Kelmadi"),
+                            ("late", "Kechikdi"),
+                            ("excused", "Sababli"),
+                        ],
+                        db_index=True,
+                        max_length=16,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "late_minutes",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="kechikish (daqiqa)"
+                    ),
+                ),
+                (
+                    "note",
+                    models.CharField(blank=True, max_length=200, verbose_name="izoh"),
+                ),
+                (
+                    "marked_at",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now,
+                        verbose_name="belgilangan vaqt",
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "marked_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="marked_attendance_records",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attendance_records",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'quvchi",
+                    ),
+                ),
+                (
+                    "session",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="records",
+                        to="attendance.attendancesession",
+                        verbose_name="davomat darsi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Davomat yozuvi',
-                'verbose_name_plural': 'Davomat yozuvlari',
-                'ordering': ['student__first_name', 'student__last_name'],
+                "verbose_name": "Davomat yozuvi",
+                "verbose_name_plural": "Davomat yozuvlari",
+                "ordering": ["student__first_name", "student__last_name"],
             },
         ),
         migrations.CreateModel(
-            name='AttendanceAuditLog',
+            name="AttendanceAuditLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('field', models.CharField(default='status', max_length=32, verbose_name='maydon')),
-                ('old_value', models.CharField(blank=True, max_length=200)),
-                ('new_value', models.CharField(blank=True, max_length=200)),
-                ('reason', models.CharField(blank=True, max_length=200, verbose_name='sabab')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_actions', to=settings.AUTH_USER_MODEL)),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_audit_logs', to=settings.AUTH_USER_MODEL)),
-                ('record', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_logs', to='attendance.attendancerecord')),
-                ('session', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='audit_logs', to='attendance.attendancesession')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "field",
+                    models.CharField(
+                        default="status", max_length=32, verbose_name="maydon"
+                    ),
+                ),
+                ("old_value", models.CharField(blank=True, max_length=200)),
+                ("new_value", models.CharField(blank=True, max_length=200)),
+                (
+                    "reason",
+                    models.CharField(blank=True, max_length=200, verbose_name="sabab"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="attendance_actions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attendance_audit_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "record",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="audit_logs",
+                        to="attendance.attendancerecord",
+                    ),
+                ),
+                (
+                    "session",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="audit_logs",
+                        to="attendance.attendancesession",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Davomat tuzatish tarixi',
-                'verbose_name_plural': 'Davomat tuzatish tarixlari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Davomat tuzatish tarixi",
+                "verbose_name_plural": "Davomat tuzatish tarixlari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ClassroomObservation',
+            name="ClassroomObservation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('observation_type', models.CharField(choices=[('participation_needs_attention', "Faollik e'tibor talab qiladi"), ('classroom_rules_reminder', 'Sinf qoidalari eslatmasi'), ('positive_participation', 'Ijobiy faollik'), ('teacher_note', "O'qituvchi izohi")], max_length=40, verbose_name='turi')),
-                ('neutral_description', models.TextField(verbose_name='neytral izoh')),
-                ('notification_status', models.CharField(choices=[('not_sent', 'Yuborilmagan'), ('pending_confirmation', 'Tasdiq kutilmoqda'), ('sent', 'Yuborilgan'), ('skipped', "Yuborilmadi (o'qituvchi rad etdi)")], db_index=True, default='not_sent', max_length=24, verbose_name='xabar holati')),
-                ('confirmed_at', models.DateTimeField(blank=True, null=True, verbose_name='tasdiqlangan vaqt')),
-                ('sent_at', models.DateTimeField(blank=True, null=True, verbose_name='yuborilgan vaqt')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('confirmed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='confirmed_observations', to=settings.AUTH_USER_MODEL)),
-                ('session', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='observations', to='attendance.attendancesession')),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='classroom_observations', to=settings.AUTH_USER_MODEL)),
-                ('teacher', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='recorded_observations', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "observation_type",
+                    models.CharField(
+                        choices=[
+                            (
+                                "participation_needs_attention",
+                                "Faollik e'tibor talab qiladi",
+                            ),
+                            ("classroom_rules_reminder", "Sinf qoidalari eslatmasi"),
+                            ("positive_participation", "Ijobiy faollik"),
+                            ("teacher_note", "O'qituvchi izohi"),
+                        ],
+                        max_length=40,
+                        verbose_name="turi",
+                    ),
+                ),
+                ("neutral_description", models.TextField(verbose_name="neytral izoh")),
+                (
+                    "notification_status",
+                    models.CharField(
+                        choices=[
+                            ("not_sent", "Yuborilmagan"),
+                            ("pending_confirmation", "Tasdiq kutilmoqda"),
+                            ("sent", "Yuborilgan"),
+                            ("skipped", "Yuborilmadi (o'qituvchi rad etdi)"),
+                        ],
+                        db_index=True,
+                        default="not_sent",
+                        max_length=24,
+                        verbose_name="xabar holati",
+                    ),
+                ),
+                (
+                    "confirmed_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="tasdiqlangan vaqt"
+                    ),
+                ),
+                (
+                    "sent_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="yuborilgan vaqt"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "confirmed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="confirmed_observations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "session",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="observations",
+                        to="attendance.attendancesession",
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="classroom_observations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="recorded_observations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Sinf kuzatuvi',
-                'verbose_name_plural': 'Sinf kuzatuvlari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Sinf kuzatuvi",
+                "verbose_name_plural": "Sinf kuzatuvlari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='GroupNotificationDestination',
+            name="GroupNotificationDestination",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('chat_id', models.BigIntegerField(verbose_name='Telegram chat ID')),
-                ('title', models.CharField(blank=True, max_length=150, verbose_name='nomi')),
-                ('destination_type', models.CharField(choices=[('staff', 'Xodimlar guruhi'), ('parent_public', 'Ota-onalar / umumiy guruh')], db_index=True, default='parent_public', max_length=20, verbose_name='manzil turi')),
-                ('is_enabled', models.BooleanField(default=True, verbose_name='yoqilgan')),
-                ('is_approved', models.BooleanField(default=False, verbose_name='tasdiqlangan')),
-                ('approved_at', models.DateTimeField(blank=True, null=True, verbose_name='tasdiqlangan vaqt')),
-                ('allowed_categories', models.JSONField(blank=True, default=list, verbose_name='ruxsat etilgan toifalar')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('approved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approved_notification_destinations', to=settings.AUTH_USER_MODEL)),
-                ('group', models.ForeignKey(blank=True, help_text="Bo'sh bo'lsa — barcha guruhlar uchun umumiy manzil.", null=True, on_delete=django.db.models.deletion.CASCADE, related_name='notification_destinations', to='courses.studentgroup')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("chat_id", models.BigIntegerField(verbose_name="Telegram chat ID")),
+                (
+                    "title",
+                    models.CharField(blank=True, max_length=150, verbose_name="nomi"),
+                ),
+                (
+                    "destination_type",
+                    models.CharField(
+                        choices=[
+                            ("staff", "Xodimlar guruhi"),
+                            ("parent_public", "Ota-onalar / umumiy guruh"),
+                        ],
+                        db_index=True,
+                        default="parent_public",
+                        max_length=20,
+                        verbose_name="manzil turi",
+                    ),
+                ),
+                (
+                    "is_enabled",
+                    models.BooleanField(default=True, verbose_name="yoqilgan"),
+                ),
+                (
+                    "is_approved",
+                    models.BooleanField(default=False, verbose_name="tasdiqlangan"),
+                ),
+                (
+                    "approved_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="tasdiqlangan vaqt"
+                    ),
+                ),
+                (
+                    "allowed_categories",
+                    models.JSONField(
+                        blank=True, default=list, verbose_name="ruxsat etilgan toifalar"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "approved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="approved_notification_destinations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Bo'sh bo'lsa — barcha guruhlar uchun umumiy manzil.",
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notification_destinations",
+                        to="courses.studentgroup",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Guruh xabar manzili',
-                'verbose_name_plural': 'Guruh xabar manzillari',
-                'ordering': ['group__name', 'title'],
+                "verbose_name": "Guruh xabar manzili",
+                "verbose_name_plural": "Guruh xabar manzillari",
+                "ordering": ["group__name", "title"],
             },
         ),
         migrations.CreateModel(
-            name='NotificationPreference',
+            name="NotificationPreference",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('telegram_enabled', models.BooleanField(default=True, verbose_name='Telegram xabarlari')),
-                ('attendance_alerts', models.BooleanField(default=True, verbose_name='Davomat xabarlari')),
-                ('essay_graded_alerts', models.BooleanField(default=True, verbose_name='Esse bahosi xabarlari')),
-                ('test_result_alerts', models.BooleanField(default=True, verbose_name='Test natijasi xabarlari')),
-                ('observation_alerts', models.BooleanField(default=True, verbose_name='Kuzatuv xabarlari (tasdiqlangandan keyin)')),
-                ('teacher_new_essay', models.BooleanField(default=True, verbose_name='Yangi esse topshirildi')),
-                ('teacher_grading_completed', models.BooleanField(default=True, verbose_name='Esse baholandi')),
-                ('teacher_grading_failed', models.BooleanField(default=True, verbose_name='Esse baholashda xatolik')),
-                ('teacher_attendance_reminder', models.BooleanField(default=True, verbose_name='Davomat yakunlanmagan eslatmasi')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='notification_preference', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "telegram_enabled",
+                    models.BooleanField(
+                        default=True, verbose_name="Telegram xabarlari"
+                    ),
+                ),
+                (
+                    "attendance_alerts",
+                    models.BooleanField(default=True, verbose_name="Davomat xabarlari"),
+                ),
+                (
+                    "essay_graded_alerts",
+                    models.BooleanField(
+                        default=True, verbose_name="Esse bahosi xabarlari"
+                    ),
+                ),
+                (
+                    "test_result_alerts",
+                    models.BooleanField(
+                        default=True, verbose_name="Test natijasi xabarlari"
+                    ),
+                ),
+                (
+                    "observation_alerts",
+                    models.BooleanField(
+                        default=True,
+                        verbose_name="Kuzatuv xabarlari (tasdiqlangandan keyin)",
+                    ),
+                ),
+                (
+                    "teacher_new_essay",
+                    models.BooleanField(
+                        default=True, verbose_name="Yangi esse topshirildi"
+                    ),
+                ),
+                (
+                    "teacher_grading_completed",
+                    models.BooleanField(default=True, verbose_name="Esse baholandi"),
+                ),
+                (
+                    "teacher_grading_failed",
+                    models.BooleanField(
+                        default=True, verbose_name="Esse baholashda xatolik"
+                    ),
+                ),
+                (
+                    "teacher_attendance_reminder",
+                    models.BooleanField(
+                        default=True, verbose_name="Davomat yakunlanmagan eslatmasi"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notification_preference",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Xabar sozlamasi',
-                'verbose_name_plural': 'Xabar sozlamalari',
+                "verbose_name": "Xabar sozlamasi",
+                "verbose_name_plural": "Xabar sozlamalari",
             },
         ),
         migrations.AddIndex(
-            model_name='attendancesession',
-            index=models.Index(fields=['group', 'lesson_date'], name='idx_att_group_date'),
+            model_name="attendancesession",
+            index=models.Index(
+                fields=["group", "lesson_date"], name="idx_att_group_date"
+            ),
         ),
         migrations.AddIndex(
-            model_name='attendancesession',
-            index=models.Index(fields=['teacher', 'lesson_date'], name='idx_att_teacher_date'),
+            model_name="attendancesession",
+            index=models.Index(
+                fields=["teacher", "lesson_date"], name="idx_att_teacher_date"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='attendancesession',
-            constraint=models.UniqueConstraint(fields=('group', 'lesson_date', 'start_time'), name='uniq_attendance_session_slot'),
+            model_name="attendancesession",
+            constraint=models.UniqueConstraint(
+                fields=("group", "lesson_date", "start_time"),
+                name="uniq_attendance_session_slot",
+            ),
         ),
         migrations.AddIndex(
-            model_name='attendancerecord',
-            index=models.Index(fields=['student', 'status'], name='idx_att_student_status'),
+            model_name="attendancerecord",
+            index=models.Index(
+                fields=["student", "status"], name="idx_att_student_status"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='attendancerecord',
-            constraint=models.UniqueConstraint(fields=('session', 'student'), name='uniq_attendance_record_per_student'),
+            model_name="attendancerecord",
+            constraint=models.UniqueConstraint(
+                fields=("session", "student"), name="uniq_attendance_record_per_student"
+            ),
         ),
         migrations.AddIndex(
-            model_name='classroomobservation',
-            index=models.Index(fields=['student', 'created_at'], name='idx_obs_student'),
+            model_name="classroomobservation",
+            index=models.Index(
+                fields=["student", "created_at"], name="idx_obs_student"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='groupnotificationdestination',
-            constraint=models.UniqueConstraint(fields=('group', 'chat_id'), name='uniq_destination_group_chat'),
+            model_name="groupnotificationdestination",
+            constraint=models.UniqueConstraint(
+                fields=("group", "chat_id"), name="uniq_destination_group_chat"
+            ),
         ),
     ]

@@ -10,6 +10,7 @@ Telegram WebApp initData validation:
 
 Reference: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -38,7 +39,9 @@ class TelegramMiniAppService:
     """
 
     @classmethod
-    def validate_init_data(cls, init_data: str, bot_token: str = "") -> dict[str, Any] | None:
+    def validate_init_data(
+        cls, init_data: str, bot_token: str = ""
+    ) -> dict[str, Any] | None:
         """
         Validate Telegram WebApp initData.
 
@@ -96,7 +99,9 @@ class TelegramMiniAppService:
 
         # Compare
         if not hmac.compare_digest(computed_hash, received_hash):
-            logger.warning("Hash mismatch: computed=%s, received=%s", computed_hash, received_hash)
+            logger.warning(
+                "Hash mismatch: computed=%s, received=%s", computed_hash, received_hash
+            )
             return None
 
         # Check auth_date (not too old, not from future)
@@ -107,7 +112,9 @@ class TelegramMiniAppService:
             return None
         age = time.time() - auth_date
         if auth_date <= 0 or age < -60 or age > TMA_DATA_MAX_AGE:
-            logger.warning("initData expired: auth_date=%d, now=%d", auth_date, time.time())
+            logger.warning(
+                "initData expired: auth_date=%d, now=%d", auth_date, time.time()
+            )
             return None
 
         # Replay protection — hash may be reused only once per TTL window (atomic)

@@ -34,8 +34,13 @@ class WeeklyReportSettingsAdmin(admin.ModelAdmin):
     """The schedule. One row, edited in place."""
 
     list_display = (
-        "is_enabled", "send_weekday", "send_hour", "send_minute",
-        "timezone_name", "next_run_display", "retry_failed_deliveries",
+        "is_enabled",
+        "send_weekday",
+        "send_hour",
+        "send_minute",
+        "timezone_name",
+        "next_run_display",
+        "retry_failed_deliveries",
     )
     readonly_fields = ("updated_at", "updated_by")
 
@@ -72,16 +77,31 @@ class WeeklyGroupReportAdmin(admin.ModelAdmin):
     """Versioned, read-only history of what was reported."""
 
     list_display = (
-        "group", "period_label", "version", "is_current", "status",
-        "generated_at", "attendance_display", "grades_display",
+        "group",
+        "period_label",
+        "version",
+        "is_current",
+        "status",
+        "generated_at",
+        "attendance_display",
+        "grades_display",
     )
     list_filter = ("is_current", "status", "group")
     search_fields = ("group__name", "period_label")
     date_hierarchy = "period_start"
     readonly_fields = (
-        "group", "period_start", "period_end", "period_label", "version",
-        "is_current", "supersedes", "generation_reason", "status", "summary",
-        "generated_at", "generated_by",
+        "group",
+        "period_start",
+        "period_end",
+        "period_label",
+        "version",
+        "is_current",
+        "supersedes",
+        "generation_reason",
+        "status",
+        "summary",
+        "generated_at",
+        "generated_by",
     )
     actions = ("regenerate_selected", "send_selected")
 
@@ -118,18 +138,25 @@ class WeeklyGroupReportAdmin(admin.ModelAdmin):
         made = 0
         for report in queryset:
             services.regenerate(
-                report, actor=request.user,
+                report,
+                actor=request.user,
                 reason="Admin panel orqali qayta tayyorlandi",
             )
             made += 1
-        self.message_user(request, f"{made} ta hisobot yangi versiya bilan qayta tayyorlandi.", messages.SUCCESS)
+        self.message_user(
+            request,
+            f"{made} ta hisobot yangi versiya bilan qayta tayyorlandi.",
+            messages.SUCCESS,
+        )
 
     @admin.action(description="Tanlangan hisobotlarni qabul qiluvchilarga yuborish")
     def send_selected(self, request, queryset):
         sent = failed = 0
         for report in queryset.filter(is_current=True):
             for recipient in delivery.recipients_for_group(report.group):
-                if not delivery.preference_allows(recipient, delivery.PREFERENCE_TEACHER_WEEKLY):
+                if not delivery.preference_allows(
+                    recipient, delivery.PREFERENCE_TEACHER_WEEKLY
+                ):
                     continue
                 result = delivery.deliver_group_report(report, recipient)
                 sent += result.status == result.Status.SENT
@@ -147,9 +174,18 @@ class WeeklyStudentReportAdmin(admin.ModelAdmin):
     list_filter = ("is_current",)
     search_fields = ("student__email", "student__first_name", "period_label")
     readonly_fields = (
-        "student", "period_start", "period_end", "period_label", "version",
-        "is_current", "supersedes", "generation_reason", "status", "summary",
-        "generated_at", "generated_by",
+        "student",
+        "period_start",
+        "period_end",
+        "period_label",
+        "version",
+        "is_current",
+        "supersedes",
+        "generation_reason",
+        "status",
+        "summary",
+        "generated_at",
+        "generated_by",
     )
 
     def has_add_permission(self, request) -> bool:
@@ -173,14 +209,17 @@ class WeeklyReportDeliveryAdmin(admin.ModelAdmin):
     """Delivery audit: one row per (report version, recipient, channel)."""
 
     list_display = (
-        "recipient", "channel", "status", "retry_count", "sent_at",
-        "last_attempt_at", "dedup_short",
+        "recipient",
+        "channel",
+        "status",
+        "retry_count",
+        "sent_at",
+        "last_attempt_at",
+        "dedup_short",
     )
     list_filter = ("channel", "status")
     search_fields = ("recipient__email", "dedup_key")
-    readonly_fields = tuple(
-        field.name for field in WeeklyReportDelivery._meta.fields
-    )
+    readonly_fields = tuple(field.name for field in WeeklyReportDelivery._meta.fields)
     actions = ("retry_selected",)
 
     def has_add_permission(self, request) -> bool:
@@ -210,7 +249,9 @@ class WeeklyReportDeliveryAdmin(admin.ModelAdmin):
             return
         sent = failed = 0
         for row in WeeklyReportDelivery.objects.filter(pk__in=ids).select_related(
-            "report", "student_report", "recipient",
+            "report",
+            "student_report",
+            "recipient",
         ):
             target = row.target
             if target is None:
@@ -223,8 +264,12 @@ class WeeklyReportDeliveryAdmin(admin.ModelAdmin):
                 text = delivery.student_report_text(target)
                 buttons = None
             refreshed = delivery._deliver(
-                report=target, recipient=row.recipient, text=text, buttons=buttons,
-                channel=row.channel, dedup_key=row.dedup_key,
+                report=target,
+                recipient=row.recipient,
+                text=text,
+                buttons=buttons,
+                channel=row.channel,
+                dedup_key=row.dedup_key,
             )
             sent += refreshed.status == refreshed.Status.SENT
             failed += refreshed.status == refreshed.Status.FAILED

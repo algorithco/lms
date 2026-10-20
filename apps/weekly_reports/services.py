@@ -16,6 +16,7 @@ Two rules are load-bearing:
    is never presented as an official Milliy Sertifikat result, and financial
    figures exist only for recipients who are authorized to see them.
 """
+
 from __future__ import annotations
 
 import logging
@@ -63,6 +64,7 @@ SUPPORT_PERCENTAGE = 60.0
 # Period arithmetic
 # ---------------------------------------------------------------------------
 
+
 def reporting_timezone_name() -> str:
     try:
         return WeeklyReportSettings.load().timezone_name or DEFAULT_TIMEZONE
@@ -93,7 +95,10 @@ def week_bounds(anchor: datetime | None = None) -> tuple[datetime, datetime]:
     """
     local = _local(anchor)
     monday = (local - timedelta(days=local.weekday())).replace(
-        hour=0, minute=0, second=0, microsecond=0,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
     )
     sunday_end = monday + timedelta(days=7) - timedelta(microseconds=1)
     return monday, sunday_end
@@ -160,8 +165,10 @@ def next_run_at(now: datetime | None = None) -> datetime:
 # Aggregation: attendance
 # ---------------------------------------------------------------------------
 
-def attendance_summary(group: StudentGroup, period_start: datetime,
-                       period_end: datetime) -> dict:
+
+def attendance_summary(
+    group: StudentGroup, period_start: datetime, period_end: datetime
+) -> dict:
     """Attendance block, built from FINALIZED sessions only.
 
     Delegates the counts to :mod:`apps.attendance.services` so the weekly report
@@ -170,7 +177,9 @@ def attendance_summary(group: StudentGroup, period_start: datetime,
     """
     start_date, end_date = period_dates(period_start, period_end)
     report = attendance_services.group_attendance_report(
-        group, start=start_date, end=end_date,
+        group,
+        start=start_date,
+        end=end_date,
     )
     finalized = AttendanceSession.objects.filter(
         group=group,
@@ -188,9 +197,7 @@ def attendance_summary(group: StudentGroup, period_start: datetime,
             excused=Count("id", filter=Q(status=AttendanceRecord.Status.EXCUSED)),
         )
     )
-    names = dict(
-        group.students.filter(is_active=True).values_list("pk", "first_name")
-    )
+    names = dict(group.students.filter(is_active=True).values_list("pk", "first_name"))
     follow_up = []
     for row in rows:
         marked = row["present"] + row["late"] + row["absent"] + row["excused"]
@@ -199,15 +206,19 @@ def attendance_summary(group: StudentGroup, period_start: datetime,
         attended = row["present"] + row["late"]
         percentage = round(attended / marked * 100, 1)
         if row["absent"] >= FOLLOW_UP_ABSENCES or percentage < FOLLOW_UP_PERCENTAGE:
-            follow_up.append({
-                "student_id": row["student_id"],
-                "name": names.get(row["student_id"], ""),
-                "unexcused_absences": row["absent"],
-                "excused_absences": row["excused"],
-                "late": row["late"],
-                "attendance_percentage": percentage,
-            })
-    follow_up.sort(key=lambda item: (-item["unexcused_absences"], item["attendance_percentage"]))
+            follow_up.append(
+                {
+                    "student_id": row["student_id"],
+                    "name": names.get(row["student_id"], ""),
+                    "unexcused_absences": row["absent"],
+                    "excused_absences": row["excused"],
+                    "late": row["late"],
+                    "attendance_percentage": percentage,
+                }
+            )
+    follow_up.sort(
+        key=lambda item: (-item["unexcused_absences"], item["attendance_percentage"])
+    )
 
     return {
         "active_students": report["roster_size"],
@@ -228,8 +239,10 @@ def attendance_summary(group: StudentGroup, period_start: datetime,
 # Aggregation: essays
 # ---------------------------------------------------------------------------
 
-def essays_summary(group: StudentGroup, period_start: datetime,
-                   period_end: datetime) -> dict:
+
+def essays_summary(
+    group: StudentGroup, period_start: datetime, period_end: datetime
+) -> dict:
     """Essay block.
 
     Visibility follows the canonical rule in :mod:`apps.essays.group_reports`:
@@ -252,7 +265,8 @@ def essays_summary(group: StudentGroup, period_start: datetime,
         pending=Count("id", filter=Q(status__in=group_reports.PENDING_STATUSES)),
         failed=Count("id", filter=Q(status__in=group_reports.FAILED_STATUSES)),
         reviewed=Count(
-            "id", filter=Q(status=EssaySubmission.Status.TEACHER_REVIEWED),
+            "id",
+            filter=Q(status=EssaySubmission.Status.TEACHER_REVIEWED),
         ),
         avg_raw=Avg("total_score", filter=Q(status__in=group_reports.GRADED_STATUSES)),
     )
@@ -268,9 +282,12 @@ def essays_summary(group: StudentGroup, period_start: datetime,
             continue
         percentage = float(total or 0) / float(maximum) * 100
         key = (
-            "0-50%" if percentage < 50
-            else "50-70%" if percentage < 70
-            else "70-90%" if percentage < 90
+            "0-50%"
+            if percentage < 50
+            else "50-70%"
+            if percentage < 70
+            else "70-90%"
+            if percentage < 90
             else "90-100%"
         )
         buckets[key] += 1
@@ -303,7 +320,10 @@ def essays_summary(group: StudentGroup, period_start: datetime,
 def _dominant_max_score(submitted) -> int | None:
     row = (
         submitted.filter(status__in=group_reports.GRADED_STATUSES)
-        .values("max_score").annotate(total=Count("id")).order_by("-total").first()
+        .values("max_score")
+        .annotate(total=Count("id"))
+        .order_by("-total")
+        .first()
     )
     return row["max_score"] if row else None
 
@@ -312,8 +332,10 @@ def _dominant_max_score(submitted) -> int | None:
 # Aggregation: tests
 # ---------------------------------------------------------------------------
 
-def tests_summary(group: StudentGroup, period_start: datetime,
-                  period_end: datetime) -> dict:
+
+def tests_summary(
+    group: StudentGroup, period_start: datetime, period_end: datetime
+) -> dict:
     """Test block.
 
     "Assigned" means a published test on a course that at least one group
@@ -327,11 +349,18 @@ def tests_summary(group: StudentGroup, period_start: datetime,
     students = group.students.filter(is_active=True)
     course_ids = list(
         Enrollment.objects.filter(student__in=students)
-        .values_list("course_id", flat=True).distinct()
+        .values_list("course_id", flat=True)
+        .distinct()
     )
-    assigned_tests = Test.objects.filter(
-        is_active=True, status=Test.Status.PUBLISHED, course_id__in=course_ids,
-    ).count() if course_ids else 0
+    assigned_tests = (
+        Test.objects.filter(
+            is_active=True,
+            status=Test.Status.PUBLISHED,
+            course_id__in=course_ids,
+        ).count()
+        if course_ids
+        else 0
+    )
 
     attempts = TestAttempt.objects.filter(
         student__in=students,
@@ -360,11 +389,13 @@ def tests_summary(group: StudentGroup, period_start: datetime,
         if row["practice"] is None:
             continue
         if float(row["practice"]) < SUPPORT_PERCENTAGE:
-            needs_support.append({
-                "student_id": row["student_id"],
-                "practice_percentage": round(float(row["practice"]), 1),
-                "tests_taken": row["taken"],
-            })
+            needs_support.append(
+                {
+                    "student_id": row["student_id"],
+                    "practice_percentage": round(float(row["practice"]), 1),
+                    "tests_taken": row["taken"],
+                }
+            )
 
     return {
         "assigned_tests": assigned_tests,
@@ -388,8 +419,10 @@ def tests_summary(group: StudentGroup, period_start: datetime,
 # Aggregation: course payments (authorized recipients only)
 # ---------------------------------------------------------------------------
 
-def finance_block(group: StudentGroup, period_start: datetime,
-                  period_end: datetime) -> dict | None:
+
+def finance_block(
+    group: StudentGroup, period_start: datetime, period_end: datetime
+) -> dict | None:
     """Course-tuition block, or ``None`` when the tuition domain is unavailable.
 
     The figures are always *aggregate*: counts of invoices by status and total
@@ -404,7 +437,9 @@ def finance_block(group: StudentGroup, period_start: datetime,
         return None
     try:
         return tuition_services.group_finance_summary(
-            group, period_start, period_end,
+            group,
+            period_start,
+            period_end,
         )
     except Exception:
         logger.exception("Tuition summary failed for group %s", group.pk)
@@ -415,8 +450,10 @@ def finance_block(group: StudentGroup, period_start: datetime,
 # Summary assembly
 # ---------------------------------------------------------------------------
 
-def build_group_summary(group: StudentGroup, period_start: datetime,
-                        period_end: datetime) -> dict:
+
+def build_group_summary(
+    group: StudentGroup, period_start: datetime, period_end: datetime
+) -> dict:
     """Full persisted summary for one group and one closed week."""
     return {
         "group_id": group.pk,
@@ -434,12 +471,15 @@ def build_group_summary(group: StudentGroup, period_start: datetime,
     }
 
 
-def build_student_summary(student, period_start: datetime,
-                          period_end: datetime) -> dict:
+def build_student_summary(
+    student, period_start: datetime, period_end: datetime
+) -> dict:
     """One student's permitted week — the only content a parent ever receives."""
     start_date, end_date = period_dates(period_start, period_end)
     attendance = attendance_services.student_attendance_report(
-        student, start=start_date, end=end_date,
+        student,
+        start=start_date,
+        end=end_date,
     )
     from apps.results.models import Result
     from apps.tests.models import TestAttempt
@@ -504,6 +544,7 @@ def _student_practice(results) -> float | None:
 # Generation (idempotent) and explicit regeneration (versioned)
 # ---------------------------------------------------------------------------
 
+
 def _current_version(model, **filters) -> int:
     value = (
         model.objects.filter(is_current=True, **filters)
@@ -514,10 +555,15 @@ def _current_version(model, **filters) -> int:
     return int(value or 0)
 
 
-def generate_group_report(group: StudentGroup, period_start: datetime,
-                          period_end: datetime, *, actor=None,
-                          reason: str = "", regenerate: bool = False
-                          ) -> WeeklyGroupReport:
+def generate_group_report(
+    group: StudentGroup,
+    period_start: datetime,
+    period_end: datetime,
+    *,
+    actor=None,
+    reason: str = "",
+    regenerate: bool = False,
+) -> WeeklyGroupReport:
     """Generate (or explicitly regenerate) one group's report for a closed week.
 
     Calling this twice for the same week returns the *same* row unless
@@ -531,15 +577,22 @@ def generate_group_report(group: StudentGroup, period_start: datetime,
         # filtered report cannot serialize two simultaneous first writers.
         StudentGroup.objects.select_for_update().get(pk=group.pk)
         existing = (
-            WeeklyGroupReport.objects
-            .select_for_update()
+            WeeklyGroupReport.objects.select_for_update()
             .filter(group=group, period_start=period_start, is_current=True)
             .first()
         )
         if existing is not None and not regenerate:
             return existing
-        version = (existing.version + 1) if existing is not None else max(
-            1, _current_version(WeeklyGroupReport, group=group, period_start=period_start) + 1,
+        version = (
+            (existing.version + 1)
+            if existing is not None
+            else max(
+                1,
+                _current_version(
+                    WeeklyGroupReport, group=group, period_start=period_start
+                )
+                + 1,
+            )
         )
         summary = build_group_summary(group, period_start, period_end)
         if existing is not None:
@@ -559,27 +612,39 @@ def generate_group_report(group: StudentGroup, period_start: datetime,
     return report
 
 
-def generate_student_report(student, period_start: datetime, period_end: datetime,
-                            *, actor=None, reason: str = "",
-                            regenerate: bool = False) -> WeeklyStudentReport:
+def generate_student_report(
+    student,
+    period_start: datetime,
+    period_end: datetime,
+    *,
+    actor=None,
+    reason: str = "",
+    regenerate: bool = False,
+) -> WeeklyStudentReport:
     ensure_complete(period_end)
     with transaction.atomic():
         # Serialize first generation on the stable user row (there is no
         # report row yet for select_for_update to lock).
         type(student).objects.select_for_update().get(pk=student.pk)
         existing = (
-            WeeklyStudentReport.objects
-            .select_for_update()
+            WeeklyStudentReport.objects.select_for_update()
             .filter(student=student, period_start=period_start, is_current=True)
             .first()
         )
         if existing is not None and not regenerate:
             return existing
-        version = (existing.version + 1) if existing is not None else max(
-            1,
-            _current_version(
-                WeeklyStudentReport, student=student, period_start=period_start,
-            ) + 1,
+        version = (
+            (existing.version + 1)
+            if existing is not None
+            else max(
+                1,
+                _current_version(
+                    WeeklyStudentReport,
+                    student=student,
+                    period_start=period_start,
+                )
+                + 1,
+            )
         )
         summary = build_student_summary(student, period_start, period_end)
         if existing is not None:
@@ -599,8 +664,9 @@ def generate_student_report(student, period_start: datetime, period_end: datetim
     return report
 
 
-def generate_all_reports(period_start: datetime, period_end: datetime, *,
-                         now: datetime | None = None) -> dict:
+def generate_all_reports(
+    period_start: datetime, period_end: datetime, *, now: datetime | None = None
+) -> dict:
     """Generate every group report (and parent-facing student reports).
 
     Missed-job recovery: the job is idempotent for a given week, so an operator
@@ -611,7 +677,9 @@ def generate_all_reports(period_start: datetime, period_end: datetime, *,
     groups_reused = 0
     for group in StudentGroup.objects.all().order_by("pk"):
         before = WeeklyGroupReport.objects.filter(
-            group=group, period_start=period_start, is_current=True,
+            group=group,
+            period_start=period_start,
+            is_current=True,
         ).exists()
         generate_group_report(group, period_start, period_end)
         if before:
@@ -622,14 +690,15 @@ def generate_all_reports(period_start: datetime, period_end: datetime, *,
     students_created = students_reused = 0
     for student in _students_needing_reports():
         before = WeeklyStudentReport.objects.filter(
-            student=student, period_start=period_start, is_current=True,
+            student=student,
+            period_start=period_start,
+            is_current=True,
         ).exists()
         generate_student_report(student, period_start, period_end)
         if before:
             students_reused += 1
         else:
             students_created += 1
-
 
     return {
         "period_start": period_start.isoformat(),
@@ -658,19 +727,31 @@ def _students_needing_reports():
     )
     from django.contrib.auth import get_user_model
 
-    return list(get_user_model().objects.filter(
-        pk__in=list(ids), is_active=True, role="student",
-    ))
+    return list(
+        get_user_model().objects.filter(
+            pk__in=list(ids),
+            is_active=True,
+            role="student",
+        )
+    )
 
 
 def regenerate(report: ReportPeriodMixin, *, actor, reason: str) -> ReportPeriodMixin:
     """Explicit, versioned regeneration. Never silently rewrites a report."""
     if isinstance(report, WeeklyGroupReport):
         return generate_group_report(
-            report.group, report.period_start, report.period_end,
-            actor=actor, reason=reason, regenerate=True,
+            report.group,
+            report.period_start,
+            report.period_end,
+            actor=actor,
+            reason=reason,
+            regenerate=True,
         )
     return generate_student_report(
-        report.student, report.period_start, report.period_end,
-        actor=actor, reason=reason, regenerate=True,
+        report.student,
+        report.period_start,
+        report.period_end,
+        actor=actor,
+        reason=reason,
+        regenerate=True,
     )

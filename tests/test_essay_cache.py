@@ -44,7 +44,10 @@ class EssayGradeCacheTests(TestCase):
     def tearDown(self):
         cache.clear()
 
-    @patch("apps.essays.services._grade_via_llm", return_value=(VALID_GRADE.copy(), "cache-test-model"))
+    @patch(
+        "apps.essays.services._grade_via_llm",
+        return_value=(VALID_GRADE.copy(), "cache-test-model"),
+    )
     @patch("apps.essays.services._get_llm_client")
     def test_same_essay_and_topic_reuses_cached_grade(self, client_factory, grader):
         client_factory.return_value = MagicMock()
@@ -57,7 +60,10 @@ class EssayGradeCacheTests(TestCase):
         grader.assert_called_once()
         self.assertEqual(EssayGradingCache.objects.get().hit_count, 2)
 
-    @patch("apps.essays.services._grade_via_llm", return_value=(VALID_GRADE.copy(), "cache-test-model"))
+    @patch(
+        "apps.essays.services._grade_via_llm",
+        return_value=(VALID_GRADE.copy(), "cache-test-model"),
+    )
     @patch("apps.essays.services._get_llm_client")
     def test_cache_separates_topics_and_grading_context(self, client_factory, grader):
         client_factory.return_value = MagicMock()
@@ -78,30 +84,45 @@ class EssayGradeCacheTests(TestCase):
             text_hash=text_hash,
             essay_text="Essay",
             raw_result={"criteria": [], "total_score": 18, "max_score": 24},
-            total_score=Decimal("18"), max_score=24,
+            total_score=Decimal("18"),
+            max_score=24,
         )
         self.assertIsNone(_load_cached_grading_result(text_hash))
         self.assertFalse(EssayGradingCache.objects.filter(text_hash=text_hash).exists())
 
-    @patch("apps.essays.services._essay_rewrite_cache_hash", return_value="rewrite-hash-test")
+    @patch(
+        "apps.essays.services._essay_rewrite_cache_hash",
+        return_value="rewrite-hash-test",
+    )
     @patch("apps.essays.services._is_mock_mode", return_value=True)
     @patch("apps.essays.services._get_ai_model")
     def test_rewrite_cache_reused_across_submissions_with_same_grade_context(
-        self, get_model, is_mock, rewrite_hash,
+        self,
+        get_model,
+        is_mock,
+        rewrite_hash,
     ):
         get_model.return_value = "rewrite-cache-model"
-        user = User.objects.create_user(email="rewrite-cache@example.test", password="StrongPass123!")
+        user = User.objects.create_user(
+            email="rewrite-cache@example.test", password="StrongPass123!"
+        )
         first = EssaySubmission.objects.create(
-            student=user, essay_text="A long essay body about literature.",
+            student=user,
+            essay_text="A long essay body about literature.",
             status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("18"), max_score=24,
-            raw_result=VALID_GRADE, summary="Improve the arguments.",
+            total_score=Decimal("18"),
+            max_score=24,
+            raw_result=VALID_GRADE,
+            summary="Improve the arguments.",
         )
         second = EssaySubmission.objects.create(
-            student=user, essay_text=first.essay_text,
+            student=user,
+            essay_text=first.essay_text,
             status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("18"), max_score=24,
-            raw_result=VALID_GRADE, summary="Improve the arguments.",
+            total_score=Decimal("18"),
+            max_score=24,
+            raw_result=VALID_GRADE,
+            summary="Improve the arguments.",
         )
 
         first_content = generate_improved_essay(first)
@@ -116,23 +137,35 @@ class EssayGradeCacheTests(TestCase):
 
     def test_rewrite_cache_is_keyed_by_full_grading_context(self):
         """Different grade context (summary) must not share a rewrite."""
-        user = User.objects.create_user(email="rewrite-key@example.test", password="StrongPass123!")
+        user = User.objects.create_user(
+            email="rewrite-key@example.test", password="StrongPass123!"
+        )
         first = EssaySubmission.objects.create(
-            student=user, essay_text="A long essay body about literature.",
+            student=user,
+            essay_text="A long essay body about literature.",
             status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("18"), max_score=24,
-            raw_result=VALID_GRADE, summary="Improve the arguments.",
+            total_score=Decimal("18"),
+            max_score=24,
+            raw_result=VALID_GRADE,
+            summary="Improve the arguments.",
         )
         second = EssaySubmission.objects.create(
-            student=user, essay_text=first.essay_text,
+            student=user,
+            essay_text=first.essay_text,
             status=EssaySubmission.Status.GRADED,
-            total_score=Decimal("18"), max_score=24,
-            raw_result=VALID_GRADE, summary="Butunlay boshqa xulosa.",
+            total_score=Decimal("18"),
+            max_score=24,
+            raw_result=VALID_GRADE,
+            summary="Butunlay boshqa xulosa.",
         )
         from apps.essays.services import _essay_rewrite_cache_hash
 
-        with patch("apps.essays.services._is_mock_mode", return_value=True), patch(
-            "apps.essays.services._get_ai_model", return_value="rewrite-cache-model",
+        with (
+            patch("apps.essays.services._is_mock_mode", return_value=True),
+            patch(
+                "apps.essays.services._get_ai_model",
+                return_value="rewrite-cache-model",
+            ),
         ):
             self.assertNotEqual(
                 _essay_rewrite_cache_hash(first),

@@ -1,6 +1,7 @@
 """
 Payments views — subscription management, payment processing.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,7 +33,9 @@ def subscribe_view(request: HttpRequest, plan_id: int) -> HttpResponse:
 @login_required
 def payment_success_view(request: HttpRequest) -> HttpResponse:
     """To'lov cheki yuborilgandan keyin (manual flow) — holat sahifasi."""
-    messages.success(request, "Chek qabul qilindi! Admin tekshirgandan so'ng obuna faollashtiriladi.")
+    messages.success(
+        request, "Chek qabul qilindi! Admin tekshirgandan so'ng obuna faollashtiriladi."
+    )
     return redirect("payments:my-subscription")
 
 
@@ -63,7 +66,9 @@ def cancel_subscription_view(request: HttpRequest) -> HttpResponse:
     user_sub.cancelled_at = timezone.now()
     user_sub.save(update_fields=["status", "cancelled_at", "updated_at"])
 
-    messages.success(request, "Obuna bekor qilindi. Muddati tugaguncha foydalanishingiz mumkin.")
+    messages.success(
+        request, "Obuna bekor qilindi. Muddati tugaguncha foydalanishingiz mumkin."
+    )
     return redirect("payments:my-subscription")
 
 
@@ -73,20 +78,26 @@ def subscription_api_view(request: HttpRequest) -> JsonResponse:
     user_sub = getattr(request.user, "subscription", None)
 
     if not user_sub or not user_sub.is_active:
-        return JsonResponse({
-            "has_subscription": False,
-            "plan": "free",
-            "features": _get_free_features(),
-        })
+        return JsonResponse(
+            {
+                "has_subscription": False,
+                "plan": "free",
+                "features": _get_free_features(),
+            }
+        )
 
-    return JsonResponse({
-        "has_subscription": True,
-        "plan": user_sub.plan.plan_type,
-        "plan_name": user_sub.plan.name,
-        "expires_at": user_sub.expires_at.isoformat() if user_sub.expires_at else None,
-        "days_remaining": user_sub.days_remaining,
-        "features": _get_plan_features(user_sub.plan),
-    })
+    return JsonResponse(
+        {
+            "has_subscription": True,
+            "plan": user_sub.plan.plan_type,
+            "plan_name": user_sub.plan.name,
+            "expires_at": user_sub.expires_at.isoformat()
+            if user_sub.expires_at
+            else None,
+            "days_remaining": user_sub.days_remaining,
+            "features": _get_plan_features(user_sub.plan),
+        }
+    )
 
 
 def _get_free_features() -> dict:

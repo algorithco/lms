@@ -17,6 +17,7 @@ Privacy model (enforced by the services, not just the API):
   parent until the recording teacher explicitly confirms them, and they never
   carry a humiliating label or an automatic punishment.
 """
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -58,20 +59,27 @@ class AttendanceSession(models.Model):
     start_time = models.TimeField(_("boshlanish vaqti"), null=True, blank=True)
     end_time = models.TimeField(_("tugash vaqti"), null=True, blank=True)
     status = models.CharField(
-        _("holat"), max_length=20, choices=Status.choices,
-        default=Status.DRAFT, db_index=True,
+        _("holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
     )
     #: Optional free-text label ("1-dars", "Nazorat ishi").
     title = models.CharField(_("izoh"), max_length=120, blank=True)
     idempotency_key = models.CharField(
-        _("idempotentlik kaliti"), max_length=120, unique=True,
-        null=True, blank=True,
+        _("idempotentlik kaliti"),
+        max_length=120,
+        unique=True,
+        null=True,
+        blank=True,
         help_text=_("Bot callback'ini takror yuborishda dublikat yaratmaslik uchun."),
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="created_attendance_sessions",
     )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
@@ -80,7 +88,8 @@ class AttendanceSession(models.Model):
     finalized_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="finalized_attendance_sessions",
     )
 
@@ -99,7 +108,9 @@ class AttendanceSession(models.Model):
         ]
         indexes = [
             models.Index(fields=["group", "lesson_date"], name="idx_att_group_date"),
-            models.Index(fields=["teacher", "lesson_date"], name="idx_att_teacher_date"),
+            models.Index(
+                fields=["teacher", "lesson_date"], name="idx_att_teacher_date"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -146,14 +157,18 @@ class AttendanceRecord(models.Model):
         verbose_name=_("o'quvchi"),
     )
     status = models.CharField(
-        _("holat"), max_length=16, choices=Status.choices, db_index=True,
+        _("holat"),
+        max_length=16,
+        choices=Status.choices,
+        db_index=True,
     )
     late_minutes = models.PositiveIntegerField(_("kechikish (daqiqa)"), default=0)
     note = models.CharField(_("izoh"), max_length=200, blank=True)
     marked_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="marked_attendance_records",
     )
     marked_at = models.DateTimeField(_("belgilangan vaqt"), default=timezone.now)
@@ -192,7 +207,8 @@ class AttendanceAuditLog(models.Model):
     record = models.ForeignKey(
         AttendanceRecord,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="audit_logs",
     )
     student = models.ForeignKey(
@@ -203,7 +219,8 @@ class AttendanceAuditLog(models.Model):
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="attendance_actions",
     )
     field = models.CharField(_("maydon"), max_length=32, default="status")
@@ -234,7 +251,10 @@ class ClassroomObservation(models.Model):
     """
 
     class ObservationType(models.TextChoices):
-        PARTICIPATION = "participation_needs_attention", _("Faollik e'tibor talab qiladi")
+        PARTICIPATION = (
+            "participation_needs_attention",
+            _("Faollik e'tibor talab qiladi"),
+        )
         RULES = "classroom_rules_reminder", _("Sinf qoidalari eslatmasi")
         POSITIVE = "positive_participation", _("Ijobiy faollik")
         NOTE = "teacher_note", _("O'qituvchi izohi")
@@ -253,7 +273,8 @@ class ClassroomObservation(models.Model):
     session = models.ForeignKey(
         AttendanceSession,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="observations",
     )
     teacher = models.ForeignKey(
@@ -262,17 +283,23 @@ class ClassroomObservation(models.Model):
         related_name="recorded_observations",
     )
     observation_type = models.CharField(
-        _("turi"), max_length=40, choices=ObservationType.choices,
+        _("turi"),
+        max_length=40,
+        choices=ObservationType.choices,
     )
     neutral_description = models.TextField(_("neytral izoh"))
     notification_status = models.CharField(
-        _("xabar holati"), max_length=24, choices=NotificationStatus.choices,
-        default=NotificationStatus.NOT_SENT, db_index=True,
+        _("xabar holati"),
+        max_length=24,
+        choices=NotificationStatus.choices,
+        default=NotificationStatus.NOT_SENT,
+        db_index=True,
     )
     confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="confirmed_observations",
     )
     confirmed_at = models.DateTimeField(_("tasdiqlangan vaqt"), null=True, blank=True)
@@ -318,26 +345,33 @@ class GroupNotificationDestination(models.Model):
         "courses.StudentGroup",
         on_delete=models.CASCADE,
         related_name="notification_destinations",
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text=_("Bo'sh bo'lsa — barcha guruhlar uchun umumiy manzil."),
     )
     chat_id = models.BigIntegerField(_("Telegram chat ID"))
     title = models.CharField(_("nomi"), max_length=150, blank=True)
     destination_type = models.CharField(
-        _("manzil turi"), max_length=20, choices=DestinationType.choices,
-        default=DestinationType.PARENT_PUBLIC, db_index=True,
+        _("manzil turi"),
+        max_length=20,
+        choices=DestinationType.choices,
+        default=DestinationType.PARENT_PUBLIC,
+        db_index=True,
     )
     is_enabled = models.BooleanField(_("yoqilgan"), default=True)
     is_approved = models.BooleanField(_("tasdiqlangan"), default=False)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="approved_notification_destinations",
     )
     approved_at = models.DateTimeField(_("tasdiqlangan vaqt"), null=True, blank=True)
     #: Categories this destination accepts, e.g. ``["attendance_summary"]``.
-    allowed_categories = models.JSONField(_("ruxsat etilgan toifalar"), default=list, blank=True)
+    allowed_categories = models.JSONField(
+        _("ruxsat etilgan toifalar"), default=list, blank=True
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 
@@ -384,25 +418,32 @@ class NotificationPreference(models.Model):
     essay_graded_alerts = models.BooleanField(_("Esse bahosi xabarlari"), default=True)
     test_result_alerts = models.BooleanField(_("Test natijasi xabarlari"), default=True)
     observation_alerts = models.BooleanField(
-        _("Kuzatuv xabarlari (tasdiqlangandan keyin)"), default=True,
+        _("Kuzatuv xabarlari (tasdiqlangandan keyin)"),
+        default=True,
     )
     # Teacher facing
     teacher_new_essay = models.BooleanField(_("Yangi esse topshirildi"), default=True)
     teacher_grading_completed = models.BooleanField(_("Esse baholandi"), default=True)
-    teacher_grading_failed = models.BooleanField(_("Esse baholashda xatolik"), default=True)
+    teacher_grading_failed = models.BooleanField(
+        _("Esse baholashda xatolik"), default=True
+    )
     teacher_attendance_reminder = models.BooleanField(
-        _("Davomat yakunlanmagan eslatmasi"), default=True,
+        _("Davomat yakunlanmagan eslatmasi"),
+        default=True,
     )
     # Weekly report digest (optional — a recipient may switch it off)
     teacher_weekly_report = models.BooleanField(
-        _("Haftalik guruh hisoboti (o'qituvchi)"), default=True,
+        _("Haftalik guruh hisoboti (o'qituvchi)"),
+        default=True,
     )
     parent_weekly_report = models.BooleanField(
-        _("Haftalik farzand hisoboti (ota-ona)"), default=True,
+        _("Haftalik farzand hisoboti (ota-ona)"),
+        default=True,
     )
     # Course tuition reminders (separate from platform subscription notices)
     tuition_reminders = models.BooleanField(
-        _("Kurs to'lovi eslatmalari"), default=True,
+        _("Kurs to'lovi eslatmalari"),
+        default=True,
     )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)

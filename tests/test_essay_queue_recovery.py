@@ -14,6 +14,7 @@ Ushbu suite quyidagi kontraktlarni himoya qiladi:
   4. recover_stale_essays buyrug'i stale PENDING'larni xavfsiz tiklaydi:
      atomic claim + dedup oynasi + double grading yo'q.
 """
+
 from __future__ import annotations
 
 import io
@@ -27,6 +28,7 @@ from django.utils import timezone
 
 from apps.essays.models import EssaySubmission, EssayTopic
 
+
 class FullEssayReachesGraderTests(TestCase):
     """Phase 3 kontrakt: AI HECH QACHON kesilmagan/predview matnni baholamaydi —
     bazadagi TO'LIQ essay_text graderning o'ziga yetib boradi."""
@@ -36,29 +38,40 @@ class FullEssayReachesGraderTests(TestCase):
 
         User = get_user_model()
         self.student = User.objects.create_user(
-            email="fulltext@test.com", password="x", role="student",
+            email="fulltext@test.com",
+            password="x",
+            role="student",
         )
         self.topic = EssayTopic.objects.create(
-            title="To'liq matn mavzusi", description="",
-            word_limit_min=20, word_limit_max=2000, time_limit_minutes=60,
+            title="To'liq matn mavzusi",
+            description="",
+            word_limit_min=20,
+            word_limit_max=2000,
+            time_limit_minutes=60,
         )
 
     def test_complete_submitted_text_passed_to_llm(self) -> None:
         # ~30 000 belgi — MAX_ESSAY_LENGTH (50_000) ostida, lekin har qanday
         # "birinchi paragraf/predview" kesishdan ancha katta.
-        full_text = ("Bu paragraf o'quvchining haqiqiy esse matnidan olingan. " * 500).strip()
+        full_text = (
+            "Bu paragraf o'quvchining haqiqiy esse matnidan olingan. " * 500
+        ).strip()
         sub = EssaySubmission.objects.create(
-            student=self.student, topic=self.topic,
+            student=self.student,
+            topic=self.topic,
             status=EssaySubmission.Status.PENDING,
-            essay_text=full_text, word_count=5_000,
+            essay_text=full_text,
+            word_count=5_000,
         )
         from apps.essays.tasks import grade_submission_task
 
         with patch(
-            "apps.essays.services.grade_essay", return_value=dict(MOCK_GRADE),
+            "apps.essays.services.grade_essay",
+            return_value=dict(MOCK_GRADE),
         ) as mock_grade:
             grade_submission_task.apply(
-                args=[sub.pk], kwargs={"fail_status": EssaySubmission.Status.ERROR},
+                args=[sub.pk],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
             )
         mock_grade.assert_called_once()
         graded_text = mock_grade.call_args.args[0]
@@ -83,7 +96,8 @@ class FullEssayReachesGraderTests(TestCase):
         # Contract: nothing oversized ever reached the grading queue.
         self.assertFalse(
             EssaySubmission.objects.filter(
-                essay_text=oversized, status=EssaySubmission.Status.PENDING,
+                essay_text=oversized,
+                status=EssaySubmission.Status.PENDING,
             ).exists(),
         )
 
@@ -115,7 +129,8 @@ class QueueRoutingConfigTests(TestCase):
         ):
             self.assertIn(task_name, routes, f"{task_name} not routed")
             self.assertEqual(
-                routes[task_name].get("queue"), "essay_grading",
+                routes[task_name].get("queue"),
+                "essay_grading",
                 f"{task_name} must route to essay_grading",
             )
 
@@ -239,12 +254,15 @@ class RecoverStaleEssaysTests(TestCase):
         """Tiklangan qator task'da GRADED bo'lgach, ikkinchi task natijani yo'q qilmasligi kerak."""
         stale = self._make_pending(stale_minutes=30)
 
-        with patch(
-            "apps.essays.services.grade_essay",
-            return_value=dict(MOCK_GRADE),
-        ) as mock_grade, patch(
-            "apps.essays.tasks.grade_submission_task.delay",
-        ) as mock_delay:
+        with (
+            patch(
+                "apps.essays.services.grade_essay",
+                return_value=dict(MOCK_GRADE),
+            ) as mock_grade,
+            patch(
+                "apps.essays.tasks.grade_submission_task.delay",
+            ) as mock_delay,
+        ):
             mock_delay.return_value = MagicMock()
             out = io.StringIO()
             with redirect_stdout(out):
@@ -255,10 +273,12 @@ class RecoverStaleEssaysTests(TestCase):
             from apps.essays.tasks import grade_submission_task
 
             r1 = grade_submission_task.apply(
-                args=[stale.pk], kwargs={"fail_status": EssaySubmission.Status.ERROR},
+                args=[stale.pk],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
             )
             r2 = grade_submission_task.apply(
-                args=[stale.pk], kwargs={"fail_status": EssaySubmission.Status.ERROR},
+                args=[stale.pk],
+                kwargs={"fail_status": EssaySubmission.Status.ERROR},
             )
 
         self.assertEqual(r1.result.get("status"), "ok")

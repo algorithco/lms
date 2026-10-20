@@ -8,6 +8,7 @@ owns these paths now, so the Django page views answer with spa/index.html
 
 Pattern mirrors apps/telegram_app/views.py:tma_index_view.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,7 +18,9 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 
 
-def serve_spa_shell(request: HttpRequest, fallback: str = "/", resource: str = "") -> HttpResponse:
+def serve_spa_shell(
+    request: HttpRequest, fallback: str = "/", resource: str = ""
+) -> HttpResponse:
     """GET page → baked SPA shell (or SPA-route redirect when unbaked)."""
     spa_index = Path(settings.BASE_DIR) / "spa" / "index.html"
     frontend_dist_index = Path(settings.BASE_DIR) / "frontend" / "dist" / "index.html"
@@ -37,7 +40,11 @@ def serve_spa_shell(request: HttpRequest, fallback: str = "/", resource: str = "
 
     # Guard against redirect loop: if redirect target matches request.path, never redirect to self.
     current_path = request.path
-    if target == current_path or fallback == current_path or target.rstrip("/") == current_path.rstrip("/"):
+    if (
+        target == current_path
+        or fallback == current_path
+        or target.rstrip("/") == current_path.rstrip("/")
+    ):
         if getattr(settings, "DEBUG", False):
             vite_url = f"http://localhost:5173{current_path}"
             if query:

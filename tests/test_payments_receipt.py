@@ -92,7 +92,9 @@ def test_receipt_upload_and_my_receipts():
         {
             "plan": "pro",
             "amount": "49000",
-            "receipt_image": _create_test_image(color="green", filename="receipt_pro.jpg"),
+            "receipt_image": _create_test_image(
+                color="green", filename="receipt_pro.jpg"
+            ),
         },
         format="multipart",
     )
@@ -207,7 +209,9 @@ def test_google_auth_routes():
     assert response.status_code in (200, 302)
 
     # 3. Test POST invalid body gives 400 with error
-    response_post = client.post(url, data={"invalid": "token"}, content_type="application/json")
+    response_post = client.post(
+        url, data={"invalid": "token"}, content_type="application/json"
+    )
     assert response_post.status_code in (400, 503)
 
     # 4. Test POST valid mock credential auto-creates user and returns tokens
@@ -219,8 +223,9 @@ def test_google_auth_routes():
         "given_name": "Alisher",
         "family_name": "Navoiy",
     }
-    with override_settings(GOOGLE_CLIENT_ID="mock-google-client-id"), patch(
-        "apps.accounts.google_auth._verified_claims", return_value=mock_claims
+    with (
+        override_settings(GOOGLE_CLIENT_ID="mock-google-client-id"),
+        patch("apps.accounts.google_auth._verified_claims", return_value=mock_claims),
     ):
         resp_verify = client.post(
             url,
@@ -267,7 +272,9 @@ def test_receipt_image_validation_and_duplicate_hash():
     assert "5MB" in str(exc_info_size.value)
 
     # 4. Save receipt with this hash in DB
-    user = User.objects.create_user(email="hash_user@grandec.uz", password="ValidPassword123!")
+    user = User.objects.create_user(
+        email="hash_user@grandec.uz", password="ValidPassword123!"
+    )
     PaymentReceipt.objects.create(
         user=user,
         plan="starter",
@@ -279,17 +286,23 @@ def test_receipt_image_validation_and_duplicate_hash():
     # 5. Duplicate hash must be rejected
     with pytest.raises(ValueError) as exc_dup:
         validate_and_hash_receipt_image(valid_bytes)
-    assert "⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi." in str(exc_dup.value)
+    assert (
+        "⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi."
+        in str(exc_dup.value)
+    )
 
 
 @pytest.mark.django_db
 def test_ai_daily_quota_and_rate_limiting():
     from apps.payments.ai_quota import check_and_consume_ai_quota, get_user_plan_tier
     from django.core.cache import cache
+
     cache.clear()
 
     # Free user: exactly 1 request per day
-    free_user = User.objects.create_user(email="free_student@grandec.uz", password="ValidPassword123!")
+    free_user = User.objects.create_user(
+        email="free_student@grandec.uz", password="ValidPassword123!"
+    )
     free_user.profile.plan = "free"
     free_user.profile.save()
 
@@ -303,10 +316,15 @@ def test_ai_daily_quota_and_rate_limiting():
     # 2nd request rejected
     allowed2, msg2 = check_and_consume_ai_quota(free_user)
     assert allowed2 is False
-    assert "Sizning bugungi bepul AI limitingiz tugadi. Cheksiz foydalanish uchun tarifingizni yangilang!" in msg2
+    assert (
+        "Sizning bugungi bepul AI limitingiz tugadi. Cheksiz foydalanish uchun tarifingizni yangilang!"
+        in msg2
+    )
 
     # Starter user: 20 requests per day
-    starter_user = User.objects.create_user(email="starter_student@grandec.uz", password="ValidPassword123!")
+    starter_user = User.objects.create_user(
+        email="starter_student@grandec.uz", password="ValidPassword123!"
+    )
     starter_user.profile.plan = "starter"
     starter_user.profile.save()
     assert get_user_plan_tier(starter_user) == "starter"
@@ -321,7 +339,9 @@ def test_ai_daily_quota_and_rate_limiting():
     assert "Sizning bugungi Starter AI limitingiz tugadi" in err21
 
     # Pro user: 50 requests per day
-    pro_user = User.objects.create_user(email="pro_student@grandec.uz", password="ValidPassword123!")
+    pro_user = User.objects.create_user(
+        email="pro_student@grandec.uz", password="ValidPassword123!"
+    )
     pro_user.profile.plan = "pro"
     pro_user.profile.save()
     assert get_user_plan_tier(pro_user) == "pro"
@@ -335,7 +355,9 @@ def test_ai_daily_quota_and_rate_limiting():
     assert "Sizning bugungi Pro AI limitingiz tugadi" in err51
 
     # Premium user: unlimited requests
-    prem_user = User.objects.create_user(email="prem_student@grandec.uz", password="ValidPassword123!")
+    prem_user = User.objects.create_user(
+        email="prem_student@grandec.uz", password="ValidPassword123!"
+    )
     prem_user.profile.plan = "premium"
     prem_user.profile.save()
     assert get_user_plan_tier(prem_user) == "premium"
@@ -343,4 +365,3 @@ def test_ai_daily_quota_and_rate_limiting():
     for _ in range(30):
         ok_prem, _ = check_and_consume_ai_quota(prem_user)
         assert ok_prem is True
-

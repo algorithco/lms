@@ -5,6 +5,7 @@ Live rejim client mock orqali sinovdan o'tkaziladi: birinchi model OK,
 birinchi model fail → keyingi modelga o'tish, butun zanjir fail → CommandError,
 mock mode yoqilgan bo'lsa --live rad etilishi.
 """
+
 from __future__ import annotations
 
 from io import StringIO
@@ -86,7 +87,10 @@ class AiSmokeTestLiveTests(SimpleTestCase):
 
     def test_first_model_fail_falls_to_next(self):
         out = self._run(
-            [Exception("Error code: 400 - bad-model:free is not a valid model ID"), _ok_response()]
+            [
+                Exception("Error code: 400 - bad-model:free is not a valid model ID"),
+                _ok_response(),
+            ]
         )
         text = out.getvalue()
         self.assertIn("FAIL", text)
@@ -157,7 +161,9 @@ class AiSmokeTestValidateModelsTests(SimpleTestCase):
     def test_validation_passes_when_all_known(self, _mock_fetch):
         out = StringIO()
         call_command(
-            "ai_smoke_test", validate_models=True, stdout=out,
+            "ai_smoke_test",
+            validate_models=True,
+            stdout=out,
             model=CHAIN[0],  # faqat katalogda bor modelni tekshiramiz
         )
         text = out.getvalue()

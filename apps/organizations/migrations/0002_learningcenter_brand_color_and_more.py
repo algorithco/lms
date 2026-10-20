@@ -4,25 +4,41 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('organizations', '0001_initial'),
+        ("organizations", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='learningcenter',
-            name='brand_color',
-            field=models.CharField(default='#0F766E', help_text='HEX rang kodi, masalan #0F766E', max_length=20, verbose_name='Brend rangi'),
+            model_name="learningcenter",
+            name="brand_color",
+            field=models.CharField(
+                default="#0F766E",
+                help_text="HEX rang kodi, masalan #0F766E",
+                max_length=20,
+                verbose_name="Brend rangi",
+            ),
         ),
         migrations.AddField(
-            model_name='learningcenter',
-            name='header_title',
-            field=models.CharField(blank=True, default='', help_text="Rasmiy hisobot sarlavhasi, masalan 'GRAND EDUCATION Hamkor Markazi'", max_length=200, verbose_name='Hisobot sarlavhasi'),
+            model_name="learningcenter",
+            name="header_title",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Rasmiy hisobot sarlavhasi, masalan 'GRAND EDUCATION Hamkor Markazi'",
+                max_length=200,
+                verbose_name="Hisobot sarlavhasi",
+            ),
         ),
         migrations.AddField(
-            model_name='learningcenter',
-            name='stamp_signature',
-            field=models.ImageField(blank=True, help_text="PDF hisobot va sertifikatlarga qo'yiladigan shaffof muhr/imzo.", null=True, upload_to='centers/stamps/%Y/%m/', verbose_name='Muhr / Imzo tasviri'),
+            model_name="learningcenter",
+            name="stamp_signature",
+            field=models.ImageField(
+                blank=True,
+                help_text="PDF hisobot va sertifikatlarga qo'yiladigan shaffof muhr/imzo.",
+                null=True,
+                upload_to="centers/stamps/%Y/%m/",
+                verbose_name="Muhr / Imzo tasviri",
+            ),
         ),
     ]

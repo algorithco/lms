@@ -37,6 +37,7 @@ Signals (thresholds overridable via WATCHDOG_* env):
   - app health: GET <SITE_URL>/healthz (status/db/version)
   - host reboot detection (boot_id change)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -93,8 +94,13 @@ def run(cmd: list[str], timeout: int = 30) -> str | None:
         return None
 
 
-def bot_api(token: str, method: str, params: dict | None = None,
-            data: dict | None = None, timeout: int = 40):
+def bot_api(
+    token: str,
+    method: str,
+    params: dict | None = None,
+    data: dict | None = None,
+    timeout: int = 40,
+):
     """Raw Bot API call. GET when data is None, POST otherwise."""
     base = f"https://api.telegram.org/bot{token}/{method}"
     try:
@@ -245,8 +251,13 @@ def save_state(state: dict, path: str = STATE_PATH) -> None:
         pass
 
 
-def evaluate(metrics: dict, thresholds: dict, state: dict, now: float,
-             cooldown: float = COOLDOWN_SEC) -> list[tuple[str, str]]:
+def evaluate(
+    metrics: dict,
+    thresholds: dict,
+    state: dict,
+    now: float,
+    cooldown: float = COOLDOWN_SEC,
+) -> list[tuple[str, str]]:
     """Pure decision function (unit-tested). Returns [(key, text)]."""
     alerts: list[tuple[str, str]] = []
 
@@ -260,18 +271,26 @@ def evaluate(metrics: dict, thresholds: dict, state: dict, now: float,
     fp = metrics.get("authkeys_fingerprint")
     prev = state.get("authkeys_fingerprint")
     if fp and prev and fp != prev:
-        alerts.append(("authkeys_changed", "authorized_keys CHANGED (possible backdoor key!)"))
+        alerts.append(
+            ("authkeys_changed", "authorized_keys CHANGED (possible backdoor key!)")
+        )
 
-    odd = [p for p in metrics.get("public_listeners", []) if p not in ALLOWED_PUBLIC_PORTS]
+    odd = [
+        p for p in metrics.get("public_listeners", []) if p not in ALLOWED_PUBLIC_PORTS
+    ]
     if odd:
         alerts.append(("odd_listeners", f"unexpected public listeners: {odd}"))
 
     d429 = metrics.get("delta_429", 0)
     if d429 >= thresholds["DELTA_429"]:
-        alerts.append(("http_429", f"HTTP 429 spike: +{d429} since last check (possible DDoS)"))
+        alerts.append(
+            ("http_429", f"HTTP 429 spike: +{d429} since last check (possible DDoS)")
+        )
     d5xx = metrics.get("delta_5xx", 0)
     if d5xx >= thresholds["DELTA_5XX"]:
-        alerts.append(("http_5xx", f"HTTP 5xx spike: +{d5xx} since last check (app errors)"))
+        alerts.append(
+            ("http_5xx", f"HTTP 5xx spike: +{d5xx} since last check (app errors)")
+        )
 
     load15 = metrics.get("load15")
     ncpu = metrics.get("ncpu") or 1
@@ -316,8 +335,9 @@ def evaluate(metrics: dict, thresholds: dict, state: dict, now: float,
     return [(k, t) for k, t in alerts if not cooled(k)]
 
 
-def update_active(active: dict, now_keys: set[str], now: float,
-                  repeat_sec: float = REPEAT_SEC) -> tuple[list[str], list[str], list[str]]:
+def update_active(
+    active: dict, now_keys: set[str], now: float, repeat_sec: float = REPEAT_SEC
+) -> tuple[list[str], list[str], list[str]]:
     """Repeat tracker (pure, unit-tested). Returns (new, resend, resolved).
 
     - new: just appeared → send immediately.
@@ -350,9 +370,16 @@ def parse_chat_ids(raw: str) -> list[str]:
 
 
 def send_telegram(token: str, chat_id: str, text: str, timeout: int = 20) -> bool:
-    payload = bot_api(token, "sendMessage", data={
-        "chat_id": chat_id, "text": text, "disable_web_page_preview": "true",
-    }, timeout=timeout)
+    payload = bot_api(
+        token,
+        "sendMessage",
+        data={
+            "chat_id": chat_id,
+            "text": text,
+            "disable_web_page_preview": "true",
+        },
+        timeout=timeout,
+    )
     return bool(payload and payload.get("ok"))
 
 
@@ -369,14 +396,20 @@ def format_status(metrics: dict, thresholds: dict) -> str:
     lines.append(f"conns established: {metrics.get('conns_established', '?')}")
     lines.append(f"ssh fails/10m: {metrics.get('ssh_failed_10m', '?')}")
     lines.append(f"fail2ban bans: {metrics.get('banned_now', '?')}")
-    lines.append(f"http 429/5xx (window): {metrics.get('delta_429', 0)}/{metrics.get('delta_5xx', 0)}")
+    lines.append(
+        f"http 429/5xx (window): {metrics.get('delta_429', 0)}/{metrics.get('delta_5xx', 0)}"
+    )
     bad = metrics.get("unhealthy_containers", [])
     lines.append("containers: OK" if not bad else f"containers BAD: {', '.join(bad)}")
     cert = metrics.get("cert_days_left")
-    lines.append(f"origin TLS: {cert:.0f}d left" if cert is not None else "origin TLS: ?")
+    lines.append(
+        f"origin TLS: {cert:.0f}d left" if cert is not None else "origin TLS: ?"
+    )
     health = metrics.get("healthz")
     if isinstance(health, dict):
-        lines.append(f"app: {health.get('status')} db={health.get('db')} v{health.get('version')}")
+        lines.append(
+            f"app: {health.get('status')} db={health.get('db')} v{health.get('version')}"
+        )
     else:
         lines.append("app: unreachable")
     lines.append(f"listeners: {metrics.get('public_listeners', '?')}")
@@ -385,7 +418,9 @@ def format_status(metrics: dict, thresholds: dict) -> str:
 
 def gather(sample_cpu: bool = True) -> dict:
     m: dict = {}
-    journal = run(["journalctl", "-u", "ssh", "--since", "10 minutes ago", "--no-pager"])
+    journal = run(
+        ["journalctl", "-u", "ssh", "--since", "10 minutes ago", "--no-pager"]
+    )
     if journal is not None:
         m["ssh_failed_10m"] = len(re.findall(r"Failed password|Invalid user", journal))
     banned = run(["fail2ban-client", "status", "sshd"])
@@ -434,7 +469,10 @@ def gather(sample_cpu: bool = True) -> dict:
     ss = run(["ss", "-tlnH"])
     if ss is not None:
         m["public_listeners"] = parse_public_listeners(ss)
-    docker = run(["docker", "ps", "--format", "{{.Names}}|{{.Status}}|{{.RunningFor}}"], timeout=60)
+    docker = run(
+        ["docker", "ps", "--format", "{{.Names}}|{{.Status}}|{{.RunningFor}}"],
+        timeout=60,
+    )
     if docker is None:
         m["unhealthy_containers"] = ["docker daemon unreachable"]
         m["container_ages"] = {}
@@ -487,8 +525,9 @@ def load_secrets_env(path: str = "/opt/lms/deploy/secrets/watchdog.env") -> None
         pass
 
 
-def check_cycle(token: str, chat_ids: list[str], thresholds: dict,
-                state: dict, now: float) -> dict:
+def check_cycle(
+    token: str, chat_ids: list[str], thresholds: dict, state: dict, now: float
+) -> dict:
     """One 50s check: gather → deltas → alerts → repeat/resolved fan-out."""
     m = gather()
     prev429 = int(state.get("http_429_total", m.get("http_429_total", 0)))
@@ -501,8 +540,7 @@ def check_cycle(token: str, chat_ids: list[str], thresholds: dict,
     prev_ages = state.get("container_ages", {})
     cur_ages = m.get("container_ages", {})
     m["restarted_containers"] = sorted(
-        n for n, secs in cur_ages.items()
-        if n in prev_ages and secs < prev_ages[n] - 60
+        n for n, secs in cur_ages.items() if n in prev_ages and secs < prev_ages[n] - 60
     )
     alerts = dict(evaluate(m, thresholds, state, now, cooldown=0))
     active = state.setdefault("active", {})
@@ -517,8 +555,10 @@ def check_cycle(token: str, chat_ids: list[str], thresholds: dict,
         entry = active[key]
         entry["count"] += 1
         mins = int((now - entry["first"]) / 60)
-        text = (f"\U0001f6a8 STILL ACTIVE #{entry['count']} ({mins}m): {alerts[key]}\n"
-                f"({hostname} {stamp})")
+        text = (
+            f"\U0001f6a8 STILL ACTIVE #{entry['count']} ({mins}m): {alerts[key]}\n"
+            f"({hostname} {stamp})"
+        )
         if all(send_telegram(token, cid, text) for cid in chat_ids):
             entry["last"] = now
     for key in resolved:
@@ -540,15 +580,22 @@ def check_cycle(token: str, chat_ids: list[str], thresholds: dict,
 
 def daemon(token: str, chat_ids: list[str], thresholds: dict) -> int:
     """Long-running guard: 30s update long-poll + checks every 50s."""
-    print("watchdog: daemon started (checks every 50s, repeats while active)",
-          flush=True)
+    print(
+        "watchdog: daemon started (checks every 50s, repeats while active)", flush=True
+    )
     state = load_state()
     offset = int(state.get("tg_offset", 0))
     last_check = 0.0
     while True:
-        updates = bot_api(token, "getUpdates",
-                          {"offset": offset, "timeout": 30, "allowed_updates": ["message"]},
-                          timeout=60) or {}
+        updates = (
+            bot_api(
+                token,
+                "getUpdates",
+                {"offset": offset, "timeout": 30, "allowed_updates": ["message"]},
+                timeout=60,
+            )
+            or {}
+        )
         for upd in updates.get("result", []):
             offset = max(offset, int(upd.get("update_id", 0)) + 1)
             msg = upd.get("message", {})
@@ -602,7 +649,9 @@ def main() -> int:
         context.append(f"ssh fails/10m: {m['ssh_failed_10m']}")
     if alerts:
         hostname = run(["hostname"]) or "vps"
-        lines = [f"\U0001f6a8 LMS watchdog ({hostname.strip()} {time.strftime('%H:%M')}):"]
+        lines = [
+            f"\U0001f6a8 LMS watchdog ({hostname.strip()} {time.strftime('%H:%M')}):"
+        ]
         lines += [f"- {text}" for _, text in alerts]
         if context:
             lines.append("(" + ", ".join(context) + ")")

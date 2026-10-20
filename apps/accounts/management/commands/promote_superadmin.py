@@ -9,6 +9,7 @@ Promotes or provisions a user to full Superadmin on the platform:
 - telegram_identity_verified_at = now()
 - profile.plan = 'pro'
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -51,7 +52,11 @@ class Command(BaseCommand):
         email_arg: str | None = options.get("email")
         name_arg: str = options.get("name") or "Grand Admin"
 
-        self.stdout.write(self.style.NOTICE(f"Promoting Telegram ID: {telegram_id} to full Superadmin..."))
+        self.stdout.write(
+            self.style.NOTICE(
+                f"Promoting Telegram ID: {telegram_id} to full Superadmin..."
+            )
+        )
 
         user = User.objects.filter(telegram_chat_id=telegram_id).first()
 

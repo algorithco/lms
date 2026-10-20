@@ -5,6 +5,7 @@ All views use DRF's generic views and mixins for clean, reusable code.
 JWT endpoints (login, refresh, logout) are provided by SimpleJWT views
 with our custom serializer for extra token claims.
 """
+
 from typing import Any
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -56,11 +57,17 @@ class RegisterView(generics.CreateAPIView):
         responses={
             201: {
                 "description": "Muvaffaqiyatli ro'yxatdan o'tildi",
-                "examples": [{
-                    "user": {"id": 1, "email": "user@example.com", "role": "student"},
-                    "tokens": {"access": "eyJ...", "refresh": "eyJ..."},
-                    "message": "Muvaffaqiyatli ro'yxatdan o'tdingiz!",
-                }],
+                "examples": [
+                    {
+                        "user": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "role": "student",
+                        },
+                        "tokens": {"access": "eyJ...", "refresh": "eyJ..."},
+                        "message": "Muvaffaqiyatli ro'yxatdan o'tdingiz!",
+                    }
+                ],
             },
             400: {"description": "Validation xatoligi"},
         },
@@ -109,10 +116,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         responses={
             200: {
                 "description": "Muvaffaqiyatli kirildi",
-                "examples": [{
-                    "tokens": {"access": "eyJ...", "refresh": "eyJ..."},
-                    "user": {"id": 1, "email": "user@example.com", "role": "student", "full_name": "Jasur Karimov"},
-                }],
+                "examples": [
+                    {
+                        "tokens": {"access": "eyJ...", "refresh": "eyJ..."},
+                        "user": {
+                            "id": 1,
+                            "email": "user@example.com",
+                            "role": "student",
+                            "full_name": "Jasur Karimov",
+                        },
+                    }
+                ],
             },
             401: {"description": "Noto'g'ri email yoki parol"},
         },
@@ -283,6 +297,7 @@ class TelegramConnectView(APIView):
         serializer.is_valid(raise_exception=True)
         from django.conf import settings
         from .services.telegram_link import create_link_challenge
+
         token = create_link_challenge(request.user)
         bot_name = getattr(settings, "TELEGRAM_BOT_NAME", "uz_essaygrader_bot")
 
@@ -302,6 +317,7 @@ class TelegramConnectStatusView(APIView):
 
     def get(self, request: Request, token: str) -> Response:
         from .services.telegram_link import link_challenge_status
+
         state = link_challenge_status(request.user, token)
         return Response({"status": state})
 
@@ -311,16 +327,21 @@ class DirectTelegramLinkView(APIView):
     Allows an authenticated user to bind or update their telegram_chat_id directly.
     Payload: { "telegram_chat_id": 5582178765 }
     """
+
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         summary="Telegram ID to'g'ridan-to'g'ri bog'lash",
         description="Foydalanuvchi hisobiga telegram_chat_id ni saqlaydi va bildirishnomalarni faollashtiradi.",
-        responses={200: {"description": "Telegram bog'landi"}, 400: {"description": "Xatolik"}},
+        responses={
+            200: {"description": "Telegram bog'landi"},
+            400: {"description": "Xatolik"},
+        },
         tags=["Auth"],
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         from django.utils import timezone
+
         chat_id_raw = request.data.get("telegram_chat_id")
         if not chat_id_raw:
             return Response(
@@ -337,14 +358,24 @@ class DirectTelegramLinkView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        existing = User.objects.filter(telegram_chat_id=chat_id).exclude(id=request.user.id).first()
+        existing = (
+            User.objects.filter(telegram_chat_id=chat_id)
+            .exclude(id=request.user.id)
+            .first()
+        )
         if existing:
-            if request.user.is_superuser or request.user.is_staff or getattr(request.user, "role", "") == "admin":
+            if (
+                request.user.is_superuser
+                or request.user.is_staff
+                or getattr(request.user, "role", "") == "admin"
+            ):
                 existing.telegram_chat_id = None
                 existing.save(update_fields=["telegram_chat_id"])
             else:
                 return Response(
-                    {"error": "Ushbu Telegram ID allaqachon boshqa hisobga bog'langan."},
+                    {
+                        "error": "Ushbu Telegram ID allaqachon boshqa hisobga bog'langan."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -355,17 +386,21 @@ class DirectTelegramLinkView(APIView):
 
         try:
             from apps.attendance.models import NotificationPreference
+
             pref, _ = NotificationPreference.objects.get_or_create(user=user)
             pref.telegram_enabled = True
             pref.save(update_fields=["telegram_enabled"])
         except Exception:
             pass
 
-        return Response({
-            "ok": True,
-            "telegram_chat_id": user.telegram_chat_id,
-            "message": f"Telegram ID ({chat_id}) muvaffaqiyatli bog'landi! Bildirishnomalar va to'lov kvitansiyalari ushbu akkauntga yo'naltiriladi.",
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "ok": True,
+                "telegram_chat_id": user.telegram_chat_id,
+                "message": f"Telegram ID ({chat_id}) muvaffaqiyatli bog'landi! Bildirishnomalar va to'lov kvitansiyalari ushbu akkauntga yo'naltiriladi.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -543,7 +578,11 @@ class PasswordResetRequestView(APIView):
                 }
                 if not settings.DEBUG:
                     site = urlsplit(settings.SITE_URL)
-                    if site.scheme != "https" or not site.netloc or site.path not in ("", "/"):
+                    if (
+                        site.scheme != "https"
+                        or not site.netloc
+                        or site.path not in ("", "/")
+                    ):
                         raise ImproperlyConfigured(
                             "SITE_URL must be an HTTPS origin for password reset."
                         )
@@ -646,6 +685,7 @@ class TelegramWidgetAuthView(APIView):
         "hash": "..."
     }
     """
+
     permission_classes = [AllowAny]
     authentication_classes: list = []
     throttle_scope = "login"
@@ -664,22 +704,37 @@ class TelegramWidgetAuthView(APIView):
 
         data = request.data
         if not isinstance(data, dict):
-            return Response({"error": "Noto'g'ri so'rov formati."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Noto'g'ri so'rov formati."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
         if not bot_token:
-            return Response({"error": "Telegram bot tokeni sozlanmagan."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "Telegram bot tokeni sozlanmagan."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         received_hash = data.get("hash")
         if not received_hash or not isinstance(received_hash, str):
-            return Response({"error": "Hash parametri topilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Hash parametri topilmadi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             auth_date = int(data.get("auth_date", 0))
             if abs(time.time() - auth_date) > 86400:
-                return Response({"error": "Avtorizatsiya muddati tugagan (24 soat)."}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response(
+                    {"error": "Avtorizatsiya muddati tugagan (24 soat)."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
         except (ValueError, TypeError):
-            return Response({"error": "Noto'g'ri auth_date parametri."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Noto'g'ri auth_date parametri."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         check_items = []
         for k in sorted(data.keys()):
@@ -688,15 +743,22 @@ class TelegramWidgetAuthView(APIView):
         data_check_string = "\n".join(check_items)
 
         secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
-        computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+        computed_hash = hmac.new(
+            secret_key, data_check_string.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
 
         if not hmac.compare_digest(computed_hash, received_hash):
-            return Response({"error": "Telegram ma'lumotlari tasdiqlanmadi."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Telegram ma'lumotlari tasdiqlanmadi."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         try:
             tg_id = int(data.get("id"))
         except (ValueError, TypeError):
-            return Response({"error": "Noto'g'ri Telegram ID."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Noto'g'ri Telegram ID."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         first_name = str(data.get("first_name", "") or "")
         last_name = str(data.get("last_name", "") or "")
@@ -704,21 +766,29 @@ class TelegramWidgetAuthView(APIView):
         photo_url = str(data.get("photo_url", "") or "")
 
         try:
-            user, is_new_user = get_or_create_telegram_user({
-                "id": tg_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "username": username,
-            })
+            user, is_new_user = get_or_create_telegram_user(
+                {
+                    "id": tg_id,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "username": username,
+                }
+            )
         except TelegramIdentityUnverified as exc:
             return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         if not user.is_active:
-            return Response({"error": "Hisob faol emas."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Hisob faol emas."}, status=status.HTTP_403_FORBIDDEN
+            )
 
-        if photo_url and hasattr(user, "profile") and not getattr(user.profile, "picture_url", ""):
+        if (
+            photo_url
+            and hasattr(user, "profile")
+            and not getattr(user.profile, "picture_url", "")
+        ):
             user.profile.picture_url = photo_url
             user.profile.save(update_fields=["picture_url"])
 
@@ -728,24 +798,26 @@ class TelegramWidgetAuthView(APIView):
         refresh = RefreshToken.for_user(user)
 
         is_admin = is_platform_admin(user)
-        return Response({
-            "status": "ok",
-            "redirect": "/panel" if is_admin else "/dashboard",
-            "user": {
-                "id": user.pk,
-                "email": user.email,
-                "role": getattr(user, "role", "student"),
-                "full_name": user.get_full_name(),
-                "is_active": user.is_active,
-                "language": getattr(user, "language", "uz"),
-                "is_staff": user.is_staff,
-                "is_superuser": user.is_superuser,
-                "is_platform_admin": is_admin,
-                "avatar": photo_url or getattr(user.profile, "picture_url", ""),
+        return Response(
+            {
+                "status": "ok",
+                "redirect": "/panel" if is_admin else "/dashboard",
+                "user": {
+                    "id": user.pk,
+                    "email": user.email,
+                    "role": getattr(user, "role", "student"),
+                    "full_name": user.get_full_name(),
+                    "is_active": user.is_active,
+                    "language": getattr(user, "language", "uz"),
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
+                    "is_platform_admin": is_admin,
+                    "avatar": photo_url or getattr(user.profile, "picture_url", ""),
+                },
+                "tokens": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
             },
-            "tokens": {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            },
-        }, status=status.HTTP_200_OK)
-
+            status=status.HTTP_200_OK,
+        )

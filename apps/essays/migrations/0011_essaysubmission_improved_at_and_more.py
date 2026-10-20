@@ -4,20 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0010_essaytopic_grammar_strictness_and_more'),
+        ("essays", "0010_essaytopic_grammar_strictness_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='essaysubmission',
-            name='improved_at',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='yaxshilangan vaqti'),
+            model_name="essaysubmission",
+            name="improved_at",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="yaxshilangan vaqti"
+            ),
         ),
         migrations.AddField(
-            model_name='essaysubmission',
-            name='improved_content',
-            field=models.TextField(blank=True, default='', help_text='AI tomonidan yaratilgan yaxshilangan esse versiyasi (qayta yaratilishining oldini olish uchun saqlanadi).', verbose_name='AI yaxshilangan versiya'),
+            model_name="essaysubmission",
+            name="improved_content",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="AI tomonidan yaratilgan yaxshilangan esse versiyasi (qayta yaratilishining oldini olish uchun saqlanadi).",
+                verbose_name="AI yaxshilangan versiya",
+            ),
         ),
     ]

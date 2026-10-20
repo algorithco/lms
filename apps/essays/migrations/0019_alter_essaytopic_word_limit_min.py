@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0018_essaysubmission_group_visibility_and_more'),
+        ("essays", "0018_essaysubmission_group_visibility_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='essaytopic',
-            name='word_limit_min',
-            field=models.PositiveIntegerField(default=200, verbose_name="minimal so'zlar soni"),
+            model_name="essaytopic",
+            name="word_limit_min",
+            field=models.PositiveIntegerField(
+                default=200, verbose_name="minimal so'zlar soni"
+            ),
         ),
     ]

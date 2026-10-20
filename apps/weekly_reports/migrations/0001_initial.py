@@ -6,122 +6,473 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('courses', '0003_alter_course_thumbnail_alter_lesson_attachment'),
+        ("courses", "0003_alter_course_thumbnail_alter_lesson_attachment"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WeeklyGroupReport',
+            name="WeeklyGroupReport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('period_start', models.DateTimeField(db_index=True, help_text='Mahalliy vaqtda dushanba 00:00.', verbose_name='davr boshlanishi')),
-                ('period_end', models.DateTimeField(help_text='Mahalliy vaqtda yakshanba 23:59:59.999999 (inklyuziv).', verbose_name='davr tugashi')),
-                ('period_label', models.CharField(blank=True, max_length=64, verbose_name='davr')),
-                ('version', models.PositiveIntegerField(default=1, verbose_name='versiya')),
-                ('is_current', models.BooleanField(db_index=True, default=True, verbose_name='joriy versiya')),
-                ('generation_reason', models.CharField(blank=True, max_length=200, verbose_name='sabab')),
-                ('status', models.CharField(choices=[('generated', 'Tayyorlangan'), ('sent', 'Yuborilgan'), ('failed', 'Yuborilmadi')], db_index=True, default='generated', max_length=20, verbose_name='holat')),
-                ('summary', models.JSONField(blank=True, default=dict, verbose_name='xulosa')),
-                ('generated_at', models.DateTimeField(auto_now_add=True, verbose_name='tayyorlangan')),
-                ('generated_by', models.ForeignKey(blank=True, help_text="Bo'sh bo'lsa — rejalashtiruvchi (Celery beat).", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_generated', to=settings.AUTH_USER_MODEL, verbose_name='tayyorlagan')),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='weekly_reports', to='courses.studentgroup', verbose_name='guruh')),
-                ('supersedes', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='superseded_by', to='weekly_reports.weeklygroupreport', verbose_name="o'rnini bosgan hisobot")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "period_start",
+                    models.DateTimeField(
+                        db_index=True,
+                        help_text="Mahalliy vaqtda dushanba 00:00.",
+                        verbose_name="davr boshlanishi",
+                    ),
+                ),
+                (
+                    "period_end",
+                    models.DateTimeField(
+                        help_text="Mahalliy vaqtda yakshanba 23:59:59.999999 (inklyuziv).",
+                        verbose_name="davr tugashi",
+                    ),
+                ),
+                (
+                    "period_label",
+                    models.CharField(blank=True, max_length=64, verbose_name="davr"),
+                ),
+                (
+                    "version",
+                    models.PositiveIntegerField(default=1, verbose_name="versiya"),
+                ),
+                (
+                    "is_current",
+                    models.BooleanField(
+                        db_index=True, default=True, verbose_name="joriy versiya"
+                    ),
+                ),
+                (
+                    "generation_reason",
+                    models.CharField(blank=True, max_length=200, verbose_name="sabab"),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("generated", "Tayyorlangan"),
+                            ("sent", "Yuborilgan"),
+                            ("failed", "Yuborilmadi"),
+                        ],
+                        db_index=True,
+                        default="generated",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "summary",
+                    models.JSONField(blank=True, default=dict, verbose_name="xulosa"),
+                ),
+                (
+                    "generated_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="tayyorlangan"
+                    ),
+                ),
+                (
+                    "generated_by",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Bo'sh bo'lsa — rejalashtiruvchi (Celery beat).",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="%(class)s_generated",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="tayyorlagan",
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="weekly_reports",
+                        to="courses.studentgroup",
+                        verbose_name="guruh",
+                    ),
+                ),
+                (
+                    "supersedes",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="superseded_by",
+                        to="weekly_reports.weeklygroupreport",
+                        verbose_name="o'rnini bosgan hisobot",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Guruh haftalik hisoboti',
-                'verbose_name_plural': 'Guruh haftalik hisobotlari',
-                'ordering': ['-period_start', '-version'],
+                "verbose_name": "Guruh haftalik hisoboti",
+                "verbose_name_plural": "Guruh haftalik hisobotlari",
+                "ordering": ["-period_start", "-version"],
             },
         ),
         migrations.CreateModel(
-            name='WeeklyReportSettings',
+            name="WeeklyReportSettings",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_enabled', models.BooleanField(default=True, verbose_name='yoqilgan')),
-                ('send_weekday', models.PositiveSmallIntegerField(choices=[(0, 'Dushanba'), (1, 'Seshanba'), (2, 'Chorshanba'), (3, 'Payshanba'), (4, 'Juma'), (5, 'Shanba'), (6, 'Yakshanba')], default=0, help_text='0 = dushanba. Hisobot shu kuni yuboriladi.', verbose_name='yuborish kuni')),
-                ('send_hour', models.PositiveSmallIntegerField(default=9, verbose_name='yuborish soati')),
-                ('send_minute', models.PositiveSmallIntegerField(default=0, verbose_name='yuborish daqiqasi')),
-                ('timezone_name', models.CharField(default='Asia/Tashkent', max_length=64, verbose_name='vaqt zonasi')),
-                ('retry_failed_deliveries', models.BooleanField(default=True, verbose_name='xatoliklarni qayta urinish')),
-                ('max_delivery_attempts', models.PositiveSmallIntegerField(default=5, verbose_name='maksimal urinishlar')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('admin_recipients', models.ManyToManyField(blank=True, related_name='weekly_report_admin_subscriptions', to=settings.AUTH_USER_MODEL, verbose_name='administrator qabul qiluvchilar')),
-                ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='weekly_report_settings_updates', to=settings.AUTH_USER_MODEL, verbose_name="o'zgartirgan")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "is_enabled",
+                    models.BooleanField(default=True, verbose_name="yoqilgan"),
+                ),
+                (
+                    "send_weekday",
+                    models.PositiveSmallIntegerField(
+                        choices=[
+                            (0, "Dushanba"),
+                            (1, "Seshanba"),
+                            (2, "Chorshanba"),
+                            (3, "Payshanba"),
+                            (4, "Juma"),
+                            (5, "Shanba"),
+                            (6, "Yakshanba"),
+                        ],
+                        default=0,
+                        help_text="0 = dushanba. Hisobot shu kuni yuboriladi.",
+                        verbose_name="yuborish kuni",
+                    ),
+                ),
+                (
+                    "send_hour",
+                    models.PositiveSmallIntegerField(
+                        default=9, verbose_name="yuborish soati"
+                    ),
+                ),
+                (
+                    "send_minute",
+                    models.PositiveSmallIntegerField(
+                        default=0, verbose_name="yuborish daqiqasi"
+                    ),
+                ),
+                (
+                    "timezone_name",
+                    models.CharField(
+                        default="Asia/Tashkent",
+                        max_length=64,
+                        verbose_name="vaqt zonasi",
+                    ),
+                ),
+                (
+                    "retry_failed_deliveries",
+                    models.BooleanField(
+                        default=True, verbose_name="xatoliklarni qayta urinish"
+                    ),
+                ),
+                (
+                    "max_delivery_attempts",
+                    models.PositiveSmallIntegerField(
+                        default=5, verbose_name="maksimal urinishlar"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "admin_recipients",
+                    models.ManyToManyField(
+                        blank=True,
+                        related_name="weekly_report_admin_subscriptions",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="administrator qabul qiluvchilar",
+                    ),
+                ),
+                (
+                    "updated_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="weekly_report_settings_updates",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'zgartirgan",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Haftalik hisobot sozlamasi',
-                'verbose_name_plural': 'Haftalik hisobot sozlamalari',
+                "verbose_name": "Haftalik hisobot sozlamasi",
+                "verbose_name_plural": "Haftalik hisobot sozlamalari",
             },
         ),
         migrations.CreateModel(
-            name='WeeklyStudentReport',
+            name="WeeklyStudentReport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('period_start', models.DateTimeField(db_index=True, help_text='Mahalliy vaqtda dushanba 00:00.', verbose_name='davr boshlanishi')),
-                ('period_end', models.DateTimeField(help_text='Mahalliy vaqtda yakshanba 23:59:59.999999 (inklyuziv).', verbose_name='davr tugashi')),
-                ('period_label', models.CharField(blank=True, max_length=64, verbose_name='davr')),
-                ('version', models.PositiveIntegerField(default=1, verbose_name='versiya')),
-                ('is_current', models.BooleanField(db_index=True, default=True, verbose_name='joriy versiya')),
-                ('generation_reason', models.CharField(blank=True, max_length=200, verbose_name='sabab')),
-                ('status', models.CharField(choices=[('generated', 'Tayyorlangan'), ('sent', 'Yuborilgan'), ('failed', 'Yuborilmadi')], db_index=True, default='generated', max_length=20, verbose_name='holat')),
-                ('summary', models.JSONField(blank=True, default=dict, verbose_name='xulosa')),
-                ('generated_at', models.DateTimeField(auto_now_add=True, verbose_name='tayyorlangan')),
-                ('generated_by', models.ForeignKey(blank=True, help_text="Bo'sh bo'lsa — rejalashtiruvchi (Celery beat).", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_generated', to=settings.AUTH_USER_MODEL, verbose_name='tayyorlagan')),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='weekly_reports', to=settings.AUTH_USER_MODEL, verbose_name="o'quvchi")),
-                ('supersedes', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='superseded_by', to='weekly_reports.weeklystudentreport', verbose_name="o'rnini bosgan hisobot")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "period_start",
+                    models.DateTimeField(
+                        db_index=True,
+                        help_text="Mahalliy vaqtda dushanba 00:00.",
+                        verbose_name="davr boshlanishi",
+                    ),
+                ),
+                (
+                    "period_end",
+                    models.DateTimeField(
+                        help_text="Mahalliy vaqtda yakshanba 23:59:59.999999 (inklyuziv).",
+                        verbose_name="davr tugashi",
+                    ),
+                ),
+                (
+                    "period_label",
+                    models.CharField(blank=True, max_length=64, verbose_name="davr"),
+                ),
+                (
+                    "version",
+                    models.PositiveIntegerField(default=1, verbose_name="versiya"),
+                ),
+                (
+                    "is_current",
+                    models.BooleanField(
+                        db_index=True, default=True, verbose_name="joriy versiya"
+                    ),
+                ),
+                (
+                    "generation_reason",
+                    models.CharField(blank=True, max_length=200, verbose_name="sabab"),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("generated", "Tayyorlangan"),
+                            ("sent", "Yuborilgan"),
+                            ("failed", "Yuborilmadi"),
+                        ],
+                        db_index=True,
+                        default="generated",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "summary",
+                    models.JSONField(blank=True, default=dict, verbose_name="xulosa"),
+                ),
+                (
+                    "generated_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="tayyorlangan"
+                    ),
+                ),
+                (
+                    "generated_by",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Bo'sh bo'lsa — rejalashtiruvchi (Celery beat).",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="%(class)s_generated",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="tayyorlagan",
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="weekly_reports",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'quvchi",
+                    ),
+                ),
+                (
+                    "supersedes",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="superseded_by",
+                        to="weekly_reports.weeklystudentreport",
+                        verbose_name="o'rnini bosgan hisobot",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "O'quvchi haftalik hisoboti",
-                'verbose_name_plural': "O'quvchi haftalik hisobotlari",
-                'ordering': ['-period_start', '-version'],
+                "verbose_name": "O'quvchi haftalik hisoboti",
+                "verbose_name_plural": "O'quvchi haftalik hisobotlari",
+                "ordering": ["-period_start", "-version"],
             },
         ),
         migrations.CreateModel(
-            name='WeeklyReportDelivery',
+            name="WeeklyReportDelivery",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('channel', models.CharField(choices=[('telegram', 'Telegram'), ('dashboard', 'Veb-panel')], default='telegram', max_length=20, verbose_name='kanal')),
-                ('status', models.CharField(choices=[('pending', 'Kutilmoqda'), ('sent', 'Yuborildi'), ('failed', 'Xatolik'), ('skipped', "O'tkazib yuborildi"), ('deferred', 'Keyinroq')], db_index=True, default='pending', max_length=20, verbose_name='holat')),
-                ('dedup_key', models.CharField(max_length=200, unique=True, verbose_name='idempotentlik kaliti')),
-                ('telegram_message_id', models.CharField(blank=True, max_length=64, verbose_name='Telegram xabar ID')),
-                ('retry_count', models.PositiveIntegerField(default=0, verbose_name='urinishlar')),
-                ('last_error', models.TextField(blank=True, verbose_name='oxirgi xatolik')),
-                ('last_attempt_at', models.DateTimeField(blank=True, null=True, verbose_name='oxirgi urinish')),
-                ('sent_at', models.DateTimeField(blank=True, null=True, verbose_name='yuborilgan')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='weekly_report_deliveries', to=settings.AUTH_USER_MODEL, verbose_name='qabul qiluvchi')),
-                ('report', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='deliveries', to='weekly_reports.weeklygroupreport', verbose_name='guruh hisoboti')),
-                ('student_report', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='deliveries', to='weekly_reports.weeklystudentreport', verbose_name="o'quvchi hisoboti")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "channel",
+                    models.CharField(
+                        choices=[("telegram", "Telegram"), ("dashboard", "Veb-panel")],
+                        default="telegram",
+                        max_length=20,
+                        verbose_name="kanal",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Kutilmoqda"),
+                            ("sent", "Yuborildi"),
+                            ("failed", "Xatolik"),
+                            ("skipped", "O'tkazib yuborildi"),
+                            ("deferred", "Keyinroq"),
+                        ],
+                        db_index=True,
+                        default="pending",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "dedup_key",
+                    models.CharField(
+                        max_length=200, unique=True, verbose_name="idempotentlik kaliti"
+                    ),
+                ),
+                (
+                    "telegram_message_id",
+                    models.CharField(
+                        blank=True, max_length=64, verbose_name="Telegram xabar ID"
+                    ),
+                ),
+                (
+                    "retry_count",
+                    models.PositiveIntegerField(default=0, verbose_name="urinishlar"),
+                ),
+                (
+                    "last_error",
+                    models.TextField(blank=True, verbose_name="oxirgi xatolik"),
+                ),
+                (
+                    "last_attempt_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="oxirgi urinish"
+                    ),
+                ),
+                (
+                    "sent_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="yuborilgan"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="weekly_report_deliveries",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="qabul qiluvchi",
+                    ),
+                ),
+                (
+                    "report",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="deliveries",
+                        to="weekly_reports.weeklygroupreport",
+                        verbose_name="guruh hisoboti",
+                    ),
+                ),
+                (
+                    "student_report",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="deliveries",
+                        to="weekly_reports.weeklystudentreport",
+                        verbose_name="o'quvchi hisoboti",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Hisobot yuborilishi',
-                'verbose_name_plural': 'Hisobot yuborilishlari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Hisobot yuborilishi",
+                "verbose_name_plural": "Hisobot yuborilishlari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='weeklygroupreport',
-            index=models.Index(fields=['group', 'period_start'], name='idx_wgrp_period'),
+            model_name="weeklygroupreport",
+            index=models.Index(
+                fields=["group", "period_start"], name="idx_wgrp_period"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='weeklygroupreport',
-            constraint=models.UniqueConstraint(fields=('group', 'period_start', 'version'), name='uniq_weekly_group_report_version'),
+            model_name="weeklygroupreport",
+            constraint=models.UniqueConstraint(
+                fields=("group", "period_start", "version"),
+                name="uniq_weekly_group_report_version",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='weeklystudentreport',
-            constraint=models.UniqueConstraint(fields=('student', 'period_start', 'version'), name='uniq_weekly_student_report_version'),
+            model_name="weeklystudentreport",
+            constraint=models.UniqueConstraint(
+                fields=("student", "period_start", "version"),
+                name="uniq_weekly_student_report_version",
+            ),
         ),
         migrations.AddIndex(
-            model_name='weeklyreportdelivery',
-            index=models.Index(fields=['recipient', 'status'], name='idx_wdeliv_recip'),
+            model_name="weeklyreportdelivery",
+            index=models.Index(fields=["recipient", "status"], name="idx_wdeliv_recip"),
         ),
         migrations.AddConstraint(
-            model_name='weeklyreportdelivery',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('report__isnull', False), ('student_report__isnull', True)), models.Q(('report__isnull', True), ('student_report__isnull', False)), _connector='OR'), name='weekly_delivery_exactly_one_report'),
+            model_name="weeklyreportdelivery",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(
+                        ("report__isnull", False), ("student_report__isnull", True)
+                    ),
+                    models.Q(
+                        ("report__isnull", True), ("student_report__isnull", False)
+                    ),
+                    _connector="OR",
+                ),
+                name="weekly_delivery_exactly_one_report",
+            ),
         ),
     ]

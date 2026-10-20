@@ -8,6 +8,7 @@ Supports:
     - Welcome email sending
     - Import summary with success/error counts
 """
+
 from __future__ import annotations
 
 import csv
@@ -70,7 +71,13 @@ class CSVImportService:
 
         # Validate columns
         if not reader.fieldnames:
-            return {"total": 0, "created": 0, "skipped": 0, "errors": [{"row": 0, "error": "CSV fayl bo'sh"}], "created_users": []}
+            return {
+                "total": 0,
+                "created": 0,
+                "skipped": 0,
+                "errors": [{"row": 0, "error": "CSV fayl bo'sh"}],
+                "created_users": [],
+            }
 
         missing = cls.REQUIRED_COLUMNS - set(reader.fieldnames)
         if missing:
@@ -78,7 +85,9 @@ class CSVImportService:
                 "total": 0,
                 "created": 0,
                 "skipped": 0,
-                "errors": [{"row": 0, "error": f"Kerakli ustunlar yo'q: {', '.join(missing)}"}],
+                "errors": [
+                    {"row": 0, "error": f"Kerakli ustunlar yo'q: {', '.join(missing)}"}
+                ],
                 "created_users": [],
             }
 
@@ -125,6 +134,7 @@ class CSVImportService:
                 # Update phone in profile if provided
                 if phone:
                     from apps.accounts.models import Profile
+
                     profile, _ = Profile.objects.get_or_create(user=user)
                     profile.phone = phone
                     profile.save(update_fields=["phone"])
@@ -144,7 +154,10 @@ class CSVImportService:
 
         logger.info(
             "CSV import completed: total=%d, created=%d, skipped=%d, errors=%d",
-            created + skipped, created, skipped, len(errors),
+            created + skipped,
+            created,
+            skipped,
+            len(errors),
         )
 
         return {
@@ -190,7 +203,12 @@ class CSVImportService:
         reader = csv.DictReader(io.StringIO(csv_content))
 
         if not reader.fieldnames:
-            return {"valid": False, "errors": ["CSV fayl bo'sh"], "row_count": 0, "columns": []}
+            return {
+                "valid": False,
+                "errors": ["CSV fayl bo'sh"],
+                "row_count": 0,
+                "columns": [],
+            }
 
         missing = cls.REQUIRED_COLUMNS - set(reader.fieldnames)
         if missing:

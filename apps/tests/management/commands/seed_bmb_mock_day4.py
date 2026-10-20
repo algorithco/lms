@@ -6,6 +6,7 @@ Seeds the full 3-hour official BMB State Standard Exam (Day 4):
 - Task 45: Official 12-criteria Essay with EssayTopic synchronization
 - Full AI Repetitor educational explanations for every single question.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -41,7 +42,11 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
         reset: bool = options.get("reset", False)
-        self.stdout.write(self.style.NOTICE("Seeding BMB Milliy Sertifikat Mock #4 (3-hour format)..."))
+        self.stdout.write(
+            self.style.NOTICE(
+                "Seeding BMB Milliy Sertifikat Mock #4 (3-hour format)..."
+            )
+        )
 
         # 1. Instructor User
         instructor = User.objects.filter(role="teacher").first()
@@ -60,7 +65,9 @@ class Command(BaseCommand):
             )
             instructor.set_password("GrandEducation2026!")
             instructor.save()
-            self.stdout.write(self.style.SUCCESS(f"Created instructor account: {instructor.email}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Created instructor account: {instructor.email}")
+            )
 
         # 2. Category
         category, _ = Category.objects.get_or_create(
@@ -92,13 +99,17 @@ class Command(BaseCommand):
         mock_code = "#MOCK-BMB04"
         existing_test = Test.objects.filter(mock_code=mock_code).first()
         if existing_test and reset:
-            self.stdout.write(self.style.WARNING("Reset requested: Deleting existing Mock #4 test..."))
+            self.stdout.write(
+                self.style.WARNING("Reset requested: Deleting existing Mock #4 test...")
+            )
             existing_test.delete()
             existing_test = None
 
         if existing_test:
             test = existing_test
-            test.title = "Ona tili va Adabiyot — BMB Milliy Sertifikat Mock #4 (To'liq format)"
+            test.title = (
+                "Ona tili va Adabiyot — BMB Milliy Sertifikat Mock #4 (To'liq format)"
+            )
             test.description = (
                 "Haqiqiy 3 soatlik BMB davlat standarti imtihoni. 44 ta test savoli "
                 "(grammatika, ilmiy va badiiy matnlar, mumtoz adabiyot, sintaktik tahlil) "
@@ -137,23 +148,39 @@ class Command(BaseCommand):
                 shuffle_questions=False,
                 shuffle_choices=False,
             )
-            self.stdout.write(self.style.SUCCESS(f"Created new test ID: {test.id} with code {mock_code}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Created new test ID: {test.id} with code {mock_code}"
+                )
+            )
 
         # 5. Exam Sections
         sec_lang, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.LANGUAGE,
-            defaults={"name": "Grammatika va adabiyot", "order": 1, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Grammatika va adabiyot",
+                "order": 1,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_reading, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.READING,
-            defaults={"name": "Ilmiy va badiiy matnlar tahlili", "order": 2, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Ilmiy va badiiy matnlar tahlili",
+                "order": 2,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_lit, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.LITERATURE,
-            defaults={"name": "Mumtoz adabiyot va poetika", "order": 3, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Mumtoz adabiyot va poetika",
+                "order": 3,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_writing, _ = ExamSection.objects.get_or_create(
             test=test,
@@ -398,9 +425,18 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("Shu kechasiyoq otani kasalxonaga olib borib yotqizishdi.", False),
-                    ("Ota bilan birga yotgan hamxonadoshlari juda yaxshi insonlar ekan", True),
-                    ("O’g’lim me’morlikni o’rgangan , otasidek sangtarosh bo’lib qolmasin dedim.", False),
-                    ("Masalaga moddiy manfaatdorlik nuqtai nazaridan yondashmoq kerak.", False),
+                    (
+                        "Ota bilan birga yotgan hamxonadoshlari juda yaxshi insonlar ekan",
+                        True,
+                    ),
+                    (
+                        "O’g’lim me’morlikni o’rgangan , otasidek sangtarosh bo’lib qolmasin dedim.",
+                        False,
+                    ),
+                    (
+                        "Masalaga moddiy manfaatdorlik nuqtai nazaridan yondashmoq kerak.",
+                        False,
+                    ),
                 ],
             },
             # 6
@@ -417,7 +453,10 @@ class Command(BaseCommand):
                 "choices": [
                     ("Tilak bilan bitmagan, bilim bilan bitar.", False),
                     ("Buyurdim erta-indin bitib qolar.", False),
-                    ("Mana ,xudo xohlasa, boshingga do’ppi , oyog’ingga etik, ko’ylak-ishton bitadi.", True),
+                    (
+                        "Mana ,xudo xohlasa, boshingga do’ppi , oyog’ingga etik, ko’ylak-ishton bitadi.",
+                        True,
+                    ),
                     ("Azamga et bitib, rangiga qon yugurdi.", False),
                 ],
             },
@@ -427,8 +466,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "So’z yasovchi qo’shimchalar haqida berilgan NOTO’G’RI ma’lumotni toping:\n"
-                    "\"Shavkatli tariximizni zamonaviy, muhobatli tarixiy ishlar bilan boyitishga harakat qiling. "
-                    "Uni har xil murtad talqinlardan, tuhmat va iflosliklardan tinimsiz tozalang.\""
+                    '"Shavkatli tariximizni zamonaviy, muhobatli tarixiy ishlar bilan boyitishga harakat qiling. '
+                    'Uni har xil murtad talqinlardan, tuhmat va iflosliklardan tinimsiz tozalang."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -438,9 +477,18 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("barcha sifatlar affiksatsiya usulida yasalgan", False),
-                    ("fe’llar ikki o’rinda qo’shimcha qo’shish usuli bilan yasalgan.", False),
-                    ("so’z yasalishi to’rt xil so’z turkumi doirasida kuzatilgan", False),
-                    ("ot yasovchi qo’shimcha bir o’rinda sifatga, bir o’rinda fe’lga qo’shilgan.", True),
+                    (
+                        "fe’llar ikki o’rinda qo’shimcha qo’shish usuli bilan yasalgan.",
+                        False,
+                    ),
+                    (
+                        "so’z yasalishi to’rt xil so’z turkumi doirasida kuzatilgan",
+                        False,
+                    ),
+                    (
+                        "ot yasovchi qo’shimcha bir o’rinda sifatga, bir o’rinda fe’lga qo’shilgan.",
+                        True,
+                    ),
                 ],
             },
             # 8
@@ -478,9 +526,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Ravish haqida XATO fikrni toping:\n"
-                    "\"Ta’limning birinchi kunlaridayoq o’quvchilarni harflab emas, bo’g’inlab o’qishga o’rgatish kerak. "
+                    '"Ta’limning birinchi kunlaridayoq o’quvchilarni harflab emas, bo’g’inlab o’qishga o’rgatish kerak. '
                     "Har doim sohada ilgarigiga qaraganda yangiliklar berib borish, ta’lim oluvchini harakatga undash orqali "
-                    "yuqori natijaga erishish kuzatiladi.\""
+                    'yuqori natijaga erishish kuzatiladi."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -491,7 +539,10 @@ class Command(BaseCommand):
                 "choices": [
                     ("ravishning ikki turi mavjud", False),
                     ("faqat hol vazifasida kelgan", False),
-                    ("ikki o’rinda affiksatsiya usuli bilan, bir o’rinda kompozitsiya usuli bilan yasalgan", False),
+                    (
+                        "ikki o’rinda affiksatsiya usuli bilan, bir o’rinda kompozitsiya usuli bilan yasalgan",
+                        False,
+                    ),
                     ("ravishning uch turi berilgan", True),
                 ],
             },
@@ -501,8 +552,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gap bo’laklari haqida XATO fikrni toping:\n"
-                    "\"Qanoat aylagan shohi jahondir,\n"
-                    "Tama qilgan eshakdan ham yomondir.\""
+                    '"Qanoat aylagan shohi jahondir,\n'
+                    'Tama qilgan eshakdan ham yomondir."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -515,7 +566,10 @@ class Command(BaseCommand):
                     ("barcha kesimlar ot kesim", False),
                     ("barcha ega yasama so’zdan iborat", True),
                     ("barcha egalar murakkab shaklda kelgan", False),
-                    ("gapning barcha bosh bo’laklari otlashgan so’z bilan ifodalangan", False),
+                    (
+                        "gapning barcha bosh bo’laklari otlashgan so’z bilan ifodalangan",
+                        False,
+                    ),
                 ],
             },
             # 11
@@ -524,8 +578,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gapdagi so‘zlarning mazmunan va grammatik jihatdan bog‘lanishlari to‘g‘ri ko‘rsatilgan javobni aniqlang:\n"
-                    "\"Imtihonda tushgan qiziqarli testlarni ko’rib murakkab amaliyotlar tuzgim, ularni ipidan ignasigacha "
-                    "o’rgatgim kelishini qo’l uchida bajarayotgan bola bilarmikan\""
+                    '"Imtihonda tushgan qiziqarli testlarni ko’rib murakkab amaliyotlar tuzgim, ularni ipidan ignasigacha '
+                    'o’rgatgim kelishini qo’l uchida bajarayotgan bola bilarmikan"'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -570,8 +624,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Quyidagi bayt haqida berilgan NOTO’G’RI fikrni aniqlang:\n"
-                    "\"Nasihat ahli manga derki, mayni tark et, vah,\n"
-                    "Ilig olib kelur, og‘iz ichar, manga ne gunah?\""
+                    '"Nasihat ahli manga derki, mayni tark et, vah,\n'
+                    'Ilig olib kelur, og‘iz ichar, manga ne gunah?"'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -582,7 +636,10 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("baytda tajohil ul-orif san’ati qo’llangan.", False),
-                    ("baytda undosh tovushning raviy vazifasida kelishi kuzatiladi.", False),
+                    (
+                        "baytda undosh tovushning raviy vazifasida kelishi kuzatiladi.",
+                        False,
+                    ),
                     ("baytda radif ishtirok etmagan.", False),
                     ("baytda mutlaq qofiya qo’llangan", True),
                 ],
@@ -593,8 +650,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Quyidagi baytdan “Yo’ldosh”, “hamroh”, “ketma-ket” ma’nosini anglatuvchi badiiy unsurni toping:\n"
-                    "\"Qaro ko’zum, kel-u, mardumliq endi fan qilg’il,\n"
-                    "Ko’zum qarosida mardum kibi vatan qilg’il.\""
+                    '"Qaro ko’zum, kel-u, mardumliq endi fan qilg’il,\n'
+                    'Ko’zum qarosida mardum kibi vatan qilg’il."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -648,10 +705,22 @@ class Command(BaseCommand):
                     "insonning tabiatga nohaq tajovuzi (bo'ri bolasining uyadan to'zg'itilishi) ikki tomonlama fojia keltirishi markaziy o'rinda turadi."
                 ),
                 "choices": [
-                    ("ushbu asarda tabiat maxluqlari bo`lmish jonivorlarning uyasini to`zg`itganligi ham o`zining, ham boshqa bir oilaning fojiasiga sabab bo`lgan obraz tasviri uchraydi.", True),
-                    ("ushbu asarda bizning yagona haqiqiy dushmanimiz – odam. Odamdan xalos bo`lsak, mehnatlarimizning barcha mevalari bizning mulkimizga aylanadi…” deya barcha hayvonlarni isyonga da`vat qigan bo’ri obrazi uchraydi", False),
-                    ("ushbu quloq” bo`lib, vaqti-vaqti bilan “tozalash” o`tkazib turgan va o`z farzandini ham shunga undagan obraz uchraydi.", False),
-                    ("ushbu asarda otasining tavsiyasi bilan diniy maktabda o’qishni boshlagan , urushdan qaytib kelgandan so’ng eski diniy aqidalardan voz kechib, yangicha fikrlarni ilgari surgan va shu qarashlar tufayli seminariyadan haydalgan obraz uchraydi", False),
+                    (
+                        "ushbu asarda tabiat maxluqlari bo`lmish jonivorlarning uyasini to`zg`itganligi ham o`zining, ham boshqa bir oilaning fojiasiga sabab bo`lgan obraz tasviri uchraydi.",
+                        True,
+                    ),
+                    (
+                        "ushbu asarda bizning yagona haqiqiy dushmanimiz – odam. Odamdan xalos bo`lsak, mehnatlarimizning barcha mevalari bizning mulkimizga aylanadi…” deya barcha hayvonlarni isyonga da`vat qigan bo’ri obrazi uchraydi",
+                        False,
+                    ),
+                    (
+                        "ushbu quloq” bo`lib, vaqti-vaqti bilan “tozalash” o`tkazib turgan va o`z farzandini ham shunga undagan obraz uchraydi.",
+                        False,
+                    ),
+                    (
+                        "ushbu asarda otasining tavsiyasi bilan diniy maktabda o’qishni boshlagan , urushdan qaytib kelgandan so’ng eski diniy aqidalardan voz kechib, yangicha fikrlarni ilgari surgan va shu qarashlar tufayli seminariyadan haydalgan obraz uchraydi",
+                        False,
+                    ),
                 ],
             },
             # 17
@@ -689,10 +758,16 @@ class Command(BaseCommand):
                     "zaharli moddalar taʼsiriga juda bardoshli.'"
                 ),
                 "choices": [
-                    ("o’simliklar oqsillarni hayvonlarning azotli birikmalaridan hosil qiladi", False),
+                    (
+                        "o’simliklar oqsillarni hayvonlarning azotli birikmalaridan hosil qiladi",
+                        False,
+                    ),
                     ("bakteriyalar oval va aylana shakllar hosil qila oladi", False),
                     ("bakteriya sporalari yuqori haroratga chidamli bo’ladi", True),
-                    ("bakteriyalar kurtaklanish va bo’linish yo’li bilan ko’payadi", False),
+                    (
+                        "bakteriyalar kurtaklanish va bo’linish yo’li bilan ko’payadi",
+                        False,
+                    ),
                 ],
             },
             # 19
@@ -709,10 +784,22 @@ class Command(BaseCommand):
                     "yashovchanligini saqlab qoladi' degan fikr xatodir."
                 ),
                 "choices": [
-                    ("bakteriyalarning paydo bo’lishi va rivojlanish sikli bir xilda kechmaydi", False),
-                    ("bakteriyalar har qanday haroratda o’z yashovchanligini saqlab qola oladi", True),
-                    ("patogen va fitopatogen bakteriyalar kasallik qo’zg’atuvchi bakteriyalar guruhiga kiradi.", False),
-                    ("ayrim oqsillarning ammiakka aylanishida bakteriyalarning ta’siri bor", False),
+                    (
+                        "bakteriyalarning paydo bo’lishi va rivojlanish sikli bir xilda kechmaydi",
+                        False,
+                    ),
+                    (
+                        "bakteriyalar har qanday haroratda o’z yashovchanligini saqlab qola oladi",
+                        True,
+                    ),
+                    (
+                        "patogen va fitopatogen bakteriyalar kasallik qo’zg’atuvchi bakteriyalar guruhiga kiradi.",
+                        False,
+                    ),
+                    (
+                        "ayrim oqsillarning ammiakka aylanishida bakteriyalarning ta’siri bor",
+                        False,
+                    ),
                 ],
             },
             # 20
@@ -745,10 +832,22 @@ class Command(BaseCommand):
                     "To'g'ri javob — A. Matnda ular 'makroorganizmlar' emas, 'bir hujayrali mikroorganizmlar' deb atalgan."
                 ),
                 "choices": [
-                    ("buralgan, sharsimon, ipsimon makroorganizmlar ham bakteriyaga kiritilgan", True),
-                    ("tayoqchasimon bakteriyalarning uchi bir xil shaklda bo’lmaydi", False),
-                    ("muhitning qulayligi sporalarda ayrim hujayralarning paydo bo’lishiga olib keladi", False),
-                    ("mikrotsistalarning vujudga kelishi miksobakteriyalarning tarkibidagi vegitativ hujayralar bilan bo’g’liq", False),
+                    (
+                        "buralgan, sharsimon, ipsimon makroorganizmlar ham bakteriyaga kiritilgan",
+                        True,
+                    ),
+                    (
+                        "tayoqchasimon bakteriyalarning uchi bir xil shaklda bo’lmaydi",
+                        False,
+                    ),
+                    (
+                        "muhitning qulayligi sporalarda ayrim hujayralarning paydo bo’lishiga olib keladi",
+                        False,
+                    ),
+                    (
+                        "mikrotsistalarning vujudga kelishi miksobakteriyalarning tarkibidagi vegitativ hujayralar bilan bo’g’liq",
+                        False,
+                    ),
                 ],
             },
             # 22
@@ -763,10 +862,22 @@ class Command(BaseCommand):
                     "To'g'ri javob — A. Matnning III qismida yuqori harorat bakteriyalarni nobud qilishi ta'kidlangan."
                 ),
                 "choices": [
-                    ("bakteriyalarning nobud bo’lishiga haroratning yuqoriligi sabab bo’ladi", True),
-                    ("kislorodli muhitda energiya ajralib chiqishi qulay bo’ladi", False),
-                    ("ko’ndalang shakldagi bo’linishdan hujayra xaltasi paydo bo’ladi", False),
-                    ("sitoplazmada joylashgan ribosamalarni RNK tarkibida ham uchratishimiz mumkin", False),
+                    (
+                        "bakteriyalarning nobud bo’lishiga haroratning yuqoriligi sabab bo’ladi",
+                        True,
+                    ),
+                    (
+                        "kislorodli muhitda energiya ajralib chiqishi qulay bo’ladi",
+                        False,
+                    ),
+                    (
+                        "ko’ndalang shakldagi bo’linishdan hujayra xaltasi paydo bo’ladi",
+                        False,
+                    ),
+                    (
+                        "sitoplazmada joylashgan ribosamalarni RNK tarkibida ham uchratishimiz mumkin",
+                        False,
+                    ),
                 ],
             },
             # 23
@@ -783,10 +894,22 @@ class Command(BaseCommand):
                     "mumkinligini kamtarlik bilan e'tirof etadi."
                 ),
                 "choices": [
-                    ("hikoyanavis janob B. ga o’zining boshidan o’tgan ibratli hikoyani aytib berish orqali hayotda arzimagan narsalarga ko’p pul sarflamaslik kerakligini uqtiradi.", False),
-                    ("hikoyanavis insonlar o’z vaqti va boyliklarini juda qimmat narsalarga sarf etayotganliklarini aytadi.", False),
-                    ("hikoyanavis “ko’rpangga qarab oyoq uzat” maqoli asosida odamlar o’z iqtisodini o’ylab ish qilishi kerakligi g’oyasini hikoyasiga singdirib yuboradi.", False),
-                    ("hikoyanavis “o’rgangan ko’ngil o’rtansa qo’ymas” deganlaridek , yoshlikda qilgan xatosini yana takrorlashi mumkinligini aytib o’tadi.", True),
+                    (
+                        "hikoyanavis janob B. ga o’zining boshidan o’tgan ibratli hikoyani aytib berish orqali hayotda arzimagan narsalarga ko’p pul sarflamaslik kerakligini uqtiradi.",
+                        False,
+                    ),
+                    (
+                        "hikoyanavis insonlar o’z vaqti va boyliklarini juda qimmat narsalarga sarf etayotganliklarini aytadi.",
+                        False,
+                    ),
+                    (
+                        "hikoyanavis “ko’rpangga qarab oyoq uzat” maqoli asosida odamlar o’z iqtisodini o’ylab ish qilishi kerakligi g’oyasini hikoyasiga singdirib yuboradi.",
+                        False,
+                    ),
+                    (
+                        "hikoyanavis “o’rgangan ko’ngil o’rtansa qo’ymas” deganlaridek , yoshlikda qilgan xatosini yana takrorlashi mumkinligini aytib o’tadi.",
+                        True,
+                    ),
                 ],
             },
             # 24
@@ -802,10 +925,22 @@ class Command(BaseCommand):
                     "mansabparastlik, shon-shuhrat, qimmatbaho ashyolar va havoyi orzularning ramzidir."
                 ),
                 "choices": [
-                    ("hikoyada insonlar bosh qahramon kabi hushtak sotib olishga juda ko’p mablag’ sarf etishayotganligi aytilgan.", True),
-                    ("hikoyada insonlar keraksiz narsalarga vaqtlarini va bisotlarini sarf etishmaganida ko’proq narsaga erishishlari mumkinligi aytilgan.", False),
-                    ("hikoyada yovuzlikning yo’qolishiga ham “hushtaklar” uchun kamroq to’lov qilish sabab bo’lishi mumkinligi aytilgan.", False),
-                    ("hikoyada bosh qahramon xotirasiga muhrlanib qolgan voqea keyinchalik uning hayoti davomida asqotganligini kuzatish mumkin.", False),
+                    (
+                        "hikoyada insonlar bosh qahramon kabi hushtak sotib olishga juda ko’p mablag’ sarf etishayotganligi aytilgan.",
+                        True,
+                    ),
+                    (
+                        "hikoyada insonlar keraksiz narsalarga vaqtlarini va bisotlarini sarf etishmaganida ko’proq narsaga erishishlari mumkinligi aytilgan.",
+                        False,
+                    ),
+                    (
+                        "hikoyada yovuzlikning yo’qolishiga ham “hushtaklar” uchun kamroq to’lov qilish sabab bo’lishi mumkinligi aytilgan.",
+                        False,
+                    ),
+                    (
+                        "hikoyada bosh qahramon xotirasiga muhrlanib qolgan voqea keyinchalik uning hayoti davomida asqotganligini kuzatish mumkin.",
+                        False,
+                    ),
                 ],
             },
             # 25
@@ -822,9 +957,18 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("bir xatoni ikkinchi bor takrorlamaydigan inson.", True),
-                    ("xatosidan to’g’ri xulosa chiqara oladigan, ammo yana shu xatoni qaytarishi mumkin bo’lgan inson", False),
-                    ("ko’pchilik bolalar kabi yoshligida e’tiborni tortadigan arzimas narsalarga ham qiziqadigan inson", False),
-                    ("boshqa odamlarning xatolarini kuzatib xulosa chiqara oladigan inson.", False),
+                    (
+                        "xatosidan to’g’ri xulosa chiqara oladigan, ammo yana shu xatoni qaytarishi mumkin bo’lgan inson",
+                        False,
+                    ),
+                    (
+                        "ko’pchilik bolalar kabi yoshligida e’tiborni tortadigan arzimas narsalarga ham qiziqadigan inson",
+                        False,
+                    ),
+                    (
+                        "boshqa odamlarning xatolarini kuzatib xulosa chiqara oladigan inson.",
+                        False,
+                    ),
                 ],
             },
             # 26
@@ -862,7 +1006,10 @@ class Command(BaseCommand):
                     ("kattalarga hurmat-ehtiromli ekanligi", False),
                     ("to’g’ri fikrli insonlarga yaxshi munosabatda bo’lishi", False),
                     ("majburiyat va hurmat", True),
-                    ("o’zi bilan bir xil fikrlaydiganlarni haddan tashqari hurmat qilish", False),
+                    (
+                        "o’zi bilan bir xil fikrlaydiganlarni haddan tashqari hurmat qilish",
+                        False,
+                    ),
                 ],
             },
             # 28
@@ -872,8 +1019,8 @@ class Command(BaseCommand):
                 "passage": passage3,
                 "text": (
                     "Alisher Navoiy g’azali matla’si haqida berilgan TO’G’RI fikrni aniqlang:\n"
-                    "\"G‘am toshin jismimda paykoning bila band aylading,\n"
-                    "Ul samarni bu yig‘ochqa bargpayvand aylading.\""
+                    '"G‘am toshin jismimda paykoning bila band aylading,\n'
+                    'Ul samarni bu yig‘ochqa bargpayvand aylading."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -901,9 +1048,18 @@ class Command(BaseCommand):
                     "Yor oshiqni visol dasturxoniga emas, g'am yeb qon yutadigan yerga mahkum etgan. Oshiq xursand emas, balki bu yorning sitamidir."
                 ),
                 "choices": [
-                    ("baytda yorning labi shakardan ham shirin ekanligiga ishora qilingan.", False),
-                    ("baytda oshiq qon yutayotgan bo’lsa ham yor yozgan dasturxon atrofida bo’lganidan xursand.", True),
-                    ("baytda shakarning shirin ekanligini eshitib jilmayib qo’ygan yor holati tasvirlangan.", False),
+                    (
+                        "baytda yorning labi shakardan ham shirin ekanligiga ishora qilingan.",
+                        False,
+                    ),
+                    (
+                        "baytda oshiq qon yutayotgan bo’lsa ham yor yozgan dasturxon atrofida bo’lganidan xursand.",
+                        True,
+                    ),
+                    (
+                        "baytda shakarning shirin ekanligini eshitib jilmayib qo’ygan yor holati tasvirlangan.",
+                        False,
+                    ),
                     ("baytda o’zga oshiqlar yor vasliga yetganligi aytilgan.", False),
                 ],
             },
@@ -914,8 +1070,8 @@ class Command(BaseCommand):
                 "passage": passage3,
                 "text": (
                     "G’azalning 5-bayti haqida berilgan TO’G’RI fikrni aniqlang:\n"
-                    "\"Qilding ul yuz jannatidin ayru bu ko‘z mardumin\n"
-                    "Odamu har sari yoshin anga farzand aylading.\""
+                    '"Qilding ul yuz jannatidin ayru bu ko‘z mardumin\n'
+                    'Odamu har sari yoshin anga farzand aylading."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -924,10 +1080,19 @@ class Command(BaseCommand):
                     "ko'zyosh tomchilari esa uning farzandlariga badiiy tashbih qilingan."
                 ),
                 "choices": [
-                    ("baytda ko’z qorachig’i odamga, ko’zyoshlar esa bolaga qiyoslangan.", True),
+                    (
+                        "baytda ko’z qorachig’i odamga, ko’zyoshlar esa bolaga qiyoslangan.",
+                        True,
+                    ),
                     ("baytda yor yuzi jannatga, oshiq esa odamga qiyoslangan.", False),
-                    ("baytda yor yuzidan ayrilgan ko’zning bola kabi ko’zyosh to’kayotganligi aytilgan.", False),
-                    ("baytda oshiq yor yuzini ko’rish orqali jannatga erishishni niyat qilgan.", False),
+                    (
+                        "baytda yor yuzidan ayrilgan ko’zning bola kabi ko’zyosh to’kayotganligi aytilgan.",
+                        False,
+                    ),
+                    (
+                        "baytda oshiq yor yuzini ko’rish orqali jannatga erishishni niyat qilgan.",
+                        False,
+                    ),
                 ],
             },
             # 31
@@ -943,10 +1108,22 @@ class Command(BaseCommand):
                     "gulga o'xshatgan shaxs oshiq emas, balki bevafo yorning o'zidir. Shu sababli A fikr noto'g'ri."
                 ),
                 "choices": [
-                    ("baytlarning birida oshiq yorining e’tiborini tortish uchun o’zining yuzini qizil sharob bilan atay gulga o’xshatganligi aytilgan.", True),
-                    ("baytlarning birida yor kipriklari oshiqqa g’am olib kelganligi aytilgan.", False),
-                    ("baytlarning birida oshiq ko’zi yor yuzini ko’rishdan mahrum bo’lganligi uchun ham yig’layotganligi aytilgan.", False),
-                    ("baytlarning birida yor oshig’ini telba deb hisoblashi aytilgan.", False),
+                    (
+                        "baytlarning birida oshiq yorining e’tiborini tortish uchun o’zining yuzini qizil sharob bilan atay gulga o’xshatganligi aytilgan.",
+                        True,
+                    ),
+                    (
+                        "baytlarning birida yor kipriklari oshiqqa g’am olib kelganligi aytilgan.",
+                        False,
+                    ),
+                    (
+                        "baytlarning birida oshiq ko’zi yor yuzini ko’rishdan mahrum bo’lganligi uchun ham yig’layotganligi aytilgan.",
+                        False,
+                    ),
+                    (
+                        "baytlarning birida yor oshig’ini telba deb hisoblashi aytilgan.",
+                        False,
+                    ),
                 ],
             },
             # 32
@@ -956,8 +1133,8 @@ class Command(BaseCommand):
                 "passage": passage3,
                 "text": (
                     "G’azalning 6-baytida qanday mazmun ifodalangan?\n"
-                    "\"Dahr bog‘ining gulida yo‘qturur bo‘yi vafo,\n"
-                    "O‘zni, ey bulbul, agar parkand-parkand aylading.\""
+                    '"Dahr bog‘ining gulida yo‘qturur bo‘yi vafo,\n'
+                    'O‘zni, ey bulbul, agar parkand-parkand aylading."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -966,10 +1143,19 @@ class Command(BaseCommand):
                     "o'zini parcha-parcha qilsa ham vafosizlikka uchrashi uqtirilib, bulbul ogohlantirilmoqda."
                 ),
                 "choices": [
-                    ("baytda bu dunyodagi go’zallarda vafo yo’q ekanligidan bulbul ogohlantirilgan.", True),
-                    ("baytda oshiq yelib-yugursa ham yorlarning unga e’tibori yo’q ekanligi aytilgan", False),
+                    (
+                        "baytda bu dunyodagi go’zallarda vafo yo’q ekanligidan bulbul ogohlantirilgan.",
+                        True,
+                    ),
+                    (
+                        "baytda oshiq yelib-yugursa ham yorlarning unga e’tibori yo’q ekanligi aytilgan",
+                        False,
+                    ),
                     ("baytda vafosizlik g’oyasi ifodalangan.", False),
-                    ("baytda gulga yetishish uchun bulbul o’zini parcha-parcha qilishi kerakligi aytilgan", False),
+                    (
+                        "baytda gulga yetishish uchun bulbul o’zini parcha-parcha qilishi kerakligi aytilgan",
+                        False,
+                    ),
                 ],
             },
             # 33 (Matching item 33)
@@ -978,7 +1164,7 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A – E) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "33-gap: \"Bilimsizlik kulfat keltiradi, do’stim.\"\n\n"
+                    '33-gap: "Bilimsizlik kulfat keltiradi, do’stim."\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1001,8 +1187,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A – E) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "34-gap: \"Yo’lim boshladi to kezdim dala-tog’,\n"
-                    "          Kezdim ne yurtlarni — chiroyli tengsiz\"\n\n"
+                    '34-gap: "Yo’lim boshladi to kezdim dala-tog’,\n'
+                    '          Kezdim ne yurtlarni — chiroyli tengsiz"\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1025,7 +1211,7 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A – E) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "35-gap: \"Bo’lmasa xudo osmondan tashlarmidi?\"\n\n"
+                    '35-gap: "Bo’lmasa xudo osmondan tashlarmidi?"\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1067,7 +1253,7 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Berilgan gapda qo’llanilishi lozim bo’lgan tinish belgilarining to’g’ri ketma-ketligini yozing:\n\n"
-                    "\"Yaxshining yaxshiligini aytingki nuri toshsin yomonning yomonligini aytingki quti o’chsin\"\n\n"
+                    '"Yaxshining yaxshiligini aytingki nuri toshsin yomonning yomonligini aytingki quti o’chsin"\n\n'
                     "Misol: vergul, vergul, vergul, nuqta"
                 ),
                 "type": Question.QuestionType.TEXT_MATCH,
@@ -1084,8 +1270,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gapda qaysi qo‘shimcha qo‘llash bilan bog‘liq uslubiy xatolik kuzatilgan?\n\n"
-                    "\"Olamning cheksiz sirlarini bilish, inson ehtiyojlarini borliqqa moslashtirish va uni "
-                    "o’zgartirilishga bo’ysundirishda aqlga teng keladigan kuch yo’q.\""
+                    '"Olamning cheksiz sirlarini bilish, inson ehtiyojlarini borliqqa moslashtirish va uni '
+                    'o’zgartirilishga bo’ysundirishda aqlga teng keladigan kuch yo’q."'
                 ),
                 "type": Question.QuestionType.TEXT_MATCH,
                 "points": 2,
@@ -1101,7 +1287,7 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gapdagi so‘zlarning mazmunan va grammatik jihatdan bog‘lanishlarini tahlil qiling:\n"
-                    "\"Bu — Alif, zamon va makon, butun borliqni o’z ichiga olgan nuqta.\"\n\n"
+                    '"Bu — Alif, zamon va makon, butun borliqni o’z ichiga olgan nuqta."\n\n'
                     "Javobni quyidagi formatda yozing: a) [so'z] b) [so'z]\n"
                     "a) gapda ajratib ko‘rsatilgan 'nuqta' so‘ziga tobelanib bog‘langan so‘zni yozing;\n"
                     "b) 'nuqta' so‘zi bilan teng munosabatda bog‘langan so‘zni yozing."
@@ -1120,7 +1306,7 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Berilgan gapdagi ajratilgan sintaktik birlikni nomlang:\n\n"
-                    "\"Kechqurun, ona choy ichib o’tirganda, tanish bir odamning ovozi keldi.\""
+                    '"Kechqurun, ona choy ichib o’tirganda, tanish bir odamning ovozi keldi."'
                 ),
                 "type": Question.QuestionType.TEXT_MATCH,
                 "points": 2,
@@ -1178,8 +1364,8 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "Quyidagi savollarga javob yozing (Format: a) [tovush] b) [qofiya turi]):\n\n"
-                    "\"Ish manga qilmoqdurur ul sho‘xi beparvoni yod,\n"
-                    " Ul unutmish anikim, qilg‘ay meni shaydoni yod.\"\n\n"
+                    '"Ish manga qilmoqdurur ul sho‘xi beparvoni yod,\n'
+                    ' Ul unutmish anikim, qilg‘ay meni shaydoni yod."\n\n'
                     "a) yuqoridagi baytda qofiyadosh so’zlardagi tirgak tovushni aniqlang;\n"
                     "b) yuqoridagi baytda raviyning o’rniga ko’ra qofiya turini aniqlang."
                 ),
@@ -1198,10 +1384,10 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "Quyidagi savollarga javob yozing (Format: a) [janr] b) [qofiya va radif]):\n\n"
-                    "\"Yo rabki, inoyatingni yor ayla manga,\n"
+                    '"Yo rabki, inoyatingni yor ayla manga,\n'
                     " Yo‘qluqqa hidoyatingni bor ayla manga,\n"
                     " Ham kahfi kifoyatingni dor ayla manga,\n"
-                    " Ham durri inoyating nisor ayla manga.\"\n\n"
+                    ' Ham durri inoyating nisor ayla manga."\n\n'
                     "a) yuqoridagi she’r janrini aniqlang;\n"
                     "b) yuqoridagi she’rning qofiyalanish tartibi va radif turi qanday?"
                 ),

@@ -1,4 +1,5 @@
 """Tests for Multi-Subject Ecosystem (Uzbek / English IELTS), Strict Exam Mode, and 1-Click Attendance."""
+
 from decimal import Decimal
 from unittest.mock import patch
 import pytest
@@ -90,6 +91,7 @@ def strict_test(db, teacher_user):
 # 1. Subject Switcher Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_subjects_list_api(api_client, student_user):
     api_client.force_authenticate(user=student_user)
@@ -108,7 +110,9 @@ def test_switch_subject_api(api_client, student_user):
     api_client.force_authenticate(user=student_user)
 
     # Switch to English
-    res = api_client.post("/api/v1/profile/switch-subject/", {"subject": "english"}, format="json")
+    res = api_client.post(
+        "/api/v1/profile/switch-subject/", {"subject": "english"}, format="json"
+    )
     assert res.status_code == 200
     assert res.json()["active_subject"] == "english"
 
@@ -116,18 +120,23 @@ def test_switch_subject_api(api_client, student_user):
     assert student_user.profile.active_subject == "english"
 
     # Switch back to Uzbek
-    res = api_client.post("/api/v1/profile/switch-subject/", {"subject": "uzbek"}, format="json")
+    res = api_client.post(
+        "/api/v1/profile/switch-subject/", {"subject": "uzbek"}, format="json"
+    )
     assert res.status_code == 200
     assert res.json()["active_subject"] == "uzbek"
 
     # Invalid subject rejected
-    res = api_client.post("/api/v1/profile/switch-subject/", {"subject": "russian"}, format="json")
+    res = api_client.post(
+        "/api/v1/profile/switch-subject/", {"subject": "russian"}, format="json"
+    )
     assert res.status_code == 400
 
 
 # ---------------------------------------------------------------------------
 # 2. IELTS Writing Grader Tests (4 Official Criteria)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_grade_ielts_essay_unit(student_user):
@@ -201,6 +210,7 @@ def test_grade_ielts_essay_unit(student_user):
 # 3. Strict Exam Mode & Anti-Cheat Violation Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_strict_mode_violation_auto_submit(api_client, student_user, strict_test):
     api_client.force_authenticate(user=student_user)
@@ -248,8 +258,11 @@ def test_strict_mode_violation_auto_submit(api_client, student_user, strict_test
 # 4. 1-Click Attendance with Delayed Absence Alert
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
-def test_attendance_quick_mark_present_and_absent(api_client, teacher_user, student_user, student_group):
+def test_attendance_quick_mark_present_and_absent(
+    api_client, teacher_user, student_user, student_group
+):
     api_client.force_authenticate(user=teacher_user)
 
     # 1. Quick mark 'present'
@@ -259,7 +272,9 @@ def test_attendance_quick_mark_present_and_absent(api_client, teacher_user, stud
         "status": "present",
         "lesson_date": "2026-10-18",
     }
-    res = api_client.post("/api/v1/school/attendance/quick-mark/", payload_present, format="json")
+    res = api_client.post(
+        "/api/v1/school/attendance/quick-mark/", payload_present, format="json"
+    )
     assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
@@ -273,8 +288,12 @@ def test_attendance_quick_mark_present_and_absent(api_client, teacher_user, stud
         "status": "absent",
         "lesson_date": "2026-10-18",
     }
-    with patch("apps.notifications.tasks_parent.send_parent_absence_alert_task.apply_async") as mock_task:
-        res_absent = api_client.post("/api/v1/school/attendance/quick-mark/", payload_absent, format="json")
+    with patch(
+        "apps.notifications.tasks_parent.send_parent_absence_alert_task.apply_async"
+    ) as mock_task:
+        res_absent = api_client.post(
+            "/api/v1/school/attendance/quick-mark/", payload_absent, format="json"
+        )
         assert res_absent.status_code == 200
         data_absent = res_absent.json()
         assert data_absent["ok"] is True

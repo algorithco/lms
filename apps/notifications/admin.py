@@ -4,6 +4,7 @@ Only ``NotificationLog`` is registered here. The attendance domain's
 ``NotificationPreference`` is registered in ``apps/attendance/admin.py`` so it
 is configured in exactly one place — do not register it again here.
 """
+
 from django.contrib import admin
 
 from .models import NotificationLog

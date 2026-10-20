@@ -7,6 +7,7 @@ Duolingo-style daily habit loops:
 - XP rewards per educational action
 - Weekly E-Sport Leagues (Bronze, Silver, Gold, Diamond)
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -73,11 +74,20 @@ def record_user_activity(
     profile.weekly_xp += xp_amount
 
     # Dynamic promotion check based on weekly threshold
-    if profile.weekly_xp >= 800 and profile.weekly_league != Profile.LeagueChoice.DIAMOND:
+    if (
+        profile.weekly_xp >= 800
+        and profile.weekly_league != Profile.LeagueChoice.DIAMOND
+    ):
         profile.weekly_league = Profile.LeagueChoice.DIAMOND
-    elif profile.weekly_xp >= 400 and profile.weekly_league in (Profile.LeagueChoice.BRONZE, Profile.LeagueChoice.SILVER):
+    elif profile.weekly_xp >= 400 and profile.weekly_league in (
+        Profile.LeagueChoice.BRONZE,
+        Profile.LeagueChoice.SILVER,
+    ):
         profile.weekly_league = Profile.LeagueChoice.GOLD
-    elif profile.weekly_xp >= 150 and profile.weekly_league == Profile.LeagueChoice.BRONZE:
+    elif (
+        profile.weekly_xp >= 150
+        and profile.weekly_league == Profile.LeagueChoice.BRONZE
+    ):
         profile.weekly_league = Profile.LeagueChoice.SILVER
 
     profile.save(
@@ -147,7 +157,11 @@ def get_weekly_league_leaderboard(user) -> Dict[str, Any]:
     """Return the weekly league leaderboard for the user's tier."""
     from apps.accounts.models import Profile
 
-    profile, _ = Profile.objects.get_or_create(user=user) if user and user.is_authenticated else (None, False)
+    profile, _ = (
+        Profile.objects.get_or_create(user=user)
+        if user and user.is_authenticated
+        else (None, False)
+    )
     target_league = profile.weekly_league if profile else Profile.LeagueChoice.BRONZE
 
     top_profiles = (
@@ -159,29 +173,42 @@ def get_weekly_league_leaderboard(user) -> Dict[str, Any]:
     participants = []
     user_rank = None
     for idx, p in enumerate(top_profiles, start=1):
-        is_me = (user and user.is_authenticated and p.user_id == user.id)
+        is_me = user and user.is_authenticated and p.user_id == user.id
         if is_me:
             user_rank = idx
         name = p.user.get_full_name() or p.user.email.split("@")[0]
-        participants.append({
-            "rank": idx,
-            "user_id": p.user_id,
-            "name": name,
-            "avatar_url": p.avatar.url if p.avatar else None,
-            "weekly_xp": p.weekly_xp,
-            "is_current_user": bool(is_me),
-            "tier_badge": "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"#{idx}",
-        })
+        participants.append(
+            {
+                "rank": idx,
+                "user_id": p.user_id,
+                "name": name,
+                "avatar_url": p.avatar.url if p.avatar else None,
+                "weekly_xp": p.weekly_xp,
+                "is_current_user": bool(is_me),
+                "tier_badge": "🥇"
+                if idx == 1
+                else "🥈"
+                if idx == 2
+                else "🥉"
+                if idx == 3
+                else f"#{idx}",
+            }
+        )
 
     # Next Sunday 23:59 calculation
     now = timezone.now()
     days_until_sunday = (6 - now.weekday()) % 7
-    sunday_end = (now + timedelta(days=days_until_sunday)).replace(hour=23, minute=59, second=59)
+    sunday_end = (now + timedelta(days=days_until_sunday)).replace(
+        hour=23, minute=59, second=59
+    )
 
     return {
         "league": target_league,
-        "league_title": dict(Profile.LeagueChoice.choices).get(target_league, target_league.title()),
-        "user_rank": user_rank or (len(participants) + 1 if user and user.is_authenticated else None),
+        "league_title": dict(Profile.LeagueChoice.choices).get(
+            target_league, target_league.title()
+        ),
+        "user_rank": user_rank
+        or (len(participants) + 1 if user and user.is_authenticated else None),
         "participants": participants,
         "resets_in_hours": max(1, int((sunday_end - now).total_seconds() // 3600)),
     }

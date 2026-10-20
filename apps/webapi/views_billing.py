@@ -44,13 +44,16 @@ def plans_view(request):
     non-public still sees which plan they are on.
     """
     plans = SubscriptionPlan.objects.filter(
-        is_active=True, is_public=True,
+        is_active=True,
+        is_public=True,
     ).order_by("sort_order")
     sub = getattr(request.user, "subscription", None)
-    return Response({
-        "results": SubscriptionPlanSerializer(plans, many=True).data,
-        "my_plan_id": sub.plan_id if sub else None,
-    })
+    return Response(
+        {
+            "results": SubscriptionPlanSerializer(plans, many=True).data,
+            "my_plan_id": sub.plan_id if sub else None,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -58,10 +61,12 @@ def plans_view(request):
 def my_view(request):
     sub = getattr(request.user, "subscription", None)
     history = PaymentHistory.objects.filter(user=request.user)[:10]
-    return Response({
-        "subscription": UserSubscriptionSerializer(sub).data if sub else None,
-        "history": PaymentHistorySerializer(history, many=True).data,
-    })
+    return Response(
+        {
+            "subscription": UserSubscriptionSerializer(sub).data if sub else None,
+            "history": PaymentHistorySerializer(history, many=True).data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -70,22 +75,28 @@ def subscribe_info_view(request, plan_id: int):
     """Manual card-transfer instructions (same ctx as subscribe_view)."""
     plan = get_object_or_404(SubscriptionPlan, id=plan_id, is_active=True)
     free = plan.price_monthly <= 0
-    payment_configured = all((
-        settings.PAYMENT_CARD_NUMBER,
-        settings.PAYMENT_CARD_BANK,
-        settings.PAYMENT_CARD_HOLDER,
-        settings.PAYMENT_ADMIN_USERNAME,
-    ))
-    return Response({
-        "plan": SubscriptionPlanSerializer(plan).data,
-        "card_number": settings.PAYMENT_CARD_NUMBER if payment_configured else "",
-        "card_bank": settings.PAYMENT_CARD_BANK if payment_configured else "",
-        "card_holder": settings.PAYMENT_CARD_HOLDER if payment_configured else "",
-        "admin_username": settings.PAYMENT_ADMIN_USERNAME if payment_configured else "",
-        "bot_name": settings.TELEGRAM_BOT_NAME,
-        "free": free,
-        "payment_available": free or payment_configured,
-    })
+    payment_configured = all(
+        (
+            settings.PAYMENT_CARD_NUMBER,
+            settings.PAYMENT_CARD_BANK,
+            settings.PAYMENT_CARD_HOLDER,
+            settings.PAYMENT_ADMIN_USERNAME,
+        )
+    )
+    return Response(
+        {
+            "plan": SubscriptionPlanSerializer(plan).data,
+            "card_number": settings.PAYMENT_CARD_NUMBER if payment_configured else "",
+            "card_bank": settings.PAYMENT_CARD_BANK if payment_configured else "",
+            "card_holder": settings.PAYMENT_CARD_HOLDER if payment_configured else "",
+            "admin_username": settings.PAYMENT_ADMIN_USERNAME
+            if payment_configured
+            else "",
+            "bot_name": settings.TELEGRAM_BOT_NAME,
+            "free": free,
+            "payment_available": free or payment_configured,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -112,18 +123,22 @@ def entitlement_view(request):
     """
     remaining = get_remaining_limits(request.user)
     can_image = can_submit_essay(
-        request.user, SubscriptionUsage.Kind.IMAGE_ESSAY,
+        request.user,
+        SubscriptionUsage.Kind.IMAGE_ESSAY,
     )[0]
     can_text = can_submit_essay(
-        request.user, SubscriptionUsage.Kind.TEXT_ESSAY,
+        request.user,
+        SubscriptionUsage.Kind.TEXT_ESSAY,
     )[0]
     can_test = can_start_test(request.user)[0]
-    return Response({
-        **remaining,
-        "can_submit_image_essay": can_image,
-        "can_submit_text_essay": can_text,
-        "can_start_test": can_test,
-    })
+    return Response(
+        {
+            **remaining,
+            "can_submit_image_essay": can_image,
+            "can_submit_text_essay": can_text,
+            "can_start_test": can_test,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -135,18 +150,32 @@ def card_info_view(request):
     starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 15000
     pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 49000
     premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 60000
-    return Response({
-        "card_number": card_number,
-        "card_holder": card_holder,
-        "starter_price": starter_price,
-        "pro_price": pro_price,
-        "premium_price": premium_price,
-        "plans": {
-            "starter": {"name": "Starter", "price": starter_price, "label": f"{starter_price:,} so'm/oy".replace(",", " ")},
-            "pro": {"name": "Pro", "price": pro_price, "label": f"{pro_price:,} so'm/oy".replace(",", " ")},
-            "premium": {"name": "Premium", "price": premium_price, "label": f"{premium_price:,} so'm/oy".replace(",", " ")},
-        },
-    })
+    return Response(
+        {
+            "card_number": card_number,
+            "card_holder": card_holder,
+            "starter_price": starter_price,
+            "pro_price": pro_price,
+            "premium_price": premium_price,
+            "plans": {
+                "starter": {
+                    "name": "Starter",
+                    "price": starter_price,
+                    "label": f"{starter_price:,} so'm/oy".replace(",", " "),
+                },
+                "pro": {
+                    "name": "Pro",
+                    "price": pro_price,
+                    "label": f"{pro_price:,} so'm/oy".replace(",", " "),
+                },
+                "premium": {
+                    "name": "Premium",
+                    "price": premium_price,
+                    "label": f"{premium_price:,} so'm/oy".replace(",", " "),
+                },
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -156,7 +185,10 @@ def payment_receipt_upload_view(request):
     """POST /api/v1/payments/receipts/ — Upload card payment screenshot/receipt."""
     plan = str(request.data.get("plan", "")).strip().lower()
     if plan not in ("starter", "pro", "premium"):
-        return Response({"detail": "Tarif 'starter', 'pro' yoki 'premium' bo'lishi kerak."}, status=400)
+        return Response(
+            {"detail": "Tarif 'starter', 'pro' yoki 'premium' bo'lishi kerak."},
+            status=400,
+        )
 
     amount_val = request.data.get("amount")
     default_amounts = {
@@ -176,7 +208,10 @@ def payment_receipt_upload_view(request):
     if not receipt_image:
         return Response({"detail": "To'lov cheki rasmi yuklanishi shart."}, status=400)
 
-    from apps.payments.services import validate_and_hash_receipt_image, notify_admin_new_receipt
+    from apps.payments.services import (
+        validate_and_hash_receipt_image,
+        notify_admin_new_receipt,
+    )
 
     try:
         image_hash, _raw_bytes = validate_and_hash_receipt_image(receipt_image)
@@ -206,7 +241,4 @@ def payment_receipt_upload_view(request):
 def my_payment_receipts_view(request):
     """GET /api/v1/payments/my-receipts/ — User's uploaded payment receipts."""
     receipts = PaymentReceipt.objects.filter(user=request.user).order_by("-created_at")
-    return Response({
-        "results": PaymentReceiptSerializer(receipts, many=True).data
-    })
-
+    return Response({"results": PaymentReceiptSerializer(receipts, many=True).data})

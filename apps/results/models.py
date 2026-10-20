@@ -11,6 +11,7 @@ Design:
     - Certificate is created via a Celery task so the PDF generation
       (ReportLab) doesn't block the HTTP response.
 """
+
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -193,9 +194,7 @@ class ResultSectionScore(models.Model):
     maximum = models.DecimalField(
         _("maksimal ball"), max_digits=7, decimal_places=2, default=0
     )
-    weight = models.DecimalField(
-        _("vazn"), max_digits=5, decimal_places=2, default=1
-    )
+    weight = models.DecimalField(_("vazn"), max_digits=5, decimal_places=2, default=1)
 
     class Meta:
         verbose_name = _("Bo'lim bali")

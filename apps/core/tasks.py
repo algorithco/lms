@@ -9,6 +9,7 @@ Runs via Celery Beat schedule:
 
 These tasks prevent database bloat and keep the system performant.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # 1. Cleanup expired sessions
 # ---------------------------------------------------------------------------
+
 
 @shared_task(
     name="core.cleanup_expired_sessions",
@@ -49,7 +51,8 @@ def cleanup_expired_sessions() -> dict[str, Any]:
 
     logger.info(
         "Sessions cleanup: removed %d expired sessions (%d remaining)",
-        removed, after_count,
+        removed,
+        after_count,
     )
 
     return {
@@ -62,6 +65,7 @@ def cleanup_expired_sessions() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 2. Cleanup stale (abandoned) test attempts
 # ---------------------------------------------------------------------------
+
 
 @shared_task(
     name="core.check_timeout_attempts",
@@ -92,6 +96,7 @@ def check_timeout_attempts() -> dict[str, Any]:
             errors += 1
             logger.exception("Failed to finalize timed-out attempt: id=%d", attempt.id)
     return {"status": "completed", "completed": completed, "errors": errors}
+
 
 @shared_task(
     name="core.cleanup_stale_attempts",
@@ -131,16 +136,23 @@ def cleanup_stale_attempts() -> dict[str, Any]:
                 cleaned += 1
                 logger.info(
                     "Stale attempt cleaned: id=%d, test=%d, student=%d, started=%s",
-                    attempt.id, attempt.test_id, attempt.student_id, attempt.started_at,
+                    attempt.id,
+                    attempt.test_id,
+                    attempt.student_id,
+                    attempt.started_at,
                 )
         except Exception:
             errors += 1
             logger.error(
-                "Failed to clean stale attempt: id=%d", attempt.id, exc_info=True,
+                "Failed to clean stale attempt: id=%d",
+                attempt.id,
+                exc_info=True,
             )
 
     logger.info(
-        "Stale attempts cleanup: cleaned=%d, errors=%d", cleaned, errors,
+        "Stale attempts cleanup: cleaned=%d, errors=%d",
+        cleaned,
+        errors,
     )
 
     return {
@@ -153,6 +165,7 @@ def cleanup_stale_attempts() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 3. Cleanup stale cache entries
 # ---------------------------------------------------------------------------
+
 
 @shared_task(
     name="core.cleanup_cache",
@@ -187,6 +200,7 @@ def cleanup_cache_entries() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 4. Daily maintenance orchestrator
 # ---------------------------------------------------------------------------
+
 
 @shared_task(
     name="core.daily_maintenance",

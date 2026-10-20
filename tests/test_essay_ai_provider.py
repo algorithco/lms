@@ -12,6 +12,7 @@ OpenRouter's endpoint, which rejected it with a misleading 401. The fix:
 All tests are offline — OpenAI client objects are constructed but never
 called, and provider resolution never hits the network.
 """
+
 from __future__ import annotations
 
 import json
@@ -215,6 +216,7 @@ class ClientConstructionTests(TestCase):
         client = _get_llm_client()
         self.assertEqual(client.api_key, "mock-key")
 
+
 class FallbackChainTests(TestCase):
     """
     3-stage model chain: primary -> fallback #1 -> fallback #2.
@@ -265,10 +267,17 @@ class FallbackChainTests(TestCase):
         with patch("apps.essays.services.time.sleep"):
             with self.assertRaises(Exception):
                 _chat_with_fallback(
-                    client, self.CHAIN[0], self.CHAIN[1:],
-                    messages=[], max_tokens=5, temperature=0, max_attempts=1,
+                    client,
+                    self.CHAIN[0],
+                    self.CHAIN[1:],
+                    messages=[],
+                    max_tokens=5,
+                    temperature=0,
+                    max_attempts=1,
                 )
-        tried = [c.kwargs["model"] for c in client.chat.completions.create.call_args_list]
+        tried = [
+            c.kwargs["model"] for c in client.chat.completions.create.call_args_list
+        ]
         self.assertEqual(tried, self.CHAIN)
 
     @override_settings(
@@ -284,8 +293,13 @@ class FallbackChainTests(TestCase):
         client.chat.completions.create.side_effect = [self._rate_limit(), ok]
         with patch("apps.essays.services.time.sleep"):
             _, used = _chat_with_fallback(
-                client, self.CHAIN[0], self.CHAIN[1:],
-                messages=[], max_tokens=5, temperature=0, max_attempts=1,
+                client,
+                self.CHAIN[0],
+                self.CHAIN[1:],
+                messages=[],
+                max_tokens=5,
+                temperature=0,
+                max_attempts=1,
             )
         self.assertEqual(used, self.CHAIN[1])
 
@@ -300,8 +314,12 @@ class FallbackChainTests(TestCase):
         client.chat.completions.create.side_effect = self._auth_error()
         with self.assertRaises(Exception):
             _chat_with_fallback(
-                client, self.CHAIN[0], self.CHAIN[1:],
-                messages=[], max_tokens=5, temperature=0,
+                client,
+                self.CHAIN[0],
+                self.CHAIN[1:],
+                messages=[],
+                max_tokens=5,
+                temperature=0,
             )
         self.assertEqual(client.chat.completions.create.call_count, 1)
 
@@ -318,7 +336,12 @@ class FallbackChainTests(TestCase):
         ok.choices[0].message.content = "javob"
         client.chat.completions.create.return_value = ok
         _, used = _chat_with_fallback(
-            client, self.CHAIN[0], [], messages=[], max_tokens=5, temperature=0,
+            client,
+            self.CHAIN[0],
+            [],
+            messages=[],
+            max_tokens=5,
+            temperature=0,
         )
         self.assertEqual(used, self.CHAIN[0])
         self.assertEqual(client.chat.completions.create.call_count, 1)
@@ -377,25 +400,33 @@ class GradingResponseFallbackTests(TestCase):
         bad = MagicMock()
         bad.choices[0].message.content = '{"criteria": ['
         good = MagicMock()
-        good.choices[0].message.content = json.dumps({
-            "criteria": [
-                {"id": i, "name": f"Criterion {i}", "score": 1.5, "reason": "izoh"}
-                for i in range(1, 13)
-            ],
-            "total_score": 0,
-            "max_score": 24,
-            "summary": "Haqiqiy model javobi.",
-        })
+        good.choices[0].message.content = json.dumps(
+            {
+                "criteria": [
+                    {"id": i, "name": f"Criterion {i}", "score": 1.5, "reason": "izoh"}
+                    for i in range(1, 13)
+                ],
+                "total_score": 0,
+                "max_score": 24,
+                "summary": "Haqiqiy model javobi.",
+            }
+        )
         client.chat.completions.create.side_effect = [bad, good]
 
         result, used_model = _grade_via_llm(
-            client, ["primary", "fallback"], "essay", "normal prompt", "simple prompt",
+            client,
+            ["primary", "fallback"],
+            "essay",
+            "normal prompt",
+            "simple prompt",
         )
 
         self.assertEqual(used_model, "fallback")
         self.assertEqual(result["total_score"], 18.0)
         calls = client.chat.completions.create.call_args_list
-        self.assertEqual([call.kwargs["model"] for call in calls], ["primary", "fallback"])
+        self.assertEqual(
+            [call.kwargs["model"] for call in calls], ["primary", "fallback"]
+        )
         self.assertEqual(calls[1].kwargs["messages"][0]["content"], "simple prompt")
 
     def test_all_invalid_responses_raise_without_a_grade(self):
@@ -412,22 +443,35 @@ class GradingResponseFallbackTests(TestCase):
     def test_invalid_rubric_tries_next_model(self):
         client = MagicMock()
         invalid = MagicMock()
-        invalid.choices[0].message.content = json.dumps({
-            "criteria": [{"id": 1, "name": "Uslub", "score": 2}],
-            "summary": "To'liq emas.",
-        })
+        invalid.choices[0].message.content = json.dumps(
+            {
+                "criteria": [{"id": 1, "name": "Uslub", "score": 2}],
+                "summary": "To'liq emas.",
+            }
+        )
         valid = MagicMock()
-        valid.choices[0].message.content = json.dumps({
-            "criteria": [
-                {"id": i, "name": f"Criterion {i}", "score": 2.0 if i in (1, 2, 3, 7) else 1.5, "reason": "izoh"}
-                for i in range(1, 13)
-            ],
-            "summary": "To'liq baho.",
-        })
+        valid.choices[0].message.content = json.dumps(
+            {
+                "criteria": [
+                    {
+                        "id": i,
+                        "name": f"Criterion {i}",
+                        "score": 2.0 if i in (1, 2, 3, 7) else 1.5,
+                        "reason": "izoh",
+                    }
+                    for i in range(1, 13)
+                ],
+                "summary": "To'liq baho.",
+            }
+        )
         client.chat.completions.create.side_effect = [invalid, valid]
 
         result, used_model = _grade_via_llm(
-            client, ["primary", "fallback"], "essay", "normal", "simple",
+            client,
+            ["primary", "fallback"],
+            "essay",
+            "normal",
+            "simple",
         )
 
         self.assertEqual(used_model, "fallback")
@@ -457,7 +501,9 @@ class GradingResponseFallbackTests(TestCase):
 
         client = MagicMock()
         client.chat.completions.create.side_effect = openai.AuthenticationError(
-            "401 invalid key", response=MagicMock(status_code=401, headers={}), body=None,
+            "401 invalid key",
+            response=MagicMock(status_code=401, headers={}),
+            body=None,
         )
         with self.assertRaisesRegex(ValueError, "API xatolik"):
             _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
@@ -468,7 +514,9 @@ class GradingResponseFallbackTests(TestCase):
 
         client = MagicMock()
         client.chat.completions.create.side_effect = openai.RateLimitError(
-            "429 temporarily busy", response=MagicMock(status_code=429, headers={}), body=None,
+            "429 temporarily busy",
+            response=MagicMock(status_code=429, headers={}),
+            body=None,
         )
         with self.assertRaises(openai.RateLimitError):
             _grade_via_llm(client, ["primary", "fallback"], "essay", "normal", "simple")
@@ -505,7 +553,9 @@ class GradingResponseFallbackTests(TestCase):
         before = monotonic()
         with (
             patch("apps.essays.services._get_llm_client") as get_client,
-            patch("apps.essays.services._grade_via_llm", return_value=(valid, "primary")) as grader,
+            patch(
+                "apps.essays.services._grade_via_llm", return_value=(valid, "primary")
+            ) as grader,
         ):
             result = grade_essay("Sinov uchun esse matni")
         after = monotonic()
@@ -525,8 +575,13 @@ class GradingResponseFallbackTests(TestCase):
 
         with patch("apps.essays.services.time.monotonic", return_value=100.0):
             _chat_with_fallback(
-                client, "primary", messages=[], max_tokens=5, temperature=0,
-                deadline=145.0, request_timeout=60.0,
+                client,
+                "primary",
+                messages=[],
+                max_tokens=5,
+                temperature=0,
+                deadline=145.0,
+                request_timeout=60.0,
             )
 
         timeout = client.chat.completions.create.call_args.kwargs["timeout"]
@@ -555,9 +610,12 @@ class ResponseFormatTests(TestCase):
         client.chat.completions.create.return_value = ok
 
         _chat_with_fallback(
-            client, self.CHAIN[0], [],
+            client,
+            self.CHAIN[0],
+            [],
             messages=[{"role": "user", "content": "hi"}],
-            max_tokens=3000, temperature=0.1,
+            max_tokens=3000,
+            temperature=0.1,
             response_format={"type": "json_object"},
         )
         kwargs = client.chat.completions.create.call_args.kwargs
@@ -583,15 +641,19 @@ class ResponseFormatTests(TestCase):
         client.chat.completions.create.side_effect = [bad, ok]
 
         _chat_with_fallback(
-            client, self.CHAIN[0], [],
+            client,
+            self.CHAIN[0],
+            [],
             messages=[{"role": "user", "content": "hi"}],
-            max_tokens=3000, temperature=0.1,
+            max_tokens=3000,
+            temperature=0.1,
             response_format={"type": "json_object"},
         )
         calls = client.chat.completions.create.call_args_list
         self.assertEqual(len(calls), 2)
         self.assertEqual(
-            calls[0].kwargs["response_format"], {"type": "json_object"},
+            calls[0].kwargs["response_format"],
+            {"type": "json_object"},
         )
         self.assertNotIn("response_format", calls[1].kwargs)
 
@@ -652,9 +714,13 @@ class InvalidModelFallbackTests(TestCase):
             ok,
         ]
         _, used = _chat_with_fallback(
-            client, self.CHAIN[0], self.CHAIN[1:],
+            client,
+            self.CHAIN[0],
+            self.CHAIN[1:],
             messages=[{"role": "user", "content": "hi"}],
-            max_tokens=3000, temperature=0.1, max_attempts=2,
+            max_tokens=3000,
+            temperature=0.1,
+            max_attempts=2,
         )
         self.assertEqual(used, self.CHAIN[1])
         calls = client.chat.completions.create.call_args_list
@@ -669,10 +735,17 @@ class InvalidModelFallbackTests(TestCase):
         client.chat.completions.create.side_effect = self._invalid_model_error()
         with self.assertRaises(Exception):
             _chat_with_fallback(
-                client, self.CHAIN[0], self.CHAIN[1:],
-                messages=[], max_tokens=5, temperature=0, max_attempts=1,
+                client,
+                self.CHAIN[0],
+                self.CHAIN[1:],
+                messages=[],
+                max_tokens=5,
+                temperature=0,
+                max_attempts=1,
             )
-        tried = [c.kwargs["model"] for c in client.chat.completions.create.call_args_list]
+        tried = [
+            c.kwargs["model"] for c in client.chat.completions.create.call_args_list
+        ]
         self.assertEqual(tried, self.CHAIN)
 
     def test_other_400_still_fails_fast(self):
@@ -687,7 +760,11 @@ class InvalidModelFallbackTests(TestCase):
         )
         with self.assertRaises(Exception):
             _chat_with_fallback(
-                client, self.CHAIN[0], self.CHAIN[1:],
-                messages=[], max_tokens=5, temperature=0,
+                client,
+                self.CHAIN[0],
+                self.CHAIN[1:],
+                messages=[],
+                max_tokens=5,
+                temperature=0,
             )
         self.assertEqual(client.chat.completions.create.call_count, 1)

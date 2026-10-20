@@ -6,31 +6,95 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('payments', '0008_seed_commercial_plans'),
+        ("payments", "0008_seed_commercial_plans"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PaymentReceipt',
+            name="PaymentReceipt",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('plan', models.CharField(choices=[('starter', 'Starter'), ('premium', 'Premium')], db_index=True, max_length=20, verbose_name='tarif')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12, verbose_name='summa')),
-                ('receipt_image', models.ImageField(upload_to='receipts/%Y/%m/', verbose_name='chek rasmi')),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')], db_index=True, default='pending', max_length=20, verbose_name='holat')),
-                ('source', models.CharField(choices=[('web', 'Web'), ('bot', 'Bot')], db_index=True, default='web', max_length=10, verbose_name='manba')),
-                ('admin_note', models.TextField(blank=True, null=True, verbose_name='admin izohi')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payment_receipts', to=settings.AUTH_USER_MODEL, verbose_name='foydalanuvchi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "plan",
+                    models.CharField(
+                        choices=[("starter", "Starter"), ("premium", "Premium")],
+                        db_index=True,
+                        max_length=20,
+                        verbose_name="tarif",
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=12, verbose_name="summa"
+                    ),
+                ),
+                (
+                    "receipt_image",
+                    models.ImageField(
+                        upload_to="receipts/%Y/%m/", verbose_name="chek rasmi"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("approved", "Approved"),
+                            ("rejected", "Rejected"),
+                        ],
+                        db_index=True,
+                        default="pending",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[("web", "Web"), ("bot", "Bot")],
+                        db_index=True,
+                        default="web",
+                        max_length=10,
+                        verbose_name="manba",
+                    ),
+                ),
+                (
+                    "admin_note",
+                    models.TextField(blank=True, null=True, verbose_name="admin izohi"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="payment_receipts",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="foydalanuvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "To'lov cheki",
-                'verbose_name_plural': "To'lov cheklari",
-                'ordering': ['-created_at'],
+                "verbose_name": "To'lov cheki",
+                "verbose_name_plural": "To'lov cheklari",
+                "ordering": ["-created_at"],
             },
         ),
     ]

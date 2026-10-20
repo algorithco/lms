@@ -13,6 +13,7 @@ things a wrong implementation would quietly get wrong:
   permission for;
 * the same week is generated once and delivered once.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -53,71 +54,111 @@ def touch(model, pk: int, field: str, when):
 class _ReportFixture(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
-            email="wr-admin@example.test", password="testpass123", role="admin",
+            email="wr-admin@example.test",
+            password="testpass123",
+            role="admin",
             telegram_chat_id=900001,
         )
         self.teacher = User.objects.create_user(
-            email="wr-teacher@example.test", password="testpass123", role="teacher",
-            first_name="Oqituvchi", telegram_chat_id=900002,
+            email="wr-teacher@example.test",
+            password="testpass123",
+            role="teacher",
+            first_name="Oqituvchi",
+            telegram_chat_id=900002,
         )
         self.other_teacher = User.objects.create_user(
-            email="wr-teacher2@example.test", password="testpass123", role="teacher",
+            email="wr-teacher2@example.test",
+            password="testpass123",
+            role="teacher",
             telegram_chat_id=900003,
         )
         self.ali = User.objects.create_user(
-            email="wr-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="wr-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="wr-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="wr-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.gulnora = User.objects.create_user(
-            email="wr-gulnora@example.test", password="testpass123", role="student",
-            first_name="Gulnora", last_name="Yusupova",
+            email="wr-gulnora@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Gulnora",
+            last_name="Yusupova",
         )
         self.outsider = User.objects.create_user(
-            email="wr-outsider@example.test", password="testpass123", role="student",
-            first_name="Begona", last_name="Oquvchi",
+            email="wr-outsider@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Begona",
+            last_name="Oquvchi",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra, self.gulnora)
         self.other_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.other_group.students.add(self.outsider)
 
     # -- helpers ----------------------------------------------------------
     def _finalized_session(self, lesson_day=PERIOD_FIRST_DAY):
         session, _created = attendance_services.create_session(
-            group=self.group, teacher=self.teacher, actor=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
+            actor=self.teacher,
             lesson_date=lesson_day,
         )
         return session
 
     def _mark(self, session, student, status, *, late_minutes=0):
         return attendance_services.mark(
-            session, student, status, actor=self.teacher,
+            session,
+            student,
+            status,
+            actor=self.teacher,
             late_minutes=late_minutes,
         )
 
     def _essay_setup(self):
         topic = EssayTopic.objects.create(title="Kitobxonlik", description="")
         assignment = EssayAssignment.objects.create(
-            topic=topic, group=self.group, assigned_by=self.teacher,
+            topic=topic,
+            group=self.group,
+            assigned_by=self.teacher,
         )
         return topic, assignment
 
-    def _submission(self, *, student, topic, assignment=None, status, score=None,
-                    submitted_on=None, source=EssaySubmission.Source.WEB,
-                    max_score=24):
+    def _submission(
+        self,
+        *,
+        student,
+        topic,
+        assignment=None,
+        status,
+        score=None,
+        submitted_on=None,
+        source=EssaySubmission.Source.WEB,
+        max_score=24,
+    ):
         submission = EssaySubmission.objects.create(
-            student=student, topic=topic, essay_text="esse matni",
+            student=student,
+            topic=topic,
+            essay_text="esse matni",
             # ``total_score`` is NOT NULL: an ungraded essay stores 0 and is
             # excluded from the average by its *status*, never by its score.
             status=status,
             total_score=Decimal(score) if score is not None else Decimal("0"),
-            max_score=max_score, source=source, assignment=assignment,
+            max_score=max_score,
+            source=source,
+            assignment=assignment,
             submitted_at=submitted_on or (PERIOD_START + timedelta(days=1)),
         )
         return submission
@@ -131,11 +172,12 @@ class PeriodMathTests(TestCase):
             start.astimezone(services.reporting_timezone()),
             end.astimezone(services.reporting_timezone()),
         )
-        self.assertEqual(start.weekday(), 0)                       # Monday
+        self.assertEqual(start.weekday(), 0)  # Monday
         self.assertEqual((local_start.hour, local_start.minute), (0, 0))
-        self.assertEqual(local_end.weekday(), 6)                   # Sunday
+        self.assertEqual(local_end.weekday(), 6)  # Sunday
         self.assertEqual(
-            (local_end.hour, local_end.minute, local_end.second), (23, 59, 59),
+            (local_end.hour, local_end.minute, local_end.second),
+            (23, 59, 59),
         )
         self.assertEqual(local_end.microsecond, 999999)
         self.assertEqual((local_end - local_start).days, 6)
@@ -199,9 +241,18 @@ class PeriodMathTests(TestCase):
         config.save()
         with (
             patch("apps.weekly_reports.tasks.timezone.now", return_value=now),
-            patch("apps.weekly_reports.tasks.services.week_bounds", return_value=(latest_start, latest_end)),
-            patch("apps.weekly_reports.tasks.services.generate_all_reports", return_value={"groups_created": 0}) as generate,
-            patch("apps.weekly_reports.tasks.delivery.send_reports", return_value={"sent": 0}) as send,
+            patch(
+                "apps.weekly_reports.tasks.services.week_bounds",
+                return_value=(latest_start, latest_end),
+            ),
+            patch(
+                "apps.weekly_reports.tasks.services.generate_all_reports",
+                return_value={"groups_created": 0},
+            ) as generate,
+            patch(
+                "apps.weekly_reports.tasks.delivery.send_reports",
+                return_value={"sent": 0},
+            ) as send,
             patch.object(generate_and_send_weekly_reports, "apply_async"),
         ):
             first = generate_and_send_weekly_reports.apply().get()
@@ -223,7 +274,9 @@ class PeriodMathTests(TestCase):
         now = dt.datetime(2026, 10, 12, 8, 59, tzinfo=services.reporting_timezone())
         with (
             patch("apps.weekly_reports.tasks.timezone.now", return_value=now),
-            patch("apps.weekly_reports.tasks.services.generate_all_reports") as generate,
+            patch(
+                "apps.weekly_reports.tasks.services.generate_all_reports"
+            ) as generate,
             patch.object(generate_and_send_weekly_reports, "apply_async"),
         ):
             result = generate_and_send_weekly_reports.apply().get()
@@ -237,10 +290,14 @@ class AttendanceAggregationTests(_ReportFixture):
         self._mark(session, self.ali, AttendanceRecord.Status.PRESENT)
         self._mark(session, self.zuhra, AttendanceRecord.Status.LATE, late_minutes=12)
         self._mark(
-            session, self.gulnora, AttendanceRecord.Status.EXCUSED,
+            session,
+            self.gulnora,
+            AttendanceRecord.Status.EXCUSED,
         )
         attendance_services.finalize(
-            session, actor=self.teacher, mark_unmarked_as_absent=True,
+            session,
+            actor=self.teacher,
+            mark_unmarked_as_absent=True,
         )
 
         block = services.attendance_summary(self.group, PERIOD_START, PERIOD_END)
@@ -270,33 +327,44 @@ class AttendanceAggregationTests(_ReportFixture):
             self._mark(session, self.zuhra, AttendanceRecord.Status.ABSENT)
             self._mark(session, self.ali, AttendanceRecord.Status.PRESENT)
             attendance_services.finalize(
-                session, actor=self.teacher, mark_unmarked_as_absent=True,
+                session,
+                actor=self.teacher,
+                mark_unmarked_as_absent=True,
             )
 
         block = services.attendance_summary(self.group, PERIOD_START, PERIOD_END)
-        follow_up = {row["student_id"]: row for row in block["students_requiring_follow_up"]}
+        follow_up = {
+            row["student_id"]: row for row in block["students_requiring_follow_up"]
+        }
         self.assertIn(self.zuhra.pk, follow_up)
         self.assertEqual(follow_up[self.zuhra.pk]["unexcused_absences"], 2)
         self.assertEqual(follow_up[self.zuhra.pk]["name"], "Zuhra")
         self.assertNotIn(self.ali.pk, follow_up)
-        self.assertEqual(block["follow_up_count"], len(block["students_requiring_follow_up"]))
+        self.assertEqual(
+            block["follow_up_count"], len(block["students_requiring_follow_up"])
+        )
 
 
 class EssayAggregationTests(_ReportFixture):
     def test_pending_essays_are_not_counted_as_graded(self):
         topic, assignment = self._essay_setup()
         self._submission(
-            student=self.ali, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.GRADED, score=20,
+            student=self.ali,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.GRADED,
+            score=20,
         )
         self._submission(
-            student=self.zuhra, topic=topic, assignment=assignment,
+            student=self.zuhra,
+            topic=topic,
+            assignment=assignment,
             status=EssaySubmission.Status.PENDING,
         )
 
         block = services.essays_summary(self.group, PERIOD_START, PERIOD_END)
         self.assertEqual(block["assigned_essays"], 1)
-        self.assertEqual(block["expected_submissions"], 3)   # the live roster
+        self.assertEqual(block["expected_submissions"], 3)  # the live roster
         self.assertEqual(block["submitted"], 2)
         self.assertEqual(block["submitted_students"], 2)
         self.assertEqual(block["missing_submissions"], 1)
@@ -310,8 +378,11 @@ class EssayAggregationTests(_ReportFixture):
     def test_teacher_reviewed_is_counted_separately_from_ai_graded(self):
         topic, assignment = self._essay_setup()
         self._submission(
-            student=self.ali, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.TEACHER_REVIEWED, score=22,
+            student=self.ali,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.TEACHER_REVIEWED,
+            score=22,
         )
         block = services.essays_summary(self.group, PERIOD_START, PERIOD_END)
         self.assertEqual(block["graded"], 1)
@@ -320,13 +391,19 @@ class EssayAggregationTests(_ReportFixture):
     def test_web_and_bot_submissions_land_in_the_same_report(self):
         topic, assignment = self._essay_setup()
         self._submission(
-            student=self.ali, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.GRADED, score=20,
+            student=self.ali,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.GRADED,
+            score=20,
             source=EssaySubmission.Source.WEB,
         )
         self._submission(
-            student=self.zuhra, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.GRADED, score=18,
+            student=self.zuhra,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.GRADED,
+            score=18,
             source=EssaySubmission.Source.TELEGRAM,
         )
         block = services.essays_summary(self.group, PERIOD_START, PERIOD_END)
@@ -337,12 +414,16 @@ class EssayAggregationTests(_ReportFixture):
     def test_another_groups_essay_never_appears(self):
         foreign_topic = EssayTopic.objects.create(title="Tabiat", description="")
         foreign_assignment = EssayAssignment.objects.create(
-            topic=foreign_topic, group=self.other_group, assigned_by=self.other_teacher,
+            topic=foreign_topic,
+            group=self.other_group,
+            assigned_by=self.other_teacher,
         )
         self._submission(
-            student=self.outsider, topic=foreign_topic,
+            student=self.outsider,
+            topic=foreign_topic,
             assignment=foreign_assignment,
-            status=EssaySubmission.Status.GRADED, score=18,
+            status=EssaySubmission.Status.GRADED,
+            score=18,
         )
         block = services.essays_summary(self.group, PERIOD_START, PERIOD_END)
         self.assertEqual(block["submitted"], 0)
@@ -353,8 +434,11 @@ class EssayAggregationTests(_ReportFixture):
     def test_a_private_essay_is_never_counted(self):
         topic, assignment = self._essay_setup()
         self._submission(
-            student=self.ali, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.GRADED, score=20,
+            student=self.ali,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.GRADED,
+            score=20,
         )
         EssaySubmission.objects.filter(student=self.ali).update(
             group_visibility=EssaySubmission.GroupVisibility.PRIVATE,
@@ -366,8 +450,11 @@ class EssayAggregationTests(_ReportFixture):
     def test_submissions_outside_the_period_are_excluded(self):
         topic, assignment = self._essay_setup()
         self._submission(
-            student=self.ali, topic=topic, assignment=assignment,
-            status=EssaySubmission.Status.GRADED, score=20,
+            student=self.ali,
+            topic=topic,
+            assignment=assignment,
+            status=EssaySubmission.Status.GRADED,
+            score=20,
             submitted_on=PERIOD_START - timedelta(days=2),
         )
         block = services.essays_summary(self.group, PERIOD_START, PERIOD_END)
@@ -378,25 +465,40 @@ class TestAggregationTests(_ReportFixture):
     def setUp(self):
         super().setUp()
         self.course = Course.objects.create(
-            teacher=self.teacher, title="Ona tili", description="kurs",
+            teacher=self.teacher,
+            title="Ona tili",
+            description="kurs",
         )
-        self.enrollment = Enrollment.objects.create(student=self.ali, course=self.course)
+        self.enrollment = Enrollment.objects.create(
+            student=self.ali, course=self.course
+        )
         self.test_model = Test.objects.create(
-            title="1-nazorat", description="", course=self.course,
-            status=Test.Status.PUBLISHED, is_active=True,
+            title="1-nazorat",
+            description="",
+            course=self.course,
+            status=Test.Status.PUBLISHED,
+            is_active=True,
         )
 
     def _attempt(self, student, *, status, percentage=None):
         attempt = TestAttempt.objects.create(
-            test=self.test_model, student=student, status=status,
+            test=self.test_model,
+            student=student,
+            status=status,
         )
         touch(TestAttempt, attempt.pk, "started_at", PERIOD_START + timedelta(days=1))
         if percentage is not None:
             Result.objects.create(
-                attempt=attempt, student=student, test=self.test_model,
-                course=self.course, total_questions=10, correct_answers=6,
-                wrong_answers=4, score=Decimal(percentage) / 10 * 10,
-                max_score=Decimal("100"), percentage=Decimal(str(percentage)),
+                attempt=attempt,
+                student=student,
+                test=self.test_model,
+                course=self.course,
+                total_questions=10,
+                correct_answers=6,
+                wrong_answers=4,
+                score=Decimal(percentage) / 10 * 10,
+                max_score=Decimal("100"),
+                percentage=Decimal(str(percentage)),
                 is_passed=percentage >= 60,
             )
         return attempt
@@ -431,10 +533,16 @@ class TestAggregationTests(_ReportFixture):
 class GenerationAndVersioningTests(_ReportFixture):
     def test_generate_is_idempotent_for_a_closed_week(self):
         first = services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
         second = services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(WeeklyGroupReport.objects.count(), 1)
@@ -443,10 +551,15 @@ class GenerationAndVersioningTests(_ReportFixture):
 
     def test_regeneration_is_explicit_and_versioned(self):
         original = services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
         replacement = services.regenerate(
-            original, actor=self.admin, reason="Davomat tuzatildi",
+            original,
+            actor=self.admin,
+            reason="Davomat tuzatildi",
         )
         self.assertEqual(replacement.version, 2)
         self.assertTrue(replacement.is_current)
@@ -458,7 +571,8 @@ class GenerationAndVersioningTests(_ReportFixture):
         # Both versions survive: the audit trail is the point.
         self.assertEqual(WeeklyGroupReport.objects.count(), 2)
         self.assertEqual(
-            WeeklyGroupReport.objects.filter(is_current=True).count(), 1,
+            WeeklyGroupReport.objects.filter(is_current=True).count(),
+            1,
         )
 
     def test_generate_all_reports_is_recoverable(self):
@@ -471,12 +585,17 @@ class GenerationAndVersioningTests(_ReportFixture):
 
     def test_summary_is_scoped_to_one_group(self):
         report = services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
         self.assertEqual(report.summary["group_id"], self.group.pk)
         self.assertEqual(report.summary["group_name"], "9-A")
-        self.assertEqual(report.summary["period"]["label"],
-                         services.period_label(PERIOD_START, PERIOD_END))
+        self.assertEqual(
+            report.summary["period"]["label"],
+            services.period_label(PERIOD_START, PERIOD_END),
+        )
 
 
 class _DeliveryTransport:
@@ -501,26 +620,40 @@ class DeliveryAndPrivacyTests(_ReportFixture):
     def setUp(self):
         super().setUp()
         self.report = services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
 
     def _finance_invoice(self):
         policy = CourseBillingPolicy.objects.create(
-            name="9-A oylik", group=self.group, amount_uzs=300_000, due_day=10,
+            name="9-A oylik",
+            group=self.group,
+            amount_uzs=300_000,
+            due_day=10,
         )
         return CourseInvoice.objects.create(
-            student=self.ali, policy=policy, scope_key=f"group:{self.group.pk}:wr",
-            billing_period_start=PERIOD_FIRST_DAY, billing_period_end=PERIOD_LAST_DAY,
-            period_label="test", base_amount_uzs=Decimal("300000"),
-            amount_due_uzs=Decimal("300000"), paid_amount_uzs=Decimal("300000"),
-            due_date=PERIOD_LAST_DAY, status=CourseInvoice.Status.PAID,
+            student=self.ali,
+            policy=policy,
+            scope_key=f"group:{self.group.pk}:wr",
+            billing_period_start=PERIOD_FIRST_DAY,
+            billing_period_end=PERIOD_LAST_DAY,
+            period_label="test",
+            base_amount_uzs=Decimal("300000"),
+            amount_due_uzs=Decimal("300000"),
+            paid_amount_uzs=Decimal("300000"),
+            due_date=PERIOD_LAST_DAY,
+            status=CourseInvoice.Status.PAID,
         )
 
     def test_teacher_receives_a_private_report_from_real_counts(self):
         session = self._finalized_session()
         self._mark(session, self.ali, AttendanceRecord.Status.PRESENT)
         attendance_services.finalize(
-            session, actor=self.teacher, mark_unmarked_as_absent=True,
+            session,
+            actor=self.teacher,
+            mark_unmarked_as_absent=True,
         )
         transport = _DeliveryTransport()
         result = delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
@@ -550,7 +683,9 @@ class DeliveryAndPrivacyTests(_ReportFixture):
         transport = _DeliveryTransport()
         delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
         replacement = services.regenerate(
-            self.report, actor=self.admin, reason="Esse bahosi tuzatildi",
+            self.report,
+            actor=self.admin,
+            reason="Esse bahosi tuzatildi",
         )
         result = delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
         self.assertEqual(result["sent"], 1)
@@ -564,9 +699,12 @@ class DeliveryAndPrivacyTests(_ReportFixture):
         from django.utils import timezone
 
         row = WeeklyReportDelivery.objects.create(
-            report=self.report, recipient=self.teacher,
+            report=self.report,
+            recipient=self.teacher,
             dedup_key=delivery.group_dedup_key(
-                self.report, self.teacher, WeeklyReportDelivery.Channel.TELEGRAM,
+                self.report,
+                self.teacher,
+                WeeklyReportDelivery.Channel.TELEGRAM,
             ),
             channel=WeeklyReportDelivery.Channel.TELEGRAM,
             status=WeeklyReportDelivery.Status.PENDING,
@@ -576,7 +714,9 @@ class DeliveryAndPrivacyTests(_ReportFixture):
             last_attempt_at=timezone.now() - timedelta(minutes=15),
         )
         calls = _DeliveryTransport()
-        recovered = delivery.deliver_group_report(self.report, self.teacher, transport=calls)
+        recovered = delivery.deliver_group_report(
+            self.report, self.teacher, transport=calls
+        )
         self.assertTrue(recovered.attempted)
         self.assertEqual(recovered.status, WeeklyReportDelivery.Status.SENT)
         self.assertEqual(len(calls.calls), 1)
@@ -623,7 +763,8 @@ class DeliveryAndPrivacyTests(_ReportFixture):
 
     def test_a_recipient_can_switch_the_weekly_message_off(self):
         NotificationPreference.objects.create(
-            user=self.teacher, teacher_weekly_report=False,
+            user=self.teacher,
+            teacher_weekly_report=False,
         )
         transport = _DeliveryTransport()
         result = delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
@@ -633,17 +774,22 @@ class DeliveryAndPrivacyTests(_ReportFixture):
 
     def test_teachers_never_receive_another_groups_report(self):
         services.generate_group_report(
-            self.other_group, PERIOD_START, PERIOD_END, actor=self.other_teacher,
+            self.other_group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.other_teacher,
         )
         transport = _DeliveryTransport()
         delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
         own = set(
-            WeeklyReportDelivery.objects.filter(report__group=self.group)
-            .values_list("recipient_id", flat=True)
+            WeeklyReportDelivery.objects.filter(report__group=self.group).values_list(
+                "recipient_id", flat=True
+            )
         )
         foreign = set(
-            WeeklyReportDelivery.objects.filter(report__group=self.other_group)
-            .values_list("recipient_id", flat=True)
+            WeeklyReportDelivery.objects.filter(
+                report__group=self.other_group
+            ).values_list("recipient_id", flat=True)
         )
         self.assertEqual(own, {self.teacher.pk})
         self.assertEqual(foreign, {self.other_teacher.pk})
@@ -670,21 +816,25 @@ class DeliveryAndPrivacyTests(_ReportFixture):
         # A report is a frozen record, so the newly configured tuition only
         # appears after an explicit, versioned regeneration.
         report = services.regenerate(
-            self.report, actor=self.admin, reason="Kurs to'lovi sozlandi",
+            self.report,
+            actor=self.admin,
+            reason="Kurs to'lovi sozlandi",
         )
         self.assertIsNotNone(report.summary["finance"])
         self.assertTrue(report.summary["finance"]["policy_configured"])
 
         # A plain teacher owns the group but has no tuition permission.
         teacher_text = delivery.group_report_text(
-            report, include_finance=delivery._may_see_finance(self.teacher),
+            report,
+            include_finance=delivery._may_see_finance(self.teacher),
         )
         self.assertNotIn("Kurs to'lovlari", teacher_text)
         self.assertNotIn("so'm", teacher_text)
 
         # A platform administrator does.
         admin_text = delivery.group_report_text(
-            report, include_finance=delivery._may_see_finance(self.admin),
+            report,
+            include_finance=delivery._may_see_finance(self.admin),
         )
         self.assertIn("Kurs to'lovlari", admin_text)
         self.assertIn("To'langan", admin_text)
@@ -692,7 +842,9 @@ class DeliveryAndPrivacyTests(_ReportFixture):
     def test_dashboard_payload_strips_finance_for_unauthorized_readers(self):
         self._finance_invoice()
         report = services.regenerate(
-            self.report, actor=self.admin, reason="Kurs to'lovi sozlandi",
+            self.report,
+            actor=self.admin,
+            reason="Kurs to'lovi sozlandi",
         )
         teacher_view = delivery.visible_summary(report, self.teacher)
         self.assertFalse(teacher_view["finance_visible"])
@@ -714,18 +866,26 @@ class ParentReportTests(_ReportFixture):
     def setUp(self):
         super().setUp()
         self.parent = User.objects.create_user(
-            email="wr-parent@example.test", password="testpass123", role="parent",
+            email="wr-parent@example.test",
+            password="testpass123",
+            role="parent",
             telegram_chat_id=900010,
         )
         self.relative = User.objects.create_user(
-            email="wr-relative@example.test", password="testpass123", role="parent",
+            email="wr-relative@example.test",
+            password="testpass123",
+            role="parent",
             telegram_chat_id=900011,
         )
         ParentStudentLink.objects.create(
-            parent=self.parent, student=self.ali, is_approved=True,
+            parent=self.parent,
+            student=self.ali,
+            is_approved=True,
         )
         ParentStudentLink.objects.create(
-            parent=self.relative, student=self.ali, is_approved=False,
+            parent=self.relative,
+            student=self.ali,
+            is_approved=False,
         )
 
     def test_only_verified_approved_parents_are_recipients(self):
@@ -739,11 +899,16 @@ class ParentReportTests(_ReportFixture):
         self._mark(session, self.ali, AttendanceRecord.Status.LATE, late_minutes=9)
         self._mark(session, self.zuhra, AttendanceRecord.Status.ABSENT)
         attendance_services.finalize(
-            session, actor=self.teacher, mark_unmarked_as_absent=True,
+            session,
+            actor=self.teacher,
+            mark_unmarked_as_absent=True,
         )
 
         report = services.generate_student_report(
-            self.ali, PERIOD_START, PERIOD_END, actor=None,
+            self.ali,
+            PERIOD_START,
+            PERIOD_END,
+            actor=None,
         )
         self.assertEqual(report.summary["student_id"], self.ali.pk)
         text = delivery.student_report_text(report)
@@ -761,13 +926,17 @@ class ParentReportTests(_ReportFixture):
         self.assertEqual(row.status, WeeklyReportDelivery.Status.SENT)
 
         delivery.send_reports(PERIOD_START, PERIOD_END, transport=transport)
-        self.assertEqual(WeeklyReportDelivery.objects.filter(
-            student_report__student=self.ali,
-        ).count(), 1)
+        self.assertEqual(
+            WeeklyReportDelivery.objects.filter(
+                student_report__student=self.ali,
+            ).count(),
+            1,
+        )
 
     def test_parent_can_switch_the_weekly_message_off(self):
         NotificationPreference.objects.create(
-            user=self.parent, parent_weekly_report=False,
+            user=self.parent,
+            parent_weekly_report=False,
         )
         services.generate_student_report(self.ali, PERIOD_START, PERIOD_END)
         transport = _DeliveryTransport()
@@ -782,12 +951,14 @@ class TaskTests(_ReportFixture):
         from apps.weekly_reports import tasks
 
         first = tasks.generate_weekly_reports(
-            PERIOD_START.isoformat(), PERIOD_END.isoformat(),
+            PERIOD_START.isoformat(),
+            PERIOD_END.isoformat(),
         )
         self.assertEqual(first["status"], "completed")
         self.assertEqual(first["groups_created"], 2)
         second = tasks.generate_weekly_reports(
-            PERIOD_START.isoformat(), PERIOD_END.isoformat(),
+            PERIOD_START.isoformat(),
+            PERIOD_END.isoformat(),
         )
         self.assertEqual(second["groups_created"], 0)
         self.assertEqual(WeeklyReportDelivery.objects.count(), 0)

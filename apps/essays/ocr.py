@@ -99,14 +99,17 @@ class OCRResult:
 # Image validation / normalization
 # ---------------------------------------------------------------------------
 
+
 def validate_image_bytes(data: bytes, *, max_bytes: int | None = None) -> str:
     """Validate raw image bytes and return the detected MIME type.
 
     Raises:
         OCRValidationError: on oversized, empty, corrupt or unsupported images.
     """
-    limit = max_bytes if max_bytes is not None else int(
-        getattr(settings, "ESSAY_IMAGE_MAX_BYTES", 10 * 1024 * 1024)
+    limit = (
+        max_bytes
+        if max_bytes is not None
+        else int(getattr(settings, "ESSAY_IMAGE_MAX_BYTES", 10 * 1024 * 1024))
     )
     if not data:
         raise OCRValidationError("Rasm bo'sh.")
@@ -185,12 +188,15 @@ def normalize_image(data: bytes) -> tuple[bytes, str]:
 # Providers
 # ---------------------------------------------------------------------------
 
+
 class OCRProvider(Protocol):
     name: str
 
     def is_available(self) -> bool: ...
 
-    def extract(self, pages: list[bytes], *, languages: tuple[str, ...]) -> OCRResult: ...
+    def extract(
+        self, pages: list[bytes], *, languages: tuple[str, ...]
+    ) -> OCRResult: ...
 
 
 class NullOCRProvider:
@@ -238,7 +244,9 @@ class OpenRouterVisionProvider:
 
     def _base_url(self) -> str:
         if getattr(settings, "OPENROUTER_API_KEY", ""):
-            return getattr(settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+            return getattr(
+                settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+            )
         return "https://api.groq.com/openai/v1"
 
     def extract(self, pages: list[bytes], *, languages: tuple[str, ...]) -> OCRResult:
@@ -253,18 +261,23 @@ class OpenRouterVisionProvider:
             # Page markers keep multi-page order explicit even if the model
             # decides to comment on the sequence.
             content.append({"type": "text", "text": f"--- PAGE {index} ---"})
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": "data:image/jpeg;base64," + base64.b64encode(page).decode("ascii"),
-                },
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/jpeg;base64,"
+                        + base64.b64encode(page).decode("ascii"),
+                    },
+                }
+            )
 
-        body = json.dumps({
-            "model": self.model,
-            "temperature": 0,
-            "messages": [{"role": "user", "content": content}],
-        }).encode("utf-8")
+        body = json.dumps(
+            {
+                "model": self.model,
+                "temperature": 0,
+                "messages": [{"role": "user", "content": content}],
+            }
+        ).encode("utf-8")
 
         request = urllib.request.Request(
             f"{self._base_url().rstrip('/')}/chat/completions",
@@ -303,9 +316,7 @@ class OpenRouterVisionProvider:
         # Split the model output back into pages so the student can review the
         # per-page result, and so the order is preserved end-to-end.
         chunks = _split_pages(text)
-        result_pages = [
-            OCRPage(index=i, text=chunk) for i, chunk in enumerate(chunks)
-        ]
+        result_pages = [OCRPage(index=i, text=chunk) for i, chunk in enumerate(chunks)]
         return OCRResult(
             text=text,
             pages=result_pages,
@@ -373,15 +384,15 @@ def extract_text(
         OCRUnavailable: no provider is configured.
         OCRFailed: the provider ran but returned nothing usable.
     """
-    limit = max_pages if max_pages is not None else int(
-        getattr(settings, "ESSAY_IMAGE_MAX_PAGES", 10)
+    limit = (
+        max_pages
+        if max_pages is not None
+        else int(getattr(settings, "ESSAY_IMAGE_MAX_PAGES", 10))
     )
     if not raw_pages:
         raise OCRValidationError("Hech qanday rasm qabul qilinmadi.")
     if len(raw_pages) > limit:
-        raise OCRValidationError(
-            f"Bitta essening maksimal sahifa soni: {limit}."
-        )
+        raise OCRValidationError(f"Bitta essening maksimal sahifa soni: {limit}.")
 
     max_bytes = int(getattr(settings, "ESSAY_IMAGE_MAX_BYTES", 10 * 1024 * 1024))
     prepared: list[bytes] = []

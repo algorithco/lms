@@ -11,6 +11,7 @@ Delivery is idempotent twice over:
 Recipients are the student themselves and their *verified, approved* parents.
 Amounts come only from the stored invoice — a reminder never recalculates money.
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,15 +43,17 @@ def reminder_text(invoice: CourseInvoice, stage: str) -> str:
     elif stage == PaymentReminderLog.Stage.DUE_TODAY:
         head = f"📅 {student_name}: kurs to'lovi bugun to'lanishi kerak."
     elif stage == PaymentReminderLog.Stage.AWAITING_CONFIRMATION:
-        return "\n".join([
-            "GRANDEC — TO'LOV XABARNOMASI",
-            "",
-            f"{student_name} uchun to'lov topshirig'i qabul qilindi.",
-            f"Tekshirilayotgan summa: {_amount(invoice.pending_amount_uzs)} so'm",
-            "To'lov tasdiqlanishi bilan qoldiq yangilanadi.",
-            "",
-            "Qo'shimcha to'lov qilish shart emas.",
-        ])
+        return "\n".join(
+            [
+                "GRANDEC — TO'LOV XABARNOMASI",
+                "",
+                f"{student_name} uchun to'lov topshirig'i qabul qilindi.",
+                f"Tekshirilayotgan summa: {_amount(invoice.pending_amount_uzs)} so'm",
+                "To'lov tasdiqlanishi bilan qoldiq yangilanadi.",
+                "",
+                "Qo'shimcha to'lov qilish shart emas.",
+            ]
+        )
     else:
         head = f"❗️ {student_name}: kurs to'lovi muddati o'tgan."
 
@@ -63,7 +66,10 @@ def reminder_text(invoice: CourseInvoice, stage: str) -> str:
         f"Qoldiq: {balance} so'm",
         f"Muddat: {due}",
     ]
-    if invoice.pending_amount_uzs > 0 and stage != PaymentReminderLog.Stage.AWAITING_CONFIRMATION:
+    if (
+        invoice.pending_amount_uzs > 0
+        and stage != PaymentReminderLog.Stage.AWAITING_CONFIRMATION
+    ):
         lines.append(
             f"Tekshirilayotgan to'lov: {_amount(invoice.pending_amount_uzs)} so'm"
         )
@@ -74,8 +80,14 @@ def reminder_text(invoice: CourseInvoice, stage: str) -> str:
     return "\n".join(lines)
 
 
-def _reserve_notification(*, recipient, title: str, message: str, dedup_key: str,
-                          notification_type: str = NotificationLog.NotificationType.REMINDER):
+def _reserve_notification(
+    *,
+    recipient,
+    title: str,
+    message: str,
+    dedup_key: str,
+    notification_type: str = NotificationLog.NotificationType.REMINDER,
+):
     """Reserve the transport-level dedup key, or return ``None`` if already used."""
     try:
         with transaction.atomic():
@@ -96,15 +108,23 @@ def _send(chat_id: int, text: str, recipient, title: str) -> dict:
     from apps.notifications.services.telegram_service import TelegramService
 
     return TelegramService.send_message_with_keyboard(
-        chat_id=chat_id, text=text, buttons=None,
+        chat_id=chat_id,
+        text=text,
+        buttons=None,
         notification_type=NotificationLog.NotificationType.REMINDER,
-        recipient=recipient, title=title,
+        recipient=recipient,
+        title=title,
     )
 
 
-def send_reminder(invoice: CourseInvoice, stage: str, recipient, *,
-                  channel: str = PaymentReminderLog.Channel.TELEGRAM,
-                  transport=None) -> PaymentReminderLog:
+def send_reminder(
+    invoice: CourseInvoice,
+    stage: str,
+    recipient,
+    *,
+    channel: str = PaymentReminderLog.Channel.TELEGRAM,
+    transport=None,
+) -> PaymentReminderLog:
     """Send (at most once) one reminder for one invoice stage to one recipient."""
     key = f"tuition:{invoice.pk}:{stage}:{recipient.pk}:{channel}"
     try:
@@ -112,8 +132,11 @@ def send_reminder(invoice: CourseInvoice, stage: str, recipient, *,
             log, created = PaymentReminderLog.objects.select_for_update().get_or_create(
                 idempotency_key=key,
                 defaults={
-                    "invoice": invoice, "recipient": recipient, "stage": stage,
-                    "channel": channel, "status": PaymentReminderLog.Status.PENDING,
+                    "invoice": invoice,
+                    "recipient": recipient,
+                    "stage": stage,
+                    "channel": channel,
+                    "status": PaymentReminderLog.Status.PENDING,
                 },
             )
     except IntegrityError:
@@ -132,7 +155,8 @@ def send_reminder(invoice: CourseInvoice, stage: str, recipient, *,
     stale_before = claim_time - timedelta(minutes=10)
     if not created:
         claimed = PaymentReminderLog.objects.filter(
-            pk=log.pk, status=PaymentReminderLog.Status.PENDING,
+            pk=log.pk,
+            status=PaymentReminderLog.Status.PENDING,
             created_at__lt=stale_before,
         ).update(error="Stale send reservation reclaimed.")
         if not claimed and log.status == PaymentReminderLog.Status.PENDING:
@@ -164,7 +188,10 @@ def send_reminder(invoice: CourseInvoice, stage: str, recipient, *,
     # fails, so a Telegram outage cannot permanently consume the key and block
     # every later retry of the same reminder.
     reserved = _reserve_notification(
-        recipient=recipient, title=title, message=text, dedup_key=f"notif:{key}",
+        recipient=recipient,
+        title=title,
+        message=text,
+        dedup_key=f"notif:{key}",
     )
     if reserved is None:
         prior = NotificationLog.objects.filter(dedup_key=f"notif:{key}").first()
@@ -206,8 +233,7 @@ def send_reminder(invoice: CourseInvoice, stage: str, recipient, *,
     return log
 
 
-def send_due_reminders(*, as_of: date | None = None, transport=None,
-                       now=None) -> dict:
+def send_due_reminders(*, as_of: date | None = None, transport=None, now=None) -> dict:
     """Run the reminder ladder for *as_of*, honouring preferences and quiet hours."""
     from apps.attendance.models import NotificationPreference
     from apps.weekly_reports.delivery import PREFERENCE_TUITION
@@ -216,7 +242,8 @@ def send_due_reminders(*, as_of: date | None = None, transport=None,
     sent = failed = skipped = duplicates = 0
     for item in plan:
         invoice = CourseInvoice.objects.select_related(
-            "student", "policy",
+            "student",
+            "policy",
         ).get(pk=item["invoice_id"])
         from django.contrib.auth import get_user_model
 
@@ -231,7 +258,10 @@ def send_due_reminders(*, as_of: date | None = None, transport=None,
             skipped += 1
             continue
         log = send_reminder(
-            invoice, item["stage"], recipient, transport=transport,
+            invoice,
+            item["stage"],
+            recipient,
+            transport=transport,
         )
         attempted = bool(getattr(log, "attempted", False))
         sent += attempted and log.status == PaymentReminderLog.Status.SENT
@@ -239,12 +269,15 @@ def send_due_reminders(*, as_of: date | None = None, transport=None,
         skipped += attempted and log.status == PaymentReminderLog.Status.SKIPPED
         duplicates += not attempted
         if attempted and log.status in (
-            PaymentReminderLog.Status.FAILED, PaymentReminderLog.Status.SKIPPED,
+            PaymentReminderLog.Status.FAILED,
+            PaymentReminderLog.Status.SKIPPED,
         ):
             # Dashboard is a separate fallback channel, not a transport attempt
             # included in the Telegram counters returned to job operators.
             send_reminder(
-                invoice, item["stage"], recipient,
+                invoice,
+                item["stage"],
+                recipient,
                 channel=PaymentReminderLog.Channel.DASHBOARD,
             )
     return {
@@ -263,32 +296,46 @@ def send_payment_confirmed(invoice_id: int) -> dict:
     Runs ``on_commit`` from :func:`apps.tuition.services.verify_payment`, so the
     message can never describe a payment that rolled back.
     """
-    invoice = CourseInvoice.objects.select_related("student", "policy").filter(
-        pk=invoice_id,
-    ).first()
+    invoice = (
+        CourseInvoice.objects.select_related("student", "policy")
+        .filter(
+            pk=invoice_id,
+        )
+        .first()
+    )
     if invoice is None:
         return {"sent": 0}
 
-    text = "\n".join([
-        "GRANDEC — TO'LOV TASDIQLANDI",
-        "",
-        f"Davr: {invoice.period_label or ''}",
-        f"Tasdiqlangan summa: {_amount(invoice.paid_amount_uzs)} so'm",
-        f"Qoldiq: {_amount(invoice.balance_uzs)} so'm",
-        f"Holat: {invoice.status_label}",
-    ])
+    text = "\n".join(
+        [
+            "GRANDEC — TO'LOV TASDIQLANDI",
+            "",
+            f"Davr: {invoice.period_label or ''}",
+            f"Tasdiqlangan summa: {_amount(invoice.paid_amount_uzs)} so'm",
+            f"Qoldiq: {_amount(invoice.balance_uzs)} so'm",
+            f"Holat: {invoice.status_label}",
+        ]
+    )
     sent = 0
     for recipient in services.reminder_recipients(invoice.student):
         key = f"tuition-confirmed:{invoice.pk}:{recipient.pk}"
-        if _reserve_notification(
-            recipient=recipient, title="Kurs to'lovi tasdiqlandi", message=text,
-            dedup_key=key,
-        ) is None:
+        if (
+            _reserve_notification(
+                recipient=recipient,
+                title="Kurs to'lovi tasdiqlandi",
+                message=text,
+                dedup_key=key,
+            )
+            is None
+        ):
             continue
         if not getattr(recipient, "telegram_chat_id", None):
             continue
         result = _send(
-            recipient.telegram_chat_id, text, recipient, "Kurs to'lovi tasdiqlandi",
+            recipient.telegram_chat_id,
+            text,
+            recipient,
+            "Kurs to'lovi tasdiqlandi",
         )
         sent += 1 if (result or {}).get("success") else 0
     return {"sent": sent}

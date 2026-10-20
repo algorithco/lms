@@ -18,6 +18,7 @@ Three concerns live here, deliberately separated:
 No aggregation logic lives in the models; ``services.py`` owns it and both the
 bot and the website call it.
 """
+
 from __future__ import annotations
 
 from django.conf import settings
@@ -47,34 +48,46 @@ class WeeklyReportSettings(models.Model):
 
     is_enabled = models.BooleanField(_("yoqilgan"), default=True)
     send_weekday = models.PositiveSmallIntegerField(
-        _("yuborish kuni"), choices=WEEKDAY_CHOICES, default=0,
+        _("yuborish kuni"),
+        choices=WEEKDAY_CHOICES,
+        default=0,
         help_text=_("0 = dushanba. Hisobot shu kuni yuboriladi."),
     )
     send_hour = models.PositiveSmallIntegerField(_("yuborish soati"), default=9)
     send_minute = models.PositiveSmallIntegerField(_("yuborish daqiqasi"), default=0)
     timezone_name = models.CharField(
-        _("vaqt zonasi"), max_length=64, default="Asia/Tashkent",
+        _("vaqt zonasi"),
+        max_length=64,
+        default="Asia/Tashkent",
     )
     #: Local Monday corresponding to the last scheduled week claimed/completed.
     #: The periodic scheduler uses this cursor for catch-up after outages.
     last_scheduled_period_start = models.DateField(
-        null=True, blank=True, editable=False,
+        null=True,
+        blank=True,
+        editable=False,
     )
     last_schedule_started_at = models.DateTimeField(
-        null=True, blank=True, editable=False,
+        null=True,
+        blank=True,
+        editable=False,
     )
     #: Last task execution status retained for the operations dashboard.
     last_schedule_status = models.CharField(
-        max_length=24, blank=True, default="",
+        max_length=24,
+        blank=True,
+        default="",
     )
     #: Whether the *sending* job also (re)tries deliveries that previously
     #: failed — an operator can switch this off during an incident.
     retry_failed_deliveries = models.BooleanField(
-        _("xatoliklarni qayta urinish"), default=True,
+        _("xatoliklarni qayta urinish"),
+        default=True,
     )
     #: How many delivery attempts a single report may accumulate.
     max_delivery_attempts = models.PositiveSmallIntegerField(
-        _("maksimal urinishlar"), default=5,
+        _("maksimal urinishlar"),
+        default=5,
     )
     #: Administrators who explicitly asked for the platform-wide digest. Without
     #: this, every group report would be pushed to every administrator, which is
@@ -119,7 +132,8 @@ class ReportPeriodMixin(models.Model):
     """Shared period/version bookkeeping for both report kinds."""
 
     period_start = models.DateTimeField(
-        _("davr boshlanishi"), db_index=True,
+        _("davr boshlanishi"),
+        db_index=True,
         help_text=_("Mahalliy vaqtda dushanba 00:00."),
     )
     period_end = models.DateTimeField(
@@ -141,7 +155,8 @@ class ReportPeriodMixin(models.Model):
     )
     generation_reason = models.CharField(_("sabab"), max_length=200, blank=True)
     status = models.CharField(
-        _("holat"), max_length=20,
+        _("holat"),
+        max_length=20,
         choices=(
             ("generated", _("Tayyorlangan")),
             ("sent", _("Yuborilgan")),
@@ -261,16 +276,23 @@ class WeeklyReportDelivery(models.Model):
         verbose_name=_("qabul qiluvchi"),
     )
     channel = models.CharField(
-        _("kanal"), max_length=20, choices=Channel.choices,
+        _("kanal"),
+        max_length=20,
+        choices=Channel.choices,
         default=Channel.TELEGRAM,
     )
     status = models.CharField(
-        _("holat"), max_length=20, choices=Status.choices,
-        default=Status.PENDING, db_index=True,
+        _("holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
     )
     dedup_key = models.CharField(_("idempotentlik kaliti"), max_length=200, unique=True)
     telegram_message_id = models.CharField(
-        _("Telegram xabar ID"), max_length=64, blank=True,
+        _("Telegram xabar ID"),
+        max_length=64,
+        blank=True,
     )
     retry_count = models.PositiveIntegerField(_("urinishlar"), default=0)
     last_error = models.TextField(_("oxirgi xatolik"), blank=True)
@@ -312,7 +334,12 @@ class WeeklyReportDelivery(models.Model):
         self.last_error = ""
         if message_id:
             self.telegram_message_id = str(message_id)[:64]
-        self.save(update_fields=[
-            "status", "sent_at", "last_attempt_at", "last_error",
-            "telegram_message_id",
-        ])
+        self.save(
+            update_fields=[
+                "status",
+                "sent_at",
+                "last_attempt_at",
+                "last_error",
+                "telegram_message_id",
+            ]
+        )

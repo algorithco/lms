@@ -1,6 +1,7 @@
 """
 Web API views for Parent Monitoring & Smart Alerts.
 """
+
 import random
 import re
 from django.shortcuts import get_object_or_404
@@ -32,7 +33,9 @@ def parent_relations_view(request):
     user = request.user
 
     if request.method == "GET":
-        relations = ParentStudentRelation.objects.filter(student=user).order_by("-created_at")
+        relations = ParentStudentRelation.objects.filter(student=user).order_by(
+            "-created_at"
+        )
         data = [
             {
                 "id": r.id,
@@ -116,7 +119,13 @@ def parent_relation_detail_view(request, pk):
                 relation.instant_alerts_enabled = val.lower() in ("true", "1")
             else:
                 relation.instant_alerts_enabled = bool(val)
-        relation.save(update_fields=["weekly_report_enabled", "instant_alerts_enabled", "updated_at"])
+        relation.save(
+            update_fields=[
+                "weekly_report_enabled",
+                "instant_alerts_enabled",
+                "updated_at",
+            ]
+        )
 
         return Response(
             {
@@ -135,17 +144,25 @@ def parent_verify_code_view(request):
     """
     code = str(request.data.get("verification_code", "")).strip()
     if not code:
-        return Response({"error": "Tasdiqlash kodi kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Tasdiqlash kodi kiritilmadi."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     relation = ParentStudentRelation.objects.filter(verification_code=code).first()
     if not relation:
-        return Response({"error": "Noto'g'ri yoki eskirgan tasdiqlash kodi."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "Noto'g'ri yoki eskirgan tasdiqlash kodi."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     relation.is_verified = True
     relation.save(update_fields=["is_verified", "updated_at"])
 
-    return Response({
-        "success": True,
-        "message": f"Ota-ona ({relation.parent_phone}) va o'quvchi ({relation.student.get_full_name()}) muvaffaqiyatli bog'landi!",
-        "relation_id": relation.id,
-    })
+    return Response(
+        {
+            "success": True,
+            "message": f"Ota-ona ({relation.parent_phone}) va o'quvchi ({relation.student.get_full_name()}) muvaffaqiyatli bog'landi!",
+            "relation_id": relation.id,
+        }
+    )

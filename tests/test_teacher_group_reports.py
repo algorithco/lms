@@ -5,6 +5,7 @@ assignment for this group, or the student's own ``group_visible`` opt-in), the
 AI raw score, the teacher-adjusted grade and the converted *practice* score stay
 distinct concepts, and a pending essay is never presented as graded.
 """
+
 import datetime as dt
 
 from django.test import TestCase
@@ -21,33 +22,51 @@ TODAY = timezone.localdate()
 class _ReportFixture(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="gr-teacher@example.test", password="testpass123", role="teacher",
+            email="gr-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.other_teacher = User.objects.create_user(
-            email="gr-other@example.test", password="testpass123", role="teacher",
+            email="gr-other@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.ali = User.objects.create_user(
-            email="gr-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="gr-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="gr-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="gr-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.gulnora = User.objects.create_user(
-            email="gr-gulnora@example.test", password="testpass123", role="student",
-            first_name="Gulnora", last_name="Yusupova",
+            email="gr-gulnora@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Gulnora",
+            last_name="Yusupova",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra, self.gulnora)
         self.foreign_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.topic = EssayTopic.objects.create(
-            title="Kitobxonlik", description="d", created_by=self.teacher,
+            title="Kitobxonlik",
+            description="d",
+            created_by=self.teacher,
         )
         self.assignment = EssayAssignment.objects.create(
-            topic=self.topic, group=self.group, assigned_by=self.teacher,
+            topic=self.topic,
+            group=self.group,
+            assigned_by=self.teacher,
         )
 
     def submit(
@@ -85,11 +104,13 @@ class ChannelSynchronizationTests(_ReportFixture):
     def test_web_and_telegram_submissions_appear_in_the_same_report(self):
         web = self.submit(source=EssaySubmission.Source.WEB, total_score=20)
         bot = self.submit(
-            student=self.zuhra, source=EssaySubmission.Source.TELEGRAM,
+            student=self.zuhra,
+            source=EssaySubmission.Source.TELEGRAM,
             total_score=18,
         )
         tma = self.submit(
-            student=self.gulnora, source=EssaySubmission.Source.TMA,
+            student=self.gulnora,
+            source=EssaySubmission.Source.TMA,
             total_score=16,
         )
 
@@ -106,7 +127,8 @@ class ChannelSynchronizationTests(_ReportFixture):
         self.submit(student=self.zuhra, source=EssaySubmission.Source.TELEGRAM)
 
         report = group_reports.group_essay_results(
-            self.group, source=EssaySubmission.Source.TELEGRAM,
+            self.group,
+            source=EssaySubmission.Source.TELEGRAM,
         )
         self.assertEqual(report["total"], 1)
         self.assertEqual(report["results"][0]["student_id"], self.zuhra.pk)
@@ -122,7 +144,8 @@ class VisibilityTests(_ReportFixture):
 
     def test_group_visible_general_essay_is_reported(self):
         submission = self.submit(
-            assignment=None, topic=None,
+            assignment=None,
+            topic=None,
             visibility=EssaySubmission.GroupVisibility.GROUP_VISIBLE,
         )
         self.assertIsNone(submission.topic_id)
@@ -135,15 +158,20 @@ class VisibilityTests(_ReportFixture):
         report = group_reports.group_essay_results(self.group)
         self.assertEqual(report["total"], 0)
         self.assertNotIn(
-            private.pk, [row["submission_id"] for row in report["results"]],
+            private.pk,
+            [row["submission_id"] for row in report["results"]],
         )
 
     def test_group_visible_essay_from_a_non_member_is_not_reported(self):
         outsider = User.objects.create_user(
-            email="gr-outsider@example.test", password="testpass123", role="student",
+            email="gr-outsider@example.test",
+            password="testpass123",
+            role="student",
         )
         self.submit(
-            student=outsider, assignment=None, topic=None,
+            student=outsider,
+            assignment=None,
+            topic=None,
             visibility=EssaySubmission.GroupVisibility.GROUP_VISIBLE,
         )
         report = group_reports.group_essay_results(self.group)
@@ -153,7 +181,8 @@ class VisibilityTests(_ReportFixture):
         self.submit(student=self.ali)
         report = group_reports.group_essay_results(self.group)
         self.assertEqual(
-            {row["student_id"] for row in report["results"]}, {self.ali.pk},
+            {row["student_id"] for row in report["results"]},
+            {self.ali.pk},
         )
 
 
@@ -177,19 +206,24 @@ class StateAndScoreTests(_ReportFixture):
 
     def test_state_filter_splits_graded_pending_and_failed(self):
         self.submit()
-        self.submit(student=self.zuhra, status=EssaySubmission.Status.PENDING,
-                    total_score=0)
-        self.submit(student=self.gulnora, status=EssaySubmission.Status.ERROR,
-                    total_score=0)
+        self.submit(
+            student=self.zuhra, status=EssaySubmission.Status.PENDING, total_score=0
+        )
+        self.submit(
+            student=self.gulnora, status=EssaySubmission.Status.ERROR, total_score=0
+        )
 
         self.assertEqual(
-            group_reports.group_essay_results(self.group, state="graded")["total"], 1,
+            group_reports.group_essay_results(self.group, state="graded")["total"],
+            1,
         )
         self.assertEqual(
-            group_reports.group_essay_results(self.group, state="pending")["total"], 1,
+            group_reports.group_essay_results(self.group, state="pending")["total"],
+            1,
         )
         self.assertEqual(
-            group_reports.group_essay_results(self.group, state="failed")["total"], 1,
+            group_reports.group_essay_results(self.group, state="failed")["total"],
+            1,
         )
 
     def test_ai_and_teacher_scores_stay_distinct(self):
@@ -215,8 +249,9 @@ class StateAndScoreTests(_ReportFixture):
     def test_average_excludes_ungraded_rows(self):
         self.submit(total_score=20)
         self.submit(student=self.zuhra, total_score=10)
-        self.submit(student=self.gulnora, status=EssaySubmission.Status.PENDING,
-                    total_score=0)
+        self.submit(
+            student=self.gulnora, status=EssaySubmission.Status.PENDING, total_score=0
+        )
 
         report = group_reports.group_essay_results(self.group)
         self.assertEqual(report["graded"], 2)
@@ -234,7 +269,8 @@ class StateAndScoreTests(_ReportFixture):
         self.assertTrue(report["results"][0]["teacher_review_required"])
 
         filtered = group_reports.group_essay_results(
-            self.group, review_required=True,
+            self.group,
+            review_required=True,
         )
         self.assertEqual(filtered["total"], 1)
 
@@ -243,7 +279,8 @@ class StateAndScoreTests(_ReportFixture):
         submission.teacher_review_requested = True
         submission.save(update_fields=["teacher_review_requested", "updated_at"])
         report = group_reports.group_essay_results(
-            self.group, review_required=True,
+            self.group,
+            review_required=True,
         )
         self.assertEqual(report["total"], 1)
         self.assertTrue(report["results"][0]["teacher_review_requested"])
@@ -255,7 +292,8 @@ class FilterAndPaginationTests(_ReportFixture):
         self.submit(student=self.zuhra)
 
         by_student = group_reports.group_essay_results(
-            self.group, student_id=self.ali.pk,
+            self.group,
+            student_id=self.ali.pk,
         )
         self.assertEqual(by_student["total"], 1)
         self.assertEqual(by_student["results"][0]["student_id"], self.ali.pk)
@@ -268,7 +306,9 @@ class FilterAndPaginationTests(_ReportFixture):
         self.assertEqual(outside["total"], 0)
 
         inside = group_reports.group_essay_results(
-            self.group, start=TODAY, end=TODAY,
+            self.group,
+            start=TODAY,
+            end=TODAY,
         )
         self.assertEqual(inside["total"], 2)
 
@@ -310,10 +350,12 @@ class FilterAndPaginationTests(_ReportFixture):
 
     def test_group_essay_summary_for_an_assignment_delegates_to_completion(self):
         self.submit(student=self.ali)
-        self.submit(student=self.zuhra, status=EssaySubmission.Status.PENDING,
-                    total_score=0)
+        self.submit(
+            student=self.zuhra, status=EssaySubmission.Status.PENDING, total_score=0
+        )
         summary = group_reports.group_essay_summary(
-            self.group, assignment=self.assignment,
+            self.group,
+            assignment=self.assignment,
         )
         self.assertEqual(summary["assignment_id"], self.assignment.pk)
         self.assertEqual(summary["roster_size"], 3)

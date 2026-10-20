@@ -11,6 +11,7 @@ Three rules are treated as hard requirements:
 * finalizing a register never invents absences for unmarked students;
 * a shared/group-facing text is aggregate only.
 """
+
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -105,7 +106,8 @@ class CommandRegistrationTests(TestCase):
         for command, handler_name in TEACHER_COMMANDS.items():
             self.assertIn(command, registered, f"/{command} is not registered")
             self.assertIs(
-                registered[command].callback, getattr(handlers, handler_name),
+                registered[command].callback,
+                getattr(handlers, handler_name),
                 f"/{command} is wired to the wrong callback",
             )
 
@@ -127,7 +129,9 @@ class CommandRegistrationTests(TestCase):
                 update.message.reply_text.reset_mock()
                 async_to_sync(handler)(update, SimpleNamespace(args=[], user_data={}))
                 update.message.reply_text.assert_awaited_once()
-                self.assertIn("shaxsiy chatda", update.message.reply_text.await_args.args[0])
+                self.assertIn(
+                    "shaxsiy chatda", update.message.reply_text.await_args.args[0]
+                )
 
     def test_command_menu_offers_the_teacher_commands(self):
         app = _RecordingApp()
@@ -150,37 +154,56 @@ class CommandRegistrationTests(TestCase):
 class _BotFixture(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="bot-teacher@example.test", password="testpass123",
-            role=User.Role.TEACHER, first_name="Oqituvchi", last_name="Karimov",
+            email="bot-teacher@example.test",
+            password="testpass123",
+            role=User.Role.TEACHER,
+            first_name="Oqituvchi",
+            last_name="Karimov",
             telegram_chat_id=TEACHER_TG,
             telegram_identity_verified_at=timezone.now(),
         )
         self.other_teacher = User.objects.create_user(
-            email="bot-other@example.test", password="testpass123",
-            role=User.Role.TEACHER, first_name="Boshqa", last_name="Ustoz",
+            email="bot-other@example.test",
+            password="testpass123",
+            role=User.Role.TEACHER,
+            first_name="Boshqa",
+            last_name="Ustoz",
             telegram_chat_id=OTHER_TEACHER_TG,
             telegram_identity_verified_at=timezone.now(),
         )
         self.ali = User.objects.create_user(
-            email="bot-ali@example.test", password="testpass123",
-            role=User.Role.STUDENT, first_name="Ali", last_name="Valiyev",
+            email="bot-ali@example.test",
+            password="testpass123",
+            role=User.Role.STUDENT,
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="bot-zuhra@example.test", password="testpass123",
-            role=User.Role.STUDENT, first_name="Zuhra", last_name="Karimova",
+            email="bot-zuhra@example.test",
+            password="testpass123",
+            role=User.Role.STUDENT,
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.gulnora = User.objects.create_user(
-            email="bot-gulnora@example.test", password="testpass123",
-            role=User.Role.STUDENT, first_name="Gulnora", last_name="Yusupova",
+            email="bot-gulnora@example.test",
+            password="testpass123",
+            role=User.Role.STUDENT,
+            first_name="Gulnora",
+            last_name="Yusupova",
         )
         self.outsider = User.objects.create_user(
-            email="bot-outsider@example.test", password="testpass123",
-            role=User.Role.STUDENT, first_name="Begona", last_name="Oquvchi",
+            email="bot-outsider@example.test",
+            password="testpass123",
+            role=User.Role.STUDENT,
+            first_name="Begona",
+            last_name="Oquvchi",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra, self.gulnora)
         self.foreign_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.foreign_group.students.add(self.outsider)
         self.context = SimpleNamespace(args=[], user_data={})
@@ -192,7 +215,9 @@ class _BotFixture(TestCase):
         update = SimpleNamespace(
             update_id=update_id,
             effective_user=SimpleNamespace(
-                id=tg_id, first_name="T", last_name="U",
+                id=tg_id,
+                first_name="T",
+                last_name="U",
             ),
             message=message,
             callback_query=None,
@@ -212,7 +237,9 @@ class _BotFixture(TestCase):
         update = SimpleNamespace(
             update_id=update_id,
             effective_user=SimpleNamespace(
-                id=tg_id, first_name="T", last_name="U",
+                id=tg_id,
+                first_name="T",
+                last_name="U",
             ),
             message=None,
             callback_query=query,
@@ -223,14 +250,19 @@ class _BotFixture(TestCase):
 
     def run_command(self, handler, *, text="/groups", update_id=101, tg_id=TEACHER_TG):
         update, message = self.message_update(
-            text=text, update_id=update_id, tg_id=tg_id,
+            text=text,
+            update_id=update_id,
+            tg_id=tg_id,
         )
         async_to_sync(handler)(update, self.context)
         return message
 
     def tap(self, data, *, update_id=201, tg_id=TEACHER_TG, query_id=900):
         update, query = self.callback_update(
-            data, update_id=update_id, tg_id=tg_id, query_id=query_id,
+            data,
+            update_id=update_id,
+            tg_id=tg_id,
+            query_id=query_id,
         )
         async_to_sync(handlers.callback_handler)(update, self.context)
         return query
@@ -246,7 +278,8 @@ class _BotFixture(TestCase):
 
     def today_session(self):
         return AttendanceSession.objects.get(
-            group=self.group, lesson_date=timezone.localdate(),
+            group=self.group,
+            lesson_date=timezone.localdate(),
         )
 
 
@@ -264,11 +297,13 @@ class WeeklyReportCallbackTests(_BotFixture):
         )
 
     def test_teacher_can_open_private_academic_sections(self):
-        report = self._report(summary={
-            "attendance": {"active_students": 3, "present": 2},
-            "essays": {"graded": 4, "average_raw_score": 18.5},
-            "tests": {"completed_attempts": 5, "average_practice_percentage": 72.0},
-        })
+        report = self._report(
+            summary={
+                "attendance": {"active_students": 3, "present": 2},
+                "essays": {"graded": 4, "average_raw_score": 18.5},
+                "tests": {"completed_attempts": 5, "average_practice_percentage": 72.0},
+            }
+        )
         expectations = {
             "wr_att_": ("Davomat tafsilotlari", "Faol o'quvchilar: 3"),
             "wr_ess_": ("Esse natijalari", "Baholangan: 4"),
@@ -286,7 +321,10 @@ class WeeklyReportCallbackTests(_BotFixture):
     def test_foreign_teacher_cannot_open_report(self):
         report = self._report(
             self.foreign_group,
-            summary={"attendance": {"present": 7}, "finance": {"outstanding_uzs": 99000}},
+            summary={
+                "attendance": {"present": 7},
+                "finance": {"outstanding_uzs": 99000},
+            },
         )
         query = self.tap(f"wr_full_{report.pk}")
         text = self.joined(query.edit_message_text, query.message.reply_text)
@@ -297,7 +335,9 @@ class WeeklyReportCallbackTests(_BotFixture):
     def test_non_teacher_cannot_open_report(self):
         self.ali.telegram_chat_id = STUDENT_TG
         self.ali.telegram_identity_verified_at = timezone.now()
-        self.ali.save(update_fields=["telegram_chat_id", "telegram_identity_verified_at"])
+        self.ali.save(
+            update_fields=["telegram_chat_id", "telegram_identity_verified_at"]
+        )
         report = self._report(summary={"attendance": {"present": 3}})
 
         query = self.tap(f"wr_att_{report.pk}", tg_id=STUDENT_TG)
@@ -314,8 +354,10 @@ class WeeklyReportCallbackTests(_BotFixture):
 
     def test_platform_admin_can_view_finance_section(self):
         User.objects.create_user(
-            email="bot-report-admin@example.test", password="testpass123",
-            role=User.Role.ADMIN, telegram_chat_id=51000991,
+            email="bot-report-admin@example.test",
+            password="testpass123",
+            role=User.Role.ADMIN,
+            telegram_chat_id=51000991,
             telegram_identity_verified_at=timezone.now(),
         )
         report = self._report(summary={"finance": {"outstanding_uzs": 123456}})
@@ -368,9 +410,13 @@ class TeacherCommandAuthorizationTests(_BotFixture):
 
     def test_unverified_telegram_link_is_handled_without_leaking(self):
         legacy = User.objects.create_user(
-            email="bot-legacy@example.test", password=None,
-            role=User.Role.TEACHER, first_name="Eski", last_name="Boglanish",
-            telegram_chat_id=UNLINKED_TG, telegram_identity_verified_at=None,
+            email="bot-legacy@example.test",
+            password=None,
+            role=User.Role.TEACHER,
+            first_name="Eski",
+            last_name="Boglanish",
+            telegram_chat_id=UNLINKED_TG,
+            telegram_identity_verified_at=None,
         )
         StudentGroup.objects.create(teacher=legacy, name="11-A")
 
@@ -388,7 +434,9 @@ class TeacherCommandAuthorizationTests(_BotFixture):
 
     def test_attendance_picker_offers_only_owned_groups(self):
         message = self.run_command(handlers.attendance_handler)
-        self.assertIn("Qaysi guruh uchun davomat olasiz?", self.joined(message.reply_text))
+        self.assertIn(
+            "Qaysi guruh uchun davomat olasiz?", self.joined(message.reply_text)
+        )
 
         data = _callback_data(message.reply_text.await_args.kwargs["reply_markup"])
         self.assertIn(f"tatt_{self.group.pk}", data)
@@ -419,7 +467,8 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.assertIn(f"tall_{session.pk}", data)
         self.assertIn(f"tfin_{session.pk}", data)
         self.assertIn(
-            f"tmk_{session.pk}_{self.ali.pk}_{AttendanceRecord.Status.PRESENT}", data,
+            f"tmk_{session.pk}_{self.ali.pk}_{AttendanceRecord.Status.PRESENT}",
+            data,
         )
 
     def test_marking_is_explicit_and_finalize_never_invents_absence(self):
@@ -432,7 +481,9 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.assertEqual(record.marked_by, self.teacher)
         # Only the tapped student is recorded — nobody else was assumed absent.
         self.assertEqual(AttendanceRecord.objects.filter(session=session).count(), 1)
-        self.assertEqual(session.records.filter(status=AttendanceRecord.Status.ABSENT).count(), 0)
+        self.assertEqual(
+            session.records.filter(status=AttendanceRecord.Status.ABSENT).count(), 0
+        )
 
         refusal = self.tap(f"tfin_{session.pk}", update_id=304, query_id=903)
         text = self.joined(refusal.edit_message_text, refusal.message.reply_text)
@@ -445,7 +496,8 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.assertEqual(AttendanceRecord.objects.filter(session=session).count(), 1)
         self.assertEqual(
             AttendanceRecord.objects.filter(
-                session=session, status=AttendanceRecord.Status.ABSENT,
+                session=session,
+                status=AttendanceRecord.Status.ABSENT,
             ).count(),
             0,
         )
@@ -460,7 +512,8 @@ class AttendanceCallbackFlowTests(_BotFixture):
         )
         self.assertEqual(
             AttendanceRecord.objects.filter(
-                session=session, status=AttendanceRecord.Status.ABSENT,
+                session=session,
+                status=AttendanceRecord.Status.ABSENT,
             ).count(),
             2,
         )
@@ -477,7 +530,8 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.assertEqual(AttendanceRecord.objects.filter(session=session).count(), 3)
         self.assertEqual(
             AttendanceRecord.objects.filter(
-                session=session, status=AttendanceRecord.Status.PRESENT,
+                session=session,
+                status=AttendanceRecord.Status.PRESENT,
             ).count(),
             3,
         )
@@ -507,12 +561,14 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.tap(f"tatt_{self.group.pk}", update_id=309)
         session = self.today_session()
 
-        for index, data in enumerate((
-            "tmk_abc_def_present",
-            f"tmk_{session.pk}_xyz_present",
-            f"tmk_{session.pk}_{self.ali.pk}_bogus",
-            "tmk_1_2_3_4",
-        )):
+        for index, data in enumerate(
+            (
+                "tmk_abc_def_present",
+                f"tmk_{session.pk}_xyz_present",
+                f"tmk_{session.pk}_{self.ali.pk}_bogus",
+                "tmk_1_2_3_4",
+            )
+        ):
             query = self.tap(data, update_id=310, query_id=910 + index)
             # A malformed tap is dropped silently: no reply, no crash.
             self.assertEqual(query.edit_message_text.await_count, 0)
@@ -522,13 +578,18 @@ class AttendanceCallbackFlowTests(_BotFixture):
 
     def test_foreign_session_callbacks_are_refused_and_change_nothing(self):
         foreign = create_session(
-            group=self.foreign_group, teacher=self.other_teacher,
+            group=self.foreign_group,
+            teacher=self.other_teacher,
             actor=self.other_teacher,
         )[0]
 
-        for index, data in enumerate((
-            f"tall_{foreign.pk}", f"tfin_{foreign.pk}", f"tfinabs_{foreign.pk}",
-        )):
+        for index, data in enumerate(
+            (
+                f"tall_{foreign.pk}",
+                f"tfin_{foreign.pk}",
+                f"tfinabs_{foreign.pk}",
+            )
+        ):
             query = self.tap(data, update_id=311, query_id=930 + index)
             self.assertIn(
                 "sizga tegishli emas",
@@ -540,9 +601,12 @@ class AttendanceCallbackFlowTests(_BotFixture):
         self.assertEqual(AttendanceRecord.objects.filter(session=foreign).count(), 0)
 
     def test_foreign_and_unknown_group_callbacks_are_refused(self):
-        for index, data in enumerate((
-            f"tatt_{self.foreign_group.pk}", "tatt_999999",
-        )):
+        for index, data in enumerate(
+            (
+                f"tatt_{self.foreign_group.pk}",
+                "tatt_999999",
+            )
+        ):
             query = self.tap(data, update_id=312, query_id=940 + index)
             text = self.joined(query.edit_message_text, query.message.reply_text)
             self.assertIn("Guruh topilmadi", text)
@@ -556,10 +620,14 @@ class ReportAndPrivacyTests(_BotFixture):
 
     def _essay_setup(self):
         topic = EssayTopic.objects.create(
-            title="Kitobxonlik", description="d", created_by=self.teacher,
+            title="Kitobxonlik",
+            description="d",
+            created_by=self.teacher,
         )
         assignment = EssayAssignment.objects.create(
-            topic=topic, group=self.group, assigned_by=self.teacher,
+            topic=topic,
+            group=self.group,
+            assigned_by=self.teacher,
         )
         common = {
             "topic": topic,
@@ -569,12 +637,16 @@ class ReportAndPrivacyTests(_BotFixture):
             "submitted_at": timezone.now(),
         }
         EssaySubmission.objects.create(
-            student=self.ali, status=EssaySubmission.Status.GRADED,
-            total_score=20, **common,
+            student=self.ali,
+            status=EssaySubmission.Status.GRADED,
+            total_score=20,
+            **common,
         )
         EssaySubmission.objects.create(
-            student=self.zuhra, status=EssaySubmission.Status.PENDING,
-            total_score=0, **common,
+            student=self.zuhra,
+            status=EssaySubmission.Status.PENDING,
+            total_score=0,
+            **common,
         )
         return topic, assignment
 
@@ -599,21 +671,26 @@ class ReportAndPrivacyTests(_BotFixture):
 
         pending_only = self.tap(f"terspend_{self.group.pk}", query_id=951)
         pending_text = self.joined(
-            pending_only.edit_message_text, pending_only.message.reply_text,
+            pending_only.edit_message_text,
+            pending_only.message.reply_text,
         )
         self.assertIn("Zuhra Karimova", pending_text)
         self.assertNotIn("Ali Valiyev", pending_text)
 
     def test_attendance_report_is_aggregate_only(self):
         session, _ = create_session(
-            group=self.group, teacher=self.teacher, actor=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
+            actor=self.teacher,
         )
         mark(session, self.ali, AttendanceRecord.Status.PRESENT, actor=self.teacher)
 
         query = self.tap(f"trpt_{self.group.pk}")
         text = self.joined(query.edit_message_text, query.message.reply_text)
         # An unfinished register must not read as a full absence.
-        self.assertIn("Yakunlanmagan davomat darslari kelmaganlik deb hisoblanmaydi.", text)
+        self.assertIn(
+            "Yakunlanmagan davomat darslari kelmaganlik deb hisoblanmaydi.", text
+        )
         self.assertIn("1 yakunlanmagan", text)
         for name in ("Ali Valiyev", "Zuhra Karimova", "Gulnora Yusupova"):
             self.assertNotIn(name, text)

@@ -37,10 +37,19 @@ from apps.payments.models import (
 #: Every key ``get_remaining_limits`` may expose to a client. Nothing identity
 #: related is allowed in here (see the privacy test at the bottom).
 EXPECTED_LIMIT_KEYS = {
-    "source", "plan_type", "plan_name", "is_sponsored", "is_paid",
-    "expires_at", "period_start", "period_end",
-    "image_essay", "text_essay", "test",
-    "text_cooldown_seconds", "text_cooldown_until",
+    "source",
+    "plan_type",
+    "plan_name",
+    "is_sponsored",
+    "is_paid",
+    "expires_at",
+    "period_start",
+    "period_end",
+    "image_essay",
+    "text_essay",
+    "test",
+    "text_cooldown_seconds",
+    "text_cooldown_until",
 }
 
 EXPECTED_BUCKET_KEYS = {"unlimited", "limit", "used", "remaining"}
@@ -68,7 +77,8 @@ def make_plan(plan_type: str, **overrides) -> SubscriptionPlan:
     }
     defaults.update(overrides)
     plan, _created = SubscriptionPlan.objects.get_or_create(
-        plan_type=plan_type, defaults=defaults,
+        plan_type=plan_type,
+        defaults=defaults,
     )
     for field, value in defaults.items():
         setattr(plan, field, value)
@@ -145,7 +155,8 @@ class EntitlementPrecedenceTests(TestCase):
 
         for _ in range(4):
             ok, reason, _remaining = can_submit_essay(
-                self.student, SubscriptionUsage.Kind.TEXT_ESSAY,
+                self.student,
+                SubscriptionUsage.Kind.TEXT_ESSAY,
             )
             self.assertTrue(ok)
             self.assertIsNone(reason)
@@ -186,7 +197,8 @@ class AdministratorOverrideTests(TestCase):
             text_essay_cooldown_hours=5,
         )
         UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
@@ -216,16 +228,21 @@ class AdministratorOverrideTests(TestCase):
         entitlement the student already has.
         """
         plan = make_plan(
-            "start", image_essay_weekly_limit=5, text_essay_weekly_limit=3,
+            "start",
+            image_essay_weekly_limit=5,
+            text_essay_weekly_limit=3,
         )
         UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
         )
         SubscriptionOverride.objects.create(
-            user=self.student, is_active=True, image_essay_weekly_limit=7,
+            user=self.student,
+            is_active=True,
+            image_essay_weekly_limit=7,
         )
 
         entitlement = get_effective_entitlement(self.student)
@@ -239,7 +256,8 @@ class AdministratorOverrideTests(TestCase):
     def test_expired_override_is_ignored(self):
         plan = make_plan("start", image_essay_weekly_limit=5)
         UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
@@ -257,7 +275,9 @@ class AdministratorOverrideTests(TestCase):
 
     def test_inactive_override_is_ignored(self):
         SubscriptionOverride.objects.create(
-            user=self.student, is_active=False, image_essay_weekly_limit=99,
+            user=self.student,
+            is_active=False,
+            image_essay_weekly_limit=99,
         )
         entitlement = get_effective_entitlement(self.student)
         self.assertEqual(entitlement.source, SOURCE_DEFAULT)
@@ -288,7 +308,8 @@ class NullVersusZeroTests(TestCase):
 
     def _subscribe(self, plan):
         return UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
@@ -296,30 +317,37 @@ class NullVersusZeroTests(TestCase):
 
     def test_null_limit_enforces_nothing(self):
         plan = make_plan(
-            "start", image_essay_weekly_limit=None,
+            "start",
+            image_essay_weekly_limit=None,
             is_unlimited_image_essays=False,
         )
         self._subscribe(plan)
         entitlement = get_effective_entitlement(self.student)
         self.assertIsNone(entitlement.image_essay_weekly_limit)
-        self.assertFalse(entitlement.is_unlimited_for(
-            SubscriptionUsage.Kind.IMAGE_ESSAY,
-        ))
+        self.assertFalse(
+            entitlement.is_unlimited_for(
+                SubscriptionUsage.Kind.IMAGE_ESSAY,
+            )
+        )
 
         ok, reason, _remaining = can_submit_essay(
-            self.student, SubscriptionUsage.Kind.IMAGE_ESSAY,
+            self.student,
+            SubscriptionUsage.Kind.IMAGE_ESSAY,
         )
         self.assertTrue(ok)
         self.assertIsNone(reason)
 
     def test_zero_limit_blocks_immediately(self):
         plan = make_plan(
-            "start", image_essay_weekly_limit=0, text_essay_weekly_limit=0,
+            "start",
+            image_essay_weekly_limit=0,
+            text_essay_weekly_limit=0,
         )
         self._subscribe(plan)
 
         ok, reason, remaining = can_submit_essay(
-            self.student, SubscriptionUsage.Kind.IMAGE_ESSAY,
+            self.student,
+            SubscriptionUsage.Kind.IMAGE_ESSAY,
         )
         self.assertFalse(ok)
         self.assertEqual(reason, "limit_exceeded")
@@ -327,7 +355,8 @@ class NullVersusZeroTests(TestCase):
         self.assertEqual(remaining["image_essay"]["remaining"], 0)
 
         ok, reason, _remaining = can_submit_essay(
-            self.student, SubscriptionUsage.Kind.TEXT_ESSAY,
+            self.student,
+            SubscriptionUsage.Kind.TEXT_ESSAY,
         )
         self.assertFalse(ok)
         self.assertEqual(reason, "limit_exceeded")
@@ -391,7 +420,8 @@ class RemainingLimitsPayloadTests(TestCase):
     def test_used_counter_reflects_only_this_users_usage(self):
         plan = make_plan("start", text_essay_weekly_limit=3)
         UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
@@ -405,7 +435,8 @@ class RemainingLimitsPayloadTests(TestCase):
             period_start=window,
         )
         other = User.objects.create_user(
-            email="usage-other@example.test", password="StrongPass123!",
+            email="usage-other@example.test",
+            password="StrongPass123!",
             role="student",
         )
         SubscriptionUsage.objects.create(
@@ -452,8 +483,11 @@ class QuotaPeriodStartTests(TestCase):
         # Anchored to the window start so the assertion is date-independent
         # (adding a day to "now" could otherwise cross a window boundary).
         start = quota_period_start(timezone.now())
-        for offset in (timedelta(minutes=1), timedelta(days=1),
-                       timedelta(days=6, hours=23)):
+        for offset in (
+            timedelta(minutes=1),
+            timedelta(days=1),
+            timedelta(days=6, hours=23),
+        ):
             self.assertEqual(quota_period_start(start + offset), start)
 
     def test_period_start_rolls_over_at_the_boundary(self):

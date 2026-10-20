@@ -1,4 +1,5 @@
 """Admin configuration for courses app."""
+
 from django.contrib import admin
 
 from .models import Category, Course, Enrollment, Lesson, Module, StudentGroup

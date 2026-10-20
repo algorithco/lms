@@ -6,6 +6,7 @@ Seeds the 3-hour official BMBA Mock Diagnostic Exam (BMB Rasmiy Mock):
 - Task 45: Official 12-criteria Essay with EssayTopic synchronization
 - Full AI Repetitor educational explanations for every single question.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -41,7 +42,9 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
         reset: bool = options.get("reset", False)
-        self.stdout.write(self.style.NOTICE("Seeding Ona tili va Adabiyot — BMB Rasmiy Mock Test..."))
+        self.stdout.write(
+            self.style.NOTICE("Seeding Ona tili va Adabiyot — BMB Rasmiy Mock Test...")
+        )
 
         # 1. Instructor User
         instructor = User.objects.filter(role="teacher").first()
@@ -60,7 +63,9 @@ class Command(BaseCommand):
             )
             instructor.set_password("GrandEducation2026!")
             instructor.save()
-            self.stdout.write(self.style.SUCCESS(f"Created instructor account: {instructor.email}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Created instructor account: {instructor.email}")
+            )
 
         # 2. Category
         category, _ = Category.objects.get_or_create(
@@ -99,7 +104,11 @@ class Command(BaseCommand):
         )
 
         if existing_test and reset:
-            self.stdout.write(self.style.WARNING("Reset requested: Deleting existing BMB Mock test..."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "Reset requested: Deleting existing BMB Mock test..."
+                )
+            )
             existing_test.delete()
             existing_test = None
 
@@ -144,28 +153,48 @@ class Command(BaseCommand):
                 shuffle_questions=False,
                 shuffle_choices=False,
             )
-            self.stdout.write(self.style.SUCCESS(f"Created new test ID: {test.id} with code {mock_code}"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Created new test ID: {test.id} with code {mock_code}"
+                )
+            )
 
         # 5. Exam Sections
         sec_lang, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.LANGUAGE,
-            defaults={"name": "Grammatika va adabiyot", "order": 1, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Grammatika va adabiyot",
+                "order": 1,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_reading, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.READING,
-            defaults={"name": "Ilmiy va badiiy matnlar tahlili", "order": 2, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Ilmiy va badiiy matnlar tahlili",
+                "order": 2,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_lit, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.LITERATURE,
-            defaults={"name": "Mumtoz adabiyot va poetika", "order": 3, "weight": Decimal("1.00")},
+            defaults={
+                "name": "Mumtoz adabiyot va poetika",
+                "order": 3,
+                "weight": Decimal("1.00"),
+            },
         )
         sec_writing, _ = ExamSection.objects.get_or_create(
             test=test,
             code=ExamSection.WRITING,
-            defaults={"name": "BMBA Rasmiy Esse", "order": 4, "weight": Decimal("1.00")},
+            defaults={
+                "name": "BMBA Rasmiy Esse",
+                "order": 4,
+                "weight": Decimal("1.00"),
+            },
         )
 
         # 6. Reading Passages
@@ -383,10 +412,22 @@ class Command(BaseCommand):
                     "faqat birinchi so'zi bosh harf bilan yozilishi lozim: 'Milliy xavfsizlik xizmati'."
                 ),
                 "choices": [
-                    ("A) Yurt ravnaqidagi xizmatlari uchun beriladigan “O‘zbekiston Qahramoni” unvoni 1994-yil 5-mayda ta’sis etilgan.", False),
-                    ("B) “El-yurt hurmati” ordeni harbiy mahorati, ilm-fan, adabiyot va san’atdagi xizmatlari uchun beriladi.", False),
-                    ("C) “Jasorat” medali bilan harbiy xizmatchilar, Milliy Xavfsizlik Xizmati va Ichki ishlar vazirligi xodimlari mukofotlanadilar.", True),
-                    ("D) “O‘zbekiston Qahramoni” unvoni bilan taqdirlangan shaxsga “Oltin Yulduz” medali topshiriladi.", False),
+                    (
+                        "A) Yurt ravnaqidagi xizmatlari uchun beriladigan “O‘zbekiston Qahramoni” unvoni 1994-yil 5-mayda ta’sis etilgan.",
+                        False,
+                    ),
+                    (
+                        "B) “El-yurt hurmati” ordeni harbiy mahorati, ilm-fan, adabiyot va san’atdagi xizmatlari uchun beriladi.",
+                        False,
+                    ),
+                    (
+                        "C) “Jasorat” medali bilan harbiy xizmatchilar, Milliy Xavfsizlik Xizmati va Ichki ishlar vazirligi xodimlari mukofotlanadilar.",
+                        True,
+                    ),
+                    (
+                        "D) “O‘zbekiston Qahramoni” unvoni bilan taqdirlangan shaxsga “Oltin Yulduz” medali topshiriladi.",
+                        False,
+                    ),
                 ],
             },
             # 3 (3c)
@@ -437,10 +478,19 @@ class Command(BaseCommand):
                     "qo'shimchasi noo'rin qo'shilgan, 'sement zinasida' bo'lishi lozim edi."
                 ),
                 "choices": [
-                    ("A) Hay-hay, bu qanday noinsofgarchilik! Urmang! – deb o‘rtaga tushdi Vali aka.", False),
+                    (
+                        "A) Hay-hay, bu qanday noinsofgarchilik! Urmang! – deb o‘rtaga tushdi Vali aka.",
+                        False,
+                    ),
                     ("B) Top-toza kafelli yo‘lakdan o‘tib, bo‘limga kirdik.", False),
-                    ("C) Navro‘zi olam – tabiatning beta’rif yashashi, demak, umrlarning boshlanishi ham.", False),
-                    ("D) Yigitlar xarob stansiyaning sementli zinasida non kavshab o‘tirishgan ekan.", True),
+                    (
+                        "C) Navro‘zi olam – tabiatning beta’rif yashashi, demak, umrlarning boshlanishi ham.",
+                        False,
+                    ),
+                    (
+                        "D) Yigitlar xarob stansiyaning sementli zinasida non kavshab o‘tirishgan ekan.",
+                        True,
+                    ),
                 ],
             },
             # 6 (6b)
@@ -455,10 +505,22 @@ class Command(BaseCommand):
                     "so'zda bayon qilishdir, shuning uchun 'ranglarda tavsiflashga urinaman' ifodasi so'z qo'llashdagi xatolikdir."
                 ),
                 "choices": [
-                    ("A) Odamlarda tafakkur kuchi ortgani sari ulardagi tasavvur kuchi ham ortib bormoqda.", False),
-                    ("B) Kamina suratlarimda bu kabi gulzorlarni turfa xil nafis ranglarda tavsiflashga urinaman.", True),
-                    ("C) Otabek bilan Kumushning ishqiy sarguzashtlari, fojiasi mahorat bilan hikoya qilingan.", False),
-                    ("D) Millatimiz faxri – ona tilimizni ardoqlashimiz, unga muhabbatli bo‘lishimiz lozim.", False),
+                    (
+                        "A) Odamlarda tafakkur kuchi ortgani sari ulardagi tasavvur kuchi ham ortib bormoqda.",
+                        False,
+                    ),
+                    (
+                        "B) Kamina suratlarimda bu kabi gulzorlarni turfa xil nafis ranglarda tavsiflashga urinaman.",
+                        True,
+                    ),
+                    (
+                        "C) Otabek bilan Kumushning ishqiy sarguzashtlari, fojiasi mahorat bilan hikoya qilingan.",
+                        False,
+                    ),
+                    (
+                        "D) Millatimiz faxri – ona tilimizni ardoqlashimiz, unga muhabbatli bo‘lishimiz lozim.",
+                        False,
+                    ),
                 ],
             },
             # 7 (7b)
@@ -467,8 +529,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Quyidagi gapda qatnashgan qo‘shimchalar haqida berilgan xato fikrlar sonini toping.\n\n"
-                    "\"Bahor kelishi bilan tabiatda o‘zgarishlar seziladi, daraxtlar yashnab, qushlar yana gapirishga – "
-                    "sayrashga tushadi, osmon esa yorqin nurlari bilan yer yuziga iliqlik baxsh etib, mavsumiy yangilanishni boshlab beradi.\"\n\n"
+                    '"Bahor kelishi bilan tabiatda o‘zgarishlar seziladi, daraxtlar yashnab, qushlar yana gapirishga – '
+                    'sayrashga tushadi, osmon esa yorqin nurlari bilan yer yuziga iliqlik baxsh etib, mavsumiy yangilanishni boshlab beradi."\n\n'
                     "1) Ot yasovchi qo‘shimcha bilan shakldosh bo‘la oladigan sifat yasovchi qo‘shimcha qatnashgan.\n"
                     "2) Asos+so‘z yasovchi+lug‘aviy shakl yasovchi+lug‘aviy shakl yasovchi qolipidagi so‘z mavjud.\n"
                     "3) Lug‘aviy shakl yasovchi bilan omonim bo‘la oladigan fe’l yasovchi qo‘shimcha ikki o‘rinda qatnashgan.\n"
@@ -521,9 +583,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Quyidagi parchada qatnashgan sifatlar haqida berilgan to‘g‘ri hukmlar sonini toping.\n\n"
-                    "\"Kech kirib, ajib bir so‘lim payt boshlandi. Sershovqin ko‘chalar orqada qoldi. Bu taraflarda mashinalar "
+                    '"Kech kirib, ajib bir so‘lim payt boshlandi. Sershovqin ko‘chalar orqada qoldi. Bu taraflarda mashinalar '
                     "ko‘p qatnamaganidan chang-to‘zon bo‘lmas, tez-tez yomg‘ir quyib turganidan daraxtlarning shundog‘am "
-                    "beg‘ubor barglari yuvilib, xandonpista mag‘zidek och yashil tusda ko‘rinar edi.\"\n\n"
+                    'beg‘ubor barglari yuvilib, xandonpista mag‘zidek och yashil tusda ko‘rinar edi."\n\n'
                     "1) Sifatning uch xil ma’no turi qatnashgan;\n"
                     "2) Parchada faqat asliy sifatlar qatnashgan;\n"
                     "3) Yasama sifatlar bir xil sintaktik vazifa bajargan;\n"
@@ -549,10 +611,10 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Quyidagi parcha haqida berilgan noto‘g‘ri ma’lumotni aniqlang.\n\n"
-                    "\"Sen do‘st bo‘l, vaqtida fosh et Yagoni,\n"
+                    '"Sen do‘st bo‘l, vaqtida fosh et Yagoni,\n'
                     " Ishqda Otellodan bo‘lgin besh battar.\n"
                     " Asrab qolmoq uchun Mo‘min mirzoni\n"
-                    " Tutqaz Alisherning qo‘liga xanjar…\""
+                    ' Tutqaz Alisherning qo‘liga xanjar…"'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -561,10 +623,19 @@ class Command(BaseCommand):
                     "va u 'tutqaz' fe'l kesimiga tobelangan."
                 ),
                 "choices": [
-                    ("A) Ko‘makchi fe’lli so‘z qo‘shilmasi bilan ifodalangan sabab holi fe’l kesimga tobelangan.", True),
+                    (
+                        "A) Ko‘makchi fe’lli so‘z qo‘shilmasi bilan ifodalangan sabab holi fe’l kesimga tobelangan.",
+                        True,
+                    ),
                     ("B) Shaxsi ma’lum gap ishtirok etgan.", False),
-                    ("C) Kesimga bevosita va bilvosita bog‘langan vositasiz to‘ldiruvchi qatnashgan.", False),
-                    ("D) Faqat tobe bo‘lak vazifasida kelgan aniqlovchi qatnashgan.", False),
+                    (
+                        "C) Kesimga bevosita va bilvosita bog‘langan vositasiz to‘ldiruvchi qatnashgan.",
+                        False,
+                    ),
+                    (
+                        "D) Faqat tobe bo‘lak vazifasida kelgan aniqlovchi qatnashgan.",
+                        False,
+                    ),
                 ],
             },
             # 11 (11b)
@@ -573,9 +644,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gapdagi so‘zlarning mazmun va grammatik jihatdan bog‘lanishi to‘g‘ri ko‘rsatilgan javobni toping.\n\n"
-                    "\"Davlatning iqtisodiy mustaqilligi yangi bosqichga olib chiqilishi, bozor munosabatlarining sog‘lom "
+                    '"Davlatning iqtisodiy mustaqilligi yangi bosqichga olib chiqilishi, bozor munosabatlarining sog‘lom '
                     "shakllanishi, milliy mahsulotlar raqobatbardoshligining ortishi va jahon standartlariga javob bera olishi "
-                    "tadbirkorlar uchun yaratib berilgan keng ko‘lamli imkoniyatlarning amaliy natijasidir.\""
+                    'tadbirkorlar uchun yaratib berilgan keng ko‘lamli imkoniyatlarning amaliy natijasidir."'
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
                 "points": 2,
@@ -622,7 +693,7 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "Onore de Balzakning “Sagʻri teri tilsimi” romanidan olingan quyidagi parcha mazmuni haqida berilgan toʻgʻri hukmni aniqlang.\n\n"
-                    "\"Chol yigitga xanjarni uzatdi, u terining harf bosilgan joyidan kesib koʻrishga urindi. Ammo u terining yupqa "
+                    '"Chol yigitga xanjarni uzatdi, u terining harf bosilgan joyidan kesib koʻrishga urindi. Ammo u terining yupqa '
                     "qavatini kesib olishi bilan oʻrniga yana oʻsha harflar avvalgiday aniq boʻlib qolaverdi, goʻyo ularning yuqori "
                     "qismi kesib olinmaganday edi... Sirli soʻzlarning maʼnosi bu edi: 'Mening egam hamma narsaga ega boʻladi, ammo "
                     "uning joniga men ega boʻlaman. Tangri irodasi shu. Istaganingni tila, ijobat boʻlgʻay. Lekin tilagingni "
@@ -636,10 +707,22 @@ class Command(BaseCommand):
                     "falsafiy ziddiyat va to'lov haqida so'z boradi."
                 ),
                 "choices": [
-                    ("A) Tilsimni topgan odam dunyodagi eng baxtli kishiga aylanishi ifoda etilgan.", False),
-                    ("B) Yozuvlarda ochkoʻzlik va hasaddan qaytaruvchi diniy pand-nasihat ifodalangan.", False),
-                    ("C) Teri oʻz egasini balo-qazolardan asrovchi qudratli tumor ekani taʼkidlangan.", False),
-                    ("D) Cheksiz istaklar bilan cheklangan umr oʻrtasidagi ziddiyat ifodalangan.", True),
+                    (
+                        "A) Tilsimni topgan odam dunyodagi eng baxtli kishiga aylanishi ifoda etilgan.",
+                        False,
+                    ),
+                    (
+                        "B) Yozuvlarda ochkoʻzlik va hasaddan qaytaruvchi diniy pand-nasihat ifodalangan.",
+                        False,
+                    ),
+                    (
+                        "C) Teri oʻz egasini balo-qazolardan asrovchi qudratli tumor ekani taʼkidlangan.",
+                        False,
+                    ),
+                    (
+                        "D) Cheksiz istaklar bilan cheklangan umr oʻrtasidagi ziddiyat ifodalangan.",
+                        True,
+                    ),
                 ],
             },
             # 14 (14b)
@@ -656,10 +739,22 @@ class Command(BaseCommand):
                     "mehnat qilmasdan mish-mishlar tarqatgani uchun hayvonlar uni yoqtirmas edilar."
                 ),
                 "choices": [
-                    ("A) Ushbu hayvon molxonadagi eng aqlli jonivor hisoblanib, yozish va oʻqishni tez oʻzlashtirib oladi.", False),
-                    ("B) Bu obraz hayvonlarga turli xil voqealar aytib beradi, bundan tashqari, Muz togʻi haqidagi mish-mishlarning tarqalishiga sababchi boʻladi.", True),
-                    ("C) Ushbu asar qahramoni Napaleonning barcha topshiriqlarini chin dildan bajarar edi, hayvonlar orasidagi eng kuchlisi edi, tegirmon qurilishida ham katta hissa qoʻshgan edi.", False),
-                    ("D) Bu obraz hayvonlar tomonidan ishlab chiqilgan 7 ta tamoyilni choʻchqalar qilgan amallarga moslab oʻzgartirib oʻqir edi, shuning uchun hamma uni yomon koʻrar edi.", False),
+                    (
+                        "A) Ushbu hayvon molxonadagi eng aqlli jonivor hisoblanib, yozish va oʻqishni tez oʻzlashtirib oladi.",
+                        False,
+                    ),
+                    (
+                        "B) Bu obraz hayvonlarga turli xil voqealar aytib beradi, bundan tashqari, Muz togʻi haqidagi mish-mishlarning tarqalishiga sababchi boʻladi.",
+                        True,
+                    ),
+                    (
+                        "C) Ushbu asar qahramoni Napaleonning barcha topshiriqlarini chin dildan bajarar edi, hayvonlar orasidagi eng kuchlisi edi, tegirmon qurilishida ham katta hissa qoʻshgan edi.",
+                        False,
+                    ),
+                    (
+                        "D) Bu obraz hayvonlar tomonidan ishlab chiqilgan 7 ta tamoyilni choʻchqalar qilgan amallarga moslab oʻzgartirib oʻqir edi, shuning uchun hamma uni yomon koʻrar edi.",
+                        False,
+                    ),
                 ],
             },
             # 15 (15c)
@@ -681,10 +776,22 @@ class Command(BaseCommand):
                     "mansab vazifasini shaxsiy manfaati quroliga aylantirgan amaldorlar qiyofasi qoralangan."
                 ),
                 "choices": [
-                    ("A) Insofli va adolatli rahbarlarning xalq uchun jon kuydirishi ifodalangan.", False),
-                    ("B) Jamiyatda qallobliklar va o‘g‘riliklar ko‘paygani ifodalangan.", False),
-                    ("C) Mansab vazifasidan o‘z manfaati yo‘lida foydalangan amaldor qoralangan.", True),
-                    ("D) Millatning xalq dardini xolis eshituvchi asl farzandlari madh etilgan.", False),
+                    (
+                        "A) Insofli va adolatli rahbarlarning xalq uchun jon kuydirishi ifodalangan.",
+                        False,
+                    ),
+                    (
+                        "B) Jamiyatda qallobliklar va o‘g‘riliklar ko‘paygani ifodalangan.",
+                        False,
+                    ),
+                    (
+                        "C) Mansab vazifasidan o‘z manfaati yo‘lida foydalangan amaldor qoralangan.",
+                        True,
+                    ),
+                    (
+                        "D) Millatning xalq dardini xolis eshituvchi asl farzandlari madh etilgan.",
+                        False,
+                    ),
                 ],
             },
             # 16 (16d)
@@ -703,10 +810,22 @@ class Command(BaseCommand):
                     "haqiqiy taraqqiyot o'rniga soxta 'yangilik' bilan ovunayotgan millat fojiasi ko'rsatilgan."
                 ),
                 "choices": [
-                    ("A) Parchada turmush tarzidan norozi bo‘lgan insonning qarashlari tasvirlangan.", False),
-                    ("B) Parchada amalga oshirilayotgan islohotlar xalqning turmush darajasini yaxshilay olmayotgani tasvirlangan.", False),
-                    ("C) Parchada yaratilgan qulay sharoitdan foydalana olmayotgan insonlar tasvirlangan.", False),
-                    ("D) Parchada ta’lim, ilm-fanda ortda qolayotgan millatning qiyofasi tasvirlangan.", True),
+                    (
+                        "A) Parchada turmush tarzidan norozi bo‘lgan insonning qarashlari tasvirlangan.",
+                        False,
+                    ),
+                    (
+                        "B) Parchada amalga oshirilayotgan islohotlar xalqning turmush darajasini yaxshilay olmayotgani tasvirlangan.",
+                        False,
+                    ),
+                    (
+                        "C) Parchada yaratilgan qulay sharoitdan foydalana olmayotgan insonlar tasvirlangan.",
+                        False,
+                    ),
+                    (
+                        "D) Parchada ta’lim, ilm-fanda ortda qolayotgan millatning qiyofasi tasvirlangan.",
+                        True,
+                    ),
                 ],
             },
             # 17 (17a)
@@ -733,10 +852,22 @@ class Command(BaseCommand):
                     "tushadigan g'am-alamli kunlar ramziy tarzda tasvirlangan."
                 ),
                 "choices": [
-                    ("A) “Bulutli samo” ifodasi orqali xalq boshiga kelayotgan g‘am-tashvishli kunlar nazarda tutilgan.", True),
-                    ("B) “Qah-qah urayotir” ifodasi orqali bosqinchilarning zaharxanda kulgisi nazarda tutilgan.", False),
-                    ("C) “Zanjiday qaro” ifodasi orqali mamlakat bolalarining zanjirband etilgani nazarda tutilgan.", False),
-                    ("D) “Majruh dunyo” ifodasi orqali dushmanga mag‘lub bo‘lgan millat nazarda tutilgan.", False),
+                    (
+                        "A) “Bulutli samo” ifodasi orqali xalq boshiga kelayotgan g‘am-tashvishli kunlar nazarda tutilgan.",
+                        True,
+                    ),
+                    (
+                        "B) “Qah-qah urayotir” ifodasi orqali bosqinchilarning zaharxanda kulgisi nazarda tutilgan.",
+                        False,
+                    ),
+                    (
+                        "C) “Zanjiday qaro” ifodasi orqali mamlakat bolalarining zanjirband etilgani nazarda tutilgan.",
+                        False,
+                    ),
+                    (
+                        "D) “Majruh dunyo” ifodasi orqali dushmanga mag‘lub bo‘lgan millat nazarda tutilgan.",
+                        False,
+                    ),
                 ],
             },
             # 18 (18a - Reading Passage 1)
@@ -752,10 +883,22 @@ class Command(BaseCommand):
                     "shu sababli bu yerda davolanish va turizm keng rivojlangan."
                 ),
                 "choices": [
-                    ("A) Oʻlik dengizi tuzining minerallar tarkibi boshqa dengizlarnikidan farqli ekanligi bu yerda turizm rivojiga ham taʻsir qilgan.", True),
-                    ("B) Atmosfera bosimining juda yuqoriligi bois dengiz sohili atmosferasida allergenlar, boshqa tirik mavjudotlar yashay olmaydi.", False),
-                    ("C) Qadimda misrliklar moʻmiyolashda foydalanish uchun Oʻlik dengizidan tabiiy asfalt, yaʻni bitum moddasini olib ketishgan.", False),
-                    ("D) Ozon qatlami qalinligi bois quyosh nurlarining kam tushishi natijasida dengiz sohilida oʻsimliklarning kam oʻsishi kuzatiladi.", False),
+                    (
+                        "A) Oʻlik dengizi tuzining minerallar tarkibi boshqa dengizlarnikidan farqli ekanligi bu yerda turizm rivojiga ham taʻsir qilgan.",
+                        True,
+                    ),
+                    (
+                        "B) Atmosfera bosimining juda yuqoriligi bois dengiz sohili atmosferasida allergenlar, boshqa tirik mavjudotlar yashay olmaydi.",
+                        False,
+                    ),
+                    (
+                        "C) Qadimda misrliklar moʻmiyolashda foydalanish uchun Oʻlik dengizidan tabiiy asfalt, yaʻni bitum moddasini olib ketishgan.",
+                        False,
+                    ),
+                    (
+                        "D) Ozon qatlami qalinligi bois quyosh nurlarining kam tushishi natijasida dengiz sohilida oʻsimliklarning kam oʻsishi kuzatiladi.",
+                        False,
+                    ),
                 ],
             },
             # 19 (19a - Reading Passage 1)
@@ -771,10 +914,22 @@ class Command(BaseCommand):
                     "qadimgi o'simliklarni saqlab qolgani bayon etilgan."
                 ),
                 "choices": [
-                    ("A) Intensiv tuzlar tufayli dengiz tubida qolib ketgan qadimgi hayot qoldiqlari saqlanib qolgan.", True),
-                    ("B) Ayniqsa dengizning daryolar quyiladigan joylarida suvning shoʻrlik darajasi yuqori boʻladi.", False),
-                    ("C) Quyoshdan ultrabinafsha nurlarining kam tushishi dengiz ob-havosiga salbiy taʻsir qiladi.", False),
-                    ("D) Tabiiy asfalt qazib olinishining yoʻlga qoʻyilgani sanoat rivoji uchun katta foyda keltiradi.", False),
+                    (
+                        "A) Intensiv tuzlar tufayli dengiz tubida qolib ketgan qadimgi hayot qoldiqlari saqlanib qolgan.",
+                        True,
+                    ),
+                    (
+                        "B) Ayniqsa dengizning daryolar quyiladigan joylarida suvning shoʻrlik darajasi yuqori boʻladi.",
+                        False,
+                    ),
+                    (
+                        "C) Quyoshdan ultrabinafsha nurlarining kam tushishi dengiz ob-havosiga salbiy taʻsir qiladi.",
+                        False,
+                    ),
+                    (
+                        "D) Tabiiy asfalt qazib olinishining yoʻlga qoʻyilgani sanoat rivoji uchun katta foyda keltiradi.",
+                        False,
+                    ),
                 ],
             },
             # 20 (20a - Reading Passage 1)
@@ -790,10 +945,22 @@ class Command(BaseCommand):
                     "turarjoylarga xavf solayotgani aytilgan, demak uni cheklash zarurati mavjud."
                 ),
                 "choices": [
-                    ("A) Oʻlik dengizdan sulfidli balchiq-loy qazib olinishini cheklash lozim.", True),
-                    ("B) Oʻlik dengiz Yer yuzidagi baliqlar yashamaydigan yagona dengizdir.", False),
-                    ("C) Oʻlik dengizga quyiladigan daryolarning suvlari tez-tez qurib qoladi.", False),
-                    ("D) Oʻlik dengizi tarixi insonning tabiatga tajovuzi oqibatini aks ettiradi.", False),
+                    (
+                        "A) Oʻlik dengizdan sulfidli balchiq-loy qazib olinishini cheklash lozim.",
+                        True,
+                    ),
+                    (
+                        "B) Oʻlik dengiz Yer yuzidagi baliqlar yashamaydigan yagona dengizdir.",
+                        False,
+                    ),
+                    (
+                        "C) Oʻlik dengizga quyiladigan daryolarning suvlari tez-tez qurib qoladi.",
+                        False,
+                    ),
+                    (
+                        "D) Oʻlik dengizi tarixi insonning tabiatga tajovuzi oqibatini aks ettiradi.",
+                        False,
+                    ),
                 ],
             },
             # 21 (21d - Reading Passage 1)
@@ -827,10 +994,22 @@ class Command(BaseCommand):
                     "o'zaro mos kelishi, ya'ni ilmiy tadqiqotlar diniy qarashlarni ilmiy-nazariy asoslashi aytilgan."
                 ),
                 "choices": [
-                    ("A) Oʻlik dengizi tadqiqotlari diniy qarashlarni ilmiy-nazariy asoslaydi.", True),
-                    ("B) Oʻlik dengizi suvining shoʻrlik darajasi yildan yilga ortib bormoqda.", False),
-                    ("C) Oʻlik dengiz Yer yuzi koʻllari ichida eng chuqur koʻl hisoblanadi.", False),
-                    ("D) Oʻlik dengizi sathi yildan yilga sezilar-sezilmas pasayib bormoqda.", False),
+                    (
+                        "A) Oʻlik dengizi tadqiqotlari diniy qarashlarni ilmiy-nazariy asoslaydi.",
+                        True,
+                    ),
+                    (
+                        "B) Oʻlik dengizi suvining shoʻrlik darajasi yildan yilga ortib bormoqda.",
+                        False,
+                    ),
+                    (
+                        "C) Oʻlik dengiz Yer yuzi koʻllari ichida eng chuqur koʻl hisoblanadi.",
+                        False,
+                    ),
+                    (
+                        "D) Oʻlik dengizi sathi yildan yilga sezilar-sezilmas pasayib bormoqda.",
+                        False,
+                    ),
                 ],
             },
             # 23 (23c - Reading Passage 2)
@@ -847,8 +1026,14 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("A) Charm kamzulli odam jamiyatdagi haqiqatni aytadi.", False),
-                    ("B) Tramvaydagi yo‘lovchilar har biri mustaqil fikrga ega shaxslardir.", False),
-                    ("C) Odamlar qimmatlikdan charchagan, ammo u bilan kurashishga jur’at etolmaydi.", True),
+                    (
+                        "B) Tramvaydagi yo‘lovchilar har biri mustaqil fikrga ega shaxslardir.",
+                        False,
+                    ),
+                    (
+                        "C) Odamlar qimmatlikdan charchagan, ammo u bilan kurashishga jur’at etolmaydi.",
+                        True,
+                    ),
                     ("D) Kuzatuvchi o‘z fikrini dadil himoya qiladi.", False),
                 ],
             },
@@ -866,9 +1051,18 @@ class Command(BaseCommand):
                 ),
                 "choices": [
                     ("A) Odamlar shukronalikni hech qachon unutmasligi kerak.", False),
-                    ("B) Hayotning barcha og‘irliklari sabr bilan yengiladi degan fikrni targ‘ib qiladi.", False),
-                    ("C) Jamiyatdagi soxta shukronalik, befarqlik va ijtimoiy loqaydlik tanqid qilinadi.", True),
-                    ("D) Shukr qilish insonni ruhiy kuchli qiladi degan g‘oyani beradi.", False),
+                    (
+                        "B) Hayotning barcha og‘irliklari sabr bilan yengiladi degan fikrni targ‘ib qiladi.",
+                        False,
+                    ),
+                    (
+                        "C) Jamiyatdagi soxta shukronalik, befarqlik va ijtimoiy loqaydlik tanqid qilinadi.",
+                        True,
+                    ),
+                    (
+                        "D) Shukr qilish insonni ruhiy kuchli qiladi degan g‘oyani beradi.",
+                        False,
+                    ),
                 ],
             },
             # 25 (25b - Reading Passage 2)
@@ -884,10 +1078,19 @@ class Command(BaseCommand):
                     "boshi baloga qolishi mumkinligi ifodalangan."
                 ),
                 "choices": [
-                    ("A) Jamiyatning o‘ziga yarasha tartib-qoidalari bor, ularga amal qilmoq lozim.", False),
-                    ("B) So‘z erkinligi ta’minlanmagan jamiyatda inson hayoti xavf ostida qolishi mumkin.", True),
+                    (
+                        "A) Jamiyatning o‘ziga yarasha tartib-qoidalari bor, ularga amal qilmoq lozim.",
+                        False,
+                    ),
+                    (
+                        "B) So‘z erkinligi ta’minlanmagan jamiyatda inson hayoti xavf ostida qolishi mumkin.",
+                        True,
+                    ),
                     ("C) Hayotda faqat nolib yashash najot sari yetaklamaydi.", False),
-                    ("D) Insonning haqiqiy boyligi sog‘lik va tinchligida, qolgani hal bo‘ladigan muammolar.", False),
+                    (
+                        "D) Insonning haqiqiy boyligi sog‘lik va tinchligida, qolgani hal bo‘ladigan muammolar.",
+                        False,
+                    ),
                 ],
             },
             # 26 (26d - Reading Passage 2)
@@ -903,10 +1106,22 @@ class Command(BaseCommand):
                     "o'tirgan, omma bilan ochiq kurashishdan qo'rquvchi ziyolilar qatlamini ifodalaydi."
                 ),
                 "choices": [
-                    ("A) Tramvay – o‘y-xayollari, dunyoqarashi turlicha bo‘lgan odamlar timsoli.", False),
-                    ("B) Charm kamzulli odam – jamiyatga adolat o‘rnatmoqchi bo‘lgan xalqparvar ishchi.", False),
-                    ("C) Tushayotgan yo‘lovchilar – har narsadan kamchilik qidirib, aybni o‘zidan emas, boshqalardan qidiradigan kishilar timsoli.", False),
-                    ("D) Kuzatuvchi (muallif obrazi) – fikrli, ammo jim. Haqiqatni o‘ylaydigan, lekin aytolmaydigan ziyoli qatlam ramzi.", True),
+                    (
+                        "A) Tramvay – o‘y-xayollari, dunyoqarashi turlicha bo‘lgan odamlar timsoli.",
+                        False,
+                    ),
+                    (
+                        "B) Charm kamzulli odam – jamiyatga adolat o‘rnatmoqchi bo‘lgan xalqparvar ishchi.",
+                        False,
+                    ),
+                    (
+                        "C) Tushayotgan yo‘lovchilar – har narsadan kamchilik qidirib, aybni o‘zidan emas, boshqalardan qidiradigan kishilar timsoli.",
+                        False,
+                    ),
+                    (
+                        "D) Kuzatuvchi (muallif obrazi) – fikrli, ammo jim. Haqiqatni o‘ylaydigan, lekin aytolmaydigan ziyoli qatlam ramzi.",
+                        True,
+                    ),
                 ],
             },
             # 27 (27c - Reading Passage 2)
@@ -922,10 +1137,22 @@ class Command(BaseCommand):
                     "qabul qilish va haqiqatdan qochishni fosh etuvchi badiiy vositadir."
                 ),
                 "choices": [
-                    ("A) Qahramonlarning Allohga bo‘lgan chuqur imonini bildiradi.", False),
-                    ("B) Og‘irliklarga sabr qilishni o‘rgatuvchi milliy qadriyatni ko‘rsatadi.", False),
-                    ("C) Hayotdagi adolatsizlikni befarqlik bilan qabul qilishni fosh etadi.", True),
-                    ("D) Jamiyatda minnatdorlik tuyg‘usining ustuvorligini targ‘ib qiladi.", False),
+                    (
+                        "A) Qahramonlarning Allohga bo‘lgan chuqur imonini bildiradi.",
+                        False,
+                    ),
+                    (
+                        "B) Og‘irliklarga sabr qilishni o‘rgatuvchi milliy qadriyatni ko‘rsatadi.",
+                        False,
+                    ),
+                    (
+                        "C) Hayotdagi adolatsizlikni befarqlik bilan qabul qilishni fosh etadi.",
+                        True,
+                    ),
+                    (
+                        "D) Jamiyatda minnatdorlik tuyg‘usining ustuvorligini targ‘ib qiladi.",
+                        False,
+                    ),
                 ],
             },
             # 28 (28d - Reading Passage 3)
@@ -941,10 +1168,22 @@ class Command(BaseCommand):
                     "yetishishni tilab, hijron dardi chekayotgani bayon qilingan."
                 ),
                 "choices": [
-                    ("A) Oshiqning holati yashashdan umidini uzgan bemorga qiyoslangan.", False),
-                    ("B) Ma’shuqa bergan ozorlar sabab oshiq yashashdan umid uzib kasalga chalingan.", False),
-                    ("C) Oshiqlik hijron dardiga duchor bo‘lgan kasalga o‘xshaydi.", False),
-                    ("D) Visolga yetishni xohlagan oshiq hijron sababli dardga chalingan.", True),
+                    (
+                        "A) Oshiqning holati yashashdan umidini uzgan bemorga qiyoslangan.",
+                        False,
+                    ),
+                    (
+                        "B) Ma’shuqa bergan ozorlar sabab oshiq yashashdan umid uzib kasalga chalingan.",
+                        False,
+                    ),
+                    (
+                        "C) Oshiqlik hijron dardiga duchor bo‘lgan kasalga o‘xshaydi.",
+                        False,
+                    ),
+                    (
+                        "D) Visolga yetishni xohlagan oshiq hijron sababli dardga chalingan.",
+                        True,
+                    ),
                 ],
             },
             # 29 (29c - Reading Passage 3)
@@ -979,10 +1218,22 @@ class Command(BaseCommand):
                     "ichida kuyayotgan odamning nolasi parvo emas (ma'shuqa oshiqning faryodiga beparvo)."
                 ),
                 "choices": [
-                    ("A) Pok muhabbat o‘tida yonishni orzu qilgan oshiq oqibatda shu ishq sabab butkul yonib kuyadi.", False),
-                    ("B) Hijron olovini ko‘rgan oshiqqa do‘zax olovi xuddi uchqundek bo‘lib tuyuladi.", False),
-                    ("C) Ishq mayi oshiqning ko‘ngliga ul hurning shavqini soldi.", False),
-                    ("D) Olovda kuygan odam qancha dod-faryod qilsa ham, qolganlar unga parvo qilmaydi.", True),
+                    (
+                        "A) Pok muhabbat o‘tida yonishni orzu qilgan oshiq oqibatda shu ishq sabab butkul yonib kuyadi.",
+                        False,
+                    ),
+                    (
+                        "B) Hijron olovini ko‘rgan oshiqqa do‘zax olovi xuddi uchqundek bo‘lib tuyuladi.",
+                        False,
+                    ),
+                    (
+                        "C) Ishq mayi oshiqning ko‘ngliga ul hurning shavqini soldi.",
+                        False,
+                    ),
+                    (
+                        "D) Olovda kuygan odam qancha dod-faryod qilsa ham, qolganlar unga parvo qilmaydi.",
+                        True,
+                    ),
                 ],
             },
             # 31 (31d - Reading Passage 3)
@@ -998,10 +1249,22 @@ class Command(BaseCommand):
                     "— jisming tuproqqa kirganda yuksak maqom topishni istasang, tiriklik paytingda tuproq kabi kamtar bo'l."
                 ),
                 "choices": [
-                    ("A) Toki hayot ekansan, yorga yetishish uchun doim uning oyog‘i ostida tuproqdek bo‘l.", False),
-                    ("B) Taning tuproqqa aylanmasin desang, tiriklik paytingda yuqori maqomga erishish uchun tuproqdek oyoqosti bo‘lma.", False),
-                    ("C) Tiriklikning eng avj pallasida qanchalik buyuk maqomga erishgan bo‘lsang ham, kun kelib jisming oddiy tuproqqa qorishib ketadi.", False),
-                    ("D) Jisming tuproqqa topshirilgandan keyin ham yuqori maqomga erishmoqchi bo‘lsang, jisming hayot bo‘lib turganda tuproq kabi xokisor bo‘l.", True),
+                    (
+                        "A) Toki hayot ekansan, yorga yetishish uchun doim uning oyog‘i ostida tuproqdek bo‘l.",
+                        False,
+                    ),
+                    (
+                        "B) Taning tuproqqa aylanmasin desang, tiriklik paytingda yuqori maqomga erishish uchun tuproqdek oyoqosti bo‘lma.",
+                        False,
+                    ),
+                    (
+                        "C) Tiriklikning eng avj pallasida qanchalik buyuk maqomga erishgan bo‘lsang ham, kun kelib jisming oddiy tuproqqa qorishib ketadi.",
+                        False,
+                    ),
+                    (
+                        "D) Jisming tuproqqa topshirilgandan keyin ham yuqori maqomga erishmoqchi bo‘lsang, jisming hayot bo‘lib turganda tuproq kabi xokisor bo‘l.",
+                        True,
+                    ),
                 ],
             },
             # 32 (32b - Reading Passage 3)
@@ -1029,8 +1292,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A–F) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "33-gap: \"Matnni yozuvda qayd etish (aks ettirish) yozma nutqning muhim sifatlaridan hisoblanadi, "
-                    "unga og‘zaki nutqqa nisbatan muayyan afzallik baxsh etadi.\"\n\n"
+                    '33-gap: "Matnni yozuvda qayd etish (aks ettirish) yozma nutqning muhim sifatlaridan hisoblanadi, '
+                    'unga og‘zaki nutqqa nisbatan muayyan afzallik baxsh etadi."\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1054,9 +1317,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A–F) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "34-gap: \"Ba’zi nashrlaming mualliflarini bir-biridan farq qiluvchi tavsiyalar berishdan, "
+                    '34-gap: "Ba’zi nashrlaming mualliflarini bir-biridan farq qiluvchi tavsiyalar berishdan, '
                     "haddan tashqari so‘zamolikka berilib ketishmasdan, nutqqa o‘rinli-o‘rinsiz ilmoqli so‘roqlarni kiritishdan "
-                    "ogohlantirish kerak.\"\n\n"
+                    'ogohlantirish kerak."\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1080,8 +1343,8 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gaplar (33, 34, 35) va sintaktik tahlilga oid izohlar (A–F) ni o'zaro to'g'ri moslashtiring:\n\n"
-                    "35-gap: \"Ona zamin! Qancha-qancha fotihlar-u jahongirlarni, qancha-qancha shoir-u olimlarni "
-                    "bag‘ringda allalagan muqaddas beshiksan.\"\n\n"
+                    '35-gap: "Ona zamin! Qancha-qancha fotihlar-u jahongirlarni, qancha-qancha shoir-u olimlarni '
+                    'bag‘ringda allalagan muqaddas beshiksan."\n\n'
                     "Ushbu gap uchun mos keluvchi sintaktik izohni tanlang:"
                 ),
                 "type": Question.QuestionType.SINGLE_CHOICE,
@@ -1139,8 +1402,8 @@ class Command(BaseCommand):
                 "text": (
                     "Qo‘shimcha qo‘llash bilan bog‘liq uslubiy xatolik mavjud bo‘lgan so‘zni aniqlang va xatoni bartaraf etgan "
                     "holatda yozing:\n\n"
-                    "\"Asarda ruhiy olami orqali kechagi kunini unutmagan, bobolarning amal qilgan yuksak udumlar asosida "
-                    "yashagan chin inson haqidagi ma’lumotlar aks etgan.\""
+                    '"Asarda ruhiy olami orqali kechagi kunini unutmagan, bobolarning amal qilgan yuksak udumlar asosida '
+                    'yashagan chin inson haqidagi ma’lumotlar aks etgan."'
                 ),
                 "type": Question.QuestionType.TEXT_MATCH,
                 "points": 2,
@@ -1157,8 +1420,8 @@ class Command(BaseCommand):
                 "text": (
                     "Berilgan gapda tinish belgisi bilan ajratilishi lozim bo‘lgan sintaktik birlikni toping va shu birlikni "
                     "vujudga keltirgan so‘zlarni yozing:\n\n"
-                    "\"Qorong‘ida Santyago cholning ismi shunday tong yaqinlashayotganini sezdi, eshkak urarkan, qulog‘iga titroq "
-                    "tovush chalindi – ucharbaliqlar suvdan chiqar va temirdek qanotlari bilan havoni kesib allaqayoqlarga g‘oyib bo‘lardi.\""
+                    '"Qorong‘ida Santyago cholning ismi shunday tong yaqinlashayotganini sezdi, eshkak urarkan, qulog‘iga titroq '
+                    'tovush chalindi – ucharbaliqlar suvdan chiqar va temirdek qanotlari bilan havoni kesib allaqayoqlarga g‘oyib bo‘lardi."'
                 ),
                 "type": Question.QuestionType.TEXT_MATCH,
                 "points": 2,
@@ -1174,9 +1437,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Gapdagi soʻzlarning mazmun va grammatik jihatdan bog'lanishini tahlil qiling:\n\n"
-                    "\"Yashil iqtisodiyotni rivojlantirish va atrof-muhitni tozaligi haqida gap ketar ekan, avvalo, shuni ta`kidlab o‘tish joizki, "
+                    '"Yashil iqtisodiyotni rivojlantirish va atrof-muhitni tozaligi haqida gap ketar ekan, avvalo, shuni ta`kidlab o‘tish joizki, '
                     "tabiatni muhofaza qilish, ekologik barqarorlikni ta’minlash va kelajak avlodga sog‘lom muhit qoldirish faqat "
-                    "mutasaddilarning emas, har birimizning bugungi kundagi mas’uliyatimizdir.\"\n\n"
+                    'mutasaddilarning emas, har birimizning bugungi kundagi mas’uliyatimizdir."\n\n'
                     "Javobni quyidagi 2 ta maydonga yozing:\n"
                     "a) ajratib koʻrsatilgan so‘z ('har birimizning') qaysi so‘zga tobelanib bog‘langan?\n"
                     "b) ajratib koʻrsatilgan so‘z ('ta’minlash') qaysi soʻz(lar) bilan teng bogʻlangan?"
@@ -1203,9 +1466,9 @@ class Command(BaseCommand):
                 "section": sec_lang,
                 "text": (
                     "Parchadagi yordamchi so‘zlarning grammatik vazifasini tahlil qiling:\n\n"
-                    "\"Yaqinda bo‘lib o‘tgan “Milliy kuylar” musobaqasi tufayli xalqimizning unutilib ketayotgan qadimiy ohanglari "
+                    '"Yaqinda bo‘lib o‘tgan “Milliy kuylar” musobaqasi tufayli xalqimizning unutilib ketayotgan qadimiy ohanglari '
                     "qayta jonlandi, milliy musiqa tariximizga nazar tashlandi, bu esa tomoshabinlar va san’atga endi qadam qo‘yayotgan "
-                    "yoshlar qalbida milliylik ruhini shakllantirishga xizmat qildi.\"\n\n"
+                    'yoshlar qalbida milliylik ruhini shakllantirishga xizmat qildi."\n\n'
                     "Javobni quyidagi 2 ta maydonga yozing:\n"
                     "a) parchadagi qaysi yordamchi so‘z bir gap bo‘lagini boshqasiga tobelantirib bog‘lash uchun xizmat qilgan?\n"
                     "b) parchadagi qaysi vosita bir sodda gapni boshqasiga teng bog‘lash uchun xizmat qilgan?"
@@ -1230,8 +1493,8 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "She’riy parchani tahlil qiling va savollarga javob yozing:\n\n"
-                    "\"Chun yuzin sevdi ko‘ngul zulf-u zanaxdonin tilar,\n"
-                    " Ore Yusufni sevganlar band-u zindon orzular.\"\n\n"
+                    '"Chun yuzin sevdi ko‘ngul zulf-u zanaxdonin tilar,\n'
+                    ' Ore Yusufni sevganlar band-u zindon orzular."\n\n'
                     "Javobni quyidagi 2 ta maydonga yozing:\n"
                     "a) parchada yorning sochi nimaga qiyoslangan?\n"
                     "b) yorning iyagidagi chuqurcha (zanaxdon) nimaga qiyos etilgan?"
@@ -1258,10 +1521,10 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "She’riy parchaning qofiyasini tahlil qiling va savollarga javob yozing:\n\n"
-                    "\"Kirding tushuma subhidam, alminnatu lilloh,\n"
+                    '"Kirding tushuma subhidam, alminnatu lilloh,\n'
                     " To’le yana qildi karam, alminnatu lilloh.\n"
                     " Hayoti azal husn to‘nin titgali sizga,\n"
-                    " O‘lturmas anga gardi g‘am, alminnatu lilloh.\"\n\n"
+                    ' O‘lturmas anga gardi g‘am, alminnatu lilloh."\n\n'
                     "Javobni quyidagi 2 ta maydonga yozing:\n"
                     "a) qofiyadosh so‘zlardagi raviyni yozing;\n"
                     "b) qofiyaning qaysi turi shakllantirilgan?"
@@ -1288,10 +1551,10 @@ class Command(BaseCommand):
                 "section": sec_lit,
                 "text": (
                     "She’riy parchani tahlil qiling va savollarga javob yozing:\n\n"
-                    "\"Ne toli’durki, har kimni desam yor,\n"
+                    '"Ne toli’durki, har kimni desam yor,\n'
                     " Manga ul oqibat bo‘lur badandesh.\n"
                     " Biravdur gar ani desam ko‘zumsen,\n"
-                    " Chekar mujgon kebi qasdimg‘a yuz nish.\"\n\n"
+                    ' Chekar mujgon kebi qasdimg‘a yuz nish."\n\n'
                     "Javobni quyidagi 2 ta maydonga yozing:\n"
                     "a) ushbu parcha qaysi janr namunasi hisoblanadi?\n"
                     "b) she’rdagi qaysi badiiy timsol jafokor do‘st tushunchasini ifodalagan?"
@@ -1388,14 +1651,23 @@ class Command(BaseCommand):
                 created_choices += 1
 
         # 9. Sync Standalone EssayTopic for Task 45
-        topic_title = "Nafaqaga chiqish yoshi chegarasi va kadrlar salohiyati (BMB Rasmiy Mock)"
+        topic_title = (
+            "Nafaqaga chiqish yoshi chegarasi va kadrlar salohiyati (BMB Rasmiy Mock)"
+        )
         old_topic = EssayTopic.objects.filter(title__icontains="Umid Shukurov").first()
         if old_topic:
             old_topic.title = topic_title
             old_topic.word_limit_min = 200
             old_topic.word_limit_max = 500
             old_topic.national_cert_scale = True
-            old_topic.save(update_fields=["title", "word_limit_min", "word_limit_max", "national_cert_scale"])
+            old_topic.save(
+                update_fields=[
+                    "title",
+                    "word_limit_min",
+                    "word_limit_max",
+                    "national_cert_scale",
+                ]
+            )
             essay_topic = old_topic
             topic_created = False
         else:
@@ -1414,16 +1686,16 @@ class Command(BaseCommand):
                     "word_limit_max": 500,
                     "time_limit_minutes": 60,
                     "national_cert_scale": True,
-                "sample_outline": (
-                    "I. Kirish: Zamonaviy mehnat bozorida pensiya yoshi va mehnat unumdorligi o'rtasidagi munosabat.\n"
-                    "II. Asosiy qism:\n"
-                    "  - 1-qarash: Yosh kadrlarga yo'l ochish, innovatsiya va zamonaviy texnologiyalarni joriy etish afzalliklari.\n"
-                    "  - 2-qarash: Tajribali, yetuk mutaxassislarning kasbiy mahorati va ustoz-shogirdlik an'analarining o'rni.\n"
-                    "  - Shaxsiy mulohaza va hayotiy misol: Har ikkala avlod salohiyatini uyg'unlashtirish imkoniyatlari.\n"
-                    "III. Xulosa: Moslashuvchan va oqilona pensiya islohotlari orqali kadrlar salohiyatini barqaror yuksaltirish."
-                ),
-            },
-        )
+                    "sample_outline": (
+                        "I. Kirish: Zamonaviy mehnat bozorida pensiya yoshi va mehnat unumdorligi o'rtasidagi munosabat.\n"
+                        "II. Asosiy qism:\n"
+                        "  - 1-qarash: Yosh kadrlarga yo'l ochish, innovatsiya va zamonaviy texnologiyalarni joriy etish afzalliklari.\n"
+                        "  - 2-qarash: Tajribali, yetuk mutaxassislarning kasbiy mahorati va ustoz-shogirdlik an'analarining o'rni.\n"
+                        "  - Shaxsiy mulohaza va hayotiy misol: Har ikkala avlod salohiyatini uyg'unlashtirish imkoniyatlari.\n"
+                        "III. Xulosa: Moslashuvchan va oqilona pensiya islohotlari orqali kadrlar salohiyatini barqaror yuksaltirish."
+                    ),
+                },
+            )
         if not topic_created and not essay_topic.national_cert_scale:
             essay_topic.national_cert_scale = True
             essay_topic.save(update_fields=["national_cert_scale"])

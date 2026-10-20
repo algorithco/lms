@@ -10,6 +10,7 @@ Or in Python:
     from apps.core.translations import t
     text = t("welcome", request.user.language)
 """
+
 from __future__ import annotations
 
 import json
@@ -43,7 +44,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "role_student": "O'quvchi",
         "role_teacher": "O'qituvchi",
         "role_admin": "Admin",
-
         # Auth
         "login": "Kirish",
         "register": "Ro'yxatdan o'tish",
@@ -104,7 +104,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "telegram_login_step1": "Telegram ochildi. Botga tasdiqlang...",
         "telegram_login_step2": "Telegram'dan tasdiqlandi! Kodni kiriting",
         "code_expires": "Kod 10 daqiqa ichida eskiradi",
-        
         # Dashboard
         "dashboard": "Boshqaruv paneli",
         "student_dashboard": "O'quvchi paneli",
@@ -118,7 +117,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "streak": "Kunlik streak",
         "daily_tasks": "Kunlik vazifalar",
         "premium": "Premium",
-        
         # Stats
         "total_tests": "Jami testlar",
         "passed": "O'tilgan",
@@ -131,14 +129,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "coins": "Tanga",
         "badges": "Badgelar",
         "certificates": "Sertifikatlar",
-        
         # Games
         "games": "O'yinlar",
         "gazal_puzzle": "Gazal puzzle",
         "lugat_match": "Lug'at match",
         "imlo_mines": "Imlo mines",
         "play": "O'ynash",
-        
         # Essays
         "essays": "Esselar",
         "essay_topics": "Esse mavzulari",
@@ -149,7 +145,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "delete": "O'chirish",
         "edit": "Tahrirlash",
         "view": "Ko'rish",
-        
         # Teacher
         "teacher_queue": "Esse tekshirish navbati",
         "review": "Tekshirish",
@@ -159,7 +154,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analytics": "Statistika",
         "csv_import": "CSV import",
         "test_import": "Test import",
-        
         # General
         "save_changes": "O'zgarishlarni saqlash",
         "confirm": "Tasdiqlash",
@@ -186,11 +180,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "contact": "Bog'lanish",
         "privacy": "Maxfiylik",
         "terms": "Shartlar",
-        
         # Footer
         "footer_text": "Ona tili va Adabiyot bo'yicha ta'lim platformasi",
         "made_with": "Sevgi bilan yaratildi",
-
         # ── Dashboard i18n sweep (stat cards, tables, charts, empty states) ──
         "stat_tests_taken": "Topshirilgan testlar",
         "stat_sub_total_hint": "jami topshirish",
@@ -296,7 +288,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "students_count": "O'quvchilar soni",
         "theme_toggle_title": "Mavzuni almashtirish",
         "all_rights_reserved": "Barcha huquqlar himoyalangan.",
-
         # ── In-app Admin Panel (apps/panel) ──
         "questions": "Savollar",
         "users": "Foydalanuvchilar",
@@ -399,7 +390,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cat_adabiyot": "Adabiyot",
         "cat_tarix": "Tarix",
         "cat_umumiy": "Umumiy",
-
         # ── Landing / Auth (landing nav + login/register chrome) ──
         "hero_title_1": "Milliy sertifikatga",
         "hero_title_2": "AI bilan tayyorlaning",
@@ -416,7 +406,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "code_invalid_js": "6 ta raqamli kodni kiriting.",
         "err_generic_js": "Xatolik yuz berdi.",
         "err_retry_js": "Xatolik yuz berdi. Qayta urinib ko'ring.",
-
         # ── Landing hero (home.html) ──
         "hero_eyebrow": "AI-asosidagi ona tili va adabiyot platformasi",
         "hero_subtitle": "DTM darajasidagi testlar, AI Esse tahlili va real-vaqt 1v1 arena — ona tili bilimingizni ilk marotabadano o'lchaydigan platforma.",
@@ -516,7 +505,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "step3_title": "Natijani oling",
         "step3_desc": "Baho, sertifikat va tahlil — barchasi bir joyda.",
         "cta_free_account": "Bepul hisob ochish",
-
         # ── Landing footer (includes/footer.html) ──
         "foot_mission": "Ona tili va adabiyotdan milliy sertifikat darajasiga — zamonaviy, AI-quvvatlangan platforma orqali.",
         "foot_pages": "Sahifalar",
@@ -539,7 +527,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "foot_terms": "Shartlar",
         "foot_healthy": "Tizim sog'lom",
         "foot_subscribed_toast": "Obuna bo'ldingiz! Yangiliklarni kuting 🎉",
-
         # ── Landing i18n sweep ──
         "land_eyebrow": "AI-asosidagi ona tili va adabiyot platformasi",
         "land_subhead_1": "DTM darajasidagi testlar,",
@@ -596,7 +583,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "how_title_1": "3 qadamda",
         "how_title_2": "boshlang",
         "page_title_home": "Ona Tili & Adabiyot — Milliy sertifikatga tayyorlanish platformasi",
-
         # ── Payments / subscription ──
         "pay_plans_title": "Obuna rejaları",
         "pay_plans_subtitle": "O'z darajangizga mos rejani tanlang. Premium obuna bilan barcha imkoniyatlar ochiladi!",
@@ -660,7 +646,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pay_admin_review_note": "Chek yuborilgach admin tekshiradi va obunangiz tez orada faollashtiriladi.",
         "pay_msg_free_plan": "Bepul reja uchun to'lov talab qilinmaydi.",
         "pay_msg_receipt_sent": "Chek qabul qilindi! Admin tekshirgandan so'ng obuna faollashtiriladi.",
-
         # ── Essays: submit / write / result ──
         "essay_submit_title": "Esse yuborish — 12 mezon bo'yicha baholash",
         "essay_back_topics": "Mavzular ro'yxatiga qaytish",
@@ -724,7 +709,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_js_analyzing": "AI tahlil qilmoqda…",
         "essay_js_grading": "Baholanmoqda…",
         "essay_js_error": "Xatolik yuz berdi. Qaytadan urinib ko'ring.",
-
         # ── Essays: topics / partials / password gate ──
         "essay_topics_title": "Esse mavzulari",
         "essay_topics_intro": "BMB (DTM) mezonlari bo'yicha esse yozing va AI hamda ustozdan baho oling.",
@@ -759,7 +743,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_password_hint": "Esseni yozishni boshlash uchun o'qituvchi bergan parolni kiriting.",
         "essay_topic_password": "Mavzu paroli",
         "essay_confirm_start": "Tasdiqlash va boshlash",
-
         # ── My subscription page ──
         "sub_my_title": "Mening obunam",
         "sub_my_subtitle": "Obuna holatingiz va to'lov tarixingiz",
@@ -784,7 +767,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "sub_plans_cta": "Obuna rejalari",
         "sub_history_title": "To'lov tarixi",
         "sub_no_payments": "Hali to'lovlar yo'q",
-
         # ── Parent portal ──
         "pp_title": "Ota-ona paneli",
         "pp_subtitle": "Farzandlaringizning ta'lim natijalarini kuzating",
@@ -806,7 +788,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pp_no_results": "Hali natijalar yo'q",
         "pp_recent_tests": "So'nggi test natijalari",
         "pp_recent_essays": "So'nggi esse natijalari",
-
         # ── Manage teachers ──
         "mt_title": "O'qituvchilarni boshqarish",
         "mt_subtitle": "Foydalanuvchilarni o'qituvchi qilish yoki o'quvchi qaytarish",
@@ -830,13 +811,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "mt_confirm_teacher": "Bu foydalanuvchini o'qituvchi qilmoqchimisiz?",
         "mt_confirm_student": "Bu foydalanuvchini o'quvchi qaytarmoqchimisiz?",
         "mt_no_users": "Hech qanday foydalanuvchi topilmadi",
-
         # ── Certificates ──
         "mc_number": "Raqam:",
         "mc_download": "PDF yuklab olish",
         "mc_none_title": "Sertifikatlar yo'q",
         "mc_none_hint": "Testdan o'tganingizdan keyin sertifikat beriladi",
-
         # ── Analytics ──
         "an_students_lbl": "Talabalar",
         "an_total_submissions": "Jami topshirish",
@@ -862,7 +841,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "an_js_essays_count": "Esselar soni",
         "an_js_activity": "Faollik",
         "an_js_ball_pct": "Ball %",
-
         # ── Result detail ──
         "rd_back": "Natijalarimga qaytish",
         "rd_page_title": "Test natijasi",
@@ -877,7 +855,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "rd_points": "ball",
         "rd_your_choice": "Siz tanlagan",
         "rd_explanation": "Tushuntirish:",
-
         # ── Group form ──
         "gf_edit": "tahrirlash",
         "gf_new": "Yangi guruh yaratish",
@@ -893,7 +870,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "gf_selected_post": "ta talaba tanlangan",
         "gf_no_students": "Hali tizimda ro'yxatdan o'tgan talabalar yo'q.",
         "gf_create": "Yaratish",
-
         # ── Password reset ──
         "pr_title": "Yangi parol o'rnating",
         "pr_subtitle": "Yangi parolingizni kiriting va tasdiqlang",
@@ -905,7 +881,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pr_invalid_title": "Havola muddati tugagan",
         "pr_invalid_text": "Parolni tiklash havolasi muddati tugagan yoki noto'g'ri. Iltimos, qaytadan so'rov yuboring.",
         "pr_resend": "Qaytadan so'rov yuborish",
-
         # ── Emails ──
         "em_test_header": "Test natijasi",
         "em_test_ready": "Sizning test natijangiz tayyor.",
@@ -933,7 +908,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "em_txt_overall": "Umumiy",
         "em_txt_summary": "Xulosa",
         "em_essay_graded_short": "Esse baholandi!",
-
         # ── Telegram Mini App ──
         "tma_tests": "Testlar",
         "tma_prev": "← Oldingi",
@@ -957,7 +931,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "role_student": "Ученик",
         "role_teacher": "Учитель",
         "role_admin": "Админ",
-
         # Auth
         "login": "Войти",
         "register": "Регистрация",
@@ -1018,7 +991,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "telegram_login_step1": "Telegram открыт. Подтвердите в боте...",
         "telegram_login_step2": "Telegram подтверждён! Введите код",
         "code_expires": "Код истекает через 10 минут",
-        
         # Dashboard
         "dashboard": "Панель управления",
         "student_dashboard": "Панель ученика",
@@ -1032,7 +1004,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "streak": "Серия дней",
         "daily_tasks": "Ежедневные задания",
         "premium": "Премиум",
-        
         # Stats
         "total_tests": "Всего тестов",
         "passed": "Пройдено",
@@ -1045,14 +1016,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "coins": "Монеты",
         "badges": "Значки",
         "certificates": "Сертификаты",
-        
         # Games
         "games": "Игры",
         "gazal_puzzle": "Газал пазл",
         "lugat_match": "Лугат матч",
         "imlo_mines": "Имло мины",
         "play": "Играть",
-        
         # Essays
         "essays": "Эссе",
         "essay_topics": "Темы эссе",
@@ -1063,7 +1032,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "delete": "Удалить",
         "edit": "Редактировать",
         "view": "Просмотр",
-        
         # Teacher
         "teacher_queue": "Очередь проверки эссе",
         "review": "Проверить",
@@ -1073,7 +1041,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analytics": "Аналитика",
         "csv_import": "CSV импорт",
         "test_import": "Импорт тестов",
-        
         # General
         "save_changes": "Сохранить изменения",
         "confirm": "Подтвердить",
@@ -1100,11 +1067,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "contact": "Контакты",
         "privacy": "Конфиденциальность",
         "terms": "Условия",
-        
         # Footer
         "footer_text": "Платформа для изучения родного языка и литературы",
         "made_with": "Создано с любовью",
-
         # ── Dashboard i18n sweep ──
         "stat_tests_taken": "Пройдено тестов",
         "stat_sub_total_hint": "всего попыток",
@@ -1210,7 +1175,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "students_count": "Кол-во учеников",
         "theme_toggle_title": "Переключить тему",
         "all_rights_reserved": "Все права защищены.",
-
         # ── In-app Admin Panel (apps/panel) ──
         "questions": "Вопросы",
         "users": "Пользователи",
@@ -1313,7 +1277,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cat_adabiyot": "Литература",
         "cat_tarix": "История",
         "cat_umumiy": "Общая",
-
         # ── Landing / Auth ──
         "hero_title_1": "Готовьтесь к Национальному сертификату",
         "hero_title_2": "с ИИ",
@@ -1330,7 +1293,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "code_invalid_js": "Введите 6-значный код.",
         "err_generic_js": "Произошла ошибка.",
         "err_retry_js": "Произошла ошибка. Попробуйте ещё раз.",
-
         # ── Landing hero ──
         "hero_eyebrow": "Платформа родного языка и литературы на базе ИИ",
         "hero_subtitle": "Тесты уровня DTM, AI-анализ эссе и 1v1 арена в реальном времени — платформа, которая с первого раза измерит ваши знания родного языка.",
@@ -1430,7 +1392,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "step3_title": "Получите результат",
         "step3_desc": "Оценка, сертификат и анализ — всё в одном месте.",
         "cta_free_account": "Открыть бесплатный аккаунт",
-
         # ── Landing footer ──
         "foot_mission": "От родного языка и литературы до уровня национального сертификата — через современную платформу на базе ИИ.",
         "foot_pages": "Страницы",
@@ -1453,7 +1414,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "foot_terms": "Условия",
         "foot_healthy": "Система здорова",
         "foot_subscribed_toast": "Вы подписались! Ждите новостей 🎉",
-
         # ── Landing i18n sweep ──
         "land_eyebrow": "Платформа родного языка и литературы на базе ИИ",
         "land_subhead_1": "Тесты уровня DTM,",
@@ -1510,7 +1470,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "how_title_1": "За 3 шага",
         "how_title_2": "начните",
         "page_title_home": "Ona Tili & Adabiyot — платформа подготовки к национальному сертификату",
-
         # ── Payments / subscription ──
         "pay_plans_title": "Тарифные планы",
         "pay_plans_subtitle": "Выберите план, соответствующий вашему уровню. С Premium открываются все возможности!",
@@ -1574,7 +1533,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pay_admin_review_note": "После отправки чека администратор всё проверит, и ваша подписка будет активирована.",
         "pay_msg_free_plan": "Для бесплатного плана оплата не требуется.",
         "pay_msg_receipt_sent": "Чек получен! Подписка будет активирована после проверки администратором.",
-
         # ── Essays: submit / write / result ──
         "essay_submit_title": "Отправка эссе — оценка по 12 критериям",
         "essay_back_topics": "Вернуться к списку тем",
@@ -1638,7 +1596,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_js_analyzing": "ИИ-анализ…",
         "essay_js_grading": "Оценивается…",
         "essay_js_error": "Произошла ошибка. Попробуйте ещё раз.",
-
         # ── Essays: topics / partials / password gate ──
         "essay_topics_title": "Темы эссе",
         "essay_topics_intro": "Пишите эссе по критериям BMB (DTM) и получайте оценку от ИИ и учителя.",
@@ -1673,7 +1630,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_password_hint": "Чтобы начать писать эссе, введите пароль, выданный учителем.",
         "essay_topic_password": "Пароль темы",
         "essay_confirm_start": "Подтвердить и начать",
-
         # ── My subscription page ──
         "sub_my_title": "Моя подписка",
         "sub_my_subtitle": "Статус подписки и история платежей",
@@ -1698,7 +1654,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "sub_plans_cta": "Тарифы",
         "sub_history_title": "История платежей",
         "sub_no_payments": "Платежей пока нет",
-
         # ── Parent portal ──
         "pp_title": "Родительский кабинет",
         "pp_subtitle": "Следите за учебными результатами ваших детей",
@@ -1720,7 +1675,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pp_no_results": "Результатов пока нет",
         "pp_recent_tests": "Последние результаты тестов",
         "pp_recent_essays": "Последние результаты эссе",
-
         # ── Manage teachers ──
         "mt_title": "Управление учителями",
         "mt_subtitle": "Назначайте пользователей учителями или возвращайте в ученики",
@@ -1744,13 +1698,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "mt_confirm_teacher": "Сделать этого пользователя учителем?",
         "mt_confirm_student": "Вернуть этого пользователя в ученики?",
         "mt_no_users": "Пользователи не найдены",
-
         # ── Certificates ──
         "mc_number": "Номер:",
         "mc_download": "Скачать PDF",
         "mc_none_title": "Нет сертификатов",
         "mc_none_hint": "Сертификат выдаётся после успешной сдачи теста",
-
         # ── Analytics ──
         "an_students_lbl": "Ученики",
         "an_total_submissions": "Всего попыток",
@@ -1776,7 +1728,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "an_js_essays_count": "Число эссе",
         "an_js_activity": "Активность",
         "an_js_ball_pct": "Балл %",
-
         # ── Result detail ──
         "rd_back": "Вернуться к результатам",
         "rd_page_title": "Результат теста",
@@ -1791,7 +1742,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "rd_points": "баллов",
         "rd_your_choice": "Ваш выбор",
         "rd_explanation": "Пояснение:",
-
         # ── Group form ──
         "gf_edit": "редактирование",
         "gf_new": "Создать новую группу",
@@ -1807,7 +1757,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "gf_selected_post": "учеников выбрано",
         "gf_no_students": "В системе пока нет зарегистрированных учеников.",
         "gf_create": "Создать",
-
         # ── Password reset ──
         "pr_title": "Установите новый пароль",
         "pr_subtitle": "Введите и подтвердите новый пароль",
@@ -1819,7 +1768,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pr_invalid_title": "Срок ссылки истёк",
         "pr_invalid_text": "Ссылка для восстановления пароля истекла или недействительна. Пожалуйста, запросите новую.",
         "pr_resend": "Запросить снова",
-
         # ── Emails ──
         "em_test_header": "Результат теста",
         "em_test_ready": "Ваш результат теста готов.",
@@ -1847,7 +1795,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "em_txt_overall": "Итого",
         "em_txt_summary": "Резюме",
         "em_essay_graded_short": "Эссе оценено!",
-
         # ── Telegram Mini App ──
         "tma_tests": "Тесты",
         "tma_prev": "← Назад",
@@ -1871,7 +1818,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "role_student": "Student",
         "role_teacher": "Teacher",
         "role_admin": "Admin",
-
         # Auth
         "login": "Login",
         "register": "Register",
@@ -1932,7 +1878,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "telegram_login_step1": "Telegram opened. Confirm in bot...",
         "telegram_login_step2": "Telegram confirmed! Enter code",
         "code_expires": "Code expires in 10 minutes",
-        
         # Dashboard
         "dashboard": "Dashboard",
         "student_dashboard": "Student Dashboard",
@@ -1946,7 +1891,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "streak": "Daily Streak",
         "daily_tasks": "Daily Tasks",
         "premium": "Premium",
-        
         # Stats
         "total_tests": "Total Tests",
         "passed": "Passed",
@@ -1959,14 +1903,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "coins": "Coins",
         "badges": "Badges",
         "certificates": "Certificates",
-        
         # Games
         "games": "Games",
         "gazal_puzzle": "Gazal Puzzle",
         "lugat_match": "Lug'at Match",
         "imlo_mines": "Imlo Mines",
         "play": "Play",
-        
         # Essays
         "essays": "Essays",
         "essay_topics": "Essay Topics",
@@ -1977,7 +1919,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "delete": "Delete",
         "edit": "Edit",
         "view": "View",
-        
         # Teacher
         "teacher_queue": "Essay Review Queue",
         "review": "Review",
@@ -1987,7 +1928,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analytics": "Analytics",
         "csv_import": "CSV Import",
         "test_import": "Test Import",
-        
         # General
         "save_changes": "Save Changes",
         "confirm": "Confirm",
@@ -2014,11 +1954,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "contact": "Contact",
         "privacy": "Privacy",
         "terms": "Terms",
-        
         # Footer
         "footer_text": "Native language and literature learning platform",
         "made_with": "Made with love",
-
         # ── Dashboard i18n sweep ──
         "stat_tests_taken": "Tests Taken",
         "stat_sub_total_hint": "total attempts",
@@ -2124,7 +2062,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "students_count": "Students",
         "theme_toggle_title": "Toggle theme",
         "all_rights_reserved": "All rights reserved.",
-
         # ── In-app Admin Panel (apps/panel) ──
         "questions": "Questions",
         "users": "Users",
@@ -2227,7 +2164,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "cat_adabiyot": "Literature",
         "cat_tarix": "History",
         "cat_umumiy": "General",
-
         # ── Landing / Auth ──
         "hero_title_1": "Prepare for the National Certificate",
         "hero_title_2": "with AI",
@@ -2244,7 +2180,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "code_invalid_js": "Enter the 6-digit code.",
         "err_generic_js": "An error occurred.",
         "err_retry_js": "An error occurred. Please try again.",
-
         # ── Landing hero ──
         "hero_eyebrow": "An AI-powered native language & literature platform",
         "hero_subtitle": "DTM-level tests, AI essay analysis and a real-time 1v1 arena — a platform that measures your native-language skills from day one.",
@@ -2344,7 +2279,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "step3_title": "Get results",
         "step3_desc": "Grade, certificate and analysis — all in one place.",
         "cta_free_account": "Open a free account",
-
         # ── Landing footer ──
         "foot_mission": "From native language & literature to national-certificate level — through a modern, AI-powered platform.",
         "foot_pages": "Pages",
@@ -2367,7 +2301,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "foot_terms": "Terms",
         "foot_healthy": "System healthy",
         "foot_subscribed_toast": "Subscribed! Watch for updates 🎉",
-
         # ── Landing i18n sweep ──
         "land_eyebrow": "An AI-powered native language & literature platform",
         "land_subhead_1": "DTM-level tests,",
@@ -2424,7 +2357,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "how_title_1": "Start in",
         "how_title_2": "3 steps",
         "page_title_home": "Ona Tili & Adabiyot — National Certificate preparation platform",
-
         # ── Payments / subscription ──
         "pay_plans_title": "Subscription plans",
         "pay_plans_subtitle": "Choose the plan that fits your level. Premium unlocks all features!",
@@ -2488,7 +2420,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pay_admin_review_note": "Once you send the receipt, the admin will verify it and your subscription will be activated shortly.",
         "pay_msg_free_plan": "No payment is required for the free plan.",
         "pay_msg_receipt_sent": "Receipt received! Your subscription will be activated after the admin reviews it.",
-
         # ── Essays: submit / write / result ──
         "essay_submit_title": "Submit essay — 12-criteria grading",
         "essay_back_topics": "Back to topic list",
@@ -2552,7 +2483,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_js_analyzing": "AI analyzing…",
         "essay_js_grading": "Grading…",
         "essay_js_error": "Something went wrong. Please try again.",
-
         # ── Essays: topics / partials / password gate ──
         "essay_topics_title": "Essay topics",
         "essay_topics_intro": "Write essays to BMB (DTM) criteria and get graded by AI and your teacher.",
@@ -2587,7 +2517,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "essay_password_hint": "To start writing the essay, enter the password given by your teacher.",
         "essay_topic_password": "Topic password",
         "essay_confirm_start": "Confirm and start",
-
         # ── My subscription page ──
         "sub_my_title": "My subscription",
         "sub_my_subtitle": "Your subscription status and payment history",
@@ -2612,7 +2541,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "sub_plans_cta": "Plans",
         "sub_history_title": "Payment history",
         "sub_no_payments": "No payments yet",
-
         # ── Parent portal ──
         "pp_title": "Parent portal",
         "pp_subtitle": "Track your children's learning results",
@@ -2634,7 +2562,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pp_no_results": "No results yet",
         "pp_recent_tests": "Recent test results",
         "pp_recent_essays": "Recent essay results",
-
         # ── Manage teachers ──
         "mt_title": "Manage teachers",
         "mt_subtitle": "Promote users to teacher or revert them to student",
@@ -2658,13 +2585,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "mt_confirm_teacher": "Make this user a teacher?",
         "mt_confirm_student": "Revert this user to student?",
         "mt_no_users": "No users found",
-
         # ── Certificates ──
         "mc_number": "Number:",
         "mc_download": "Download PDF",
         "mc_none_title": "No certificates",
         "mc_none_hint": "A certificate is issued after passing a test",
-
         # ── Analytics ──
         "an_students_lbl": "Students",
         "an_total_submissions": "Total submissions",
@@ -2690,7 +2615,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "an_js_essays_count": "Number of essays",
         "an_js_activity": "Activity",
         "an_js_ball_pct": "Score %",
-
         # ── Result detail ──
         "rd_back": "Back to my results",
         "rd_page_title": "Test result",
@@ -2705,7 +2629,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "rd_points": "points",
         "rd_your_choice": "Your choice",
         "rd_explanation": "Explanation:",
-
         # ── Group form ──
         "gf_edit": "edit",
         "gf_new": "Create a new group",
@@ -2721,7 +2644,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "gf_selected_post": "students selected",
         "gf_no_students": "No registered students in the system yet.",
         "gf_create": "Create",
-
         # ── Password reset ──
         "pr_title": "Set a new password",
         "pr_subtitle": "Enter and confirm your new password",
@@ -2733,7 +2655,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pr_invalid_title": "Link has expired",
         "pr_invalid_text": "The password reset link has expired or is invalid. Please request a new one.",
         "pr_resend": "Request a new link",
-
         # ── Emails ──
         "em_test_header": "Test result",
         "em_test_ready": "Your test result is ready.",
@@ -2761,7 +2682,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "em_txt_overall": "Overall",
         "em_txt_summary": "Summary",
         "em_essay_graded_short": "Essay graded!",
-
         # ── Telegram Mini App ──
         "tma_tests": "Tests",
         "tma_prev": "← Previous",
@@ -2777,47 +2697,135 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
 
 IMPORT_TRANSLATIONS = {
-    "import_students_title": ("O'quvchilarni import qilish", "Импорт учеников", "Import students"),
-    "import_students_desc": ("O'quvchilarni CSV fayldan ommaviy qo'shish", "Массовое добавление учеников из CSV", "Add students in bulk from a CSV file"),
+    "import_students_title": (
+        "O'quvchilarni import qilish",
+        "Импорт учеников",
+        "Import students",
+    ),
+    "import_students_desc": (
+        "O'quvchilarni CSV fayldan ommaviy qo'shish",
+        "Массовое добавление учеников из CSV",
+        "Add students in bulk from a CSV file",
+    ),
     "import_tests_title": ("Testlarni import qilish", "Импорт тестов", "Import tests"),
-    "import_tests_desc": ("CSV fayldan test va savollarni import qilish", "Импорт теста и вопросов из CSV", "Import a test and questions from CSV"),
+    "import_tests_desc": (
+        "CSV fayldan test va savollarni import qilish",
+        "Импорт теста и вопросов из CSV",
+        "Import a test and questions from CSV",
+    ),
     "import_format": ("CSV fayl formati", "Формат CSV-файла", "CSV file format"),
-    "import_required_cols": ("email, first_name, last_name — majburiy ustunlar", "email, first_name, last_name — обязательные столбцы", "email, first_name, last_name — required columns"),
-    "import_optional_phone": ("phone — ixtiyoriy ustun", "phone — необязательный столбец", "phone — optional column"),
-    "import_duplicates_skip": ("Takroriy email manzillar o'tkazib yuboriladi", "Повторяющиеся адреса пропускаются", "Duplicate email addresses are skipped"),
-    "import_auto_password": ("Har bir o'quvchi uchun parol yaratiladi", "Для каждого ученика создаётся пароль", "A password is generated for each student"),
-    "import_welcome_email": ("Kirish ma'lumotlari email orqali yuboriladi", "Данные для входа отправляются по почте", "Sign-in details are sent by email"),
-    "import_test_required": ("question, choice_a, choice_b, correct — majburiy ustunlar", "question, choice_a, choice_b, correct — обязательные столбцы", "question, choice_a, choice_b, correct — required columns"),
-    "import_test_optional": ("choice_c, choice_d, points, explanation — ixtiyoriy ustunlar", "choice_c, choice_d, points, explanation — необязательные столбцы", "choice_c, choice_d, points, explanation — optional columns"),
-    "import_correct_hint": ("correct: A, B, C yoki D", "correct: A, B, C или D", "correct: A, B, C or D"),
-    "import_points_hint": ("points: odatda 1 ball", "points: по умолчанию 1 балл", "points: 1 point by default"),
-    "import_choose_file": ("CSV faylni tanlang", "Выберите CSV-файл", "Choose a CSV file"),
-    "import_drop_hint": ("Faylni tanlang yoki shu yerga tashlang", "Выберите файл или перетащите его сюда", "Choose or drop a file here"),
-    "import_file_type": ("CSV fayl (.csv), 5 MB gacha", "CSV-файл (.csv), до 5 МБ", "CSV file (.csv), up to 5 MB"),
+    "import_required_cols": (
+        "email, first_name, last_name — majburiy ustunlar",
+        "email, first_name, last_name — обязательные столбцы",
+        "email, first_name, last_name — required columns",
+    ),
+    "import_optional_phone": (
+        "phone — ixtiyoriy ustun",
+        "phone — необязательный столбец",
+        "phone — optional column",
+    ),
+    "import_duplicates_skip": (
+        "Takroriy email manzillar o'tkazib yuboriladi",
+        "Повторяющиеся адреса пропускаются",
+        "Duplicate email addresses are skipped",
+    ),
+    "import_auto_password": (
+        "Har bir o'quvchi uchun parol yaratiladi",
+        "Для каждого ученика создаётся пароль",
+        "A password is generated for each student",
+    ),
+    "import_welcome_email": (
+        "Kirish ma'lumotlari email orqali yuboriladi",
+        "Данные для входа отправляются по почте",
+        "Sign-in details are sent by email",
+    ),
+    "import_test_required": (
+        "question, choice_a, choice_b, correct — majburiy ustunlar",
+        "question, choice_a, choice_b, correct — обязательные столбцы",
+        "question, choice_a, choice_b, correct — required columns",
+    ),
+    "import_test_optional": (
+        "choice_c, choice_d, points, explanation — ixtiyoriy ustunlar",
+        "choice_c, choice_d, points, explanation — необязательные столбцы",
+        "choice_c, choice_d, points, explanation — optional columns",
+    ),
+    "import_correct_hint": (
+        "correct: A, B, C yoki D",
+        "correct: A, B, C или D",
+        "correct: A, B, C or D",
+    ),
+    "import_points_hint": (
+        "points: odatda 1 ball",
+        "points: по умолчанию 1 балл",
+        "points: 1 point by default",
+    ),
+    "import_choose_file": (
+        "CSV faylni tanlang",
+        "Выберите CSV-файл",
+        "Choose a CSV file",
+    ),
+    "import_drop_hint": (
+        "Faylni tanlang yoki shu yerga tashlang",
+        "Выберите файл или перетащите его сюда",
+        "Choose or drop a file here",
+    ),
+    "import_file_type": (
+        "CSV fayl (.csv), 5 MB gacha",
+        "CSV-файл (.csv), до 5 МБ",
+        "CSV file (.csv), up to 5 MB",
+    ),
     "import_cancel": ("Bekor qilish", "Отмена", "Cancel"),
     "import_submit": ("Import qilish", "Импортировать", "Import"),
     "import_sample": ("Namuna CSV fayl", "Образец CSV-файла", "Sample CSV file"),
-    "import_sample_help": ("Quyidagi tugma orqali namuna CSV faylni yuklab oling:", "Скачайте образец CSV-файла по кнопке ниже:", "Download a sample CSV file below:"),
-    "import_download_sample": ("Namuna CSV yuklab olish", "Скачать образец CSV", "Download sample CSV"),
+    "import_sample_help": (
+        "Quyidagi tugma orqali namuna CSV faylni yuklab oling:",
+        "Скачайте образец CSV-файла по кнопке ниже:",
+        "Download a sample CSV file below:",
+    ),
+    "import_download_sample": (
+        "Namuna CSV yuklab olish",
+        "Скачать образец CSV",
+        "Download sample CSV",
+    ),
     "import_errors": ("Xatoliklar", "Ошибки", "Errors"),
     "import_row": ("Qator", "Строка", "Row"),
     "import_error": ("Xatolik", "Ошибка", "Error"),
     "import_test_name": ("Test nomi", "Название теста", "Test name"),
     "import_course": ("Kurs", "Курс", "Course"),
     "import_select_course": ("Kursni tanlang", "Выберите курс", "Select a course"),
-    "import_time_limit": ("Vaqt limiti (daqiqa)", "Время (минуты)", "Time limit (minutes)"),
-    "import_pass_pct": ("O'tish foizi (%)", "Проходной процент (%)", "Pass percentage (%)"),
+    "import_time_limit": (
+        "Vaqt limiti (daqiqa)",
+        "Время (минуты)",
+        "Time limit (minutes)",
+    ),
+    "import_pass_pct": (
+        "O'tish foizi (%)",
+        "Проходной процент (%)",
+        "Pass percentage (%)",
+    ),
     "import_csv_file": ("CSV fayl", "CSV-файл", "CSV file"),
     "import_result_title": ("Import natijasi", "Результат импорта", "Import result"),
     "import_total_rows": ("Jami qator", "Всего строк", "Total rows"),
     "import_created": ("Yaratildi", "Создано", "Created"),
     "import_skipped": ("O'tkazildi", "Пропущено", "Skipped"),
-    "import_created_students": ("Yaratilgan o'quvchilar", "Созданные ученики", "Created students"),
-    "import_created_hint": ("O'quvchilar qo'shildi va ularga kirish ma'lumotlari email orqali yuborildi.", "Ученики добавлены, данные для входа отправлены по почте.", "Students were added and their sign-in details were emailed."),
+    "import_created_students": (
+        "Yaratilgan o'quvchilar",
+        "Созданные ученики",
+        "Created students",
+    ),
+    "import_created_hint": (
+        "O'quvchilar qo'shildi va ularga kirish ma'lumotlari email orqali yuborildi.",
+        "Ученики добавлены, данные для входа отправлены по почте.",
+        "Students were added and their sign-in details were emailed.",
+    ),
     "import_name": ("Ism", "Имя", "Name"),
     "import_status": ("Holat", "Статус", "Status"),
     "import_again": ("Yana import qilish", "Импортировать ещё", "Import more"),
-    "import_back_dashboard": ("Boshqaruv paneliga qaytish", "Вернуться на панель", "Back to dashboard"),
+    "import_back_dashboard": (
+        "Boshqaruv paneliga qaytish",
+        "Вернуться на панель",
+        "Back to dashboard",
+    ),
 }
 for _key, _values in IMPORT_TRANSLATIONS.items():
     for _lang, _value in zip(("uz", "ru", "en"), _values):
@@ -2837,7 +2845,10 @@ def get_user_language(request) -> str:
     if lang and lang in SUPPORTED_LANGUAGES:
         return lang
 
-    if request.user.is_authenticated and getattr(request.user, "language", None) in SUPPORTED_LANGUAGES:
+    if (
+        request.user.is_authenticated
+        and getattr(request.user, "language", None) in SUPPORTED_LANGUAGES
+    ):
         return request.user.language
 
     lang = request.COOKIES.get("language")

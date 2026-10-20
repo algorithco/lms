@@ -1,4 +1,5 @@
 """Tests for promote_superadmin command, cleanup_mock_tests command, and Telegram ID 5582178765 superadmin auto-promotion."""
+
 from io import StringIO
 import pytest
 from django.contrib.auth import get_user_model
@@ -73,7 +74,9 @@ def test_cleanup_mock_tests_command(teacher_user=None):
         password="Password123!",
         role="teacher",
     )
-    course = Course.objects.create(teacher=user, title="Test Course", slug="test-course-cleanup")
+    course = Course.objects.create(
+        teacher=user, title="Test Course", slug="test-course-cleanup"
+    )
 
     # Seed mock tests
     t1 = Test.objects.create(
@@ -212,4 +215,3 @@ def test_strict_subject_segregation_essay_topics_api(client):
     assert ml_topic.id in ml_ids
     assert uz_topic.id not in ml_ids
     assert ielts_topic.id not in ml_ids
-

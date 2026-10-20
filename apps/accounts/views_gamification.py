@@ -4,6 +4,7 @@ Gamification API Views (apps/accounts/views_gamification.py).
 GET /api/v1/gamification/streak/  — Current streak, fire icon status, daily goal
 GET /api/v1/gamification/league/  — Weekly league standings, rank, reset timer
 """
+
 from __future__ import annotations
 
 from rest_framework import permissions, status

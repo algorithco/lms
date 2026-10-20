@@ -6,31 +6,85 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0002_user_google_id'),
+        ("accounts", "0002_user_google_id"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='user',
-            name='role',
-            field=models.CharField(choices=[('student', "O'quvchi"), ('teacher', "O'qituvchi"), ('admin', 'Admin'), ('parent', 'Ota-ona')], default='student', max_length=20, verbose_name='role'),
+            model_name="user",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("student", "O'quvchi"),
+                    ("teacher", "O'qituvchi"),
+                    ("admin", "Admin"),
+                    ("parent", "Ota-ona"),
+                ],
+                default="student",
+                max_length=20,
+                verbose_name="role",
+            ),
         ),
         migrations.CreateModel(
-            name='ParentStudentLink',
+            name="ParentStudentLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('relationship', models.CharField(choices=[('father', 'Ota'), ('mother', 'Ona'), ('guardian', 'Homiy'), ('other', 'Boshqa')], default='father', max_length=20, verbose_name='munosabat')),
-                ('is_approved', models.BooleanField(default=False, verbose_name='tasdiqlanganmi')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('parent', models.ForeignKey(limit_choices_to={'role': 'parent'}, on_delete=django.db.models.deletion.CASCADE, related_name='children_links', to=settings.AUTH_USER_MODEL, verbose_name='ota-ona')),
-                ('student', models.ForeignKey(limit_choices_to={'role': 'student'}, on_delete=django.db.models.deletion.CASCADE, related_name='parent_links', to=settings.AUTH_USER_MODEL, verbose_name="o'quvchi")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "relationship",
+                    models.CharField(
+                        choices=[
+                            ("father", "Ota"),
+                            ("mother", "Ona"),
+                            ("guardian", "Homiy"),
+                            ("other", "Boshqa"),
+                        ],
+                        default="father",
+                        max_length=20,
+                        verbose_name="munosabat",
+                    ),
+                ),
+                (
+                    "is_approved",
+                    models.BooleanField(default=False, verbose_name="tasdiqlanganmi"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        limit_choices_to={"role": "parent"},
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="children_links",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="ota-ona",
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        limit_choices_to={"role": "student"},
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="parent_links",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'quvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "Ota-ona-bola bog'lanishi",
-                'verbose_name_plural': "Ota-ona-bola bog'lanishlari",
-                'unique_together': {('parent', 'student')},
+                "verbose_name": "Ota-ona-bola bog'lanishi",
+                "verbose_name_plural": "Ota-ona-bola bog'lanishlari",
+                "unique_together": {("parent", "student")},
             },
         ),
     ]

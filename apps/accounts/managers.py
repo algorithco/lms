@@ -3,6 +3,7 @@ Custom UserManager — handles user creation with role-based defaults.
 
 Extends BaseUserManager to support email-as-username and role assignment.
 """
+
 from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager

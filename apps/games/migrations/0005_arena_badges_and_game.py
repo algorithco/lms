@@ -7,6 +7,7 @@ Creates (idempotently):
 
 Badge conditions are evaluated by apps.arena.services.award_badges().
 """
+
 from django.db import migrations
 
 
@@ -84,7 +85,6 @@ def unseed_arena_data(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("games", "0004_alter_badge_badge_type_alter_game_slug"),
     ]

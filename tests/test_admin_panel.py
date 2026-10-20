@@ -10,6 +10,7 @@ SPA drives this JSON contract instead. Covers:
     5. Essay topic CRUD
     6. User management — role change, block/unblock, self-protection
 """
+
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
@@ -33,6 +34,7 @@ class PanelAccessTests(LMSBaseTestCase):
 
     def test_anonymous_unauthenticated(self):
         from rest_framework.test import APIClient
+
         response = APIClient().get(f"{PANEL}/dashboard/")
         self.assertIn(response.status_code, (401, 403))
 
@@ -51,8 +53,11 @@ class PanelAccessTests(LMSBaseTestCase):
     def test_staff_nonadmin_forbidden(self):
         # Django staff is not a platform administrator.
         staff = User.objects.create_user(
-            email="staff@test.com", password="testpass123",
-            first_name="Staff", last_name="User", role="teacher",
+            email="staff@test.com",
+            password="testpass123",
+            first_name="Staff",
+            last_name="User",
+            role="teacher",
         )
         staff.is_staff = True
         staff.save(update_fields=["is_staff"])
@@ -61,7 +66,9 @@ class PanelAccessTests(LMSBaseTestCase):
 
     def test_role_admin_without_staff_allowed(self):
         User.objects.create_user(
-            email="role-admin@test.com", password="testpass123", role="admin",
+            email="role-admin@test.com",
+            password="testpass123",
+            role="admin",
         )
         response = self.api("role-admin@test.com").get(f"{PANEL}/dashboard/")
         self.assertEqual(response.status_code, 200)
@@ -69,8 +76,10 @@ class PanelAccessTests(LMSBaseTestCase):
     def test_superuser_student_role_allowed(self):
         # Platform admin is superuser OR role==admin — role alone is not the rule.
         su = User.objects.create_superuser(
-            email="su-student@test.com", password="testpass123",
-            first_name="Super", last_name="Student",
+            email="su-student@test.com",
+            password="testpass123",
+            first_name="Super",
+            last_name="Student",
         )
         su.role = "student"
         su.save(update_fields=["role"])
@@ -334,12 +343,18 @@ class PanelEssayTopicTests(LMSBaseTestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertFalse(EssayTopic.objects.filter(title="Noto'g'ri kategoriya").exists())
+        self.assertFalse(
+            EssayTopic.objects.filter(title="Noto'g'ri kategoriya").exists()
+        )
 
     def test_edit_topic(self):
         response = self.client.patch(
             reverse("webapi:panel-topic-detail", args=[self.topic.id]),
-            {"title": "Navoiy ijodi (tahrir)", "category": "tarix", "grammar_strictness": 60},
+            {
+                "title": "Navoiy ijodi (tahrir)",
+                "category": "tarix",
+                "grammar_strictness": 60,
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 200)
@@ -362,8 +377,11 @@ class PanelUserManagementTests(LMSBaseTestCase):
         super().setUp()
         self.client = self.get_authenticated_client(email="admin@test.com")
         self.extra = User.objects.create_user(
-            email="extra@test.com", password="testpass123",
-            first_name="Extra", last_name="User", role="student",
+            email="extra@test.com",
+            password="testpass123",
+            first_name="Extra",
+            last_name="User",
+            role="student",
         )
 
     def _emails(self, data):
@@ -406,7 +424,9 @@ class PanelUserManagementTests(LMSBaseTestCase):
         self.assertEqual(self.admin_user.role, "admin")
 
     def test_block_and_unblock(self):
-        response = self.client.post(reverse("webapi:panel-user-block", args=[self.extra.id]))
+        response = self.client.post(
+            reverse("webapi:panel-user-block", args=[self.extra.id])
+        )
         self.assertEqual(response.status_code, 200)
         self.extra.refresh_from_db()
         self.assertFalse(self.extra.is_active)
@@ -438,12 +458,17 @@ class PanelDashboardExtendedTests(LMSBaseTestCase):
     """Dashboard carries live platform aggregates for the admin home."""
 
     def test_dashboard_extended_keys(self):
-        data = self.get_authenticated_client(email="admin@test.com").get(
-            f"{PANEL}/dashboard/"
-        ).data
+        data = (
+            self.get_authenticated_client(email="admin@test.com")
+            .get(f"{PANEL}/dashboard/")
+            .data
+        )
         for key in (
-            "new_users_today", "attempts", "essays",
-            "pending_payments", "active_subscriptions",
+            "new_users_today",
+            "attempts",
+            "essays",
+            "pending_payments",
+            "active_subscriptions",
         ):
             self.assertIn(key, data)
         self.assertIn("today", data["attempts"])
@@ -537,7 +562,9 @@ class TeacherEssayEditTests(LMSBaseTestCase):
 
     def test_admin_can_edit_text(self):
         response = self.get_authenticated_client(email="admin@test.com").patch(
-            self._url(), {"essay_text": "Yangi tahrirlangan matn keldi."}, format="json",
+            self._url(),
+            {"essay_text": "Yangi tahrirlangan matn keldi."},
+            format="json",
         )
         self.assertEqual(response.status_code, 200)
         self.submission.refresh_from_db()
@@ -547,19 +574,25 @@ class TeacherEssayEditTests(LMSBaseTestCase):
 
     def test_empty_text_rejected(self):
         response = self.get_authenticated_client(email="admin@test.com").patch(
-            self._url(), {"essay_text": "   "}, format="json",
+            self._url(),
+            {"essay_text": "   "},
+            format="json",
         )
         self.assertEqual(response.status_code, 400)
 
     def test_teacher_forbidden(self):
         response = self.get_authenticated_client(email="teacher@test.com").patch(
-            self._url(), {"essay_text": "Ustoz urinishi."}, format="json",
+            self._url(),
+            {"essay_text": "Ustoz urinishi."},
+            format="json",
         )
         self.assertEqual(response.status_code, 403)
 
     def test_student_forbidden(self):
         response = self.get_authenticated_client(email="student@test.com").patch(
-            self._url(), {"essay_text": "O'quvchi urinishi."}, format="json",
+            self._url(),
+            {"essay_text": "O'quvchi urinishi."},
+            format="json",
         )
         self.assertEqual(response.status_code, 403)
 

@@ -9,6 +9,7 @@ Qamrov:
     teacher va student rad etilishi.
   * Flow F: cross-group teacher faqat o'z guruhlarini ko'radi.
 """
+
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
@@ -26,20 +27,30 @@ class _AuditFixtures(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.admin = User.objects.create_user(
-            email="v048-admin@test.com", password="x", role="admin",
+            email="v048-admin@test.com",
+            password="x",
+            role="admin",
         )
         cls.teacher = User.objects.create_user(
-            email="v048-teacher@test.com", password="x", role="teacher",
+            email="v048-teacher@test.com",
+            password="x",
+            role="teacher",
         )
         cls.flagged_teacher = User.objects.create_user(
-            email="v048-flagged@test.com", password="x", role="teacher",
+            email="v048-flagged@test.com",
+            password="x",
+            role="teacher",
             can_create_essay_topic=True,
         )
         cls.other_teacher = User.objects.create_user(
-            email="v048-other-teacher@test.com", password="x", role="teacher",
+            email="v048-other-teacher@test.com",
+            password="x",
+            role="teacher",
         )
         cls.student = User.objects.create_user(
-            email="v048-student@test.com", password="x", role="student",
+            email="v048-student@test.com",
+            password="x",
+            role="student",
         )
         cls.topic = EssayTopic.objects.create(title="v048 mavzu", description="")
 
@@ -49,11 +60,15 @@ class PanelDashboardMetricsTests(_AuditFixtures):
 
     def test_dashboard_endpoint_returns_split_metrics(self) -> None:
         EssaySubmission.objects.create(
-            student=self.student, topic=self.topic, essay_text="X",
+            student=self.student,
+            topic=self.topic,
+            essay_text="X",
             status=EssaySubmission.Status.PENDING,
         )
         EssaySubmission.objects.create(
-            student=self.student, topic=self.topic, essay_text="X",
+            student=self.student,
+            topic=self.topic,
+            essay_text="X",
             status=EssaySubmission.Status.PENDING_TEACHER,
         )
         self.client.force_login(self.admin)
@@ -70,7 +85,9 @@ class PanelDashboardMetricsTests(_AuditFixtures):
         # teacher queue (PENDING_TEACHER) look non-empty.
         for _ in range(21):
             EssaySubmission.objects.create(
-                student=self.student, topic=self.topic, essay_text="X",
+                student=self.student,
+                topic=self.topic,
+                essay_text="X",
                 status=EssaySubmission.Status.PENDING,
             )
         self.client.force_login(self.admin)
@@ -122,7 +139,9 @@ class CrossGroupTeacherIsolationTests(_AuditFixtures):
 
     def test_teacher_without_groups_sees_no_students_or_essays(self) -> None:
         EssaySubmission.objects.create(
-            student=self.student, topic=self.topic, essay_text="X",
+            student=self.student,
+            topic=self.topic,
+            essay_text="X",
             status=EssaySubmission.Status.PENDING_TEACHER,
         )
         self.client.force_login(self.other_teacher)
@@ -137,7 +156,9 @@ class CrossGroupTeacherIsolationTests(_AuditFixtures):
         group = StudentGroup.objects.create(teacher=self.other_teacher, name="5-B")
         group.students.add(self.student)
         EssaySubmission.objects.create(
-            student=self.student, topic=self.topic, essay_text="X",
+            student=self.student,
+            topic=self.topic,
+            essay_text="X",
             status=EssaySubmission.Status.PENDING_TEACHER,
         )
         self.client.force_login(self.other_teacher)

@@ -6,36 +6,52 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0012_dedupe_active_drafts'),
+        ("essays", "0012_dedupe_active_drafts"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='teacherreview',
-            name='teacher',
-            field=models.ForeignKey(blank=True, help_text="O'qituvchi o'chirilganda tarix saqlanib qoladi (SET_NULL).", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='essay_reviews', to=settings.AUTH_USER_MODEL, verbose_name="tekshirgan o'qituvchi"),
+            model_name="teacherreview",
+            name="teacher",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="O'qituvchi o'chirilganda tarix saqlanib qoladi (SET_NULL).",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="essay_reviews",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="tekshirgan o'qituvchi",
+            ),
         ),
         migrations.AddIndex(
-            model_name='essaysubmission',
-            index=models.Index(fields=['assigned_reviewer', 'status'], name='idx_essay_reviewer_status'),
+            model_name="essaysubmission",
+            index=models.Index(
+                fields=["assigned_reviewer", "status"], name="idx_essay_reviewer_status"
+            ),
         ),
         migrations.AddIndex(
-            model_name='essaysubmission',
-            index=models.Index(fields=['teacher_review_requested', 'status'], name='idx_essay_reviewreq_status'),
+            model_name="essaysubmission",
+            index=models.Index(
+                fields=["teacher_review_requested", "status"],
+                name="idx_essay_reviewreq_status",
+            ),
         ),
         migrations.AddIndex(
-            model_name='essaysubmission',
-            index=models.Index(fields=['graded_at'], name='idx_essay_graded_at'),
+            model_name="essaysubmission",
+            index=models.Index(fields=["graded_at"], name="idx_essay_graded_at"),
         ),
         migrations.AddIndex(
-            model_name='essaytopic',
-            index=models.Index(fields=['is_active'], name='idx_essaytopic_active'),
+            model_name="essaytopic",
+            index=models.Index(fields=["is_active"], name="idx_essaytopic_active"),
         ),
         migrations.AddConstraint(
-            model_name='essaysubmission',
-            constraint=models.UniqueConstraint(condition=models.Q(('status', 'draft'), ('topic__isnull', False)), fields=('student', 'topic'), name='uniq_essay_active_draft'),
+            model_name="essaysubmission",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("status", "draft"), ("topic__isnull", False)),
+                fields=("student", "topic"),
+                name="uniq_essay_active_draft",
+            ),
         ),
     ]

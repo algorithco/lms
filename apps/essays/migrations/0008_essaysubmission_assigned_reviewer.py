@@ -6,16 +6,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0007_essaysubmission_auto_submitted'),
+        ("essays", "0007_essaysubmission_auto_submitted"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='essaysubmission',
-            name='assigned_reviewer',
-            field=models.ForeignKey(blank=True, help_text="Guruh o'qituvchisi yoki admin — avtomatik tayinlanadi.", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_essay_reviews', to=settings.AUTH_USER_MODEL, verbose_name='tayinlangan tekshiruvchi'),
+            model_name="essaysubmission",
+            name="assigned_reviewer",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Guruh o'qituvchisi yoki admin — avtomatik tayinlanadi.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="assigned_essay_reviews",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="tayinlangan tekshiruvchi",
+            ),
         ),
     ]

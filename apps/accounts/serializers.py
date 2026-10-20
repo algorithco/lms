@@ -8,6 +8,7 @@ Architecture:
     - ProfileReadSerializer / ProfileUpdateSerializer follow the
       read vs. write serializer separation principle.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -16,7 +17,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenRefreshSerializer,
+)
 from rest_framework_simplejwt.tokens import RefreshToken as JWTRefreshToken
 
 from .models import Profile
@@ -27,6 +31,7 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 # JWT Serializers
 # ---------------------------------------------------------------------------
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
@@ -68,6 +73,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 # Register Serializer
 # ---------------------------------------------------------------------------
 
+
 class RegisterSerializer(serializers.ModelSerializer):
     """
     User registration serializer.
@@ -95,8 +101,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "password", "password_confirm",
-            "first_name", "last_name", "role",
+            "id",
+            "email",
+            "password",
+            "password_confirm",
+            "first_name",
+            "last_name",
+            "role",
         ]
         read_only_fields = ["id"]
 
@@ -109,16 +120,20 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Parollar mos ekanligini va rolni tekshirish."""
-        requested_role = (self.initial_data.get("role") or attrs.get("role") or "").strip().lower()
+        requested_role = (
+            (self.initial_data.get("role") or attrs.get("role") or "").strip().lower()
+        )
         if requested_role:
             if requested_role in ("teacher", User.Role.TEACHER):
                 attrs["role"] = User.Role.TEACHER
             elif requested_role in ("student", User.Role.STUDENT):
                 attrs["role"] = User.Role.STUDENT
             else:
-                raise serializers.ValidationError({
-                    "role": "Imtiyozli rollarni faqat administrator tayinlaydi.",
-                })
+                raise serializers.ValidationError(
+                    {
+                        "role": "Imtiyozli rollarni faqat administrator tayinlaydi.",
+                    }
+                )
         else:
             attrs["role"] = User.Role.STUDENT
 
@@ -134,12 +149,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         try:
             validate_password(
                 password,
-                user=User(**{k: v for k, v in attrs.items() if k not in ("password_confirm", "role")}),
+                user=User(
+                    **{
+                        k: v
+                        for k, v in attrs.items()
+                        if k not in ("password_confirm", "role")
+                    }
+                ),
             )
         except DjangoValidationError as e:
-            raise serializers.ValidationError(
-                {"password": list(e.messages)}
-            )
+            raise serializers.ValidationError({"password": list(e.messages)})
 
         return attrs
 
@@ -168,6 +187,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 # Profile Serializers
 # ---------------------------------------------------------------------------
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
     """
     Read-only profile serializer — profile sahifasi uchun.
@@ -180,49 +200,86 @@ class UserProfileSerializer(serializers.ModelSerializer):
     bio = serializers.CharField(source="profile.bio", read_only=True)
     avatar = serializers.ImageField(source="profile.avatar", read_only=True)
     date_of_birth = serializers.DateField(
-        source="profile.date_of_birth", read_only=True,
+        source="profile.date_of_birth",
+        read_only=True,
     )
     plan = serializers.CharField(
-        source="profile.plan", read_only=True, default="free",
+        source="profile.plan",
+        read_only=True,
+        default="free",
     )
     active_subject = serializers.CharField(
-        source="profile.active_subject", read_only=True, default="uzbek",
+        source="profile.active_subject",
+        read_only=True,
+        default="uzbek",
     )
     exam_target = serializers.CharField(
-        source="profile.exam_target", read_only=True, default="undecided",
+        source="profile.exam_target",
+        read_only=True,
+        default="undecided",
     )
     target_timeline_months = serializers.IntegerField(
-        source="profile.target_timeline_months", read_only=True, default=3,
+        source="profile.target_timeline_months",
+        read_only=True,
+        default=3,
     )
     target_grade = serializers.CharField(
-        source="profile.target_grade", read_only=True, default="A",
+        source="profile.target_grade",
+        read_only=True,
+        default="A",
     )
     placement_score = serializers.DecimalField(
-        source="profile.placement_score", max_digits=5, decimal_places=2, read_only=True, allow_null=True,
+        source="profile.placement_score",
+        max_digits=5,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
     )
     onboarding_completed = serializers.BooleanField(
-        source="profile.onboarding_completed", read_only=True, default=False,
+        source="profile.onboarding_completed",
+        read_only=True,
+        default=False,
     )
     daily_plan_summary = serializers.JSONField(
-        source="profile.daily_plan_summary", read_only=True, default=dict,
+        source="profile.daily_plan_summary",
+        read_only=True,
+        default=dict,
     )
     is_platform_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            "id", "email", "first_name", "last_name",
-            "role", "phone", "bio", "avatar", "date_of_birth", "plan",
-            "active_subject", "exam_target", "target_timeline_months", "target_grade",
-            "placement_score", "onboarding_completed", "daily_plan_summary",
-            "telegram_chat_id", "telegram_identity_verified_at",
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "phone",
+            "bio",
+            "avatar",
+            "date_of_birth",
+            "plan",
+            "active_subject",
+            "exam_target",
+            "target_timeline_months",
+            "target_grade",
+            "placement_score",
+            "onboarding_completed",
+            "daily_plan_summary",
+            "telegram_chat_id",
+            "telegram_identity_verified_at",
             "created_at",
-            "language", "is_staff", "is_superuser", "is_platform_admin",
+            "language",
+            "is_staff",
+            "is_superuser",
+            "is_platform_admin",
         ]
         read_only_fields = fields  # Hammasi read-only
 
     def get_is_platform_admin(self, obj: Any) -> bool:
         from apps.accounts.access import is_platform_admin
+
         return is_platform_admin(obj)
 
 
@@ -236,26 +293,41 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     # Profile maydonlari
     phone = serializers.CharField(
-        source="profile.phone", required=False, allow_blank=True,
+        source="profile.phone",
+        required=False,
+        allow_blank=True,
     )
     bio = serializers.CharField(
-        source="profile.bio", required=False, allow_blank=True,
+        source="profile.bio",
+        required=False,
+        allow_blank=True,
     )
     avatar = serializers.ImageField(
-        source="profile.avatar", required=False, allow_null=True,
+        source="profile.avatar",
+        required=False,
+        allow_null=True,
     )
     date_of_birth = serializers.DateField(
-        source="profile.date_of_birth", required=False, allow_null=True,
+        source="profile.date_of_birth",
+        required=False,
+        allow_null=True,
     )
     active_subject = serializers.CharField(
-        source="profile.active_subject", required=False,
+        source="profile.active_subject",
+        required=False,
     )
 
     class Meta:
         model = User
         fields = [
-            "first_name", "last_name", "language",
-            "phone", "bio", "avatar", "date_of_birth", "active_subject",
+            "first_name",
+            "last_name",
+            "language",
+            "phone",
+            "bio",
+            "avatar",
+            "date_of_birth",
+            "active_subject",
         ]
 
     def update(self, instance: Any, validated_data: dict[str, Any]) -> Any:
@@ -268,10 +340,12 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
         # User maydonlarini yangilash
         instance.first_name = validated_data.get(
-            "first_name", instance.first_name,
+            "first_name",
+            instance.first_name,
         )
         instance.last_name = validated_data.get(
-            "last_name", instance.last_name,
+            "last_name",
+            instance.last_name,
         )
         if "language" in validated_data:
             instance.language = validated_data["language"]
@@ -289,6 +363,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 # Telegram Connection Serializer
 # ---------------------------------------------------------------------------
+
 
 class ConnectTelegramSerializer(serializers.Serializer):
     """No raw Telegram ID is accepted from the web client."""
@@ -326,9 +401,13 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
                 else:
                     if not u.is_active:
                         from rest_framework_simplejwt.exceptions import InvalidToken
-                        raise InvalidToken("No active account found with the given credentials")
+
+                        raise InvalidToken(
+                            "No active account found with the given credentials"
+                        )
         except Exception as e:
             from rest_framework_simplejwt.exceptions import InvalidToken as _Invalid
+
             if isinstance(e, _Invalid):
                 raise
             # let super()'s error surface — ignore decode errors here

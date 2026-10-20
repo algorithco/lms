@@ -15,6 +15,7 @@ sees when something goes wrong, and both have silently rotted before:
    perform this action.", which is precisely the string that made the
    /dashboard certificate bug hard to diagnose.
 """
+
 from __future__ import annotations
 
 import json
@@ -76,7 +77,8 @@ class TranslationParityTests(LMSBaseTestCase):
         first = set(self.dicts["uz"])
         for lang in langs[1:]:
             self.assertEqual(
-                first, set(self.dicts[lang]),
+                first,
+                set(self.dicts[lang]),
                 f"{lang} dictionary has drifted from uz",
             )
 
@@ -84,7 +86,8 @@ class TranslationParityTests(LMSBaseTestCase):
         for lang, dictionary in self.dicts.items():
             missing = sorted(k for k in self.used if k not in dictionary)
             self.assertEqual(
-                missing, [],
+                missing,
+                [],
                 f"{lang} is missing keys the client asks for: {missing}",
             )
 
@@ -95,12 +98,14 @@ class TranslationParityTests(LMSBaseTestCase):
                 if key in dictionary:
                     continue
                 twins = [
-                    candidate for candidate in dictionary
+                    candidate
+                    for candidate in dictionary
                     if abs(len(candidate) - len(key)) <= 3
                     and _levenshtein(candidate, key) <= 2
                 ]
                 self.assertEqual(
-                    twins, [],
+                    twins,
+                    [],
                     f"{lang}: '{key}' is missing and looks like a typo of {twins}",
                 )
 
@@ -138,7 +143,9 @@ class PermissionMessageTests(LMSBaseTestCase):
     def test_student_only_endpoint_explains_itself_to_staff(self):
         """The /dashboard bug: staff got DRF's generic text with no hint why."""
         teacher = get_user_model().objects.create_user(
-            email="msg-teacher@test.com", password="x", role="teacher",
+            email="msg-teacher@test.com",
+            password="x",
+            role="teacher",
         )
         client = APIClient()
         client.force_authenticate(user=teacher)

@@ -9,6 +9,7 @@ The optional ``period_start``/``period_end`` arguments exist precisely for that
 recovery path — the beat schedule itself always reports on the *completed*
 previous week, so an incomplete week is never published as final.
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,8 +53,9 @@ def _resolve_period(period_start: str | None, period_end: str | None):
     time_limit=600,
     soft_time_limit=540,
 )
-def generate_and_send_weekly_reports(self: Any, period_start: str | None = None,
-                                     period_end: str | None = None) -> dict[str, Any]:
+def generate_and_send_weekly_reports(
+    self: Any, period_start: str | None = None, period_end: str | None = None
+) -> dict[str, Any]:
     """Generate the completed week's reports and deliver them once."""
     config = WeeklyReportSettings.load()
     if not config.is_enabled:
@@ -79,26 +81,43 @@ def generate_and_send_weekly_reports(self: Any, period_start: str | None = None,
             ).date()
             cursor = config.last_scheduled_period_start
             if cursor and cursor > latest_local_start:
-                return {"status": "already_processed", "period_start": latest_start.isoformat()}
-            if cursor == latest_local_start and config.last_schedule_status == "completed":
-                return {"status": "already_processed", "period_start": latest_start.isoformat()}
+                return {
+                    "status": "already_processed",
+                    "period_start": latest_start.isoformat(),
+                }
+            if (
+                cursor == latest_local_start
+                and config.last_schedule_status == "completed"
+            ):
+                return {
+                    "status": "already_processed",
+                    "period_start": latest_start.isoformat(),
+                }
             if (
                 cursor == latest_local_start
                 and config.last_schedule_status == "running"
                 and config.last_schedule_started_at
                 and current - config.last_schedule_started_at < timedelta(minutes=15)
             ):
-                return {"status": "already_running", "period_start": latest_start.isoformat()}
+                return {
+                    "status": "already_running",
+                    "period_start": latest_start.isoformat(),
+                }
 
             # If the cursor is this same week but its prior attempt failed or
             # got stale, replay it. Otherwise advance exactly one missing week
             # at a time so a prolonged outage can be recovered in sequence.
-            candidate_date = cursor + timedelta(days=7) if cursor and cursor < latest_local_start else latest_local_start
+            candidate_date = (
+                cursor + timedelta(days=7)
+                if cursor and cursor < latest_local_start
+                else latest_local_start
+            )
             if cursor == latest_local_start:
                 start, end = latest_start, _latest_end
             else:
                 anchor = datetime.combine(
-                    candidate_date, datetime.min.time(),
+                    candidate_date,
+                    datetime.min.time(),
                     tzinfo=services.reporting_timezone(),
                 )
                 start, end = services.week_bounds(anchor)
@@ -119,21 +138,32 @@ def generate_and_send_weekly_reports(self: Any, period_start: str | None = None,
                     locked.last_scheduled_period_start == claimed_date
                     and locked.last_schedule_status == "completed"
                 ):
-                    return {"status": "already_processed", "period_start": start.isoformat()}
+                    return {
+                        "status": "already_processed",
+                        "period_start": start.isoformat(),
+                    }
                 if (
                     locked.last_scheduled_period_start == claimed_date
                     and locked.last_schedule_status == "running"
                     and locked.last_schedule_started_at
-                    and current - locked.last_schedule_started_at < timedelta(minutes=15)
+                    and current - locked.last_schedule_started_at
+                    < timedelta(minutes=15)
                 ):
-                    return {"status": "already_running", "period_start": start.isoformat()}
+                    return {
+                        "status": "already_running",
+                        "period_start": start.isoformat(),
+                    }
                 locked.last_scheduled_period_start = claimed_date
                 locked.last_schedule_started_at = current
                 locked.last_schedule_status = "running"
-                locked.save(update_fields=[
-                    "last_scheduled_period_start", "last_schedule_started_at",
-                    "last_schedule_status", "updated_at",
-                ])
+                locked.save(
+                    update_fields=[
+                        "last_scheduled_period_start",
+                        "last_schedule_started_at",
+                        "last_schedule_status",
+                        "updated_at",
+                    ]
+                )
             config = locked
 
         generated = services.generate_all_reports(start, end)
@@ -142,7 +172,10 @@ def generate_and_send_weekly_reports(self: Any, period_start: str | None = None,
             WeeklyReportSettings.objects.filter(pk=1).update(
                 last_schedule_status="completed",
             )
-            if start.astimezone(services.reporting_timezone()).date() < latest_local_start:
+            if (
+                start.astimezone(services.reporting_timezone()).date()
+                < latest_local_start
+            ):
                 # Only queue the next missed period after this one has a
                 # terminal generation/delivery pass; the next poll still
                 # verifies no incomplete week is selected.
@@ -168,8 +201,9 @@ def generate_and_send_weekly_reports(self: Any, period_start: str | None = None,
     time_limit=600,
     soft_time_limit=540,
 )
-def generate_weekly_reports(self: Any, period_start: str | None = None,
-                            period_end: str | None = None) -> dict[str, Any]:
+def generate_weekly_reports(
+    self: Any, period_start: str | None = None, period_end: str | None = None
+) -> dict[str, Any]:
     """Generate (never send) — used to pre-warm reports for the dashboard."""
     try:
         start, end = _resolve_period(period_start, period_end)

@@ -1,4 +1,5 @@
 """Explicitly verify a retained legacy Telegram identity after checking proof."""
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -17,11 +18,19 @@ class Command(BaseCommand):
         parser.add_argument("--user-id", type=int)
         parser.add_argument("--telegram-id", type=int)
         parser.add_argument("--evidence", help="Operator's auditable proof reference")
-        parser.add_argument("--list", action="store_true", help="List legacy links requiring verification")
+        parser.add_argument(
+            "--list",
+            action="store_true",
+            help="List legacy links requiring verification",
+        )
 
     def handle(self, *args, **options):
         User = get_user_model()
-        if options["user_id"] is None and options["telegram_id"] is None and not options["evidence"]:
+        if (
+            options["user_id"] is None
+            and options["telegram_id"] is None
+            and not options["evidence"]
+        ):
             pending = User.objects.filter(
                 telegram_chat_id__isnull=False,
                 telegram_identity_verified_at__isnull=True,
@@ -36,15 +45,21 @@ class Command(BaseCommand):
         if options["list"]:
             raise CommandError("--list cannot be combined with verification options.")
         if not all((options["user_id"], options["telegram_id"], options["evidence"])):
-            raise CommandError("--user-id, --telegram-id and --evidence are required together.")
+            raise CommandError(
+                "--user-id, --telegram-id and --evidence are required together."
+            )
         try:
             telegram_id = _numeric_telegram_id(options["telegram_id"])
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
         with transaction.atomic():
-            user = User.objects.select_for_update().filter(pk=options["user_id"]).first()
+            user = (
+                User.objects.select_for_update().filter(pk=options["user_id"]).first()
+            )
             if user is None or user.telegram_chat_id != telegram_id:
-                raise CommandError("The supplied user and existing Telegram ID do not match.")
+                raise CommandError(
+                    "The supplied user and existing Telegram ID do not match."
+                )
             if user.telegram_identity_verified_at:
                 raise CommandError("This Telegram link is already verified.")
             user.telegram_identity_verified_at = timezone.now()

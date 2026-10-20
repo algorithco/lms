@@ -5,20 +5,31 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0007_question_config_studentanswer_written_text_and_more'),
+        ("tests", "0007_question_config_studentanswer_written_text_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='examscoringprofile',
-            name='is_verified',
-            field=models.BooleanField(default=False, help_text='Faqat tasdiqlangan profil rasmiy sertifikat huquqini beradi. Tasdiqlanmagan profil bilan ballar hisoblanadi, lekin sertifikat berilmaydi (placeholder 60 ham ishlamaydi).', verbose_name='tasdiqlanganmi'),
+            model_name="examscoringprofile",
+            name="is_verified",
+            field=models.BooleanField(
+                default=False,
+                help_text="Faqat tasdiqlangan profil rasmiy sertifikat huquqini beradi. Tasdiqlanmagan profil bilan ballar hisoblanadi, lekin sertifikat berilmaydi (placeholder 60 ham ishlamaydi).",
+                verbose_name="tasdiqlanganmi",
+            ),
         ),
         migrations.AddField(
-            model_name='test',
-            name='scoring_profile',
-            field=models.ForeignKey(blank=True, help_text="Milliy imtihonlar uchun bog'langan konfiguratsiya. Bo'sh = legacy.", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tests', to='tests.examscoringprofile', verbose_name='skoring profili'),
+            model_name="test",
+            name="scoring_profile",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Milliy imtihonlar uchun bog'langan konfiguratsiya. Bo'sh = legacy.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="tests",
+                to="tests.examscoringprofile",
+                verbose_name="skoring profili",
+            ),
         ),
     ]

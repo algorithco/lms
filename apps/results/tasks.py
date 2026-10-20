@@ -11,6 +11,7 @@ Architecture:
     - Retry policy: max 3 retries, 30s delay between retries.
     - Every task logs its progress for debugging.
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,12 +53,16 @@ def generate_certificate_task(
 
     try:
         result = Result.objects.select_related(
-            "student", "test", "course",
+            "student",
+            "test",
+            "course",
         ).get(id=result_id)
 
         logger.info(
             "Generating certificate: result_id=%d, student=%s, passed=%s",
-            result_id, result.student.email, result.is_passed,
+            result_id,
+            result.student.email,
+            result.is_passed,
         )
 
         if not result.is_passed:
@@ -75,7 +80,9 @@ def generate_certificate_task(
         file_size = cert.file.size if cert.file else 0
         logger.info(
             "Certificate generated: %s, file=%s, size=%d bytes",
-            cert.certificate_number, cert.file.name, file_size,
+            cert.certificate_number,
+            cert.file.name,
+            file_size,
         )
 
         return {
@@ -94,7 +101,8 @@ def generate_certificate_task(
 
     except Exception as exc:
         logger.exception(
-            "Certificate generation failed: result_id=%d", result_id,
+            "Certificate generation failed: result_id=%d",
+            result_id,
         )
         from apps.certificates.services.generation import mark_failed as _mark_failed
 

@@ -4,40 +4,72 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0012_user_branch_user_learning_center_alter_user_role_and_more'),
+        ("accounts", "0012_user_branch_user_learning_center_alter_user_role_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='daily_plan_summary',
-            field=models.JSONField(blank=True, default=dict, help_text='AI tuzgan kunlik test va esse yuklamasi', verbose_name='AI kunlik reja xulosasi'),
+            model_name="profile",
+            name="daily_plan_summary",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="AI tuzgan kunlik test va esse yuklamasi",
+                verbose_name="AI kunlik reja xulosasi",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='exam_target',
-            field=models.CharField(choices=[('national_certificate', 'Milliy sertifikat'), ('attestation', 'Attestatsiya 2026'), ('undecided', 'Hali aniqlanmagan')], db_index=True, default='undecided', max_length=32, verbose_name='imtihon maqsadi'),
+            model_name="profile",
+            name="exam_target",
+            field=models.CharField(
+                choices=[
+                    ("national_certificate", "Milliy sertifikat"),
+                    ("attestation", "Attestatsiya 2026"),
+                    ("undecided", "Hali aniqlanmagan"),
+                ],
+                db_index=True,
+                default="undecided",
+                max_length=32,
+                verbose_name="imtihon maqsadi",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='onboarding_completed',
-            field=models.BooleanField(db_index=True, default=False, verbose_name='onboarding yakunlanganmi'),
+            model_name="profile",
+            name="onboarding_completed",
+            field=models.BooleanField(
+                db_index=True, default=False, verbose_name="onboarding yakunlanganmi"
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='placement_score',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text="5 ta savoldan nechtasi to'g'ri (0–5)", max_digits=5, null=True, verbose_name='placement test bali'),
+            model_name="profile",
+            name="placement_score",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="5 ta savoldan nechtasi to'g'ri (0–5)",
+                max_digits=5,
+                null=True,
+                verbose_name="placement test bali",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='target_grade',
-            field=models.CharField(default='A', help_text='A+, A, B+, oliy_toifa, birinchi_toifa', max_length=32, verbose_name='maqsad darajasi'),
+            model_name="profile",
+            name="target_grade",
+            field=models.CharField(
+                default="A",
+                help_text="A+, A, B+, oliy_toifa, birinchi_toifa",
+                max_length=32,
+                verbose_name="maqsad darajasi",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='target_timeline_months',
-            field=models.PositiveSmallIntegerField(default=3, help_text='1, 3 yoki 6 oy', verbose_name='tayyorgarlik muddati (oy)'),
+            model_name="profile",
+            name="target_timeline_months",
+            field=models.PositiveSmallIntegerField(
+                default=3,
+                help_text="1, 3 yoki 6 oy",
+                verbose_name="tayyorgarlik muddati (oy)",
+            ),
         ),
     ]

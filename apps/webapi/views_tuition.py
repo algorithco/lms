@@ -11,6 +11,7 @@ concerns:
   verify/reject/refund routes require the tuition permission, so a student
   cannot approve their own receipt.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
@@ -86,9 +87,9 @@ def _serialize_payment(payment: CoursePayment) -> dict:
         "id": payment.pk,
         "invoice_id": payment.invoice_id,
         "student_id": payment.student_id,
-        "student_name": (
-            payment.student.get_full_name() or payment.student.email
-        ) if payment.student_id else "",
+        "student_name": (payment.student.get_full_name() or payment.student.email)
+        if payment.student_id
+        else "",
         "invoice_period": (
             payment.invoice.period_label if payment.invoice_id else None
         ),
@@ -106,6 +107,7 @@ def _serialize_payment(payment: CoursePayment) -> dict:
 # ---------------------------------------------------------------------------
 # Student / parent facing
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -133,33 +135,54 @@ def my_tuition_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def invoice_detail_view(request, invoice_id: int):
-    invoice = CourseInvoice.objects.filter(pk=invoice_id).select_related(
-        "student", "policy", "course",
-    ).first()
+    invoice = (
+        CourseInvoice.objects.filter(pk=invoice_id)
+        .select_related(
+            "student",
+            "policy",
+            "course",
+        )
+        .first()
+    )
     if invoice is None or not can_view_invoice(request.user, invoice):
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
-    payments = CoursePayment.objects.filter(
-        invoice=invoice,
-    ).select_related("student", "invoice").order_by("-created_at")
-    return Response({
-        "invoice": _serialize_invoice(invoice),
-        "payments": [_serialize_payment(payment) for payment in payments],
-    })
+    payments = (
+        CoursePayment.objects.filter(
+            invoice=invoice,
+        )
+        .select_related("student", "invoice")
+        .order_by("-created_at")
+    )
+    return Response(
+        {
+            "invoice": _serialize_invoice(invoice),
+            "payments": [_serialize_payment(payment) for payment in payments],
+        }
+    )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def payment_detail_view(request, payment_id: int):
     """Return verification status only to the student, an approved parent or finance staff."""
-    payment = CoursePayment.objects.filter(pk=payment_id).select_related(
-        "invoice", "student",
-    ).first()
+    payment = (
+        CoursePayment.objects.filter(pk=payment_id)
+        .select_related(
+            "invoice",
+            "student",
+        )
+        .first()
+    )
     if payment is None or not can_view_student_tuition(request.user, payment.student):
         return Response({"detail": "To'lov topilmadi."}, status=404)
-    return Response({
-        "payment": _serialize_payment(payment),
-        "invoice": _serialize_invoice(payment.invoice) if payment.invoice_id else None,
-    })
+    return Response(
+        {
+            "payment": _serialize_payment(payment),
+            "invoice": _serialize_invoice(payment.invoice)
+            if payment.invoice_id
+            else None,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -187,7 +210,9 @@ def submit_payment_view(request):
     payload = serializer.validated_data
     invoice_id = payload["invoice_id"]
     invoice = (
-        CourseInvoice.objects.filter(pk=invoice_id).select_related("student", "policy", "course").first()
+        CourseInvoice.objects.filter(pk=invoice_id)
+        .select_related("student", "policy", "course")
+        .first()
     )
     if invoice is None:
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
@@ -195,28 +220,44 @@ def submit_payment_view(request):
         # Never disclose whether someone else's invoice exists.
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
     if invoice.status in (
-        CourseInvoice.Status.CANCELLED, CourseInvoice.Status.WAIVED,
+        CourseInvoice.Status.CANCELLED,
+        CourseInvoice.Status.WAIVED,
         CourseInvoice.Status.PAID,
     ):
-        return Response({"detail": "Bu hisob uchun to'lov qabul qilinmaydi."}, status=409)
+        return Response(
+            {"detail": "Bu hisob uchun to'lov qabul qilinmaydi."}, status=409
+        )
 
     method = payload.get("method") or PaymentMethod.CARD
     accepted_methods = invoice.policy.accepted_methods if invoice.policy_id else []
     if accepted_methods and method not in accepted_methods:
-        return Response({"detail": "Bu to'lov usuli siyosatda qabul qilinmagan."}, status=400)
+        return Response(
+            {"detail": "Bu to'lov usuli siyosatda qabul qilinmagan."}, status=400
+        )
     if invoice.balance_uzs <= 0:
         return Response({"detail": "Hisobda to'lanadigan qoldiq yo'q."}, status=409)
     if payload["amount"] > Decimal(str(invoice.balance_uzs)):
-        return Response({"detail": "To'lov summasi hisob qoldig'idan oshmasligi kerak."}, status=400)
+        return Response(
+            {"detail": "To'lov summasi hisob qoldig'idan oshmasligi kerak."}, status=400
+        )
     try:
         with transaction.atomic():
-            invoice = CourseInvoice.objects.select_for_update().select_related(
-                "student", "policy", "course",
-            ).get(pk=invoice.pk)
+            invoice = (
+                CourseInvoice.objects.select_for_update()
+                .select_related(
+                    "student",
+                    "policy",
+                    "course",
+                )
+                .get(pk=invoice.pk)
+            )
             if not can_view_invoice(request.user, invoice):
                 return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
             if payload["amount"] > Decimal(str(invoice.balance_uzs)):
-                return Response({"detail": "To'lov summasi hisob qoldig'idan oshmasligi kerak."}, status=400)
+                return Response(
+                    {"detail": "To'lov summasi hisob qoldig'idan oshmasligi kerak."},
+                    status=400,
+                )
             payment = services.register_payment(
                 student=invoice.student,
                 amount=payload["amount"],
@@ -236,7 +277,10 @@ def submit_payment_view(request):
 
     invoice.refresh_from_db()
     return Response(
-        {"payment": _serialize_payment(payment), "invoice": _serialize_invoice(invoice)},
+        {
+            "payment": _serialize_payment(payment),
+            "invoice": _serialize_invoice(invoice),
+        },
         status=201,
     )
 
@@ -244,6 +288,7 @@ def submit_payment_view(request):
 # ---------------------------------------------------------------------------
 # Teacher / admin facing
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
@@ -254,7 +299,9 @@ def group_tuition_view(request):
     ownership is not a financial privilege.
     """
     if not can_view_tuition(request.user):
-        return Response({"detail": "To'lov hisobotini ko'rish huquqi yo'q."}, status=403)
+        return Response(
+            {"detail": "To'lov hisobotini ko'rish huquqi yo'q."}, status=403
+        )
     group_id = request.query_params.get("group_id")
     group = StudentGroup.objects.filter(pk=group_id).first() if group_id else None
     if group is None:
@@ -275,7 +322,9 @@ def group_tuition_view(request):
 def invoice_list_view(request):
     """Authorized invoice list with filters; teachers need explicit finance view permission."""
     if not can_view_tuition(request.user):
-        return Response({"detail": "To'lov ma'lumotlarini ko'rish huquqi yo'q."}, status=403)
+        return Response(
+            {"detail": "To'lov ma'lumotlarini ko'rish huquqi yo'q."}, status=403
+        )
     qs = CourseInvoice.objects.select_related("student", "policy", "course")
     if not is_platform_admin(request.user):
         qs = qs.filter(student__student_groups__teacher=request.user)
@@ -298,7 +347,9 @@ def invoice_list_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "Sahifalash parametrlari noto'g'ri."}, status=400)
     count = qs.distinct().count()
-    rows = list(qs.distinct().order_by("-billing_period_start", "-pk")[offset:offset + limit])
+    rows = list(
+        qs.distinct().order_by("-billing_period_start", "-pk")[offset : offset + limit]
+    )
     return Response({"count": count, "results": [_serialize_invoice(r) for r in rows]})
 
 
@@ -306,23 +357,30 @@ def invoice_list_view(request):
 @permission_classes([IsAuthenticated])
 def billing_policy_list_view(request):
     if not can_view_tuition(request.user):
-        return Response({"detail": "To'lov siyosatlarini ko'rish huquqi yo'q."}, status=403)
+        return Response(
+            {"detail": "To'lov siyosatlarini ko'rish huquqi yo'q."}, status=403
+        )
     queryset = CourseBillingPolicy.objects.select_related("course", "group").order_by(
-        "-effective_from", "name",
+        "-effective_from",
+        "name",
     )
     if request.query_params.get("active") in ("1", "true"):
         queryset = queryset.filter(is_active=True)
-    return Response({
-        "count": queryset.count(),
-        "results": CourseBillingPolicySerializer(queryset[:200], many=True).data,
-    })
+    return Response(
+        {
+            "count": queryset.count(),
+            "results": CourseBillingPolicySerializer(queryset[:200], many=True).data,
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def billing_policy_create_view(request):
     if not can_manage_tuition(request.user):
-        return Response({"detail": "To'lov siyosatini boshqarish huquqi yo'q."}, status=403)
+        return Response(
+            {"detail": "To'lov siyosatini boshqarish huquqi yo'q."}, status=403
+        )
     serializer = CourseBillingPolicySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     with transaction.atomic():
@@ -341,24 +399,30 @@ def billing_policy_create_view(request):
 @api_view(["GET", "PATCH", "PUT"])
 @permission_classes([IsAuthenticated])
 def billing_policy_detail_view(request, policy_id: int):
-    policy = get_object_or_404(CourseBillingPolicy.objects.select_related("course", "group"), pk=policy_id)
+    policy = get_object_or_404(
+        CourseBillingPolicy.objects.select_related("course", "group"), pk=policy_id
+    )
     if not is_platform_admin(request.user):
         owned_scope = (
             policy.group_id and policy.group.teacher_id == request.user.pk
-        ) or (
-            policy.course_id and policy.course.teacher_id == request.user.pk
-        )
+        ) or (policy.course_id and policy.course.teacher_id == request.user.pk)
         if not owned_scope:
             return Response({"detail": "Siyosat topilmadi."}, status=404)
     if request.method == "GET":
         if not can_view_tuition(request.user):
-            return Response({"detail": "To'lov siyosatini ko'rish huquqi yo'q."}, status=403)
+            return Response(
+                {"detail": "To'lov siyosatini ko'rish huquqi yo'q."}, status=403
+            )
         return Response(CourseBillingPolicySerializer(policy).data)
     if not can_manage_tuition(request.user):
-        return Response({"detail": "To'lov siyosatini boshqarish huquqi yo'q."}, status=403)
+        return Response(
+            {"detail": "To'lov siyosatini boshqarish huquqi yo'q."}, status=403
+        )
     old_amount = policy.amount_uzs
     serializer = CourseBillingPolicySerializer(
-        policy, data=request.data, partial=request.method == "PATCH",
+        policy,
+        data=request.data,
+        partial=request.method == "PATCH",
     )
     serializer.is_valid(raise_exception=True)
     with transaction.atomic():
@@ -380,6 +444,7 @@ def billing_policy_detail_view(request, policy_id: int):
 def payment_queue_view(request):
     """Receipts awaiting confirmation — only the explicit tuition operator can read it."""
     from apps.tuition.permissions import can_manage_tuition
+
     if not can_manage_tuition(request.user):
         return Response({"detail": "To'lovlarni tekshirish huquqi yo'q."}, status=403)
     qs = CoursePayment.objects.select_related("student", "invoice")
@@ -394,7 +459,7 @@ def payment_queue_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "Sahifalash parametrlari noto'g'ri."}, status=400)
     count = qs.count()
-    rows = list(qs.order_by("created_at")[offset:offset + limit])
+    rows = list(qs.order_by("created_at")[offset : offset + limit])
     return Response({"count": count, "results": [_serialize_payment(r) for r in rows]})
 
 
@@ -409,7 +474,8 @@ def verify_payment_view(request, payment_id: int):
         return Response({"detail": "To'lov topilmadi."}, status=404)
     try:
         payment = services.verify_payment(
-            payment, actor=request.user,
+            payment,
+            actor=request.user,
             reason=str(request.data.get("reason") or "Panel orqali tasdiqlandi"),
         )
     except PermissionDenied:
@@ -418,10 +484,14 @@ def verify_payment_view(request, payment_id: int):
         return Response({"detail": str(exc)}, status=400)
     if payment.invoice_id:
         payment.invoice.refresh_from_db()
-    return Response({
-        "payment": _serialize_payment(payment),
-        "invoice": _serialize_invoice(payment.invoice) if payment.invoice_id else None,
-    })
+    return Response(
+        {
+            "payment": _serialize_payment(payment),
+            "invoice": _serialize_invoice(payment.invoice)
+            if payment.invoice_id
+            else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -434,17 +504,22 @@ def reject_payment_view(request, payment_id: int):
         return Response({"detail": "To'lov topilmadi."}, status=404)
     try:
         services.reject_payment(
-            payment, actor=request.user,
+            payment,
+            actor=request.user,
             reason=str(request.data.get("reason") or ""),
         )
     except PermissionDenied:
         return Response({"detail": "Ruxsat yo'q."}, status=403)
     if payment.invoice_id:
         payment.invoice.refresh_from_db()
-    return Response({
-        "payment": _serialize_payment(payment),
-        "invoice": _serialize_invoice(payment.invoice) if payment.invoice_id else None,
-    })
+    return Response(
+        {
+            "payment": _serialize_payment(payment),
+            "invoice": _serialize_invoice(payment.invoice)
+            if payment.invoice_id
+            else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -453,45 +528,74 @@ def record_invoice_payment_view(request, invoice_id: int):
     """Record an offline payment after privileged staff confirm the evidence."""
     if not can_manage_tuition(request.user):
         return Response({"detail": "To'lov yozish huquqi yo'q."}, status=403)
-    invoice = CourseInvoice.objects.filter(pk=invoice_id).select_related(
-        "student", "policy", "course",
-    ).first()
+    invoice = (
+        CourseInvoice.objects.filter(pk=invoice_id)
+        .select_related(
+            "student",
+            "policy",
+            "course",
+        )
+        .first()
+    )
     if invoice is None:
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
     reason = str(request.data.get("reason") or "").strip()
     if len(reason) < 3:
-        return Response({"detail": "Tasdiqlash sababi kamida 3 belgidan iborat bo'lishi kerak."}, status=400)
-    serializer = TuitionPaymentSubmissionSerializer(data={
-        "invoice_id": invoice.pk,
-        "amount": request.data.get("amount"),
-        "method": request.data.get("method", PaymentMethod.CASH),
-        "reference": request.data.get("reference", ""),
-        "note": reason,
-    })
+        return Response(
+            {"detail": "Tasdiqlash sababi kamida 3 belgidan iborat bo'lishi kerak."},
+            status=400,
+        )
+    serializer = TuitionPaymentSubmissionSerializer(
+        data={
+            "invoice_id": invoice.pk,
+            "amount": request.data.get("amount"),
+            "method": request.data.get("method", PaymentMethod.CASH),
+            "reference": request.data.get("reference", ""),
+            "note": reason,
+        }
+    )
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
     try:
         with transaction.atomic():
-            invoice = CourseInvoice.objects.select_for_update().select_related(
-                "student", "policy", "course",
-            ).get(pk=invoice.pk)
+            invoice = (
+                CourseInvoice.objects.select_for_update()
+                .select_related(
+                    "student",
+                    "policy",
+                    "course",
+                )
+                .get(pk=invoice.pk)
+            )
             payment = services.register_payment(
-                student=invoice.student, invoice=invoice,
+                student=invoice.student,
+                invoice=invoice,
                 amount=serializer.validated_data["amount"],
                 method=serializer.validated_data["method"],
                 reference=serializer.validated_data.get("reference", ""),
-                submitted_by=request.user, note=reason,
+                submitted_by=request.user,
+                note=reason,
             )
-            payment = services.verify_payment(payment, actor=request.user, reason=reason)
+            payment = services.verify_payment(
+                payment, actor=request.user, reason=reason
+            )
     except IntegrityError:
         return Response({"detail": "Bu to'lov raqami avval yozilgan."}, status=409)
-    except (services.TuitionError, ValidationError, ValueError, InvalidOperation) as exc:
+    except (
+        services.TuitionError,
+        ValidationError,
+        ValueError,
+        InvalidOperation,
+    ) as exc:
         return Response({"detail": str(exc)}, status=400)
     invoice.refresh_from_db()
-    return Response({
-        "payment": _serialize_payment(payment),
-        "invoice": _serialize_invoice(invoice),
-    }, status=201)
+    return Response(
+        {
+            "payment": _serialize_payment(payment),
+            "invoice": _serialize_invoice(invoice),
+        },
+        status=201,
+    )
 
 
 @api_view(["POST"])
@@ -500,16 +604,21 @@ def adjust_invoice_view(request, invoice_id: int):
     """Correct an invoice amount — always an explicit, audited adjustment."""
     if not can_manage_tuition(request.user):
         return Response({"detail": "Hisobni o'zgartirish huquqi yo'q."}, status=403)
-    invoice = CourseInvoice.objects.filter(pk=invoice_id).select_related("student").first()
+    invoice = (
+        CourseInvoice.objects.filter(pk=invoice_id).select_related("student").first()
+    )
     if invoice is None:
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
     raw_amount = request.data.get("amount")
     reason = str(request.data.get("reason") or "").strip()
     if raw_amount in (None, "") or len(reason) < 3:
-        return Response({"detail": "Summa va kamida 3 belgili sabab kerak."}, status=400)
+        return Response(
+            {"detail": "Summa va kamida 3 belgili sabab kerak."}, status=400
+        )
     try:
         services.adjust_invoice(
-            invoice, actor=request.user,
+            invoice,
+            actor=request.user,
             new_amount=raw_amount,
             reason=reason,
         )
@@ -526,16 +635,26 @@ def adjust_invoice_view(request, invoice_id: int):
 def waive_invoice_view(request, invoice_id: int):
     if not can_manage_tuition(request.user):
         return Response({"detail": "Ruxsat yo'q."}, status=403)
-    invoice = CourseInvoice.objects.filter(pk=invoice_id).select_related("student", "policy").first()
+    invoice = (
+        CourseInvoice.objects.filter(pk=invoice_id)
+        .select_related("student", "policy")
+        .first()
+    )
     if invoice is None:
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
-    if not is_platform_admin(request.user) and invoice.student.student_groups.filter(
-        teacher=request.user,
-    ).exists() is False:
+    if (
+        not is_platform_admin(request.user)
+        and invoice.student.student_groups.filter(
+            teacher=request.user,
+        ).exists()
+        is False
+    ):
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
     reason = str(request.data.get("reason") or "").strip()
     if len(reason) < 3:
-        return Response({"detail": "Sabab kamida 3 belgidan iborat bo'lishi kerak."}, status=400)
+        return Response(
+            {"detail": "Sabab kamida 3 belgidan iborat bo'lishi kerak."}, status=400
+        )
     try:
         services.waive_invoice(invoice, actor=request.user, reason=reason)
     except PermissionDenied:
@@ -549,7 +668,9 @@ def waive_invoice_view(request, invoice_id: int):
 def mark_invoice_overdue_view(request, invoice_id: int):
     if not can_manage_tuition(request.user):
         return Response({"detail": "Ruxsat yo'q."}, status=403)
-    invoice = CourseInvoice.objects.filter(pk=invoice_id).select_related("student").first()
+    invoice = (
+        CourseInvoice.objects.filter(pk=invoice_id).select_related("student").first()
+    )
     if invoice is None:
         return Response({"detail": "Hisob-faktura topilmadi."}, status=404)
     serializer = InvoiceDueDateSerializer(data=request.data)
@@ -561,15 +682,22 @@ def mark_invoice_overdue_view(request, invoice_id: int):
     invoice.grace_until = serializer.validated_data.get("grace_until", old_grace_until)
     invoice.save(update_fields=["due_date", "grace_until", "updated_at"])
     TuitionAuditLog.objects.create(
-        actor=request.user, action=TuitionAuditLog.Action.INVOICE_UPDATED,
-        invoice=invoice, student=invoice.student, field="due_date",
+        actor=request.user,
+        action=TuitionAuditLog.Action.INVOICE_UPDATED,
+        invoice=invoice,
+        student=invoice.student,
+        field="due_date",
         old_value=old_due_date.isoformat(),
-        new_value=invoice.due_date.isoformat(), reason="Admin panel orqali muddat yangilandi",
+        new_value=invoice.due_date.isoformat(),
+        reason="Admin panel orqali muddat yangilandi",
     )
     if old_grace_until != invoice.grace_until:
         TuitionAuditLog.objects.create(
-            actor=request.user, action=TuitionAuditLog.Action.INVOICE_UPDATED,
-            invoice=invoice, student=invoice.student, field="grace_until",
+            actor=request.user,
+            action=TuitionAuditLog.Action.INVOICE_UPDATED,
+            invoice=invoice,
+            student=invoice.student,
+            field="grace_until",
             old_value=old_grace_until.isoformat() if old_grace_until else "",
             new_value=invoice.grace_until.isoformat() if invoice.grace_until else "",
             reason="Admin panel orqali imtiyoz muddati yangilandi",
@@ -582,8 +710,12 @@ def mark_invoice_overdue_view(request, invoice_id: int):
 def tuition_audit_view(request):
     """The append-only correction trail for one student or invoice."""
     if not can_manage_tuition(request.user):
-        return Response({"detail": "Audit yozuvlarini ko'rish huquqi yo'q."}, status=403)
-    qs = TuitionAuditLog.objects.select_related("actor", "student", "invoice", "payment")
+        return Response(
+            {"detail": "Audit yozuvlarini ko'rish huquqi yo'q."}, status=403
+        )
+    qs = TuitionAuditLog.objects.select_related(
+        "actor", "student", "invoice", "payment"
+    )
     if request.query_params.get("invoice_id"):
         qs = qs.filter(invoice_id=request.query_params["invoice_id"])
     if request.query_params.get("student_id"):
@@ -598,26 +730,28 @@ def tuition_audit_view(request):
     except (TypeError, ValueError):
         return Response({"detail": "limit noto'g'ri."}, status=400)
     rows = list(qs.order_by("-created_at")[:limit])
-    return Response({
-        "count": len(rows),
-        "results": [
-            {
-                "id": row.pk,
-                "action": row.action,
-                "action_label": row.get_action_display(),
-                "actor_id": row.actor_id,
-                "actor_name": (
-                    row.actor.get_full_name() or row.actor.email
-                ) if row.actor_id else None,
-                "field": row.field,
-                "old_value": row.old_value,
-                "new_value": row.new_value,
-                "reason": row.reason,
-                "created_at": row.created_at.isoformat(),
-            }
-            for row in rows
-        ],
-    })
+    return Response(
+        {
+            "count": len(rows),
+            "results": [
+                {
+                    "id": row.pk,
+                    "action": row.action,
+                    "action_label": row.get_action_display(),
+                    "actor_id": row.actor_id,
+                    "actor_name": (row.actor.get_full_name() or row.actor.email)
+                    if row.actor_id
+                    else None,
+                    "field": row.field,
+                    "old_value": row.old_value,
+                    "new_value": row.new_value,
+                    "reason": row.reason,
+                    "created_at": row.created_at.isoformat(),
+                }
+                for row in rows
+            ],
+        }
+    )
 
 
 @api_view(["GET"])

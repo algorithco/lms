@@ -1,4 +1,5 @@
 """Tests for Admin Panel Groups, Teachers, Attendance Monitoring, and Telegram Linking."""
+
 import pytest
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -43,7 +44,9 @@ class PanelGroupsAndAttendanceTests(TestCase):
             "teacher_id": self.teacher.id,
             "monthly_fee": 600000,
         }
-        res = self.client.post("/api/v1/panel/groups/", payload, format="json", HTTP_HOST="localhost")
+        res = self.client.post(
+            "/api/v1/panel/groups/", payload, format="json", HTTP_HOST="localhost"
+        )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["name"], "IELTS Academic Band 8.0")
         self.assertEqual(res.data["subject"], "english")
@@ -75,6 +78,7 @@ class PanelGroupsAndAttendanceTests(TestCase):
         group.students.add(self.student)
 
         import datetime
+
         session = AttendanceSession.objects.create(
             group=group,
             teacher=self.teacher,
@@ -101,7 +105,9 @@ class PanelGroupsAndAttendanceTests(TestCase):
         self.assertEqual(item["attendance_rate"], 100.0)
 
         # Export Excel
-        res_export = self.client.get("/api/v1/panel/attendance/export/", HTTP_HOST="localhost")
+        res_export = self.client.get(
+            "/api/v1/panel/attendance/export/", HTTP_HOST="localhost"
+        )
         self.assertEqual(res_export.status_code, status.HTTP_200_OK)
         self.assertEqual(
             res_export["content-type"],
@@ -112,7 +118,12 @@ class PanelGroupsAndAttendanceTests(TestCase):
     def test_direct_telegram_link(self):
         self.client.force_authenticate(user=self.admin)
         payload = {"telegram_chat_id": 5582178765}
-        res = self.client.post("/api/v1/accounts/link-telegram/", payload, format="json", HTTP_HOST="localhost")
+        res = self.client.post(
+            "/api/v1/accounts/link-telegram/",
+            payload,
+            format="json",
+            HTTP_HOST="localhost",
+        )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["ok"], True)
         self.assertEqual(res.data["telegram_chat_id"], 5582178765)

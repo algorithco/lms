@@ -4,15 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0003_alter_user_role_parentstudentlink'),
+        ("accounts", "0003_alter_user_role_parentstudentlink"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='language',
-            field=models.CharField(choices=[('uz', "O'zbek"), ('ru', 'Русский'), ('en', 'English')], default='uz', help_text='Tizim interfeysi tili.', max_length=5, verbose_name='til'),
+            model_name="user",
+            name="language",
+            field=models.CharField(
+                choices=[("uz", "O'zbek"), ("ru", "Русский"), ("en", "English")],
+                default="uz",
+                help_text="Tizim interfeysi tili.",
+                max_length=5,
+                verbose_name="til",
+            ),
         ),
     ]

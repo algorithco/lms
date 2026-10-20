@@ -14,6 +14,7 @@ Two variants:
     NOT sources; criterion 11 = full 2 allowed) so the retry cannot
     reintroduce the old mis-scoring.
 """
+
 ESSAY_GRADING_SYSTEM_PROMPT = """\
 CRITICAL: Do NOT output thinking steps, reasoning process, or English intros like "Here's a thinking process:". Respond strictly with valid JSON starting with '{' and ending with '}'.
 JAVOB TILI: O'ZBEK. Barcha "reason", "summary", "topic_match_reason", "teacher_recommendation" maydonlari O'ZBEK tilida yozilsin — boshqa tilda javob qabul qilinmaydi.

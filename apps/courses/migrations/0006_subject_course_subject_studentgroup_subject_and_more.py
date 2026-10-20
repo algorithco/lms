@@ -5,43 +5,82 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0005_homework_homeworksubmission'),
+        ("courses", "0005_homework_homeworksubmission"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Subject',
+            name="Subject",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=120, verbose_name='fan nomi')),
-                ('slug', models.SlugField(unique=True, verbose_name='slug')),
-                ('description', models.TextField(blank=True, verbose_name='tavsif')),
-                ('icon', models.CharField(blank=True, default='🇺🇿', max_length=32, verbose_name='ikonka / bayroq')),
-                ('is_active', models.BooleanField(default=True, verbose_name='faolmi')),
-                ('position', models.PositiveSmallIntegerField(default=0, verbose_name='tartib')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=120, verbose_name="fan nomi")),
+                ("slug", models.SlugField(unique=True, verbose_name="slug")),
+                ("description", models.TextField(blank=True, verbose_name="tavsif")),
+                (
+                    "icon",
+                    models.CharField(
+                        blank=True,
+                        default="🇺🇿",
+                        max_length=32,
+                        verbose_name="ikonka / bayroq",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="faolmi")),
+                (
+                    "position",
+                    models.PositiveSmallIntegerField(default=0, verbose_name="tartib"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
             ],
             options={
-                'verbose_name': "Fan / Yo'nalish",
-                'verbose_name_plural': "Fanlar / Yo'nalishlar",
-                'ordering': ['position', 'name'],
+                "verbose_name": "Fan / Yo'nalish",
+                "verbose_name_plural": "Fanlar / Yo'nalishlar",
+                "ordering": ["position", "name"],
             },
         ),
         migrations.AddField(
-            model_name='course',
-            name='subject',
-            field=models.CharField(choices=[('uzbek', 'Ona tili va adabiyot'), ('english', 'Ingliz tili (IELTS & Multi-level)')], db_index=True, default='uzbek', max_length=20, verbose_name="fan / yo'nalish"),
+            model_name="course",
+            name="subject",
+            field=models.CharField(
+                choices=[
+                    ("uzbek", "Ona tili va adabiyot"),
+                    ("english", "Ingliz tili (IELTS & Multi-level)"),
+                ],
+                db_index=True,
+                default="uzbek",
+                max_length=20,
+                verbose_name="fan / yo'nalish",
+            ),
         ),
         migrations.AddField(
-            model_name='studentgroup',
-            name='subject',
-            field=models.CharField(choices=[('uzbek', 'Ona tili va adabiyot'), ('english', 'Ingliz tili (IELTS & Multi-level)')], db_index=True, default='uzbek', max_length=20, verbose_name="fan / yo'nalish"),
+            model_name="studentgroup",
+            name="subject",
+            field=models.CharField(
+                choices=[
+                    ("uzbek", "Ona tili va adabiyot"),
+                    ("english", "Ingliz tili (IELTS & Multi-level)"),
+                ],
+                db_index=True,
+                default="uzbek",
+                max_length=20,
+                verbose_name="fan / yo'nalish",
+            ),
         ),
         migrations.AddIndex(
-            model_name='course',
-            index=models.Index(fields=['subject'], name='idx_course_subject'),
+            model_name="course",
+            index=models.Index(fields=["subject"], name="idx_course_subject"),
         ),
     ]

@@ -12,6 +12,7 @@ Rasmiy baholash standartlari:
 
 Umumiy ball: Test (40 ta savol) + Yozma ish / Esse (20-25 ball) integratsiyasi.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -117,7 +118,9 @@ def calculate_bmb_grade(
             e_max = float(essay_max)
             total_earned = t_score + e_score
             total_possible = t_max + e_max
-            final_pct = (total_earned / total_possible) * 100.0 if total_possible > 0 else 0.0
+            final_pct = (
+                (total_earned / total_possible) * 100.0 if total_possible > 0 else 0.0
+            )
         else:
             final_pct = (t_score / t_max) * 100.0
     elif percentage is not None:
@@ -161,7 +164,15 @@ def bmb_grade_distribution(percentages: list[float]) -> dict[str, int]:
     """
     O'quvchilar guruhining BMB darajalari bo'yicha taqsimotini qaytaradi.
     """
-    dist: dict[str, int] = {"A+": 0, "A": 0, "B+": 0, "B": 0, "C+": 0, "C": 0, "Fail": 0}
+    dist: dict[str, int] = {
+        "A+": 0,
+        "A": 0,
+        "B+": 0,
+        "B": 0,
+        "C+": 0,
+        "C": 0,
+        "Fail": 0,
+    }
     for p in percentages:
         g = calculate_bmb_grade(p)["grade"]
         if g in dist:

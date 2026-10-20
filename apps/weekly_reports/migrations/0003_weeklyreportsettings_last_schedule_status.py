@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('weekly_reports', '0002_weeklyreportsettings_last_schedule_started_at_and_more'),
+        (
+            "weekly_reports",
+            "0002_weeklyreportsettings_last_schedule_started_at_and_more",
+        ),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='weeklyreportsettings',
-            name='last_schedule_status',
-            field=models.CharField(blank=True, default='', max_length=24),
+            model_name="weeklyreportsettings",
+            name="last_schedule_status",
+            field=models.CharField(blank=True, default="", max_length=24),
         ),
     ]

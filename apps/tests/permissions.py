@@ -3,6 +3,7 @@ Tests permissions — test-taking specific access control.
 
 Separate from accounts/permissions.py to follow SRP.
 """
+
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 from apps.accounts.access import is_platform_admin
@@ -62,10 +63,7 @@ class IsTestOwnerOrStudent(BasePermission):
             return request.user.role == "teacher"
 
         # Write methods — faqat owner teacher yoki admin
-        return (
-            obj.course.teacher == request.user
-            or is_platform_admin(request.user)
-        )
+        return obj.course.teacher == request.user or is_platform_admin(request.user)
 
 
 class CanStartAttempt(BasePermission):

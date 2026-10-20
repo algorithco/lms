@@ -4,6 +4,7 @@ Base Django settings — shared across all environments.
 Environment-specific overrides live in development.py and production.py.
 Uses django-environ for secure .env-based configuration.
 """
+
 import environ
 from pathlib import Path
 from celery.schedules import crontab
@@ -30,7 +31,9 @@ if env_file.exists():
 # SECURITY: development-only fallback. Production MUST set DJANGO_SECRET_KEY
 # (config/settings/production.py raises ImproperlyConfigured on placeholders,
 # short keys, or missing values). Never use this default outside local dev.
-SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me-in-production-!@#$%^&*()")
+SECRET_KEY = env(
+    "SECRET_KEY", default="django-insecure-change-me-in-production-!@#$%^&*()"
+)
 DEBUG = env("DEBUG", default=False)
 ALLOWED_HOSTS = env("ALLOWED_HOSTS", default=[])
 
@@ -43,35 +46,33 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",  # JWT blacklist (logout)
-    "drf_spectacular",       # OpenAPI / Swagger docs
-    "corsheaders",           # CORS for API consumers
-    "django_filters",        # queryset filtering in DRF
-
+    "drf_spectacular",  # OpenAPI / Swagger docs
+    "corsheaders",  # CORS for API consumers
+    "django_filters",  # queryset filtering in DRF
     # Local apps (models register here)
     "apps.accounts",
     "apps.courses",
-    "apps.attendance",      # Attendance, classroom observations, group notices
-    "apps.tests",            # "tests" is reserved in Python; app label below
+    "apps.attendance",  # Attendance, classroom observations, group notices
+    "apps.tests",  # "tests" is reserved in Python; app label below
     "apps.results",
     "apps.certificates",
     "apps.notifications",
     "apps.games",
-    "apps.core",           # Maintenance tasks
-    "apps.essays",         # Essay writing & AI grading
-    "apps.telegram_app",   # Telegram Mini App
-    "apps.arena",          # WebSocket Quiz Arena
-    "apps.payments",       # Subscriptions & Payments (platform plans)
-    "apps.tuition",        # Course tuition billing (separate from subscriptions)
+    "apps.core",  # Maintenance tasks
+    "apps.essays",  # Essay writing & AI grading
+    "apps.telegram_app",  # Telegram Mini App
+    "apps.arena",  # WebSocket Quiz Arena
+    "apps.payments",  # Subscriptions & Payments (platform plans)
+    "apps.tuition",  # Course tuition billing (separate from subscriptions)
     "apps.weekly_reports",  # Automated weekly academic reports
-    "apps.organizations",   # B2B SaaS Enterprise Hub
-    "apps.speaking",        # IELTS & Multi-level AI Speaking Simulator
-    "apps.panel",          # In-app admin panel (/control-panel/)
-    "apps.webapi",         # JSON API for the React SPA (/api/v1/)
+    "apps.organizations",  # B2B SaaS Enterprise Hub
+    "apps.speaking",  # IELTS & Multi-level AI Speaking Simulator
+    "apps.panel",  # In-app admin panel (/control-panel/)
+    "apps.webapi",  # JSON API for the React SPA (/api/v1/)
 ]
 
 MIDDLEWARE = [
@@ -139,7 +140,9 @@ AUTH_USER_MODEL = "accounts.User"
 # Password validation
 # ---------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -170,7 +173,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
 }
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -218,26 +223,21 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
-
     # Permissions
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
-
     # Pagination
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-
     # Filtering
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-
     # Schema (drf-spectacular)
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-
     # Rate Limiting (Throttling)
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
@@ -245,10 +245,10 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "30/minute",      # Anonymous: 30 requests per minute
-        "user": "100/minute",     # Authenticated: 100 requests per minute
-        "test-start": "5/hour",   # Test start: 5 per hour
-        "test-submit": "10/hour", # Test submit: 10 per hour
+        "anon": "30/minute",  # Anonymous: 30 requests per minute
+        "user": "100/minute",  # Authenticated: 100 requests per minute
+        "test-start": "5/hour",  # Test start: 5 per hour
+        "test-submit": "10/hour",  # Test submit: 10 per hour
         "essay-submit": "5/minute",
         "essay-improve": "10/hour",
         "tma-essay-submit": "10/hour",
@@ -281,29 +281,27 @@ SPECTACULAR_SETTINGS = {
     "LICENSE": {
         "name": "MIT License",
     },
-
     # Tag grouping in Swagger UI
     "TAGS": [
         {"name": "Auth", "description": "Registration, login, logout, profile"},
         {"name": "Tests", "description": "Test listing and test-taking flow"},
         {"name": "Results", "description": "Test results and analytics"},
-        {"name": "Certificates", "description": "PDF certificate generation and verification"},
+        {
+            "name": "Certificates",
+            "description": "PDF certificate generation and verification",
+        },
         {"name": "Notifications", "description": "Telegram bot notifications"},
     ],
-
     # JWT Bearer security scheme
     "COMPONENT_SPLIT_REQUEST": True,
     "COMPONENT_NO_READ_ONLY_REQUIRED": True,
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
-
     # Sorters
     "SORTERS": ["drf_spectacular.generators.OpenApiSchemaGenerator"],
-
     # Authentication classes for Swagger UI
     "AUTHENTICATION_WHITELIST": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-
     # Search
     "SCHEMA_PATH_PREFIX": r"/api/",
 }
@@ -319,23 +317,18 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-
     # Signature algorithm
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
-
     # Auth header
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
-
     # Token claim field name
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
-
     # Custom token claims
     "TOKEN_OBTAIN_SERIALIZER": "apps.accounts.serializers.CustomTokenObtainPairSerializer",
     "TOKEN_REFRESH_SERIALIZER": "apps.accounts.serializers.CustomTokenRefreshSerializer",
-
     # Explicit inactive-user blocking (defense-in-depth, default is True)
     "CHECK_USER_IS_ACTIVE": True,
     "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
@@ -351,8 +344,8 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 120       # 2 minutes max per task
-CELERY_TASK_SOFT_TIME_LIMIT = 90   # 1.5 min soft limit
+CELERY_TASK_TIME_LIMIT = 120  # 2 minutes max per task
+CELERY_TASK_SOFT_TIME_LIMIT = 90  # 1.5 min soft limit
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Bound the Celery/Redis connection pools so heavy web traffic can never
@@ -505,29 +498,35 @@ PLAN_PREMIUM_PRICE = env.int("PLAN_PREMIUM_PRICE", default=60000)
 # Weekly quota windows reset on this weekday at 00:00 in the quota timezone.
 # 0 = Monday (ISO weekday), matching "Monday 00:00 Asia/Tashkent".
 SUBSCRIPTION_QUOTA_RESET_WEEKDAY = env.int(
-    "SUBSCRIPTION_QUOTA_RESET_WEEKDAY", default=0,
+    "SUBSCRIPTION_QUOTA_RESET_WEEKDAY",
+    default=0,
 )
 SUBSCRIPTION_QUOTA_TIMEZONE = env(
-    "SUBSCRIPTION_QUOTA_TIMEZONE", default="Asia/Tashkent",
+    "SUBSCRIPTION_QUOTA_TIMEZONE",
+    default="Asia/Tashkent",
 )
 # Platform fallback used only when neither a plan row, a sponsorship nor an
 # administrator override specifies a value. All default to None (= no enforced
 # quota) so that introducing commercial plans cannot silently restrict what an
 # existing student could already do. Administrators opt in per plan row.
 SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT = env(
-    "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT", default=None,
+    "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT",
+    default=None,
     cast=lambda v: int(v) if str(v).strip() else None,
 )
 SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT = env(
-    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT", default=None,
+    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT",
+    default=None,
     cast=lambda v: int(v) if str(v).strip() else None,
 )
 SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS = env(
-    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS", default=None,
+    "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS",
+    default=None,
     cast=lambda v: int(v) if str(v).strip() else None,
 )
 SUBSCRIPTION_DEFAULT_TEST_LIMIT = env(
-    "SUBSCRIPTION_DEFAULT_TEST_LIMIT", default=None,
+    "SUBSCRIPTION_DEFAULT_TEST_LIMIT",
+    default=None,
     cast=lambda v: int(v) if str(v).strip() else None,
 )
 # Maximum pages a single multi-page image essay may contain (one submission).
@@ -578,6 +577,7 @@ ESSAY_AI_PROVIDER = env("ESSAY_AI_PROVIDER", default="auto")
 # simple .env setups; the explicit OPENROUTER_* / ESSAY_AI_MODEL names win.
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default=env("AI_API_KEY", default=""))
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GEMINI_API_KEY = env("GEMINI_API_KEY", default=env("GOOGLE_API_KEY", default=""))
 
 # Model selection. Set ESSAY_AI_MODEL to force a model on either provider;
 # otherwise each provider falls back to its own default below.
@@ -597,7 +597,9 @@ GROQ_API_KEY = env("GROQ_API_KEY", default="")
 # extraction/tuzatish mantiqi. Zanjir bo'ylab fallback + soddalashtirilgan
 # prompt bilan retry bepul modellarni barqaror qiladi.
 ESSAY_AI_MODEL = env("ESSAY_AI_MODEL", default=env("AI_MODEL", default=""))
-OPENROUTER_AI_MODEL = env("OPENROUTER_AI_MODEL", default="deepseek/deepseek-v4-flash-0731")
+OPENROUTER_AI_MODEL = env(
+    "OPENROUTER_AI_MODEL", default="deepseek/deepseek-v4-flash-0731"
+)
 GROQ_AI_MODEL = env("GROQ_AI_MODEL", default="llama-3.3-70b-versatile")
 
 # Fallback chain: tried in order when the primary model hits a rate limit /
@@ -605,22 +607,29 @@ GROQ_AI_MODEL = env("GROQ_AI_MODEL", default="llama-3.3-70b-versatile")
 # The legacy single OPENROUTER_FALLBACK_MODEL var (if set) is appended for
 # backward compatibility. Empty string disables all fallbacks.
 _OPENROUTER_FALLBACK_DEFAULT = (
+    "google/gemini-2.0-flash-001,"
     "liquid/lfm-2.5-2.6b:free,"
     "nvidia/nemotron-3-super-120b-a12b:free"
 )
 OPENROUTER_FALLBACK_MODELS = [
     m.strip()
-    for m in env("OPENROUTER_FALLBACK_MODELS", default=_OPENROUTER_FALLBACK_DEFAULT).split(",")
+    for m in env(
+        "OPENROUTER_FALLBACK_MODELS", default=_OPENROUTER_FALLBACK_DEFAULT
+    ).split(",")
     if m.strip()
 ]
 _legacy_single_fallback = env("OPENROUTER_FALLBACK_MODEL", default="").strip()
-if _legacy_single_fallback and _legacy_single_fallback not in OPENROUTER_FALLBACK_MODELS:
+if (
+    _legacy_single_fallback
+    and _legacy_single_fallback not in OPENROUTER_FALLBACK_MODELS
+):
     OPENROUTER_FALLBACK_MODELS.append(_legacy_single_fallback)
 GROQ_FALLBACK_MODEL = env("GROQ_FALLBACK_MODEL", default="")
 
 # Provider endpoints (OpenAI-compatible)
 OPENROUTER_BASE_URL = env(
-    "OPENROUTER_BASE_URL", default=env("AI_BASE_URL", default="https://openrouter.ai/api/v1")
+    "OPENROUTER_BASE_URL",
+    default=env("AI_BASE_URL", default="https://openrouter.ai/api/v1"),
 )
 GROQ_BASE_URL = env("GROQ_BASE_URL", default="https://api.groq.com/openai/v1")
 
@@ -642,6 +651,7 @@ ESSAY_AI_REQUEST_TIMEOUT = float(env("ESSAY_AI_REQUEST_TIMEOUT", default="30"))
 ESSAY_GRADING_PENDING_TIMEOUT_SECONDS = int(
     env("ESSAY_GRADING_PENDING_TIMEOUT_SECONDS", default="720")
 )
+
 
 # Background-thread retry backoff (sekund) — runserver-only rejimda
 # (CELERY_TASK_ALWAYS_EAGER=True) grading shu thread'da 3 urinish qiladi.
@@ -689,7 +699,9 @@ ESSAY_CACHE_LEASE_SECONDS = int(env("ESSAY_CACHE_LEASE_SECONDS", default="300"))
 ESSAY_CACHE_WAIT_SECONDS = int(env("ESSAY_CACHE_WAIT_SECONDS", default="200"))
 
 # Bounded retry delay after a failed leader, so followers do not stampede.
-ESSAY_CACHE_RETRY_DELAY_SECONDS = int(env("ESSAY_CACHE_RETRY_DELAY_SECONDS", default="30"))
+ESSAY_CACHE_RETRY_DELAY_SECONDS = int(
+    env("ESSAY_CACHE_RETRY_DELAY_SECONDS", default="30")
+)
 
 # Grading prompt/rubric cache version - bump to invalidate old evaluations.
 ESSAY_GRADING_CACHE_VERSION = env("ESSAY_GRADING_CACHE_VERSION", default="v3")
@@ -717,7 +729,9 @@ GOOGLE_REDIRECT_URI = env(
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
-CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read CSRF token for ngrok/proxy setups
+CSRF_COOKIE_HTTPONLY = (
+    False  # Must be False so JS can read CSRF token for ngrok/proxy setups
+)
 SESSION_COOKIE_HTTPONLY = True
 
 # These should be enabled in production

@@ -4,6 +4,7 @@ All three are idempotent, which is what lets beat restart, an operator re-run a
 missed month, and a reminder ladder retry a failed Telegram send without
 double-billing anyone or sending a duplicate notice.
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,13 +40,16 @@ def _parse(value: str | None) -> date | None:
     time_limit=600,
     soft_time_limit=540,
 )
-def generate_monthly_invoices(self: Any, period_start: str | None = None,
-                              dry_run: bool = False) -> dict[str, Any]:
+def generate_monthly_invoices(
+    self: Any, period_start: str | None = None, dry_run: bool = False
+) -> dict[str, Any]:
     """Generate the month's invoices (idempotent per student/period/scope)."""
     try:
         reference = _parse(period_start) or services.today()
         result = services.generate_period_invoices(
-            reference, dry_run=dry_run, reason="Oylik avtomatik hisoblash",
+            reference,
+            dry_run=dry_run,
+            reason="Oylik avtomatik hisoblash",
         )
         logger.info("Tuition invoicing: %s", result)
         return {"status": "completed", **result}

@@ -11,6 +11,7 @@ are the *stop* conditions as much as the triggers:
   retried rather than duplicated;
 * only the student and their verified, approved parents are ever recipients.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -48,21 +49,33 @@ class _ReminderFixture(TestCase):
 
     def setUp(self):
         self.admin = User.objects.create_user(
-            email="rem-admin@example.test", password="testpass123", role="admin",
+            email="rem-admin@example.test",
+            password="testpass123",
+            role="admin",
         )
         self.teacher = User.objects.create_user(
-            email="rem-teacher@example.test", password="testpass123", role="teacher",
+            email="rem-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.ali = User.objects.create_user(
-            email="rem-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev", telegram_chat_id=555001,
+            email="rem-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
+            telegram_chat_id=555001,
         )
         self.parent = User.objects.create_user(
-            email="rem-parent@example.test", password="testpass123", role="parent",
+            email="rem-parent@example.test",
+            password="testpass123",
+            role="parent",
             telegram_chat_id=555002,
         )
         self.stranger = User.objects.create_user(
-            email="rem-stranger@example.test", password="testpass123", role="parent",
+            email="rem-stranger@example.test",
+            password="testpass123",
+            role="parent",
             telegram_chat_id=555003,
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
@@ -71,11 +84,17 @@ class _ReminderFixture(TestCase):
         backdate(StudentGroup, self.group.pk, "created_at", TODAY - timedelta(days=90))
 
         self.policy = CourseBillingPolicy.objects.create(
-            name="9-A oylik", group=self.group, amount_uzs=300_000, due_day=10,
+            name="9-A oylik",
+            group=self.group,
+            amount_uzs=300_000,
+            due_day=10,
             effective_from=TODAY - timedelta(days=90),
             reminder_policy={
-                "before": [3], "due": [0], "overdue": [3, 10, 17],
-                "quiet_start": 21, "quiet_end": 8,
+                "before": [3],
+                "due": [0],
+                "overdue": [3, 10, 17],
+                "quiet_start": 21,
+                "quiet_end": 8,
             },
         )
         self.invoice = self._make_invoice(due_offset=0)
@@ -85,12 +104,14 @@ class _ReminderFixture(TestCase):
         # real one, so a helper that needs a second invoice must not trip it.
         type(self)._invoice_seq = getattr(type(self), "_invoice_seq", 0) + 1
         invoice = CourseInvoice.objects.create(
-            student=self.ali, policy=self.policy,
+            student=self.ali,
+            policy=self.policy,
             scope_key=f"group:{self.group.pk}:t{type(self)._invoice_seq}",
             billing_period_start=TODAY.replace(day=1),
             billing_period_end=TODAY.replace(day=1) + timedelta(days=27),
             period_label=f"{TODAY:%Y-%m}",
-            base_amount_uzs=Decimal(amount), amount_due_uzs=Decimal(amount),
+            base_amount_uzs=Decimal(amount),
+            amount_due_uzs=Decimal(amount),
             due_date=TODAY + timedelta(days=due_offset),
             grace_until=(
                 TODAY + timedelta(days=due_offset + grace_days) if grace_days else None
@@ -101,7 +122,9 @@ class _ReminderFixture(TestCase):
 
     def _approved_parent(self, *, approved=True):
         return ParentStudentLink.objects.create(
-            parent=self.parent, student=self.ali, is_approved=approved,
+            parent=self.parent,
+            student=self.ali,
+            is_approved=approved,
         )
 
     @staticmethod
@@ -109,6 +132,7 @@ class _ReminderFixture(TestCase):
         def _send(chat_id, text, recipient, title):
             calls.append((chat_id, text))
             return {"success": True, "message_id": len(calls), "error": None}
+
         return _send
 
 
@@ -129,7 +153,8 @@ class LadderStageTests(_ReminderFixture):
         for offset in (3, 10, 17):
             self.assertEqual(
                 services.reminder_stage_for(
-                    self.invoice, as_of=TODAY + timedelta(days=offset),
+                    self.invoice,
+                    as_of=TODAY + timedelta(days=offset),
                 ),
                 PaymentReminderLog.Stage.OVERDUE,
             )
@@ -147,15 +172,21 @@ class LadderStageTests(_ReminderFixture):
     def test_paid_invoice_is_never_reminded_about(self):
         invoice = self._make_invoice(due_offset=-5)
         payment = services.register_payment(
-            student=self.ali, amount=300_000, method=PaymentMethod.CARD,
-            reference="REM-PAID", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=300_000,
+            method=PaymentMethod.CARD,
+            reference="REM-PAID",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         services.verify_payment(payment, actor=self.admin)
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, CourseInvoice.Status.PAID)
         for offset in (-3, 0, 3, 10, 17):
             self.assertIsNone(
-                services.reminder_stage_for(invoice, as_of=TODAY + timedelta(days=offset))
+                services.reminder_stage_for(
+                    invoice, as_of=TODAY + timedelta(days=offset)
+                )
             )
 
     def test_waived_invoice_is_never_reminded_about(self):
@@ -167,8 +198,12 @@ class LadderStageTests(_ReminderFixture):
     def test_partial_payment_still_reminds_about_the_remaining_balance(self):
         invoice = self._make_invoice(due_offset=-3)
         payment = services.register_payment(
-            student=self.ali, amount=100_000, method=PaymentMethod.CARD,
-            reference="REM-PART", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=100_000,
+            method=PaymentMethod.CARD,
+            reference="REM-PART",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         services.verify_payment(payment, actor=self.admin)
         invoice.refresh_from_db()
@@ -184,8 +219,12 @@ class LadderStageTests(_ReminderFixture):
     def test_a_covering_pending_receipt_replaces_the_overdue_chase(self):
         invoice = self._make_invoice(due_offset=-3)
         services.register_payment(
-            student=self.ali, amount=300_000, method=PaymentMethod.CARD,
-            reference="REM-PEND", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=300_000,
+            method=PaymentMethod.CARD,
+            reference="REM-PEND",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, CourseInvoice.Status.PENDING_VERIFICATION)
@@ -194,7 +233,8 @@ class LadderStageTests(_ReminderFixture):
             PaymentReminderLog.Stage.AWAITING_CONFIRMATION,
         )
         text = notifications.reminder_text(
-            invoice, PaymentReminderLog.Stage.AWAITING_CONFIRMATION,
+            invoice,
+            PaymentReminderLog.Stage.AWAITING_CONFIRMATION,
         )
         self.assertIn("qabul qilindi", text)
         self.assertIn("Qo'shimcha to'lov qilish shart emas", text)
@@ -202,8 +242,12 @@ class LadderStageTests(_ReminderFixture):
     def test_a_partial_pending_receipt_does_not_stop_the_ladder(self):
         invoice = self._make_invoice(due_offset=-3)
         services.register_payment(
-            student=self.ali, amount=50_000, method=PaymentMethod.CARD,
-            reference="REM-SMALL", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=50_000,
+            method=PaymentMethod.CARD,
+            reference="REM-SMALL",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         invoice.refresh_from_db()
         self.assertFalse(invoice.awaiting_confirmation)
@@ -218,7 +262,9 @@ class LadderStageTests(_ReminderFixture):
         self.assertFalse(services.in_quiet_hours(self.policy, now=DAYTIME))
         self.assertEqual(
             notifications.send_due_reminders(
-                as_of=TODAY, now=night, transport=self._ok_transport([]),
+                as_of=TODAY,
+                now=night,
+                transport=self._ok_transport([]),
             )["planned"],
             0,
         )
@@ -230,14 +276,18 @@ class DeliveryTests(_ReminderFixture):
         self._approved_parent()
         calls: list = []
         first = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport(calls),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport(calls),
         )
         self.assertEqual(first["sent"], 2)  # student + approved parent
         self.assertEqual(len(calls), 2)
         self.assertEqual(PaymentReminderLog.objects.count(), 2)
 
         second = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport(calls),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport(calls),
         )
         self.assertEqual(second["sent"], 0)
         self.assertEqual(len(calls), 2, "A re-run must not send a duplicate")
@@ -251,12 +301,15 @@ class DeliveryTests(_ReminderFixture):
     def test_weekly_overdue_stage_can_fire_again_a_week_later(self):
         calls: list = []
         notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport(calls),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport(calls),
         )
         # The +10 offset is a distinct stage key, so the family is reminded
         # again a week later without any duplicate of the +3 message.
         notifications.send_due_reminders(
-            as_of=TODAY + timedelta(days=10), now=DAYTIME,
+            as_of=TODAY + timedelta(days=10),
+            now=DAYTIME,
             transport=self._ok_transport(calls),
         )
         keys = set(PaymentReminderLog.objects.values_list("idempotency_key", flat=True))
@@ -274,7 +327,9 @@ class DeliveryTests(_ReminderFixture):
     def test_recipient_preference_can_disable_reminders(self):
         NotificationPreference.objects.create(user=self.ali, tuition_reminders=False)
         result = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport([]),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport([]),
         )
         self.assertEqual(result["sent"], 0)
         self.assertEqual(result["skipped"], 1)
@@ -284,20 +339,28 @@ class DeliveryTests(_ReminderFixture):
         User.objects.filter(pk=self.ali.pk).update(telegram_chat_id=None)
         self.ali.refresh_from_db()
         result = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport([]),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport([]),
         )
         self.assertEqual(result["planned"], 1)
         self.assertEqual(result["sent"], 0)
         self.assertEqual(result["failed"], 1)
         self.assertEqual(
-            PaymentReminderLog.objects.filter(channel=PaymentReminderLog.Channel.TELEGRAM).count(),
+            PaymentReminderLog.objects.filter(
+                channel=PaymentReminderLog.Channel.TELEGRAM
+            ).count(),
             1,
         )
         self.assertEqual(
-            PaymentReminderLog.objects.filter(channel=PaymentReminderLog.Channel.DASHBOARD).count(),
+            PaymentReminderLog.objects.filter(
+                channel=PaymentReminderLog.Channel.DASHBOARD
+            ).count(),
             1,
         )
-        self.assertEqual([row.pk for row in services.reminder_recipients(self.ali)], [self.ali.pk])
+        self.assertEqual(
+            [row.pk for row in services.reminder_recipients(self.ali)], [self.ali.pk]
+        )
 
     def test_stale_pending_reservation_can_be_recovered(self):
         from django.utils import timezone
@@ -307,17 +370,21 @@ class DeliveryTests(_ReminderFixture):
             f"{self.ali.pk}:{PaymentReminderLog.Channel.TELEGRAM}"
         )
         row = PaymentReminderLog.objects.create(
-            invoice=self.invoice, recipient=self.ali,
+            invoice=self.invoice,
+            recipient=self.ali,
             stage=PaymentReminderLog.Stage.DUE_TODAY,
             channel=PaymentReminderLog.Channel.TELEGRAM,
-            idempotency_key=stale_key, status=PaymentReminderLog.Status.PENDING,
+            idempotency_key=stale_key,
+            status=PaymentReminderLog.Status.PENDING,
         )
         PaymentReminderLog.objects.filter(pk=row.pk).update(
             created_at=timezone.now() - timedelta(minutes=15),
         )
         calls = []
         result = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport(calls),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport(calls),
         )
         row.refresh_from_db()
         self.assertEqual(result["sent"], 1)
@@ -329,18 +396,26 @@ class DeliveryTests(_ReminderFixture):
             return {"success": False, "error": "Telegram unavailable"}
 
         first = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=_broken,
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=_broken,
         )
         self.assertEqual(first["failed"], 1)
-        log = PaymentReminderLog.objects.get(channel=PaymentReminderLog.Channel.TELEGRAM)
-        fallback = PaymentReminderLog.objects.get(channel=PaymentReminderLog.Channel.DASHBOARD)
+        log = PaymentReminderLog.objects.get(
+            channel=PaymentReminderLog.Channel.TELEGRAM
+        )
+        fallback = PaymentReminderLog.objects.get(
+            channel=PaymentReminderLog.Channel.DASHBOARD
+        )
         self.assertEqual(log.status, PaymentReminderLog.Status.FAILED)
         self.assertIn("Telegram unavailable", log.error)
         self.assertEqual(fallback.status, PaymentReminderLog.Status.SENT)
 
         calls: list = []
         second = notifications.send_due_reminders(
-            as_of=TODAY, now=DAYTIME, transport=self._ok_transport(calls),
+            as_of=TODAY,
+            now=DAYTIME,
+            transport=self._ok_transport(calls),
         )
         self.assertEqual(second["sent"], 1)
         self.assertEqual(len(calls), 1)
@@ -360,8 +435,12 @@ class DeliveryTests(_ReminderFixture):
         invoice = self._make_invoice(due_offset=0)
         self._approved_parent()
         payment = services.register_payment(
-            student=self.ali, amount=300_000, method=PaymentMethod.CARD,
-            reference="REM-CONF", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=300_000,
+            method=PaymentMethod.CARD,
+            reference="REM-CONF",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         services.verify_payment(payment, actor=self.admin)
 
@@ -377,11 +456,15 @@ class TaskIdempotencyTests(_ReminderFixture):
     def test_failed_send_is_retried_but_a_sent_one_is_not(self):
         calls: list = []
         notifications.send_reminder(
-            self.invoice, PaymentReminderLog.Stage.OVERDUE, self.ali,
+            self.invoice,
+            PaymentReminderLog.Stage.OVERDUE,
+            self.ali,
             transport=self._ok_transport(calls),
         )
         notifications.send_reminder(
-            self.invoice, PaymentReminderLog.Stage.OVERDUE, self.ali,
+            self.invoice,
+            PaymentReminderLog.Stage.OVERDUE,
+            self.ali,
             transport=self._ok_transport(calls),
         )
         self.assertEqual(len(calls), 1)

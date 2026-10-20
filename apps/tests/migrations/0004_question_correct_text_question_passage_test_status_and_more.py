@@ -10,31 +10,59 @@ def backfill_status(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0003_testattempt_idx_att_status_stu_time_and_more'),
+        ("tests", "0003_testattempt_idx_att_status_stu_time_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='question',
-            name='correct_text',
-            field=models.CharField(blank=True, help_text='Matnli javob savollari uchun — kutilayotgan javob (katta-kichik harf farqi hisobga olinmaydi).', max_length=500, verbose_name="to'g'ri javob matni"),
+            model_name="question",
+            name="correct_text",
+            field=models.CharField(
+                blank=True,
+                help_text="Matnli javob savollari uchun — kutilayotgan javob (katta-kichik harf farqi hisobga olinmaydi).",
+                max_length=500,
+                verbose_name="to'g'ri javob matni",
+            ),
         ),
         migrations.AddField(
-            model_name='question',
-            name='passage',
-            field=models.TextField(blank=True, help_text="Savol ustida ko'rsatiladigan matn/parcha (matnli tahlil savollari uchun).", verbose_name='kontekst matni (passage)'),
+            model_name="question",
+            name="passage",
+            field=models.TextField(
+                blank=True,
+                help_text="Savol ustida ko'rsatiladigan matn/parcha (matnli tahlil savollari uchun).",
+                verbose_name="kontekst matni (passage)",
+            ),
         ),
         migrations.AddField(
-            model_name='test',
-            name='status',
-            field=models.CharField(choices=[('draft', 'Qoralama'), ('published', "E'lon qilingan"), ('archived', 'Arxivlangan')], db_index=True, default='published', help_text="Qoralama — o'quvchilarga ko'rinmaydi; E'lon qilingan — ochiq; Arxivlangan — yashirin.", max_length=12, verbose_name='holat'),
+            model_name="test",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("draft", "Qoralama"),
+                    ("published", "E'lon qilingan"),
+                    ("archived", "Arxivlangan"),
+                ],
+                db_index=True,
+                default="published",
+                help_text="Qoralama — o'quvchilarga ko'rinmaydi; E'lon qilingan — ochiq; Arxivlangan — yashirin.",
+                max_length=12,
+                verbose_name="holat",
+            ),
         ),
         migrations.AlterField(
-            model_name='question',
-            name='question_type',
-            field=models.CharField(choices=[('single', "Bita to'g'ri javob"), ('multiple', "Ko'p to'g'ri javob"), ('text', 'Matnli javob')], default='single', max_length=10, verbose_name='savol turi'),
+            model_name="question",
+            name="question_type",
+            field=models.CharField(
+                choices=[
+                    ("single", "Bita to'g'ri javob"),
+                    ("multiple", "Ko'p to'g'ri javob"),
+                    ("text", "Matnli javob"),
+                ],
+                default="single",
+                max_length=10,
+                verbose_name="savol turi",
+            ),
         ),
         migrations.RunPython(backfill_status, migrations.RunPython.noop),
     ]

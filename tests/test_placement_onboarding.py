@@ -1,4 +1,5 @@
 """Tests for 5-minute placement quiz, smart onboarding and cohort analytics."""
+
 from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
@@ -93,7 +94,9 @@ def sample_questions(db):
             position=i,
         )
         c1 = Choice.objects.create(question=q, text="To'g'ri variant", is_correct=True)
-        c2 = Choice.objects.create(question=q, text="Noto'g'ri variant", is_correct=False)
+        c2 = Choice.objects.create(
+            question=q, text="Noto'g'ri variant", is_correct=False
+        )
         questions.append((q, c1, c2))
 
     return questions
@@ -118,16 +121,20 @@ def test_get_placement_quiz_questions(api_client, sample_questions):
 
 
 @pytest.mark.django_db
-def test_submit_placement_quiz_and_profile_plan(api_client, student_user, sample_questions):
+def test_submit_placement_quiz_and_profile_plan(
+    api_client, student_user, sample_questions
+):
     api_client.force_authenticate(user=student_user)
 
     # Pick 5 questions and answers
     answers = []
     for q, correct_c, _ in sample_questions[:5]:
-        answers.append({
-            "question_id": q.id,
-            "selected_choice_id": correct_c.id,
-        })
+        answers.append(
+            {
+                "question_id": q.id,
+                "selected_choice_id": correct_c.id,
+            }
+        )
 
     payload = {
         "target": "national_certificate",

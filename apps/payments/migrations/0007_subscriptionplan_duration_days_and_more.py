@@ -6,228 +6,709 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0003_alter_course_thumbnail_alter_lesson_attachment'),
-        ('essays', '0017_essaygradingcache_cache_schema_version_and_more'),
-        ('payments', '0006_alter_subscriptionplan_plan_type'),
-        ('tests', '0008_examscoringprofile_is_verified_test_scoring_profile'),
+        ("courses", "0003_alter_course_thumbnail_alter_lesson_attachment"),
+        ("essays", "0017_essaygradingcache_cache_schema_version_and_more"),
+        ("payments", "0006_alter_subscriptionplan_plan_type"),
+        ("tests", "0008_examscoringprofile_is_verified_test_scoring_profile"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='duration_days',
-            field=models.PositiveIntegerField(default=30, verbose_name='davomiylik (kun)'),
+            model_name="subscriptionplan",
+            name="duration_days",
+            field=models.PositiveIntegerField(
+                default=30, verbose_name="davomiylik (kun)"
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='image_essay_weekly_limit',
-            field=models.PositiveIntegerField(blank=True, help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.", null=True, verbose_name='rasmli esse limitingi (haftasiga)'),
+            model_name="subscriptionplan",
+            name="image_essay_weekly_limit",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.",
+                null=True,
+                verbose_name="rasmli esse limitingi (haftasiga)",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='is_public',
-            field=models.BooleanField(default=True, help_text='Belgilanmasa, reja faqat admin orqali beriladi.', verbose_name='ommaviy sotuvda'),
+            model_name="subscriptionplan",
+            name="is_public",
+            field=models.BooleanField(
+                default=True,
+                help_text="Belgilanmasa, reja faqat admin orqali beriladi.",
+                verbose_name="ommaviy sotuvda",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='is_unlimited_image_essays',
-            field=models.BooleanField(default=False, verbose_name='rasmli esse cheksiz'),
+            model_name="subscriptionplan",
+            name="is_unlimited_image_essays",
+            field=models.BooleanField(
+                default=False, verbose_name="rasmli esse cheksiz"
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='is_unlimited_tests',
-            field=models.BooleanField(default=False, verbose_name='testlar cheksiz'),
+            model_name="subscriptionplan",
+            name="is_unlimited_tests",
+            field=models.BooleanField(default=False, verbose_name="testlar cheksiz"),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='is_unlimited_text_essays',
-            field=models.BooleanField(default=False, verbose_name='matnli esse cheksiz'),
+            model_name="subscriptionplan",
+            name="is_unlimited_text_essays",
+            field=models.BooleanField(
+                default=False, verbose_name="matnli esse cheksiz"
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='quota_period_days',
-            field=models.PositiveIntegerField(default=7, help_text='Kvota oynasi uzunligi. Standart — 7 kun.', verbose_name='kvota davri (kun)'),
+            model_name="subscriptionplan",
+            name="quota_period_days",
+            field=models.PositiveIntegerField(
+                default=7,
+                help_text="Kvota oynasi uzunligi. Standart — 7 kun.",
+                verbose_name="kvota davri (kun)",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='telegram_stars_price',
-            field=models.PositiveIntegerField(blank=True, help_text="Telegram ichida yechib olinadigan butun Stars soni. Bo'sh bo'lsa Telegram orqali sotilmaydi (admin kiritishi shart).", null=True, verbose_name='Telegram Stars narxi (XTR)'),
+            model_name="subscriptionplan",
+            name="telegram_stars_price",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Telegram ichida yechib olinadigan butun Stars soni. Bo'sh bo'lsa Telegram orqali sotilmaydi (admin kiritishi shart).",
+                null=True,
+                verbose_name="Telegram Stars narxi (XTR)",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='test_limit',
-            field=models.PositiveIntegerField(blank=True, help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.", null=True, verbose_name='test limitingi (haftasiga)'),
+            model_name="subscriptionplan",
+            name="test_limit",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.",
+                null=True,
+                verbose_name="test limitingi (haftasiga)",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='text_essay_cooldown_hours',
-            field=models.PositiveIntegerField(blank=True, help_text="Bo'sh = platforma standarti. 0 = sovutish yo'q.", null=True, verbose_name='matnli esse sovutish soati'),
+            model_name="subscriptionplan",
+            name="text_essay_cooldown_hours",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Bo'sh = platforma standarti. 0 = sovutish yo'q.",
+                null=True,
+                verbose_name="matnli esse sovutish soati",
+            ),
         ),
         migrations.AddField(
-            model_name='subscriptionplan',
-            name='text_essay_weekly_limit',
-            field=models.PositiveIntegerField(blank=True, help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.", null=True, verbose_name='matnli esse limitingi (haftasiga)'),
+            model_name="subscriptionplan",
+            name="text_essay_weekly_limit",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q.",
+                null=True,
+                verbose_name="matnli esse limitingi (haftasiga)",
+            ),
         ),
         migrations.AddField(
-            model_name='usersubscription',
-            name='entitlement_snapshot',
-            field=models.JSONField(blank=True, default=dict, help_text='Sotib olingan paytdagi amaldagi kvotalar.', verbose_name='imkoniyatlar nusxasi'),
+            model_name="usersubscription",
+            name="entitlement_snapshot",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Sotib olingan paytdagi amaldagi kvotalar.",
+                verbose_name="imkoniyatlar nusxasi",
+            ),
         ),
         migrations.AddField(
-            model_name='usersubscription',
-            name='grant_source',
-            field=models.CharField(blank=True, help_text="Admin yoki homiylik orqali berilganda to'ldiriladi.", max_length=30, verbose_name='berilish manbasi'),
+            model_name="usersubscription",
+            name="grant_source",
+            field=models.CharField(
+                blank=True,
+                help_text="Admin yoki homiylik orqali berilganda to'ldiriladi.",
+                max_length=30,
+                verbose_name="berilish manbasi",
+            ),
         ),
         migrations.AddField(
-            model_name='usersubscription',
-            name='payment_reference',
-            field=models.CharField(blank=True, help_text='Masalan: Telegram Stars charge ID.', max_length=200, verbose_name="to'lov havolasi"),
+            model_name="usersubscription",
+            name="payment_reference",
+            field=models.CharField(
+                blank=True,
+                help_text="Masalan: Telegram Stars charge ID.",
+                max_length=200,
+                verbose_name="to'lov havolasi",
+            ),
         ),
         migrations.AddField(
-            model_name='usersubscription',
-            name='plan_snapshot',
-            field=models.JSONField(blank=True, default=dict, help_text='Sotib olingan paytdagi reja sozlamalari.', verbose_name='reja nusxasi'),
+            model_name="usersubscription",
+            name="plan_snapshot",
+            field=models.JSONField(
+                blank=True,
+                default=dict,
+                help_text="Sotib olingan paytdagi reja sozlamalari.",
+                verbose_name="reja nusxasi",
+            ),
         ),
         migrations.AddField(
-            model_name='usersubscription',
-            name='purchase_source',
-            field=models.CharField(blank=True, choices=[('website', 'Veb-sayt'), ('telegram_bot', 'Telegram bot'), ('admin', 'Administrator bergan'), ('teacher_sponsored', 'Ustoz guruhi (homiylik)'), ('sponsorship_default', 'Homiylik (standart)')], default='website', max_length=30, verbose_name='sotib olish manbasi'),
+            model_name="usersubscription",
+            name="purchase_source",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("website", "Veb-sayt"),
+                    ("telegram_bot", "Telegram bot"),
+                    ("admin", "Administrator bergan"),
+                    ("teacher_sponsored", "Ustoz guruhi (homiylik)"),
+                    ("sponsorship_default", "Homiylik (standart)"),
+                ],
+                default="website",
+                max_length=30,
+                verbose_name="sotib olish manbasi",
+            ),
         ),
         migrations.AlterField(
-            model_name='subscriptionplan',
-            name='plan_type',
-            field=models.CharField(choices=[('free', 'Bepul'), ('start', 'START'), ('starter', 'Starter'), ('pro', 'Pro'), ('premium', 'Premium'), ('family', 'Oila'), ('teacher_sponsored', 'Ustoz guruhi (homiylik)')], max_length=20, unique=True, verbose_name='reja turi'),
+            model_name="subscriptionplan",
+            name="plan_type",
+            field=models.CharField(
+                choices=[
+                    ("free", "Bepul"),
+                    ("start", "START"),
+                    ("starter", "Starter"),
+                    ("pro", "Pro"),
+                    ("premium", "Premium"),
+                    ("family", "Oila"),
+                    ("teacher_sponsored", "Ustoz guruhi (homiylik)"),
+                ],
+                max_length=20,
+                unique=True,
+                verbose_name="reja turi",
+            ),
         ),
         migrations.AlterField(
-            model_name='usersubscription',
-            name='payment_method',
-            field=models.CharField(blank=True, choices=[('click', 'Click'), ('payme', 'Payme'), ('uzcard', 'UzCard'), ('stripe', 'Stripe'), ('card', 'Karta (admin tasdiqlagan)'), ('stars', 'Telegram Stars'), ('free', 'Bepul')], max_length=50, verbose_name="to'lov usuli"),
+            model_name="usersubscription",
+            name="payment_method",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("click", "Click"),
+                    ("payme", "Payme"),
+                    ("uzcard", "UzCard"),
+                    ("stripe", "Stripe"),
+                    ("card", "Karta (admin tasdiqlagan)"),
+                    ("stars", "Telegram Stars"),
+                    ("free", "Bepul"),
+                ],
+                max_length=50,
+                verbose_name="to'lov usuli",
+            ),
         ),
         migrations.AlterField(
-            model_name='usersubscription',
-            name='status',
-            field=models.CharField(choices=[('active', 'Faol'), ('expired', 'Muddati tugagan'), ('cancelled', 'Bekor qilingan'), ('trial', 'Sinov muddati'), ('pending_payment', "To'lov kutilmoqda"), ('payment_failed', "To'lov amalga oshmadi"), ('refunded', 'Qaytarilgan'), ('revoked', 'Bekor qilingan (admin)')], default='active', max_length=20, verbose_name='holat'),
+            model_name="usersubscription",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("active", "Faol"),
+                    ("expired", "Muddati tugagan"),
+                    ("cancelled", "Bekor qilingan"),
+                    ("trial", "Sinov muddati"),
+                    ("pending_payment", "To'lov kutilmoqda"),
+                    ("payment_failed", "To'lov amalga oshmadi"),
+                    ("refunded", "Qaytarilgan"),
+                    ("revoked", "Bekor qilingan (admin)"),
+                ],
+                default="active",
+                max_length=20,
+                verbose_name="holat",
+            ),
         ),
         migrations.CreateModel(
-            name='EntitlementAuditLog',
+            name="EntitlementAuditLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('action', models.CharField(choices=[('grant_override', 'Ustunlik berildi'), ('update_override', "Ustunlik o'zgartirildi"), ('revoke_override', 'Ustunlik bekor qilindi'), ('approve_sponsorship', 'Homiylik tasdiqlandi'), ('revoke_sponsorship', 'Homiylik bekor qilindi'), ('activate_subscription', 'Obuna faollashtirildi'), ('revoke_subscription', 'Obuna bekor qilindi'), ('refund_subscription', 'Obuna qaytarildi')], max_length=32, verbose_name='amal')),
-                ('details', models.JSONField(blank=True, default=dict, verbose_name='tafsilotlar')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='entitlement_actions', to=settings.AUTH_USER_MODEL)),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='entitlement_logs', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "action",
+                    models.CharField(
+                        choices=[
+                            ("grant_override", "Ustunlik berildi"),
+                            ("update_override", "Ustunlik o'zgartirildi"),
+                            ("revoke_override", "Ustunlik bekor qilindi"),
+                            ("approve_sponsorship", "Homiylik tasdiqlandi"),
+                            ("revoke_sponsorship", "Homiylik bekor qilindi"),
+                            ("activate_subscription", "Obuna faollashtirildi"),
+                            ("revoke_subscription", "Obuna bekor qilindi"),
+                            ("refund_subscription", "Obuna qaytarildi"),
+                        ],
+                        max_length=32,
+                        verbose_name="amal",
+                    ),
+                ),
+                (
+                    "details",
+                    models.JSONField(
+                        blank=True, default=dict, verbose_name="tafsilotlar"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="entitlement_actions",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="entitlement_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Homiylik tarixi',
-                'verbose_name_plural': 'Homiylik tarixlari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Homiylik tarixi",
+                "verbose_name_plural": "Homiylik tarixlari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='SubscriptionOverride',
+            name="SubscriptionOverride",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, verbose_name='faolmi')),
-                ('image_essay_weekly_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('text_essay_weekly_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('text_essay_cooldown_hours', models.PositiveIntegerField(blank=True, null=True)),
-                ('test_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('is_unlimited_image_essays', models.BooleanField(blank=True, default=None, null=True)),
-                ('is_unlimited_text_essays', models.BooleanField(blank=True, default=None, null=True)),
-                ('is_unlimited_tests', models.BooleanField(blank=True, default=None, null=True)),
-                ('reason', models.TextField(blank=True, verbose_name='sabab')),
-                ('expires_at', models.DateTimeField(blank=True, null=True, verbose_name='tugash vaqti')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('granted_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='granted_subscription_overrides', to=settings.AUTH_USER_MODEL)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='subscription_override', to=settings.AUTH_USER_MODEL, verbose_name='foydalanuvchi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="faolmi")),
+                (
+                    "image_essay_weekly_limit",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "text_essay_weekly_limit",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "text_essay_cooldown_hours",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                ("test_limit", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "is_unlimited_image_essays",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                (
+                    "is_unlimited_text_essays",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                (
+                    "is_unlimited_tests",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                ("reason", models.TextField(blank=True, verbose_name="sabab")),
+                (
+                    "expires_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="tugash vaqti"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "granted_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="granted_subscription_overrides",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscription_override",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="foydalanuvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Admin kvota ustunligi',
-                'verbose_name_plural': 'Admin kvota ustunliklari',
+                "verbose_name": "Admin kvota ustunligi",
+                "verbose_name_plural": "Admin kvota ustunliklari",
             },
         ),
         migrations.CreateModel(
-            name='TelegramOrder',
+            name="TelegramOrder",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('payload', models.CharField(max_length=64, unique=True, verbose_name='payload')),
-                ('amount_stars', models.PositiveIntegerField(verbose_name='Stars miqdori')),
-                ('currency', models.CharField(default='XTR', max_length=8, verbose_name='valyuta')),
-                ('status', models.CharField(choices=[('created', 'Yaratilgan'), ('invoice_sent', 'Hisob-faktura yuborilgan'), ('paid', "To'langan"), ('failed', 'Muvaffaqiyatsiz'), ('cancelled', 'Bekor qilingan'), ('refunded', 'Qaytarilgan')], db_index=True, default='created', max_length=20, verbose_name='holat')),
-                ('telegram_payment_charge_id', models.CharField(blank=True, max_length=200, null=True, unique=True, verbose_name="Telegram to'lov ID")),
-                ('provider_payment_charge_id', models.CharField(blank=True, max_length=200, verbose_name="provayder to'lov ID")),
-                ('raw_payload', models.JSONField(blank=True, default=dict, verbose_name="xom ma'lumot")),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('paid_at', models.DateTimeField(blank=True, null=True, verbose_name="to'langan vaqt")),
-                ('plan', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='telegram_orders', to='payments.subscriptionplan')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='telegram_orders', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "payload",
+                    models.CharField(
+                        max_length=64, unique=True, verbose_name="payload"
+                    ),
+                ),
+                (
+                    "amount_stars",
+                    models.PositiveIntegerField(verbose_name="Stars miqdori"),
+                ),
+                (
+                    "currency",
+                    models.CharField(
+                        default="XTR", max_length=8, verbose_name="valyuta"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("created", "Yaratilgan"),
+                            ("invoice_sent", "Hisob-faktura yuborilgan"),
+                            ("paid", "To'langan"),
+                            ("failed", "Muvaffaqiyatsiz"),
+                            ("cancelled", "Bekor qilingan"),
+                            ("refunded", "Qaytarilgan"),
+                        ],
+                        db_index=True,
+                        default="created",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "telegram_payment_charge_id",
+                    models.CharField(
+                        blank=True,
+                        max_length=200,
+                        null=True,
+                        unique=True,
+                        verbose_name="Telegram to'lov ID",
+                    ),
+                ),
+                (
+                    "provider_payment_charge_id",
+                    models.CharField(
+                        blank=True, max_length=200, verbose_name="provayder to'lov ID"
+                    ),
+                ),
+                (
+                    "raw_payload",
+                    models.JSONField(
+                        blank=True, default=dict, verbose_name="xom ma'lumot"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "paid_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="to'langan vaqt"
+                    ),
+                ),
+                (
+                    "plan",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="telegram_orders",
+                        to="payments.subscriptionplan",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="telegram_orders",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Telegram buyurtma',
-                'verbose_name_plural': 'Telegram buyurtmalar',
-                'ordering': ['-created_at'],
+                "verbose_name": "Telegram buyurtma",
+                "verbose_name_plural": "Telegram buyurtmalar",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='SubscriptionUsage',
+            name="SubscriptionUsage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('kind', models.CharField(choices=[('image_essay', 'Rasmli esse'), ('text_essay', 'Matnli esse'), ('test', 'Test')], db_index=True, max_length=20, verbose_name='turi')),
-                ('status', models.CharField(choices=[('reserved', 'Zahiralangan'), ('committed', 'Sarflangan'), ('released', 'Qaytarilgan')], db_index=True, default='reserved', max_length=20, verbose_name='holat')),
-                ('idempotency_key', models.CharField(max_length=160, unique=True, verbose_name='idempotentlik kaliti')),
-                ('period_start', models.DateTimeField(db_index=True, verbose_name='kvota davri boshlanishi')),
-                ('counts_towards_quota', models.BooleanField(default=True, verbose_name='limitdan hisoblanadi')),
-                ('plan_type_snapshot', models.CharField(blank=True, max_length=30, verbose_name='reja (nusxa)')),
-                ('source', models.CharField(blank=True, max_length=30, verbose_name='manba')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('committed_at', models.DateTimeField(blank=True, null=True, verbose_name='sarflangan vaqt')),
-                ('released_at', models.DateTimeField(blank=True, null=True, verbose_name='qaytarilgan vaqt')),
-                ('note', models.CharField(blank=True, max_length=200, verbose_name='izoh')),
-                ('submission', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='usage_records', to='essays.essaysubmission', verbose_name="esse topshirig'i")),
-                ('test_attempt', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='usage_records', to='tests.testattempt', verbose_name='test urinishi')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='subscription_usages', to=settings.AUTH_USER_MODEL, verbose_name='foydalanuvchi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[
+                            ("image_essay", "Rasmli esse"),
+                            ("text_essay", "Matnli esse"),
+                            ("test", "Test"),
+                        ],
+                        db_index=True,
+                        max_length=20,
+                        verbose_name="turi",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("reserved", "Zahiralangan"),
+                            ("committed", "Sarflangan"),
+                            ("released", "Qaytarilgan"),
+                        ],
+                        db_index=True,
+                        default="reserved",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "idempotency_key",
+                    models.CharField(
+                        max_length=160, unique=True, verbose_name="idempotentlik kaliti"
+                    ),
+                ),
+                (
+                    "period_start",
+                    models.DateTimeField(
+                        db_index=True, verbose_name="kvota davri boshlanishi"
+                    ),
+                ),
+                (
+                    "counts_towards_quota",
+                    models.BooleanField(
+                        default=True, verbose_name="limitdan hisoblanadi"
+                    ),
+                ),
+                (
+                    "plan_type_snapshot",
+                    models.CharField(
+                        blank=True, max_length=30, verbose_name="reja (nusxa)"
+                    ),
+                ),
+                (
+                    "source",
+                    models.CharField(blank=True, max_length=30, verbose_name="manba"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "committed_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="sarflangan vaqt"
+                    ),
+                ),
+                (
+                    "released_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="qaytarilgan vaqt"
+                    ),
+                ),
+                (
+                    "note",
+                    models.CharField(blank=True, max_length=200, verbose_name="izoh"),
+                ),
+                (
+                    "submission",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="usage_records",
+                        to="essays.essaysubmission",
+                        verbose_name="esse topshirig'i",
+                    ),
+                ),
+                (
+                    "test_attempt",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="usage_records",
+                        to="tests.testattempt",
+                        verbose_name="test urinishi",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscription_usages",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="foydalanuvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Obuna sarfi',
-                'verbose_name_plural': 'Obuna sarflari',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['user', 'kind', 'status', 'period_start'], name='idx_usage_window')],
+                "verbose_name": "Obuna sarfi",
+                "verbose_name_plural": "Obuna sarflari",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["user", "kind", "status", "period_start"],
+                        name="idx_usage_window",
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='TeacherSponsorship',
+            name="TeacherSponsorship",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, verbose_name='faolmi')),
-                ('approved_at', models.DateTimeField(blank=True, help_text="Administrator tasdiqlagandan keyin to'ldiriladi.", null=True, verbose_name='tasdiqlangan vaqt')),
-                ('expires_at', models.DateTimeField(blank=True, null=True, verbose_name='tugash vaqti')),
-                ('image_essay_weekly_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('text_essay_weekly_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('text_essay_cooldown_hours', models.PositiveIntegerField(blank=True, null=True)),
-                ('test_limit', models.PositiveIntegerField(blank=True, null=True)),
-                ('is_unlimited_image_essays', models.BooleanField(blank=True, default=None, null=True)),
-                ('is_unlimited_text_essays', models.BooleanField(blank=True, default=None, null=True)),
-                ('is_unlimited_tests', models.BooleanField(blank=True, default=None, null=True)),
-                ('note', models.TextField(blank=True, verbose_name='izoh')),
-                ('revoked_at', models.DateTimeField(blank=True, null=True, verbose_name='bekor qilingan vaqt')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('approved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approved_sponsorships', to=settings.AUTH_USER_MODEL)),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sponsorships', to='courses.studentgroup')),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='teacher_sponsorships', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="faolmi")),
+                (
+                    "approved_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Administrator tasdiqlagandan keyin to'ldiriladi.",
+                        null=True,
+                        verbose_name="tasdiqlangan vaqt",
+                    ),
+                ),
+                (
+                    "expires_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="tugash vaqti"
+                    ),
+                ),
+                (
+                    "image_essay_weekly_limit",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "text_essay_weekly_limit",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "text_essay_cooldown_hours",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                ("test_limit", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "is_unlimited_image_essays",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                (
+                    "is_unlimited_text_essays",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                (
+                    "is_unlimited_tests",
+                    models.BooleanField(blank=True, default=None, null=True),
+                ),
+                ("note", models.TextField(blank=True, verbose_name="izoh")),
+                (
+                    "revoked_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="bekor qilingan vaqt"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "approved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="approved_sponsorships",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sponsorships",
+                        to="courses.studentgroup",
+                    ),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="teacher_sponsorships",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Ustoz homiyligi',
-                'verbose_name_plural': 'Ustoz homiyliklari',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['student', 'is_active'], name='idx_sponsor_student')],
-                'constraints': [models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('student', 'group'), name='uniq_active_sponsorship_per_group')],
+                "verbose_name": "Ustoz homiyligi",
+                "verbose_name_plural": "Ustoz homiyliklari",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["student", "is_active"], name="idx_sponsor_student"
+                    )
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        condition=models.Q(("is_active", True)),
+                        fields=("student", "group"),
+                        name="uniq_active_sponsorship_per_group",
+                    )
+                ],
             },
         ),
     ]

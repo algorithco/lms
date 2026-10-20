@@ -410,15 +410,30 @@
   * Panel guruhlar va davomat monitoringi endpointlari jonli bazadagi ma'lumotlar bilan muvaffaqiyatli tekshirildi.
   * Superadmin hisobi `admin@grandec.uz` (Telegram ID: `5582178765`, `is_superuser=True`, `role='admin'`) paroli bilan to'liq sozlandi va JWT autentifikatsiyasi orqali sinovdan o'tkazildi.
 
+### 2.22. Kodlar Tozalanishi (Dead Code Pruning), Query Optimallashtirish va Ko'p Tarmoqli Barqarorlik
+- [x] Ortiqcha Kodlarni Tozalash (Pruning):
+  * Ishlatilmayotgan chala va o'lik komponentlar olib tashlandi: `BlurText.tsx`, `DepthCarousel.tsx`, `DepthCarousel.css`, `GooeyNav.tsx`, `GooeyNav.css`, `Hero3DCanvas.tsx`.
+  * Frontend Vite build vaqti sezilarli darajada optimallashdi (4.33s dan 2.77s ga tushdi).
+- [x] Admin Panel Davomat va Guruh So'rovlarini Optimallashtirish:
+  * `apps/webapi/views_panel.py`: Davomat umumiy ko'rinishi va Excel hisobot eksportidagi takroriy DB so'rovlari Django ORM `Count(..., filter=Q(...))` orqali agregatsiyalandi va seanslar oldindan `prefetch_related('records')` qilindi.
+- [x] AI Esse Baholash Fallback Mexanizmi:
+  * `config/settings/base.py`: `GEMINI_API_KEY` to'g'ridan-to'g'ri o'qiladigan qilindi hamda OpenRouter fallback zanjiriga `google/gemini-2.0-flash-001` qo'shildi.
+- [x] Sifat Nazorati va Sinovlar (QA Gate):
+  * Linter va formatlash: `ruff check --fix .` va `ruff format .` to'liq toza.
+  * Backend testlar: `pytest -q` — **1196 ta test 100% PASS (0 failed)**.
+  * Frontend: `npm run lint` va `npm run build` — 0 xato bilan 2.77 soniyada muvaffaqiyatli yig'ildi.
+
 ---
 
 ## 3. Jarayonda
-- Barcha talablar to'liq va muvaffaqiyatli bajarildi, tizim barqaror ishlamoqda.
+- Feature branch va Pull Request yaratish, GitHub Actions orqali yangi rasmiy Release e'lon qilish va VPS ga deploy qilish.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Platformaning jonli faoliyatini va foydalanuvchilar oqimini kuzatib borish.
+- `feature/lms-optimization-and-cleanup` tarmog'ini push qilish va PR yaratish.
+- PR tekshiruvlari o'tgach, `main` ga birlashtirish va yangi versiya tegini qo'yish.
+- Jonli Contabo VPS da yangi releaseni tekshirish.
 
 
 

@@ -90,7 +90,11 @@ def grant_subscription(
         )
         outcome = "created"
     else:
-        base = existing.expires_at if (existing.expires_at and existing.expires_at > now) else now
+        base = (
+            existing.expires_at
+            if (existing.expires_at and existing.expires_at > now)
+            else now
+        )
         current_rank = plan_rank(existing.plan)
         new_rank = plan_rank(plan)
         downgrade_blocked = current_rank > new_rank
@@ -124,20 +128,26 @@ def grant_subscription(
                 "source": source,
                 "outcome": outcome,
                 "expires_at": subscription.expires_at.isoformat()
-                if subscription.expires_at else None,
+                if subscription.expires_at
+                else None,
                 "reason": reason,
             },
         )
     logger.info(
         "Subscription %s for user=%s plan=%s source=%s expires=%s",
-        outcome, user.pk, plan.plan_type, source, subscription.expires_at,
+        outcome,
+        user.pk,
+        plan.plan_type,
+        source,
+        subscription.expires_at,
     )
     return subscription
 
 
 @transaction.atomic
-def revoke_subscription(user, *, actor=None, reason: str = "",
-                        status: str = UserSubscription.Status.REVOKED) -> bool:
+def revoke_subscription(
+    user, *, actor=None, reason: str = "", status: str = UserSubscription.Status.REVOKED
+) -> bool:
     """Administratively revoke the active subscription (history preserved)."""
     subscription = (
         UserSubscription.objects.select_for_update().filter(user=user).first()
@@ -151,8 +161,11 @@ def revoke_subscription(user, *, actor=None, reason: str = "",
         actor=actor,
         student=user,
         action=EntitlementAuditLog.Action.REVOKE_SUBSCRIPTION,
-        details={"status": status, "reason": reason,
-                 "plan": subscription.plan.plan_type},
+        details={
+            "status": status,
+            "reason": reason,
+            "plan": subscription.plan.plan_type,
+        },
     )
     return True
 

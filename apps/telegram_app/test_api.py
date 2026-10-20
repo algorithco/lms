@@ -7,6 +7,7 @@ Endpoints:
     POST /api/telegram/tests/{id}/answer/   — Submit answer for current question
     GET  /api/telegram/attempts/{id}/result/ — Get attempt result
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,7 @@ def _jwt_auth(request):
     """Authenticate with SimpleJWT's standard active-user checks."""
     try:
         from rest_framework_simplejwt.authentication import JWTAuthentication
+
         authenticated = JWTAuthentication().authenticate(request)
         return authenticated[0] if authenticated else None
     except Exception:
@@ -38,6 +40,7 @@ def _jwt_auth(request):
 # ---------------------------------------------------------------------------
 # Start Test
 # ---------------------------------------------------------------------------
+
 
 @csrf_exempt
 @require_POST
@@ -79,7 +82,9 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
 
     # Check for existing active attempt
     existing = TestAttempt.objects.filter(
-        test=test, student=user, status=TestAttempt.Status.IN_PROGRESS,
+        test=test,
+        student=user,
+        status=TestAttempt.Status.IN_PROGRESS,
     ).first()
 
     if existing:
@@ -88,15 +93,14 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
     else:
         # Create new attempt
         from apps.tests.services import StartAttemptService
+
         try:
             attempt = StartAttemptService.execute(test_id=test_id, student=user)
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
 
     # Get questions
-    questions = list(
-        test.questions.prefetch_related("choices").order_by("position")
-    )
+    questions = list(test.questions.prefetch_related("choices").order_by("position"))
 
     if test.shuffle_questions:
         random.shuffle(questions)
@@ -113,8 +117,10 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
         saved_text = ""
         try:
             from apps.tests.models import StudentAnswer
+
             sa = StudentAnswer.objects.filter(
-                attempt=attempt, question=q,
+                attempt=attempt,
+                question=q,
             ).first()
             if sa:
                 selected_ids = set(sa.selected_choices.values_list("id", flat=True))
@@ -122,35 +128,39 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
         except Exception:
             pass
 
-        questions_data.append({
-            "id": q.id,
-            "text": q.text,
-            "question_type": q.question_type,
-            "points": q.points,
-            "position": q.position,
-            "choices": [
-                {"id": c.id, "text": c.text}
-                for c in choices
-            ],
-            "selected_choice_ids": list(selected_ids),
-            "text_answer": saved_text,
-        })
+        questions_data.append(
+            {
+                "id": q.id,
+                "text": q.text,
+                "question_type": q.question_type,
+                "points": q.points,
+                "position": q.position,
+                "choices": [{"id": c.id, "text": c.text} for c in choices],
+                "selected_choice_ids": list(selected_ids),
+                "text_answer": saved_text,
+            }
+        )
 
-    return JsonResponse({
-        "attempt_id": attempt.id,
-        "test_title": test.title,
-        "test_description": test.description,
-        "time_limit_minutes": test.time_limit_minutes,
-        "total_questions": len(questions_data),
-        "started_at": attempt.started_at.isoformat() if attempt.started_at else None,
-        "remaining_seconds": attempt.remaining_seconds,
-        "questions": questions_data,
-    })
+    return JsonResponse(
+        {
+            "attempt_id": attempt.id,
+            "test_title": test.title,
+            "test_description": test.description,
+            "time_limit_minutes": test.time_limit_minutes,
+            "total_questions": len(questions_data),
+            "started_at": attempt.started_at.isoformat()
+            if attempt.started_at
+            else None,
+            "remaining_seconds": attempt.remaining_seconds,
+            "questions": questions_data,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Submit Answer (single question)
 # ---------------------------------------------------------------------------
+
 
 @csrf_exempt
 @require_POST
@@ -189,15 +199,20 @@ def tma_test_answer_view(request, test_id: int) -> JsonResponse:
         )
         from apps.tests.models import Question as _Question
 
-        _unsupported = _Question.objects.filter(
-            id=int(question_id), test_id=test_id,
-        ).exclude(
-            question_type__in=(
-                _Question.QuestionType.SINGLE_CHOICE,
-                _Question.QuestionType.MULTIPLE_CHOICE,
-                _Question.QuestionType.TEXT_MATCH,
+        _unsupported = (
+            _Question.objects.filter(
+                id=int(question_id),
+                test_id=test_id,
             )
-        ).exists()
+            .exclude(
+                question_type__in=(
+                    _Question.QuestionType.SINGLE_CHOICE,
+                    _Question.QuestionType.MULTIPLE_CHOICE,
+                    _Question.QuestionType.TEXT_MATCH,
+                )
+            )
+            .exists()
+        )
         if _unsupported:
             return JsonResponse(
                 {
@@ -229,6 +244,7 @@ def tma_test_answer_view(request, test_id: int) -> JsonResponse:
 # ---------------------------------------------------------------------------
 # Submit Test (finish)
 # ---------------------------------------------------------------------------
+
 
 @csrf_exempt
 @require_POST
@@ -264,20 +280,26 @@ def tma_test_submit_view(request, test_id: int) -> JsonResponse:
     try:
         with transaction.atomic():
             attempt = TestAttempt.objects.select_for_update().get(
-                id=attempt_id, student=user, test_id=test_id,
+                id=attempt_id,
+                student=user,
+                test_id=test_id,
             )
             if attempt.status != TestAttempt.Status.IN_PROGRESS:
                 raise ValueError("Attempt allaqachon yakunlangan")
 
             from apps.tests.models import Question as _Question2
 
-            if _Question2.objects.filter(test_id=test_id).exclude(
-                question_type__in=(
-                    _Question2.QuestionType.SINGLE_CHOICE,
-                    _Question2.QuestionType.MULTIPLE_CHOICE,
-                    _Question2.QuestionType.TEXT_MATCH,
+            if (
+                _Question2.objects.filter(test_id=test_id)
+                .exclude(
+                    question_type__in=(
+                        _Question2.QuestionType.SINGLE_CHOICE,
+                        _Question2.QuestionType.MULTIPLE_CHOICE,
+                        _Question2.QuestionType.TEXT_MATCH,
+                    )
                 )
-            ).exists():
+                .exists()
+            ):
                 return JsonResponse(
                     {
                         "error": "Bu testda TMA qo'llab-quvvatlamaydigan savol turlari bor.",
@@ -318,13 +340,19 @@ def tma_test_submit_view(request, test_id: int) -> JsonResponse:
             # so a timeout cannot be rolled back with its response.
             try:
                 outcome = SubmitAttemptService.execute(
-                    attempt_id=attempt_id, student=user,
+                    attempt_id=attempt_id,
+                    student=user,
                 )
-                return JsonResponse({
-                    "error": "Vaqt tugadi! Test avtomatik yakunlandi.",
-                    "time_expired": True,
-                    "result_id": Result.objects.get(attempt_id=outcome.attempt_id).id,
-                }, status=408)
+                return JsonResponse(
+                    {
+                        "error": "Vaqt tugadi! Test avtomatik yakunlandi.",
+                        "time_expired": True,
+                        "result_id": Result.objects.get(
+                            attempt_id=outcome.attempt_id
+                        ).id,
+                    },
+                    status=408,
+                )
             except ValueError:
                 pass
         return JsonResponse({"error": str(exc)}, status=400)
@@ -332,21 +360,24 @@ def tma_test_submit_view(request, test_id: int) -> JsonResponse:
         logger.exception("TMA submit failed: attempt=%s", attempt.id)
         return JsonResponse({"error": "Topshirishda ichki xatolik."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "result_id": result.id if result else None,
-        "percentage": float(result.percentage) if result else 0,
-        "is_passed": result.is_passed if result else False,
-        "correct_answers": result.correct_answers if result else 0,
-        "total_questions": result.total_questions if result else 0,
-        "score": str(result.score) if result else "0",
-        "max_score": str(result.max_score) if result else "0",
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "result_id": result.id if result else None,
+            "percentage": float(result.percentage) if result else 0,
+            "is_passed": result.is_passed if result else False,
+            "correct_answers": result.correct_answers if result else 0,
+            "total_questions": result.total_questions if result else 0,
+            "score": str(result.score) if result else "0",
+            "max_score": str(result.max_score) if result else "0",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Get Result
 # ---------------------------------------------------------------------------
+
 
 @csrf_exempt
 @require_GET
@@ -364,7 +395,8 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
 
     try:
         attempt = TestAttempt.objects.get(
-            id=attempt_id, student=user,
+            id=attempt_id,
+            student=user,
         )
     except TestAttempt.DoesNotExist:
         return JsonResponse({"error": "Attempt topilmadi"}, status=404)
@@ -383,8 +415,11 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
     for q in questions:
         try:
             from apps.tests.models import StudentAnswer
+
             sa = StudentAnswer.objects.filter(attempt=attempt, question=q).first()
-            selected_ids = set(sa.selected_choices.values_list("id", flat=True)) if sa else set()
+            selected_ids = (
+                set(sa.selected_choices.values_list("id", flat=True)) if sa else set()
+            )
             is_correct = sa.is_correct if sa else None
         except Exception:
             selected_ids = set()
@@ -392,11 +427,13 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
 
         choices = []
         for c in q.choices.all():
-            choices.append({
-                "id": c.id,
-                "text": c.text,
-                **({"is_correct": c.is_correct} if reveal_answers else {}),
-            })
+            choices.append(
+                {
+                    "id": c.id,
+                    "text": c.text,
+                    **({"is_correct": c.is_correct} if reveal_answers else {}),
+                }
+            )
 
         correct_text = ""
         if reveal_answers and q.correct_text:
@@ -407,29 +444,35 @@ def tma_attempt_result_view(request, attempt_id: int) -> JsonResponse:
 
         student_text = (sa.text_answer or "") if sa else ""
         if student_text and not selected_ids:
-            choices.append({"id": -1, "text": student_text, "is_correct": bool(is_correct)})
+            choices.append(
+                {"id": -1, "text": student_text, "is_correct": bool(is_correct)}
+            )
             selected_ids.add(-1)
 
-        question_details.append({
-            "question_text": q.text,
-            "question_type": q.question_type,
-            "points": q.points,
-            "correct_text": correct_text,
-            "text_answer": student_text,
-            **({"is_correct": is_correct} if reveal_answers else {}),
-            "choices": choices,
-            "selected_ids": list(selected_ids),
-        })
+        question_details.append(
+            {
+                "question_text": q.text,
+                "question_type": q.question_type,
+                "points": q.points,
+                "correct_text": correct_text,
+                "text_answer": student_text,
+                **({"is_correct": is_correct} if reveal_answers else {}),
+                "choices": choices,
+                "selected_ids": list(selected_ids),
+            }
+        )
 
-    return JsonResponse({
-        "result_id": result.id,
-        "test_title": attempt.test.title,
-        "percentage": float(result.percentage),
-        "is_passed": result.is_passed,
-        "correct_answers": result.correct_answers,
-        "total_questions": result.total_questions,
-        "score": str(result.score),
-        "max_score": str(result.max_score),
-        "time_taken_seconds": result.time_taken_seconds,
-        "question_details": question_details,
-    })
+    return JsonResponse(
+        {
+            "result_id": result.id,
+            "test_title": attempt.test.title,
+            "percentage": float(result.percentage),
+            "is_passed": result.is_passed,
+            "correct_answers": result.correct_answers,
+            "total_questions": result.total_questions,
+            "score": str(result.score),
+            "max_score": str(result.max_score),
+            "time_taken_seconds": result.time_taken_seconds,
+            "question_details": question_details,
+        }
+    )

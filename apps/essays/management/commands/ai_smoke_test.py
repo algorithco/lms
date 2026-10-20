@@ -19,6 +19,7 @@ Har bir model uchun OK/FAIL va ketgan vaqt chop etiladi.
 so'rovini yubormaydi) va zanjirdagi har bir ID mavjudligini tekshiradi:
 eski/yaroqsiz ID'lar (400 "is not a valid model ID" manbai) shu yerda ko'rinadi.
 """
+
 from __future__ import annotations
 
 import time
@@ -145,7 +146,9 @@ class Command(BaseCommand):
             base_url = _provider_base_url(provider)
             self.stdout.write(f"\nKatalog so'ralmoqda : {base_url}/models")
             try:
-                known_ids = _fetch_provider_model_ids(base_url, _provider_key(provider), timeout)
+                known_ids = _fetch_provider_model_ids(
+                    base_url, _provider_key(provider), timeout
+                )
             except Exception as e:
                 raise CommandError(f"Katalogni olish muvaffaqiyatsiz: {e}") from e
 
@@ -154,7 +157,11 @@ class Command(BaseCommand):
                 if m in known_ids:
                     self.stdout.write(self.style.SUCCESS(f"  MAVJUD  {m}"))
                 else:
-                    self.stdout.write(self.style.ERROR(f"  YO'Q    {m}  <- 400 'is not a valid model ID' beradi"))
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"  YO'Q    {m}  <- 400 'is not a valid model ID' beradi"
+                        )
+                    )
 
             if missing:
                 raise CommandError(
@@ -164,7 +171,9 @@ class Command(BaseCommand):
                     "masalan ':free' qo'shimchasi bo'lmagan yoki retire bo'lgan ID'lar."
                 )
             self.stdout.write(
-                self.style.SUCCESS("Barcha model ID'lar provayder katalogida mavjud [OK]")
+                self.style.SUCCESS(
+                    "Barcha model ID'lar provayder katalogida mavjud [OK]"
+                )
             )
             if not live:
                 return
@@ -220,15 +229,15 @@ class Command(BaseCommand):
                         )
                     )
                 self.stdout.write(
-                    self.style.SUCCESS(f"\nZanjir ishlaydi: birinchi muvaffaqiyatli model = {candidate}")
+                    self.style.SUCCESS(
+                        f"\nZanjir ishlaydi: birinchi muvaffaqiyatli model = {candidate}"
+                    )
                 )
                 return
             except Exception as e:
                 elapsed = time.monotonic() - started
                 self.stdout.write(
-                    self.style.ERROR(
-                        f"FAIL {candidate} — {elapsed:.1f}s — {e}"
-                    )
+                    self.style.ERROR(f"FAIL {candidate} — {elapsed:.1f}s — {e}")
                 )
                 self.stdout.write("  -> keyingi modelga o'tilmoqda...")
 

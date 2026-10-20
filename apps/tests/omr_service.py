@@ -4,6 +4,7 @@ OMR Answer Sheet Scanner Service (apps/tests/omr_service.py).
 Provides automated Optical Mark Recognition for photographed paper answer sheets
 (Mock and Attestatsiya tests) using Vision AI with robust local CV fallback.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,12 +32,15 @@ def _get_choice_letter(choice, all_choices) -> str:
 
 def _extract_answers_with_gemini(image_file) -> Optional[Dict[str, Any]]:
     """Use Gemini Vision to read test code and filled bubbles from sheet photo."""
-    api_key = getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "GOOGLE_API_KEY", "")
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or getattr(
+        settings, "GOOGLE_API_KEY", ""
+    )
     if not api_key:
         return None
 
     try:
         from google import genai
+
         client = genai.Client(api_key=api_key)
 
         image_file.seek(0)
@@ -71,7 +75,9 @@ def _extract_answers_with_gemini(image_file) -> Optional[Dict[str, Any]]:
 
         text = response.text or ""
         # Clean potential markdown fences
-        clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
+        clean_json = re.sub(
+            r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE
+        )
         data = json.loads(clean_json)
         if isinstance(data, dict) and "answers" in data:
             return data
@@ -159,7 +165,9 @@ def grade_omr_sheet(
     if not test:
         raise ValueError("Tizimda baholash uchun faol test topilmadi.")
 
-    questions = list(test.questions.prefetch_related("choices").order_by("position", "id"))
+    questions = list(
+        test.questions.prefetch_related("choices").order_by("position", "id")
+    )
     total_questions = len(questions)
 
     correct_count = 0
@@ -187,10 +195,16 @@ def grade_omr_sheet(
         # Find correct choice letter
         all_choices = list(q.choices.all())
         correct_choice = next((c for c in all_choices if c.is_correct), None)
-        correct_letter = _get_choice_letter(correct_choice, all_choices) if correct_choice else "A"
+        correct_letter = (
+            _get_choice_letter(correct_choice, all_choices) if correct_choice else "A"
+        )
 
         # What did the scanner detect?
-        chosen_letter = (detected_answers.get(str(q_pos)) or detected_answers.get(str(idx)) or "").upper().strip()
+        chosen_letter = (
+            (detected_answers.get(str(q_pos)) or detected_answers.get(str(idx)) or "")
+            .upper()
+            .strip()
+        )
 
         is_correct = False
         is_blank = not chosen_letter
@@ -225,16 +239,18 @@ def grade_omr_sheet(
             if chosen_choice_obj:
                 ans_obj.selected_choices.add(chosen_choice_obj)
 
-        breakdown.append({
-            "question_number": q_pos,
-            "question_text": q.text[:80] + ("…" if len(q.text) > 80 else ""),
-            "selected_answer": chosen_display,
-            "correct_answer": correct_letter,
-            "is_correct": is_correct,
-            "is_blank": is_blank,
-            "points": points if is_correct else 0,
-            "max_points": points,
-        })
+        breakdown.append(
+            {
+                "question_number": q_pos,
+                "question_text": q.text[:80] + ("…" if len(q.text) > 80 else ""),
+                "selected_answer": chosen_display,
+                "correct_answer": correct_letter,
+                "is_correct": is_correct,
+                "is_blank": is_blank,
+                "points": points if is_correct else 0,
+                "max_points": points,
+            }
+        )
 
     percentage = round((total_score / max_score * 100), 1) if max_score > 0 else 0.0
 

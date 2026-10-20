@@ -7,6 +7,7 @@
    - To'g'ri javobning qoidasi va asosi
    - Eslab qolish uchun maslahat (Memory tip)
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,36 +23,122 @@ logger = logging.getLogger(__name__)
 # Ona tili va adabiyoti bo'yicha standart mavzular kalit so'zlari
 TOPIC_KEYWORDS = {
     "Fonetika va imlo": [
-        "tovush", "harf", "unli", "undosh", "urg'u", "bo'g'in", "tuturuq",
-        "imlo", "talaffuz", "singarmonizm", "jarangli", "jarangsiz",
+        "tovush",
+        "harf",
+        "unli",
+        "undosh",
+        "urg'u",
+        "bo'g'in",
+        "tuturuq",
+        "imlo",
+        "talaffuz",
+        "singarmonizm",
+        "jarangli",
+        "jarangsiz",
     ],
     "Leksikologiya va frazeologiya": [
-        "ma'no", "sinonim", "antonim", "omonim", "paronim", "iboralar",
-        "ibora", "frazeologizm", "ko'chma", "o'z ma'no", "sheva", "atamalar",
+        "ma'no",
+        "sinonim",
+        "antonim",
+        "omonim",
+        "paronim",
+        "iboralar",
+        "ibora",
+        "frazeologizm",
+        "ko'chma",
+        "o'z ma'no",
+        "sheva",
+        "atamalar",
     ],
     "Morfologiya (So'z turkumlari)": [
-        "ot", "sifat", "son", "olmosh", "fe'l", "ravish", "ko'makchi",
-        "bog'lovchi", "yuklama", "qo'shimcha", "shakl yasovchi", "so'z yasovchi",
-        "zamon", "mayl", "nisbat", "daraja", "egalik", "kelishik",
+        "ot",
+        "sifat",
+        "son",
+        "olmosh",
+        "fe'l",
+        "ravish",
+        "ko'makchi",
+        "bog'lovchi",
+        "yuklama",
+        "qo'shimcha",
+        "shakl yasovchi",
+        "so'z yasovchi",
+        "zamon",
+        "mayl",
+        "nisbat",
+        "daraja",
+        "egalik",
+        "kelishik",
     ],
     "Sintaksis va tinish belgilari": [
-        "gap", "soddagap", "qo'shmagap", "ergashgan", "bosh gap", "ega",
-        "kesim", "to'ldiruvchi", "aniqlovchi", "hol", "uyushiq", "tinish belgisi",
-        "vergul", "nuqta", "tire", "ikki nuqta", "kirish so'z", "undalma",
+        "gap",
+        "soddagap",
+        "qo'shmagap",
+        "ergashgan",
+        "bosh gap",
+        "ega",
+        "kesim",
+        "to'ldiruvchi",
+        "aniqlovchi",
+        "hol",
+        "uyushiq",
+        "tinish belgisi",
+        "vergul",
+        "nuqta",
+        "tire",
+        "ikki nuqta",
+        "kirish so'z",
+        "undalma",
     ],
     "Mumtoz adabiyot": [
-        "navoiy", "bobur", "lutfiy", "yassaviy", "mashrab", "furqat",
-        "muqimiy", "ogahiy", "g'azal", "ruboiy", "qasida", "masnaviy",
-        "tuyuq", "aruz", "vazn", "bahr", "devon", "xamsa",
+        "navoiy",
+        "bobur",
+        "lutfiy",
+        "yassaviy",
+        "mashrab",
+        "furqat",
+        "muqimiy",
+        "ogahiy",
+        "g'azal",
+        "ruboiy",
+        "qasida",
+        "masnaviy",
+        "tuyuq",
+        "aruz",
+        "vazn",
+        "bahr",
+        "devon",
+        "xamsa",
     ],
     "Jadid va zamonaviy adabiyot": [
-        "behbudiy", "fitrat", "cho'lpon", "qodiriy", "avloniy", "oybek",
-        "g'afur g'ulom", "abdulla oripov", "erkin vohidov", "o'tkir hoshimov",
-        "roman", "qissa", "hikoya", "drama", "jadid",
+        "behbudiy",
+        "fitrat",
+        "cho'lpon",
+        "qodiriy",
+        "avloniy",
+        "oybek",
+        "g'afur g'ulom",
+        "abdulla oripov",
+        "erkin vohidov",
+        "o'tkir hoshimov",
+        "roman",
+        "qissa",
+        "hikoya",
+        "drama",
+        "jadid",
     ],
     "Matn tahlili va uslubiyat": [
-        "matn", "parcha", "uslub", "badiiy", "ilmiy", "publitsistik",
-        "so'zlashuv", "g'oya", "mavzu", "xulosa", "muallif maqsadi",
+        "matn",
+        "parcha",
+        "uslub",
+        "badiiy",
+        "ilmiy",
+        "publitsistik",
+        "so'zlashuv",
+        "g'oya",
+        "mavzu",
+        "xulosa",
+        "muallif maqsadi",
     ],
 }
 
@@ -79,61 +166,87 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
     if cached:
         return cached
 
-    result = Result.objects.filter(id=result_id).select_related("attempt", "test", "student").first()
+    result = (
+        Result.objects.filter(id=result_id)
+        .select_related("attempt", "test", "student")
+        .first()
+    )
     if not result:
         return {"error": "Natija topilmadi."}
 
     attempt = result.attempt
     answers = list(
-        attempt.answers.select_related("question")
-        .prefetch_related("selected_choices", "question__choices")
+        attempt.answers.select_related("question").prefetch_related(
+            "selected_choices", "question__choices"
+        )
     )
 
     wrong_by_topic: dict[str, list[dict]] = {}
     correct_count = 0
 
     for ans in answers:
-        if ans.is_correct is False or (ans.is_correct is None and not ans.selected_choices.exists()):
+        if ans.is_correct is False or (
+            ans.is_correct is None and not ans.selected_choices.exists()
+        ):
             q = ans.question
             topic = _detect_question_topic(q.text, q.explanation)
             if topic not in wrong_by_topic:
                 wrong_by_topic[topic] = []
 
-            selected_text = ", ".join(c.text for c in ans.selected_choices.all()) or "(Javob berilmagan)"
+            selected_text = (
+                ", ".join(c.text for c in ans.selected_choices.all())
+                or "(Javob berilmagan)"
+            )
             correct_choice = q.choices.filter(is_correct=True).first()
-            correct_text = correct_choice.text if correct_choice else "(Kalit ko'rsatilmagan)"
+            correct_text = (
+                correct_choice.text if correct_choice else "(Kalit ko'rsatilmagan)"
+            )
 
-            wrong_by_topic[topic].append({
-                "question_id": q.id,
-                "position": q.position,
-                "question_text": q.text,
-                "selected_answer": selected_text,
-                "correct_answer": correct_text,
-            })
+            wrong_by_topic[topic].append(
+                {
+                    "question_id": q.id,
+                    "position": q.position,
+                    "question_text": q.text,
+                    "selected_answer": selected_text,
+                    "correct_answer": correct_text,
+                }
+            )
         elif ans.is_correct is True:
             correct_count += 1
 
     # Zaif mavzular reytingi
     weak_topics = []
-    for topic, questions in sorted(wrong_by_topic.items(), key=lambda x: len(x[1]), reverse=True):
+    for topic, questions in sorted(
+        wrong_by_topic.items(), key=lambda x: len(x[1]), reverse=True
+    ):
         count = len(questions)
-        weak_topics.append({
-            "topic": topic,
-            "error_count": count,
-            "questions": questions,
-            "advice": _get_topic_advice(topic),
-        })
+        weak_topics.append(
+            {
+                "topic": topic,
+                "error_count": count,
+                "questions": questions,
+                "advice": _get_topic_advice(topic),
+            }
+        )
 
     # Shaxsiy tavsiyalar
     recommendations = []
     if weak_topics:
         top_weak = weak_topics[0]["topic"]
-        recommendations.append(f"Eng ko'p xato: '{top_weak}'. Ushbu mavzudagi qoidalarni darslikdan qayta takrorlang.")
+        recommendations.append(
+            f"Eng ko'p xato: '{top_weak}'. Ushbu mavzudagi qoidalarni darslikdan qayta takrorlang."
+        )
         if len(weak_topics) > 1:
-            recommendations.append(f"Qo'shimcha e'tibor qarating: '{weak_topics[1]['topic']}'.")
-        recommendations.append("BMB darajangizni oshirish uchun har kuni kamida 1 ta mavzulashtirilgan test ishlang.")
+            recommendations.append(
+                f"Qo'shimcha e'tibor qarating: '{weak_topics[1]['topic']}'."
+            )
+        recommendations.append(
+            "BMB darajangizni oshirish uchun har kuni kamida 1 ta mavzulashtirilgan test ishlang."
+        )
     else:
-        recommendations.append("Ajoyib natija! Xatolar deyarli yo'q. Esse yozish va murakkab matn tahliliga e'tibor bering.")
+        recommendations.append(
+            "Ajoyib natija! Xatolar deyarli yo'q. Esse yozish va murakkab matn tahliliga e'tibor bering."
+        )
 
     # Umumiy xulosa
     pct = float(result.percentage)
@@ -172,7 +285,9 @@ def _get_topic_advice(topic: str) -> str:
         "Jadid va zamonaviy adabiyot": "Abdulla Qodiriy va Cho'lpon asarlarining yaratilish tarixi, bosh qahramonlari tahliliga e'tibor qarating.",
         "Matn tahlili va uslubiyat": "Matnni diqqat bilan o'qib, muallif g'oyasi va kalit so'zlarni ajratish malakasini oshiring.",
     }
-    return advice_map.get(topic, "Ushbu mavzu bo'yicha darslik va amaliy mashqlarni bajaring.")
+    return advice_map.get(
+        topic, "Ushbu mavzu bo'yicha darslik va amaliy mashqlarni bajaring."
+    )
 
 
 def explain_question_mistake(
@@ -191,17 +306,26 @@ def explain_question_mistake(
     if cached:
         return cached
 
-    question = Question.objects.filter(id=question_id).prefetch_related("choices").first()
+    question = (
+        Question.objects.filter(id=question_id).prefetch_related("choices").first()
+    )
     if not question:
         return {"error": "Savol topilmadi."}
 
     correct_choice = question.choices.filter(is_correct=True).first()
-    selected_choice = question.choices.filter(id=selected_choice_id).first() if selected_choice_id else None
+    selected_choice = (
+        question.choices.filter(id=selected_choice_id).first()
+        if selected_choice_id
+        else None
+    )
 
     # Agar o'quvchi javobi attempt orqali olinayotgan bo'lsa
     if not selected_choice and attempt_id:
         from apps.tests.models import StudentAnswer
-        ans = StudentAnswer.objects.filter(attempt_id=attempt_id, question_id=question_id).first()
+
+        ans = StudentAnswer.objects.filter(
+            attempt_id=attempt_id, question_id=question_id
+        ).first()
         if ans:
             selected_choice = ans.selected_choices.first()
 
@@ -214,7 +338,12 @@ def explain_question_mistake(
     # 1. Agar LLM mavjud bo'lsa, aqlli izoh generatsiya qilish
     explanation_data = None
     try:
-        from apps.essays.services import _get_llm_client, _is_mock_mode, _chat_with_fallback, _model_candidates
+        from apps.essays.services import (
+            _get_llm_client,
+            _is_mock_mode,
+            _chat_with_fallback,
+            _model_candidates,
+        )
 
         if not _is_mock_mode():
             client = _get_llm_client(timeout=15.0)
@@ -238,7 +367,10 @@ def explain_question_mistake(
                 candidates[0],
                 candidates[1:],
                 messages=[
-                    {"role": "system", "content": "Sen o'zbek tili va adabiyoti bo'yicha mehribon, tajribali repetitorsan. Javoblaringni ixcham, qat'iy faktlar asosida yoz."},
+                    {
+                        "role": "system",
+                        "content": "Sen o'zbek tili va adabiyoti bo'yicha mehribon, tajribali repetitorsan. Javoblaringni ixcham, qat'iy faktlar asosida yoz.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 max_tokens=600,

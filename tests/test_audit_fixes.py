@@ -7,6 +7,7 @@ Covers:
        and never crashes (previously Result.objects.create was missing
        attempt/course and UserGameScore got an unknown `game_name` kwarg)
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -79,7 +80,6 @@ class TeacherAuthorizationTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
-
 class TelegramQuizSaveTests(TestCase):
     """Telegram quiz results must be persisted via the official pipeline."""
 
@@ -112,37 +112,67 @@ class TelegramQuizSaveTests(TestCase):
             is_active=True,
         )
         self.q1 = Question.objects.create(
-            test=self.test, text="Savol 1?", question_type="single",
-            points=Decimal("10"), position=1,
+            test=self.test,
+            text="Savol 1?",
+            question_type="single",
+            points=Decimal("10"),
+            position=1,
         )
         self.q1_correct = Choice.objects.create(
-            question=self.q1, text="To'g'ri", is_correct=True, position=1,
+            question=self.q1,
+            text="To'g'ri",
+            is_correct=True,
+            position=1,
         )
         Choice.objects.create(
-            question=self.q1, text="Noto'g'ri", is_correct=False, position=2,
+            question=self.q1,
+            text="Noto'g'ri",
+            is_correct=False,
+            position=2,
         )
         self.q2 = Question.objects.create(
-            test=self.test, text="Savol 2?", question_type="multiple",
-            points=Decimal("10"), position=2,
+            test=self.test,
+            text="Savol 2?",
+            question_type="multiple",
+            points=Decimal("10"),
+            position=2,
         )
         self.q2_c1 = Choice.objects.create(
-            question=self.q2, text="A to'g'ri", is_correct=True, position=1,
+            question=self.q2,
+            text="A to'g'ri",
+            is_correct=True,
+            position=1,
         )
         self.q2_c2 = Choice.objects.create(
-            question=self.q2, text="B to'g'ri", is_correct=True, position=2,
+            question=self.q2,
+            text="B to'g'ri",
+            is_correct=True,
+            position=2,
         )
         Choice.objects.create(
-            question=self.q2, text="C xato", is_correct=False, position=3,
+            question=self.q2,
+            text="C xato",
+            is_correct=False,
+            position=3,
         )
         self.q3 = Question.objects.create(
-            test=self.test, text="Savol 3?", question_type="single",
-            points=Decimal("10"), position=3,
+            test=self.test,
+            text="Savol 3?",
+            question_type="single",
+            points=Decimal("10"),
+            position=3,
         )
         self.q3_correct = Choice.objects.create(
-            question=self.q3, text="To'g'ri", is_correct=True, position=1,
+            question=self.q3,
+            text="To'g'ri",
+            is_correct=True,
+            position=1,
         )
         Choice.objects.create(
-            question=self.q3, text="Noto'g'ri", is_correct=False, position=2,
+            question=self.q3,
+            text="Noto'g'ri",
+            is_correct=False,
+            position=2,
         )
 
     def _quiz_state(self) -> dict:
@@ -168,9 +198,24 @@ class TelegramQuizSaveTests(TestCase):
             "test_id": self.test.id,
             "test_title": self.test.title,
             "questions": [
-                {"id": self.q1.id, "text": self.q1.text, "points": "10", "choices": q1_choices},
-                {"id": self.q2.id, "text": self.q2.text, "points": "10", "choices": q2_choices},
-                {"id": self.q3.id, "text": self.q3.text, "points": "10", "choices": q3_choices},
+                {
+                    "id": self.q1.id,
+                    "text": self.q1.text,
+                    "points": "10",
+                    "choices": q1_choices,
+                },
+                {
+                    "id": self.q2.id,
+                    "text": self.q2.text,
+                    "points": "10",
+                    "choices": q2_choices,
+                },
+                {
+                    "id": self.q3.id,
+                    "text": self.q3.text,
+                    "points": "10",
+                    "choices": q3_choices,
+                },
             ],
             "answers": {0: correct_q1, 1: partial_q2, 2: correct_q3},
             "total_questions": 3,
@@ -193,7 +238,9 @@ class TelegramQuizSaveTests(TestCase):
         self.assertTrue(saved["is_passed"])
 
         # A real attempt + Result exist
-        attempt = TestAttempt.objects.filter(test=self.test, student=self.student).first()
+        attempt = TestAttempt.objects.filter(
+            test=self.test, student=self.student
+        ).first()
         self.assertIsNotNone(attempt)
         self.assertEqual(attempt.status, TestAttempt.Status.COMPLETED)
         result = Result.objects.get(attempt=attempt)

@@ -12,6 +12,7 @@ The AI grading uses a structured prompt that returns JSON with:
     - Per-criterion short reasons (1-2 jumla)
     - Summary and topic-match info in Uzbek
 """
+
 import hashlib
 import hmac
 import json
@@ -85,11 +86,14 @@ ESSAY_RUBRIC_MAX_SCORE = 20
 # AI provider resolution (OpenRouter / Groq — OpenAI-compatible APIs)
 # ---------------------------------------------------------------------------
 
+
 def _provider_key(provider: str) -> str:
     """Return the configured API key for a provider (stripped)."""
     return (getattr(settings, f"{provider.upper()}_API_KEY", "") or "").strip()
 
+
 _PLACEHOLDER_KEY_MARKERS = ("your", "here", "change", "example", "placeholder")
+
 
 def _is_placeholder_key(api_key: str) -> bool:
     """Detect .env.example placeholder keys (never send them to providers).
@@ -105,11 +109,13 @@ def _is_placeholder_key(api_key: str) -> bool:
     lowered = api_key.lower()
     return any(marker in lowered for marker in _PLACEHOLDER_KEY_MARKERS)
 
+
 def _has_real_key(provider: str) -> bool:
     """True only for a configured, non-placeholder provider key."""
     return bool(_provider_key(provider)) and not _is_placeholder_key(
         _provider_key(provider)
     )
+
 
 def _resolve_provider() -> str:
     """
@@ -174,6 +180,7 @@ def _resolve_provider() -> str:
 
     return provider
 
+
 def _get_llm_client(timeout: float | None = None):
     """
     Return an OpenAI-compatible client pointed at the resolved provider
@@ -192,7 +199,9 @@ def _get_llm_client(timeout: float | None = None):
     # half-mocked client pointing at a live endpoint would 401).
     if _is_mock_mode():
         api_key = "mock-key"
-        base_url = getattr(settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        base_url = getattr(
+            settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
         provider = "openrouter"
     else:
         provider = _resolve_provider()
@@ -229,6 +238,7 @@ def _get_llm_client(timeout: float | None = None):
     )
     return client
 
+
 def _get_ai_model() -> str:
     """
     Return the LLM model name, honoring an explicit ESSAY_AI_MODEL override
@@ -251,6 +261,7 @@ def _get_ai_model() -> str:
         "deepseek/deepseek-v4-flash-0731",
     )
 
+
 def _get_fallback_models() -> list[str]:
     """
     Return the ordered fallback-model chain for the resolved provider.
@@ -271,6 +282,7 @@ def _get_fallback_models() -> list[str]:
     single = (getattr(settings, "GROQ_FALLBACK_MODEL", "") or "").strip()
     return [single] if single else []
 
+
 def _model_candidates() -> list[str]:
     """Primary model first, then the fallback chain — deduplicated."""
     try:
@@ -279,6 +291,7 @@ def _model_candidates() -> list[str]:
         primary = ""
     fallbacks = _get_fallback_models()
     return [m for m in dict.fromkeys([primary, *fallbacks]) if m]
+
 
 def _is_transient_ai_error(e: Exception) -> bool:
     """
@@ -289,7 +302,15 @@ def _is_transient_ai_error(e: Exception) -> bool:
     """
     import openai as _openai
 
-    if isinstance(e, (TimeoutError, _openai.RateLimitError, _openai.APITimeoutError, _openai.APIConnectionError)):
+    if isinstance(
+        e,
+        (
+            TimeoutError,
+            _openai.RateLimitError,
+            _openai.APITimeoutError,
+            _openai.APIConnectionError,
+        ),
+    ):
         return True
     status = getattr(e, "status_code", None)
     if isinstance(status, int) and (status >= 500 or status == 404):
@@ -303,6 +324,7 @@ def _is_transient_ai_error(e: Exception) -> bool:
         or "no endpoints found" in s
         or ("404" in s and "not found" in s)
     )
+
 
 def _is_unsupported_response_format(e: Exception) -> bool:
     """Model response_format=json_object ni qo'llamasa 400 qaytaradi.
@@ -322,6 +344,7 @@ def _is_unsupported_response_format(e: Exception) -> bool:
         or "structured output" in s
     )
 
+
 def _is_invalid_model_error(e: Exception) -> bool:
     """OpenRouter 400 "X is not a valid model ID" — model ID provider'da
     umuman mavjud emas (eskirgan yoki noto'g'ri yozilgan).
@@ -340,6 +363,7 @@ def _is_invalid_model_error(e: Exception) -> bool:
         or ("invalid model" in s and "id" in s)
         or "no endpoints found matching" in s
     )
+
 
 def _chat_with_fallback(
     client,
@@ -388,7 +412,9 @@ def _chat_with_fallback(
         attempt = 0
         max_a = max(1, max_attempts)
         while attempt < max_a:
-            tail = f"; falling back to {next_model}" if next_model else "; chain exhausted"
+            tail = (
+                f"; falling back to {next_model}" if next_model else "; chain exhausted"
+            )
             try:
                 kwargs = {
                     "model": candidate,
@@ -404,10 +430,13 @@ def _chat_with_fallback(
                         raise TimeoutError("AI grading request budget exhausted")
                     effective_timeout = min(request_timeout or remaining, remaining)
                     kwargs["timeout"] = httpx.Timeout(
-                        effective_timeout, connect=min(10.0, effective_timeout),
+                        effective_timeout,
+                        connect=min(10.0, effective_timeout),
                     )
                 response = client.chat.completions.create(**kwargs)
-                content = response.choices[0].message.content if response.choices else None
+                content = (
+                    response.choices[0].message.content if response.choices else None
+                )
                 if content and content.strip():
                     return response, candidate
                 logger.warning(
@@ -429,7 +458,8 @@ def _chat_with_fallback(
                     use_json_mode = False
                     logger.warning(
                         "AI model %s rejects response_format=json_object (%s) — retrying without it",
-                        candidate, e,
+                        candidate,
+                        e,
                     )
                     continue  # urinish sarflanmaydi; darhol qayta uriniladi
                 if _is_invalid_model_error(e):
@@ -461,14 +491,17 @@ def _chat_with_fallback(
     assert last_exc is not None  # candidates is never empty (model is set)
     raise last_exc
 
+
 def _is_mock_mode() -> bool:
     """Check if we're running in mock mode (no real API key)."""
     has_key = _has_real_key("openrouter") or _has_real_key("groq")
     return not has_key and getattr(settings, "ESSAY_AI_MOCK_MODE", False)
 
+
 # ---------------------------------------------------------------------------
 # Word Counter
 # ---------------------------------------------------------------------------
+
 
 class WordCounter:
     """
@@ -495,16 +528,16 @@ class WordCounter:
             return 0
 
         # Normalize: replace multiple whitespace with single space
-        normalized = re.sub(r'\s+', ' ', text.strip())
+        normalized = re.sub(r"\s+", " ", text.strip())
 
         # Split by spaces
-        words = normalized.split(' ')
+        words = normalized.split(" ")
 
         # Filter out empty strings and pure punctuation
         valid_words = []
         for w in words:
             w = w.strip()
-            if w and re.search(r'[a-zA-ZА-Яа-яЁё]', w):
+            if w and re.search(r"[a-zA-ZА-Яа-яЁё]", w):
                 valid_words.append(w)
 
         return len(valid_words)
@@ -533,15 +566,25 @@ class WordCounter:
             "max": topic.word_limit_max,
         }
 
+
 # ---------------------------------------------------------------------------
 # Mock response helper (only used when ESSAY_AI_MOCK_MODE=True)
 # ---------------------------------------------------------------------------
 
-def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[str, Any]:
+
+def _mock_12_criteria_response(
+    essay_text: str, topic_title: str = ""
+) -> dict[str, Any]:
     """Generate a mock 12-criteria response for frontend testing (BMB 20-point rubric)."""
     word_count = WordCounter.count(essay_text)
-    base_2 = min(Decimal("2.0"), max(Decimal("0.5"), Decimal(str(min(2, max(0, word_count // 100))))))
-    base_1_5 = min(Decimal("1.5"), max(Decimal("0.5"), Decimal(str(min(1.5, max(0.5, word_count // 200))))))
+    base_2 = min(
+        Decimal("2.0"),
+        max(Decimal("0.5"), Decimal(str(min(2, max(0, word_count // 100))))),
+    )
+    base_1_5 = min(
+        Decimal("1.5"),
+        max(Decimal("0.5"), Decimal(str(min(1.5, max(0.5, word_count // 200))))),
+    )
 
     if word_count < 200:
         comp_score = 1.0 if word_count >= 150 else 0.5
@@ -556,18 +599,102 @@ def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[s
     b15 = float(base_1_5)
 
     criteria = [
-        {"id": 1, "name": EssayCriterionScore.CRITERION_NAMES[1], "score": b2, "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 2, "name": EssayCriterionScore.CRITERION_NAMES[2], "score": comp_score, "max_score": 2.0, "reason": comp_reason, "errors": []},
-        {"id": 3, "name": EssayCriterionScore.CRITERION_NAMES[3], "score": b2 if word_count >= 200 else min(b2, 1.0), "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 4, "name": EssayCriterionScore.CRITERION_NAMES[4], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 5, "name": EssayCriterionScore.CRITERION_NAMES[5], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 6, "name": EssayCriterionScore.CRITERION_NAMES[6], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 7, "name": EssayCriterionScore.CRITERION_NAMES[7], "score": b2, "max_score": 2.0, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 8, "name": EssayCriterionScore.CRITERION_NAMES[8], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 9, "name": EssayCriterionScore.CRITERION_NAMES[9], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 10, "name": EssayCriterionScore.CRITERION_NAMES[10], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
-        {"id": 11, "name": EssayCriterionScore.CRITERION_NAMES[11], "score": 1.5 if word_count >= 200 else (1.0 if word_count >= 150 else 0.5), "max_score": 1.5, "reason": f"Hajm: {word_count} so'z", "errors": []},
-        {"id": 12, "name": EssayCriterionScore.CRITERION_NAMES[12], "score": b15, "max_score": 1.5, "reason": "[SINOV REJIMI] Mock baholash", "errors": []},
+        {
+            "id": 1,
+            "name": EssayCriterionScore.CRITERION_NAMES[1],
+            "score": b2,
+            "max_score": 2.0,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 2,
+            "name": EssayCriterionScore.CRITERION_NAMES[2],
+            "score": comp_score,
+            "max_score": 2.0,
+            "reason": comp_reason,
+            "errors": [],
+        },
+        {
+            "id": 3,
+            "name": EssayCriterionScore.CRITERION_NAMES[3],
+            "score": b2 if word_count >= 200 else min(b2, 1.0),
+            "max_score": 2.0,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 4,
+            "name": EssayCriterionScore.CRITERION_NAMES[4],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 5,
+            "name": EssayCriterionScore.CRITERION_NAMES[5],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 6,
+            "name": EssayCriterionScore.CRITERION_NAMES[6],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 7,
+            "name": EssayCriterionScore.CRITERION_NAMES[7],
+            "score": b2,
+            "max_score": 2.0,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 8,
+            "name": EssayCriterionScore.CRITERION_NAMES[8],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 9,
+            "name": EssayCriterionScore.CRITERION_NAMES[9],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 10,
+            "name": EssayCriterionScore.CRITERION_NAMES[10],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
+        {
+            "id": 11,
+            "name": EssayCriterionScore.CRITERION_NAMES[11],
+            "score": 1.5 if word_count >= 200 else (1.0 if word_count >= 150 else 0.5),
+            "max_score": 1.5,
+            "reason": f"Hajm: {word_count} so'z",
+            "errors": [],
+        },
+        {
+            "id": 12,
+            "name": EssayCriterionScore.CRITERION_NAMES[12],
+            "score": b15,
+            "max_score": 1.5,
+            "reason": "[SINOV REJIMI] Mock baholash",
+            "errors": [],
+        },
     ]
 
     total = sum(Decimal(str(c["score"])) for c in criteria)
@@ -586,9 +713,11 @@ def _mock_12_criteria_response(essay_text: str, topic_title: str = "") -> dict[s
         "improved_text": essay_text,
     }
 
+
 # ---------------------------------------------------------------------------
 # Escalation: find the right reviewer for a student
 # ---------------------------------------------------------------------------
+
 
 def _find_reviewer_for_student(student):
     """
@@ -605,7 +734,9 @@ def _find_reviewer_for_student(student):
     User = get_user_model()
 
     # Check if student is in any group
-    group = StudentGroup.objects.filter(students=student).select_related("teacher").first()
+    group = (
+        StudentGroup.objects.filter(students=student).select_related("teacher").first()
+    )
     if group and group.teacher:
         return group.teacher
 
@@ -616,6 +747,7 @@ def _find_reviewer_for_student(student):
 
     # Fallback: find any teacher
     return User.objects.filter(role="teacher").first()
+
 
 def can_review_submission(user, submission: EssaySubmission) -> bool:
     """Object-level authorization for reading or grading an essay.
@@ -637,6 +769,7 @@ def can_review_submission(user, submission: EssaySubmission) -> bool:
         return submission.assigned_reviewer_id == user.id
     return submission.student.student_groups.filter(teacher=user).exists()
 
+
 def _escape_markdown(text: str) -> str:
     """Escape Telegram Markdown special chars to prevent injection (*, _, [, `)."""
     if not text:
@@ -649,10 +782,12 @@ def _escape_markdown(text: str) -> str:
         .replace("`", "\\`")
     )
 
+
 def _notify_reviewer(submission, reviewer):
     """Notify reviewer about new essay review request via Telegram."""
     if (
-        not reviewer or not getattr(reviewer, "telegram_chat_id", None)
+        not reviewer
+        or not getattr(reviewer, "telegram_chat_id", None)
         or not getattr(reviewer, "telegram_identity_verified_at", None)
     ):
         return
@@ -660,12 +795,20 @@ def _notify_reviewer(submission, reviewer):
     try:
         from apps.notifications.services.telegram_service import TelegramService
 
-        student_name = _escape_markdown(submission.student.get_full_name() or submission.student.email)
-        topic_name = _escape_markdown(submission.topic.title if submission.topic else "Mavzu yo'q")
+        student_name = _escape_markdown(
+            submission.student.get_full_name() or submission.student.email
+        )
+        topic_name = _escape_markdown(
+            submission.topic.title if submission.topic else "Mavzu yo'q"
+        )
 
         # Determine if it's student-requested
         is_student_request = submission.teacher_review_requested
-        priority_text = "🚨 O'quvchi e'tiroz bildirdi!" if is_student_request else "📝 Yangi esse tekshirish kerak"
+        priority_text = (
+            "🚨 O'quvchi e'tiroz bildirdi!"
+            if is_student_request
+            else "📝 Yangi esse tekshirish kerak"
+        )
 
         text = (
             f"{priority_text}\n\n"
@@ -685,16 +828,20 @@ def _notify_reviewer(submission, reviewer):
             chat_id=reviewer.telegram_chat_id,
             text=text,
             parse_mode="Markdown",
-            notification_type="essay_review_request" if is_student_request else "general",
+            notification_type="essay_review_request"
+            if is_student_request
+            else "general",
             recipient=reviewer,
             title=f"Esse tekshirish: {student_name}",
         )
     except Exception as e:
         logger.warning("Failed to notify reviewer %s: %s", reviewer.email, e)
 
+
 # ---------------------------------------------------------------------------
 # Teacher Review Service
 # ---------------------------------------------------------------------------
+
 
 class TeacherReviewService:
     """
@@ -785,13 +932,21 @@ class TeacherReviewService:
             raise ValueError(str(e)) from e
         submission.final_score = total_score
         submission.teacher_review_requested = False
-        submission.save(update_fields=[
-            "status", "final_score", "teacher_review_requested", "updated_at",
-        ])
+        submission.save(
+            update_fields=[
+                "status",
+                "final_score",
+                "teacher_review_requested",
+                "updated_at",
+            ]
+        )
 
         logger.info(
             "Teacher review submitted: submission=%d, teacher=%d, score=%s/24, created=%s",
-            submission.id, teacher.id, total_score, created,
+            submission.id,
+            teacher.id,
+            total_score,
+            created,
         )
 
         return review
@@ -799,7 +954,9 @@ class TeacherReviewService:
     @staticmethod
     @_db_txn.atomic
     def request_teacher_review(
-        submission: EssaySubmission, student, reason: str = "",
+        submission: EssaySubmission,
+        student,
+        reason: str = "",
     ) -> EssaySubmission:
         """
         O'quvchi ustoz tekshiruvini so'raydi.
@@ -811,15 +968,17 @@ class TeacherReviewService:
         Updates submission status to PENDING_TEACHER.
         """
         submission = EssaySubmission.objects.select_for_update().get(pk=submission.pk)
-        if not student.is_authenticated or not student.is_active or submission.student_id != student.pk:
+        if (
+            not student.is_authenticated
+            or not student.is_active
+            or submission.student_id != student.pk
+        ):
             raise PermissionDenied("Bu esseni qayta ko'rishni so'rashga ruxsat yo'q.")
         if submission.status not in (
             EssaySubmission.Status.AI_EVALUATED,
             EssaySubmission.Status.GRADED,
         ):
-            raise ValueError(
-                "Faqat AI baholangan esselarni ustozga yuborish mumkin."
-            )
+            raise ValueError("Faqat AI baholangan esselarni ustozga yuborish mumkin.")
 
         reviewer = _find_reviewer_for_student(submission.student)
         submission.status = EssaySubmission.Status.PENDING_TEACHER
@@ -827,21 +986,29 @@ class TeacherReviewService:
         submission.teacher_review_requested = True
         submission.teacher_review_requested_at = _timezone.now()
         submission.teacher_review_reason = reason
-        submission.save(update_fields=[
-            "status", "assigned_reviewer", "teacher_review_requested",
-            "teacher_review_requested_at", "teacher_review_reason", "updated_at",
-        ])
+        submission.save(
+            update_fields=[
+                "status",
+                "assigned_reviewer",
+                "teacher_review_requested",
+                "teacher_review_requested_at",
+                "teacher_review_reason",
+                "updated_at",
+            ]
+        )
 
         # Notify reviewer via Telegram
         _db_txn.on_commit(lambda: _notify_reviewer(submission, reviewer))
 
         logger.info(
             "Teacher review requested: submission=%d, student=%d, reviewer=%s",
-            submission.id, submission.student_id,
+            submission.id,
+            submission.student_id,
             reviewer.email if reviewer else "admin",
         )
 
         return submission
+
 
 # ---------------------------------------------------------------------------
 # 12-Mezon Grading Service (OpenRouter via OpenAI SDK)
@@ -849,18 +1016,40 @@ class TeacherReviewService:
 # ---------------------------------------------------------------------------
 
 # Allowed scores for each criterion
-ALLOWED_SCORES = {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")}
+ALLOWED_SCORES = {
+    Decimal("0"),
+    Decimal("0.5"),
+    Decimal("1"),
+    Decimal("1.5"),
+    Decimal("2"),
+}
 ALLOWED_SCORES_BY_MAX = {
-    Decimal("2.0"): {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5"), Decimal("2")},
+    Decimal("2.0"): {
+        Decimal("0"),
+        Decimal("0.5"),
+        Decimal("1"),
+        Decimal("1.5"),
+        Decimal("2"),
+    },
     Decimal("1.5"): {Decimal("0"), Decimal("0.5"), Decimal("1"), Decimal("1.5")},
 }
 
 ALLOWED_TOP_KEYS = {
-    "criteria", "total_score", "max_score", "summary", "topic_match",
-    "topic_match_reason", "word_count", "spelling_errors", "strengths",
-    "weaknesses", "teacher_recommendation", "improved_text",
+    "criteria",
+    "total_score",
+    "max_score",
+    "summary",
+    "topic_match",
+    "topic_match_reason",
+    "word_count",
+    "spelling_errors",
+    "strengths",
+    "weaknesses",
+    "teacher_recommendation",
+    "improved_text",
 }
 ALLOWED_CRITERION_KEYS = {"id", "name", "score", "reason", "errors", "max_score"}
+
 
 def _validate_result(result: dict, essay_text: str = "") -> None:
     """
@@ -897,7 +1086,9 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
         if not isinstance(c, dict):
             raise ValueError(f"Criterion #{i} must be a dict")
 
-        unknown_crit = {k for k in c.keys() if not k.startswith("_")} - ALLOWED_CRITERION_KEYS
+        unknown_crit = {
+            k for k in c.keys() if not k.startswith("_")
+        } - ALLOWED_CRITERION_KEYS
         if unknown_crit:
             raise ValueError(f"Criterion #{i} unknown keys: {sorted(unknown_crit)}")
 
@@ -925,7 +1116,9 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
         if not score_decimal.is_finite():
             raise ValueError(f"Criterion #{i} score must be finite")
 
-        crit_max = EssayCriterionScore.CRITERION_MAX_SCORES.get(criterion_id, Decimal("2.0"))
+        crit_max = EssayCriterionScore.CRITERION_MAX_SCORES.get(
+            criterion_id, Decimal("2.0")
+        )
         allowed_set = ALLOWED_SCORES_BY_MAX.get(crit_max, ALLOWED_SCORES)
         if score_decimal not in allowed_set or score_decimal > crit_max:
             raise ValueError(
@@ -975,13 +1168,15 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
         wc = WordCounter.count(raw_text)
         if 0 < wc < 200:
             warn_msg = f" [Hajm talabi: esse {wc} so'zdan iborat, tavsiya etilgan minimal hajm 200 so'z]"
-            if "summary" in result and isinstance(result["summary"], str) and warn_msg not in result["summary"]:
+            if (
+                "summary" in result
+                and isinstance(result["summary"], str)
+                and warn_msg not in result["summary"]
+            ):
                 result["summary"] = (result["summary"].strip() + warn_msg).strip()
 
     # Model-provided totals are never authoritative.
-    result["total_score"] = float(sum(
-        Decimal(str(c["score"])) for c in criteria
-    ))
+    result["total_score"] = float(sum(Decimal(str(c["score"])) for c in criteria))
     result["max_score"] = ESSAY_RUBRIC_MAX_SCORE
     if not isinstance(result.get("summary"), str) or len(result["summary"]) > 8000:
         raise ValueError("'summary' must be text of at most 8000 characters")
@@ -996,7 +1191,9 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
                 corr = str(item.get("correction", "")).strip()[:100]
                 exp = str(item.get("explanation", "")).strip()[:200]
                 if w:
-                    spelling_errors.append({"word": w, "correction": corr, "explanation": exp})
+                    spelling_errors.append(
+                        {"word": w, "correction": corr, "explanation": exp}
+                    )
     result["spelling_errors"] = spelling_errors
 
     # Normalize strengths and weaknesses
@@ -1022,6 +1219,7 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
     if "topic_match" in result and not isinstance(result["topic_match"], bool):
         raise ValueError("'topic_match' must be a boolean")
 
+
 def _strip_thinking_tags(text: str) -> str:
     """Strip thinking/reasoning tags that some models (Qwen, etc.) return.
 
@@ -1044,6 +1242,7 @@ def _strip_thinking_tags(text: str) -> str:
 
     return text.strip()
 
+
 def _try_load_json(text: str) -> dict | None:
     """json.loads — muvaffaqiyatli va natija dict bo'lsa qaytaradi, aks holda None."""
     if not text or not text.strip():
@@ -1053,6 +1252,7 @@ def _try_load_json(text: str) -> dict | None:
     except (json.JSONDecodeError, ValueError):
         return None
     return obj if isinstance(obj, dict) else None
+
 
 def _extract_json_block(text: str) -> str | None:
     """Birinchi `{` dan oxirgi `}` gacha bo'lgan blokni ajratadi.
@@ -1064,7 +1264,8 @@ def _extract_json_block(text: str) -> str | None:
     end = text.rfind("}")
     if start == -1 or end == -1 or end <= start:
         return None
-    return text[start:end + 1]
+    return text[start : end + 1]
+
 
 def _parse_failed_result() -> dict:
     """Buzilgan javob uchun xavfsiz fallback — chaqiruvchi `_parse_failed`ni tekshiradi."""
@@ -1075,6 +1276,7 @@ def _parse_failed_result() -> dict:
         "max_score": 24,
         "summary": "",
     }
+
 
 def parse_llm_json(raw_text: str) -> dict:
     """
@@ -1144,6 +1346,7 @@ def parse_llm_json(raw_text: str) -> dict:
     )
     return _parse_failed_result()
 
+
 def _compute_text_hash(
     essay_text: str,
     topic_title: str = "",
@@ -1161,11 +1364,19 @@ def _compute_text_hash(
     produces different hashes (and potentially different topic_match).
     """
     norm_text = re.sub(
-        r"\s+", " ", unicodedata.normalize("NFC", essay_text).strip(),
+        r"\s+",
+        " ",
+        unicodedata.normalize("NFC", essay_text).strip(),
     )
-    norm_topic = re.sub(
-        r"\s+", " ", unicodedata.normalize("NFC", topic_title).strip(),
-    ) if topic_title else ""
+    norm_topic = (
+        re.sub(
+            r"\s+",
+            " ",
+            unicodedata.normalize("NFC", topic_title).strip(),
+        )
+        if topic_title
+        else ""
+    )
     identity = {
         "prompt_version": prompt_version,
         "rubric_digest": rubric_digest,
@@ -1177,12 +1388,19 @@ def _compute_text_hash(
         "essay": norm_text,
     }
     canonical_identity = json.dumps(
-        identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        identity,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
     )
     return hashlib.sha256(canonical_identity.encode("utf-8")).hexdigest()
 
+
 def _essay_grading_cache_identity(
-    essay_text: str, topic_title: str = "", *, context: dict | None = None,
+    essay_text: str,
+    topic_title: str = "",
+    *,
+    context: dict | None = None,
 ) -> tuple[str, str, bool, str]:
     """Return the context-aware cache key plus model/mode identity.
 
@@ -1197,6 +1415,7 @@ def _essay_grading_cache_identity(
         bool(context.get("mock_mode")),
         str(context.get("provider", "")),
     )
+
 
 # ---------------------------------------------------------------------------
 # Shared (cross-account) grading cache
@@ -1225,7 +1444,9 @@ def normalize_essay_text(text: str) -> str:
     """
     if not text:
         return ""
-    normalized = unicodedata.normalize("NFC", text).replace("\r\n", "\n").replace("\r", "\n")
+    normalized = (
+        unicodedata.normalize("NFC", text).replace("\r\n", "\n").replace("\r", "\n")
+    )
     return re.sub(r"\s+", " ", normalized).strip()
 
 
@@ -1242,7 +1463,11 @@ def _cache_fingerprint(payload: Any) -> str:
     mechanism and is never exposed to students.
     """
     canonical = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str,
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
     )
     return hmac.new(
         f"{_CACHE_KEY_PURPOSE}:{_cache_pepper()}".encode("utf-8"),
@@ -1253,7 +1478,9 @@ def _cache_fingerprint(payload: Any) -> str:
 
 def cacheable_scopes() -> frozenset[str]:
     """Assessment scopes allowed to reuse a grade across accounts."""
-    configured = getattr(settings, "ESSAY_CACHE_ALLOWED_SCOPES", _DEFAULT_CACHEABLE_SCOPES)
+    configured = getattr(
+        settings, "ESSAY_CACHE_ALLOWED_SCOPES", _DEFAULT_CACHEABLE_SCOPES
+    )
     if isinstance(configured, str):
         configured = [p.strip() for p in configured.split(",") if p.strip()]
     return frozenset(configured or _DEFAULT_CACHEABLE_SCOPES)
@@ -1265,7 +1492,11 @@ def cache_scope_allows_reuse(scope: str | None) -> bool:
 
 
 def build_grading_context(
-    *, topic=None, topic_title: str = "", scope: str | None = None, language: str | None = None,
+    *,
+    topic=None,
+    topic_title: str = "",
+    scope: str | None = None,
+    language: str | None = None,
 ) -> dict:
     """Every grading input that can change the evaluation result.
 
@@ -1277,36 +1508,44 @@ def build_grading_context(
     if topic is not None:
         topic_id = topic.pk
         title = topic.title or ""
-        topic_digest = _cache_fingerprint({
-            "title": title,
-            "description": getattr(topic, "description", "") or "",
-            "word_limit_min": getattr(topic, "word_limit_min", None),
-            "word_limit_max": getattr(topic, "word_limit_max", None),
-            "time_limit_minutes": getattr(topic, "time_limit_minutes", None),
-            "category": getattr(topic, "category", "") or "",
-        })
+        topic_digest = _cache_fingerprint(
+            {
+                "title": title,
+                "description": getattr(topic, "description", "") or "",
+                "word_limit_min": getattr(topic, "word_limit_min", None),
+                "word_limit_max": getattr(topic, "word_limit_max", None),
+                "time_limit_minutes": getattr(topic, "time_limit_minutes", None),
+                "category": getattr(topic, "category", "") or "",
+            }
+        )
     else:
         topic_id = None
         title = topic_title or ""
-        topic_digest = _cache_fingerprint({"title": title, "description": "", "free_form": True})
+        topic_digest = _cache_fingerprint(
+            {"title": title, "description": "", "free_form": True}
+        )
 
     model_chain = _model_candidates()
     model_identity = ",".join(model_chain) or _get_ai_model()
     mock_mode = _is_mock_mode()
     provider = "mock" if mock_mode else _resolve_provider()
     prompt_version = str(getattr(settings, "ESSAY_GRADING_CACHE_VERSION", "v3"))
-    rubric_digest = _cache_fingerprint({
-        "grading_prompt": ESSAY_GRADING_SYSTEM_PROMPT,
-        "simple_prompt": ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
-        "criterion_ids": sorted(VALID_CRITERION_IDS),
-        "prompt_version": prompt_version,
-        "model_chain": model_identity,
-    })
-    scoring_digest = _cache_fingerprint({
-        "target_scale": getattr(settings, "ESSAY_TARGET_SCALE", None),
-        "off_topic_score": getattr(settings, "ESSAY_OFF_TOPIC_SCORE", None),
-        "scoring_version": str(getattr(settings, "ESSAY_SCORING_VERSION", "v1")),
-    })
+    rubric_digest = _cache_fingerprint(
+        {
+            "grading_prompt": ESSAY_GRADING_SYSTEM_PROMPT,
+            "simple_prompt": ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
+            "criterion_ids": sorted(VALID_CRITERION_IDS),
+            "prompt_version": prompt_version,
+            "model_chain": model_identity,
+        }
+    )
+    scoring_digest = _cache_fingerprint(
+        {
+            "target_scale": getattr(settings, "ESSAY_TARGET_SCALE", None),
+            "off_topic_score": getattr(settings, "ESSAY_OFF_TOPIC_SCORE", None),
+            "scoring_version": str(getattr(settings, "ESSAY_SCORING_VERSION", "v1")),
+        }
+    )
     return {
         "cache_schema_version": EssayGradingCache.CACHE_SCHEMA_VERSION,
         "scope": scope or "practice",
@@ -1325,7 +1564,10 @@ def build_grading_context(
 
 
 def grading_cache_identity(
-    essay_text: str, topic_title: str = "", *, context: dict | None = None,
+    essay_text: str,
+    topic_title: str = "",
+    *,
+    context: dict | None = None,
 ) -> dict:
     """Context-aware cache key + diagnostics for one grading request.
 
@@ -1333,7 +1575,9 @@ def grading_cache_identity(
     the same text under a different topic, rubric version, prompt version,
     model chain, language, scoring configuration or scope is a different key.
     """
-    context = dict(context) if context else build_grading_context(topic_title=topic_title)
+    context = (
+        dict(context) if context else build_grading_context(topic_title=topic_title)
+    )
     normalized = normalize_essay_text(essay_text)
     text_fingerprint = _cache_fingerprint({"text": normalized})
     context_fingerprint = _cache_fingerprint(context)
@@ -1376,31 +1620,45 @@ def stamp_grading_cache_key(submission) -> str:
     try:
         key = grading_cache_key_for_submission(submission)
     except Exception:  # pragma: no cover - defensive
-        logger.exception("Could not compute grading cache key: submission=%s", getattr(submission, "pk", None))
+        logger.exception(
+            "Could not compute grading cache key: submission=%s",
+            getattr(submission, "pk", None),
+        )
         return ""
     submission.grading_cache_key = key
     try:
         EssaySubmission.objects.filter(pk=submission.pk).update(grading_cache_key=key)
     except Exception:  # pragma: no cover - defensive
-        logger.exception("Could not stamp grading cache key: submission=%s", submission.pk)
+        logger.exception(
+            "Could not stamp grading cache key: submission=%s", submission.pk
+        )
     return key
 
 
 def _discard_unusable_entry(entry, reason: str) -> None:
     """Drop a corrupt/obsolete entry unless a live leader currently owns it."""
     now = _timezone.now()
-    if entry.status == EssayGradingCache.Status.PROCESSING and entry.lease_expires_at is not None and entry.lease_expires_at > now:
+    if (
+        entry.status == EssayGradingCache.Status.PROCESSING
+        and entry.lease_expires_at is not None
+        and entry.lease_expires_at > now
+    ):
         logger.warning(
             "Unusable cache entry kept (active leader): hash=%s reason=%s",
-            entry.text_hash[:12], reason,
+            entry.text_hash[:12],
+            reason,
         )
         return
     EssayGradingCache.objects.filter(pk=entry.pk).delete()
-    metrics.cache_event("entry_discarded", cache_key=entry.text_hash, reason=reason[:80])
+    metrics.cache_event(
+        "entry_discarded", cache_key=entry.text_hash, reason=reason[:80]
+    )
 
 
 def _load_cached_grading_result(
-    text_hash: str, *, context_fingerprint: str | None = None,
+    text_hash: str,
+    *,
+    context_fingerprint: str | None = None,
 ) -> dict | None:
     """Return a reusable validated grade (HIT) or ``None`` (MISS).
 
@@ -1433,7 +1691,8 @@ def _load_cached_grading_result(
     except ValueError as exc:
         logger.warning(
             "Invalid cached essay result discarded: hash=%s, error=%s",
-            text_hash[:12], exc,
+            text_hash[:12],
+            exc,
         )
         _discard_unusable_entry(entry, f"invalid payload: {exc}")
         return None
@@ -1447,11 +1706,17 @@ def _load_cached_grading_result(
     result["_mock_mode"] = entry.provider == "mock"
     result["_cache_entry_pk"] = entry.pk
     metrics.cache_event(
-        "hit", cache_key=text_hash, score=str(entry.total_score), reuse_count=entry.hit_count,
+        "hit",
+        cache_key=text_hash,
+        score=str(entry.total_score),
+        reuse_count=entry.hit_count,
     )
     logger.info(
         "Essay grading cache HIT: hash=%s, score=%s/%s (reuse #%d)",
-        text_hash[:12], entry.total_score, entry.max_score, entry.hit_count,
+        text_hash[:12],
+        entry.total_score,
+        entry.max_score,
+        entry.hit_count,
     )
     return result
 
@@ -1550,7 +1815,9 @@ def _claim_grading_cache_entry(identity: dict, essay_text: str) -> _CacheClaim:
         return _CacheClaim(identity, entry, token, True)
 
     # Someone else owns the operation: register as a waiting submission.
-    EssayGradingCache.objects.filter(pk=entry.pk).update(waiting_count=F("waiting_count") + 1)
+    EssayGradingCache.objects.filter(pk=entry.pk).update(
+        waiting_count=F("waiting_count") + 1
+    )
     metrics.cache_event("dedup_wait", cache_key=key)
     logger.info(
         "Essay grading deduplicated: hash=%s already in progress — waiting for the leader",
@@ -1563,25 +1830,24 @@ def _complete_cache_entry(claim: _CacheClaim, result: dict) -> None:
     """Persist the validated canonical evaluation (only while still leader)."""
     clean = {k: v for k, v in result.items() if not k.startswith("_")}
     now = _timezone.now()
-    updated = (
-        EssayGradingCache.objects.filter(pk=claim.entry.pk, lease_owner=claim.token)
-        .update(
-            status=EssayGradingCache.Status.COMPLETED,
-            raw_result=clean,
-            total_score=Decimal(str(clean["total_score"])),
-            max_score=int(clean["max_score"]),
-            completed_at=now,
-            lease_owner="",
-            lease_expires_at=None,
-            error_summary="",
-            failure_count=0,
-            waiting_count=0,
-            hit_count=Case(
-                When(hit_count__lt=1, then=Value(1)),
-                default=F("hit_count"),
-                output_field=IntegerField(),
-            ),
-        )
+    updated = EssayGradingCache.objects.filter(
+        pk=claim.entry.pk, lease_owner=claim.token
+    ).update(
+        status=EssayGradingCache.Status.COMPLETED,
+        raw_result=clean,
+        total_score=Decimal(str(clean["total_score"])),
+        max_score=int(clean["max_score"]),
+        completed_at=now,
+        lease_owner="",
+        lease_expires_at=None,
+        error_summary="",
+        failure_count=0,
+        waiting_count=0,
+        hit_count=Case(
+            When(hit_count__lt=1, then=Value(1)),
+            default=F("hit_count"),
+            output_field=IntegerField(),
+        ),
     )
     if not updated:
         # The lease expired and a newer leader took over: never overwrite it.
@@ -1592,11 +1858,15 @@ def _complete_cache_entry(claim: _CacheClaim, result: dict) -> None:
         )
         return
     metrics.cache_event(
-        "completed", cache_key=claim.cache_key, score=str(clean["total_score"]),
+        "completed",
+        cache_key=claim.cache_key,
+        score=str(clean["total_score"]),
     )
     logger.info(
         "Essay grading cache COMPLETED: hash=%s, score=%s/%s",
-        claim.cache_key[:12], clean["total_score"], clean["max_score"],
+        claim.cache_key[:12],
+        clean["total_score"],
+        clean["max_score"],
     )
 
 
@@ -1613,15 +1883,16 @@ def _fail_cache_entry(claim: _CacheClaim, exc: BaseException) -> None:
     retry_delay = max(5, int(getattr(settings, "ESSAY_CACHE_RETRY_DELAY_SECONDS", 30)))
     summary = f"{type(exc).__name__}: {exc}"[:250]
     metrics.cache_event("failed", cache_key=claim.cache_key, error=summary[:80])
-    deleted, _ = (
-        EssayGradingCache.objects.filter(
-            pk=claim.entry.pk, lease_owner=claim.token, waiting_count__lte=0,
-        ).delete()
-    )
+    deleted, _ = EssayGradingCache.objects.filter(
+        pk=claim.entry.pk,
+        lease_owner=claim.token,
+        waiting_count__lte=0,
+    ).delete()
     if deleted:
         logger.warning(
             "Essay grading failed, no cache artifact kept: hash=%s, error=%s",
-            claim.cache_key[:12], summary,
+            claim.cache_key[:12],
+            summary,
         )
         return
     EssayGradingCache.objects.filter(pk=claim.entry.pk, lease_owner=claim.token).update(
@@ -1636,11 +1907,14 @@ def _fail_cache_entry(claim: _CacheClaim, exc: BaseException) -> None:
     )
     logger.warning(
         "Essay grading cache FAILED (waiters pending): hash=%s, error=%s",
-        claim.cache_key[:12], summary,
+        claim.cache_key[:12],
+        summary,
     )
 
 
-def _wait_for_cache_completion(claim: _CacheClaim, deadline: float) -> tuple[dict | None, bool]:
+def _wait_for_cache_completion(
+    claim: _CacheClaim, deadline: float
+) -> tuple[dict | None, bool]:
     """Poll for the leader's result.
 
     Returns ``(result, retry_now)``. ``retry_now`` is True when the entry is
@@ -1650,7 +1924,8 @@ def _wait_for_cache_completion(claim: _CacheClaim, deadline: float) -> tuple[dic
     key = claim.cache_key
     while True:
         result = _load_cached_grading_result(
-            key, context_fingerprint=claim.identity["context_fingerprint"],
+            key,
+            context_fingerprint=claim.identity["context_fingerprint"],
         )
         if result is not None:
             return result, False
@@ -1684,6 +1959,7 @@ def _deduplicate_cached_grading(func):
     result. Failures are recorded on the cache entry (never as a grade), and a
     timed-out waiter raises so the caller's retry/recovery path can take over.
     """
+
     @wraps(func)
     def wrapped(essay_text: str, topic_title: str = "", *args, **kwargs):
         if not essay_text or not essay_text.strip():
@@ -1694,7 +1970,9 @@ def _deduplicate_cached_grading(func):
         if not identity["cacheable"]:
             # Supervised / restricted / high-stakes assessment: grade per
             # student, never reuse another account's evaluation.
-            metrics.cache_event("bypass_scope", scope=str(identity["context"].get("scope")))
+            metrics.cache_event(
+                "bypass_scope", scope=str(identity["context"].get("scope"))
+            )
             return func(essay_text, topic_title, *args, **kwargs)
 
         wait_seconds = max(5, int(getattr(settings, "ESSAY_CACHE_WAIT_SECONDS", 200)))
@@ -1717,13 +1995,15 @@ def _deduplicate_cached_grading(func):
                 except Exception as exc:
                     _fail_cache_entry(claim, exc)
                     metrics.cache_event(
-                        "provider_failure", cache_key=claim.cache_key,
+                        "provider_failure",
+                        cache_key=claim.cache_key,
                         error=type(exc).__name__,
                     )
                     raise
                 _complete_cache_entry(claim, result)
                 metrics.cache_event(
-                    "ai_request", cache_key=claim.cache_key,
+                    "ai_request",
+                    cache_key=claim.cache_key,
                     duration_ms=int((time.monotonic() - started) * 1000),
                 )
                 return result
@@ -1748,9 +2028,8 @@ def apply_cached_grade_to_submission(submission, cache_key: str) -> bool:
     Each student keeps an independent ``EssaySubmission``; only the validated
     AI evaluation is shared. Returns True when this call graded the row.
     """
-    if (
-        submission.status == EssaySubmission.Status.GRADED
-        and essay_has_grade_result(submission)
+    if submission.status == EssaySubmission.Status.GRADED and essay_has_grade_result(
+        submission
     ):
         # Idempotent: a repeated sweep (or a late Celery delivery) must not
         # re-apply the evaluation or duplicate criterion rows.
@@ -1762,7 +2041,9 @@ def apply_cached_grade_to_submission(submission, cache_key: str) -> bool:
     return submission.status == EssaySubmission.Status.GRADED
 
 
-def distribute_cached_grade(cache_key: str, *, exclude_submission_id: int | None = None) -> int:
+def distribute_cached_grade(
+    cache_key: str, *, exclude_submission_id: int | None = None
+) -> int:
     """Complete every authorized submission waiting on one cache key.
 
     Idempotent: each row is re-checked under its own lock by
@@ -1788,12 +2069,14 @@ def distribute_cached_grade(cache_key: str, *, exclude_submission_id: int | None
         except Exception:  # pragma: no cover - defensive, one row must not break others
             logger.exception(
                 "Failed to distribute cached grade: submission=%d key=%s",
-                submission.pk, cache_key[:12],
+                submission.pk,
+                cache_key[:12],
             )
     if applied:
         logger.info(
             "Distributed cached grade to %d waiting submission(s): hash=%s",
-            applied, cache_key[:12],
+            applied,
+            cache_key[:12],
         )
     return applied
 
@@ -1839,7 +2122,9 @@ def invalidate_cache_entry(entry, reason: str = "manually invalidated") -> None:
         lease_owner="",
         lease_expires_at=None,
     )
-    metrics.cache_event("invalidated", cache_key=entry.text_hash, reason=(reason or "")[:60])
+    metrics.cache_event(
+        "invalidated", cache_key=entry.text_hash, reason=(reason or "")[:60]
+    )
 
 
 def purge_obsolete_cache_entries(*, keep_days: int | None = None) -> int:
@@ -1848,7 +2133,9 @@ def purge_obsolete_cache_entries(*, keep_days: int | None = None) -> int:
     Obsolete = older schema version, invalidated, or beyond the cache
     lifetime. Completed, schema-current rows are preserved.
     """
-    cache_lifetime_days = keep_days or max(1, int(getattr(settings, "ESSAY_GRADING_CACHE_DAYS", 30)))
+    cache_lifetime_days = keep_days or max(
+        1, int(getattr(settings, "ESSAY_GRADING_CACHE_DAYS", 30))
+    )
     cutoff = _timezone.now() - timedelta(days=cache_lifetime_days)
     obsolete = EssayGradingCache.objects.filter(
         Q(cache_schema_version__lt=EssayGradingCache.CACHE_SCHEMA_VERSION)
@@ -1865,6 +2152,7 @@ def purge_obsolete_cache_entries(*, keep_days: int | None = None) -> int:
         metrics.cache_event("purged", count=deleted)
         logger.info("Purged %d obsolete essay grading cache entries", deleted)
     return deleted
+
 
 def _grade_via_llm(
     client,
@@ -1916,7 +2204,11 @@ def _grade_via_llm(
                 # Keep the provider exception type so the Celery task retries
                 # after the whole model chain has a temporary outage.
                 last_error = exc
-                logger.warning("AI grading model %s failed temporarily; trying next candidate: %s", model, exc)
+                logger.warning(
+                    "AI grading model %s failed temporarily; trying next candidate: %s",
+                    model,
+                    exc,
+                )
                 continue
             if "413" in error_str or "too large" in error_str:
                 last_error = ValueError(
@@ -1925,11 +2217,12 @@ def _grade_via_llm(
                 )
             else:
                 last_error = ValueError(f"API xatolik: {exc}")
-            if (
-                _is_invalid_model_error(exc)
-                or (isinstance(exc, ValueError) and str(exc) == "LLM bo'sh javob qaytardi")
+            if _is_invalid_model_error(exc) or (
+                isinstance(exc, ValueError) and str(exc) == "LLM bo'sh javob qaytardi"
             ):
-                logger.warning("AI grading model %s failed; trying next candidate: %s", model, exc)
+                logger.warning(
+                    "AI grading model %s failed; trying next candidate: %s", model, exc
+                )
                 continue
             logger.error("AI provider API call failed: model=%s, error=%s", model, exc)
             raise last_error from exc
@@ -1938,10 +2231,18 @@ def _grade_via_llm(
         result = parse_llm_json(raw_text)
         if result.get("_parse_failed"):
             last_error = ValueError("LLM javobini JSON formatida parse qilib bo'lmadi")
-            logger.warning("AI grading model %s returned invalid JSON (first 500 chars): %s", model, raw_text[:500])
+            logger.warning(
+                "AI grading model %s returned invalid JSON (first 500 chars): %s",
+                model,
+                raw_text[:500],
+            )
             continue
 
-        for criterion in result.get("criteria", []) if isinstance(result.get("criteria"), list) else []:
+        for criterion in (
+            result.get("criteria", [])
+            if isinstance(result.get("criteria"), list)
+            else []
+        ):
             if isinstance(criterion, dict):
                 criterion.setdefault("reason", "")
                 criterion.setdefault("errors", [])
@@ -1951,16 +2252,22 @@ def _grade_via_llm(
             last_error = ValueError(f"LLM javob formati noto'g'ri: {exc}")
             logger.warning(
                 "AI grading model %s returned invalid rubric (error=%s, first 500 chars): %s",
-                model, exc, raw_text[:500],
+                model,
+                exc,
+                raw_text[:500],
             )
             continue
         return result, model_used
 
     raise last_error or ValueError("AI grading model chain is empty")
 
+
 @_deduplicate_cached_grading
 def grade_essay(
-    essay_text: str, topic_title: str = "", *, cache_context: dict | None = None,
+    essay_text: str,
+    topic_title: str = "",
+    *,
+    cache_context: dict | None = None,
 ) -> dict:
     """
     Grade an essay using OpenRouter LLM with the 12-mezon rubric.
@@ -1993,11 +2300,16 @@ def grade_essay(
 
     model = _get_ai_model()
     mock_mode = _is_mock_mode()
-    cache_key = grading_cache_identity(essay_text, topic_title, context=cache_context)["cache_key"]
+    cache_key = grading_cache_identity(essay_text, topic_title, context=cache_context)[
+        "cache_key"
+    ]
 
     logger.info(
         "Starting essay grading: model=%s, text_length=%d, hash=%s, mock=%s",
-        model, len(essay_text), cache_key[:12], mock_mode,
+        model,
+        len(essay_text),
+        cache_key[:12],
+        mock_mode,
     )
 
     # --- Mock mode: return fake scores without calling API ---
@@ -2029,8 +2341,11 @@ def grade_essay(
     user_message = build_grading_message(essay_text, topic_title)
 
     result, model = _grade_via_llm(
-        client, candidates, user_message,
-        ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
+        client,
+        candidates,
+        user_message,
+        ESSAY_GRADING_SYSTEM_PROMPT,
+        ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE,
         deadline=time.monotonic() + 170.0,
         request_timeout=configured_timeout,
         essay_text=essay_text,
@@ -2042,8 +2357,11 @@ def grade_essay(
 
     logger.info(
         "Essay grading completed: total_score=%s/%s, criteria_count=%d, topic_match=%s, model=%s",
-        result["total_score"], result["max_score"], len(result["criteria"]),
-        result["topic_match"], model,
+        result["total_score"],
+        result["max_score"],
+        len(result["criteria"]),
+        result["topic_match"],
+        model,
     )
 
     # Persistence of the canonical evaluation is owned by the shared-cache
@@ -2051,6 +2369,7 @@ def grade_essay(
     # lease — never as an unconditional overwrite from a non-leader.
     result["_from_cache"] = False
     return result
+
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -2074,9 +2393,14 @@ QATIY QOIDALAR:
    reja, tahlil yoki tushuntirish qat'iyan taqiqlanadi.
 """
 
-_IMPROVED_ESSAY_RE = re.compile(r"<essay>\s*(.*?)\s*</essay>", re.DOTALL | re.IGNORECASE)
+_IMPROVED_ESSAY_RE = re.compile(
+    r"<essay>\s*(.*?)\s*</essay>", re.DOTALL | re.IGNORECASE
+)
 
-def build_improve_message(essay_text: str, criteria_feedback: list[dict] | None, summary: str = "") -> str:
+
+def build_improve_message(
+    essay_text: str, criteria_feedback: list[dict] | None, summary: str = ""
+) -> str:
     """Build the user message for the improved-version request."""
     parts = [f"ASL ESSE:\n{essay_text.strip()}"]
 
@@ -2101,6 +2425,7 @@ def build_improve_message(essay_text: str, criteria_feedback: list[dict] | None,
     )
     return "\n\n".join(parts)
 
+
 def _essay_rewrite_cache_hash(submission: "EssaySubmission") -> str:
     """Hash essay, grading feedback, prompts, and provider/model for rewrites."""
     from .prompts import ESSAY_GRADING_SYSTEM_PROMPT, ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
@@ -2114,23 +2439,33 @@ def _essay_rewrite_cache_hash(submission: "EssaySubmission") -> str:
         "model_chain": _model_candidates() or [rewrite_model],
         "rubric_version": ESSAY_RUBRIC_VERSION,
         "topic": submission.topic.title if submission.topic_id else "",
-        "prompt_digest": hashlib.sha256((
-            IMPROVED_ESSAY_SYSTEM_PROMPT
-            + ESSAY_GRADING_SYSTEM_PROMPT
-            + ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
-        ).encode("utf-8")).hexdigest(),
+        "prompt_digest": hashlib.sha256(
+            (
+                IMPROVED_ESSAY_SYSTEM_PROMPT
+                + ESSAY_GRADING_SYSTEM_PROMPT
+                + ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE
+            ).encode("utf-8")
+        ).hexdigest(),
         "essay": re.sub(
-            r"\s+", " ", unicodedata.normalize("NFC", essay_text).strip(),
+            r"\s+",
+            " ",
+            unicodedata.normalize("NFC", essay_text).strip(),
         ),
         "grade_result": submission.raw_result or {},
         "summary": submission.summary or "",
     }
     rewrite_key = json.dumps(
-        rewrite_identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        rewrite_identity,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
     )
     return hashlib.sha256(rewrite_key.encode("utf-8")).hexdigest()
 
-def _load_cached_rewrite(submission: "EssaySubmission", rewrite_hash: str) -> str | None:
+
+def _load_cached_rewrite(
+    submission: "EssaySubmission", rewrite_hash: str
+) -> str | None:
     cached = EssayRewriteCache.objects.filter(text_hash=rewrite_hash).first()
     if cached is None:
         return None
@@ -2144,8 +2479,10 @@ def _load_cached_rewrite(submission: "EssaySubmission", rewrite_hash: str) -> st
     submission._improved_fresh = False
     return cached.improved_content
 
+
 def _deduplicate_rewrite(func):
     """Share an in-flight rewrite and cache result across identical submissions."""
+
     @wraps(func)
     def wrapped(submission: "EssaySubmission") -> str:
         if submission.improved_content.strip():
@@ -2174,7 +2511,9 @@ def _deduplicate_rewrite(func):
                 if acquired:
                     break
                 if time.monotonic() >= wait_until:
-                    raise TimeoutError("Bir xil esse qayta yozilmoqda; birozdan keyin urinib ko'ring")
+                    raise TimeoutError(
+                        "Bir xil esse qayta yozilmoqda; birozdan keyin urinib ko'ring"
+                    )
                 time.sleep(0.25)
 
         try:
@@ -2187,9 +2526,12 @@ def _deduplicate_rewrite(func):
                 if django_cache.get(lock_key) == lock_token:
                     django_cache.delete(lock_key)
             except Exception:
-                logger.exception("Could not release essay rewrite lock: %s", rewrite_hash[:12])
+                logger.exception(
+                    "Could not release essay rewrite lock: %s", rewrite_hash[:12]
+                )
 
     return wrapped
+
 
 @_deduplicate_rewrite
 def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) -> str:
@@ -2209,6 +2551,7 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
 
     # Respect the same length cap as grading.
     from .views import MAX_ESSAY_LENGTH  # local import avoids a cycle
+
     if len(essay_text) > MAX_ESSAY_LENGTH:
         raise ValueError("Esse juda uzun")
 
@@ -2235,12 +2578,18 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
     client = _get_llm_client(timeout=45.0)  # bounded: sync web request
     candidates = _model_candidates()
 
-    criteria_feedback = list(submission.raw_result.get("criteria", [])) if submission.raw_result else []
-    user_message = build_improve_message(essay_text, criteria_feedback, submission.summary or "")
+    criteria_feedback = (
+        list(submission.raw_result.get("criteria", [])) if submission.raw_result else []
+    )
+    user_message = build_improve_message(
+        essay_text, criteria_feedback, submission.summary or ""
+    )
 
     logger.info(
         "Generating improved essay: submission=%s, model=%s, text_length=%d",
-        submission.id, candidates[0], len(essay_text),
+        submission.id,
+        candidates[0],
+        len(essay_text),
     )
 
     try:
@@ -2257,7 +2606,9 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
             max_attempts=1,  # fail over fast; don't pin the web worker
         )
     except Exception as e:
-        logger.error("Improved-essay generation failed: submission=%s, %s", submission.id, e)
+        logger.error(
+            "Improved-essay generation failed: submission=%s, %s", submission.id, e
+        )
         raise ValueError(f"API xatolik: {e}") from e
 
     raw = _strip_thinking_tags(response.choices[0].message.content or "").strip()
@@ -2280,7 +2631,8 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
     if len(improved) < 50:
         logger.error(
             "Improved essay implausibly short (%d chars): submission=%s",
-            len(improved), submission.id,
+            len(improved),
+            submission.id,
         )
         raise ValueError("AI javobi juda qisqa — qayta urinib ko'ring")
 
@@ -2299,9 +2651,12 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
     submission._improved_fresh = True
     logger.info(
         "Improved essay saved: submission=%s, model=%s, chars=%d",
-        submission.id, model_used, len(improved),
+        submission.id,
+        model_used,
+        len(improved),
     )
     return improved
+
 
 # Auto-submit: vaqt tugaganda avtomatik baholash
 # ---------------------------------------------------------------------------
@@ -2310,11 +2665,14 @@ def generate_improved_essay(submission: "EssaySubmission", rewrite_hash: str) ->
 # task (or the broker-down sync fallback) can grade a submission that was
 # already marked pending by the web view. Prevents double-grading: the
 # task re-checks the status under a row lock before grading.
-_GRADEABLE_STATUSES = frozenset({
-    EssaySubmission.Status.DRAFT,
-    EssaySubmission.Status.AI_EVALUATED,
-    EssaySubmission.Status.PENDING,
-})
+_GRADEABLE_STATUSES = frozenset(
+    {
+        EssaySubmission.Status.DRAFT,
+        EssaySubmission.Status.AI_EVALUATED,
+        EssaySubmission.Status.PENDING,
+    }
+)
+
 
 def expire_overdue_pending_grading(submission) -> bool:
     """Turn an orphaned ``PENDING`` grading job into a terminal real error.
@@ -2342,9 +2700,7 @@ def expire_overdue_pending_grading(submission) -> bool:
 
     with _db_txn.atomic():
         locked = (
-            EssaySubmission.objects.select_for_update()
-            .filter(pk=submission.pk)
-            .first()
+            EssaySubmission.objects.select_for_update().filter(pk=submission.pk).first()
         )
         if locked is None or locked.status != EssaySubmission.Status.PENDING:
             return False
@@ -2368,6 +2724,7 @@ def expire_overdue_pending_grading(submission) -> bool:
         started_at,
     )
     return True
+
 
 def essay_has_grade_result(submission) -> bool:
     """Submission to'liq baholangani: baho/izoh bazaga yozilganmi.
@@ -2395,6 +2752,7 @@ def essay_has_grade_result(submission) -> bool:
         return bool(submission.raw_result)
     return False
 
+
 def _send_to_teacher(submission, reason: str, error_message: str = "") -> dict:
     """Mark a submission PENDING_TEACHER (fallback when AI can't grade it)."""
     submission.status = EssaySubmission.Status.PENDING_TEACHER
@@ -2408,7 +2766,8 @@ def _send_to_teacher(submission, reason: str, error_message: str = "") -> dict:
     submission.save(update_fields=update_fields)
     logger.info(
         "Essay → PENDING_TEACHER: submission=%d, reason=%s%s",
-        submission.id, reason,
+        submission.id,
+        reason,
         f", error={error_message[:120]!r}" if error_message else "",
     )
     return {"success": True, "error": error_message or None, "fallback": True}
@@ -2442,22 +2801,19 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
     with _db_txn.atomic():
         # Lock the row for the short write only — grading already finished.
         locked = (
-            EssaySubmission.objects.select_for_update()
-            .filter(pk=submission.pk)
-            .first()
+            EssaySubmission.objects.select_for_update().filter(pk=submission.pk).first()
         )
         if locked is None:
             return
         # FSM guard: only a PENDING (or legacy gradeable) submission may
         # become GRADED. Duplicate/stale workers that lost the claim
         # must not overwrite a newer GRADED/ERROR/PENDING_TEACHER result.
-        allowed = locked.STATUS_TRANSITIONS.get(
-            locked.status, frozenset()
-        )
+        allowed = locked.STATUS_TRANSITIONS.get(locked.status, frozenset())
         if EssaySubmission.Status.GRADED not in allowed:
             logger.warning(
                 "FSM drop: submission=%d status=%s cannot transition to GRADED — stale worker ignored",
-                locked.pk, locked.status,
+                locked.pk,
+                locked.status,
             )
             return
 
@@ -2473,7 +2829,9 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
         except ValueError as _ve:
             logger.warning(
                 "FSM transition failed: submission=%d %s -> GRADED: %s",
-                locked.pk, locked.status, _ve,
+                locked.pk,
+                locked.status,
+                _ve,
             )
             return
         locked.graded_at = _timezone.now()
@@ -2490,10 +2848,19 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
         if cache_key and not locked.grading_cache_key:
             locked.grading_cache_key = cache_key
         update_fields = [
-            "raw_result", "total_score", "max_score",
-            "summary", "status", "graded_at", "updated_at",
-            "is_off_topic", "topic_match_reason", "error_message",
-            "grading_source", "grading_cache", "grading_cache_key",
+            "raw_result",
+            "total_score",
+            "max_score",
+            "summary",
+            "status",
+            "graded_at",
+            "updated_at",
+            "is_off_topic",
+            "topic_match_reason",
+            "error_message",
+            "grading_source",
+            "grading_cache",
+            "grading_cache_key",
         ]
         if clean_result.get("improved_text") and not locked.improved_content:
             locked.improved_content = clean_result["improved_text"]
@@ -2537,7 +2904,8 @@ def is_ielts_submission(submission) -> bool:
     return (
         getattr(topic, "subject", "") == "english"
         or str(getattr(topic, "rubric_type", "")).startswith("ielts")
-        or getattr(topic, "category", "") in ("ielts_task1", "ielts_task2", "multilevel")
+        or getattr(topic, "category", "")
+        in ("ielts_task1", "ielts_task2", "multilevel")
     )
 
 
@@ -2556,7 +2924,11 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
         {"success": bool, "error": str|None, "fallback": bool}
     """
     if submission.status not in _GRADEABLE_STATUSES:
-        return {"success": False, "error": "Essa allaqachon yakunlangan", "fallback": False}
+        return {
+            "success": False,
+            "error": "Essa allaqachon yakunlangan",
+            "fallback": False,
+        }
 
     essay_text = submission.essay_text.strip()
 
@@ -2581,8 +2953,14 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     cache_context = None if ielts_mode else grading_context_for_submission(submission)
     try:
         if ielts_mode:
-            task_type = getattr(submission.topic, "rubric_type", "ielts_task2") or "ielts_task2"
-            min_w = getattr(submission.topic, "word_limit_min", 150 if task_type == "ielts_task1" else 250)
+            task_type = (
+                getattr(submission.topic, "rubric_type", "ielts_task2") or "ielts_task2"
+            )
+            min_w = getattr(
+                submission.topic,
+                "word_limit_min",
+                150 if task_type == "ielts_task1" else 250,
+            )
             result = grade_ielts_essay(
                 essay_text,
                 topic_title=topic_title,
@@ -2590,19 +2968,28 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
                 min_words=min_w,
             )
         else:
-            result = grade_essay(essay_text, topic_title=topic_title, cache_context=cache_context)
+            result = grade_essay(
+                essay_text, topic_title=topic_title, cache_context=cache_context
+            )
     except (ValueError, ImportError, ImproperlyConfigured) as e:
         submission.auto_submitted = True
         submission.submitted_at = _timezone.now()
         submission.status = fail_status
         submission.error_message = str(e)
-        submission.save(update_fields=[
-            "status", "auto_submitted", "submitted_at",
-            "error_message", "updated_at",
-        ])
+        submission.save(
+            update_fields=[
+                "status",
+                "auto_submitted",
+                "submitted_at",
+                "error_message",
+                "updated_at",
+            ]
+        )
         logger.error(
             "Auto-submit AI FAILED: submission=%d, error=%s → %s",
-            submission.id, str(e), fail_status,
+            submission.id,
+            str(e),
+            fail_status,
         )
         fallback = fail_status == EssaySubmission.Status.PENDING_TEACHER
         return {"success": False, "error": str(e), "fallback": fallback}
@@ -2617,9 +3004,12 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
 
     logger.info(
         "Auto-submit GRADED: submission=%d, score=%s/%d",
-        submission.id, submission.total_score, submission.max_score,
+        submission.id,
+        submission.total_score,
+        submission.max_score,
     )
     return {"success": True, "error": None, "fallback": False}
+
 
 def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     """
@@ -2641,21 +3031,18 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
         # bo'lsa (timeout yoki LLM xatosi sababli baholanmagan) — foydalanuvchi
         # qayta yuborishi mumkin: DRAFT'ga qaytaramiz va qayta baholaymiz.
         # Faqat to'liq baholangan (baho/izoh saqlangan) esse bloklanadi.
-        if (
-            submission.status
-            in (
-                EssaySubmission.Status.ERROR,
-                EssaySubmission.Status.PENDING_TEACHER,
-            )
-            and not essay_has_grade_result(submission)
-        ):
+        if submission.status in (
+            EssaySubmission.Status.ERROR,
+            EssaySubmission.Status.PENDING_TEACHER,
+        ) and not essay_has_grade_result(submission):
             old_status = submission.status
             submission.status = EssaySubmission.Status.DRAFT
             submission.error_message = ""
             submission.save(update_fields=["status", "error_message", "updated_at"])
             logger.info(
                 "Essay resubmitted after failed grading: submission=%d (old status=%s)",
-                submission.id, old_status,
+                submission.id,
+                old_status,
             )
         else:
             return {
@@ -2677,7 +3064,9 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
     # submit is rejected by the status guard above. Use conditional update so
     # two parallel submits cannot both claim the same row.
     grading_started_at = _timezone.now()
-    cache_key = "" if is_ielts_submission(submission) else stamp_grading_cache_key(submission)
+    cache_key = (
+        "" if is_ielts_submission(submission) else stamp_grading_cache_key(submission)
+    )
     claimed = EssaySubmission.objects.filter(
         pk=submission.pk, status__in=list(_GRADEABLE_STATUSES)
     ).update(
@@ -2704,9 +3093,7 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
                 "fallback": False,
                 "async": False,
             }
-    submission.refresh_from_db(
-        fields=["status", "grading_started_at", "updated_at"]
-    )
+    submission.refresh_from_db(fields=["status", "grading_started_at", "updated_at"])
 
     # Dev/test rejimida Celery eager bo'lsa (CELERY_TASK_ALWAYS_EAGER=True),
     # .delay() LLM chaqiruvini SHU request thread ichida sinxron bajaradi —
@@ -2727,7 +3114,8 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
         # ko'rinadi (start_thread_grading quyida).
         logger.warning(
             "Could not enqueue essay grading (broker down?): submission=%d, %s — background thread fallback",
-            submission.id, exc,
+            submission.id,
+            exc,
         )
         result = start_thread_grading(submission, fail_status=fail_status)
         result["mode"] = "thread"
@@ -2736,9 +3124,11 @@ def start_async_grading(submission, *, fail_status: str = "pending_teacher") -> 
     logger.info("Essay grading enqueued: submission=%d", submission.id)
     return {"success": True, "error": None, "fallback": False, "async": True}
 
+
 # ---------------------------------------------------------------------------
 # Celery-siz yengil fallback: background thread (asyncio.create_task muqobili)
 # ---------------------------------------------------------------------------
+
 
 def start_thread_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     """Celery ishlamaganda AI baholashni background thread'da boshlash.
@@ -2767,7 +3157,12 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
         error = RuntimeError("AI baholash navbati band. Iltimos, qayta urinib ko'ring.")
         _mark_grading_failed(submission.id, error)
         logger.warning("Essay thread grading throttled: submission=%d", submission.id)
-        return {"success": False, "error": str(error), "fallback": False, "async": False}
+        return {
+            "success": False,
+            "error": str(error),
+            "fallback": False,
+            "async": False,
+        }
 
     def _is_still_gradeable() -> bool:
         # DB vaqtincha band bo'lsa (sqlite test lockout, failover va h.k.) —
@@ -2792,8 +3187,13 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
             # Backoff: ESSAY_THREAD_RETRY_BACKOFF sozlamasi (default 5/10/15s).
             # Deadline: hard 120s per thread (matching idea of LLM budget).
             import time as _t
+
             deadline = _t.monotonic() + 120
-            backoff = getattr(settings, "ESSAY_THREAD_RETRY_BACKOFF", None) or (5, 10, 15)
+            backoff = getattr(settings, "ESSAY_THREAD_RETRY_BACKOFF", None) or (
+                5,
+                10,
+                15,
+            )
             last_exc: Exception | None = None
             for attempt in range(1, 4):
                 if _t.monotonic() > deadline:
@@ -2805,11 +3205,15 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
                         kwargs={"fail_status": fail_status},
                     )
                     return  # graded / not_gradeable / missing — task tugadi
-                except Exception as exc:  # Retry ham Exception (celery.exceptions.Retry)
+                except (
+                    Exception
+                ) as exc:  # Retry ham Exception (celery.exceptions.Retry)
                     last_exc = exc
                     logger.warning(
                         "Thread grading attempt %d failed: submission=%d, error=%s",
-                        attempt, submission.id, exc,
+                        attempt,
+                        submission.id,
+                        exc,
                     )
                 if not _is_still_gradeable():
                     # Konkurrent jarayon allaqachon yakunlagan yoki status o'zgargan
@@ -2823,7 +3227,8 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
             # qotib qolmasin (Celery retry kontraktining thread-muqobili).
             if _is_still_gradeable():
                 _mark_grading_failed(
-                    submission.id, last_exc or Exception("thread grading failed"),
+                    submission.id,
+                    last_exc or Exception("thread grading failed"),
                 )
         finally:
             # Thread'ning o'z DB ulanishi — daphne to'xtaganda "connection
@@ -2848,6 +3253,7 @@ def start_thread_grading(submission, *, fail_status: str = "pending_teacher") ->
     )
     return {"success": True, "error": None, "fallback": False, "async": True}
 
+
 def start_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     """AI baholashni fon rejimida boshlash — broker'ga qarab yo'l tanlaydi.
 
@@ -2867,15 +3273,19 @@ def start_grading(submission, *, fail_status: str = "pending_teacher") -> dict:
     # deb noto'g'ri belgilanadi.
     result.setdefault(
         "mode",
-        "celery" if result.get("async")
-        else "inline" if result.get("fallback")
+        "celery"
+        if result.get("async")
+        else "inline"
+        if result.get("fallback")
         else "sync",
     )
     return result
 
+
 # ---------------------------------------------------------------------------
 # Telegram: baholash tugaganda o'quvchiga xabar
 # ---------------------------------------------------------------------------
+
 
 def notify_student_essay_graded(submission) -> None:
     """AI baholash tugagach o'quvchining Telegram'iga natijani yuborish.
@@ -2887,16 +3297,21 @@ def notify_student_essay_graded(submission) -> None:
     idempotency key) even if the grade task is retried/redelivered.
     """
     from django.db import transaction as _txn2
+
     # Idempotency guard — if a SENT log already exists for this submission,
     # do not send again (retry-safe).
     try:
         from apps.notifications.models import NotificationLog
+
         if NotificationLog.objects.filter(
             related_essay_submission_id=submission.id,
             notification_type=NotificationLog.NotificationType.ESSAY_GRADED,
             status=NotificationLog.Status.SENT,
         ).exists():
-            logger.info("Essay graded notification already SENT — skipping duplicate: submission=%d", submission.id)
+            logger.info(
+                "Essay graded notification already SENT — skipping duplicate: submission=%d",
+                submission.id,
+            )
             return
     except Exception:
         pass
@@ -2905,7 +3320,8 @@ def notify_student_essay_graded(submission) -> None:
     if not chat_id or not getattr(student, "telegram_identity_verified_at", None):
         logger.info(
             "Essay graded, student has no telegram_chat_id — skipping: submission=%d, student=%s",
-            submission.id, student.email,
+            submission.id,
+            student.email,
         )
         return
 
@@ -2913,7 +3329,9 @@ def notify_student_essay_graded(submission) -> None:
         from apps.notifications.services.telegram_service import TelegramService
 
         topic_title = submission.topic.title if submission.topic else "Erkin mavzu"
-        score = str(submission.total_score) if submission.total_score is not None else "-"
+        score = (
+            str(submission.total_score) if submission.total_score is not None else "-"
+        )
         max_score = str(submission.max_score) if submission.max_score else "24"
         is_passed = bool(submission.is_passed)
         converted = submission.converted_score
@@ -2939,13 +3357,15 @@ def notify_student_essay_graded(submission) -> None:
         if not sent.get("success"):
             logger.warning(
                 "Essay-graded Telegram notification failed: submission=%d, error=%s",
-                submission.id, sent.get("error"),
+                submission.id,
+                sent.get("error"),
             )
         else:
             # Record idempotency key so retries do not duplicate Telegram sends.
             try:
                 from apps.notifications.models import NotificationLog
                 from django.utils import timezone as _tzN
+
                 NotificationLog.objects.get_or_create(
                     related_essay_submission_id=submission.id,
                     notification_type=NotificationLog.NotificationType.ESSAY_GRADED,
@@ -2959,10 +3379,15 @@ def notify_student_essay_graded(submission) -> None:
                     },
                 )
             except Exception:
-                logger.exception("Failed to write essay_graded NotificationLog idempotency record: submission=%d", submission.id)
+                logger.exception(
+                    "Failed to write essay_graded NotificationLog idempotency record: submission=%d",
+                    submission.id,
+                )
     except Exception as e:  # notification hech qachon baholashni buzmasin
         logger.warning(
-            "Essay-graded notification error: submission=%d, %s", submission.id, e,
+            "Essay-graded notification error: submission=%d, %s",
+            submission.id,
+            e,
         )
 
 
@@ -2981,7 +3406,14 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+        Image,
+    )
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -3035,8 +3467,12 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     elements = []
 
     # Title header
-    elements.append(Paragraph("<b>GRAND EDUCATION — MILLIY SERTIFIKAT TIZIMI</b>", title_style))
-    elements.append(Paragraph("<b>ESSE TAHLILI VA RASMIY NATIJA HUJJATI</b>", subtitle_style))
+    elements.append(
+        Paragraph("<b>GRAND EDUCATION — MILLIY SERTIFIKAT TIZIMI</b>", title_style)
+    )
+    elements.append(
+        Paragraph("<b>ESSE TAHLILI VA RASMIY NATIJA HUJJATI</b>", subtitle_style)
+    )
     elements.append(Spacer(1, 14))
 
     # Student & Essay Info Table
@@ -3044,36 +3480,71 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     student_name = student.get_full_name() if student else "O'quvchi"
     if not student_name and student:
         student_name = student.email
-    topic_title = submission.topic.title if getattr(submission, "topic", None) else "Erkin mavzu"
-    date_str = submission.created_at.strftime("%d.%m.%Y %H:%M") if getattr(submission, "created_at", None) else "-"
+    topic_title = (
+        submission.topic.title if getattr(submission, "topic", None) else "Erkin mavzu"
+    )
+    date_str = (
+        submission.created_at.strftime("%d.%m.%Y %H:%M")
+        if getattr(submission, "created_at", None)
+        else "-"
+    )
     score_str = f"{submission.total_score or 0} / {submission.max_score or 20}"
     conv_str = f"{submission.converted_score or 0} / 75"
-    status_str = "O'TDI (Muvaffaqiyatli)" if getattr(submission, "is_passed", False) else "O'TMADI"
+    status_str = (
+        "O'TDI (Muvaffaqiyatli)"
+        if getattr(submission, "is_passed", False)
+        else "O'TMADI"
+    )
 
     info_data = [
-        [Paragraph("<b>O'quvchi:</b>", body_style), Paragraph(student_name, body_style),
-         Paragraph("<b>Sana:</b>", body_style), Paragraph(date_str, body_style)],
-        [Paragraph("<b>Esse mavzusi:</b>", body_style), Paragraph(topic_title, body_style),
-         Paragraph("<b>So'zlar soni:</b>", body_style), Paragraph(str(getattr(submission, "word_count", 0)), body_style)],
-        [Paragraph("<b>Umumiy ball:</b>", body_style), Paragraph(f"<b>{score_str}</b>", body_bold),
-         Paragraph("<b>75 shkalada:</b>", body_style), Paragraph(f"<b>{conv_str}</b>", body_bold)],
-        [Paragraph("<b>Holat:</b>", body_style), Paragraph(status_str, body_bold),
-         Paragraph("<b>Hujjat ID:</b>", body_style), Paragraph(f"ESSE-{submission.id:06d}", body_style)],
+        [
+            Paragraph("<b>O'quvchi:</b>", body_style),
+            Paragraph(student_name, body_style),
+            Paragraph("<b>Sana:</b>", body_style),
+            Paragraph(date_str, body_style),
+        ],
+        [
+            Paragraph("<b>Esse mavzusi:</b>", body_style),
+            Paragraph(topic_title, body_style),
+            Paragraph("<b>So'zlar soni:</b>", body_style),
+            Paragraph(str(getattr(submission, "word_count", 0)), body_style),
+        ],
+        [
+            Paragraph("<b>Umumiy ball:</b>", body_style),
+            Paragraph(f"<b>{score_str}</b>", body_bold),
+            Paragraph("<b>75 shkalada:</b>", body_style),
+            Paragraph(f"<b>{conv_str}</b>", body_bold),
+        ],
+        [
+            Paragraph("<b>Holat:</b>", body_style),
+            Paragraph(status_str, body_bold),
+            Paragraph("<b>Hujjat ID:</b>", body_style),
+            Paragraph(f"ESSE-{submission.id:06d}", body_style),
+        ],
     ]
 
     t_info = Table(info_data, colWidths=[80, 180, 80, 180])
-    t_info.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
-        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
-        ("PADDING", (0, 0), (-1, -1), 6),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
+    t_info.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
     elements.append(t_info)
     elements.append(Spacer(1, 14))
 
     # 12 Criteria Table
-    elements.append(Paragraph("<b>12 Mezon bo'yicha batafsil baholash (BMB 20 ballik shkala):</b>", heading_style))
+    elements.append(
+        Paragraph(
+            "<b>12 Mezon bo'yicha batafsil baholash (BMB 20 ballik shkala):</b>",
+            heading_style,
+        )
+    )
 
     criteria_table_data = [
         [
@@ -3086,38 +3557,51 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     ]
 
     from apps.essays.models import EssayCriterionScore
+
     crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
 
-    criteria_qs = list(submission.criteria.order_by("criterion_id")) if hasattr(submission, "criteria") else []
+    criteria_qs = (
+        list(submission.criteria.order_by("criterion_id"))
+        if hasattr(submission, "criteria")
+        else []
+    )
     if criteria_qs:
         for c in criteria_qs:
             c_max = str(crit_maxes.get(c.criterion_id, 2.0))
-            criteria_table_data.append([
-                Paragraph(str(c.criterion_id), body_style),
-                Paragraph(c.name, body_style),
-                Paragraph(f"<b>{c.score}</b>", body_bold),
-                Paragraph(c_max, body_style),
-                Paragraph(c.reason[:180] if c.reason else "-", body_style),
-            ])
+            criteria_table_data.append(
+                [
+                    Paragraph(str(c.criterion_id), body_style),
+                    Paragraph(c.name, body_style),
+                    Paragraph(f"<b>{c.score}</b>", body_bold),
+                    Paragraph(c_max, body_style),
+                    Paragraph(c.reason[:180] if c.reason else "-", body_style),
+                ]
+            )
     else:
         for cid, cname in EssayCriterionScore.CRITERION_NAMES.items():
             c_max = str(crit_maxes.get(cid, 2.0))
-            criteria_table_data.append([
-                Paragraph(str(cid), body_style),
-                Paragraph(cname, body_style),
-                Paragraph("-", body_style),
-                Paragraph(c_max, body_style),
-                Paragraph("-", body_style),
-            ])
+            criteria_table_data.append(
+                [
+                    Paragraph(str(cid), body_style),
+                    Paragraph(cname, body_style),
+                    Paragraph("-", body_style),
+                    Paragraph(c_max, body_style),
+                    Paragraph("-", body_style),
+                ]
+            )
 
     t_crit = Table(criteria_table_data, colWidths=[24, 180, 44, 40, 234])
-    t_crit.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
-        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
-        ("PADDING", (0, 0), (-1, -1), 4),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
+    t_crit.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("PADDING", (0, 0), (-1, -1), 4),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
     elements.append(t_crit)
     elements.append(Spacer(1, 12))
 
@@ -3133,11 +3617,14 @@ def generate_essay_result_pdf(submission: Any) -> Any:
     qr_img = None
     try:
         import qrcode
+
         qr = qrcode.QRCode(box_size=3, border=1)
         qr.add_data(verify_url)
         qr.make(fit=True)
         img_buf = BytesIO()
-        qr.make_image(fill_color="black", back_color="white").save(img_buf, format="PNG")
+        qr.make_image(fill_color="black", back_color="white").save(
+            img_buf, format="PNG"
+        )
         img_buf.seek(0)
         qr_img = Image(img_buf, width=60, height=60)
     except Exception:
@@ -3155,10 +3642,14 @@ def generate_essay_result_pdf(submission: Any) -> Any:
         ]
     ]
     t_foot = Table(footer_data, colWidths=[70, 450])
-    t_foot.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("PADDING", (0, 0), (-1, -1), 2),
-    ]))
+    t_foot.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("PADDING", (0, 0), (-1, -1), 2),
+            ]
+        )
+    )
     elements.append(t_foot)
 
     doc.build(elements)
@@ -3234,14 +3725,24 @@ def _validate_ielts_result(
     if not isinstance(raw_criteria, list) or len(raw_criteria) < 4:
         raise ValueError("IELTS 'criteria' must contain 4 items")
 
-    wc = WordCounter.count(essay_text) if essay_text else int(result.get("word_count") or 0)
+    wc = (
+        WordCounter.count(essay_text)
+        if essay_text
+        else int(result.get("word_count") or 0)
+    )
     normalized_criteria = []
 
     for idx in range(1, 5):
         canonical_name = EssayCriterionScore.IELTS_CRITERION_NAMES[idx]
         item = next(
-            (c for c in raw_criteria if isinstance(c, dict) and int(c.get("id", 0) or 0) == idx),
-            raw_criteria[idx - 1] if idx - 1 < len(raw_criteria) and isinstance(raw_criteria[idx - 1], dict) else {},
+            (
+                c
+                for c in raw_criteria
+                if isinstance(c, dict) and int(c.get("id", 0) or 0) == idx
+            ),
+            raw_criteria[idx - 1]
+            if idx - 1 < len(raw_criteria) and isinstance(raw_criteria[idx - 1], dict)
+            else {},
         )
         raw_score = item.get("score", 6.0)
         try:
@@ -3259,16 +3760,22 @@ def _validate_ielts_result(
                 reason = (reason + penalty_note).strip()
 
         raw_errors = item.get("errors", [])
-        errors = [str(e).strip()[:200] for e in (raw_errors if isinstance(raw_errors, list) else [])[:6] if str(e).strip()]
+        errors = [
+            str(e).strip()[:200]
+            for e in (raw_errors if isinstance(raw_errors, list) else [])[:6]
+            if str(e).strip()
+        ]
 
-        normalized_criteria.append({
-            "id": idx,
-            "name": canonical_name,
-            "score": band_score,
-            "max_score": 9.0,
-            "reason": reason or f"{canonical_name} evaluated at Band {band_score}.",
-            "errors": errors,
-        })
+        normalized_criteria.append(
+            {
+                "id": idx,
+                "name": canonical_name,
+                "score": band_score,
+                "max_score": 9.0,
+                "reason": reason or f"{canonical_name} evaluated at Band {band_score}.",
+                "errors": errors,
+            }
+        )
 
     overall_band = _round_ielts_band(sum(c["score"] for c in normalized_criteria) / 4.0)
     cefr = _band_to_cefr(overall_band)
@@ -3287,27 +3794,40 @@ def _validate_ielts_result(
     if isinstance(raw_spelling, list):
         for sp in raw_spelling[:20]:
             if isinstance(sp, dict) and sp.get("word"):
-                spelling_errors.append({
-                    "word": str(sp.get("word", "")).strip()[:100],
-                    "correction": str(sp.get("correction", "")).strip()[:100],
-                    "explanation": str(sp.get("explanation", "")).strip()[:200],
-                })
+                spelling_errors.append(
+                    {
+                        "word": str(sp.get("word", "")).strip()[:100],
+                        "correction": str(sp.get("correction", "")).strip()[:100],
+                        "explanation": str(sp.get("explanation", "")).strip()[:200],
+                    }
+                )
 
     strengths = [
         str(s).strip()[:300]
-        for s in (result.get("strengths") if isinstance(result.get("strengths"), list) else [])[:6]
+        for s in (
+            result.get("strengths") if isinstance(result.get("strengths"), list) else []
+        )[:6]
         if str(s).strip()
     ]
     weaknesses = [
         str(w).strip()[:300]
-        for w in (result.get("weaknesses") if isinstance(result.get("weaknesses"), list) else [])[:6]
+        for w in (
+            result.get("weaknesses")
+            if isinstance(result.get("weaknesses"), list)
+            else []
+        )[:6]
         if str(w).strip()
     ]
 
     return {
-        "rubric_type": task_type if task_type in ("ielts_task1", "ielts_task2") else "ielts_task2",
+        "rubric_type": task_type
+        if task_type in ("ielts_task1", "ielts_task2")
+        else "ielts_task2",
         "topic_match": bool(result.get("topic_match", True)),
-        "topic_match_reason": str(result.get("topic_match_reason") or "The response addresses the given prompt.")[:1000],
+        "topic_match_reason": str(
+            result.get("topic_match_reason")
+            or "The response addresses the given prompt."
+        )[:1000],
         "criteria": normalized_criteria,
         "overall_band": overall_band,
         "cefr_level": cefr,
@@ -3319,7 +3839,9 @@ def _validate_ielts_result(
         "strengths": strengths,
         "weaknesses": weaknesses,
         "spelling_errors": spelling_errors,
-        "teacher_recommendation": str(result.get("teacher_recommendation") or "")[:4000],
+        "teacher_recommendation": str(result.get("teacher_recommendation") or "")[
+            :4000
+        ],
         "improved_text": str(result.get("improved_text") or "")[:10000],
     }
 
@@ -3405,7 +3927,9 @@ def _mock_ielts_response(
             "and concludes by linking back to the main prompt.]"
         ),
     }
-    validated = _validate_ielts_result(raw, essay_text=essay_text, task_type=task_type, min_words=min_words)
+    validated = _validate_ielts_result(
+        raw, essay_text=essay_text, task_type=task_type, min_words=min_words
+    )
     validated["_mock_mode"] = True
     return validated
 
@@ -3425,13 +3949,22 @@ def grade_ielts_essay(
         raise ValueError("Essay text cannot be empty.")
 
     if _is_mock_mode():
-        return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
+        return _mock_ielts_response(
+            cleaned_text,
+            topic_title=topic_title,
+            task_type=task_type,
+            min_words=min_words,
+        )
 
     try:
         client = _get_llm_client(timeout=60.0)
         candidates = _model_candidates()
         wc = WordCounter.count(cleaned_text)
-        task_label = "IELTS Academic/General Writing Task 1 (minimum 150 words)" if task_type == "ielts_task1" else "IELTS Writing Task 2 Essay (minimum 250 words)"
+        task_label = (
+            "IELTS Academic/General Writing Task 1 (minimum 150 words)"
+            if task_type == "ielts_task1"
+            else "IELTS Writing Task 2 Essay (minimum 250 words)"
+        )
         user_msg = (
             f"Task Type: {task_label}\n"
             f"Prompt / Topic: {topic_title or 'General IELTS Writing Task'}\n"
@@ -3453,10 +3986,23 @@ def grade_ielts_essay(
         raw_content = response.choices[0].message.content or ""
         parsed = parse_llm_json(raw_content)
         if parsed.get("_parse_failed"):
-            return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
-        return _validate_ielts_result(parsed, essay_text=cleaned_text, task_type=task_type, min_words=min_words)
+            return _mock_ielts_response(
+                cleaned_text,
+                topic_title=topic_title,
+                task_type=task_type,
+                min_words=min_words,
+            )
+        return _validate_ielts_result(
+            parsed, essay_text=cleaned_text, task_type=task_type, min_words=min_words
+        )
     except Exception as exc:
-        logger.warning("IELTS LLM call failed (%s), using deterministic IELTS Band evaluator fallback", exc)
-        return _mock_ielts_response(cleaned_text, topic_title=topic_title, task_type=task_type, min_words=min_words)
-
-
+        logger.warning(
+            "IELTS LLM call failed (%s), using deterministic IELTS Band evaluator fallback",
+            exc,
+        )
+        return _mock_ielts_response(
+            cleaned_text,
+            topic_title=topic_title,
+            task_type=task_type,
+            min_words=min_words,
+        )

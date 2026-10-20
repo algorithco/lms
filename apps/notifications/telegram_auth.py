@@ -6,6 +6,7 @@ Flow:
     2. GET  /api/telegram/auth/<token>/status/  → polls verification status
     3. POST /api/telegram/auth/<token>/login/   → consumes token and logs user in
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,9 @@ def _is_pending_for_session(request: HttpRequest, token: str) -> bool:
 def _forget_pending(request: HttpRequest, token: str) -> None:
     digest = _token_digest(token)
     request.session["telegram_auth_pending"] = [
-        value for value in request.session.get("telegram_auth_pending", []) if value != digest
+        value
+        for value in request.session.get("telegram_auth_pending", [])
+        if value != digest
     ]
 
 
@@ -130,11 +133,13 @@ def telegram_auth_start(request: HttpRequest) -> JsonResponse:
     logger.info("Telegram auth token created")
 
     get_token(request)  # plant csrftoken cookie for the follow-up POSTs
-    return JsonResponse({
-        "token": token,
-        "deep_link": deep_link,
-        "expires_in": 600,  # 10 minutes
-    })
+    return JsonResponse(
+        {
+            "token": token,
+            "deep_link": deep_link,
+            "expires_in": 600,  # 10 minutes
+        }
+    )
 
 
 @require_POST
@@ -152,6 +157,7 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
         3. If verified & not expired → login and redirect
     """
     import json
+
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -162,7 +168,9 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "Noto'g'ri kod formati."}, status=400)
     code = code.strip()
     if not code or len(code) != 6 or not code.isdigit():
-        return JsonResponse({"error": "Noto'g'ri kod formati. 6 ta raqam kiriting."}, status=400)
+        return JsonResponse(
+            {"error": "Noto'g'ri kod formati. 6 ta raqam kiriting."}, status=400
+        )
 
     # Brute-force protection: the 6-digit codes have only 10^6 combinations,
     # so failed attempts must be throttled per client (5 minutes window).
@@ -181,40 +189,67 @@ def telegram_auth_code_login(request: HttpRequest) -> JsonResponse:
 
     # Find token by short_code
     with transaction.atomic():
-        matches = list(TelegramAuthToken.objects.select_for_update().filter(
-            short_code=code, is_verified=True, consumed_at__isnull=True,
-        )[:2])
+        matches = list(
+            TelegramAuthToken.objects.select_for_update().filter(
+                short_code=code,
+                is_verified=True,
+                consumed_at__isnull=True,
+            )[:2]
+        )
         # Legacy duplicate short codes are ambiguous and must never select an
         # arbitrary account.
         if len(matches) != 1:
-            return JsonResponse({"error": "Noto'g'ri kod yoki kod hali tasdiqlanmagan."}, status=404)
+            return JsonResponse(
+                {"error": "Noto'g'ri kod yoki kod hali tasdiqlanmagan."}, status=404
+            )
         auth_token = matches[0]
         # Phone must be verified via Telegram contact if a number was collected
         if auth_token.phone_number and not getattr(auth_token, "phone_verified", False):
-            return JsonResponse({"error": "Telefon raqami Telegram kontakti orqali tasdiqlanmagan."}, status=403)
+            return JsonResponse(
+                {"error": "Telefon raqami Telegram kontakti orqali tasdiqlanmagan."},
+                status=403,
+            )
         # Session binding is optional for code — code is intentionally portable
         # (user may start on desktop, receive code on phone). Keep soft check.
-        if request.session.get("telegram_auth_pending") and not _is_pending_for_session(request, auth_token.token):
-            return JsonResponse({"error": "Kod bu sessiyaga tegishli emas."}, status=403)
-        if auth_token.is_expired or not auth_token.user or not auth_token.user.is_active:
-            return JsonResponse({"error": "Kod muddati tugagan yoki hisob faol emas."}, status=400)
+        if request.session.get("telegram_auth_pending") and not _is_pending_for_session(
+            request, auth_token.token
+        ):
+            return JsonResponse(
+                {"error": "Kod bu sessiyaga tegishli emas."}, status=403
+            )
+        if (
+            auth_token.is_expired
+            or not auth_token.user
+            or not auth_token.user.is_active
+        ):
+            return JsonResponse(
+                {"error": "Kod muddati tugagan yoki hisob faol emas."}, status=400
+            )
         if not TelegramAuthToken.objects.filter(
-            pk=auth_token.pk, short_code=code, consumed_at__isnull=True,
+            pk=auth_token.pk,
+            short_code=code,
+            consumed_at__isnull=True,
         ).update(consumed_at=timezone.now(), short_code=""):
             return JsonResponse({"error": "Kod allaqachon ishlatilgan."}, status=400)
 
     login(request, auth_token.user)
     request.session.set_expiry(60 * 60 * 24 * 30)
     _forget_pending(request, auth_token.token)
-    logger.info("Telegram code login: user_id=%s, phone_verified=%s", auth_token.user_id, getattr(auth_token, "phone_verified", False))
+    logger.info(
+        "Telegram code login: user_id=%s, phone_verified=%s",
+        auth_token.user_id,
+        getattr(auth_token, "phone_verified", False),
+    )
 
-    return JsonResponse({
-        "status": "ok",
-        "redirect": "/dashboard/",
-        "user_name": auth_token.user.get_full_name(),
-        "user": _jwt_user_payload(auth_token.user),
-        "tokens": _jwt_pair_for(auth_token.user),
-    })
+    return JsonResponse(
+        {
+            "status": "ok",
+            "redirect": "/dashboard/",
+            "user_name": auth_token.user.get_full_name(),
+            "user": _jwt_user_payload(auth_token.user),
+            "tokens": _jwt_pair_for(auth_token.user),
+        }
+    )
 
 
 @require_GET
@@ -231,7 +266,9 @@ def telegram_auth_status(request: HttpRequest, token: str) -> JsonResponse:
     skey = f"tgauth-status:{ip}"
     cnt = cache.get(skey, 0)
     if cnt >= 60:
-        return JsonResponse({"status": "throttled", "error": "Juda ko'p so'rov"}, status=429)
+        return JsonResponse(
+            {"status": "throttled", "error": "Juda ko'p so'rov"}, status=429
+        )
     cache.set(skey, cnt + 1, timeout=60)
 
     if not _is_pending_for_session(request, token):
@@ -239,7 +276,9 @@ def telegram_auth_status(request: HttpRequest, token: str) -> JsonResponse:
     try:
         auth_token = TelegramAuthToken.objects.get(token=token)
     except TelegramAuthToken.DoesNotExist:
-        return JsonResponse({"status": "invalid", "error": "Token topilmadi"}, status=404)
+        return JsonResponse(
+            {"status": "invalid", "error": "Token topilmadi"}, status=404
+        )
 
     if auth_token.consumed_at:
         return JsonResponse({"status": "expired"})
@@ -248,12 +287,14 @@ def telegram_auth_status(request: HttpRequest, token: str) -> JsonResponse:
 
     if auth_token.is_verified and auth_token.user:
         login_url = reverse("notifications:tg-auth-login", args=[token])
-        return JsonResponse({
-            "status": "verified",
-            "user_id": auth_token.user.id,
-            "user_name": auth_token.user.get_full_name(),
-            "login_url": login_url,
-        })
+        return JsonResponse(
+            {
+                "status": "verified",
+                "user_id": auth_token.user.id,
+                "user_name": auth_token.user.get_full_name(),
+                "login_url": login_url,
+            }
+        )
 
     return JsonResponse({"status": "pending"})
 
@@ -274,13 +315,19 @@ def telegram_auth_login(request: HttpRequest, token: str) -> JsonResponse:
             auth_token = TelegramAuthToken.objects.select_for_update().get(token=token)
         except TelegramAuthToken.DoesNotExist:
             return JsonResponse({"status": "error"}, status=404)
-        if (auth_token.consumed_at or auth_token.is_expired or not auth_token.is_verified
-                or not auth_token.user or not auth_token.user.is_active):
+        if (
+            auth_token.consumed_at
+            or auth_token.is_expired
+            or not auth_token.is_verified
+            or not auth_token.user
+            or not auth_token.user.is_active
+        ):
             return JsonResponse({"status": "error"}, status=400)
         if auth_token.phone_number and not getattr(auth_token, "phone_verified", False):
             return JsonResponse({"status": "error"}, status=400)
         if not TelegramAuthToken.objects.filter(
-            pk=auth_token.pk, consumed_at__isnull=True,
+            pk=auth_token.pk,
+            consumed_at__isnull=True,
         ).update(consumed_at=timezone.now(), short_code=""):
             return JsonResponse({"status": "error"}, status=400)
 
@@ -292,10 +339,12 @@ def telegram_auth_login(request: HttpRequest, token: str) -> JsonResponse:
 
     logger.info("Telegram token login: user_id=%s", auth_token.user_id)
 
-    return JsonResponse({
-        "status": "ok",
-        "redirect": "/dashboard/",
-        "user_name": auth_token.user.get_full_name(),
-        "user": _jwt_user_payload(auth_token.user),
-        "tokens": _jwt_pair_for(auth_token.user),
-    })
+    return JsonResponse(
+        {
+            "status": "ok",
+            "redirect": "/dashboard/",
+            "user_name": auth_token.user.get_full_name(),
+            "user": _jwt_user_payload(auth_token.user),
+            "tokens": _jwt_pair_for(auth_token.user),
+        }
+    )

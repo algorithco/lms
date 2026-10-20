@@ -8,6 +8,7 @@ Architecture:
     - SaveAnswerSerializer: validates choice_ids.
     - QuestionResultSerializer: per-question grading result.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Choice Serializer
 # ---------------------------------------------------------------------------
+
 
 class ChoiceSerializer(serializers.ModelSerializer):
     """Variant serializer — student uchun is_correct yashirilgan."""
@@ -45,6 +47,7 @@ class ChoiceDetailSerializer(serializers.ModelSerializer):
 # Question Serializers
 # ---------------------------------------------------------------------------
 
+
 class QuestionStudentSerializer(serializers.ModelSerializer):
     """
     Savol serializer — student ko'rinishi.
@@ -55,7 +58,15 @@ class QuestionStudentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ["id", "passage", "text", "question_type", "points", "position", "choices"]
+        fields = [
+            "id",
+            "passage",
+            "text",
+            "question_type",
+            "points",
+            "position",
+            "choices",
+        ]
 
 
 class QuestionAdminSerializer(serializers.ModelSerializer):
@@ -66,8 +77,13 @@ class QuestionAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            "id", "text", "question_type", "points",
-            "explanation", "position", "choices",
+            "id",
+            "text",
+            "question_type",
+            "points",
+            "explanation",
+            "position",
+            "choices",
         ]
 
 
@@ -75,12 +91,14 @@ class QuestionAdminSerializer(serializers.ModelSerializer):
 # Test Serializers
 # ---------------------------------------------------------------------------
 
+
 def _order_questions(queryset, shuffle: bool) -> list:
     """Deterministic order unless the test shuffles (display-only)."""
     try:
         items = list(queryset)
         if shuffle:
             import random
+
             random.shuffle(items)
         return items
     except Exception as exc:
@@ -118,7 +136,10 @@ def _passage_payload(passage) -> dict[str, Any] | None:
 
 
 def _student_question_payload(
-    q, *, shuffle_choices: bool, saved: dict[str, Any] | None = None,
+    q,
+    *,
+    shuffle_choices: bool,
+    saved: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One question for student APIs. NEVER includes answer keys:
     no is_correct, no accepted gap answers, no matching mappings."""
@@ -129,6 +150,7 @@ def _student_question_payload(
         choices = []
     if shuffle_choices:
         import random
+
         random.shuffle(choices)
 
     passage_obj = getattr(q, "reading_passage", None)
@@ -157,24 +179,36 @@ def _student_question_payload(
     if qtype == "gap_fill":
         gap_blanks = getattr(q, "gap_blanks", None)
         try:
-            payload["gaps"] = [
-                {"position": pos}
-                for pos in sorted({getattr(b, "position", 1) for b in gap_blanks.all()})
-            ] if gap_blanks else []
+            payload["gaps"] = (
+                [
+                    {"position": pos}
+                    for pos in sorted(
+                        {getattr(b, "position", 1) for b in gap_blanks.all()}
+                    )
+                ]
+                if gap_blanks
+                else []
+            )
         except Exception:
             payload["gaps"] = []
         payload["gap_answers"] = saved.get("gap_answers", {})
     elif qtype == "matching":
         matching_prompts = getattr(q, "matching_prompts", None)
         try:
-            payload["prompts"] = [
-                {
-                    "id": getattr(p, "id", 0),
-                    "text": getattr(p, "text", "") or "",
-                    "position": getattr(p, "position", 0) or 0,
-                }
-                for p in sorted(matching_prompts.all(), key=lambda p: getattr(p, "position", 0))
-            ] if matching_prompts else []
+            payload["prompts"] = (
+                [
+                    {
+                        "id": getattr(p, "id", 0),
+                        "text": getattr(p, "text", "") or "",
+                        "position": getattr(p, "position", 0) or 0,
+                    }
+                    for p in sorted(
+                        matching_prompts.all(), key=lambda p: getattr(p, "position", 0)
+                    )
+                ]
+                if matching_prompts
+                else []
+            )
         except Exception:
             payload["prompts"] = []
 
@@ -185,6 +219,7 @@ def _student_question_payload(
             options = []
         if shuffle_choices:
             import random
+
             random.shuffle(options)
         payload["matching_options"] = [
             {"id": getattr(o, "id", 0), "text": getattr(o, "text", "") or ""}
@@ -231,9 +266,9 @@ def _passages_payload(test) -> list[dict[str, Any]]:
         return []
     try:
         return [
-            p for p in (
-                _passage_payload(p) for p in test.passages.order_by("order")
-            ) if p is not None
+            p
+            for p in (_passage_payload(p) for p in test.passages.order_by("order"))
+            if p is not None
         ]
     except Exception as exc:
         logger.warning("Error serializing passages: %s", exc)
@@ -244,9 +279,15 @@ class TestListSerializer(serializers.ModelSerializer):
     """Test list serializer — lightweight, serveralarda ishlatiladi."""
 
     total_questions = serializers.IntegerField(read_only=True)
-    course_title = serializers.CharField(source="course.title", read_only=True, default="")
-    category_slug = serializers.CharField(source="course.category.slug", read_only=True, default="")
-    category_name = serializers.CharField(source="course.category.name", read_only=True, default="")
+    course_title = serializers.CharField(
+        source="course.title", read_only=True, default=""
+    )
+    category_slug = serializers.CharField(
+        source="course.category.slug", read_only=True, default=""
+    )
+    category_name = serializers.CharField(
+        source="course.category.name", read_only=True, default=""
+    )
     subject = serializers.SerializerMethodField()
     audio_url = serializers.SerializerMethodField()
     is_strict_mode = serializers.SerializerMethodField()
@@ -254,10 +295,23 @@ class TestListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Test
         fields = [
-            "id", "subject", "title", "description", "course", "course_title",
-            "category_slug", "category_name", "mock_code", "audio_url", "is_strict_mode",
-            "difficulty", "time_limit_minutes", "max_attempts",
-            "pass_percentage", "total_questions", "is_active",
+            "id",
+            "subject",
+            "title",
+            "description",
+            "course",
+            "course_title",
+            "category_slug",
+            "category_name",
+            "mock_code",
+            "audio_url",
+            "is_strict_mode",
+            "difficulty",
+            "time_limit_minutes",
+            "max_attempts",
+            "pass_percentage",
+            "total_questions",
+            "is_active",
             "created_at",
         ]
 
@@ -290,12 +344,26 @@ class TestDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Test
         fields = [
-            "id", "subject", "title", "description", "course",
-            "audio_url", "is_strict_mode",
-            "difficulty", "time_limit_minutes", "max_attempts",
-            "pass_percentage", "total_questions", "total_points",
-            "has_time_limit", "shuffle_questions", "shuffle_choices",
-            "show_results_immediately", "questions", "sections", "passages",
+            "id",
+            "subject",
+            "title",
+            "description",
+            "course",
+            "audio_url",
+            "is_strict_mode",
+            "difficulty",
+            "time_limit_minutes",
+            "max_attempts",
+            "pass_percentage",
+            "total_questions",
+            "total_points",
+            "has_time_limit",
+            "shuffle_questions",
+            "shuffle_choices",
+            "show_results_immediately",
+            "questions",
+            "sections",
+            "passages",
         ]
 
     def get_subject(self, obj: Test) -> str:
@@ -314,18 +382,34 @@ class TestDetailSerializer(serializers.ModelSerializer):
         Kalitlar (to'g'ri javoblar) hech qachon chiqmaydi.
         """
         try:
-            queryset = obj.questions.select_related(
-                "section", "reading_passage",
-            ).prefetch_related(
-                "choices", "gap_blanks", "matching_prompts", "matching_options",
-            ).order_by("position")
-            questions_list = _order_questions(queryset, bool(getattr(obj, "shuffle_questions", False)))
+            queryset = (
+                obj.questions.select_related(
+                    "section",
+                    "reading_passage",
+                )
+                .prefetch_related(
+                    "choices",
+                    "gap_blanks",
+                    "matching_prompts",
+                    "matching_options",
+                )
+                .order_by("position")
+            )
+            questions_list = _order_questions(
+                queryset, bool(getattr(obj, "shuffle_questions", False))
+            )
             return [
-                _student_question_payload(q, shuffle_choices=bool(getattr(obj, "shuffle_choices", True)))
+                _student_question_payload(
+                    q, shuffle_choices=bool(getattr(obj, "shuffle_choices", True))
+                )
                 for q in questions_list
             ]
         except Exception as exc:
-            logger.exception("Error serializing test questions for test %s: %s", getattr(obj, "id", None), exc)
+            logger.exception(
+                "Error serializing test questions for test %s: %s",
+                getattr(obj, "id", None),
+                exc,
+            )
             return []
 
     def get_sections(self, obj: Test) -> list[dict[str, Any]]:
@@ -338,6 +422,7 @@ class TestDetailSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 # Attempt Serializers
 # ---------------------------------------------------------------------------
+
 
 class AttemptCreateSerializer(serializers.Serializer):
     """Attempt yaratish uchun — faqat test_id kerak."""
@@ -365,12 +450,24 @@ class AttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestAttempt
         fields = [
-            "id", "test", "test_title", "subject", "audio_url", "is_strict_mode",
-            "status", "started_at", "completed_at",
-            "score", "percentage", "is_passed",
-            "violation_count", "cheating_detected",
-            "remaining_seconds", "time_limit_minutes",
-            "total_questions", "answered_count",
+            "id",
+            "test",
+            "test_title",
+            "subject",
+            "audio_url",
+            "is_strict_mode",
+            "status",
+            "started_at",
+            "completed_at",
+            "score",
+            "percentage",
+            "is_passed",
+            "violation_count",
+            "cheating_detected",
+            "remaining_seconds",
+            "time_limit_minutes",
+            "total_questions",
+            "answered_count",
         ]
         read_only_fields = fields
 
@@ -427,12 +524,26 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestAttempt
         fields = [
-            "id", "test", "test_title", "subject", "audio_url", "is_strict_mode",
-            "status", "started_at", "completed_at",
-            "score", "percentage", "is_passed",
-            "violation_count", "cheating_detected",
-            "remaining_seconds", "questions", "answered_count",
-            "sections", "passages", "section_progress",
+            "id",
+            "test",
+            "test_title",
+            "subject",
+            "audio_url",
+            "is_strict_mode",
+            "status",
+            "started_at",
+            "completed_at",
+            "score",
+            "percentage",
+            "is_passed",
+            "violation_count",
+            "cheating_detected",
+            "remaining_seconds",
+            "questions",
+            "answered_count",
+            "sections",
+            "passages",
+            "section_progress",
         ]
         read_only_fields = fields
 
@@ -472,14 +583,23 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
             return []
         try:
             for progress in obj.section_progress.select_related("section"):
-                out.append({
-                    "section_id": getattr(progress, "section_id", None),
-                    "remaining_seconds": getattr(progress, "remaining_seconds", None),
-                    "is_expired": bool(getattr(progress, "is_expired", False)),
-                    "completed": getattr(progress, "completed_at", None) is not None,
-                })
+                out.append(
+                    {
+                        "section_id": getattr(progress, "section_id", None),
+                        "remaining_seconds": getattr(
+                            progress, "remaining_seconds", None
+                        ),
+                        "is_expired": bool(getattr(progress, "is_expired", False)),
+                        "completed": getattr(progress, "completed_at", None)
+                        is not None,
+                    }
+                )
         except Exception as exc:
-            logger.warning("Error getting section_progress for attempt %s: %s", getattr(obj, "id", None), exc)
+            logger.warning(
+                "Error getting section_progress for attempt %s: %s",
+                getattr(obj, "id", None),
+                exc,
+            )
         return out
 
     def get_questions(self, obj: TestAttempt) -> list[dict[str, Any]]:
@@ -491,20 +611,33 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
             test = getattr(obj, "test", None)
             if not test:
                 return []
-            questions = test.questions.select_related(
-                "section", "reading_passage",
-            ).prefetch_related(
-                "choices", "gap_blanks", "matching_prompts", "matching_options",
-                "student_answers", "student_answers__selected_choices",
-            ).order_by("position")
-            questions_list = _order_questions(questions, bool(getattr(test, "shuffle_questions", False)))
+            questions = (
+                test.questions.select_related(
+                    "section",
+                    "reading_passage",
+                )
+                .prefetch_related(
+                    "choices",
+                    "gap_blanks",
+                    "matching_prompts",
+                    "matching_options",
+                    "student_answers",
+                    "student_answers__selected_choices",
+                )
+                .order_by("position")
+            )
+            questions_list = _order_questions(
+                questions, bool(getattr(test, "shuffle_questions", False))
+            )
 
             # Oldingi javoblar xaritasi (bitta query to'plami, Python'da)
             saved_map: dict[int, dict[str, Any]] = {}
             if hasattr(obj, "answers"):
                 answers = list(
                     obj.answers.select_related("question").prefetch_related(
-                        "selected_choices", "gap_responses", "matching_responses",
+                        "selected_choices",
+                        "gap_responses",
+                        "matching_responses",
                     )
                 )
                 for answer in answers:
@@ -515,15 +648,24 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
                         "selected_choice_ids": choice_ids,
                         "text_answer": getattr(answer, "text_answer", "") or "",
                         "gap_answers": {
-                            str(getattr(gr, "blank_position", "")): getattr(gr, "response_text", "")
+                            str(getattr(gr, "blank_position", "")): getattr(
+                                gr, "response_text", ""
+                            )
                             for gr in getattr(answer, "gap_responses", []).all()
-                        } if hasattr(answer, "gap_responses") else {},
+                        }
+                        if hasattr(answer, "gap_responses")
+                        else {},
                         "matching": {
-                            str(getattr(mr, "prompt_id", "")): getattr(mr, "selected_option_id", None)
+                            str(getattr(mr, "prompt_id", "")): getattr(
+                                mr, "selected_option_id", None
+                            )
                             for mr in getattr(answer, "matching_responses", []).all()
-                        } if hasattr(answer, "matching_responses") else {},
+                        }
+                        if hasattr(answer, "matching_responses")
+                        else {},
                         "written_text": getattr(answer, "written_text", "") or "",
-                        "written_word_count": getattr(answer, "written_word_count", 0) or 0,
+                        "written_word_count": getattr(answer, "written_word_count", 0)
+                        or 0,
                     }
 
             return [
@@ -535,13 +677,18 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
                 for q in questions_list
             ]
         except Exception as exc:
-            logger.exception("Error serializing questions for attempt %s: %s", getattr(obj, "id", None), exc)
+            logger.exception(
+                "Error serializing questions for attempt %s: %s",
+                getattr(obj, "id", None),
+                exc,
+            )
             return []
 
 
 # ---------------------------------------------------------------------------
 # SaveAnswer Serializer
 # ---------------------------------------------------------------------------
+
 
 class SaveAnswerSerializer(serializers.Serializer):
     """Javobni auto-save qilish uchun serializer (barcha savol turlari)."""
@@ -618,9 +765,7 @@ class SaveAnswerSerializer(serializers.Serializer):
             try:
                 pid = int(raw_pid)
             except (TypeError, ValueError):
-                raise serializers.ValidationError(
-                    "Prompt ID butun son bo'lishi kerak."
-                )
+                raise serializers.ValidationError("Prompt ID butun son bo'lishi kerak.")
             if pid <= 0:
                 raise serializers.ValidationError(
                     "Prompt ID musbat son bo'lishi kerak."
@@ -631,9 +776,7 @@ class SaveAnswerSerializer(serializers.Serializer):
             try:
                 oid = int(raw_oid)  # type: ignore[arg-type]
             except (TypeError, ValueError):
-                raise serializers.ValidationError(
-                    "Option ID butun son bo'lishi kerak."
-                )
+                raise serializers.ValidationError("Option ID butun son bo'lishi kerak.")
             if oid <= 0:
                 raise serializers.ValidationError(
                     "Option ID musbat son bo'lishi kerak."

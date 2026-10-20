@@ -4,6 +4,7 @@ Accounts permissions — role-based access control.
 Custom DRF permissions following the Single Responsibility Principle.
 Each permission class handles one specific authorization rule.
 """
+
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 from apps.accounts.access import is_platform_admin

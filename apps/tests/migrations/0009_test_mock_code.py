@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0008_examscoringprofile_is_verified_test_scoring_profile'),
+        ("tests", "0008_examscoringprofile_is_verified_test_scoring_profile"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='test',
-            name='mock_code',
-            field=models.CharField(blank=True, db_index=True, help_text="O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)", max_length=32, null=True, unique=True, verbose_name='mock kodi'),
+            model_name="test",
+            name="mock_code",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)",
+                max_length=32,
+                null=True,
+                unique=True,
+                verbose_name="mock kodi",
+            ),
         ),
     ]

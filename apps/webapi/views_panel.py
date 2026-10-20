@@ -1,4 +1,5 @@
 """Panel JSON API — same queries/rules as apps/panel/views.py, JSON in/out."""
+
 from __future__ import annotations
 
 from django.db.models import Avg, Count, Q
@@ -11,8 +12,16 @@ from apps.accounts.models import Profile, User
 from apps.essays.models import EssaySubmission, EssayTopic
 from apps.payments.models import PaymentRequest, UserSubscription
 from apps.tests.models import (
-    Choice, ExamSection, GapBlank, MatchingOption, MatchingPair,
-    MatchingPrompt, Question, ReadingPassage, Test, TestAttempt,
+    Choice,
+    ExamSection,
+    GapBlank,
+    MatchingOption,
+    MatchingPair,
+    MatchingPrompt,
+    Question,
+    ReadingPassage,
+    Test,
+    TestAttempt,
 )
 
 from .permissions import IsPanelAdmin, IsPanelAdminOrEssayCreator
@@ -65,9 +74,7 @@ def dashboard_view(request):
     payments = PaymentRequest.objects.aggregate(
         pending=Count("id", filter=Q(status=PaymentRequest.Status.PENDING)),
     )
-    recent_tests = (
-        Test.objects.select_related("course").order_by("-created_at")[:5]
-    )
+    recent_tests = Test.objects.select_related("course").order_by("-created_at")[:5]
     recent_topics = EssayTopic.objects.order_by("-created_at")[:5]
 
     # -- Cohort & Audience Segmentation (Smart Onboarding analytics) -----------
@@ -82,7 +89,9 @@ def dashboard_view(request):
     att_pct = round((att_count / max(total_onboarded, 1)) * 100, 1)
     und_pct = round((und_count / max(total_onboarded, 1)) * 100, 1)
 
-    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(avg=Avg("placement_score"))["avg"]
+    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(
+        avg=Avg("placement_score")
+    )["avg"]
     avg_score = round(float(avg_placement), 2) if avg_placement is not None else 0.0
 
     timeline_1m = onboarded_qs.filter(target_timeline_months=1).count()
@@ -92,9 +101,21 @@ def dashboard_view(request):
     cohort_analytics = {
         "total_onboarded": total_onboarded,
         "segmentation": {
-            "national_certificate": {"count": nat_count, "percentage": nat_pct, "label": "Milliy sertifikat"},
-            "attestation": {"count": att_count, "percentage": att_pct, "label": "Attestatsiya 2026"},
-            "undecided": {"count": und_count, "percentage": und_pct, "label": "Noma'lum"},
+            "national_certificate": {
+                "count": nat_count,
+                "percentage": nat_pct,
+                "label": "Milliy sertifikat",
+            },
+            "attestation": {
+                "count": att_count,
+                "percentage": att_pct,
+                "label": "Attestatsiya 2026",
+            },
+            "undecided": {
+                "count": und_count,
+                "percentage": und_pct,
+                "label": "Noma'lum",
+            },
         },
         "avg_placement_score": avg_score,
         "timeline_breakdown": {
@@ -104,26 +125,29 @@ def dashboard_view(request):
         },
     }
 
-    return Response({
-        "tests": tests,
-        "questions": Question.objects.count(),
-        "essay_topics": EssayTopic.objects.count(),
-        "users": users,
-        "new_users_today": User.objects.filter(date_joined__date=today).count(),
-        "attempts": attempts,
-        "essays": essays,
-        "pending_payments": payments["pending"],
-        "active_subscriptions": UserSubscription.objects.filter(
-            status=UserSubscription.Status.ACTIVE, expires_at__gt=now,
-        ).count(),
-        "role_breakdown": [
-            {"key": key, "count": role_counts.get(key, 0)}
-            for key in ("student", "teacher", "parent", "admin")
-        ],
-        "recent_tests": TestAdminSerializer(recent_tests, many=True).data,
-        "recent_topics": EssayTopicSerializer(recent_topics, many=True).data,
-        "cohort_analytics": cohort_analytics,
-    })
+    return Response(
+        {
+            "tests": tests,
+            "questions": Question.objects.count(),
+            "essay_topics": EssayTopic.objects.count(),
+            "users": users,
+            "new_users_today": User.objects.filter(date_joined__date=today).count(),
+            "attempts": attempts,
+            "essays": essays,
+            "pending_payments": payments["pending"],
+            "active_subscriptions": UserSubscription.objects.filter(
+                status=UserSubscription.Status.ACTIVE,
+                expires_at__gt=now,
+            ).count(),
+            "role_breakdown": [
+                {"key": key, "count": role_counts.get(key, 0)}
+                for key in ("student", "teacher", "parent", "admin")
+            ],
+            "recent_tests": TestAdminSerializer(recent_tests, many=True).data,
+            "recent_topics": EssayTopicSerializer(recent_topics, many=True).data,
+            "cohort_analytics": cohort_analytics,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -141,27 +165,43 @@ def cohort_analytics_view(request):
     att_pct = round((att_count / max(total_onboarded, 1)) * 100, 1)
     und_pct = round((und_count / max(total_onboarded, 1)) * 100, 1)
 
-    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(avg=Avg("placement_score"))["avg"]
+    avg_placement = onboarded_qs.filter(placement_score__isnull=False).aggregate(
+        avg=Avg("placement_score")
+    )["avg"]
     avg_score = round(float(avg_placement), 2) if avg_placement is not None else 0.0
 
     timeline_1m = onboarded_qs.filter(target_timeline_months=1).count()
     timeline_3m = onboarded_qs.filter(target_timeline_months=3).count()
     timeline_6m = onboarded_qs.filter(target_timeline_months=6).count()
 
-    return Response({
-        "total_onboarded": total_onboarded,
-        "segmentation": {
-            "national_certificate": {"count": nat_count, "percentage": nat_pct, "label": "Milliy sertifikat"},
-            "attestation": {"count": att_count, "percentage": att_pct, "label": "Attestatsiya 2026"},
-            "undecided": {"count": und_count, "percentage": und_pct, "label": "Noma'lum"},
-        },
-        "avg_placement_score": avg_score,
-        "timeline_breakdown": {
-            "months_1": {"count": timeline_1m, "label": "1 oylik (shoshilinch)"},
-            "months_3": {"count": timeline_3m, "label": "3 oylik (standart)"},
-            "months_6": {"count": timeline_6m, "label": "6 oylik (uzoq muddatli)"},
-        },
-    })
+    return Response(
+        {
+            "total_onboarded": total_onboarded,
+            "segmentation": {
+                "national_certificate": {
+                    "count": nat_count,
+                    "percentage": nat_pct,
+                    "label": "Milliy sertifikat",
+                },
+                "attestation": {
+                    "count": att_count,
+                    "percentage": att_pct,
+                    "label": "Attestatsiya 2026",
+                },
+                "undecided": {
+                    "count": und_count,
+                    "percentage": und_pct,
+                    "label": "Noma'lum",
+                },
+            },
+            "avg_placement_score": avg_score,
+            "timeline_breakdown": {
+                "months_1": {"count": timeline_1m, "label": "1 oylik (shoshilinch)"},
+                "months_3": {"count": timeline_3m, "label": "3 oylik (standart)"},
+                "months_6": {"count": timeline_6m, "label": "6 oylik (uzoq muddatli)"},
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -184,10 +224,12 @@ def tests_view(request):
     if status in {c[0] for c in Test.Status.choices}:
         qs = qs.filter(status=status)
     tests = qs.order_by("-created_at")[:100]
-    return Response({
-        "results": TestAdminSerializer(tests, many=True).data,
-        "statuses": [{"value": v, "label": l} for v, l in Test.Status.choices],
-    })
+    return Response(
+        {
+            "results": TestAdminSerializer(tests, many=True).data,
+            "statuses": [{"value": v, "label": l} for v, l in Test.Status.choices],
+        }
+    )
 
 
 @api_view(["GET", "PATCH", "DELETE"])
@@ -198,14 +240,17 @@ def test_detail_view(request, test_id: int):
         test.delete()
         return Response(status=204)
     ser = TestAdminSerializer(
-        test, data=request.data if request.method == "PATCH" else None,
+        test,
+        data=request.data if request.method == "PATCH" else None,
         partial=(request.method == "PATCH"),
     )
     if request.method == "PATCH":
         if not ser.is_valid():
             return Response(ser.errors, status=400)
         ser.save()
-    return Response(TestAdminSerializer(test).data if request.method == "GET" else ser.data)
+    return Response(
+        TestAdminSerializer(test).data if request.method == "GET" else ser.data
+    )
 
 
 @api_view(["POST"])
@@ -250,7 +295,9 @@ def _save_gaps(question: Question, gaps: list | None) -> None:
             text = str(answer or "").strip()[:200]
             if text:
                 GapBlank.objects.create(
-                    question=question, position=pos, answer_text=text,
+                    question=question,
+                    position=pos,
+                    answer_text=text,
                 )
 
 
@@ -275,7 +322,9 @@ def _save_matching(question: Question, payload: dict | None) -> None:
         except (TypeError, ValueError):
             pos = i
         prompts[pos] = MatchingPrompt.objects.create(
-            question=question, text=text, position=pos,
+            question=question,
+            text=text,
+            position=pos,
         )
     options = {}
     for i, o in enumerate(payload.get("options", []) or []):
@@ -287,7 +336,9 @@ def _save_matching(question: Question, payload: dict | None) -> None:
         except (TypeError, ValueError):
             pos = i
         options[pos] = MatchingOption.objects.create(
-            question=question, text=text, position=pos,
+            question=question,
+            text=text,
+            position=pos,
         )
     for pair in payload.get("pairs", []) or []:
         try:
@@ -306,7 +357,9 @@ def questions_view(request, test_id: int):
         ser = QuestionAdminSerializer(data={**request.data, "test": test.id})
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        is_text = ser.validated_data.get("question_type") == Question.QuestionType.TEXT_MATCH
+        is_text = (
+            ser.validated_data.get("question_type") == Question.QuestionType.TEXT_MATCH
+        )
         question = ser.save()
         if question.position == 0:
             question.position = test.questions.count()
@@ -320,10 +373,12 @@ def questions_view(request, test_id: int):
             _save_matching(question, request.data.get("matching"))
         return Response(QuestionAdminSerializer(question).data, status=201)
     questions = test.questions.prefetch_related("choices").order_by("position")
-    return Response({
-        "test": TestAdminSerializer(test).data,
-        "results": QuestionAdminSerializer(questions, many=True).data,
-    })
+    return Response(
+        {
+            "test": TestAdminSerializer(test).data,
+            "results": QuestionAdminSerializer(questions, many=True).data,
+        }
+    )
 
 
 @api_view(["PATCH", "DELETE"])
@@ -402,10 +457,16 @@ def topics_view(request):
         qs = qs.filter(title__icontains=q)
     if category in {c[0] for c in EssayTopic.Category.choices}:
         qs = qs.filter(category=category)
-    return Response({
-        "results": EssayTopicSerializer(qs.order_by("-created_at")[:100], many=True).data,
-        "categories": [{"value": v, "label": l} for v, l in EssayTopic.Category.choices],
-    })
+    return Response(
+        {
+            "results": EssayTopicSerializer(
+                qs.order_by("-created_at")[:100], many=True
+            ).data,
+            "categories": [
+                {"value": v, "label": l} for v, l in EssayTopic.Category.choices
+            ],
+        }
+    )
 
 
 @api_view(["GET", "PATCH", "DELETE"])
@@ -437,7 +498,9 @@ def users_view(request):
     joined = (request.GET.get("joined") or "").strip()
     if q:
         qs = qs.filter(
-            Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q)
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(email__icontains=q)
         )
     if role in {c[0] for c in User.Role.choices}:
         qs = qs.filter(role=role)
@@ -451,10 +514,14 @@ def users_view(request):
         qs = qs.filter(date_joined__gte=timezone.now() - timezone.timedelta(days=7))
     elif joined == "30d":
         qs = qs.filter(date_joined__gte=timezone.now() - timezone.timedelta(days=30))
-    return Response({
-        "results": UserAdminSerializer(qs.order_by("-date_joined")[:100], many=True).data,
-        "roles": [{"value": v, "label": l} for v, l in User.Role.choices],
-    })
+    return Response(
+        {
+            "results": UserAdminSerializer(
+                qs.order_by("-date_joined")[:100], many=True
+            ).data,
+            "roles": [{"value": v, "label": l} for v, l in User.Role.choices],
+        }
+    )
 
 
 @api_view(["POST"])
@@ -483,7 +550,10 @@ def user_block_view(request, user_id: int):
     # Revoke all refresh tokens when deactivating — 7-day OutstandingToken would otherwise stay valid
     if was_active and not target.is_active:
         try:
-            from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+            from rest_framework_simplejwt.token_blacklist.models import (
+                BlacklistedToken,
+                OutstandingToken,
+            )
 
             for tok in OutstandingToken.objects.filter(user=target):
                 BlacklistedToken.objects.get_or_create(token=tok)
@@ -538,20 +608,25 @@ def panel_groups_view(request):
             monthly_fee=monthly_fee,
         )
 
-        return Response({
-            "id": group.id,
-            "name": group.name,
-            "subject": group.subject,
-            "subject_display": "Ingliz tili (IELTS & Multi-level)" if group.subject == "english" else "Ona tili va adabiyot",
-            "teacher_id": teacher.id,
-            "teacher_name": teacher.get_full_name() or teacher.email,
-            "teacher_email": teacher.email,
-            "student_count": 0,
-            "invite_code": group.invite_code,
-            "monthly_fee": group.monthly_fee,
-            "created_at": group.created_at,
-            "message": f"'{group.name}' guruhi muvaffaqiyatli ochildi! Taklif kodi: #{group.invite_code}",
-        }, status=201)
+        return Response(
+            {
+                "id": group.id,
+                "name": group.name,
+                "subject": group.subject,
+                "subject_display": "Ingliz tili (IELTS & Multi-level)"
+                if group.subject == "english"
+                else "Ona tili va adabiyot",
+                "teacher_id": teacher.id,
+                "teacher_name": teacher.get_full_name() or teacher.email,
+                "teacher_email": teacher.email,
+                "student_count": 0,
+                "invite_code": group.invite_code,
+                "monthly_fee": group.monthly_fee,
+                "created_at": group.created_at,
+                "message": f"'{group.name}' guruhi muvaffaqiyatli ochildi! Taklif kodi: #{group.invite_code}",
+            },
+            status=201,
+        )
 
     # GET
     groups = (
@@ -561,19 +636,23 @@ def panel_groups_view(request):
     )
     results = []
     for g in groups:
-        results.append({
-            "id": g.id,
-            "name": g.name,
-            "subject": g.subject,
-            "subject_display": "Ingliz tili (IELTS & Multi-level)" if g.subject == "english" else "Ona tili va adabiyot",
-            "teacher_id": g.teacher_id,
-            "teacher_name": g.teacher.get_full_name() or g.teacher.email,
-            "teacher_email": g.teacher.email,
-            "student_count": g.students.count(),
-            "invite_code": g.invite_code or f"GR-{g.id:03d}",
-            "monthly_fee": getattr(g, "monthly_fee", 400000),
-            "created_at": g.created_at,
-        })
+        results.append(
+            {
+                "id": g.id,
+                "name": g.name,
+                "subject": g.subject,
+                "subject_display": "Ingliz tili (IELTS & Multi-level)"
+                if g.subject == "english"
+                else "Ona tili va adabiyot",
+                "teacher_id": g.teacher_id,
+                "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+                "teacher_email": g.teacher.email,
+                "student_count": g.students.count(),
+                "invite_code": g.invite_code or f"GR-{g.id:03d}",
+                "monthly_fee": getattr(g, "monthly_fee", 400000),
+                "created_at": g.created_at,
+            }
+        )
     return Response({"results": results})
 
 
@@ -585,17 +664,19 @@ def panel_teachers_view(request):
         Q(role="teacher") | Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True),
         is_active=True,
     ).order_by("first_name", "last_name", "email")
-    return Response({
-        "results": [
-            {
-                "id": u.id,
-                "full_name": u.get_full_name() or u.email,
-                "email": u.email,
-                "role": u.role,
-            }
-            for u in teachers
-        ]
-    })
+    return Response(
+        {
+            "results": [
+                {
+                    "id": u.id,
+                    "full_name": u.get_full_name() or u.email,
+                    "email": u.email,
+                    "role": u.role,
+                }
+                for u in teachers
+            ]
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -615,41 +696,59 @@ def panel_attendance_overview_view(request):
     )
     results = []
     for g in groups:
-        sessions = AttendanceSession.objects.filter(group=g).order_by("-lesson_date", "-id")
+        sessions = (
+            AttendanceSession.objects.filter(group=g)
+            .prefetch_related("records")
+            .order_by("-lesson_date", "-id")
+        )
         total_sessions = sessions.count()
-        rec_qs = AttendanceRecord.objects.filter(session__group=g)
-        present = rec_qs.filter(status="present").count()
-        late = rec_qs.filter(status="late").count()
-        absent = rec_qs.filter(status="absent").count()
+        rec_agg = AttendanceRecord.objects.filter(session__group=g).aggregate(
+            present=Count("id", filter=Q(status="present")),
+            late=Count("id", filter=Q(status="late")),
+            absent=Count("id", filter=Q(status="absent")),
+        )
+        present = rec_agg["present"] or 0
+        late = rec_agg["late"] or 0
+        absent = rec_agg["absent"] or 0
         total_records = present + late + absent
-        rate = round((present + late * 0.5) / max(total_records, 1) * 100, 1) if total_records > 0 else 100.0
+        rate = (
+            round((present + late * 0.5) / max(total_records, 1) * 100, 1)
+            if total_records > 0
+            else 100.0
+        )
 
         recent_sessions = []
         for s in sessions[:3]:
-            s_recs = s.records.all()
-            recent_sessions.append({
-                "id": s.id,
-                "lesson_date": s.lesson_date.strftime("%d.%m.%Y"),
-                "status": s.status,
-                "present": s_recs.filter(status="present").count(),
-                "late": s_recs.filter(status="late").count(),
-                "absent": s_recs.filter(status="absent").count(),
-            })
+            s_records = list(s.records.all())
+            recent_sessions.append(
+                {
+                    "id": s.id,
+                    "lesson_date": s.lesson_date.strftime("%d.%m.%Y"),
+                    "status": s.status,
+                    "present": sum(1 for r in s_records if r.status == "present"),
+                    "late": sum(1 for r in s_records if r.status == "late"),
+                    "absent": sum(1 for r in s_records if r.status == "absent"),
+                }
+            )
 
-        results.append({
-            "group_id": g.id,
-            "group_name": g.name,
-            "subject": g.subject,
-            "subject_display": "Ingliz tili (IELTS)" if g.subject == "english" else "Ona tili",
-            "teacher_name": g.teacher.get_full_name() or g.teacher.email,
-            "student_count": g.students.count(),
-            "total_sessions": total_sessions,
-            "present_count": present,
-            "late_count": late,
-            "absent_count": absent,
-            "attendance_rate": rate,
-            "recent_sessions": recent_sessions,
-        })
+        results.append(
+            {
+                "group_id": g.id,
+                "group_name": g.name,
+                "subject": g.subject,
+                "subject_display": "Ingliz tili (IELTS)"
+                if g.subject == "english"
+                else "Ona tili",
+                "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+                "student_count": g.students.count(),
+                "total_sessions": total_sessions,
+                "present_count": present,
+                "late_count": late,
+                "absent_count": absent,
+                "attendance_rate": rate,
+                "recent_sessions": recent_sessions,
+            }
+        )
     return Response({"results": results})
 
 
@@ -674,20 +773,32 @@ def panel_attendance_export_view(request):
     today_str = timezone.localdate().strftime("%d.%m.%Y")
     ws["A1"] = f"GRAND EDUCATION — BARCHA GURUHLAR DAVOMAT HISOBOTI ({today_str})"
     ws["A1"].font = Font(name="Arial", size=13, bold=True, color="FFFFFF")
-    ws["A1"].fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    ws["A1"].fill = PatternFill(
+        start_color="0F172A", end_color="0F172A", fill_type="solid"
+    )
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 36
 
     headers = [
-        "№", "Guruh nomi", "Fan", "Ustoz", "O'quvchilar soni",
-        "Darslar soni", "Kelganlar", "Kech qolganlar", "Kelmaganlar", "Davomat ko'rsatkichi"
+        "№",
+        "Guruh nomi",
+        "Fan",
+        "Ustoz",
+        "O'quvchilar soni",
+        "Darslar soni",
+        "Kelganlar",
+        "Kech qolganlar",
+        "Kelmaganlar",
+        "Davomat ko'rsatkichi",
     ]
     ws.append(headers)
     ws.row_dimensions[2].height = 24
     for col_idx, h in enumerate(headers, 1):
         cell = ws.cell(row=2, column=col_idx)
         cell.font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
-        cell.fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        cell.fill = PatternFill(
+            start_color="1E293B", end_color="1E293B", fill_type="solid"
+        )
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     thin_border = Border(
@@ -697,16 +808,28 @@ def panel_attendance_export_view(request):
         bottom=Side(style="thin", color="CBD5E1"),
     )
 
-    groups = StudentGroup.objects.select_related("teacher").prefetch_related("students").order_by("name")
+    groups = (
+        StudentGroup.objects.select_related("teacher")
+        .prefetch_related("students")
+        .order_by("name")
+    )
     for idx, g in enumerate(groups, 1):
         sessions = AttendanceSession.objects.filter(group=g)
         tot_s = sessions.count()
-        recs = AttendanceRecord.objects.filter(session__group=g)
-        p_cnt = recs.filter(status="present").count()
-        l_cnt = recs.filter(status="late").count()
-        a_cnt = recs.filter(status="absent").count()
+        rec_agg = AttendanceRecord.objects.filter(session__group=g).aggregate(
+            p_cnt=Count("id", filter=Q(status="present")),
+            l_cnt=Count("id", filter=Q(status="late")),
+            a_cnt=Count("id", filter=Q(status="absent")),
+        )
+        p_cnt = rec_agg["p_cnt"] or 0
+        l_cnt = rec_agg["l_cnt"] or 0
+        a_cnt = rec_agg["a_cnt"] or 0
         tot_r = p_cnt + l_cnt + a_cnt
-        pct = round((p_cnt + l_cnt * 0.5) / max(tot_r, 1) * 100, 1) if tot_r > 0 else 100.0
+        pct = (
+            round((p_cnt + l_cnt * 0.5) / max(tot_r, 1) * 100, 1)
+            if tot_r > 0
+            else 100.0
+        )
 
         row = [
             idx,

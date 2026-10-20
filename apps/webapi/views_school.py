@@ -1,6 +1,7 @@
 """School JSON API — groups, parent portal, teacher overview, analytics,
 essay leaderboard and CSV imports. Mirrors apps/web/views.py queries.
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -104,6 +105,7 @@ def group_analytics_view(request, group_id: int):
     """Guruh bo'yicha jonli monitoring, test/esse ko'rsatkichlari va BMB taqsimoti."""
     group = get_object_or_404(_teacher_groups(request.user), id=group_id)
     from apps.courses.group_service import get_group_full_analytics
+
     return Response(get_group_full_analytics(group))
 
 
@@ -113,6 +115,7 @@ def group_export_excel_view(request, group_id: int):
     """Guruh hisobotini Excel (.xlsx) formatida yuklab olish."""
     from django.http import HttpResponse
     from apps.courses.group_service import export_group_to_excel
+
     group = get_object_or_404(_teacher_groups(request.user), id=group_id)
     excel_bytes = export_group_to_excel(group)
     response = HttpResponse(
@@ -120,7 +123,9 @@ def group_export_excel_view(request, group_id: int):
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     safe_name = group.name.replace(" ", "_")
-    response["Content-Disposition"] = f'attachment; filename="Guruh_{safe_name}_hisobot.xlsx"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="Guruh_{safe_name}_hisobot.xlsx"'
+    )
     return response
 
 
@@ -130,11 +135,14 @@ def group_export_pdf_view(request, group_id: int):
     """Guruh hisobotini PDF formatida yuklab olish."""
     from django.http import HttpResponse
     from apps.courses.group_service import export_group_to_pdf
+
     group = get_object_or_404(_teacher_groups(request.user), id=group_id)
     pdf_bytes = export_group_to_pdf(group)
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     safe_name = group.name.replace(" ", "_")
-    response["Content-Disposition"] = f'attachment; filename="Guruh_{safe_name}_hisobot.pdf"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="Guruh_{safe_name}_hisobot.pdf"'
+    )
     return response
 
 
@@ -146,13 +154,16 @@ def group_join_view(request):
     if not code:
         return Response({"error": "Taklif kodi kiritilmadi."}, status=400)
     from apps.courses.group_service import join_group_by_invite_code
+
     try:
         group = join_group_by_invite_code(request.user, code)
-        return Response({
-            "success": True,
-            "message": f"Siz '{group.name}' guruhiga muvaffaqiyatli qo'shildingiz!",
-            "group": StudentGroupSerializer(group).data,
-        })
+        return Response(
+            {
+                "success": True,
+                "message": f"Siz '{group.name}' guruhiga muvaffaqiyatli qo'shildingiz!",
+                "group": StudentGroupSerializer(group).data,
+            }
+        )
     except ValueError as err:
         return Response({"error": str(err)}, status=400)
 
@@ -169,7 +180,9 @@ def student_search_view(request):
             | Q(first_name__icontains=q)
             | Q(last_name__icontains=q)
         )
-    return Response(GroupMemberSerializer(qs.order_by("first_name")[:20], many=True).data)
+    return Response(
+        GroupMemberSerializer(qs.order_by("first_name")[:20], many=True).data
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -205,22 +218,24 @@ def parent_overview_view(request):
             .select_related("test")
             .order_by("-calculated_at")[:10]
         )
-        children.append({
-            "id": s.id,
-            "name": s.get_full_name(),
-            "email": s.email,
-            "relationship": link.relationship,
-            "is_approved": link.is_approved,
-            "results": [
-                {
-                    "test": r.test.title,
-                    "percentage": float(r.percentage),
-                    "is_passed": r.is_passed,
-                    "date": r.calculated_at.isoformat(),
-                }
-                for r in results
-            ],
-        })
+        children.append(
+            {
+                "id": s.id,
+                "name": s.get_full_name(),
+                "email": s.email,
+                "relationship": link.relationship,
+                "is_approved": link.is_approved,
+                "results": [
+                    {
+                        "test": r.test.title,
+                        "percentage": float(r.percentage),
+                        "is_passed": r.is_passed,
+                        "date": r.calculated_at.isoformat(),
+                    }
+                    for r in results
+                ],
+            }
+        )
     return Response({"children": children})
 
 
@@ -243,12 +258,17 @@ def teacher_overview_view(request):
         tests_qs = Test.objects.filter(
             course__teacher=user, status=Test.Status.PUBLISHED
         )
-    recent = (
-        results_qs.select_related("test", "student", "attempt").order_by("-calculated_at")[:10]
-    )
+    recent = results_qs.select_related("test", "student", "attempt").order_by(
+        "-calculated_at"
+    )[:10]
     # Phase 5: essay queue scoped to assigned groups, effective_score, TEACHER_REVIEWED
-    _graded_statuses = [EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
-    essay_pending_qs = EssaySubmission.objects.filter(status=EssaySubmission.Status.PENDING_TEACHER)
+    _graded_statuses = [
+        EssaySubmission.Status.GRADED,
+        EssaySubmission.Status.TEACHER_REVIEWED,
+    ]
+    essay_pending_qs = EssaySubmission.objects.filter(
+        status=EssaySubmission.Status.PENDING_TEACHER
+    )
     essay_graded_qs = EssaySubmission.objects.filter(status__in=_graded_statuses)
     if not is_platform_admin(user) and student_ids:
         essay_pending_qs = essay_pending_qs.filter(student_id__in=student_ids)
@@ -259,29 +279,41 @@ def teacher_overview_view(request):
         essay_graded_qs = essay_graded_qs.none()
     essay_pending = essay_pending_qs.count()
     essay_graded = essay_graded_qs.count()
-    essay_avg = essay_graded_qs.aggregate(avg=Avg(Coalesce(F("final_score"), F("total_score"))))["avg"]
-    return Response({
-        "groups": StudentGroupSerializer(groups, many=True).data,
-        "student_count": len(student_ids),
-        "published_tests": tests_qs.count(),
-        "active_topics": EssayTopic.objects.filter(is_active=True).count(),
-        "essay_pending": essay_pending,
-        "essay_graded": essay_graded,
-        "essay_avg_score": round(float(essay_avg or 0), 1),
-        "recent_results": [
-            {
-                "student": r.student.get_full_name() or r.student.email,
-                "test": r.test.title,
-                "subject": r.test.subject,
-                "percentage": float(r.percentage),
-                "is_passed": r.is_passed,
-                "cheating_detected": bool(getattr(r.attempt, "cheating_detected", False)) if getattr(r, "attempt", None) else False,
-                "violation_count": int(getattr(r.attempt, "violation_count", 0) or 0) if getattr(r, "attempt", None) else 0,
-                "date": r.calculated_at.isoformat(),
-            }
-            for r in recent
-        ],
-    })
+    essay_avg = essay_graded_qs.aggregate(
+        avg=Avg(Coalesce(F("final_score"), F("total_score")))
+    )["avg"]
+    return Response(
+        {
+            "groups": StudentGroupSerializer(groups, many=True).data,
+            "student_count": len(student_ids),
+            "published_tests": tests_qs.count(),
+            "active_topics": EssayTopic.objects.filter(is_active=True).count(),
+            "essay_pending": essay_pending,
+            "essay_graded": essay_graded,
+            "essay_avg_score": round(float(essay_avg or 0), 1),
+            "recent_results": [
+                {
+                    "student": r.student.get_full_name() or r.student.email,
+                    "test": r.test.title,
+                    "subject": r.test.subject,
+                    "percentage": float(r.percentage),
+                    "is_passed": r.is_passed,
+                    "cheating_detected": bool(
+                        getattr(r.attempt, "cheating_detected", False)
+                    )
+                    if getattr(r, "attempt", None)
+                    else False,
+                    "violation_count": int(
+                        getattr(r.attempt, "violation_count", 0) or 0
+                    )
+                    if getattr(r, "attempt", None)
+                    else 0,
+                    "date": r.calculated_at.isoformat(),
+                }
+                for r in recent
+            ],
+        }
+    )
 
 
 @api_view(["GET"])
@@ -325,20 +357,22 @@ def analytics_view(request):
         avg_score=Avg(Coalesce(F("final_score"), F("total_score"))),
         off_topic=Count("id", filter=Q(is_off_topic=True)),
     )
-    return Response({
-        "labels": labels,
-        "attempts": attempts,
-        "avg_percentage": avg,
-        "totals": {
-            "attempts": sum(attempts),
-            "passed": qs.filter(is_passed=True).count(),
-        },
-        "essay": {
-            "total": essay_stats["total"],
-            "avg_score": round(float(essay_stats["avg_score"] or 0), 1),
-            "off_topic": essay_stats["off_topic"],
-        },
-    })
+    return Response(
+        {
+            "labels": labels,
+            "attempts": attempts,
+            "avg_percentage": avg,
+            "totals": {
+                "attempts": sum(attempts),
+                "passed": qs.filter(is_passed=True).count(),
+            },
+            "essay": {
+                "total": essay_stats["total"],
+                "avg_score": round(float(essay_stats["avg_score"] or 0), 1),
+                "off_topic": essay_stats["off_topic"],
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -353,13 +387,21 @@ def essay_leaderboard_view(request):
     # truncates the division (22/24*75 -> 68) instead of rounding it, so the
     # same submission scored differently on dev and on PostgreSQL.
     converted_expr = Case(
-        When(final_score__isnull=False, then=F("final_score") * Value(float(target)) / Value(24.0)),
+        When(
+            final_score__isnull=False,
+            then=F("final_score") * Value(float(target)) / Value(24.0),
+        ),
         When(is_off_topic=True, then=Value(off_topic_score)),
         default=F("total_score") * Value(float(target)) / Value(24.0),
         output_field=FloatField(),
     )
     stats = (
-        EssaySubmission.objects.filter(status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED])
+        EssaySubmission.objects.filter(
+            status__in=[
+                EssaySubmission.Status.GRADED,
+                EssaySubmission.Status.TEACHER_REVIEWED,
+            ]
+        )
         .values("student__id", "student__first_name", "student__last_name")
         .annotate(
             best_score=Max(Coalesce(F("final_score"), F("total_score"))),
@@ -376,23 +418,30 @@ def essay_leaderboard_view(request):
             converted = int(round(float(s["best_converted"])))
         else:
             converted = round(best / 24 * target) if best > 0 else 0
-        board.append({
-            "rank": i,
-            "name": f"{s['student__first_name']} {s['student__last_name']}",
-            "student_id": s["student__id"],
-            "best_score": best,
-            "converted_score": converted,
-            "essay_count": s["essay_count"],
-            "avg_score": round(float(s["avg_score"] or 0), 1),
-        })
-    return Response({
-        "podium": board[:3],
-        "rest": board[3:],
-        "total_essays": EssaySubmission.objects.filter(
-            status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
-        ).count(),
-        "total_students": len(board),
-    })
+        board.append(
+            {
+                "rank": i,
+                "name": f"{s['student__first_name']} {s['student__last_name']}",
+                "student_id": s["student__id"],
+                "best_score": best,
+                "converted_score": converted,
+                "essay_count": s["essay_count"],
+                "avg_score": round(float(s["avg_score"] or 0), 1),
+            }
+        )
+    return Response(
+        {
+            "podium": board[:3],
+            "rest": board[3:],
+            "total_essays": EssaySubmission.objects.filter(
+                status__in=[
+                    EssaySubmission.Status.GRADED,
+                    EssaySubmission.Status.TEACHER_REVIEWED,
+                ]
+            ).count(),
+            "total_students": len(board),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -421,16 +470,21 @@ def public_stats_view(request):
         labels.append(day)
         attempts.append(row.get("attempts", 0))
         avg.append(round(float(row.get("avg") or 0), 1))
-    return Response({
-        "totals": {
-            "tests": Test.objects.filter(status=Test.Status.PUBLISHED).count(),
-            "students": User.objects.filter(role="student", is_active=True).count(),
-            "essays_graded": EssaySubmission.objects.filter(
-                status__in=[EssaySubmission.Status.GRADED, EssaySubmission.Status.TEACHER_REVIEWED]
-            ).count(),
-        },
-        "daily": {"labels": labels, "attempts": attempts, "avg": avg},
-    })
+    return Response(
+        {
+            "totals": {
+                "tests": Test.objects.filter(status=Test.Status.PUBLISHED).count(),
+                "students": User.objects.filter(role="student", is_active=True).count(),
+                "essays_graded": EssaySubmission.objects.filter(
+                    status__in=[
+                        EssaySubmission.Status.GRADED,
+                        EssaySubmission.Status.TEACHER_REVIEWED,
+                    ]
+                ).count(),
+            },
+            "daily": {"labels": labels, "attempts": attempts, "avg": avg},
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -464,11 +518,13 @@ def import_students_view(request):
         created_by=request.user,
         send_welcome=True,
     )
-    return Response({
-        "created": result.get("created", 0),
-        "skipped": result.get("skipped", 0),
-        "errors": result.get("errors", []),
-    })
+    return Response(
+        {
+            "created": result.get("created", 0),
+            "skipped": result.get("skipped", 0),
+            "errors": result.get("errors", []),
+        }
+    )
 
 
 @api_view(["GET", "POST"])

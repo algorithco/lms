@@ -17,6 +17,7 @@ Status codes below are the ones the views actually return: ``_scoped_group()``
 answers 400 for a group the caller does not own, the session helpers answer 403
 for a foreign session id, and object lookups answer 404.
 """
+
 import datetime as dt
 from unittest.mock import patch
 
@@ -43,67 +44,102 @@ class _AttendanceApiFixture(TestCase):
 
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="api-teacher@example.test", password="testpass123",
-            role="teacher", first_name="Oqituvchi", last_name="Birinchi",
+            email="api-teacher@example.test",
+            password="testpass123",
+            role="teacher",
+            first_name="Oqituvchi",
+            last_name="Birinchi",
         )
         self.other_teacher = User.objects.create_user(
-            email="api-other@example.test", password="testpass123",
-            role="teacher", first_name="Oqituvchi", last_name="Ikkinchi",
+            email="api-other@example.test",
+            password="testpass123",
+            role="teacher",
+            first_name="Oqituvchi",
+            last_name="Ikkinchi",
         )
         self.admin = User.objects.create_superuser(
-            email="api-admin@example.test", password="testpass123", role="admin",
+            email="api-admin@example.test",
+            password="testpass123",
+            role="admin",
         )
         self.ali = User.objects.create_user(
-            email="api-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="api-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="api-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="api-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.outsider = User.objects.create_user(
-            email="api-outsider@example.test", password="testpass123", role="student",
-            first_name="Gulnora", last_name="Yusupova",
+            email="api-outsider@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Gulnora",
+            last_name="Yusupova",
         )
         self.parent = User.objects.create_user(
-            email="api-parent@example.test", password="testpass123", role="parent",
-            first_name="Ota", last_name="Onaev",
+            email="api-parent@example.test",
+            password="testpass123",
+            role="parent",
+            first_name="Ota",
+            last_name="Onaev",
             telegram_chat_id=555000111,
             telegram_identity_verified_at=timezone.now(),
         )
         self.other_parent = User.objects.create_user(
-            email="api-other-parent@example.test", password="testpass123",
-            role="parent", first_name="Begona", last_name="Otaeva",
+            email="api-other-parent@example.test",
+            password="testpass123",
+            role="parent",
+            first_name="Begona",
+            last_name="Otaeva",
         )
 
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra)
         self.foreign_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.foreign_group.students.add(self.outsider)
 
         # An approved, Telegram-verified parent link for Ali only.
         ParentStudentLink.objects.create(
-            parent=self.parent, student=self.ali, is_approved=True,
+            parent=self.parent,
+            student=self.ali,
+            is_approved=True,
             relationship="father",
         )
         ParentStudentLink.objects.create(
-            parent=self.other_parent, student=self.zuhra, is_approved=True,
+            parent=self.other_parent,
+            student=self.zuhra,
+            is_approved=True,
             relationship="mother",
         )
 
         self.topic = EssayTopic.objects.create(
-            title="Kitobxonlik", description="Tavsif", created_by=self.teacher,
+            title="Kitobxonlik",
+            description="Tavsif",
+            created_by=self.teacher,
         )
         self.assignment = EssayAssignment.objects.create(
-            topic=self.topic, group=self.group, assigned_by=self.teacher,
+            topic=self.topic,
+            group=self.group,
+            assigned_by=self.teacher,
         )
         self.foreign_topic = EssayTopic.objects.create(
-            title="Begona mavzu", description="Tavsif", created_by=self.other_teacher,
+            title="Begona mavzu",
+            description="Tavsif",
+            created_by=self.other_teacher,
         )
         self.foreign_assignment = EssayAssignment.objects.create(
-            topic=self.foreign_topic, group=self.foreign_group,
+            topic=self.foreign_topic,
+            group=self.foreign_group,
             assigned_by=self.other_teacher,
         )
 
@@ -114,12 +150,16 @@ class _AttendanceApiFixture(TestCase):
 
     def _post(self, name, payload=None, **kwargs):
         return self.client.post(
-            self.url(name, **kwargs), payload or {}, content_type="application/json",
+            self.url(name, **kwargs),
+            payload or {},
+            content_type="application/json",
         )
 
     def _patch(self, name, payload=None, **kwargs):
         return self.client.patch(
-            self.url(name, **kwargs), payload or {}, content_type="application/json",
+            self.url(name, **kwargs),
+            payload or {},
+            content_type="application/json",
         )
 
     def _login(self, user):
@@ -142,7 +182,11 @@ class _AttendanceApiFixture(TestCase):
         from apps.attendance import services
 
         return services.mark(
-            session, student, status, late_minutes=late_minutes, actor=session.teacher,
+            session,
+            student,
+            status,
+            late_minutes=late_minutes,
+            actor=session.teacher,
         )
 
     def _submission(
@@ -232,7 +276,8 @@ class SessionRegisterFlowTests(_AttendanceApiFixture):
         )
         self.assertEqual({first.status_code, second.status_code}, {201})
         self.assertNotEqual(
-            first.json()["session"]["id"], second.json()["session"]["id"],
+            first.json()["session"]["id"],
+            second.json()["session"]["id"],
         )
         self.assertEqual(AttendanceSession.objects.count(), 2)
 
@@ -274,7 +319,8 @@ class SessionRegisterFlowTests(_AttendanceApiFixture):
         self._mark(session, self.ali, AttendanceRecord.Status.ABSENT)
 
         response = self._post(
-            "school-attendance-session-mark-all-present", session_id=session.pk,
+            "school-attendance-session-mark-all-present",
+            session_id=session.pk,
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -302,7 +348,9 @@ class SessionRegisterFlowTests(_AttendanceApiFixture):
         self._login(self.teacher)
         session = self._session()
         response = self._post(
-            "school-attendance-session-mark", {}, session_id=session.pk,
+            "school-attendance-session-mark",
+            {},
+            session_id=session.pk,
         )
         self.assertEqual(response.status_code, 400)
 
@@ -317,7 +365,9 @@ class SessionRegisterFlowTests(_AttendanceApiFixture):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["applied"], 0)
         self.assertFalse(
-            AttendanceRecord.objects.filter(session=session, student=self.outsider).exists()
+            AttendanceRecord.objects.filter(
+                session=session, student=self.outsider
+            ).exists()
         )
 
     def test_a_bad_date_is_a_400_not_a_500(self):
@@ -336,7 +386,8 @@ class SessionRegisterFlowTests(_AttendanceApiFixture):
     def test_a_bad_group_id_is_a_400(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-attendance-report"), {"group_id": "abc"},
+            self.url("school-attendance-report"),
+            {"group_id": "abc"},
         )
         self.assertEqual(response.status_code, 400)
 
@@ -350,7 +401,9 @@ class FinalizeConcurrencyAndConfirmationTests(_AttendanceApiFixture):
         self._mark(session, self.ali, AttendanceRecord.Status.PRESENT)
 
         response = self._post(
-            "school-attendance-session-finalize", {}, session_id=session.pk,
+            "school-attendance-session-finalize",
+            {},
+            session_id=session.pk,
         )
         self.assertEqual(response.status_code, 409)
         body = response.json()
@@ -367,7 +420,9 @@ class FinalizeConcurrencyAndConfirmationTests(_AttendanceApiFixture):
         self.assertEqual(session.status, AttendanceSession.Status.DRAFT)
         self.assertIsNone(session.finalized_at)
         self.assertFalse(
-            AttendanceRecord.objects.filter(session=session, student=self.zuhra).exists()
+            AttendanceRecord.objects.filter(
+                session=session, student=self.zuhra
+            ).exists()
         )
 
     def test_finalize_with_explicit_confirmation_marks_the_rest_absent(self):
@@ -397,7 +452,9 @@ class FinalizeConcurrencyAndConfirmationTests(_AttendanceApiFixture):
         self._mark(session, self.zuhra, AttendanceRecord.Status.LATE, late_minutes=5)
 
         response = self._post(
-            "school-attendance-session-finalize", {}, session_id=session.pk,
+            "school-attendance-session-finalize",
+            {},
+            session_id=session.pk,
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
@@ -409,7 +466,8 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
     def setUp(self):
         super().setUp()
         self.foreign_session = self._session(
-            group=self.foreign_group, teacher=self.other_teacher,
+            group=self.foreign_group,
+            teacher=self.other_teacher,
         )
         self._mark(self.foreign_session, self.outsider, AttendanceRecord.Status.ABSENT)
 
@@ -428,17 +486,21 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
         ):
             with self.subTest(endpoint=name):
                 response = self.client.get(
-                    self.url(name), {"group_id": self.foreign_group.pk},
+                    self.url(name),
+                    {"group_id": self.foreign_group.pk},
                 )
                 self.assertEqual(response.status_code, 400)
                 self.assert_no_foreign_disclosure(response)
 
         created = self._post(
-            "school-attendance-sessions", {"group_id": self.foreign_group.pk},
+            "school-attendance-sessions",
+            {"group_id": self.foreign_group.pk},
         )
         self.assertEqual(created.status_code, 400)
         self.assert_no_foreign_disclosure(created)
-        self.assertEqual(AttendanceSession.objects.filter(group=self.foreign_group).count(), 1)
+        self.assertEqual(
+            AttendanceSession.objects.filter(group=self.foreign_group).count(), 1
+        )
 
         listed = self.client.get(
             self.url("school-attendance-sessions"),
@@ -450,25 +512,37 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
     def test_foreign_session_endpoints_are_forbidden(self):
         self._login(self.teacher)
         for label, call in (
-            ("detail", lambda: self.client.get(
-                self.url(
-                    "school-attendance-session-detail",
+            (
+                "detail",
+                lambda: self.client.get(
+                    self.url(
+                        "school-attendance-session-detail",
+                        session_id=self.foreign_session.pk,
+                    )
+                ),
+            ),
+            (
+                "mark",
+                lambda: self._post(
+                    "school-attendance-session-mark",
+                    {"student_id": self.outsider.pk, "status": "present"},
                     session_id=self.foreign_session.pk,
-                )
-            )),
-            ("mark", lambda: self._post(
-                "school-attendance-session-mark",
-                {"student_id": self.outsider.pk, "status": "present"},
-                session_id=self.foreign_session.pk,
-            )),
-            ("mark-all-present", lambda: self._post(
-                "school-attendance-session-mark-all-present",
-                session_id=self.foreign_session.pk,
-            )),
-            ("finalize", lambda: self._post(
-                "school-attendance-session-finalize",
-                session_id=self.foreign_session.pk,
-            )),
+                ),
+            ),
+            (
+                "mark-all-present",
+                lambda: self._post(
+                    "school-attendance-session-mark-all-present",
+                    session_id=self.foreign_session.pk,
+                ),
+            ),
+            (
+                "finalize",
+                lambda: self._post(
+                    "school-attendance-session-finalize",
+                    session_id=self.foreign_session.pk,
+                ),
+            ),
         ):
             with self.subTest(endpoint=label):
                 response = call()
@@ -481,7 +555,8 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
         self.assertEqual(self.foreign_session.status, AttendanceSession.Status.DRAFT)
         self.assertEqual(
             AttendanceRecord.objects.get(
-                session=self.foreign_session, student=self.outsider,
+                session=self.foreign_session,
+                student=self.outsider,
             ).status,
             AttendanceRecord.Status.ABSENT,
         )
@@ -518,7 +593,8 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
                 )
                 self.assertEqual(
                     self._post(
-                        "school-attendance-sessions", {"group_id": self.group.pk},
+                        "school-attendance-sessions",
+                        {"group_id": self.group.pk},
                     ).status_code,
                     403,
                 )
@@ -588,7 +664,8 @@ class AttendanceAuthorizationTests(_AttendanceApiFixture):
         self.assertEqual(ids, {own.pk, self.foreign_session.pk})
 
         report = self.client.get(
-            self.url("school-attendance-report"), {"group_id": self.foreign_group.pk},
+            self.url("school-attendance-report"),
+            {"group_id": self.foreign_group.pk},
         )
         self.assertEqual(report.status_code, 200)
         self.assertEqual(report.json()["group_id"], self.foreign_group.pk)
@@ -618,7 +695,8 @@ class AttendanceReportApiTests(_AttendanceApiFixture):
     def test_group_report_numbers_are_exact(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-attendance-report"), {"group_id": self.group.pk},
+            self.url("school-attendance-report"),
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -638,14 +716,19 @@ class AttendanceReportApiTests(_AttendanceApiFixture):
 
     def test_open_register_absent_is_not_counted_as_an_absence(self):
         """The draft register's ABSENT row is excluded, and reported as pending."""
-        self.assertEqual(AttendanceRecord.objects.filter(
-            session__group=self.group, student=self.ali,
-            status=AttendanceRecord.Status.ABSENT,
-        ).count(), 2)  # one in the finalized register, one in the draft
+        self.assertEqual(
+            AttendanceRecord.objects.filter(
+                session__group=self.group,
+                student=self.ali,
+                status=AttendanceRecord.Status.ABSENT,
+            ).count(),
+            2,
+        )  # one in the finalized register, one in the draft
 
         self._login(self.teacher)
         body = self.client.get(
-            self.url("school-attendance-report"), {"group_id": self.group.pk},
+            self.url("school-attendance-report"),
+            {"group_id": self.group.pk},
         ).json()
         self.assertEqual(body["absent"], 1)
         self.assertEqual(body["unexcused_absent"], 1)
@@ -671,12 +754,14 @@ class AttendanceReportApiTests(_AttendanceApiFixture):
     def test_overview_lists_only_own_groups(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-attendance-report"), {"overview": "true"},
+            self.url("school-attendance-report"),
+            {"overview": "true"},
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(
-            [row["group_id"] for row in body["groups"]], [self.group.pk],
+            [row["group_id"] for row in body["groups"]],
+            [self.group.pk],
         )
         self.assertEqual(body["groups"][0]["group_name"], "9-A")
         self.assertTrue({"groups", "start", "end"} <= set(body))
@@ -706,7 +791,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
         self.assertEqual(response.status_code, 201)
         body = response.json()
         self.assertEqual(
-            body["notification_status"], ClassroomObservation.NotificationStatus.NOT_SENT,
+            body["notification_status"],
+            ClassroomObservation.NotificationStatus.NOT_SENT,
         )
         self.assertFalse(body["is_confirmed"])
         self.assertIsNone(body["confirmed_at"])
@@ -752,7 +838,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json()["neutral_description"], "Tuzatilgan neytral izoh.",
+            response.json()["neutral_description"],
+            "Tuzatilgan neytral izoh.",
         )
 
     def test_confirm_sends_once_and_repeats_are_idempotent(self):
@@ -765,7 +852,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
                 return_value={"success": True, "error": None},
             ) as send:
                 first = self._post(
-                    "school-observation-confirm", {"send": True},
+                    "school-observation-confirm",
+                    {"send": True},
                     observation_id=observation_id,
                 )
                 self.assertEqual(first.status_code, 200)
@@ -774,7 +862,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
 
                 # A replayed confirmation must not message the parent again.
                 second = self._post(
-                    "school-observation-confirm", {"send": True},
+                    "school-observation-confirm",
+                    {"send": True},
                     observation_id=observation_id,
                 )
                 self.assertEqual(second.status_code, 200)
@@ -782,7 +871,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
 
         observation = ClassroomObservation.objects.get(pk=observation_id)
         self.assertEqual(
-            observation.notification_status, ClassroomObservation.NotificationStatus.SENT,
+            observation.notification_status,
+            ClassroomObservation.NotificationStatus.SENT,
         )
         self.assertIsNotNone(observation.sent_at)
 
@@ -790,13 +880,15 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
         self._login(self.teacher)
         observation_id = self._create().json()["id"]
         response = self._post(
-            "school-observation-confirm", {"send": False},
+            "school-observation-confirm",
+            {"send": False},
             observation_id=observation_id,
         )
         self.assertEqual(response.status_code, 200)
         observation = ClassroomObservation.objects.get(pk=observation_id)
         self.assertEqual(
-            observation.notification_status, ClassroomObservation.NotificationStatus.SKIPPED,
+            observation.notification_status,
+            ClassroomObservation.NotificationStatus.SKIPPED,
         )
         self.assertIsNone(observation.sent_at)
 
@@ -807,7 +899,8 @@ class ClassroomObservationApiTests(_AttendanceApiFixture):
         self._login(self.other_teacher)
         self.assertEqual(
             self._post(
-                "school-observation-confirm", {"send": True},
+                "school-observation-confirm",
+                {"send": True},
                 observation_id=observation_id,
             ).status_code,
             404,
@@ -832,7 +925,9 @@ class EssayResultsApiTests(_AttendanceApiFixture):
         super().setUp()
         self.graded = self._submission(student=self.ali, total_score=20)
         self.pending = self._submission(
-            student=self.zuhra, status=EssaySubmission.Status.PENDING, total_score=0,
+            student=self.zuhra,
+            status=EssaySubmission.Status.PENDING,
+            total_score=0,
         )
         self.foreign = self._submission(
             student=self.outsider,
@@ -843,7 +938,8 @@ class EssayResultsApiTests(_AttendanceApiFixture):
     def test_graded_and_pending_are_counted_separately(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-essay-results"), {"group_id": self.group.pk},
+            self.url("school-essay-results"),
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -869,11 +965,14 @@ class EssayResultsApiTests(_AttendanceApiFixture):
 
     def test_source_label_reflects_the_submission_channel(self):
         self._submission(
-            student=self.ali, source=EssaySubmission.Source.TELEGRAM, total_score=19,
+            student=self.ali,
+            source=EssaySubmission.Source.TELEGRAM,
+            total_score=19,
         )
         self._login(self.teacher)
         body = self.client.get(
-            self.url("school-essay-results"), {"group_id": self.group.pk},
+            self.url("school-essay-results"),
+            {"group_id": self.group.pk},
         ).json()
         labels = sorted(row["source_label"] for row in body["results"])
         self.assertEqual(labels, ["TELEGRAM", "WEB", "WEB"])
@@ -904,7 +1003,8 @@ class EssayResultsApiTests(_AttendanceApiFixture):
         ).json()
         self.assertEqual(second["shown"], 1)
         self.assertNotEqual(
-            page["results"][0]["submission_id"], second["results"][0]["submission_id"],
+            page["results"][0]["submission_id"],
+            second["results"][0]["submission_id"],
         )
 
     def test_a_bad_pagination_value_is_a_400(self):
@@ -918,7 +1018,8 @@ class EssayResultsApiTests(_AttendanceApiFixture):
     def test_another_groups_rows_never_appear(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-essay-results"), {"group_id": self.group.pk},
+            self.url("school-essay-results"),
+            {"group_id": self.group.pk},
         )
         raw = response.content.decode()
         self.assertNotIn(self.outsider.get_full_name(), raw)
@@ -930,7 +1031,8 @@ class EssayResultsApiTests(_AttendanceApiFixture):
         returned = {row["submission_id"] for row in body["results"]}
         self.assertNotIn(self.foreign.pk, returned)
         self.assertNotIn(
-            self.outsider.pk, {row["student_id"] for row in body["results"]},
+            self.outsider.pk,
+            {row["student_id"] for row in body["results"]},
         )
         self.assertEqual(returned, {self.graded.pk, self.pending.pk})
 
@@ -946,7 +1048,8 @@ class EssayResultsApiTests(_AttendanceApiFixture):
     def test_summary_counts_the_students_who_did_not_submit(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-essay-summary"), {"group_id": self.group.pk},
+            self.url("school-essay-summary"),
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -960,14 +1063,16 @@ class EssayResultsApiTests(_AttendanceApiFixture):
         # not inside the results list.
         self.pending.delete()
         body = self.client.get(
-            self.url("school-essay-summary"), {"group_id": self.group.pk},
+            self.url("school-essay-summary"),
+            {"group_id": self.group.pk},
         ).json()
         self.assertEqual(body["not_submitted"], 1)
 
     def test_overview_lists_only_own_groups(self):
         self._login(self.teacher)
         body = self.client.get(
-            self.url("school-essay-summary"), {"overview": "true"},
+            self.url("school-essay-summary"),
+            {"overview": "true"},
         ).json()
         self.assertEqual([row["group_id"] for row in body["groups"]], [self.group.pk])
         self.assertEqual(body["groups"][0]["graded"], 1)
@@ -978,7 +1083,9 @@ class AssignmentCompletionApiTests(_AttendanceApiFixture):
 
     def test_completion_splits_failed_from_missing(self):
         failed = self._submission(
-            student=self.ali, status=EssaySubmission.Status.ERROR, total_score=0,
+            student=self.ali,
+            status=EssaySubmission.Status.ERROR,
+            total_score=0,
         )
         self._login(self.teacher)
         response = self.client.get(
@@ -993,9 +1100,12 @@ class AssignmentCompletionApiTests(_AttendanceApiFixture):
         self.assertEqual(body["failed"], 1)
         self.assertEqual(body["graded"], 0)
         self.assertEqual(body["not_submitted"], 1)
-        self.assertEqual([row["student_id"] for row in body["missing"]], [self.zuhra.pk])
         self.assertEqual(
-            [row["submission_id"] for row in body["submitted"]], [failed.pk],
+            [row["student_id"] for row in body["missing"]], [self.zuhra.pk]
+        )
+        self.assertEqual(
+            [row["submission_id"] for row in body["submitted"]],
+            [failed.pk],
         )
 
     def test_graded_submission_is_not_missing(self):
@@ -1054,7 +1164,9 @@ class AssignmentCompletionApiTests(_AttendanceApiFixture):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(
-            EssayAssignment.objects.filter(group=self.foreign_group, topic=self.topic).exists()
+            EssayAssignment.objects.filter(
+                group=self.foreign_group, topic=self.topic
+            ).exists()
         )
 
     def test_assignment_list_only_contains_own_groups(self):
@@ -1076,12 +1188,15 @@ class NotificationPreferenceApiTests(_AttendanceApiFixture):
         self.assertTrue(body["telegram_enabled"])
         self.assertTrue(body["attendance_alerts"])
         self.assertTrue(body["teacher_new_essay"])
-        self.assertEqual(NotificationPreference.objects.filter(user=self.teacher).count(), 1)
+        self.assertEqual(
+            NotificationPreference.objects.filter(user=self.teacher).count(), 1
+        )
 
     def test_patch_round_trips_a_known_switch(self):
         self._login(self.teacher)
         response = self._patch(
-            "school-notification-preferences", {"attendance_alerts": False},
+            "school-notification-preferences",
+            {"attendance_alerts": False},
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["attendance_alerts"])
@@ -1182,9 +1297,12 @@ class NotificationDestinationApiTests(_AttendanceApiFixture):
     def test_revoking_an_approval_makes_it_undeliverable_again(self):
         self._login(self.admin)
         destination = GroupNotificationDestination.objects.create(
-            group=self.group, chat_id=-1001555000333,
+            group=self.group,
+            chat_id=-1001555000333,
             allowed_categories=["attendance_summary"],
-            is_approved=True, approved_by=self.admin, approved_at=timezone.now(),
+            is_approved=True,
+            approved_by=self.admin,
+            approved_at=timezone.now(),
         )
         response = self._post(
             "school-notification-destination-approve",
@@ -1225,7 +1343,9 @@ class NotificationDestinationApiTests(_AttendanceApiFixture):
     def test_approve_rejects_a_non_list_category_payload(self):
         self._login(self.admin)
         destination = GroupNotificationDestination.objects.create(
-            group=self.group, chat_id=-1001555000666, is_approved=True,
+            group=self.group,
+            chat_id=-1001555000666,
+            is_approved=True,
         )
         response = self._post(
             "school-notification-destination-approve",
@@ -1242,7 +1362,8 @@ class NotificationDestinationApiTests(_AttendanceApiFixture):
         self.assertEqual(
             self._post(
                 "school-notification-destination-approve",
-                {"approve": True}, destination_id=999999,
+                {"approve": True},
+                destination_id=999999,
             ).status_code,
             404,
         )
@@ -1250,7 +1371,8 @@ class NotificationDestinationApiTests(_AttendanceApiFixture):
     def test_the_list_is_readable_by_an_admin(self):
         self._login(self.admin)
         GroupNotificationDestination.objects.create(
-            group=self.group, chat_id=-1001555000777,
+            group=self.group,
+            chat_id=-1001555000777,
         )
         body = self.client.get(self.url("school-notification-destinations")).json()
         self.assertEqual(len(body["results"]), 1)
@@ -1299,7 +1421,8 @@ class ParentAttendanceApiTests(_AttendanceApiFixture):
     def test_a_parent_cannot_ask_for_another_family_child(self):
         self._login(self.parent)
         response = self.client.get(
-            self.url("school-parent-attendance"), {"student_id": self.zuhra.pk},
+            self.url("school-parent-attendance"),
+            {"student_id": self.zuhra.pk},
         )
         self.assertEqual(response.status_code, 200)
         children = response.json()["children"]
@@ -1308,7 +1431,9 @@ class ParentAttendanceApiTests(_AttendanceApiFixture):
 
     def test_a_parent_with_no_children_sees_an_empty_list(self):
         self._login(self.other_parent)
-        ParentStudentLink.objects.filter(parent=self.other_parent).update(is_approved=False)
+        ParentStudentLink.objects.filter(parent=self.other_parent).update(
+            is_approved=False
+        )
         response = self.client.get(self.url("school-parent-attendance"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["children"], [])

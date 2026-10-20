@@ -4,6 +4,7 @@ Comprehensive integration tests for the 3 Strategic Features:
 2. Sunday Live League (Tournament, TournamentParticipant, Real-time Leaderboard, Awards)
 3. B2B Enterprise SaaS (LearningCenter, CenterBranch, Bulk Import, Executive Dashboard)
 """
+
 import pytest
 from decimal import Decimal
 from django.contrib.auth import get_user_model
@@ -12,9 +13,16 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import ParentStudentRelation, Profile
 from apps.arena.models import Tournament, TournamentParticipant
-from apps.arena.services_tournament import finalize_tournament_awards, get_tournament_leaderboard, submit_tournament_answers
+from apps.arena.services_tournament import (
+    finalize_tournament_awards,
+    get_tournament_leaderboard,
+    submit_tournament_answers,
+)
 from apps.courses.models import Course
-from apps.notifications.tasks_parent import calculate_bmb_grade, send_parent_test_alert_task
+from apps.notifications.tasks_parent import (
+    calculate_bmb_grade,
+    send_parent_test_alert_task,
+)
 from apps.organizations.models import CenterBranch, LearningCenter
 from apps.payments.models import SubscriptionPlan
 from apps.results.models import Result
@@ -53,25 +61,37 @@ def test_instance(db, student_user):
         pass_percentage=60,
     )
     # Q1 (Correct: C)
-    q1 = Question.objects.create(test=t, position=1, text="Qaysi javobda imlo xatosi bor?")
+    q1 = Question.objects.create(
+        test=t, position=1, text="Qaysi javobda imlo xatosi bor?"
+    )
     Choice.objects.create(question=q1, position=1, text="muammo", is_correct=False)
     Choice.objects.create(question=q1, position=2, text="tushkunlik", is_correct=False)
     Choice.objects.create(question=q1, position=3, text="tashshakkur", is_correct=True)
     Choice.objects.create(question=q1, position=4, text="hamkorlik", is_correct=False)
 
     # Q2 (Correct: A)
-    q2 = Question.objects.create(test=t, position=2, text="Egalik qo'shimchasi qatnashgan so'zni toping:")
+    q2 = Question.objects.create(
+        test=t, position=2, text="Egalik qo'shimchasi qatnashgan so'zni toping:"
+    )
     Choice.objects.create(question=q2, position=1, text="kitobim", is_correct=True)
     Choice.objects.create(question=q2, position=2, text="maktabga", is_correct=False)
     Choice.objects.create(question=q2, position=3, text="yozdi", is_correct=False)
     Choice.objects.create(question=q2, position=4, text="chiroyli", is_correct=False)
 
     # Q3 (Correct: B)
-    q3 = Question.objects.create(test=t, position=3, text="Fe'l nisbatini aniqlang: 'xat yozildi'")
+    q3 = Question.objects.create(
+        test=t, position=3, text="Fe'l nisbatini aniqlang: 'xat yozildi'"
+    )
     Choice.objects.create(question=q3, position=1, text="aniq nisbat", is_correct=False)
-    Choice.objects.create(question=q3, position=2, text="majhul nisbat", is_correct=True)
-    Choice.objects.create(question=q3, position=3, text="orttirma nisbat", is_correct=False)
-    Choice.objects.create(question=q3, position=4, text="birgalik nisbat", is_correct=False)
+    Choice.objects.create(
+        question=q3, position=2, text="majhul nisbat", is_correct=True
+    )
+    Choice.objects.create(
+        question=q3, position=3, text="orttirma nisbat", is_correct=False
+    )
+    Choice.objects.create(
+        question=q3, position=4, text="birgalik nisbat", is_correct=False
+    )
 
     return t
 
@@ -79,6 +99,7 @@ def test_instance(db, student_user):
 # ==============================================================================
 # 1. 👨‍👩‍👧 OTA-ONALAR NAZORATI TIZIMI TESTLARI
 # ==============================================================================
+
 
 @pytest.mark.django_db
 def test_parent_student_relation_flow(student_user):
@@ -95,7 +116,9 @@ def test_parent_student_relation_flow(student_user):
     code = data["verification_code"]
 
     # 2. Verify code via API
-    verify_resp = client.post("/api/v1/parents/verify-code/", {"verification_code": code})
+    verify_resp = client.post(
+        "/api/v1/parents/verify-code/", {"verification_code": code}
+    )
     assert verify_resp.status_code == 200
     assert verify_resp.json()["success"] is True
 
@@ -161,10 +184,15 @@ def test_parent_instant_alert_task(student_user, test_instance):
 # 2. 🏆 JONLI YAKSHANBA TURNIRI TESTLARI
 # ==============================================================================
 
+
 @pytest.mark.django_db
 def test_tournament_e_sport_flow(student_user, test_instance):
-    SubscriptionPlan.objects.get_or_create(plan_type="premium", defaults={"name": "Premium", "price_monthly": 60000})
-    SubscriptionPlan.objects.get_or_create(plan_type="starter", defaults={"name": "Starter", "price_monthly": 15000})
+    SubscriptionPlan.objects.get_or_create(
+        plan_type="premium", defaults={"name": "Premium", "price_monthly": 60000}
+    )
+    SubscriptionPlan.objects.get_or_create(
+        plan_type="starter", defaults={"name": "Starter", "price_monthly": 15000}
+    )
 
     # Create Tournament
     tournament = Tournament.objects.create(
@@ -184,7 +212,9 @@ def test_tournament_e_sport_flow(student_user, test_instance):
     )
 
     # Submit user 1 answers (all 3 correct: Q1->C, Q2->A, Q3->B)
-    q_ids = list(test_instance.questions.order_by("position").values_list("id", flat=True))
+    q_ids = list(
+        test_instance.questions.order_by("position").values_list("id", flat=True)
+    )
     answers_user1 = {str(q_ids[0]): "C", str(q_ids[1]): "A", str(q_ids[2]): "B"}
     res1 = submit_tournament_answers(
         tournament_id=tournament.id,
@@ -232,6 +262,7 @@ def test_tournament_e_sport_flow(student_user, test_instance):
 # 3. 🏢 O'QUV MARKAZLARI PORTALI (B2B SAAS) TESTLARI
 # ==============================================================================
 
+
 @pytest.mark.django_db
 def test_enterprise_hub_flow(student_user, test_instance):
     director = User.objects.create_user(
@@ -259,11 +290,23 @@ def test_enterprise_hub_flow(student_user, test_instance):
     # 1. Bulk Import 2 students
     import_payload = {
         "students": [
-            {"first_name": "Sardor", "last_name": "Aliyev", "email": "sardor1@grand.uz", "branch_name": "Chilonzor filiali"},
-            {"first_name": "Kamola", "last_name": "Saidova", "email": "kamola2@grand.uz", "branch_name": "Yunusobod filiali"},
+            {
+                "first_name": "Sardor",
+                "last_name": "Aliyev",
+                "email": "sardor1@grand.uz",
+                "branch_name": "Chilonzor filiali",
+            },
+            {
+                "first_name": "Kamola",
+                "last_name": "Saidova",
+                "email": "kamola2@grand.uz",
+                "branch_name": "Yunusobod filiali",
+            },
         ]
     }
-    import_resp = client.post("/api/v1/enterprise/students/bulk-import/", import_payload, format="json")
+    import_resp = client.post(
+        "/api/v1/enterprise/students/bulk-import/", import_payload, format="json"
+    )
     assert import_resp.status_code == 200
     assert import_resp.json()["imported"] == 2
     assert center.total_students_count == 2

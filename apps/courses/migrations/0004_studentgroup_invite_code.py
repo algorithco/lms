@@ -4,15 +4,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0003_alter_course_thumbnail_alter_lesson_attachment'),
+        ("courses", "0003_alter_course_thumbnail_alter_lesson_attachment"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='studentgroup',
-            name='invite_code',
-            field=models.CharField(blank=True, db_index=True, help_text="O'quvchilar qo'shilishi uchun unikal kod (masalan: GR-101)", max_length=32, null=True, unique=True, verbose_name='taklif kodi'),
+            model_name="studentgroup",
+            name="invite_code",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="O'quvchilar qo'shilishi uchun unikal kod (masalan: GR-101)",
+                max_length=32,
+                null=True,
+                unique=True,
+                verbose_name="taklif kodi",
+            ),
         ),
     ]

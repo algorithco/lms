@@ -27,6 +27,7 @@ Ishlatish:
     python manage.py recover_stale_essays --minutes 10 --limit 100
     python manage.py recover_stale_essays --inline   # broker ishlamayotganda
 """
+
 from __future__ import annotations
 
 import logging
@@ -97,11 +98,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Stale PENDING esse topilmadi."))
             return
 
-        self.stdout.write(f"Stale PENDING: {len(stale_ids)} ta (threshold={threshold.isoformat()})")
+        self.stdout.write(
+            f"Stale PENDING: {len(stale_ids)} ta (threshold={threshold.isoformat()})"
+        )
 
         if dry_run:
             for sid in stale_ids:
-                self.stdout.write(f"  [dry-run] submission={sid} qayta navbatga olinadi")
+                self.stdout.write(
+                    f"  [dry-run] submission={sid} qayta navbatga olinadi"
+                )
             self.stdout.write(self.style.NOTICE("DRY-RUN: hech narsa o'zgartirilmadi."))
             return
 
@@ -135,7 +140,9 @@ class Command(BaseCommand):
             except Exception as exc:
                 failed += 1
                 logger.warning("recover_stale_essays claim failed: id=%s %s", sid, exc)
-                self.stdout.write(self.style.ERROR(f"  submission={sid} claim xatosi: {exc}"))
+                self.stdout.write(
+                    self.style.ERROR(f"  submission={sid} claim xatosi: {exc}")
+                )
                 continue
 
             claimed += 1
@@ -146,24 +153,41 @@ class Command(BaseCommand):
                         kwargs={"fail_status": EssaySubmission.Status.ERROR},
                     )
                     enqueued += 1
-                    self.stdout.write(self.style.SUCCESS(f"  submission={sid} inline baholandi/navbatga olindi"))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  submission={sid} inline baholandi/navbatga olindi"
+                        )
+                    )
                 except Exception as exc:
                     failed += 1
-                    logger.error("recover_stale_essays inline grade failed: id=%s %s", sid, exc)
-                    self.stdout.write(self.style.ERROR(f"  submission={sid} inline xato: {exc}"))
+                    logger.error(
+                        "recover_stale_essays inline grade failed: id=%s %s", sid, exc
+                    )
+                    self.stdout.write(
+                        self.style.ERROR(f"  submission={sid} inline xato: {exc}")
+                    )
             else:
                 try:
                     grade_submission_task.delay(
-                        sid, fail_status=EssaySubmission.Status.ERROR,
+                        sid,
+                        fail_status=EssaySubmission.Status.ERROR,
                     )
                     enqueued += 1
-                    self.stdout.write(self.style.SUCCESS(f"  submission={sid} navbatga qo'yildi"))
+                    self.stdout.write(
+                        self.style.SUCCESS(f"  submission={sid} navbatga qo'yildi")
+                    )
                 except Exception as exc:
                     failed += 1
                     # Broker tushgan — updated_at yangilangan, keyingi ishga
                     # tushirishda yana oladi (stale oyna qayta to'lgach).
-                    logger.error("recover_stale_essays enqueue failed: id=%s %s", sid, exc)
-                    self.stdout.write(self.style.ERROR(f"  submission={sid} navbatga qo'yilmadi (broker?): {exc}"))
+                    logger.error(
+                        "recover_stale_essays enqueue failed: id=%s %s", sid, exc
+                    )
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"  submission={sid} navbatga qo'yilmadi (broker?): {exc}"
+                        )
+                    )
 
         summary = (
             f"Yakuniy: stale={len(stale_ids)}, claimed={claimed}, "

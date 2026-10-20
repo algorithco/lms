@@ -1,4 +1,5 @@
 """Fast, isolated test settings. Never use for a reachable development server."""
+
 from .development import *  # noqa: F401,F403
 
 DEBUG = False

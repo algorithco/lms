@@ -10,6 +10,7 @@ Financial figures are attached at *render* time, per recipient, because a
 teacher may legitimately receive the academic report while having no permission
 to see tuition at all.
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,6 +40,7 @@ PREFERENCE_TUITION = "tuition_reminders"
 # Preference handling
 # ---------------------------------------------------------------------------
 
+
 def preference_allows(user, field: str) -> bool:
     """Whether *user* has left the relevant switch on (default: yes).
 
@@ -63,6 +65,7 @@ def preference_allows(user, field: str) -> bool:
 # Recipients
 # ---------------------------------------------------------------------------
 
+
 def recipients_for_group(group) -> list:
     """Teacher of the group plus explicitly subscribed administrators.
 
@@ -82,7 +85,9 @@ def recipients_for_group(group) -> list:
     except Exception:  # pragma: no cover - settings table not ready
         subscribed = []
     for admin in subscribed:
-        if admin.pk not in {user.pk for user in recipients} and is_platform_admin(admin):
+        if admin.pk not in {user.pk for user in recipients} and is_platform_admin(
+            admin
+        ):
             recipients.append(admin)
     return recipients
 
@@ -91,10 +96,9 @@ def recipients_for_student(student):
     """Verified, approved parents of *student* — never anyone else."""
     from apps.accounts.models import ParentStudentLink
 
-    links = (
-        ParentStudentLink.objects.filter(student=student, is_approved=True)
-        .select_related("parent")
-    )
+    links = ParentStudentLink.objects.filter(
+        student=student, is_approved=True
+    ).select_related("parent")
     out = []
     for link in links:
         parent = link.parent
@@ -107,13 +111,16 @@ def recipients_for_student(student):
 # Rendering
 # ---------------------------------------------------------------------------
 
+
 def _line(label: str, value, suffix: str = "") -> str:
     if value is None:
         return f"{label}: —"
     return f"{label}: *{value}*{suffix}"
 
 
-def group_report_text(report: WeeklyGroupReport, *, include_finance: bool = False) -> str:
+def group_report_text(
+    report: WeeklyGroupReport, *, include_finance: bool = False
+) -> str:
     """The private teacher message. Counts are always real data."""
     summary = report.summary or {}
     attendance = summary.get("attendance", {})
@@ -150,8 +157,11 @@ def group_report_text(report: WeeklyGroupReport, *, include_finance: bool = Fals
         _line("   Topshirilmagan", essays.get("missing_submissions")),
         "",
         f"🧪 Testlar: *{tests.get('completed_attempts', 0)}* yakunlangan",
-        _line("   O'rtacha mashq natijasi", tests.get("average_practice_percentage"), "%"
-              if tests.get("average_practice_percentage") is not None else ""),
+        _line(
+            "   O'rtacha mashq natijasi",
+            tests.get("average_practice_percentage"),
+            "%" if tests.get("average_practice_percentage") is not None else "",
+        ),
     ]
     if tests.get("needs_support_count"):
         parts.append(f"   🆘 Qo'shimcha mashq kerak: *{tests['needs_support_count']}*")
@@ -177,7 +187,9 @@ def group_report_text(report: WeeklyGroupReport, *, include_finance: bool = Fals
     return "\n".join(parts)
 
 
-def student_report_text(report: WeeklyStudentReport, *, include_finance: bool = False) -> str:
+def student_report_text(
+    report: WeeklyStudentReport, *, include_finance: bool = False
+) -> str:
     """The private parent message — only this child's permitted figures."""
     summary = report.summary or {}
     attendance = summary.get("attendance", {})
@@ -214,7 +226,9 @@ def student_report_text(report: WeeklyStudentReport, *, include_finance: bool = 
     return "\n".join(parts)
 
 
-def report_buttons(report: WeeklyGroupReport, *, include_finance: bool = False) -> list[list[dict]]:
+def report_buttons(
+    report: WeeklyGroupReport, *, include_finance: bool = False
+) -> list[list[dict]]:
     """Inline keyboard. Finance button only for authorized recipients."""
     rid = report.pk
     rows = [
@@ -228,9 +242,11 @@ def report_buttons(report: WeeklyGroupReport, *, include_finance: bool = False) 
         ],
     ]
     if include_finance:
-        rows.append([
-            {"text": "💳 Kurs to'lovlari", "callback_data": f"wr_fin_{rid}"},
-        ])
+        rows.append(
+            [
+                {"text": "💳 Kurs to'lovlari", "callback_data": f"wr_fin_{rid}"},
+            ]
+        )
     return rows
 
 
@@ -253,7 +269,10 @@ def visible_summary(report: WeeklyGroupReport, user) -> dict:
 # Transport
 # ---------------------------------------------------------------------------
 
-def _default_transport(chat_id: int, text: str, buttons, recipient, title: str = "") -> dict:
+
+def _default_transport(
+    chat_id: int, text: str, buttons, recipient, title: str = ""
+) -> dict:
     """Send through the one canonical Telegram sender (it logs every attempt)."""
     from apps.notifications.services.telegram_service import TelegramService
 
@@ -267,18 +286,31 @@ def _default_transport(chat_id: int, text: str, buttons, recipient, title: str =
     )
 
 
-def _deliver(*, report, recipient, text: str, buttons, channel: str, dedup_key: str,
-             transport=None, title: str = "") -> WeeklyReportDelivery:
+def _deliver(
+    *,
+    report,
+    recipient,
+    text: str,
+    buttons,
+    channel: str,
+    dedup_key: str,
+    transport=None,
+    title: str = "",
+) -> WeeklyReportDelivery:
     """Create-or-reuse one delivery row, then attempt to send it."""
     with transaction.atomic():
-        delivery, created = WeeklyReportDelivery.objects.select_for_update().get_or_create(
-            dedup_key=dedup_key,
-            defaults={
-                "report": report if isinstance(report, WeeklyGroupReport) else None,
-                "student_report": report if isinstance(report, WeeklyStudentReport) else None,
-                "recipient": recipient,
-                "channel": channel,
-            },
+        delivery, created = (
+            WeeklyReportDelivery.objects.select_for_update().get_or_create(
+                dedup_key=dedup_key,
+                defaults={
+                    "report": report if isinstance(report, WeeklyGroupReport) else None,
+                    "student_report": report
+                    if isinstance(report, WeeklyStudentReport)
+                    else None,
+                    "recipient": recipient,
+                    "channel": channel,
+                },
+            )
         )
         #: Whether this call reached the transport. A caller must never report a
         #: re-seen SENT row as a fresh send.
@@ -292,12 +324,17 @@ def _deliver(*, report, recipient, text: str, buttons, channel: str, dedup_key: 
             # workers cannot also decide that it is stale.
             claim_time = timezone.now()
             stale_before = claim_time - timezone.timedelta(minutes=10)
-            reclaimed = WeeklyReportDelivery.objects.filter(
-                pk=delivery.pk, status=WeeklyReportDelivery.Status.PENDING,
-            ).filter(
-                Q(last_attempt_at__lt=stale_before)
-                | Q(last_attempt_at__isnull=True, created_at__lt=stale_before)
-            ).update(last_attempt_at=claim_time)
+            reclaimed = (
+                WeeklyReportDelivery.objects.filter(
+                    pk=delivery.pk,
+                    status=WeeklyReportDelivery.Status.PENDING,
+                )
+                .filter(
+                    Q(last_attempt_at__lt=stale_before)
+                    | Q(last_attempt_at__isnull=True, created_at__lt=stale_before)
+                )
+                .update(last_attempt_at=claim_time)
+            )
             if not reclaimed:
                 return delivery
 
@@ -312,9 +349,14 @@ def _deliver(*, report, recipient, text: str, buttons, channel: str, dedup_key: 
         delivery.last_attempt_at = timezone.now()
         delivery.status = WeeklyReportDelivery.Status.PENDING
         delivery.last_error = ""
-        delivery.save(update_fields=[
-            "retry_count", "last_attempt_at", "status", "last_error",
-        ])
+        delivery.save(
+            update_fields=[
+                "retry_count",
+                "last_attempt_at",
+                "status",
+                "last_error",
+            ]
+        )
 
     if channel == WeeklyReportDelivery.Channel.DASHBOARD:
         # The dashboard copy always succeeds: it is the fallback that makes a
@@ -349,7 +391,9 @@ def _deliver(*, report, recipient, text: str, buttons, channel: str, dedup_key: 
         delivery.mark_sent(result.get("message_id") or "")
     else:
         delivery.status = WeeklyReportDelivery.Status.FAILED
-        delivery.last_error = str((result or {}).get("error") or "Noma'lum xatolik")[:2000]
+        delivery.last_error = str((result or {}).get("error") or "Noma'lum xatolik")[
+            :2000
+        ]
         delivery.save(update_fields=["status", "last_error"])
     return delivery
 
@@ -362,8 +406,13 @@ def student_dedup_key(report: WeeklyStudentReport, recipient, channel: str) -> s
     return f"weekly-student:{report.pk}:{report.version}:{recipient.pk}:{channel}"
 
 
-def deliver_group_report(report: WeeklyGroupReport, recipient, *, transport=None,
-                         include_finance: bool | None = None) -> WeeklyReportDelivery:
+def deliver_group_report(
+    report: WeeklyGroupReport,
+    recipient,
+    *,
+    transport=None,
+    include_finance: bool | None = None,
+) -> WeeklyReportDelivery:
     """Deliver one group report to one recipient (dedup-keyed, retry-safe)."""
     from .permissions import can_view_group_finance
 
@@ -376,14 +425,17 @@ def deliver_group_report(report: WeeklyGroupReport, recipient, *, transport=None
         text=text,
         buttons=report_buttons(report, include_finance=include_finance),
         channel=WeeklyReportDelivery.Channel.TELEGRAM,
-        dedup_key=group_dedup_key(report, recipient, WeeklyReportDelivery.Channel.TELEGRAM),
+        dedup_key=group_dedup_key(
+            report, recipient, WeeklyReportDelivery.Channel.TELEGRAM
+        ),
         transport=transport,
         title=f"Haftalik hisobot — {report.group.name}",
     )
 
 
-def deliver_student_report(report: WeeklyStudentReport, recipient, *,
-                           transport=None) -> WeeklyReportDelivery:
+def deliver_student_report(
+    report: WeeklyStudentReport, recipient, *, transport=None
+) -> WeeklyReportDelivery:
     text = student_report_text(report)
     return _deliver(
         report=report,
@@ -392,15 +444,22 @@ def deliver_student_report(report: WeeklyStudentReport, recipient, *,
         buttons=None,
         channel=WeeklyReportDelivery.Channel.TELEGRAM,
         dedup_key=student_dedup_key(
-            report, recipient, WeeklyReportDelivery.Channel.TELEGRAM,
+            report,
+            recipient,
+            WeeklyReportDelivery.Channel.TELEGRAM,
         ),
         transport=transport,
         title="Haftalik hisobot",
     )
 
 
-def send_reports(period_start: datetime, period_end: datetime, *, transport=None,
-                 now: datetime | None = None) -> dict:
+def send_reports(
+    period_start: datetime,
+    period_end: datetime,
+    *,
+    transport=None,
+    now: datetime | None = None,
+) -> dict:
     """Send every current report for the period, honouring preferences.
 
     Returns a small audit dict; a delivery that already succeeded for the same
@@ -412,7 +471,8 @@ def send_reports(period_start: datetime, period_end: datetime, *, transport=None
     sent = failed = skipped = deferred = duplicates = 0
 
     reports = WeeklyGroupReport.objects.filter(
-        period_start=period_start, is_current=True,
+        period_start=period_start,
+        is_current=True,
     ).select_related("group", "group__teacher")
     for report in reports:
         for recipient in recipients_for_group(report.group):
@@ -425,12 +485,15 @@ def send_reports(period_start: datetime, period_end: datetime, *, transport=None
             sent += attempted and status == WeeklyReportDelivery.Status.SENT
             failed += attempted and status == WeeklyReportDelivery.Status.FAILED
             deferred += status == WeeklyReportDelivery.Status.DEFERRED
-            duplicates += not attempted and status != WeeklyReportDelivery.Status.DEFERRED
+            duplicates += (
+                not attempted and status != WeeklyReportDelivery.Status.DEFERRED
+            )
             if attempted and status == WeeklyReportDelivery.Status.SENT:
                 _mark_report_status(report)
 
     student_reports = WeeklyStudentReport.objects.filter(
-        period_start=period_start, is_current=True,
+        period_start=period_start,
+        is_current=True,
     ).select_related("student")
     for student_report in student_reports:
         for parent in recipients_for_student(student_report.student):
@@ -438,14 +501,18 @@ def send_reports(period_start: datetime, period_end: datetime, *, transport=None
                 skipped += 1
                 continue
             delivery = deliver_student_report(
-                student_report, parent, transport=transport,
+                student_report,
+                parent,
+                transport=transport,
             )
             status = delivery.status
             attempted = bool(getattr(delivery, "attempted", False))
             sent += attempted and status == WeeklyReportDelivery.Status.SENT
             failed += attempted and status == WeeklyReportDelivery.Status.FAILED
             deferred += status == WeeklyReportDelivery.Status.DEFERRED
-            duplicates += not attempted and status != WeeklyReportDelivery.Status.DEFERRED
+            duplicates += (
+                not attempted and status != WeeklyReportDelivery.Status.DEFERRED
+            )
 
     return {
         "period_start": period_start.isoformat(),
@@ -490,7 +557,8 @@ def retry_failed_deliveries(*, limit: int = 100, transport=None) -> dict:
                 include_finance=_may_see_finance(delivery.recipient),
             )
             buttons = report_buttons(
-                target, include_finance=_may_see_finance(delivery.recipient),
+                target,
+                include_finance=_may_see_finance(delivery.recipient),
             )
         else:
             text = student_report_text(target)
@@ -509,7 +577,9 @@ def retry_failed_deliveries(*, limit: int = 100, transport=None) -> dict:
         failed += attempted and refreshed.status == WeeklyReportDelivery.Status.FAILED
         duplicates += not attempted
     return {
-        "retried": len(pending), "sent": sent, "failed": failed,
+        "retried": len(pending),
+        "sent": sent,
+        "failed": failed,
         "duplicates": duplicates,
     }
 
