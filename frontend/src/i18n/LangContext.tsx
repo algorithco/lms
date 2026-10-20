@@ -116,9 +116,44 @@ const extraUz: Record<string, string> = {
   take_left_stat: "ta qoldi",
 };
 
-export function translate(key: string, lang: AppLang): string {
-  // Try the selected language first, then fall back to Uzbek
-  return dicts[lang]?.[key] ?? extraUz[key] ?? dicts.uz[key] ?? key;
+const KNOWN_SAFE_FALLBACKS: Record<string, string> = {
+  nav_comparison: 'Taqqoslash',
+  nav_pricing: 'Tariflar',
+  nav_faq: 'FAQ',
+  nav_features: 'Imkoniyatlar',
+  nav_how: 'Qanday ishlaydi',
+  faq_eyebrow: 'SAVOLLAR VA JAVOBLAR',
+  faq_title_1: "Ko'p beriladigan",
+  faq_title_2: 'savollar',
+  pricing_eyebrow: 'HAMYONBOP TARIFLAR',
+  pricing_title_1: 'Hamyonbop va qulay',
+  pricing_title_2: 'tariflar',
+  cmp_eyebrow: 'TAQQOSLASH',
+  cmp_title_1: 'Nega aynan',
+  cmp_title_2: 'GRAND EDUCATION?',
+};
+
+function formatRawKeyFallback(key: string): string {
+  if (KNOWN_SAFE_FALLBACKS[key]) return KNOWN_SAFE_FALLBACKS[key];
+  const parts = key.split('_');
+  if (parts.length > 1) {
+    const stripped = ['nav', 'faq', 'cmp', 'pricing', 'plan', 'trust', 'feature', 'stats', 'foot', 'cta'].includes(parts[0])
+      ? parts.slice(1).join(' ')
+      : parts.join(' ');
+    return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+  }
+  return key;
+}
+
+export function translate(key: string, lang: AppLang, fallback?: string): string {
+  const val = dicts[lang]?.[key] ?? extraUz[key] ?? dicts.uz[key];
+  if (val && typeof val === 'string' && val.trim().length > 0) {
+    return val;
+  }
+  if (fallback !== undefined && fallback !== null && fallback.trim().length > 0) {
+    return fallback;
+  }
+  return formatRawKeyFallback(key);
 }
 
 function readStoredLang(): AppLang {
@@ -142,8 +177,8 @@ export function storeLang(lang: AppLang): void {
   }
 }
 
-interface LangState {
-  t: (key: string) => string;
+export interface LangState {
+  t: (key: string, fallback?: string) => string;
   lang: AppLang;
   setLang: (lang: AppLang) => void;
 }
@@ -155,7 +190,10 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const langRef = useRef(lang);
   langRef.current = lang;
 
-  const t = useCallback((key: string) => translate(key, langRef.current), []);
+  const t = useCallback(
+    (key: string, fallback?: string) => translate(key, langRef.current, fallback),
+    [],
+  );
 
   // Update document.documentElement.lang when language changes
   useEffect(() => {

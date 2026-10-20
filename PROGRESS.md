@@ -55,6 +55,27 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Backend: 
 uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
+### 2.25. To'liq 3 Tilli Tarjimalar Bazasini To'ldirish va Xavfsiz Fallback Tizimi (Landing i18n Fix)
+- [x] Translations.json Fayliga Barcha Kalitlarni Qo'shish:
+  * Navbar kalitlari (
+av_comparison, 
+av_pricing, 
+av_faq) UZ, RU, EN tillarida kiritildi.
+  * FAQ bloki kalitlari (aq_eyebrow, aq_title_1, aq_title_2, aq_q1..aq_q5, aq_a1..aq_a5) 3 tilda to'liq kiritildi.
+  * Tariflar va rejalar kalitlari (pricing_*, plan_free_*, plan_pro_*, plan_master_*) 3 tilda to'liq kiritildi.
+  * Taqqoslash jadvali kalitlari (cmp_*) 3 tilda to'liq kiritildi.
+  * Qo'shimcha Landing kalitlari (eature_card_tests_*, oot_*, stats_*, cta_banner_*, essay, 	est) 3 tilda to'liq kiritildi.
+  * Jami Landing sahifasidagi 105 ta kalit UZ, RU va EN tillarida 100% to'liq qamrab olindi (0 ta yetishmayotgan kalit).
+- [x] Xavfsiz Tarjima Fallback Tizimi (LangContext.tsx):
+  * 	ranslate(key, lang, fallback?) va 	(key, fallback?) funksiyalariga KNOWN_SAFE_FALLBACKS hamda ormatRawKeyFallback himoyasi o'rnatildi.
+  * Agar kalit bazada topilmasa yoki bo'sh bo'lsa, xom texnik kalit emas, chiroyli formatlangan so'z yoki fallback matni qaytariladi.
+- [x] Sifat Nazorati (QA Gate):
+  * Frontend: oxlint 0 xato, 	sc -b && vite build 0 xato bilan yig'ildi (Landing-CsX73DzK.js, LangContext-BgdU5dXl.js).
+  * Backend: 
+uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
+
+---
+
 ---
 
 ---
