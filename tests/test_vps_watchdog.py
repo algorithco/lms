@@ -4,6 +4,7 @@ The script itself (deploy/vps_watchdog.py) is stdlib-only so it runs on the
 bare host; here we load it by path and exercise evaluate() + parsers with
 fixtures. No network, no subprocess, no root required.
 """
+
 import importlib.util
 import os
 import time
@@ -11,7 +12,10 @@ import time
 from django.test import SimpleTestCase
 
 SCRIPT = os.path.join(
-    os.path.dirname(__file__), "..", "deploy", "vps_watchdog.py",
+    os.path.dirname(__file__),
+    "..",
+    "deploy",
+    "vps_watchdog.py",
 )
 
 
@@ -53,7 +57,10 @@ class EvaluateTests(SimpleTestCase):
 
     def test_ssh_bruteforce_alert(self):
         alerts = wd.evaluate(
-            base_metrics(ssh_failed_10m=120), base_thresholds(), {}, time.time(),
+            base_metrics(ssh_failed_10m=120),
+            base_thresholds(),
+            {},
+            time.time(),
         )
         keys = [k for k, _ in alerts]
         self.assertIn("ssh_bruteforce", keys)
@@ -75,7 +82,9 @@ class EvaluateTests(SimpleTestCase):
     def test_odd_listener_alert(self):
         alerts = wd.evaluate(
             base_metrics(public_listeners=[22, 80, 443, 4444]),
-            base_thresholds(), {}, time.time(),
+            base_thresholds(),
+            {},
+            time.time(),
         )
         keys = [k for k, _ in alerts]
         self.assertIn("odd_listeners", keys)
@@ -83,7 +92,9 @@ class EvaluateTests(SimpleTestCase):
     def test_http_spikes_alert(self):
         alerts = wd.evaluate(
             base_metrics(delta_429=500, delta_5xx=80),
-            base_thresholds(), {}, time.time(),
+            base_thresholds(),
+            {},
+            time.time(),
         )
         keys = [k for k, _ in alerts]
         self.assertIn("http_429", keys)
@@ -92,7 +103,9 @@ class EvaluateTests(SimpleTestCase):
     def test_resource_alerts(self):
         alerts = wd.evaluate(
             base_metrics(load15=9.0, mem_avail_mb=100.0, disk_pct=95.0),
-            base_thresholds(), {}, time.time(),
+            base_thresholds(),
+            {},
+            time.time(),
         )
         keys = [k for k, _ in alerts]
         self.assertIn("load", keys)
@@ -105,13 +118,17 @@ class EvaluateTests(SimpleTestCase):
         alerts = wd.evaluate(base_metrics(disk_pct=95.0), base_thresholds(), state, now)
         self.assertNotIn("disk", [k for k, _ in alerts])
         state2 = {"alert_at": {"disk": now - 4000}}
-        alerts2 = wd.evaluate(base_metrics(disk_pct=95.0), base_thresholds(), state2, now)
+        alerts2 = wd.evaluate(
+            base_metrics(disk_pct=95.0), base_thresholds(), state2, now
+        )
         self.assertIn("disk", [k for k, _ in alerts2])
 
     def test_container_and_cert_alerts(self):
         alerts = wd.evaluate(
             base_metrics(unhealthy_containers=["web (unhealthy)"], cert_days_left=5.0),
-            base_thresholds(), {}, time.time(),
+            base_thresholds(),
+            {},
+            time.time(),
         )
         keys = [k for k, _ in alerts]
         self.assertIn("containers", keys)
@@ -173,16 +190,30 @@ class RepeatTests(SimpleTestCase):
 
     def test_format_status_contains_key_lines(self):
         m = base_metrics(
-            load15=1.5, cpu_pct=12.0, mem_avail_mb=3000.0, disk_pct=33.0,
-            conns_established=41, ssh_failed_10m=2, banned_now=7,
-            delta_429=0, delta_5xx=1, unhealthy_containers=[],
+            load15=1.5,
+            cpu_pct=12.0,
+            mem_avail_mb=3000.0,
+            disk_pct=33.0,
+            conns_established=41,
+            ssh_failed_10m=2,
+            banned_now=7,
+            delta_429=0,
+            delta_5xx=1,
+            unhealthy_containers=[],
             cert_days_left=500.0,
             healthz={"status": "ok", "db": True, "version": "0.60.0"},
             public_listeners=[22, 80, 443],
         )
         text = wd.format_status(m, base_thresholds())
-        for needle in ("load15: 1.5", "cpu: 12%", "mem avail: 3000MB",
-                       "disk: 33%", "bans: 7", "v0.60.0", "OK"):
+        for needle in (
+            "load15: 1.5",
+            "cpu: 12%",
+            "mem avail: 3000MB",
+            "disk: 33%",
+            "bans: 7",
+            "v0.60.0",
+            "OK",
+        ):
             self.assertIn(needle, text)
 
     def test_cpu_percent(self):

@@ -5,6 +5,7 @@ privilege, and being a relative is not an identity.** A teacher can take
 attendance for a group without ever seeing who owes money; a parent sees only
 invoices of children whose link an administrator has approved.
 """
+
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
@@ -42,7 +43,9 @@ def can_view_invoice(user, invoice) -> bool:
     from apps.accounts.models import ParentStudentLink
 
     return ParentStudentLink.objects.filter(
-        parent=user, student_id=invoice.student_id, is_approved=True,
+        parent=user,
+        student_id=invoice.student_id,
+        is_approved=True,
     ).exists()
 
 
@@ -57,8 +60,9 @@ def visible_invoices(user):
     from apps.accounts.models import ParentStudentLink
 
     child_ids = list(
-        ParentStudentLink.objects.filter(parent=user, is_approved=True)
-        .values_list("student_id", flat=True)
+        ParentStudentLink.objects.filter(parent=user, is_approved=True).values_list(
+            "student_id", flat=True
+        )
     )
     return CourseInvoice.objects.filter(
         Q(student_id=user.pk) | Q(student_id__in=child_ids),
@@ -75,5 +79,7 @@ def can_view_student_tuition(user, student) -> bool:
     from apps.accounts.models import ParentStudentLink
 
     return ParentStudentLink.objects.filter(
-        parent=user, student=student, is_approved=True,
+        parent=user,
+        student=student,
+        is_approved=True,
     ).exists()

@@ -51,9 +51,7 @@ class PaymentConfigurationReadinessTests(TestCase):
         PAYMENT_ADMIN_USERNAME="",
     )
     def test_paid_checkout_is_unavailable_without_payment_details(self):
-        response = self.client.get(
-            f"/api/v1/billing/subscribe/{self.paid_plan.pk}/"
-        )
+        response = self.client.get(f"/api/v1/billing/subscribe/{self.paid_plan.pk}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.data["payment_available"])
@@ -70,9 +68,7 @@ class PaymentConfigurationReadinessTests(TestCase):
         PAYMENT_ADMIN_USERNAME="billing-admin",
     )
     def test_configured_checkout_returns_operator_supplied_details(self):
-        response = self.client.get(
-            f"/api/v1/billing/subscribe/{self.paid_plan.pk}/"
-        )
+        response = self.client.get(f"/api/v1/billing/subscribe/{self.paid_plan.pk}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["payment_available"])
@@ -87,9 +83,7 @@ class PaymentConfigurationReadinessTests(TestCase):
         PAYMENT_ADMIN_USERNAME="",
     )
     def test_free_plan_needs_no_payment_account(self):
-        response = self.client.get(
-            f"/api/v1/billing/subscribe/{self.free_plan.pk}/"
-        )
+        response = self.client.get(f"/api/v1/billing/subscribe/{self.free_plan.pk}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["free"])

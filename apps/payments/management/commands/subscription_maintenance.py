@@ -80,9 +80,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # ``--expire`` is the default behaviour; running with no flags still
         # performs it, matching the cron usage in deployment.
-        run_expire = options["expire"] or not (
-            options["reminders"] or options["stats"]
-        )
+        run_expire = options["expire"] or not (options["reminders"] or options["stats"])
 
         expired = 0
         if run_expire:
@@ -113,9 +111,7 @@ class Command(BaseCommand):
         if options["stats"]:
             self._print_stats()
 
-        summary = (
-            f"Yakuniy: expired={expired}, expiring_soon={reminder_count}"
-        )
+        summary = f"Yakuniy: expired={expired}, expiring_soon={reminder_count}"
         self.stdout.write(self.style.SUCCESS(summary))
         logger.info("subscription_maintenance: %s", summary)
 
@@ -144,9 +140,11 @@ class Command(BaseCommand):
             )
 
         self.stdout.write("")
-        self.stdout.write(self.style.MIGRATE_HEADING(
-            f"KVOTA SARFI (joriy oyna: {quota_period_start():%Y-%m-%d %H:%M %Z})"
-        ))
+        self.stdout.write(
+            self.style.MIGRATE_HEADING(
+                f"KVOTA SARFI (joriy oyna: {quota_period_start():%Y-%m-%d %H:%M %Z})"
+            )
+        )
         rows = (
             SubscriptionUsage.objects.filter(created_at__gte=quota_period_start())
             .values("kind", "status")
@@ -156,14 +154,18 @@ class Command(BaseCommand):
         if not rows:
             self.stdout.write("  Joriy oynada sarf yo'q.")
         for row in rows:
-            self.stdout.write(
-                f"  {row['kind']:<12} {row['status']:<10} {row['total']}"
+            self.stdout.write(f"  {row['kind']:<12} {row['status']:<10} {row['total']}")
+        charged = (
+            SubscriptionUsage.objects.filter(
+                created_at__gte=quota_period_start(),
+                counts_towards_quota=True,
             )
-        charged = SubscriptionUsage.objects.filter(
-            created_at__gte=quota_period_start(), counts_towards_quota=True,
-        ).exclude(status=SubscriptionUsage.Status.RELEASED).count()
+            .exclude(status=SubscriptionUsage.Status.RELEASED)
+            .count()
+        )
         not_charged = SubscriptionUsage.objects.filter(
-            created_at__gte=quota_period_start(), counts_towards_quota=False,
+            created_at__gte=quota_period_start(),
+            counts_towards_quota=False,
         ).count()
         self.stdout.write(
             f"  Limitdan hisoblangan: {charged} · hisoblanmagan (cheksiz/"
@@ -178,12 +180,14 @@ class Command(BaseCommand):
         self.stdout.write(f"  Faol obunalar: {active_subs}")
         sponsorships = list(
             TeacherSponsorship.objects.filter(
-                is_active=True, approved_at__isnull=False,
+                is_active=True,
+                approved_at__isnull=False,
             ).select_related("student", "group", "group__teacher")
         )
         effective_sponsorships = [s for s in sponsorships if s.is_effective]
         pending_sponsorships = TeacherSponsorship.objects.filter(
-            is_active=True, approved_at__isnull=True,
+            is_active=True,
+            approved_at__isnull=True,
         ).count()
         self.stdout.write(
             f"  Homiyliklar: jami={len(sponsorships)}, "

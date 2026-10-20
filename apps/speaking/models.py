@@ -5,6 +5,7 @@ Models:
     SpeakingTopic       — Part 1, Part 2 (Cue Card), Part 3 discussion topics
     SpeakingSubmission  — Audio recording, transcript, 4 criteria scores & AI feedback
 """
+
 from decimal import Decimal
 from django.conf import settings
 from django.db import models
@@ -40,7 +41,9 @@ class SpeakingTopic(models.Model):
     )
     prompt = models.TextField(
         _("Savol / Cue Card yo'riqnomasi"),
-        help_text=_("Masalan: Describe a book you have recently read that had a strong impact on you."),
+        help_text=_(
+            "Masalan: Describe a book you have recently read that had a strong impact on you."
+        ),
     )
     bullet_points = models.JSONField(
         _("Cue Card reja bandlari"),

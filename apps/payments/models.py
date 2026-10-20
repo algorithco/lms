@@ -20,6 +20,7 @@ Payment Systems (O'zbekiston):
     STRIPE   — Xalqaro to'lov
     STARS    — Telegram Stars (XTR) — raqamli tovarlar uchun
 """
+
 from decimal import Decimal
 
 from django.conf import settings
@@ -77,22 +78,28 @@ class SubscriptionPlan(models.Model):
         help_text=_("0 = cheksiz"),
     )
     max_ai_grading = models.BooleanField(
-        _("AI baholash"), default=True,
+        _("AI baholash"),
+        default=True,
     )
     detailed_analytics = models.BooleanField(
-        _("batafsil tahlil"), default=False,
+        _("batafsil tahlil"),
+        default=False,
     )
     pdf_certificate = models.BooleanField(
-        _("PDF sertifikat"), default=False,
+        _("PDF sertifikat"),
+        default=False,
     )
     priority_support = models.BooleanField(
-        _("ustuvor qo'llab-quvvatlash"), default=False,
+        _("ustuvor qo'llab-quvvatlash"),
+        default=False,
     )
     unlimited_tests = models.BooleanField(
-        _("cheksiz testlar"), default=False,
+        _("cheksiz testlar"),
+        default=False,
     )
     unlimited_essays = models.BooleanField(
-        _("cheksiz esselar"), default=False,
+        _("cheksiz esselar"),
+        default=False,
     )
 
     is_active = models.BooleanField(_("faolmi"), default=True)
@@ -105,42 +112,56 @@ class SubscriptionPlan(models.Model):
     # each other. Use the ``is_unlimited_*`` flags to express "unlimited"
     # rather than encoding it as 0 (which the legacy ``max_*`` fields did).
     image_essay_weekly_limit = models.PositiveIntegerField(
-        _("rasmli esse limitingi (haftasiga)"), null=True, blank=True,
+        _("rasmli esse limitingi (haftasiga)"),
+        null=True,
+        blank=True,
         help_text=_("Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q."),
     )
     text_essay_weekly_limit = models.PositiveIntegerField(
-        _("matnli esse limitingi (haftasiga)"), null=True, blank=True,
+        _("matnli esse limitingi (haftasiga)"),
+        null=True,
+        blank=True,
         help_text=_("Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q."),
     )
     text_essay_cooldown_hours = models.PositiveIntegerField(
-        _("matnli esse sovutish soati"), null=True, blank=True,
+        _("matnli esse sovutish soati"),
+        null=True,
+        blank=True,
         help_text=_("Bo'sh = platforma standarti. 0 = sovutish yo'q."),
     )
     test_limit = models.PositiveIntegerField(
-        _("test limitingi (haftasiga)"), null=True, blank=True,
+        _("test limitingi (haftasiga)"),
+        null=True,
+        blank=True,
         help_text=_("Bo'sh = platforma standarti. 0 = umuman ruxsat yo'q."),
     )
     is_unlimited_image_essays = models.BooleanField(
-        _("rasmli esse cheksiz"), default=False,
+        _("rasmli esse cheksiz"),
+        default=False,
     )
     is_unlimited_text_essays = models.BooleanField(
-        _("matnli esse cheksiz"), default=False,
+        _("matnli esse cheksiz"),
+        default=False,
     )
     is_unlimited_tests = models.BooleanField(_("testlar cheksiz"), default=False)
     duration_days = models.PositiveIntegerField(_("davomiylik (kun)"), default=30)
     quota_period_days = models.PositiveIntegerField(
-        _("kvota davri (kun)"), default=7,
+        _("kvota davri (kun)"),
+        default=7,
         help_text=_("Kvota oynasi uzunligi. Standart — 7 kun."),
     )
     telegram_stars_price = models.PositiveIntegerField(
-        _("Telegram Stars narxi (XTR)"), null=True, blank=True,
+        _("Telegram Stars narxi (XTR)"),
+        null=True,
+        blank=True,
         help_text=_(
             "Telegram ichida yechib olinadigan butun Stars soni. "
             "Bo'sh bo'lsa Telegram orqali sotilmaydi (admin kiritishi shart)."
         ),
     )
     is_public = models.BooleanField(
-        _("ommaviy sotuvda"), default=True,
+        _("ommaviy sotuvda"),
+        default=True,
         help_text=_("Belgilanmasa, reja faqat admin orqali beriladi."),
     )
 
@@ -283,23 +304,34 @@ class UserSubscription(models.Model):
     # already bought: the purchase snapshots both the plan configuration and
     # the effective entitlement at activation time.
     purchase_source = models.CharField(
-        _("sotib olish manbasi"), max_length=30,
-        choices=Source.choices, default=Source.WEBSITE, blank=True,
+        _("sotib olish manbasi"),
+        max_length=30,
+        choices=Source.choices,
+        default=Source.WEBSITE,
+        blank=True,
     )
     payment_reference = models.CharField(
-        _("to'lov havolasi"), max_length=200, blank=True,
+        _("to'lov havolasi"),
+        max_length=200,
+        blank=True,
         help_text=_("Masalan: Telegram Stars charge ID."),
     )
     grant_source = models.CharField(
-        _("berilish manbasi"), max_length=30, blank=True,
+        _("berilish manbasi"),
+        max_length=30,
+        blank=True,
         help_text=_("Admin yoki homiylik orqali berilganda to'ldiriladi."),
     )
     plan_snapshot = models.JSONField(
-        _("reja nusxasi"), default=dict, blank=True,
+        _("reja nusxasi"),
+        default=dict,
+        blank=True,
         help_text=_("Sotib olingan paytdagi reja sozlamalari."),
     )
     entitlement_snapshot = models.JSONField(
-        _("imkoniyatlar nusxasi"), default=dict, blank=True,
+        _("imkoniyatlar nusxasi"),
+        default=dict,
+        blank=True,
         help_text=_("Sotib olingan paytdagi amaldagi kvotalar."),
     )
 
@@ -340,7 +372,8 @@ class UserSubscription(models.Model):
     @property
     def is_admin_granted(self) -> bool:
         return self.purchase_source in {
-            self.Source.ADMIN, self.Source.TEACHER_SPONSORED,
+            self.Source.ADMIN,
+            self.Source.TEACHER_SPONSORED,
             self.Source.SPONSORSHIP_DEFAULT,
         }
 
@@ -391,40 +424,53 @@ class SubscriptionUsage(models.Model):
         verbose_name=_("foydalanuvchi"),
     )
     kind = models.CharField(
-        _("turi"), max_length=20, choices=Kind.choices,
+        _("turi"),
+        max_length=20,
+        choices=Kind.choices,
         db_index=True,
     )
     status = models.CharField(
-        _("holat"), max_length=20, choices=Status.choices,
-        default=Status.RESERVED, db_index=True,
+        _("holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RESERVED,
+        db_index=True,
     )
     idempotency_key = models.CharField(
-        _("idempotentlik kaliti"), max_length=160, unique=True,
+        _("idempotentlik kaliti"),
+        max_length=160,
+        unique=True,
     )
     period_start = models.DateTimeField(
-        _("kvota davri boshlanishi"), db_index=True,
+        _("kvota davri boshlanishi"),
+        db_index=True,
     )
     #: True when this row actually consumes allowance. Administrators can
     #: create explicitly non-counting rows for corrections without deleting
     #: history.
     counts_towards_quota = models.BooleanField(
-        _("limitdan hisoblanadi"), default=True,
+        _("limitdan hisoblanadi"),
+        default=True,
     )
     plan_type_snapshot = models.CharField(
-        _("reja (nusxa)"), max_length=30, blank=True,
+        _("reja (nusxa)"),
+        max_length=30,
+        blank=True,
     )
     source = models.CharField(_("manba"), max_length=30, blank=True)
     submission = models.ForeignKey(
         "essays.EssaySubmission",
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="usage_records",
         verbose_name=_("esse topshirig'i"),
     )
     test_attempt = models.ForeignKey(
         "tests.TestAttempt",
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="usage_records",
         verbose_name=_("test urinishi"),
     )
@@ -472,17 +518,22 @@ class SubscriptionOverride(models.Model):
     text_essay_cooldown_hours = models.PositiveIntegerField(null=True, blank=True)
     test_limit = models.PositiveIntegerField(null=True, blank=True)
     is_unlimited_image_essays = models.BooleanField(
-        null=True, blank=True, default=None,
+        null=True,
+        blank=True,
+        default=None,
     )
     is_unlimited_text_essays = models.BooleanField(
-        null=True, blank=True, default=None,
+        null=True,
+        blank=True,
+        default=None,
     )
     is_unlimited_tests = models.BooleanField(null=True, blank=True, default=None)
     reason = models.TextField(_("sabab"), blank=True)
     granted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="granted_subscription_overrides",
     )
     expires_at = models.DateTimeField(_("tugash vaqti"), null=True, blank=True)
@@ -522,12 +573,16 @@ class TeacherSponsorship(models.Model):
     )
     is_active = models.BooleanField(_("faolmi"), default=True)
     approved_at = models.DateTimeField(
-        _("tasdiqlangan vaqt"), null=True, blank=True,
+        _("tasdiqlangan vaqt"),
+        null=True,
+        blank=True,
         help_text=_("Administrator tasdiqlagandan keyin to'ldiriladi."),
     )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="approved_sponsorships",
     )
     expires_at = models.DateTimeField(_("tugash vaqti"), null=True, blank=True)
@@ -589,7 +644,9 @@ class EntitlementAuditLog(models.Model):
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL, null=True, blank=True,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="entitlement_actions",
     )
     student = models.ForeignKey(
@@ -645,15 +702,23 @@ class TelegramOrder(models.Model):
     amount_stars = models.PositiveIntegerField(_("Stars miqdori"))
     currency = models.CharField(_("valyuta"), max_length=8, default="XTR")
     status = models.CharField(
-        _("holat"), max_length=20, choices=Status.choices,
-        default=Status.CREATED, db_index=True,
+        _("holat"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+        db_index=True,
     )
     telegram_payment_charge_id = models.CharField(
-        _("Telegram to'lov ID"), max_length=200, unique=True,
-        null=True, blank=True,
+        _("Telegram to'lov ID"),
+        max_length=200,
+        unique=True,
+        null=True,
+        blank=True,
     )
     provider_payment_charge_id = models.CharField(
-        _("provayder to'lov ID"), max_length=200, blank=True,
+        _("provayder to'lov ID"),
+        max_length=200,
+        blank=True,
     )
     raw_payload = models.JSONField(_("xom ma'lumot"), default=dict, blank=True)
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)

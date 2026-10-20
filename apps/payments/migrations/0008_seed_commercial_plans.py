@@ -153,7 +153,6 @@ def unseed_plans(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payments", "0007_subscriptionplan_duration_days_and_more"),
     ]

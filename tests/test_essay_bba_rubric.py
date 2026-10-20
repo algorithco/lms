@@ -6,6 +6,7 @@ Official BMB 12-criterion rubric with total 20.0 max score:
   - Criteria 4, 5, 6, 8, 9, 10, 11, 12: max 1.5 points
   - Total: 2.0*4 + 1.5*8 = 20.0 points
 """
+
 from __future__ import annotations
 
 from django.test import SimpleTestCase
@@ -128,7 +129,9 @@ class BbaValidationTests(SimpleTestCase):
 
     def test_spelling_errors_and_recommendations_normalized(self):
         payload = _valid_payload()
-        payload["spelling_errors"] = [{"word": "muxrdor", "correction": "muhrdor", "explanation": "H va X farqi"}]
+        payload["spelling_errors"] = [
+            {"word": "muxrdor", "correction": "muhrdor", "explanation": "H va X farqi"}
+        ]
         payload["strengths"] = ["Kuchli tezis"]
         payload["weaknesses"] = ["Lug'at oddiy"]
         payload["teacher_recommendation"] = "Ko'proq o'qing"

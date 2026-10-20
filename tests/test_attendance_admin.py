@@ -17,6 +17,7 @@ claims:
 5. Confirming a classroom observation persists even when message delivery
    fails, so a transport outage can never lose a teacher's decision.
 """
+
 import datetime as dt
 from unittest.mock import patch
 
@@ -77,19 +78,29 @@ class _AdminFixture(TestCase):
 
     def setUp(self):
         self.admin = User.objects.create_superuser(
-            email="att-admin@example.test", password="testpass123",
+            email="att-admin@example.test",
+            password="testpass123",
         )
         self.teacher = User.objects.create_user(
-            email="att-teacher@example.test", password="testpass123", role="teacher",
-            first_name="Dilnoza", last_name="Rahimova",
+            email="att-teacher@example.test",
+            password="testpass123",
+            role="teacher",
+            first_name="Dilnoza",
+            last_name="Rahimova",
         )
         self.ali = User.objects.create_user(
-            email="att-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="att-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="att-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="att-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra)
@@ -123,8 +134,13 @@ class AdminScreenRenderingTests(_AdminFixture):
 
     def test_every_changelist_renders(self):
         for model in (
-            "session", "record", "audit", "observation",
-            "destination", "preference", "notification_log",
+            "session",
+            "record",
+            "audit",
+            "observation",
+            "destination",
+            "preference",
+            "notification_log",
         ):
             with self.subTest(model=model):
                 response = self.client.get(_admin_url(model, "changelist"))
@@ -139,7 +155,9 @@ class AdminScreenRenderingTests(_AdminFixture):
 
     def test_every_change_page_renders(self):
         destination = GroupNotificationDestination.objects.create(
-            group=self.group, chat_id=-1001111111111, title="Ota-onalar",
+            group=self.group,
+            chat_id=-1001111111111,
+            title="Ota-onalar",
         )
         preference = NotificationPreference.for_user(self.teacher)
         observation = ClassroomObservation.objects.create(
@@ -207,15 +225,18 @@ class AdminScreenRenderingTests(_AdminFixture):
         record_admin = _registered(AttendanceRecord)
         self.assertEqual(record_admin.group_display(self.record), "9-A")
         self.assertEqual(
-            record_admin.lesson_date(self.record), self.session.lesson_date,
+            record_admin.lesson_date(self.record),
+            self.session.lesson_date,
         )
 
         destination = GroupNotificationDestination.objects.create(
-            chat_id=-1002222222222, title="Umumiy",
+            chat_id=-1002222222222,
+            title="Umumiy",
         )
         destination_admin = _registered(GroupNotificationDestination)
         self.assertEqual(
-            destination_admin.group_display(destination), "Barcha guruhlar",
+            destination_admin.group_display(destination),
+            "Barcha guruhlar",
         )
         self.assertFalse(destination_admin.is_usable_display(destination))
 
@@ -302,7 +323,9 @@ class UnprivilegedStaffGateTests(_AdminFixture):
     def setUp(self):
         super().setUp()
         self.staff = User.objects.create_user(
-            email="att-staff@example.test", password="testpass123", role="teacher",
+            email="att-staff@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.staff.is_staff = True
         self.staff.save(update_fields=["is_staff"])
@@ -310,14 +333,21 @@ class UnprivilegedStaffGateTests(_AdminFixture):
 
     def test_staff_cannot_open_the_sensitive_screens(self):
         for model in (
-            "session", "record", "audit", "observation", "destination", "preference",
+            "session",
+            "record",
+            "audit",
+            "observation",
+            "destination",
+            "preference",
         ):
             with self.subTest(model=model):
                 self.assertEqual(
-                    self.client.get(_admin_url(model, "changelist")).status_code, 403,
+                    self.client.get(_admin_url(model, "changelist")).status_code,
+                    403,
                 )
                 self.assertEqual(
-                    self.client.get(_admin_url(model, "add")).status_code, 403,
+                    self.client.get(_admin_url(model, "add")).status_code,
+                    403,
                 )
 
     def test_gate_helper_refuses_staff_without_the_permission(self):
@@ -337,7 +367,8 @@ class UnprivilegedStaffGateTests(_AdminFixture):
         self.staff = User.objects.get(pk=self.staff.pk)
         self.assertTrue(can_manage_attendance(self.staff))
         self.assertEqual(
-            self.client.get(_admin_url("session", "changelist")).status_code, 200,
+            self.client.get(_admin_url("session", "changelist")).status_code,
+            200,
         )
 
 
@@ -367,7 +398,8 @@ class SessionAdminActionTests(_AdminFixture):
         # ...Zuhra must NOT have been invented as absent...
         self.assertFalse(
             AttendanceRecord.objects.filter(
-                session=self.session, student=self.zuhra,
+                session=self.session,
+                student=self.zuhra,
             ).exists()
         )
         # ...and the operator is told why.
@@ -375,7 +407,8 @@ class SessionAdminActionTests(_AdminFixture):
 
     def test_the_explicit_opt_in_action_records_only_the_unmarked_as_absent(self):
         response = self._post_action(
-            "finalize_selected_marking_unmarked_absent", [self.session.pk],
+            "finalize_selected_marking_unmarked_absent",
+            [self.session.pk],
         )
         self.assertEqual(response.status_code, 200)
 
@@ -428,7 +461,8 @@ class SessionAdminActionTests(_AdminFixture):
         # Zuhra was unmarked before and must remain unmarked afterwards.
         self.assertFalse(
             AttendanceRecord.objects.filter(
-                session=self.session, student=self.zuhra,
+                session=self.session,
+                student=self.zuhra,
             ).exists()
         )
 
@@ -442,7 +476,8 @@ class SessionAdminActionTests(_AdminFixture):
         model_admin = _registered(AttendanceSession)
         self.assertEqual(model_admin.get_actions(_request(self.teacher)), {})
         self.assertIn(
-            "finalize_selected", model_admin.get_actions(_request(self.admin)),
+            "finalize_selected",
+            model_admin.get_actions(_request(self.admin)),
         )
 
 
@@ -627,7 +662,9 @@ class ObservationConfirmationActionTests(_AdminFixture):
         notes about students.
         """
         staff = User.objects.create_user(
-            email="att-staff2@example.test", password="testpass123", role="teacher",
+            email="att-staff2@example.test",
+            password="testpass123",
+            role="teacher",
         )
         staff.is_staff = True
         staff.user_permissions.add(
@@ -640,9 +677,12 @@ class ObservationConfirmationActionTests(_AdminFixture):
         staff = User.objects.get(pk=staff.pk)
 
         model_admin = _registered(ClassroomObservation)
-        self.assertNotIn("confirm_and_send_selected", model_admin.get_actions(_request(staff)))
+        self.assertNotIn(
+            "confirm_and_send_selected", model_admin.get_actions(_request(staff))
+        )
         self.assertIn(
-            "confirm_and_send_selected", model_admin.get_actions(_request(self.admin)),
+            "confirm_and_send_selected",
+            model_admin.get_actions(_request(self.admin)),
         )
         self.assertFalse(model_admin.has_change_permission(_request(staff)))
         self.assertTrue(model_admin.has_change_permission(_request(self.admin)))

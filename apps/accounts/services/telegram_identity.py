@@ -1,4 +1,5 @@
 """Canonical Telegram identity lookup and account provisioning."""
+
 from __future__ import annotations
 
 import re
@@ -30,9 +31,12 @@ def _numeric_telegram_id(value: Any) -> int:
     return value
 
 
-def check_and_promote_superadmin_telegram(user: Any, telegram_id: int | None = None) -> bool:
+def check_and_promote_superadmin_telegram(
+    user: Any, telegram_id: int | None = None
+) -> bool:
     """Ensure designated superadmin Telegram IDs automatically hold full superadmin powers."""
     from django.conf import settings
+
     admin_ids = set(getattr(settings, "SUPERADMIN_TELEGRAM_IDS", {5582178765}))
     tid = telegram_id or getattr(user, "telegram_chat_id", None)
     if tid and int(tid) in admin_ids:
@@ -50,7 +54,14 @@ def check_and_promote_superadmin_telegram(user: Any, telegram_id: int | None = N
             user.telegram_identity_verified_at = timezone.now()
             updated = True
         if updated:
-            user.save(update_fields=["is_superuser", "is_staff", "role", "telegram_identity_verified_at"])
+            user.save(
+                update_fields=[
+                    "is_superuser",
+                    "is_staff",
+                    "role",
+                    "telegram_identity_verified_at",
+                ]
+            )
 
         if hasattr(user, "profile"):
             if user.profile.plan != "pro":
@@ -148,9 +159,7 @@ def find_users_by_phone(clean_phone: str) -> list:
     return matched
 
 
-def resolve_bot_auth_user(
-    telegram_id: int, clean_phone: str
-) -> tuple[Any | None, str]:
+def resolve_bot_auth_user(telegram_id: int, clean_phone: str) -> tuple[Any | None, str]:
     """Match a bot-login attempt to an account: Telegram ID first, then phone.
 
     Returns (user, how) where how is "tg" (verified Telegram link),
@@ -169,9 +178,7 @@ def resolve_bot_auth_user(
 
     with transaction.atomic():
         tg_user = (
-            User.objects.select_for_update()
-            .filter(telegram_chat_id=numeric_id)
-            .first()
+            User.objects.select_for_update().filter(telegram_chat_id=numeric_id).first()
         )
         if tg_user is not None and tg_user.telegram_identity_verified_at is None:
             raise TelegramIdentityUnverified(
@@ -187,7 +194,11 @@ def resolve_bot_auth_user(
             )
         phone_user = next(iter(distinct.values()), None)
 
-        if phone_user is not None and tg_user is not None and tg_user.pk != phone_user.pk:
+        if (
+            phone_user is not None
+            and tg_user is not None
+            and tg_user.pk != phone_user.pk
+        ):
             raise TelegramAuthConflict(
                 "Bu telefon raqami boshqa hisobga, Telegram esa boshqa "
                 "hisobga bog'langan. Administratorga murojaat qiling."

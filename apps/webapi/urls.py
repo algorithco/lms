@@ -22,26 +22,51 @@ app_name = "webapi"
 
 urlpatterns = [
     # -- 5-Minute Placement Quiz & Multi-Subject Switcher ----------------
-    path("tests/placement-quiz/", views_placement.placement_quiz_view, name="tests-placement-quiz"),
-    path("tests/placement-quiz/submit/", views_placement.placement_quiz_submit_view, name="tests-placement-quiz-submit"),
+    path(
+        "tests/placement-quiz/",
+        views_placement.placement_quiz_view,
+        name="tests-placement-quiz",
+    ),
+    path(
+        "tests/placement-quiz/submit/",
+        views_placement.placement_quiz_submit_view,
+        name="tests-placement-quiz-submit",
+    ),
     path("subjects/", views_placement.subjects_list_view, name="subjects-list"),
-    path("profile/switch-subject/", views_placement.switch_subject_view, name="profile-switch-subject"),
-    path("essays/ielts/grade/", views_essays.ielts_grade_view, name="essays-ielts-grade"),
-
+    path(
+        "profile/switch-subject/",
+        views_placement.switch_subject_view,
+        name="profile-switch-subject",
+    ),
+    path(
+        "essays/ielts/grade/", views_essays.ielts_grade_view, name="essays-ielts-grade"
+    ),
     # -- OMR Answer Sheet Auto-Scanner -----------------------------------
     path("tests/scan-omr/", views_omr.ScanOMRView.as_view(), name="tests-scan-omr"),
-
     # -- AI Speaking Simulator -------------------------------------------
     path("speaking/", include("apps.speaking.urls")),
-
     # -- Gamification, Daily Goals & Streak ------------------------------
-    path("gamification/streak/", views_gamification.UserStreakView.as_view(), name="gamification-streak"),
-    path("gamification/league/", views_gamification.WeeklyLeagueView.as_view(), name="gamification-league"),
-
+    path(
+        "gamification/streak/",
+        views_gamification.UserStreakView.as_view(),
+        name="gamification-streak",
+    ),
+    path(
+        "gamification/league/",
+        views_gamification.WeeklyLeagueView.as_view(),
+        name="gamification-league",
+    ),
     # -- White-Label B2B Branding & Monthly Reports ----------------------
-    path("organizations/branding/", views_enterprise.branding_update_view, name="organizations-branding"),
-    path("school/groups/<int:group_id>/export/monthly-report-pdf/", views_enterprise.monthly_report_pdf_view, name="school-group-monthly-report-pdf"),
-
+    path(
+        "organizations/branding/",
+        views_enterprise.branding_update_view,
+        name="organizations-branding",
+    ),
+    path(
+        "school/groups/<int:group_id>/export/monthly-report-pdf/",
+        views_enterprise.monthly_report_pdf_view,
+        name="school-group-monthly-report-pdf",
+    ),
     # -- Games -----------------------------------------------------------
     path("games/", views_games.hub_view, name="games-hub"),
     path("games/leaderboard/", views_games.leaderboard_view, name="games-leaderboard"),
@@ -49,58 +74,166 @@ urlpatterns = [
     path("games/<slug:slug>/check/", views_games.check_view, name="games-check"),
     # -- Panel -----------------------------------------------------------
     path("panel/dashboard/", views_panel.dashboard_view, name="panel-dashboard"),
-    path("panel/analytics/cohorts/", views_panel.cohort_analytics_view, name="panel-cohort-analytics"),
+    path(
+        "panel/analytics/cohorts/",
+        views_panel.cohort_analytics_view,
+        name="panel-cohort-analytics",
+    ),
     path("panel/tests/", views_panel.tests_view, name="panel-tests"),
-    path("panel/tests/<int:test_id>/", views_panel.test_detail_view, name="panel-test-detail"),
-    path("panel/tests/<int:test_id>/status/", views_panel.test_status_view, name="panel-test-status"),
-    path("panel/tests/<int:test_id>/questions/", views_panel.questions_view, name="panel-questions"),
-    path("panel/tests/<int:test_id>/sections/", views_panel.sections_view, name="panel-sections"),
-    path("panel/tests/<int:test_id>/passages/", views_panel.passages_view, name="panel-passages"),
+    path(
+        "panel/tests/<int:test_id>/",
+        views_panel.test_detail_view,
+        name="panel-test-detail",
+    ),
+    path(
+        "panel/tests/<int:test_id>/status/",
+        views_panel.test_status_view,
+        name="panel-test-status",
+    ),
+    path(
+        "panel/tests/<int:test_id>/questions/",
+        views_panel.questions_view,
+        name="panel-questions",
+    ),
+    path(
+        "panel/tests/<int:test_id>/sections/",
+        views_panel.sections_view,
+        name="panel-sections",
+    ),
+    path(
+        "panel/tests/<int:test_id>/passages/",
+        views_panel.passages_view,
+        name="panel-passages",
+    ),
     path(
         "panel/tests/<int:test_id>/questions/<int:question_id>/",
         views_panel.question_detail_view,
         name="panel-question-detail",
     ),
     path("panel/topics/", views_panel.topics_view, name="panel-topics"),
-    path("panel/topics/<int:topic_id>/", views_panel.topic_detail_view, name="panel-topic-detail"),
+    path(
+        "panel/topics/<int:topic_id>/",
+        views_panel.topic_detail_view,
+        name="panel-topic-detail",
+    ),
     path("panel/users/", views_panel.users_view, name="panel-users"),
-    path("panel/users/<int:user_id>/role/", views_panel.user_role_view, name="panel-user-role"),
-    path("panel/users/<int:user_id>/block/", views_panel.user_block_view, name="panel-user-block"),
+    path(
+        "panel/users/<int:user_id>/role/",
+        views_panel.user_role_view,
+        name="panel-user-role",
+    ),
+    path(
+        "panel/users/<int:user_id>/block/",
+        views_panel.user_block_view,
+        name="panel-user-block",
+    ),
     path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
     path("panel/teachers/", views_panel.panel_teachers_view, name="panel-teachers"),
-    path("panel/attendance/", views_panel.panel_attendance_overview_view, name="panel-attendance"),
-    path("panel/attendance/export/", views_panel.panel_attendance_export_view, name="panel-attendance-export"),
-    path("accounts/link-telegram/", views_accounts.DirectTelegramLinkView.as_view(), name="accounts-link-telegram"),
+    path(
+        "panel/attendance/",
+        views_panel.panel_attendance_overview_view,
+        name="panel-attendance",
+    ),
+    path(
+        "panel/attendance/export/",
+        views_panel.panel_attendance_export_view,
+        name="panel-attendance-export",
+    ),
+    path(
+        "accounts/link-telegram/",
+        views_accounts.DirectTelegramLinkView.as_view(),
+        name="accounts-link-telegram",
+    ),
     # -- Billing ---------------------------------------------------------
     path("billing/plans/", views_billing.plans_view, name="billing-plans"),
     path("billing/my/", views_billing.my_view, name="billing-my"),
-    path("billing/entitlement/", views_billing.entitlement_view, name="billing-entitlement"),
-    path("billing/subscribe/<int:plan_id>/", views_billing.subscribe_info_view, name="billing-subscribe"),
+    path(
+        "billing/entitlement/",
+        views_billing.entitlement_view,
+        name="billing-entitlement",
+    ),
+    path(
+        "billing/subscribe/<int:plan_id>/",
+        views_billing.subscribe_info_view,
+        name="billing-subscribe",
+    ),
     path("billing/cancel/", views_billing.cancel_view, name="billing-cancel"),
     # -- Payments & Receipts ---------------------------------------------
-    path("payments/card-info/", views_billing.card_info_view, name="payments-card-info"),
-    path("payments/receipts/", views_billing.payment_receipt_upload_view, name="payments-receipt-upload"),
-    path("payments/my-receipts/", views_billing.my_payment_receipts_view, name="payments-my-receipts"),
+    path(
+        "payments/card-info/", views_billing.card_info_view, name="payments-card-info"
+    ),
+    path(
+        "payments/receipts/",
+        views_billing.payment_receipt_upload_view,
+        name="payments-receipt-upload",
+    ),
+    path(
+        "payments/my-receipts/",
+        views_billing.my_payment_receipts_view,
+        name="payments-my-receipts",
+    ),
     # -- Google OAuth ----------------------------------------------------
     path("auth/google/", google_auth_views.google_auth_verify, name="auth-google"),
-    path("auth/google/config/", google_auth_views.google_auth_config, name="auth-google-config"),
-    path("auth/google/callback/", google_auth_views.google_auth_callback, name="auth-google-callback"),
+    path(
+        "auth/google/config/",
+        google_auth_views.google_auth_config,
+        name="auth-google-config",
+    ),
+    path(
+        "auth/google/callback/",
+        google_auth_views.google_auth_callback,
+        name="auth-google-callback",
+    ),
     # -- School ----------------------------------------------------------
     path("school/groups/", views_school.groups_view, name="school-groups"),
-    path("school/groups/<int:group_id>/", views_school.group_detail_view, name="school-group-detail"),
-    path("school/groups/<int:group_id>/members/", views_school.group_members_view, name="school-group-members"),
-    path("school/groups/<int:group_id>/analytics/", views_school.group_analytics_view, name="school-group-analytics"),
-    path("school/groups/<int:group_id>/export/excel/", views_school.group_export_excel_view, name="school-group-export-excel"),
-    path("school/groups/<int:group_id>/export/pdf/", views_school.group_export_pdf_view, name="school-group-export-pdf"),
+    path(
+        "school/groups/<int:group_id>/",
+        views_school.group_detail_view,
+        name="school-group-detail",
+    ),
+    path(
+        "school/groups/<int:group_id>/members/",
+        views_school.group_members_view,
+        name="school-group-members",
+    ),
+    path(
+        "school/groups/<int:group_id>/analytics/",
+        views_school.group_analytics_view,
+        name="school-group-analytics",
+    ),
+    path(
+        "school/groups/<int:group_id>/export/excel/",
+        views_school.group_export_excel_view,
+        name="school-group-export-excel",
+    ),
+    path(
+        "school/groups/<int:group_id>/export/pdf/",
+        views_school.group_export_pdf_view,
+        name="school-group-export-pdf",
+    ),
     path("school/groups/join/", views_school.group_join_view, name="school-group-join"),
     path("school/students/", views_school.student_search_view, name="school-students"),
     path("school/parent/", views_school.parent_overview_view, name="school-parent"),
     path("school/teacher/", views_school.teacher_overview_view, name="school-teacher"),
     path("school/analytics/", views_school.analytics_view, name="school-analytics"),
-    path("school/public-stats/", views_school.public_stats_view, name="school-public-stats"),
-    path("school/essay-leaderboard/", views_school.essay_leaderboard_view, name="school-essay-leaderboard"),
-    path("school/import-students/", views_school.import_students_view, name="school-import-students"),
-    path("school/import-test/", views_school.import_test_view, name="school-import-test"),
+    path(
+        "school/public-stats/",
+        views_school.public_stats_view,
+        name="school-public-stats",
+    ),
+    path(
+        "school/essay-leaderboard/",
+        views_school.essay_leaderboard_view,
+        name="school-essay-leaderboard",
+    ),
+    path(
+        "school/import-students/",
+        views_school.import_students_view,
+        name="school-import-students",
+    ),
+    path(
+        "school/import-test/", views_school.import_test_view, name="school-import-test"
+    ),
     # -- School: attendance ------------------------------------------------
     path(
         "school/attendance/quick-mark/",
@@ -359,28 +492,95 @@ urlpatterns = [
         name="school-weekly-report-retry-failed",
     ),
     # -- Essays teacher review & student actions -------------------------
-    path("essays/teacher/queue/", views_essays.teacher_queue_view, name="essays-teacher-queue"),
-    path("essays/teacher/<int:submission_id>/", views_essays.teacher_submission_view, name="essays-teacher-detail"),
-    path("essays/teacher/<int:submission_id>/review/", views_essays.teacher_submit_review_view, name="essays-teacher-review"),
-    path("essays/teacher/<int:submission_id>/edit/", views_essays.teacher_edit_submission_view, name="essays-teacher-edit"),
-    path("essays/<int:submission_id>/improve/", views_essays.student_improve_view, name="essays-student-improve"),
-    path("essays/<int:submission_id>/request-review/", views_essays.student_request_review_view, name="essays-student-request-review"),
-
+    path(
+        "essays/teacher/queue/",
+        views_essays.teacher_queue_view,
+        name="essays-teacher-queue",
+    ),
+    path(
+        "essays/teacher/<int:submission_id>/",
+        views_essays.teacher_submission_view,
+        name="essays-teacher-detail",
+    ),
+    path(
+        "essays/teacher/<int:submission_id>/review/",
+        views_essays.teacher_submit_review_view,
+        name="essays-teacher-review",
+    ),
+    path(
+        "essays/teacher/<int:submission_id>/edit/",
+        views_essays.teacher_edit_submission_view,
+        name="essays-teacher-edit",
+    ),
+    path(
+        "essays/<int:submission_id>/improve/",
+        views_essays.student_improve_view,
+        name="essays-student-improve",
+    ),
+    path(
+        "essays/<int:submission_id>/request-review/",
+        views_essays.student_request_review_view,
+        name="essays-student-request-review",
+    ),
     # -- 👨‍👩‍👧 Ota-onalar nazorati (Parent Monitoring) -------------------------
-    path("parents/relation/", views_parents.parent_relations_view, name="parent_relations"),
-    path("parents/relation/<int:pk>/", views_parents.parent_relation_detail_view, name="parent_relation_detail"),
-    path("parents/verify-code/", views_parents.parent_verify_code_view, name="parent_verify_code"),
-
+    path(
+        "parents/relation/",
+        views_parents.parent_relations_view,
+        name="parent_relations",
+    ),
+    path(
+        "parents/relation/<int:pk>/",
+        views_parents.parent_relation_detail_view,
+        name="parent_relation_detail",
+    ),
+    path(
+        "parents/verify-code/",
+        views_parents.parent_verify_code_view,
+        name="parent_verify_code",
+    ),
     # -- 🏆 Jonli Yakshanba Turniri (Sunday Live League) --------------------
-    path("tournaments/", views_tournaments.tournament_list_view, name="tournament_list"),
-    path("tournaments/<int:pk>/", views_tournaments.tournament_detail_view, name="tournament_detail"),
-    path("tournaments/<int:pk>/join/", views_tournaments.tournament_join_view, name="tournament_join"),
-    path("tournaments/<int:pk>/submit/", views_tournaments.tournament_submit_view, name="tournament_submit"),
-    path("tournaments/<int:pk>/leaderboard/", views_tournaments.tournament_leaderboard_view, name="tournament_leaderboard"),
-    path("tournaments/<int:pk>/finalize/", views_tournaments.tournament_finalize_view, name="tournament_finalize"),
-
+    path(
+        "tournaments/", views_tournaments.tournament_list_view, name="tournament_list"
+    ),
+    path(
+        "tournaments/<int:pk>/",
+        views_tournaments.tournament_detail_view,
+        name="tournament_detail",
+    ),
+    path(
+        "tournaments/<int:pk>/join/",
+        views_tournaments.tournament_join_view,
+        name="tournament_join",
+    ),
+    path(
+        "tournaments/<int:pk>/submit/",
+        views_tournaments.tournament_submit_view,
+        name="tournament_submit",
+    ),
+    path(
+        "tournaments/<int:pk>/leaderboard/",
+        views_tournaments.tournament_leaderboard_view,
+        name="tournament_leaderboard",
+    ),
+    path(
+        "tournaments/<int:pk>/finalize/",
+        views_tournaments.tournament_finalize_view,
+        name="tournament_finalize",
+    ),
     # -- 🏢 O'quv markazlari portali (B2B SaaS Enterprise) -----------------
-    path("enterprise/dashboard/", views_enterprise.enterprise_dashboard_view, name="enterprise_dashboard"),
-    path("enterprise/students/bulk-import/", views_enterprise.enterprise_bulk_import_view, name="enterprise_bulk_import"),
-    path("enterprise/report/download/", views_enterprise.enterprise_report_export_view, name="enterprise_report_export"),
+    path(
+        "enterprise/dashboard/",
+        views_enterprise.enterprise_dashboard_view,
+        name="enterprise_dashboard",
+    ),
+    path(
+        "enterprise/students/bulk-import/",
+        views_enterprise.enterprise_bulk_import_view,
+        name="enterprise_bulk_import",
+    ),
+    path(
+        "enterprise/report/download/",
+        views_enterprise.enterprise_report_export_view,
+        name="enterprise_report_export",
+    ),
 ]

@@ -25,6 +25,7 @@ Notes:
     - All business rules (ELO matchmaking, scoring, rewards, badges) live in
       apps.arena.services and are exercised by integration tests.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -63,12 +64,16 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
 
         if self.user and self.user.is_authenticated:
             await self.accept()
-            await self.send(text_data=json.dumps({
-                "type": "connected",
-                "message": "Arena ga ulandingiz!",
-                "user_id": self.user.id,
-                "username": self.user.get_full_name(),
-            }))
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "connected",
+                        "message": "Arena ga ulandingiz!",
+                        "user_id": self.user.id,
+                        "username": self.user.get_full_name(),
+                    }
+                )
+            )
         else:
             await self.close(code=4001)
 
@@ -115,22 +120,36 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             elif event_type == "leave_room":
                 await self._leave_room()
             else:
-                await self.send(text_data=json.dumps({
-                    "type": "error",
-                    "message": f"Noma'lum event: {event_type}",
-                }))
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "error",
+                            "message": f"Noma'lum event: {event_type}",
+                        }
+                    )
+                )
 
         except json.JSONDecodeError:
-            await self.send(text_data=json.dumps({
-                "type": "error",
-                "message": "Noto'g'ri JSON format",
-            }))
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Noto'g'ri JSON format",
+                    }
+                )
+            )
         except Exception:
-            logger.exception("WebSocket receive error: user=%s", getattr(self.user, "id", "?"))
-            await self.send(text_data=json.dumps({
-                "type": "error",
-                "message": "Server xatoligi yuz berdi.",
-            }))
+            logger.exception(
+                "WebSocket receive error: user=%s", getattr(self.user, "id", "?")
+            )
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Server xatoligi yuz berdi.",
+                    }
+                )
+            )
 
     # ------------------------------------------------------------------
     # Matchmaking (ELO queue + bot fallback)
@@ -147,15 +166,19 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
 
         position = await database_sync_to_async(services.queue_position)(self.user)
         wait = int(_countdown_seconds() + services._bot_fallback_seconds())
-        await self.send(text_data=json.dumps({
-            "type": "queue_update",
-            "message": (
-                f"Navbatdasiz. {position}-o'rinda. "
-                f"Raqib topilmasa ~{wait}s dan keyin bot bilan o'ynaysiz 🤖"
-            ),
-            "position": position,
-            "bot_fallback_seconds": int(services._bot_fallback_seconds()),
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "queue_update",
+                    "message": (
+                        f"Navbatdasiz. {position}-o'rinda. "
+                        f"Raqib topilmasa ~{wait}s dan keyin bot bilan o'ynaysiz 🤖"
+                    ),
+                    "position": position,
+                    "bot_fallback_seconds": int(services._bot_fallback_seconds()),
+                }
+            )
+        )
 
         self._bot_fallback_task = asyncio.create_task(self._bot_fallback(entry.pk))
 
@@ -182,22 +205,27 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             if ch:
                 await self.channel_layer.group_add(self.room_group, ch)
 
-        await self.channel_layer.group_send(self.room_group, {
-            "type": "match_found",
-            "room_code": room_code,
-            "mode": room.mode,
-            "player1": {
-                "id": room.player1_id,
-                "name": room.player1.get_full_name() or room.player1.email,
-                "is_bot": room.player1.is_bot,
+        await self.channel_layer.group_send(
+            self.room_group,
+            {
+                "type": "match_found",
+                "room_code": room_code,
+                "mode": room.mode,
+                "player1": {
+                    "id": room.player1_id,
+                    "name": room.player1.get_full_name() or room.player1.email,
+                    "is_bot": room.player1.is_bot,
+                },
+                "player2": {
+                    "id": room.player2_id if room.player2 else None,
+                    "name": (room.player2.get_full_name() or room.player2.email)
+                    if room.player2
+                    else "?",
+                    "is_bot": bool(room.player2 and room.player2.is_bot),
+                },
+                "total_questions": room.total_questions,
             },
-            "player2": {
-                "id": room.player2_id if room.player2 else None,
-                "name": (room.player2.get_full_name() or room.player2.email) if room.player2 else "?",
-                "is_bot": bool(room.player2 and room.player2.is_bot),
-            },
-            "total_questions": room.total_questions,
-        })
+        )
 
         await database_sync_to_async(services.mark_question_started)(room_code)
         await asyncio.sleep(_countdown_seconds())
@@ -210,23 +238,38 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     async def _join_room(self, data):
         room_code = data.get("room_code", "")
         if not room_code:
-            await self.send(text_data=json.dumps({
-                "type": "error", "message": "Xona kodi ko'rsatilmagan.",
-            }))
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Xona kodi ko'rsatilmagan.",
+                    }
+                )
+            )
             return
 
         room = await self._get_room(room_code)
         if room is None:
-            await self.send(text_data=json.dumps({
-                "type": "error", "message": f"'{room_code}' xonasi topilmadi.",
-            }))
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "error",
+                        "message": f"'{room_code}' xonasi topilmadi.",
+                    }
+                )
+            )
             return
 
         # Only the two participants may attach (prevents spectators via WS)
         if room.player1_id != self.user.id and room.player2_id != self.user.id:
-            await self.send(text_data=json.dumps({
-                "type": "error", "message": "Siz bu xonaning ishtirokchisi emassiz.",
-            }))
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Siz bu xonaning ishtirokchisi emassiz.",
+                    }
+                )
+            )
             return
 
         self.room_code = room_code
@@ -243,57 +286,72 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             if ch and ch != self.channel_name:
                 await self.channel_layer.group_add(self.room_group, ch)
 
-        await self.send(text_data=json.dumps({
-            "type": "room_joined",
-            "room_code": room_code,
-            "status": room.status,
-            "mode": room.mode,
-            "is_bot_duel": room.mode == "bot",
-            "player1": {
-                "id": room.player1_id,
-                "name": room.player1.get_full_name() or room.player1.email,
-                "is_bot": room.player1.is_bot,
-            },
-            "player2": {
-                "id": room.player2_id if room.player2 else None,
-                "name": (room.player2.get_full_name() or room.player2.email) if room.player2 else "?",
-                "is_bot": bool(room.player2 and room.player2.is_bot),
-            },
-            "total_questions": room.total_questions,
-            "time_per_question": room.time_per_question,
-            "current_question_index": room.current_question_index,
-            "message": "Xonaga qo'shildingiz.",
-        }))
-
-        # A freshly STARTED room (custom join / bot) needs one consumer to
-        # drive the countdown — exactly one wins mark_question_started().
-        if room.status == "started":
-            started = await database_sync_to_async(services.mark_question_started)(room_code)
-            if started:
-                await self.channel_layer.group_send(self.room_group, {
-                    "type": "match_found",
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "room_joined",
                     "room_code": room_code,
+                    "status": room.status,
                     "mode": room.mode,
+                    "is_bot_duel": room.mode == "bot",
                     "player1": {
                         "id": room.player1_id,
                         "name": room.player1.get_full_name() or room.player1.email,
                         "is_bot": room.player1.is_bot,
                     },
                     "player2": {
-                        "id": room.player2_id,
-                        "name": room.player2.get_full_name() or room.player2.email,
+                        "id": room.player2_id if room.player2 else None,
+                        "name": (room.player2.get_full_name() or room.player2.email)
+                        if room.player2
+                        else "?",
                         "is_bot": bool(room.player2 and room.player2.is_bot),
                     },
                     "total_questions": room.total_questions,
-                })
+                    "time_per_question": room.time_per_question,
+                    "current_question_index": room.current_question_index,
+                    "message": "Xonaga qo'shildingiz.",
+                }
+            )
+        )
+
+        # A freshly STARTED room (custom join / bot) needs one consumer to
+        # drive the countdown — exactly one wins mark_question_started().
+        if room.status == "started":
+            started = await database_sync_to_async(services.mark_question_started)(
+                room_code
+            )
+            if started:
+                await self.channel_layer.group_send(
+                    self.room_group,
+                    {
+                        "type": "match_found",
+                        "room_code": room_code,
+                        "mode": room.mode,
+                        "player1": {
+                            "id": room.player1_id,
+                            "name": room.player1.get_full_name() or room.player1.email,
+                            "is_bot": room.player1.is_bot,
+                        },
+                        "player2": {
+                            "id": room.player2_id,
+                            "name": room.player2.get_full_name() or room.player2.email,
+                            "is_bot": bool(room.player2 and room.player2.is_bot),
+                        },
+                        "total_questions": room.total_questions,
+                    },
+                )
                 await asyncio.sleep(_countdown_seconds())
                 await self._send_question(room_code, room.current_question_index)
             elif room.current_question_index < room.total_questions:
                 # Mid-game reconnect — deliver the current question immediately
                 await self._send_question(room_code, room.current_question_index)
 
-        logger.info("Player joined room: user=%s, code=%s, is_p1=%s",
-                    self.user.id, room_code, self.is_player1)
+        logger.info(
+            "Player joined room: user=%s, code=%s, is_p1=%s",
+            self.user.id,
+            room_code,
+            self.is_player1,
+        )
 
     # ------------------------------------------------------------------
     # Game logic
@@ -303,30 +361,37 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
         """Broadcast the question (without the answer) and arm the timers."""
         question = await self._get_question(room_code, question_index)
         if question is None:
-            logger.error("Question not found: room=%s, index=%d", room_code, question_index)
+            logger.error(
+                "Question not found: room=%s, index=%d", room_code, question_index
+            )
             return
 
         room = await self._get_room(room_code)
         if room is None or room.status != "started":
             return
 
-        await self.channel_layer.group_send(self.room_group, {
-            "type": "send_question",
-            "question_index": question_index,
-            "question": {
-                "question_text": question.question_text,
-                "option_a": question.option_a,
-                "option_b": question.option_b,
-                "option_c": question.option_c,
-                "option_d": question.option_d,
-                "position": question.position,
-                "points": question.points,
+        await self.channel_layer.group_send(
+            self.room_group,
+            {
+                "type": "send_question",
+                "question_index": question_index,
+                "question": {
+                    "question_text": question.question_text,
+                    "option_a": question.option_a,
+                    "option_b": question.option_b,
+                    "option_c": question.option_c,
+                    "option_d": question.option_d,
+                    "position": question.position,
+                    "points": question.points,
+                },
+                "time_limit": room.time_per_question,
             },
-            "time_limit": room.time_per_question,
-        })
+        )
 
         # Start the speed-bonus clock at actual display time (not countdown start)
-        await database_sync_to_async(services.mark_question_sent)(room_code, question_index)
+        await database_sync_to_async(services.mark_question_sent)(
+            room_code, question_index
+        )
 
         # Per-question server timer (advances even if nobody answers)
         if self._question_timer_task and not self._question_timer_task.done():
@@ -343,7 +408,9 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
                 self._bot_answer_flow(room_code, question_index, room.bot_user_id)
             )
 
-    async def _question_timer(self, room_code: str, question_index: int, time_limit: int):
+    async def _question_timer(
+        self, room_code: str, question_index: int, time_limit: int
+    ):
         await asyncio.sleep(time_limit)
         try:
             room = await self._get_room(room_code)
@@ -360,7 +427,9 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
         except Exception:
             logger.exception("Question timer error: room=%s", room_code)
 
-    async def _bot_answer_flow(self, room_code: str, question_index: int, bot_user_id: int):
+    async def _bot_answer_flow(
+        self, room_code: str, question_index: int, bot_user_id: int
+    ):
         try:
             room = await self._get_room(room_code)
             if room is None or room.status != "started":
@@ -384,11 +453,14 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
                 return
 
             scores = await database_sync_to_async(services.get_scores)(room_code)
-            await self.channel_layer.group_send(self.room_group, {
-                "type": "live_score_update",
-                "scores": scores,
-                "answered_by": bot_user_id,
-            })
+            await self.channel_layer.group_send(
+                self.room_group,
+                {
+                    "type": "live_score_update",
+                    "scores": scores,
+                    "answered_by": bot_user_id,
+                },
+            )
             await self._check_advance(room_code, expected_index=question_index)
         except asyncio.CancelledError:
             pass
@@ -428,23 +500,30 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             return
 
         # Reveal grading ONLY to the answering player
-        await self.send(text_data=json.dumps({
-            "type": "answer_result",
-            "is_correct": result["is_correct"],
-            "points": result["points"],
-            "base_points": result["base_points"],
-            "combo_bonus": result["combo_bonus"],
-            "time_bonus": result["time_bonus"],
-            "correct_answer": result["correct_answer"],
-            "streak": result["streak"],
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "answer_result",
+                    "is_correct": result["is_correct"],
+                    "points": result["points"],
+                    "base_points": result["base_points"],
+                    "combo_bonus": result["combo_bonus"],
+                    "time_bonus": result["time_bonus"],
+                    "correct_answer": result["correct_answer"],
+                    "streak": result["streak"],
+                }
+            )
+        )
 
         scores = await database_sync_to_async(services.get_scores)(room_code)
-        await self.channel_layer.group_send(self.room_group, {
-            "type": "live_score_update",
-            "scores": scores,
-            "answered_by": self.user.id,
-        })
+        await self.channel_layer.group_send(
+            self.room_group,
+            {
+                "type": "live_score_update",
+                "scores": scores,
+                "answered_by": self.user.id,
+            },
+        )
 
         await self._check_advance(room_code, expected_index=question_index)
 
@@ -454,7 +533,9 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             return
         await self._advance(room_code, expected_index=expected_index, force=False)
 
-    async def _advance(self, room_code: str, expected_index: int | None = None, force: bool = False):
+    async def _advance(
+        self, room_code: str, expected_index: int | None = None, force: bool = False
+    ):
         adv = await database_sync_to_async(services.advance_question)(
             room_code, expected_index=expected_index, force=force
         )
@@ -475,13 +556,16 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
         if summary is None:
             return
 
-        await self.channel_layer.group_send(self.room_group, {
-            "type": "game_over",
-            "winner": summary["winner"],
-            "winner_id": summary["winner_id"],
-            "scores": summary["scores"],
-            "mode": summary["mode"],
-        })
+        await self.channel_layer.group_send(
+            self.room_group,
+            {
+                "type": "game_over",
+                "winner": summary["winner"],
+                "winner_id": summary["winner_id"],
+                "scores": summary["scores"],
+                "mode": summary["mode"],
+            },
+        )
 
         await self._cancel_tasks()
 
@@ -491,10 +575,14 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             self.room_group = None
             self.room_code = None
 
-        await self.send(text_data=json.dumps({
-            "type": "left_room",
-            "message": "Xonadan chiqdingiz.",
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "left_room",
+                    "message": "Xonadan chiqdingiz.",
+                }
+            )
+        )
 
     # ------------------------------------------------------------------
     # Outbound group event handlers
@@ -503,41 +591,57 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     async def match_found(self, event):
         self.room_code = event["room_code"]
         self.room_group = f"arena_{event['room_code']}"
-        await self.send(text_data=json.dumps({
-            "type": "match_found",
-            "room_code": event["room_code"],
-            "mode": event.get("mode", "queue"),
-            "player1": event["player1"],
-            "player2": event["player2"],
-            "total_questions": event["total_questions"],
-            "message": "Raqib topildi! Tayyorlaning...",
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "match_found",
+                    "room_code": event["room_code"],
+                    "mode": event.get("mode", "queue"),
+                    "player1": event["player1"],
+                    "player2": event["player2"],
+                    "total_questions": event["total_questions"],
+                    "message": "Raqib topildi! Tayyorlaning...",
+                }
+            )
+        )
 
     async def send_question(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "send_question",
-            "question_index": event["question_index"],
-            "question": event["question"],
-            "time_limit": event["time_limit"],
-            "message": "Savol!",
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "send_question",
+                    "question_index": event["question_index"],
+                    "question": event["question"],
+                    "time_limit": event["time_limit"],
+                    "message": "Savol!",
+                }
+            )
+        )
 
     async def live_score_update(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "live_score_update",
-            "scores": event["scores"],
-            "answered_by": event["answered_by"],
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "live_score_update",
+                    "scores": event["scores"],
+                    "answered_by": event["answered_by"],
+                }
+            )
+        )
 
     async def game_over(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "game_over",
-            "winner": event["winner"],
-            "winner_id": event["winner_id"],
-            "scores": event["scores"],
-            "mode": event.get("mode", "queue"),
-            "message": "O'yin tugadi!",
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "game_over",
+                    "winner": event["winner"],
+                    "winner_id": event["winner_id"],
+                    "scores": event["scores"],
+                    "mode": event.get("mode", "queue"),
+                    "message": "O'yin tugadi!",
+                }
+            )
+        )
 
     # ------------------------------------------------------------------
     # Database helpers (sync → async)
@@ -546,13 +650,17 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _get_room(self, room_code):
         from .models import ArenaRoom
-        return ArenaRoom.objects.select_related("player1", "player2").filter(
-            room_code=room_code
-        ).first()
+
+        return (
+            ArenaRoom.objects.select_related("player1", "player2")
+            .filter(room_code=room_code)
+            .first()
+        )
 
     @database_sync_to_async
     def _get_question(self, room_code, question_index):
         from .models import ArenaQuestion, ArenaRoom
+
         try:
             room = ArenaRoom.objects.get(room_code=room_code)
             return ArenaQuestion.objects.get(room=room, position=question_index)
@@ -562,6 +670,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _set_player_connected(self, room_code, user_id, connected):
         from .models import ArenaPlayer, ArenaRoom
+
         try:
             room = ArenaRoom.objects.get(room_code=room_code)
             ArenaPlayer.objects.filter(room=room, player_id=user_id).update(
@@ -573,6 +682,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _save_player_channel(self, room_code, user_id, channel_name):
         from .models import ArenaPlayer, ArenaRoom
+
         try:
             room = ArenaRoom.objects.get(room_code=room_code)
             ArenaPlayer.objects.filter(room=room, player_id=user_id).update(
@@ -585,6 +695,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     def _room_queue_channels(self, room_code):
         """Channel names of the queue entries matched into this room."""
         from .models import ArenaQueueEntry, ArenaRoom
+
         try:
             room = ArenaRoom.objects.get(room_code=room_code)
         except ArenaRoom.DoesNotExist:
@@ -599,6 +710,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     def _room_player_channels(self, room_code):
         """Channel names of all connected players in the room."""
         from .models import ArenaPlayer, ArenaRoom
+
         try:
             room = ArenaRoom.objects.get(room_code=room_code)
         except ArenaRoom.DoesNotExist:
@@ -612,6 +724,7 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _expire_waiting_entries(self, user_id):
         from .models import ArenaQueueEntry
+
         ArenaQueueEntry.objects.filter(
             user_id=user_id, status=ArenaQueueEntry.Status.WAITING
         ).update(status=ArenaQueueEntry.Status.EXPIRED)

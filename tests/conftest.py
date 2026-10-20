@@ -7,6 +7,7 @@ Provides factory helpers for creating:
     - Tests with Questions and Choices
     - TestAttempts and Results
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -25,7 +26,7 @@ User = get_user_model()
 
 def _ensure_arena_badges() -> None:
     """Ensure arena badges and the arena_duel game exist in the test database.
-    
+
     The data migration 0005_arena_badges_and_game should create these, but in the
     test environment it doesn't always run correctly. This helper ensures they exist.
     """
@@ -167,39 +168,66 @@ class LMSBaseTestCase(TestCase):
 
         # -- Choices for Q1 (single) -----------------------------------------
         self.q1_c1 = Choice.objects.create(
-            question=self.q1, text="A web framework", is_correct=True, position=1,
+            question=self.q1,
+            text="A web framework",
+            is_correct=True,
+            position=1,
         )
         self.q1_c2 = Choice.objects.create(
-            question=self.q1, text="A database", is_correct=False, position=2,
+            question=self.q1,
+            text="A database",
+            is_correct=False,
+            position=2,
         )
         self.q1_c3 = Choice.objects.create(
-            question=self.q1, text="An OS", is_correct=False, position=3,
+            question=self.q1,
+            text="An OS",
+            is_correct=False,
+            position=3,
         )
 
         # -- Choices for Q2 (multiple) ---------------------------------------
         self.q2_c1 = Choice.objects.create(
-            question=self.q2, text="Auth", is_correct=True, position=1,
+            question=self.q2,
+            text="Auth",
+            is_correct=True,
+            position=1,
         )
         self.q2_c2 = Choice.objects.create(
-            question=self.q2, text="ORM", is_correct=True, position=2,
+            question=self.q2,
+            text="ORM",
+            is_correct=True,
+            position=2,
         )
         self.q2_c3 = Choice.objects.create(
-            question=self.q2, text="Excel", is_correct=False, position=3,
+            question=self.q2,
+            text="Excel",
+            is_correct=False,
+            position=3,
         )
 
         # -- Choices for Q3 (single) -----------------------------------------
         self.q3_c1 = Choice.objects.create(
-            question=self.q3, text="Model View Controller", is_correct=True, position=1,
+            question=self.q3,
+            text="Model View Controller",
+            is_correct=True,
+            position=1,
         )
         self.q3_c2 = Choice.objects.create(
-            question=self.q3, text="My Very Cool", is_correct=False, position=2,
+            question=self.q3,
+            text="My Very Cool",
+            is_correct=False,
+            position=2,
         )
 
     # -- Helper methods ------------------------------------------------------
 
-    def get_jwt_tokens(self, email: str = "student@test.com", password: str = "testpass123") -> dict:
+    def get_jwt_tokens(
+        self, email: str = "student@test.com", password: str = "testpass123"
+    ) -> dict:
         """JWT token olish."""
         from rest_framework.test import APIClient
+
         client = APIClient()
         response = client.post(
             "/api/auth/login/",
@@ -211,6 +239,7 @@ class LMSBaseTestCase(TestCase):
     def get_authenticated_client(self, email: str = "student@test.com") -> Any:
         """Authenticated API client yaratish."""
         from rest_framework.test import APIClient
+
         tokens = self.get_jwt_tokens(email=email)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens.get('access', '')}")

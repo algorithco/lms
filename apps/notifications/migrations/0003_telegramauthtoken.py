@@ -6,28 +6,60 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('notifications', '0002_pushsubscription'),
+        ("notifications", "0002_pushsubscription"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TelegramAuthToken',
+            name="TelegramAuthToken",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('token', models.CharField(db_index=True, help_text='URL-safe random token', max_length=64, unique=True)),
-                ('telegram_chat_id', models.BigIntegerField(blank=True, help_text='Telegram foydalanuvchi ID (bot orqali tekshirilgandan keyin)', null=True)),
-                ('is_verified', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('verified_at', models.DateTimeField(blank=True, null=True)),
-                ('user', models.ForeignKey(blank=True, help_text="Foydalanuvchi (token verified bo'lgandan keyin)", null=True, on_delete=django.db.models.deletion.CASCADE, related_name='telegram_auth_tokens', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "token",
+                    models.CharField(
+                        db_index=True,
+                        help_text="URL-safe random token",
+                        max_length=64,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "telegram_chat_id",
+                    models.BigIntegerField(
+                        blank=True,
+                        help_text="Telegram foydalanuvchi ID (bot orqali tekshirilgandan keyin)",
+                        null=True,
+                    ),
+                ),
+                ("is_verified", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("verified_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Foydalanuvchi (token verified bo'lgandan keyin)",
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="telegram_auth_tokens",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Telegram auth token',
-                'verbose_name_plural': 'Telegram auth tokens',
-                'ordering': ['-created_at'],
+                "verbose_name": "Telegram auth token",
+                "verbose_name_plural": "Telegram auth tokens",
+                "ordering": ["-created_at"],
             },
         ),
     ]

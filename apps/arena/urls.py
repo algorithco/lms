@@ -1,4 +1,5 @@
 """Arena URL configuration."""
+
 from django.urls import path
 
 from . import views
@@ -9,7 +10,6 @@ urlpatterns = [
     # Pages
     path("", views.arena_lobby_view, name="lobby"),
     path("<str:room_code>/", views.arena_room_view, name="room"),
-
     # JSON API
     path("api/leaderboard/", views.arena_api_leaderboard, name="api-leaderboard"),
     path("api/stats/", views.arena_api_stats, name="api-stats"),

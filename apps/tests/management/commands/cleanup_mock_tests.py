@@ -7,6 +7,7 @@ user/teacher-created tests remain visible:
 - #MOCK-BMB04 / MOCK-BMB04
 - Optional: #MOCK-BMB-DIAGNOSTIC (with --all-mock flag)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -40,7 +41,9 @@ class Command(BaseCommand):
 
         # Normalize unique codes
         unique_codes = list(dict.fromkeys(codes))
-        self.stdout.write(self.style.NOTICE(f"Searching for tests with mock codes: {unique_codes}"))
+        self.stdout.write(
+            self.style.NOTICE(f"Searching for tests with mock codes: {unique_codes}")
+        )
 
         tests_qs = Test.objects.filter(mock_code__in=unique_codes)
         found_count = tests_qs.count()
@@ -48,7 +51,9 @@ class Command(BaseCommand):
         if found_count > 0:
             deleted_summary = []
             for test in tests_qs:
-                deleted_summary.append(f"ID={test.id}, Title='{test.title}', Code='{test.mock_code}'")
+                deleted_summary.append(
+                    f"ID={test.id}, Title='{test.title}', Code='{test.mock_code}'"
+                )
 
             count, deleted_breakdown = tests_qs.delete()
             self.stdout.write(
@@ -58,7 +63,9 @@ class Command(BaseCommand):
                 )
             )
         else:
-            self.stdout.write(self.style.WARNING("No matching mock tests found in the database."))
+            self.stdout.write(
+                self.style.WARNING("No matching mock tests found in the database.")
+            )
 
         # Clean legacy mock essay topics (Remote Work, Renewable Energy, Artificial Intelligence)
         from apps.essays.models import EssayTopic
@@ -68,6 +75,7 @@ class Command(BaseCommand):
             del_count, _ = EssayTopic.objects.filter(title__icontains=sample).delete()
             if del_count:
                 self.stdout.write(
-                    self.style.SUCCESS(f"Cleaned up mock essays matching '{sample}': {del_count} deleted.")
+                    self.style.SUCCESS(
+                        f"Cleaned up mock essays matching '{sample}': {del_count} deleted."
+                    )
                 )
-

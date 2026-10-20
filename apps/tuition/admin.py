@@ -36,8 +36,16 @@ def can_manage_tuition(user) -> bool:
 @admin.register(CourseBillingPolicy)
 class CourseBillingPolicyAdmin(admin.ModelAdmin):
     list_display = (
-        "name", "scope_display", "amount_uzs", "billing_frequency", "due_day",
-        "grace_days", "installments", "is_active", "effective_from", "effective_until",
+        "name",
+        "scope_display",
+        "amount_uzs",
+        "billing_frequency",
+        "due_day",
+        "grace_days",
+        "installments",
+        "is_active",
+        "effective_from",
+        "effective_until",
     )
     list_filter = ("is_active", "billing_frequency", "mid_month_policy")
     search_fields = ("name", "course__title", "group__name")
@@ -64,7 +72,8 @@ class CourseBillingPolicyAdmin(admin.ModelAdmin):
         TuitionAuditLog.objects.create(
             actor=request.user,
             action=(
-                TuitionAuditLog.Action.POLICY_UPDATED if change
+                TuitionAuditLog.Action.POLICY_UPDATED
+                if change
                 else TuitionAuditLog.Action.POLICY_CREATED
             ),
             policy=obj,
@@ -84,8 +93,14 @@ class CourseBillingPolicyAdmin(admin.ModelAdmin):
 @admin.register(StudentTuitionAgreement)
 class StudentTuitionAgreementAdmin(admin.ModelAdmin):
     list_display = (
-        "student", "billing_policy", "negotiated_amount_uzs", "discount_kind",
-        "discount_percent", "discount_amount_uzs", "status", "effective_from",
+        "student",
+        "billing_policy",
+        "negotiated_amount_uzs",
+        "discount_kind",
+        "discount_percent",
+        "discount_amount_uzs",
+        "status",
+        "effective_from",
         "effective_until",
     )
     list_filter = ("status", "discount_kind")
@@ -111,7 +126,8 @@ class StudentTuitionAgreementAdmin(admin.ModelAdmin):
         TuitionAuditLog.objects.create(
             actor=request.user,
             action=(
-                TuitionAuditLog.Action.AGREEMENT_UPDATED if change
+                TuitionAuditLog.Action.AGREEMENT_UPDATED
+                if change
                 else TuitionAuditLog.Action.AGREEMENT_CREATED
             ),
             agreement=obj,
@@ -125,19 +141,46 @@ class StudentTuitionAgreementAdmin(admin.ModelAdmin):
 @admin.register(CourseInvoice)
 class CourseInvoiceAdmin(admin.ModelAdmin):
     list_display = (
-        "student", "period_label", "scope_key", "amount_due_uzs", "paid_amount_uzs",
-        "pending_amount_uzs", "balance_display", "due_date", "status",
+        "student",
+        "period_label",
+        "scope_key",
+        "amount_due_uzs",
+        "paid_amount_uzs",
+        "pending_amount_uzs",
+        "balance_display",
+        "due_date",
+        "status",
     )
     list_filter = ("status", "is_installment", "due_date")
-    search_fields = ("student__email", "student__first_name", "period_label", "scope_key")
+    search_fields = (
+        "student__email",
+        "student__first_name",
+        "period_label",
+        "scope_key",
+    )
     date_hierarchy = "billing_period_start"
     readonly_fields = (
-        "student", "policy", "course", "enrollment", "agreement", "scope_key",
-        "billing_period_start", "billing_period_end", "period_label",
-        "base_amount_uzs", "discount_amount_uzs", "discount_kind",
-        "paid_amount_uzs", "pending_amount_uzs", "is_installment",
-        "installment_number", "due_date", "grace_until", "created_by",
-        "created_at", "updated_at",
+        "student",
+        "policy",
+        "course",
+        "enrollment",
+        "agreement",
+        "scope_key",
+        "billing_period_start",
+        "billing_period_end",
+        "period_label",
+        "base_amount_uzs",
+        "discount_amount_uzs",
+        "discount_kind",
+        "paid_amount_uzs",
+        "pending_amount_uzs",
+        "is_installment",
+        "installment_number",
+        "due_date",
+        "grace_until",
+        "created_by",
+        "created_at",
+        "updated_at",
     )
     actions = ("action_mark_overdue", "action_cancel")
 
@@ -173,8 +216,11 @@ class CourseInvoiceAdmin(admin.ModelAdmin):
             TuitionAuditLog.objects.create(
                 actor=request.user,
                 action=TuitionAuditLog.Action.INVOICE_MARKED_OVERDUE,
-                invoice=invoice, student=invoice.student,
-                old_value=old, new_value=invoice.status, reason="Admin panel",
+                invoice=invoice,
+                student=invoice.student,
+                old_value=old,
+                new_value=invoice.status,
+                reason="Admin panel",
             )
             marked += 1
         self.message_user(request, f"{marked} ta hisob belgilandi.", messages.SUCCESS)
@@ -185,7 +231,9 @@ class CourseInvoiceAdmin(admin.ModelAdmin):
         for invoice in queryset:
             services.cancel_invoice(invoice, actor=request.user, reason="Admin panel")
             cancelled += 1
-        self.message_user(request, f"{cancelled} ta hisob bekor qilindi.", messages.SUCCESS)
+        self.message_user(
+            request, f"{cancelled} ta hisob bekor qilindi.", messages.SUCCESS
+        )
 
 
 @admin.register(CoursePayment)
@@ -193,15 +241,34 @@ class CoursePaymentAdmin(admin.ModelAdmin):
     """The verification queue: receipts are confirmed or rejected here."""
 
     list_display = (
-        "student", "invoice", "amount_uzs", "method", "reference", "status",
-        "submitted_by", "verified_by", "verified_at", "created_at",
+        "student",
+        "invoice",
+        "amount_uzs",
+        "method",
+        "reference",
+        "status",
+        "submitted_by",
+        "verified_by",
+        "verified_at",
+        "created_at",
     )
     list_filter = ("status", "method")
     search_fields = ("student__email", "reference", "note")
     readonly_fields = (
-        "student", "invoice", "amount_uzs", "method", "reference", "proof", "note",
-        "submitted_by", "verified_by", "verified_at", "status", "rejection_reason",
-        "created_at", "updated_at",
+        "student",
+        "invoice",
+        "amount_uzs",
+        "method",
+        "reference",
+        "proof",
+        "note",
+        "submitted_by",
+        "verified_by",
+        "verified_at",
+        "status",
+        "rejection_reason",
+        "created_at",
+        "updated_at",
     )
     actions = ("action_verify", "action_reject", "action_refund")
 
@@ -228,7 +295,9 @@ class CoursePaymentAdmin(admin.ModelAdmin):
         for payment in queryset:
             services.verify_payment(payment, actor=request.user, reason="Admin panel")
             verified += 1
-        self.message_user(request, f"{verified} ta to'lov tasdiqlandi.", messages.SUCCESS)
+        self.message_user(
+            request, f"{verified} ta to'lov tasdiqlandi.", messages.SUCCESS
+        )
 
     @admin.action(description="Tanlangan to'lovlarni rad etish")
     def action_reject(self, request, queryset):
@@ -236,7 +305,9 @@ class CoursePaymentAdmin(admin.ModelAdmin):
         for payment in queryset:
             services.reject_payment(payment, actor=request.user, reason="Admin panel")
             rejected += 1
-        self.message_user(request, f"{rejected} ta to'lov rad etildi.", messages.WARNING)
+        self.message_user(
+            request, f"{rejected} ta to'lov rad etildi.", messages.WARNING
+        )
 
     @admin.action(description="Tanlangan to'lovlarni qaytarish")
     def action_refund(self, request, queryset):
@@ -244,7 +315,9 @@ class CoursePaymentAdmin(admin.ModelAdmin):
         for payment in queryset.filter(status=CoursePayment.Status.VERIFIED):
             services.refund_payment(payment, actor=request.user, reason="Admin panel")
             refunded += 1
-        self.message_user(request, f"{refunded} ta to'lov qaytarildi.", messages.WARNING)
+        self.message_user(
+            request, f"{refunded} ta to'lov qaytarildi.", messages.WARNING
+        )
 
 
 @admin.register(PaymentReminderLog)
@@ -275,8 +348,16 @@ class TuitionAuditLogAdmin(admin.ModelAdmin):
     """Append-only: the trail is the point."""
 
     list_display = (
-        "created_at", "action", "actor", "student", "invoice", "payment",
-        "field", "old_value", "new_value", "reason",
+        "created_at",
+        "action",
+        "actor",
+        "student",
+        "invoice",
+        "payment",
+        "field",
+        "old_value",
+        "new_value",
+        "reason",
     )
     list_filter = ("action",)
     search_fields = ("reason", "student__email", "field")

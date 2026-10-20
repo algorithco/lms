@@ -10,6 +10,7 @@ Endpoints:
     POST /api/tests/attempts/{id}/submit/        — Testni yakunlash
     POST /api/tests/attempts/{id}/finalize/     — Kutilayotgan yozma bahoni yakunlash
 """
+
 from django.urls import path
 
 from . import views, views_omr, views_placement
@@ -28,7 +29,6 @@ urlpatterns = [
         views.TestDetailView.as_view(),
         name="test-detail",
     ),
-
     # -- Attempt lifecycle ----------------------------------------------------
     path(
         "<int:test_id>/start/",
@@ -60,7 +60,6 @@ urlpatterns = [
         views.ReportViolationView.as_view(),
         name="report-violation",
     ),
-
     # -- 24/7 AI Tutor & Diagnostics ------------------------------------------
     path(
         "results/<int:result_id>/diagnostics/",
@@ -72,7 +71,6 @@ urlpatterns = [
         views.QuestionExplainMistakeView.as_view(),
         name="question-explain-mistake",
     ),
-
     # -- Fast Key-Based Mock Tests --------------------------------------------
     path(
         "mock/create/",
@@ -89,7 +87,6 @@ urlpatterns = [
         views.MockLeaderboardView.as_view(),
         name="mock-leaderboard",
     ),
-
     # -- 5-Minute Smart Onboarding Placement Quiz -----------------------------
     path(
         "placement-quiz/",
@@ -101,7 +98,6 @@ urlpatterns = [
         views_placement.placement_quiz_submit_view,
         name="placement-quiz-submit",
     ),
-
     # -- OMR Answer Sheet Auto-Scanner ----------------------------------------
     path(
         "scan-omr/",

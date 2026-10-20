@@ -9,6 +9,7 @@ For backward compatibility with tests and existing behavior:
 - Anonymous users are redirected to Django login with ?next= parameter
 - HTMX check endpoints return proper HTTP status codes (not SPA shell)
 """
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
@@ -20,6 +21,7 @@ from apps.core.spa import serve_spa_shell
 # Main game pages — serve SPA shell for authenticated users,
 # redirect anonymous to Django login (preserves test behavior)
 # ---------------------------------------------------------------------------
+
 
 @login_required
 def games_index_view(request: HttpRequest) -> HttpResponse:
@@ -61,6 +63,7 @@ def leaderboard_full_view(request: HttpRequest) -> HttpResponse:
 # These are called via HTMX from the SPA shell (but the SPA uses JSON API)
 # Keep them working for backward compatibility
 # ---------------------------------------------------------------------------
+
 
 def imlo_check_view(request: HttpRequest) -> HttpResponse:
     """Check imlo answer — return 400 for invalid input (test expects this)."""

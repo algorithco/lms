@@ -1,6 +1,7 @@
 """
 Validators and constraints for essay submissions and topics.
 """
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
@@ -20,5 +21,7 @@ def validate_essay_word_count(
         )
     if max_words > 0 and word_count > max_words:
         raise ValidationError(
-            _(f"Esse matni hajmi belgilangan chegaradan oshib ketdi: {word_count}/{max_words} so'z.")
+            _(
+                f"Esse matni hajmi belgilangan chegaradan oshib ketdi: {word_count}/{max_words} so'z."
+            )
         )

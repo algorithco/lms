@@ -27,16 +27,22 @@ def _dedupe_short_codes(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('notifications', '0007_notificationlog_related_essay_submission_and_more'),
+        ("notifications", "0007_notificationlog_related_essay_submission_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RunPython(_dedupe_short_codes, migrations.RunPython.noop),
         migrations.AddConstraint(
-            model_name='telegramauthtoken',
-            constraint=models.UniqueConstraint(condition=models.Q(('consumed_at__isnull', True), models.Q(('short_code', ''), _negated=True)), fields=('short_code',), name='uniq_tgauth_short_code_active'),
+            model_name="telegramauthtoken",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(
+                    ("consumed_at__isnull", True),
+                    models.Q(("short_code", ""), _negated=True),
+                ),
+                fields=("short_code",),
+                name="uniq_tgauth_short_code_active",
+            ),
         ),
     ]

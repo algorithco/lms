@@ -4,6 +4,7 @@ A user is an administrator for the panel when they are authenticated AND
 active AND (they are a Django superuser OR their platform role is 'admin').
 Plain ``is_staff`` alone grants nothing here — it only gates Django /admin/.
 """
+
 from functools import wraps
 
 from django.contrib.auth.decorators import login_required

@@ -4,15 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('payments', '0009_paymentreceipt'),
+        ("payments", "0009_paymentreceipt"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paymentreceipt',
-            name='image_hash',
-            field=models.CharField(blank=True, db_index=True, max_length=64, null=True, verbose_name='rasm xeshi (SHA-256)'),
+            model_name="paymentreceipt",
+            name="image_hash",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                max_length=64,
+                null=True,
+                verbose_name="rasm xeshi (SHA-256)",
+            ),
         ),
     ]

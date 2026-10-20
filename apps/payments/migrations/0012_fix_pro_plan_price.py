@@ -5,8 +5,12 @@ from django.db import migrations
 def update_pro_plan_price(apps, schema_editor):
     SubscriptionPlan = apps.get_model("payments", "SubscriptionPlan")
     SubscriptionPlan.objects.filter(plan_type__iexact="pro").update(price_monthly=49000)
-    SubscriptionPlan.objects.filter(plan_type__iexact="premium").update(price_monthly=60000)
-    SubscriptionPlan.objects.filter(plan_type__in=["start", "starter"]).update(price_monthly=15000)
+    SubscriptionPlan.objects.filter(plan_type__iexact="premium").update(
+        price_monthly=60000
+    )
+    SubscriptionPlan.objects.filter(plan_type__in=["start", "starter"]).update(
+        price_monthly=15000
+    )
 
 
 def reverse_update(apps, schema_editor):
@@ -14,7 +18,6 @@ def reverse_update(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("payments", "0011_alter_paymentreceipt_plan"),
     ]

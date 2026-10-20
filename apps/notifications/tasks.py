@@ -9,6 +9,7 @@ Lifecycle:
 Har bir taskda xatolik yuz bersa, task retry qiladi (max 3 marta).
 Task bajarilishi NotificationLog da qayd etiladi.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,16 +26,17 @@ logger = logging.getLogger(__name__)
 # 1. Main orchestrator task
 # ---------------------------------------------------------------------------
 
+
 @shared_task(
     bind=True,
     name="notifications.process_test_result",
     max_retries=3,
     default_retry_delay=30,
     acks_late=True,
-    retry_backoff=True,      # 30s → 60s → 120s … (exponential + jitter)
+    retry_backoff=True,  # 30s → 60s → 120s … (exponential + jitter)
     retry_backoff_max=300,
     retry_jitter=True,
-    time_limit=300,          # PDF gen + Telegram + email can exceed the 120s global
+    time_limit=300,  # PDF gen + Telegram + email can exceed the 120s global
     soft_time_limit=240,
 )
 def process_test_result_task(
@@ -60,12 +62,17 @@ def process_test_result_task(
         from apps.results.models import Certificate, Result
 
         result = Result.objects.select_related(
-            "student", "test", "course", "attempt",
+            "student",
+            "test",
+            "course",
+            "attempt",
         ).get(id=result_id)
 
         logger.info(
             "Processing result: id=%d, student=%s, passed=%s",
-            result_id, result.student.email, result.is_passed,
+            result_id,
+            result.student.email,
+            result.is_passed,
         )
 
         certificate_generated = False
@@ -83,6 +90,7 @@ def process_test_result_task(
         # -- Step 4: Ota-onaga tezkor xabar yuborish -------------------------
         try:
             from apps.notifications.tasks_parent import send_parent_test_alert_task
+
             send_parent_test_alert_task.delay(result_id)
         except Exception:
             logger.exception("Parent alert dispatch error for result_id=%s", result_id)
@@ -106,6 +114,7 @@ def process_test_result_task(
 # 2. Certificate generation task
 # ---------------------------------------------------------------------------
 
+
 @shared_task(
     bind=True,
     name="notifications.generate_certificate",
@@ -128,8 +137,11 @@ def generate_certificate_task(
     """
     try:
         from apps.results.models import Result
+
         result = Result.objects.select_related(
-            "student", "test", "course",
+            "student",
+            "test",
+            "course",
         ).get(id=result_id)
 
         success = _generate_certificate(result)
@@ -143,6 +155,7 @@ def generate_certificate_task(
 # ---------------------------------------------------------------------------
 # 3. Telegram notification task
 # ---------------------------------------------------------------------------
+
 
 @shared_task(
     bind=True,
@@ -164,8 +177,11 @@ def send_telegram_result_task(
     """
     try:
         from apps.results.models import Result
+
         result = Result.objects.select_related(
-            "student", "test", "course",
+            "student",
+            "test",
+            "course",
         ).get(id=result_id)
 
         _send_telegram_result(result, certificate_sent=False)
@@ -179,6 +195,7 @@ def send_telegram_result_task(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _generate_certificate(result: Any) -> bool:
     """
@@ -206,7 +223,9 @@ def _generate_certificate(result: Any) -> bool:
             cert.save(update_fields=["status"])
         except Certificate.DoesNotExist:
             pass
-        logger.exception("PDF generation failed for cert result=%s", getattr(result, "id", "?"))
+        logger.exception(
+            "PDF generation failed for cert result=%s", getattr(result, "id", "?")
+        )
         return False
 
 
@@ -249,6 +268,7 @@ def _send_telegram_result(
     if certificate_sent and result.is_passed:
         try:
             from apps.results.models import Certificate
+
             cert = Certificate.objects.get(result=result)
             if cert.file:
                 TelegramService.send_certificate(
@@ -290,4 +310,3 @@ def _send_email_result(result: Any) -> None:
 
 # Import parent notification tasks so Celery discovers them
 from apps.notifications import tasks_parent  # noqa: F401
-

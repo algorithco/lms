@@ -5,15 +5,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0008_essaysubmission_assigned_reviewer'),
+        ("essays", "0008_essaysubmission_assigned_reviewer"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='essaysubmission',
-            index=models.Index(fields=['status', 'auto_submitted', 'password_verified_at'], name='idx_essay_auto_submit'),
+            model_name="essaysubmission",
+            index=models.Index(
+                fields=["status", "auto_submitted", "password_verified_at"],
+                name="idx_essay_auto_submit",
+            ),
         ),
     ]

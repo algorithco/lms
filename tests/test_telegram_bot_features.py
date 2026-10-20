@@ -1,4 +1,5 @@
 """Tests for overhauled Telegram Bot & Notifications features."""
+
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -79,7 +80,9 @@ class TelegramBotFeaturesTests(TestCase):
                 last_name="Valiyev",
                 username="alivaliyev",
             ),
-            effective_chat=SimpleNamespace(id=self.user.telegram_chat_id, type="private"),
+            effective_chat=SimpleNamespace(
+                id=self.user.telegram_chat_id, type="private"
+            ),
             message=self.message,
             callback_query=None,
         )
@@ -118,7 +121,12 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIn("Ona tili va milliy o'zlik", text)
         markup = reply_call.kwargs.get("reply_markup")
         self.assertIsNotNone(markup)
-        callback_datas = [btn.callback_data for row in markup.inline_keyboard for btn in row if btn.callback_data]
+        callback_datas = [
+            btn.callback_data
+            for row in markup.inline_keyboard
+            for btn in row
+            if btn.callback_data
+        ]
         self.assertIn(f"cb_topic_select:{topic.id}", callback_datas)
         self.assertIn("cb_topic_select:0", callback_datas)
 
@@ -136,9 +144,13 @@ class TelegramBotFeaturesTests(TestCase):
 
         async_to_sync(essay_topic_select_callback)(self.update, self.context, topic.id)
 
-        self.assertEqual(self.context.user_data.get("bot_essay_state"), "awaiting_submission")
+        self.assertEqual(
+            self.context.user_data.get("bot_essay_state"), "awaiting_submission"
+        )
         self.assertEqual(self.context.user_data.get("bot_essay_topic_id"), topic.id)
-        self.assertTrue(self.message.reply_text.called or self.query.edit_message_text.called)
+        self.assertTrue(
+            self.message.reply_text.called or self.query.edit_message_text.called
+        )
 
     # 3. Post-grading AI improve and teacher review actions
     def test_telegram_service_send_essay_graded_includes_action_buttons(self):
@@ -150,14 +162,23 @@ class TelegramBotFeaturesTests(TestCase):
             max_score=24,
             summary="Yaxshi yozilgan esse.",
         )
-        with patch.object(TelegramService, "send_message_with_keyboard", return_value={"success": True}) as mock_send:
+        with patch.object(
+            TelegramService,
+            "send_message_with_keyboard",
+            return_value={"success": True},
+        ) as mock_send:
             TelegramService.send_essay_graded(self.user.telegram_chat_id, submission)
             self.assertTrue(mock_send.called)
             kwargs = mock_send.call_args[1]
             text = kwargs["text"]
             buttons = kwargs["buttons"]
             self.assertIn("Essingiz baholandi", text)
-            callbacks = [btn["callback_data"] for row in buttons for btn in row if "callback_data" in btn]
+            callbacks = [
+                btn["callback_data"]
+                for row in buttons
+                for btn in row
+                if "callback_data" in btn
+            ]
             self.assertIn(f"essay_improve:{submission.id}", callbacks)
             self.assertIn(f"essay_review:{submission.id}", callbacks)
 
@@ -178,13 +199,20 @@ class TelegramBotFeaturesTests(TestCase):
         text = reply_args.args[0]
         self.assertIn("ESSE NATIJASI", text)
         markup = reply_args.kwargs.get("reply_markup")
-        callbacks = [btn.callback_data for row in markup.inline_keyboard for btn in row if btn.callback_data]
+        callbacks = [
+            btn.callback_data
+            for row in markup.inline_keyboard
+            for btn in row
+            if btn.callback_data
+        ]
         self.assertIn(f"essay_improve:{submission.id}", callbacks)
         self.assertIn(f"essay_review:{submission.id}", callbacks)
 
     @patch("apps.essays.services.generate_improved_essay")
     def test_essay_improve_callback(self, mock_improve):
-        mock_improve.return_value = "Bu AI tomonidan takomillashtirilgan yangi mukammal esse varianti."
+        mock_improve.return_value = (
+            "Bu AI tomonidan takomillashtirilgan yangi mukammal esse varianti."
+        )
         submission = EssaySubmission.objects.create(
             student=self.user,
             essay_text="Oddiy qoralama esse matni.",
@@ -217,10 +245,15 @@ class TelegramBotFeaturesTests(TestCase):
     # 4. Certificates and PDF direct delivery
     def test_certificates_handler_and_download_callback(self):
         from apps.tests.models import TestAttempt
-        course = Course.objects.create(title="Ona tili asoslari", slug="ona-tili", teacher=self.user)
+
+        course = Course.objects.create(
+            title="Ona tili asoslari", slug="ona-tili", teacher=self.user
+        )
         test = Test.objects.create(title="Yakuniy attestatsiya", course=course)
         attempt = TestAttempt.objects.create(
-            test=test, student=self.user, status=TestAttempt.Status.COMPLETED,
+            test=test,
+            student=self.user,
+            status=TestAttempt.Status.COMPLETED,
         )
         result = Result.objects.create(
             student=self.user,
@@ -250,6 +283,7 @@ class TelegramBotFeaturesTests(TestCase):
 
         # Test download callback when file exists
         from django.core.files.base import ContentFile
+
         cert.file.save("test_cert.pdf", ContentFile(b"%PDF-1.4 test"))
 
         self.update.callback_query = self.query
@@ -271,7 +305,9 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIsNotNone(room_code)
 
         # 5.2 Answer question 0
-        async_to_sync(arena_answer_callback)(self.update, self.context, room_code, 0, "a")
+        async_to_sync(arena_answer_callback)(
+            self.update, self.context, room_code, 0, "a"
+        )
         duel_state = self.context.user_data.get("arena_duel")
         self.assertGreaterEqual(duel_state.get("player_score", 0), 0)
 
@@ -302,7 +338,9 @@ class TelegramBotFeaturesTests(TestCase):
     def test_myattendance_card_layout(self):
         group = StudentGroup.objects.create(name="10-A Guruh", teacher=self.user)
         session = AttendanceSession.objects.create(
-            group=group, teacher=self.user, lesson_date=timezone.now().date(),
+            group=group,
+            teacher=self.user,
+            lesson_date=timezone.now().date(),
         )
         AttendanceRecord.objects.create(
             session=session,
@@ -324,7 +362,9 @@ class TelegramBotFeaturesTests(TestCase):
         # Even with completely malformed data, it should not raise an exception
         async_to_sync(callback_handler)(self.update, self.context)
         # Should reply or answer without crashing
-        self.assertTrue(self.message.reply_text.called or self.query.edit_message_text.called)
+        self.assertTrue(
+            self.message.reply_text.called or self.query.edit_message_text.called
+        )
 
     def test_arena_callback_handler_dispatch(self):
         self.update.callback_query = self.query
@@ -347,7 +387,12 @@ class TelegramBotFeaturesTests(TestCase):
         text = self.query.edit_message_text.await_args.args[0]
         self.assertIn("DUEL XONASI YARATILDI", text)
         markup = self.query.edit_message_text.await_args.kwargs.get("reply_markup")
-        share_btns = [btn for row in markup.inline_keyboard for btn in row if "t.me/share" in (getattr(btn, "url", None) or "")]
+        share_btns = [
+            btn
+            for row in markup.inline_keyboard
+            for btn in row
+            if "t.me/share" in (getattr(btn, "url", None) or "")
+        ]
         self.assertTrue(len(share_btns) > 0)
 
     # 8. TMA REST API endpoints
@@ -379,7 +424,11 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIn("Telegram Chat Quiz", text)
         self.assertIn("Mock Test", text)
         markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
-        btn_data = [getattr(btn, "callback_data", None) for row in markup.inline_keyboard for btn in row]
+        btn_data = [
+            getattr(btn, "callback_data", None)
+            for row in markup.inline_keyboard
+            for btn in row
+        ]
         self.assertIn("menu_quiz", btn_data)
         self.assertIn("menu_mock_join", btn_data)
 
@@ -411,7 +460,9 @@ class TelegramBotFeaturesTests(TestCase):
             question_type=Question.QuestionType.SINGLE_CHOICE,
             explanation="Ergash gap bosh gapga bog'lovchi orqali birikadi.",
         )
-        c_wrong = Choice.objects.create(question=q, text="Sodda gap varianti", is_correct=False)
+        c_wrong = Choice.objects.create(
+            question=q, text="Sodda gap varianti", is_correct=False
+        )
         Choice.objects.create(question=q, text="To'g'ri ergashgan gap", is_correct=True)
 
         self.user.profile.plan = "premium"
@@ -446,7 +497,12 @@ class TelegramBotFeaturesTests(TestCase):
         reply_text = self.message.reply_text.await_args.args[0]
         self.assertIn("MOCK TEST TOPILDI", reply_text)
         markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
-        btn_data = [btn.callback_data for row in markup.inline_keyboard for btn in row if getattr(btn, "callback_data", None)]
+        btn_data = [
+            btn.callback_data
+            for row in markup.inline_keyboard
+            for btn in row
+            if getattr(btn, "callback_data", None)
+        ]
         self.assertIn(f"quiz_start_{test.id}", btn_data)
 
     # 13. Fallback on unrecognized text
@@ -455,7 +511,10 @@ class TelegramBotFeaturesTests(TestCase):
         async_to_sync(auth_conversation_handler)(self.update, self.context)
         self.assertTrue(self.message.reply_text.called)
         reply_text = self.message.reply_text.await_args.args[0]
-        self.assertIn("Kerakli bo'limni tanlash uchun quyidagi menyu tugmalaridan foydalaning", reply_text)
+        self.assertIn(
+            "Kerakli bo'limni tanlash uchun quyidagi menyu tugmalaridan foydalaning",
+            reply_text,
+        )
         markup = self.message.reply_text.await_args.kwargs.get("reply_markup")
         self.assertIsNotNone(markup)
 
@@ -476,7 +535,11 @@ class TelegramBotFeaturesTests(TestCase):
         self.message.caption = "Starter to'lov cheki"
         async_to_sync(payment_screenshot_handler)(self.update, self.context)
 
-        receipt = PaymentReceipt.objects.filter(user=self.user, plan="starter").order_by("-id").first()
+        receipt = (
+            PaymentReceipt.objects.filter(user=self.user, plan="starter")
+            .order_by("-id")
+            .first()
+        )
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt.source, PaymentReceipt.Source.BOT)
         self.assertEqual(receipt.status, PaymentReceipt.Status.PENDING)
@@ -490,6 +553,7 @@ class TelegramBotFeaturesTests(TestCase):
         import hashlib
         import hmac
         import time
+
         client = APIClient()
         tg_id = 123456789
         auth_date = int(time.time())
@@ -502,10 +566,14 @@ class TelegramBotFeaturesTests(TestCase):
         check_items = [f"{k}={data_to_sign[k]}" for k in sorted(data_to_sign.keys())]
         check_string = "\n".join(check_items)
         secret_key = hashlib.sha256("test_bot_token_12345".encode()).digest()
-        computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+        computed_hash = hmac.new(
+            secret_key, check_string.encode(), hashlib.sha256
+        ).hexdigest()
         data_to_sign["hash"] = computed_hash
 
-        resp = client.post("/api/auth/telegram/widget/", data=data_to_sign, format="json")
+        resp = client.post(
+            "/api/auth/telegram/widget/", data=data_to_sign, format="json"
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["status"], "ok")
         self.assertIn("tokens", resp.data)
@@ -582,7 +650,9 @@ class TelegramBotFeaturesTests(TestCase):
 
         # Teacher runs /groups
         t_msg.reply_text.reset_mock()
-        grp = StudentGroup.objects.create(teacher=teacher, name="IELTS-Morning", invite_code="GR-TEST1")
+        grp = StudentGroup.objects.create(
+            teacher=teacher, name="IELTS-Morning", invite_code="GR-TEST1"
+        )
         grp.students.add(self.user)
         async_to_sync(groups_handler)(t_update, self.context)
         self.assertTrue(t_msg.reply_text.called)
@@ -671,6 +741,3 @@ class TelegramBotFeaturesTests(TestCase):
         cb_datas = [btn.callback_data for row in markup.inline_keyboard for btn in row]
         self.assertIn("role_select_student", cb_datas)
         self.assertIn("role_select_teacher", cb_datas)
-
-
-

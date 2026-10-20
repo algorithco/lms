@@ -8,6 +8,7 @@ Endpoints:
     GET  /api/v1/speaking/submissions/<id>/  — Detailed score card & feedback
     GET  /api/v1/speaking/my-submissions/    — User history
 """
+
 from __future__ import annotations
 
 import logging
@@ -80,7 +81,9 @@ class SpeakingTopicsListView(APIView):
                 qs = qs.filter(part=part)
 
         data = [_serialize_topic(t) for t in qs]
-        return Response({"count": len(data), "results": data}, status=status.HTTP_200_OK)
+        return Response(
+            {"count": len(data), "results": data}, status=status.HTTP_200_OK
+        )
 
 
 class SpeakingTopicDetailView(APIView):
@@ -91,7 +94,10 @@ class SpeakingTopicDetailView(APIView):
     def get(self, request: Request, pk: int) -> Response:
         topic = SpeakingTopic.objects.filter(pk=pk, is_active=True).first()
         if not topic:
-            return Response({"error": "Speaking mavzusi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Speaking mavzusi topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         return Response(_serialize_topic(topic), status=status.HTTP_200_OK)
 
 
@@ -153,7 +159,9 @@ class SpeakingSubmissionDetailView(APIView):
             sub = SpeakingSubmission.objects.filter(pk=pk).first()
 
         if not sub:
-            return Response({"error": "Topshiriq topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Topshiriq topilmadi."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         return Response(_serialize_submission(sub), status=status.HTTP_200_OK)
 
@@ -164,9 +172,15 @@ class MySpeakingSubmissionsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        subs = SpeakingSubmission.objects.filter(user=request.user).select_related("topic").order_by("-created_at")[:20]
+        subs = (
+            SpeakingSubmission.objects.filter(user=request.user)
+            .select_related("topic")
+            .order_by("-created_at")[:20]
+        )
         data = [_serialize_submission(s) for s in subs]
-        return Response({"count": len(data), "results": data}, status=status.HTTP_200_OK)
+        return Response(
+            {"count": len(data), "results": data}, status=status.HTTP_200_OK
+        )
 
 
 def _seed_default_speaking_topics():
@@ -176,7 +190,11 @@ def _seed_default_speaking_topics():
         part=SpeakingTopic.PartChoice.PART1,
         defaults={
             "prompt": "Let's talk about your hometown. Where is it located? What do you like most about living there? Would you like to live there in the future?",
-            "bullet_points": ["Where your hometown is located", "What its best features are", "How it has changed recently"],
+            "bullet_points": [
+                "Where your hometown is located",
+                "What its best features are",
+                "How it has changed recently",
+            ],
             "prep_time_seconds": 15,
             "speak_time_seconds": 60,
             "difficulty": SpeakingTopic.Difficulty.EASY,

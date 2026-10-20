@@ -12,6 +12,7 @@ else, so these tests pin what the services cannot:
   are absent from the payload, not merely hidden by the client);
 * a foreign report id is 404, and regeneration requires a stated reason.
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -43,42 +44,66 @@ PERIOD_START, PERIOD_END = report_services.previous_week_bounds()
 class _ApiFixture(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
-            email="api2-admin@example.test", password="testpass123", role="admin",
+            email="api2-admin@example.test",
+            password="testpass123",
+            role="admin",
         )
         self.teacher = User.objects.create_user(
-            email="api2-teacher@example.test", password="testpass123", role="teacher",
+            email="api2-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.other_teacher = User.objects.create_user(
-            email="api2-teacher2@example.test", password="testpass123", role="teacher",
+            email="api2-teacher2@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.ali = User.objects.create_user(
-            email="api2-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="api2-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="api2-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="api2-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.outsider = User.objects.create_user(
-            email="api2-outsider@example.test", password="testpass123", role="student",
+            email="api2-outsider@example.test",
+            password="testpass123",
+            role="student",
         )
         self.parent = User.objects.create_user(
-            email="api2-parent@example.test", password="testpass123", role="parent",
+            email="api2-parent@example.test",
+            password="testpass123",
+            role="parent",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra)
         self.foreign_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.foreign_group.students.add(self.outsider)
         ParentStudentLink.objects.create(
-            parent=self.parent, student=self.ali, is_approved=True,
+            parent=self.parent,
+            student=self.ali,
+            is_approved=True,
         )
         ParentStudentLink.objects.create(
-            parent=self.parent, student=self.zuhra, is_approved=False,
+            parent=self.parent,
+            student=self.zuhra,
+            is_approved=False,
         )
         self.policy = CourseBillingPolicy.objects.create(
-            name="9-A oylik", group=self.group, amount_uzs=300_000, due_day=10,
+            name="9-A oylik",
+            group=self.group,
+            amount_uzs=300_000,
+            due_day=10,
         )
 
     # -- helpers ----------------------------------------------------------
@@ -90,7 +115,9 @@ class _ApiFixture(TestCase):
 
     def _post(self, name, payload=None, **kwargs):
         return self.client.post(
-            self.url(name, **kwargs), payload or {}, content_type="application/json",
+            self.url(name, **kwargs),
+            payload or {},
+            content_type="application/json",
         )
 
     def _invoice(self, student=None, **overrides):
@@ -111,8 +138,11 @@ class _ApiFixture(TestCase):
 
     def _confirmed_payment(self, invoice, amount="300000"):
         payment = services.register_payment(
-            student=invoice.student, amount=Decimal(amount), method=PaymentMethod.CARD,
-            reference=f"API-REF-{invoice.pk}", invoice=invoice,
+            student=invoice.student,
+            amount=Decimal(amount),
+            method=PaymentMethod.CARD,
+            reference=f"API-REF-{invoice.pk}",
+            invoice=invoice,
             submitted_by=invoice.student,
         )
         services.verify_payment(payment, actor=self.admin)
@@ -137,21 +167,27 @@ class TuitionApiTests(_ApiFixture):
         self._login(self.parent)
         body = self.client.get(self.url("billing-tuition-children")).json()
         self.assertEqual(
-            [child["student_id"] for child in body["children"]], [self.ali.pk],
+            [child["student_id"] for child in body["children"]],
+            [self.ali.pk],
         )
 
     def test_submitting_a_receipt_does_not_mark_the_invoice_paid(self):
         invoice = self._invoice()
         self._login(self.ali)
-        response = self._post("billing-tuition-payment-submit", {
-            "invoice_id": invoice.pk,
-            "amount": 300000,
-            "method": PaymentMethod.CARD,
-            "reference": "STUDENT-RECEIPT-1",
-        })
+        response = self._post(
+            "billing-tuition-payment-submit",
+            {
+                "invoice_id": invoice.pk,
+                "amount": 300000,
+                "method": PaymentMethod.CARD,
+                "reference": "STUDENT-RECEIPT-1",
+            },
+        )
         self.assertEqual(response.status_code, 201)
         body = response.json()
-        self.assertEqual(body["payment"]["status"], CoursePayment.Status.PENDING_VERIFICATION)
+        self.assertEqual(
+            body["payment"]["status"], CoursePayment.Status.PENDING_VERIFICATION
+        )
         self.assertEqual(body["invoice"]["paid_amount_uzs"], 0.0)
         self.assertTrue(body["invoice"]["awaiting_confirmation"])
         invoice.refresh_from_db()
@@ -161,52 +197,79 @@ class TuitionApiTests(_ApiFixture):
     def test_a_stranger_cannot_submit_against_someone_elses_invoice(self):
         invoice = self._invoice()
         self._login(self.outsider)
-        response = self._post("billing-tuition-payment-submit", {
-            "invoice_id": invoice.pk, "amount": 300000,
-            "method": PaymentMethod.CARD, "reference": "STRANGER-1",
-        })
+        response = self._post(
+            "billing-tuition-payment-submit",
+            {
+                "invoice_id": invoice.pk,
+                "amount": 300000,
+                "method": PaymentMethod.CARD,
+                "reference": "STRANGER-1",
+            },
+        )
         self.assertEqual(response.status_code, 404)
         self.assertFalse(CoursePayment.objects.exists())
 
     def test_an_invalid_amount_is_rejected(self):
         invoice = self._invoice()
         self._login(self.ali)
-        response = self._post("billing-tuition-payment-submit", {
-            "invoice_id": invoice.pk, "amount": 0, "method": PaymentMethod.CARD,
-        })
+        response = self._post(
+            "billing-tuition-payment-submit",
+            {
+                "invoice_id": invoice.pk,
+                "amount": 0,
+                "method": PaymentMethod.CARD,
+            },
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_a_cancelled_invoice_accepts_no_payment(self):
         invoice = self._invoice(status=CourseInvoice.Status.CANCELLED)
         self._login(self.ali)
-        response = self._post("billing-tuition-payment-submit", {
-            "invoice_id": invoice.pk, "amount": 1000, "method": PaymentMethod.CARD,
-        })
+        response = self._post(
+            "billing-tuition-payment-submit",
+            {
+                "invoice_id": invoice.pk,
+                "amount": 1000,
+                "method": PaymentMethod.CARD,
+            },
+        )
         self.assertEqual(response.status_code, 409)
 
     def test_payment_status_detail_is_scoped_to_student_and_approved_parent(self):
         invoice = self._invoice()
         payment = services.register_payment(
-            student=self.ali, amount=Decimal("100000"), method=PaymentMethod.CARD,
-            reference="STATUS-DETAIL-1", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("100000"),
+            method=PaymentMethod.CARD,
+            reference="STATUS-DETAIL-1",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         self._login(self.ali)
         self.assertEqual(
-            self.client.get(self.url("billing-tuition-payment-detail", payment_id=payment.pk)).status_code,
+            self.client.get(
+                self.url("billing-tuition-payment-detail", payment_id=payment.pk)
+            ).status_code,
             200,
         )
         self._login(self.outsider)
         self.assertEqual(
-            self.client.get(self.url("billing-tuition-payment-detail", payment_id=payment.pk)).status_code,
+            self.client.get(
+                self.url("billing-tuition-payment-detail", payment_id=payment.pk)
+            ).status_code,
             404,
         )
         self._login(self.parent)
         self.assertEqual(
-            self.client.get(self.url("billing-tuition-payment-detail", payment_id=payment.pk)).status_code,
+            self.client.get(
+                self.url("billing-tuition-payment-detail", payment_id=payment.pk)
+            ).status_code,
             200,
         )
 
-    def test_student_can_only_read_invoices_in_own_group_scope_with_finance_permission(self):
+    def test_student_can_only_read_invoices_in_own_group_scope_with_finance_permission(
+        self,
+    ):
         from apps.tuition.permissions import VIEW_PERMISSION
 
         self._invoice()
@@ -234,7 +297,8 @@ class TuitionApiTests(_ApiFixture):
     def test_teacher_cannot_read_group_finance_without_permission(self):
         self._login(self.teacher)
         response = self.client.get(
-            self.url("school-tuition-finance"), {"group_id": self.group.pk},
+            self.url("school-tuition-finance"),
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 403)
 
@@ -243,14 +307,22 @@ class TuitionApiTests(_ApiFixture):
         self._login(self.teacher)
         response = self._post(
             "school-tuition-invoice-payment-record",
-            {"amount": 100000, "reason": "Naqd qabul qilindi", "reference": "CASH-API-1"},
+            {
+                "amount": 100000,
+                "reason": "Naqd qabul qilindi",
+                "reference": "CASH-API-1",
+            },
             invoice_id=invoice.pk,
         )
         self.assertEqual(response.status_code, 403)
         self._login(self.admin)
         response = self._post(
             "school-tuition-invoice-payment-record",
-            {"amount": 100000, "reason": "Naqd qabul qilindi", "reference": "CASH-API-1"},
+            {
+                "amount": 100000,
+                "reason": "Naqd qabul qilindi",
+                "reference": "CASH-API-1",
+            },
             invoice_id=invoice.pk,
         )
         self.assertEqual(response.status_code, 201)
@@ -258,17 +330,20 @@ class TuitionApiTests(_ApiFixture):
         self.assertEqual(body["payment"]["status"], CoursePayment.Status.VERIFIED)
         self.assertEqual(body["invoice"]["paid_amount_uzs"], 100000.0)
         self.assertEqual(body["invoice"]["balance_uzs"], 200000.0)
-        self.assertTrue(TuitionAuditLog.objects.filter(
-            payment_id=body["payment"]["id"],
-            action=TuitionAuditLog.Action.PAYMENT_VERIFIED,
-        ).exists())
+        self.assertTrue(
+            TuitionAuditLog.objects.filter(
+                payment_id=body["payment"]["id"],
+                action=TuitionAuditLog.Action.PAYMENT_VERIFIED,
+            ).exists()
+        )
 
     def test_admin_reads_aggregate_group_finance(self):
         invoice = self._invoice()
         self._confirmed_payment(invoice)
         self._login(self.admin)
         response = self.client.get(
-            self.url("school-tuition-finance"), {"group_id": self.group.pk},
+            self.url("school-tuition-finance"),
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -280,11 +355,17 @@ class TuitionApiTests(_ApiFixture):
     def test_teacher_cannot_confirm_a_payment(self):
         invoice = self._invoice()
         payment = services.register_payment(
-            student=self.ali, amount=Decimal("300000"), method=PaymentMethod.CARD,
-            reference="TEACHER-CONFIRM", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("300000"),
+            method=PaymentMethod.CARD,
+            reference="TEACHER-CONFIRM",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         self._login(self.teacher)
-        response = self._post("school-tuition-payment-verify", {"reason": "ok"}, payment_id=payment.pk)
+        response = self._post(
+            "school-tuition-payment-verify", {"reason": "ok"}, payment_id=payment.pk
+        )
         self.assertEqual(response.status_code, 403)
         payment.refresh_from_db()
         self.assertEqual(payment.status, CoursePayment.Status.PENDING_VERIFICATION)
@@ -292,12 +373,18 @@ class TuitionApiTests(_ApiFixture):
     def test_student_cannot_confirm_their_own_receipt(self):
         invoice = self._invoice()
         payment = services.register_payment(
-            student=self.ali, amount=Decimal("300000"), method=PaymentMethod.CARD,
-            reference="SELF-CONFIRM", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("300000"),
+            method=PaymentMethod.CARD,
+            reference="SELF-CONFIRM",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         self._login(self.ali)
         response = self._post(
-            "school-tuition-payment-verify", {"reason": "ok"}, payment_id=payment.pk,
+            "school-tuition-payment-verify",
+            {"reason": "ok"},
+            payment_id=payment.pk,
         )
         self.assertEqual(response.status_code, 403)
         invoice.refresh_from_db()
@@ -306,12 +393,17 @@ class TuitionApiTests(_ApiFixture):
     def test_admin_confirmation_settles_the_invoice_and_audits_it(self):
         invoice = self._invoice()
         payment = services.register_payment(
-            student=self.ali, amount=Decimal("300000"), method=PaymentMethod.CARD,
-            reference="ADMIN-CONFIRM", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("300000"),
+            method=PaymentMethod.CARD,
+            reference="ADMIN-CONFIRM",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         self._login(self.admin)
         response = self._post(
-            "school-tuition-payment-verify", {"reason": "Bank ko'rindi"},
+            "school-tuition-payment-verify",
+            {"reason": "Bank ko'rindi"},
             payment_id=payment.pk,
         )
         self.assertEqual(response.status_code, 200)
@@ -321,7 +413,8 @@ class TuitionApiTests(_ApiFixture):
         self.assertEqual(body["invoice"]["balance_uzs"], 0.0)
         self.assertTrue(
             TuitionAuditLog.objects.filter(
-                action=TuitionAuditLog.Action.PAYMENT_VERIFIED, payment=payment,
+                action=TuitionAuditLog.Action.PAYMENT_VERIFIED,
+                payment=payment,
             ).exists()
         )
 
@@ -329,8 +422,9 @@ class TuitionApiTests(_ApiFixture):
         invoice = self._invoice()
         self._login(self.teacher)
         self.assertEqual(
-            self._post("school-tuition-invoice-adjust", {"amount": 1000}, invoice_id=invoice.pk)
-            .status_code,
+            self._post(
+                "school-tuition-invoice-adjust", {"amount": 1000}, invoice_id=invoice.pk
+            ).status_code,
             403,
         )
         self._login(self.admin)
@@ -342,7 +436,8 @@ class TuitionApiTests(_ApiFixture):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["invoice"]["amount_due_uzs"], 250000.0)
         log = TuitionAuditLog.objects.filter(
-            action=TuitionAuditLog.Action.INVOICE_ADJUSTED, invoice=invoice,
+            action=TuitionAuditLog.Action.INVOICE_ADJUSTED,
+            invoice=invoice,
         ).first()
         self.assertIsNotNone(log)
         self.assertEqual(log.reason, "Chegirma berildi")
@@ -352,7 +447,8 @@ class TuitionApiTests(_ApiFixture):
         self._login(self.teacher)
         self.assertEqual(
             self._post(
-                "school-tuition-invoice-waive", {"reason": "Xayriya"},
+                "school-tuition-invoice-waive",
+                {"reason": "Xayriya"},
                 invoice_id=invoice.pk,
             ).status_code,
             403,
@@ -361,12 +457,15 @@ class TuitionApiTests(_ApiFixture):
         # A waiver without a real stated reason is refused, not silently logged.
         self.assertEqual(
             self._post(
-                "school-tuition-invoice-waive", {"reason": "ab"}, invoice_id=invoice.pk,
+                "school-tuition-invoice-waive",
+                {"reason": "ab"},
+                invoice_id=invoice.pk,
             ).status_code,
             400,
         )
         response = self._post(
-            "school-tuition-invoice-waive", {"reason": "Xayriya yordami"},
+            "school-tuition-invoice-waive",
+            {"reason": "Xayriya yordami"},
             invoice_id=invoice.pk,
         )
         self.assertEqual(response.status_code, 200)
@@ -392,7 +491,8 @@ class TuitionApiTests(_ApiFixture):
         self._login(self.teacher)
         self.assertEqual(
             self._post(
-                "school-tuition-invoice-due-date", {"due_date": new_due.isoformat()},
+                "school-tuition-invoice-due-date",
+                {"due_date": new_due.isoformat()},
                 invoice_id=invoice.pk,
             ).status_code,
             403,
@@ -417,16 +517,23 @@ class TuitionApiTests(_ApiFixture):
         invoice.refresh_from_db()
         self.assertEqual(invoice.due_date, new_due)
         self.assertEqual(invoice.grace_until, new_grace)
-        audited = set(TuitionAuditLog.objects.filter(
-            invoice=invoice, action=TuitionAuditLog.Action.INVOICE_UPDATED,
-        ).values_list("field", flat=True))
+        audited = set(
+            TuitionAuditLog.objects.filter(
+                invoice=invoice,
+                action=TuitionAuditLog.Action.INVOICE_UPDATED,
+            ).values_list("field", flat=True)
+        )
         self.assertEqual(audited, {"due_date", "grace_until"})
 
     def test_admin_rejects_a_pending_receipt_and_the_invoice_is_payable_again(self):
         invoice = self._invoice()
         payment = services.register_payment(
-            student=self.ali, amount=Decimal("300000"), method=PaymentMethod.CARD,
-            reference="REJECT-API-1", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("300000"),
+            method=PaymentMethod.CARD,
+            reference="REJECT-API-1",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, CourseInvoice.Status.PENDING_VERIFICATION)
@@ -434,14 +541,16 @@ class TuitionApiTests(_ApiFixture):
         self._login(self.teacher)
         self.assertEqual(
             self._post(
-                "school-tuition-payment-reject", {"reason": "Chek ko'rinmadi"},
+                "school-tuition-payment-reject",
+                {"reason": "Chek ko'rinmadi"},
                 payment_id=payment.pk,
             ).status_code,
             403,
         )
         self._login(self.admin)
         response = self._post(
-            "school-tuition-payment-reject", {"reason": "Chek ko'rinmadi"},
+            "school-tuition-payment-reject",
+            {"reason": "Chek ko'rinmadi"},
             payment_id=payment.pk,
         )
         self.assertEqual(response.status_code, 200)
@@ -454,19 +563,28 @@ class TuitionApiTests(_ApiFixture):
         self.assertEqual(invoice.paid_amount_uzs, Decimal("0.00"))
         self.assertEqual(invoice.pending_amount_uzs, Decimal("0.00"))
         self.assertEqual(invoice.status, CourseInvoice.Status.UNPAID)
-        self.assertTrue(TuitionAuditLog.objects.filter(
-            payment=payment, action=TuitionAuditLog.Action.PAYMENT_REJECTED,
-            actor=self.admin,
-        ).exists())
+        self.assertTrue(
+            TuitionAuditLog.objects.filter(
+                payment=payment,
+                action=TuitionAuditLog.Action.PAYMENT_REJECTED,
+                actor=self.admin,
+            ).exists()
+        )
 
     def test_payment_queue_is_admin_only(self):
         invoice = self._invoice()
         services.register_payment(
-            student=self.ali, amount=Decimal("100000"), method=PaymentMethod.CARD,
-            reference="QUEUE-1", invoice=invoice, submitted_by=self.ali,
+            student=self.ali,
+            amount=Decimal("100000"),
+            method=PaymentMethod.CARD,
+            reference="QUEUE-1",
+            invoice=invoice,
+            submitted_by=self.ali,
         )
         self._login(self.teacher)
-        self.assertEqual(self.client.get(self.url("school-tuition-payment-queue")).status_code, 403)
+        self.assertEqual(
+            self.client.get(self.url("school-tuition-payment-queue")).status_code, 403
+        )
         self._login(self.admin)
         body = self.client.get(self.url("school-tuition-payment-queue")).json()
         self.assertEqual(body["count"], 1)
@@ -474,19 +592,29 @@ class TuitionApiTests(_ApiFixture):
 
     def test_audit_endpoint_requires_admin(self):
         self._login(self.teacher)
-        self.assertEqual(self.client.get(self.url("school-tuition-audit")).status_code, 403)
+        self.assertEqual(
+            self.client.get(self.url("school-tuition-audit")).status_code, 403
+        )
         self._login(self.admin)
-        self.assertEqual(self.client.get(self.url("school-tuition-audit")).status_code, 200)
+        self.assertEqual(
+            self.client.get(self.url("school-tuition-audit")).status_code, 200
+        )
 
 
 class WeeklyReportApiTests(_ApiFixture):
     def setUp(self):
         super().setUp()
         self.report = report_services.generate_group_report(
-            self.group, PERIOD_START, PERIOD_END, actor=self.teacher,
+            self.group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.teacher,
         )
         self.foreign_report = report_services.generate_group_report(
-            self.foreign_group, PERIOD_START, PERIOD_END, actor=self.other_teacher,
+            self.foreign_group,
+            PERIOD_START,
+            PERIOD_END,
+            actor=self.other_teacher,
         )
 
     def test_teacher_sees_only_their_own_groups_reports(self):
@@ -514,11 +642,14 @@ class WeeklyReportApiTests(_ApiFixture):
     def test_regeneration_requires_a_reason_and_creates_a_new_version(self):
         self._login(self.teacher)
         short = self._post(
-            "school-weekly-report-regenerate", {"reason": "x"}, report_id=self.report.pk,
+            "school-weekly-report-regenerate",
+            {"reason": "x"},
+            report_id=self.report.pk,
         )
         self.assertEqual(short.status_code, 400)
         self.assertEqual(
-            WeeklyGroupReport.objects.filter(group=self.group).count(), 1,
+            WeeklyGroupReport.objects.filter(group=self.group).count(),
+            1,
         )
 
         response = self._post(
@@ -536,21 +667,30 @@ class WeeklyReportApiTests(_ApiFixture):
     def test_teacher_can_generate_only_owned_group_closed_week_report(self):
         self._login(self.teacher)
         response = self._post(
-            "school-weekly-report-generate", {"group_id": self.group.pk},
+            "school-weekly-report-generate",
+            {"group_id": self.group.pk},
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["report"]["group_id"], self.group.pk)
         self.assertEqual(
-            self._post("school-weekly-report-generate", {"group_id": self.foreign_group.pk}).status_code,
+            self._post(
+                "school-weekly-report-generate", {"group_id": self.foreign_group.pk}
+            ).status_code,
             404,
         )
         unfinished_start = timezone.now()
         unfinished_end = unfinished_start + timedelta(days=2)
-        self.assertEqual(self._post(
-            "school-weekly-report-generate",
-            {"group_id": self.group.pk, "period_start": unfinished_start.isoformat(),
-             "period_end": unfinished_end.isoformat()},
-        ).status_code, 400)
+        self.assertEqual(
+            self._post(
+                "school-weekly-report-generate",
+                {
+                    "group_id": self.group.pk,
+                    "period_start": unfinished_start.isoformat(),
+                    "period_end": unfinished_end.isoformat(),
+                },
+            ).status_code,
+            400,
+        )
 
     def test_parent_reads_only_their_verified_childs_weekly_report(self):
         report_services.generate_student_report(self.ali, PERIOD_START, PERIOD_END)
@@ -558,7 +698,8 @@ class WeeklyReportApiTests(_ApiFixture):
         self._login(self.parent)
         body = self.client.get(self.url("billing-weekly-reports-my")).json()
         self.assertEqual(
-            [row["student_id"] for row in body["results"]], [self.ali.pk],
+            [row["student_id"] for row in body["results"]],
+            [self.ali.pk],
         )
         self.assertIn("Ali", body["results"][0]["text"])
 
@@ -576,9 +717,13 @@ class WeeklyReportApiTests(_ApiFixture):
     def test_period_preview_reports_the_completed_week(self):
         self._login(self.teacher)
         body = self.client.get(self.url("billing-report-period")).json()
-        self.assertEqual(body["period_label"], report_services.period_label(
-            PERIOD_START, PERIOD_END,
-        ))
+        self.assertEqual(
+            body["period_label"],
+            report_services.period_label(
+                PERIOD_START,
+                PERIOD_END,
+            ),
+        )
         self.assertTrue(body["is_complete"])
 
     def test_send_endpoint_is_dedup_keyed(self):
@@ -586,14 +731,18 @@ class WeeklyReportApiTests(_ApiFixture):
         self.teacher.refresh_from_db()
         self._login(self.teacher)
         first = self._post(
-            "school-weekly-report-send", {}, report_id=self.report.pk,
+            "school-weekly-report-send",
+            {},
+            report_id=self.report.pk,
         ).json()
         # No reachable Telegram transport in tests, so the send fails cleanly...
         self.assertEqual(first["sent"], 0)
         self.assertEqual(first["failed"], 1)
         # ...and the failure is recorded rather than raised.
         second = self._post(
-            "school-weekly-report-send", {}, report_id=self.report.pk,
+            "school-weekly-report-send",
+            {},
+            report_id=self.report.pk,
         ).json()
         self.assertEqual(second["sent"], 0)
 
@@ -605,7 +754,8 @@ class WeeklyReportApiTests(_ApiFixture):
         )
         self.assertEqual(response.status_code, 404)
         self.assertEqual(
-            self.client.get(self.url("school-weekly-report-deliveries")).status_code, 200,
+            self.client.get(self.url("school-weekly-report-deliveries")).status_code,
+            200,
         )
 
     def test_attendance_recorded_by_the_bot_appears_in_the_report(self):
@@ -614,25 +764,36 @@ class WeeklyReportApiTests(_ApiFixture):
 
         first_day, _last = report_services.period_dates(PERIOD_START, PERIOD_END)
         session, _created = attendance_services.create_session(
-            group=self.group, teacher=self.teacher, actor=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
+            actor=self.teacher,
             lesson_date=first_day,
         )
         attendance_services.mark(
-            session, self.ali, AttendanceRecord.Status.PRESENT, actor=self.teacher,
+            session,
+            self.ali,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
         )
         # A finalized register requires an explicit status for every rostered
         # student. Marking the other student as excused proves that an
         # unexcused absence is not inferred merely from missing attendance.
         attendance_services.mark(
-            session, self.zuhra, AttendanceRecord.Status.EXCUSED, actor=self.teacher,
+            session,
+            self.zuhra,
+            AttendanceRecord.Status.EXCUSED,
+            actor=self.teacher,
         )
         result = attendance_services.finalize(
-            session, actor=self.teacher, mark_unmarked_as_absent=False,
+            session,
+            actor=self.teacher,
+            mark_unmarked_as_absent=False,
         )
         self.assertTrue(result["ok"])
         regenerated = report_services.regenerate(
             WeeklyGroupReport.objects.get(group=self.group, is_current=True),
-            actor=self.admin, reason="Bez davomat qo'shildi",
+            actor=self.admin,
+            reason="Bez davomat qo'shildi",
         )
         attendance = regenerated.summary["attendance"]
         self.assertEqual(attendance["finalized_lessons"], 1)

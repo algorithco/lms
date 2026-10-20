@@ -4,6 +4,7 @@ Celery application configuration.
 Uses Redis as the broker for task queue management.
 Handles async tasks: PDF generation, Telegram notifications, etc.
 """
+
 import os
 
 from celery import Celery

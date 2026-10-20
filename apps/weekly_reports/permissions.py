@@ -12,6 +12,7 @@ Two independent questions, deliberately not merged:
 Keeping them apart is what stops "can read the report" from silently becoming
 "can read every family's tuition balance".
 """
+
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
@@ -52,7 +53,9 @@ def can_view_student_report(user, student) -> bool:
     from apps.accounts.models import ParentStudentLink
 
     if ParentStudentLink.objects.filter(
-        parent=user, student=student, is_approved=True,
+        parent=user,
+        student=student,
+        is_approved=True,
     ).exists():
         return True
     return student.student_groups.filter(teacher=user).exists()

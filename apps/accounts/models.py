@@ -8,6 +8,7 @@ Architecture decisions:
     - A separate Profile model holds optional biographical data so the
       User table stays lean.
 """
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinLengthValidator
@@ -23,6 +24,7 @@ from .managers import UserManager
 # ---------------------------------------------------------------------------
 # Choices
 # ---------------------------------------------------------------------------
+
 
 class User(AbstractUser):
     """
@@ -134,12 +136,16 @@ class User(AbstractUser):
     can_create_essay_topic = models.BooleanField(
         _("esse mavzusi yaratish huquqi"),
         default=False,
-        help_text=_("O'qituvchiga esse mavzulari yaratishga ruxsat berish. Admin tomonidan boshqariladi."),
+        help_text=_(
+            "O'qituvchiga esse mavzulari yaratishga ruxsat berish. Admin tomonidan boshqariladi."
+        ),
     )
     can_create_test = models.BooleanField(
         _("test yaratish huquqi"),
         default=False,
-        help_text=_("O'qituvchiga testlar yaratish / import qilishga ruxsat berish. Admin tomonidan boshqariladi."),
+        help_text=_(
+            "O'qituvchiga testlar yaratish / import qilishga ruxsat berish. Admin tomonidan boshqariladi."
+        ),
     )
 
     # -- Timestamps -----------------------------------------------------------
@@ -209,7 +215,11 @@ class User(AbstractUser):
             if plan_type in ("pro", "premium", "family"):
                 return True
         profile = getattr(self, "profile", None)
-        if profile and getattr(profile, "plan", "").lower() in ("pro", "premium", "family"):
+        if profile and getattr(profile, "plan", "").lower() in (
+            "pro",
+            "premium",
+            "family",
+        ):
             return True
         return False
 
@@ -370,7 +380,9 @@ class Profile(models.Model):
         max_length=200,
         blank=True,
         default="",
-        help_text=_("Ustoz yoki markazning rasmiy nomi (sertifikat va hisobotlar uchun)."),
+        help_text=_(
+            "Ustoz yoki markazning rasmiy nomi (sertifikat va hisobotlar uchun)."
+        ),
     )
     center_logo = models.ImageField(
         _("markaz logotipi"),
@@ -506,4 +518,3 @@ class ParentStudentRelation(models.Model):
     def __str__(self) -> str:
         status = "tasdiqlangan" if self.is_verified else "kutilmoqda"
         return f"{self.student.get_full_name()} ↔ {self.parent_phone} ({status})"
-

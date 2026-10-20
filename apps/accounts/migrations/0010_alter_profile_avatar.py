@@ -5,15 +5,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0009_teacher_creation_flags'),
+        ("accounts", "0009_teacher_creation_flags"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='profile',
-            name='avatar',
-            field=models.ImageField(blank=True, null=True, upload_to='avatars/%Y/%m/', validators=[apps.core.validators.UploadValidator({'jpeg', 'jpg', 'png', 'webp'}, 5242880)], verbose_name='avatar'),
+            model_name="profile",
+            name="avatar",
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                upload_to="avatars/%Y/%m/",
+                validators=[
+                    apps.core.validators.UploadValidator(
+                        {"jpeg", "jpg", "png", "webp"}, 5242880
+                    )
+                ],
+                verbose_name="avatar",
+            ),
         ),
     ]

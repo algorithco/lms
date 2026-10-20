@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0006_subject_course_subject_studentgroup_subject_and_more'),
+        ("courses", "0006_subject_course_subject_studentgroup_subject_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='studentgroup',
-            name='monthly_fee',
-            field=models.PositiveIntegerField(default=400000, help_text="O'quvchilar uchun oylik to'lov summasi.", verbose_name="oylik to'lov (so'm)"),
+            model_name="studentgroup",
+            name="monthly_fee",
+            field=models.PositiveIntegerField(
+                default=400000,
+                help_text="O'quvchilar uchun oylik to'lov summasi.",
+                verbose_name="oylik to'lov (so'm)",
+            ),
         ),
     ]

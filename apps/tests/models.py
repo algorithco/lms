@@ -17,6 +17,7 @@ This is the heart of the platform. Key design decisions:
     4. `points` on Question allows weighted scoring — a harder question
        can be worth more than a simple recall one.
 """
+
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -93,7 +94,9 @@ class Test(models.Model):
         blank=True,
         related_name="tests",
         verbose_name=_("skoring profili"),
-        help_text=_("Milliy imtihonlar uchun bog'langan konfiguratsiya. Bo'sh = legacy."),
+        help_text=_(
+            "Milliy imtihonlar uchun bog'langan konfiguratsiya. Bo'sh = legacy."
+        ),
     )
     max_attempts = models.PositiveIntegerField(
         _("maksimal urinishlar"),
@@ -119,7 +122,9 @@ class Test(models.Model):
         choices=Status.choices,
         default=Status.PUBLISHED,
         db_index=True,
-        help_text=_("Qoralama — o'quvchilarga ko'rinmaydi; E'lon qilingan — ochiq; Arxivlangan — yashirin."),
+        help_text=_(
+            "Qoralama — o'quvchilarga ko'rinmaydi; E'lon qilingan — ochiq; Arxivlangan — yashirin."
+        ),
     )
     is_active = models.BooleanField(_("faolmi"), default=True)
     show_results_immediately = models.BooleanField(
@@ -142,7 +147,9 @@ class Test(models.Model):
         null=True,
         unique=True,
         db_index=True,
-        help_text=_("O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)"),
+        help_text=_(
+            "O'quvchilar tezkor ulanishi uchun unikal kod (masalan: #MOCK-401)"
+        ),
     )
     audio_url = models.CharField(
         _("Listening audio URL"),
@@ -154,7 +161,9 @@ class Test(models.Model):
     is_strict_mode = models.BooleanField(
         _("Strict Exam Mode (Anti-Cheat)"),
         default=False,
-        help_text=_("Yoqilsa, o'quvchi oynadan chiqsa ogohlantiriladi va 3-urinishda test yakunlanadi."),
+        help_text=_(
+            "Yoqilsa, o'quvchi oynadan chiqsa ogohlantiriladi va 3-urinishda test yakunlanadi."
+        ),
     )
 
     # -- Meta -----------------------------------------------------------------
@@ -168,7 +177,9 @@ class Test(models.Model):
         indexes = [
             models.Index(fields=["course"], name="idx_test_course"),
             models.Index(fields=["is_active"], name="idx_test_active"),
-            models.Index(fields=["subject", "is_active"], name="idx_test_subject_active"),
+            models.Index(
+                fields=["subject", "is_active"], name="idx_test_subject_active"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -190,9 +201,7 @@ class Test(models.Model):
     @property
     def total_points(self) -> int:
         """Sum of all question point values."""
-        return self.questions.aggregate(
-            total=models.Sum("points")
-        )["total"] or 0
+        return self.questions.aggregate(total=models.Sum("points"))["total"] or 0
 
     @property
     def has_time_limit(self) -> bool:
@@ -376,7 +385,9 @@ class Question(models.Model):
     passage = models.TextField(
         _("kontekst matni (passage)"),
         blank=True,
-        help_text=_("Savol ustida ko'rsatiladigan matn/parcha (matnli tahlil savollari uchun)."),
+        help_text=_(
+            "Savol ustida ko'rsatiladigan matn/parcha (matnli tahlil savollari uchun)."
+        ),
     )
     text = models.TextField(_("savol matni"))
     question_type = models.CharField(
@@ -389,7 +400,9 @@ class Question(models.Model):
         _("to'g'ri javob matni"),
         max_length=500,
         blank=True,
-        help_text=_("Matnli javob savollari uchun — kutilayotgan javob (katta-kichik harf farqi hisobga olinmaydi)."),
+        help_text=_(
+            "Matnli javob savollari uchun — kutilayotgan javob (katta-kichik harf farqi hisobga olinmaydi)."
+        ),
     )
     points = models.PositiveIntegerField(
         _("ball"),
@@ -487,10 +500,14 @@ class TestAttempt(models.Model):
     #   PENDING_GRADING → COMPLETED (finalize, idempotent)
     # Terminal: COMPLETED, TIMEOUT, CANCELLED (no transitions out).
     STATUS_TRANSITIONS: dict[str, frozenset[str]] = {
-        Status.IN_PROGRESS: frozenset({
-            Status.COMPLETED, Status.TIMEOUT,
-            Status.PENDING_GRADING, Status.CANCELLED,
-        }),
+        Status.IN_PROGRESS: frozenset(
+            {
+                Status.COMPLETED,
+                Status.TIMEOUT,
+                Status.PENDING_GRADING,
+                Status.CANCELLED,
+            }
+        ),
         Status.PENDING_GRADING: frozenset({Status.COMPLETED}),
         Status.COMPLETED: frozenset(),
         Status.TIMEOUT: frozenset(),
@@ -655,7 +672,9 @@ class StudentAnswer(models.Model):
         _("yozma ish matni"),
         blank=True,
         default="",
-        help_text=_("WRITTEN savol qoralamasi (autosave). Baholash esse dvigateli orqali."),
+        help_text=_(
+            "WRITTEN savol qoralamasi (autosave). Baholash esse dvigateli orqali."
+        ),
     )
     written_word_count = models.PositiveIntegerField(
         _("yozma so'zlar soni"),
@@ -682,7 +701,6 @@ class StudentAnswer(models.Model):
 
     def __str__(self) -> str:
         return f"{self.attempt} — Q{self.question.position}"
-
 
     class Meta:
         verbose_name = _("O'quvchi javobi")

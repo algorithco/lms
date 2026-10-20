@@ -4,6 +4,7 @@ Everything is exercised through `apps.attendance.services`, which is the single
 entry point the React panel, the JSON API and the Telegram bot all call. Testing
 the service layer keeps these assertions independent of transport.
 """
+
 import datetime as dt
 
 from django.test import TestCase
@@ -26,26 +27,39 @@ PERIOD_END = TODAY + dt.timedelta(days=1)
 class _AttendanceFixture(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="aw-teacher@example.test", password="testpass123", role="teacher",
+            email="aw-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.ali = User.objects.create_user(
-            email="aw-ali@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="aw-ali@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.zuhra = User.objects.create_user(
-            email="aw-zuhra@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="aw-zuhra@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.gulnora = User.objects.create_user(
-            email="aw-gulnora@example.test", password="testpass123", role="student",
-            first_name="Gulnora", last_name="Yusupova",
+            email="aw-gulnora@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Gulnora",
+            last_name="Yusupova",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.ali, self.zuhra, self.gulnora)
 
     def _session(self, **kwargs):
         session, created = att.create_session(
-            group=self.group, teacher=self.teacher, **kwargs,
+            group=self.group,
+            teacher=self.teacher,
+            **kwargs,
         )
         return session, created
 
@@ -55,13 +69,17 @@ class SessionCreationTests(_AttendanceFixture):
 
     def test_create_returns_created_flag_then_resolves_same_row(self):
         session, created = att.create_session(
-            group=self.group, teacher=self.teacher, idempotency_key="cb-1",
+            group=self.group,
+            teacher=self.teacher,
+            idempotency_key="cb-1",
         )
         self.assertTrue(created)
         self.assertEqual(AttendanceSession.objects.count(), 1)
 
         again, created_again = att.create_session(
-            group=self.group, teacher=self.teacher, idempotency_key="cb-1",
+            group=self.group,
+            teacher=self.teacher,
+            idempotency_key="cb-1",
         )
         self.assertFalse(created_again)
         self.assertEqual(again.pk, session.pk)
@@ -69,11 +87,13 @@ class SessionCreationTests(_AttendanceFixture):
 
     def test_same_slot_without_idempotency_key_is_also_deduplicated(self):
         first, created = att.create_session(
-            group=self.group, teacher=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
             start_time=dt.time(9, 0),
         )
         second, created_second = att.create_session(
-            group=self.group, teacher=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
             start_time=dt.time(9, 0),
         )
         self.assertTrue(created)
@@ -93,11 +113,15 @@ class SessionCreationTests(_AttendanceFixture):
         other = StudentGroup.objects.create(teacher=self.teacher, name="10-B")
         other.students.add(self.ali)
         att.create_session(
-            group=self.group, teacher=self.teacher, idempotency_key="shared",
+            group=self.group,
+            teacher=self.teacher,
+            idempotency_key="shared",
         )
         with self.assertRaises(att.AttendanceError):
             att.create_session(
-                group=other, teacher=self.teacher, idempotency_key="shared",
+                group=other,
+                teacher=self.teacher,
+                idempotency_key="shared",
             )
 
     def test_today_session_ignores_cancelled(self):
@@ -122,8 +146,7 @@ class RosterAndMarkingTests(_AttendanceFixture):
 
     def test_mark_all_present_marks_exactly_the_unmarked(self):
         session, _ = self._session()
-        att.mark(session, self.ali, AttendanceRecord.Status.ABSENT,
-                 actor=self.teacher)
+        att.mark(session, self.ali, AttendanceRecord.Status.ABSENT, actor=self.teacher)
         marked_count = att.mark_all_present(session, actor=self.teacher)
         self.assertEqual(marked_count, 2)
         self.assertEqual(AttendanceRecord.objects.count(), 3)
@@ -131,18 +154,29 @@ class RosterAndMarkingTests(_AttendanceFixture):
         record = AttendanceRecord.objects.get(session=session, student=self.ali)
         self.assertEqual(record.status, AttendanceRecord.Status.ABSENT)
         self.assertEqual(
-            att.summary(session)["present"], 2,
+            att.summary(session)["present"],
+            2,
         )
 
     def test_marking_twice_updates_one_row_and_appends_audit(self):
         session, _ = self._session()
-        att.mark(session, self.ali, AttendanceRecord.Status.LATE,
-                 late_minutes=12, actor=self.teacher)
+        att.mark(
+            session,
+            self.ali,
+            AttendanceRecord.Status.LATE,
+            late_minutes=12,
+            actor=self.teacher,
+        )
         self.assertEqual(AttendanceRecord.objects.count(), 1)
         self.assertEqual(AttendanceAuditLog.objects.count(), 1)
 
-        att.mark(session, self.ali, AttendanceRecord.Status.PRESENT,
-                 actor=self.teacher, reason="Xato tuzatildi")
+        att.mark(
+            session,
+            self.ali,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
+            reason="Xato tuzatildi",
+        )
         self.assertEqual(AttendanceRecord.objects.count(), 1)
 
         record = AttendanceRecord.objects.get(session=session, student=self.ali)
@@ -157,40 +191,69 @@ class RosterAndMarkingTests(_AttendanceFixture):
 
     def test_late_minutes_stored_only_for_late(self):
         session, _ = self._session()
-        late = att.mark(session, self.ali, AttendanceRecord.Status.LATE,
-                        late_minutes=7, actor=self.teacher)
+        late = att.mark(
+            session,
+            self.ali,
+            AttendanceRecord.Status.LATE,
+            late_minutes=7,
+            actor=self.teacher,
+        )
         self.assertEqual(late.late_minutes, 7)
 
-        att.mark(session, self.zuhra, AttendanceRecord.Status.PRESENT,
-                 late_minutes=9, actor=self.teacher)
+        att.mark(
+            session,
+            self.zuhra,
+            AttendanceRecord.Status.PRESENT,
+            late_minutes=9,
+            actor=self.teacher,
+        )
         record = AttendanceRecord.objects.get(session=session, student=self.zuhra)
         self.assertEqual(record.late_minutes, 0)
 
-        excused = att.mark(session, self.gulnora, AttendanceRecord.Status.EXCUSED,
-                           actor=self.teacher, note="Shifokorda")
+        excused = att.mark(
+            session,
+            self.gulnora,
+            AttendanceRecord.Status.EXCUSED,
+            actor=self.teacher,
+            note="Shifokorda",
+        )
         self.assertEqual(excused.late_minutes, 0)
         self.assertEqual(excused.note, "Shifokorda")
 
     def test_mark_many_applies_only_roster_members(self):
         session, _ = self._session()
         outsider = User.objects.create_user(
-            email="aw-outsider@example.test", password="testpass123", role="student",
+            email="aw-outsider@example.test",
+            password="testpass123",
+            role="student",
         )
-        applied = att.mark_many(session, [
-            {"student_id": self.ali.pk, "status": AttendanceRecord.Status.PRESENT},
-            {"student_id": self.zuhra.pk, "status": AttendanceRecord.Status.LATE,
-             "late_minutes": 5},
-            {"student_id": outsider.pk, "status": AttendanceRecord.Status.PRESENT},
-            {"student_id": 999999, "status": AttendanceRecord.Status.PRESENT},
-        ], actor=self.teacher)
+        applied = att.mark_many(
+            session,
+            [
+                {"student_id": self.ali.pk, "status": AttendanceRecord.Status.PRESENT},
+                {
+                    "student_id": self.zuhra.pk,
+                    "status": AttendanceRecord.Status.LATE,
+                    "late_minutes": 5,
+                },
+                {"student_id": outsider.pk, "status": AttendanceRecord.Status.PRESENT},
+                {"student_id": 999999, "status": AttendanceRecord.Status.PRESENT},
+            ],
+            actor=self.teacher,
+        )
         self.assertEqual(applied, 2)
         self.assertEqual(AttendanceRecord.objects.count(), 2)
 
     def test_summary_counts_are_exact(self):
         session, _ = self._session()
         att.mark(session, self.ali, AttendanceRecord.Status.PRESENT, actor=self.teacher)
-        att.mark(session, self.zuhra, AttendanceRecord.Status.LATE,
-                 late_minutes=4, actor=self.teacher)
+        att.mark(
+            session,
+            self.zuhra,
+            AttendanceRecord.Status.LATE,
+            late_minutes=4,
+            actor=self.teacher,
+        )
         summary = att.summary(session)
         self.assertEqual(summary["roster_size"], 3)
         self.assertEqual(summary["marked"], 2)
@@ -229,7 +292,9 @@ class FinalizationTests(_AttendanceFixture):
     def test_finalize_with_explicit_confirmation_marks_only_unmarked_absent(self):
         session, _ = self._session()
         att.mark(session, self.ali, AttendanceRecord.Status.PRESENT, actor=self.teacher)
-        att.mark(session, self.zuhra, AttendanceRecord.Status.EXCUSED, actor=self.teacher)
+        att.mark(
+            session, self.zuhra, AttendanceRecord.Status.EXCUSED, actor=self.teacher
+        )
 
         result = att.finalize(session, actor=self.teacher, mark_unmarked_as_absent=True)
         self.assertTrue(result["ok"])
@@ -263,11 +328,14 @@ class ReportTests(_AttendanceFixture):
         uniqueness is on (group, lesson_date, start_time).
         """
         session, _ = att.create_session(
-            group=self.group, teacher=self.teacher, lesson_date=day,
+            group=self.group,
+            teacher=self.teacher,
+            lesson_date=day,
             start_time=start_time,
         )
         for student, status in zip(
-            (self.ali, self.zuhra, self.gulnora), statuses,
+            (self.ali, self.zuhra, self.gulnora),
+            statuses,
         ):
             att.mark(session, student, status, actor=self.teacher)
         att.finalize(session, actor=self.teacher)
@@ -276,17 +344,23 @@ class ReportTests(_AttendanceFixture):
     def test_unfinished_session_is_never_counted_as_absence(self):
         self._finalized_day(
             TODAY,
-            (AttendanceRecord.Status.PRESENT, AttendanceRecord.Status.EXCUSED,
-             AttendanceRecord.Status.PRESENT),
+            (
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.EXCUSED,
+                AttendanceRecord.Status.PRESENT,
+            ),
         )
         draft, _ = att.create_session(
-            group=self.group, teacher=self.teacher,
+            group=self.group,
+            teacher=self.teacher,
             lesson_date=TODAY - dt.timedelta(days=1),
         )
         att.mark(draft, self.ali, AttendanceRecord.Status.ABSENT, actor=self.teacher)
 
         report = att.group_attendance_report(
-            self.group, start=PERIOD_START, end=PERIOD_END,
+            self.group,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(report["finalized_sessions"], 1)
         self.assertEqual(report["pending_sessions"], 1)
@@ -301,11 +375,16 @@ class ReportTests(_AttendanceFixture):
     def test_excused_is_separate_from_unexcused(self):
         self._finalized_day(
             TODAY,
-            (AttendanceRecord.Status.ABSENT, AttendanceRecord.Status.EXCUSED,
-             AttendanceRecord.Status.LATE),
+            (
+                AttendanceRecord.Status.ABSENT,
+                AttendanceRecord.Status.EXCUSED,
+                AttendanceRecord.Status.LATE,
+            ),
         )
         report = att.group_attendance_report(
-            self.group, start=PERIOD_START, end=PERIOD_END,
+            self.group,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(report["absent"], 1)
         self.assertEqual(report["excused"], 1)
@@ -317,11 +396,16 @@ class ReportTests(_AttendanceFixture):
     def test_percentage_math_for_a_known_case(self):
         self._finalized_day(
             TODAY,
-            (AttendanceRecord.Status.PRESENT, AttendanceRecord.Status.PRESENT,
-             AttendanceRecord.Status.LATE),
+            (
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.LATE,
+            ),
         )
         report = att.group_attendance_report(
-            self.group, start=PERIOD_START, end=PERIOD_END,
+            self.group,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(report["attended"], 3)
         self.assertEqual(report["marked_records"], 3)
@@ -330,7 +414,9 @@ class ReportTests(_AttendanceFixture):
     def test_report_is_none_percentage_without_marked_records(self):
         att.create_session(group=self.group, teacher=self.teacher)
         report = att.group_attendance_report(
-            self.group, start=PERIOD_START, end=PERIOD_END,
+            self.group,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertIsNone(report["attendance_percentage"])
         self.assertEqual(report["marked_records"], 0)
@@ -338,27 +424,38 @@ class ReportTests(_AttendanceFixture):
     def test_daily_breakdown_aggregates_one_row_per_date(self):
         self._finalized_day(
             TODAY,
-            (AttendanceRecord.Status.PRESENT, AttendanceRecord.Status.ABSENT,
-             AttendanceRecord.Status.PRESENT),
+            (
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.ABSENT,
+                AttendanceRecord.Status.PRESENT,
+            ),
         )
         yesterday = TODAY - dt.timedelta(days=1)
         self._finalized_day(
             yesterday,
-            (AttendanceRecord.Status.LATE, AttendanceRecord.Status.PRESENT,
-             AttendanceRecord.Status.EXCUSED),
+            (
+                AttendanceRecord.Status.LATE,
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.EXCUSED,
+            ),
             start_time=dt.time(9, 0),
         )
         # A second register on the same day (a different period) rolls up into
         # the same daily row rather than being counted as a separate day.
         self._finalized_day(
             yesterday,
-            (AttendanceRecord.Status.PRESENT, AttendanceRecord.Status.PRESENT,
-             AttendanceRecord.Status.PRESENT),
+            (
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.PRESENT,
+                AttendanceRecord.Status.PRESENT,
+            ),
             start_time=dt.time(11, 0),
         )
 
         rows = att.group_daily_breakdown(
-            self.group, start=PERIOD_START, end=PERIOD_END,
+            self.group,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(len(rows), 2)
         by_date = {row["date"]: row for row in rows}
@@ -374,10 +471,14 @@ class ReportTests(_AttendanceFixture):
     def test_student_report_is_scoped_to_one_student(self):
         session, _ = att.create_session(group=self.group, teacher=self.teacher)
         att.mark(session, self.ali, AttendanceRecord.Status.PRESENT, actor=self.teacher)
-        att.mark(session, self.zuhra, AttendanceRecord.Status.ABSENT, actor=self.teacher)
+        att.mark(
+            session, self.zuhra, AttendanceRecord.Status.ABSENT, actor=self.teacher
+        )
 
         report = att.student_attendance_report(
-            self.ali, start=PERIOD_START, end=PERIOD_END,
+            self.ali,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(report["student_id"], self.ali.pk)
         self.assertEqual(report["present"], 1)
@@ -389,14 +490,18 @@ class ReportTests(_AttendanceFixture):
         self.assertEqual(report["recent"][0]["group"], "9-A")
 
         other = att.student_attendance_report(
-            self.zuhra, start=PERIOD_START, end=PERIOD_END,
+            self.zuhra,
+            start=PERIOD_START,
+            end=PERIOD_END,
         )
         self.assertEqual(other["present"], 0)
         self.assertEqual(other["absent"], 1)
 
     def test_teacher_overview_lists_only_owned_groups(self):
         other_teacher = User.objects.create_user(
-            email="aw-teacher2@example.test", password="testpass123", role="teacher",
+            email="aw-teacher2@example.test",
+            password="testpass123",
+            role="teacher",
         )
         StudentGroup.objects.create(teacher=other_teacher, name="11-C")
         overview = att.teacher_attendance_overview(self.teacher)

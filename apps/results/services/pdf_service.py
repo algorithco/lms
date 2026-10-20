@@ -13,6 +13,7 @@ Architecture:
     - Does NOT handle model saves — caller is responsible.
     - QR code links to /api/certificates/verify/{number}/ for authenticity check.
 """
+
 from __future__ import annotations
 
 import io
@@ -42,6 +43,7 @@ from reportlab.platypus import (
 # QR code generation
 try:
     import qrcode
+
     HAS_QRCODE = True
 except ImportError:
     HAS_QRCODE = False
@@ -51,23 +53,25 @@ except ImportError:
 # Color palette
 # ---------------------------------------------------------------------------
 
+
 class CertificateColors:
     """Professional certificate color scheme."""
 
-    PRIMARY = colors.HexColor("#1a365d")       # Dark navy
-    SECONDARY = colors.HexColor("#2c5282")     # Medium blue
-    ACCENT = colors.HexColor("#d69e2e")        # Gold
-    LIGHT_BG = colors.HexColor("#f7fafc")      # Light gray
-    TEXT_DARK = colors.HexColor("#1a202c")      # Near black
-    TEXT_LIGHT = colors.HexColor("#718096")     # Gray
-    BORDER = colors.HexColor("#e2e8f0")         # Light border
-    SUCCESS = colors.HexColor("#38a169")        # Green
-    DECORATIVE = colors.HexColor("#bee3f8")     # Light blue
+    PRIMARY = colors.HexColor("#1a365d")  # Dark navy
+    SECONDARY = colors.HexColor("#2c5282")  # Medium blue
+    ACCENT = colors.HexColor("#d69e2e")  # Gold
+    LIGHT_BG = colors.HexColor("#f7fafc")  # Light gray
+    TEXT_DARK = colors.HexColor("#1a202c")  # Near black
+    TEXT_LIGHT = colors.HexColor("#718096")  # Gray
+    BORDER = colors.HexColor("#e2e8f0")  # Light border
+    SUCCESS = colors.HexColor("#38a169")  # Green
+    DECORATIVE = colors.HexColor("#bee3f8")  # Light blue
 
 
 # ---------------------------------------------------------------------------
 # Styles
 # ---------------------------------------------------------------------------
+
 
 def _get_styles() -> dict[str, ParagraphStyle]:
     """Certificate uchun matn uslublari."""
@@ -141,6 +145,7 @@ def _get_styles() -> dict[str, ParagraphStyle]:
 # QR Code generator
 # ---------------------------------------------------------------------------
 
+
 def _generate_qr_code(url: str, size: int = 100) -> Any:
     """
     QR kod generatsiya qilish.
@@ -177,6 +182,7 @@ def _generate_qr_code(url: str, size: int = 100) -> Any:
 # ---------------------------------------------------------------------------
 # Main PDF generator
 # ---------------------------------------------------------------------------
+
 
 def generate_certificate_pdf(
     certificate_number: str,
@@ -221,53 +227,69 @@ def generate_certificate_pdf(
     elements.append(Spacer(1, 0.5 * cm))
 
     # -- Header: "CERTIFICATE OF COMPLETION" --------------------------------
-    elements.append(Paragraph(
-        "SERTIFIKAT",
-        styles["title"],
-    ))
-    elements.append(Paragraph(
-        "O'QUVNI TAMOMLASH HAQIDA",
-        styles["subtitle"],
-    ))
+    elements.append(
+        Paragraph(
+            "SERTIFIKAT",
+            styles["title"],
+        )
+    )
+    elements.append(
+        Paragraph(
+            "O'QUVNI TAMOMLASH HAQIDA",
+            styles["subtitle"],
+        )
+    )
 
     elements.append(Spacer(1, 0.8 * cm))
 
     # -- Decorative separator -----------------------------------------------
     separator_data = [["", "", ""]]
     separator_table = Table(separator_data, colWidths=[6 * cm, 3 * cm, 6 * cm])
-    separator_table.setStyle(TableStyle([
-        ("LINEABOVE", (1, 0), (1, 0), 2, CertificateColors.ACCENT),
-        ("LINEBELOW", (1, 0), (1, 0), 2, CertificateColors.ACCENT),
-    ]))
+    separator_table.setStyle(
+        TableStyle(
+            [
+                ("LINEABOVE", (1, 0), (1, 0), 2, CertificateColors.ACCENT),
+                ("LINEBELOW", (1, 0), (1, 0), 2, CertificateColors.ACCENT),
+            ]
+        )
+    )
     elements.append(separator_table)
 
     elements.append(Spacer(1, 0.5 * cm))
 
     # -- Body text ----------------------------------------------------------
-    elements.append(Paragraph(
-        "Ushbu sertifikat quyidagi o'quvchiga beriladi:",
-        styles["body"],
-    ))
+    elements.append(
+        Paragraph(
+            "Ushbu sertifikat quyidagi o'quvchiga beriladi:",
+            styles["body"],
+        )
+    )
 
     elements.append(Spacer(1, 0.3 * cm))
 
     # -- Student name (large, gold) -----------------------------------------
-    elements.append(Paragraph(
-        f"<b>{student_full_name}</b>",
-        styles["student_name"],
-    ))
+    elements.append(
+        Paragraph(
+            f"<b>{student_full_name}</b>",
+            styles["student_name"],
+        )
+    )
 
     elements.append(Spacer(1, 0.3 * cm))
 
     # -- Course details -----------------------------------------------------
-    elements.append(Paragraph(
-        f'"{course_title}" kursini muvaffaqiyatli tamomladi',
-        styles["body"],
-    ))
-    elements.append(Paragraph(
-        f"Test: {test_title}",
-        styles["body"],
-    ))
+    elements.append(
+        Paragraph(
+            f'"{course_title}" kursini muvaffaqiyatli tamomladi',
+            styles["body"],
+        )
+    )
+    elements.append(
+        Paragraph(
+            f"Test: {test_title}",
+            styles["body"],
+        )
+    )
 
     elements.append(Spacer(1, 0.8 * cm))
 
@@ -277,11 +299,15 @@ def generate_certificate_pdf(
         ["Olingan ball", ""],
     ]
     score_table = Table(score_data, colWidths=[8 * cm, 8 * cm])
-    score_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEBELOW", (0, 0), (0, 0), 1, CertificateColors.BORDER),
-    ]))
+    score_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LINEBELOW", (0, 0), (0, 0), 1, CertificateColors.BORDER),
+            ]
+        )
+    )
     elements.append(score_table)
 
     elements.append(Spacer(1, 1 * cm))
@@ -297,31 +323,40 @@ def generate_certificate_pdf(
                 f"<b>Sana:</b><br/>{issued_at.strftime('%d.%m.%Y')}",
                 styles["detail"],
             ),
-            _generate_qr_code(verify_url, size=80) or Paragraph(
+            _generate_qr_code(verify_url, size=80)
+            or Paragraph(
                 "[QR Code]",
                 styles["detail"],
             ),
         ],
     ]
     footer_table = Table(footer_data, colWidths=[6 * cm, 6 * cm, 4 * cm])
-    footer_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEABOVE", (0, 0), (-1, 0), 1, CertificateColors.BORDER),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-    ]))
+    footer_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEABOVE", (0, 0), (-1, 0), 1, CertificateColors.BORDER),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
     elements.append(footer_table)
 
     # -- Verification note --------------------------------------------------
     elements.append(Spacer(1, 0.5 * cm))
-    elements.append(Paragraph(
-        f"Sertifikatni tekshirish: {verify_url}",
-        styles["footer"],
-    ))
-    elements.append(Paragraph(
-        "Ona Tili & Adabiyot — Online Test & Learning Management System",
-        styles["footer"],
-    ))
+    elements.append(
+        Paragraph(
+            f"Sertifikatni tekshirish: {verify_url}",
+            styles["footer"],
+        )
+    )
+    elements.append(
+        Paragraph(
+            "Ona Tili & Adabiyot — Online Test & Learning Management System",
+            styles["footer"],
+        )
+    )
 
     # -- Build PDF ----------------------------------------------------------
     doc.build(elements)

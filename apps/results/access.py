@@ -1,4 +1,5 @@
 """Single source of truth for result and certificate access."""
+
 from __future__ import annotations
 
 from django.db.models import QuerySet

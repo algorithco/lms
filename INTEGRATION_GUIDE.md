@@ -43,7 +43,7 @@ from django.urls import path, include
 from essays.views import EssaySubmitView
 
 urlpatterns = [
-    path('essays/submit/', EssaySubmitView.as_view(), name='essay-submit'),
+    path("essays/submit/", EssaySubmitView.as_view(), name="essay-submit"),
     # ... other urls
 ]
 ```
@@ -141,6 +141,7 @@ Replace `_sync_grade_essay()` in `essays/views.py`:
 ```python
 def _sync_grade_essay(prompt: str) -> str:
     from openai import OpenAI
+
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     response = client.chat.completions.create(
         model="gpt-4o-mini",

@@ -2,6 +2,7 @@
 apps/arena/middleware.py
 JWT Authentication middleware for Django Channels WebSockets.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,7 +24,9 @@ def get_user_from_token(token_str: str):
     try:
         token = AccessToken(token_str)
         user_id = token["user_id"]
-        return User.objects.filter(id=user_id, is_active=True).first() or AnonymousUser()
+        return (
+            User.objects.filter(id=user_id, is_active=True).first() or AnonymousUser()
+        )
     except (InvalidToken, TokenError, Exception) as exc:
         logger.debug("WebSocket JWT auth failed: %s", exc)
         return AnonymousUser()
@@ -78,4 +81,5 @@ class JwtAuthMiddleware:
 def JwtAuthMiddlewareStack(inner):
     """Stack that combines AuthMiddlewareStack with JwtAuthMiddleware."""
     from channels.auth import AuthMiddlewareStack
+
     return AuthMiddlewareStack(JwtAuthMiddleware(inner))

@@ -50,7 +50,8 @@ def make_plan(plan_type: str, **overrides) -> SubscriptionPlan:
     }
     defaults.update(overrides)
     plan, _created = SubscriptionPlan.objects.get_or_create(
-        plan_type=plan_type, defaults=defaults,
+        plan_type=plan_type,
+        defaults=defaults,
     )
     for field, value in defaults.items():
         setattr(plan, field, value)
@@ -141,11 +142,15 @@ class SponsorshipGrantTests(_SponsorshipFixture):
         """Sponsored access is an entitlement source, not a paid subscription."""
         self.approve()
         self.assertEqual(UserSubscription.objects.filter(user=self.student).count(), 0)
-        self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_SPONSORED)
+        self.assertEqual(
+            get_effective_entitlement(self.student).source, SOURCE_SPONSORED
+        )
 
     def test_student_must_still_be_a_member_of_the_group(self):
         self.approve()
-        self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_SPONSORED)
+        self.assertEqual(
+            get_effective_entitlement(self.student).source, SOURCE_SPONSORED
+        )
 
         self.group.students.remove(self.student)
         entitlement = get_effective_entitlement(self.student)
@@ -170,11 +175,14 @@ class SponsorshipGrantTests(_SponsorshipFixture):
         # A second group's sponsorship that an administrator has not approved
         # yet must not be effective (nor conflict with the approved one).
         pending_group = StudentGroup.objects.create(
-            teacher=self.teacher, name="11-C",
+            teacher=self.teacher,
+            name="11-C",
         )
         pending_group.students.add(self.student)
         pending = TeacherSponsorship.objects.create(
-            student=self.student, group=pending_group, is_active=True,
+            student=self.student,
+            group=pending_group,
+            is_active=True,
         )
         self.assertFalse(pending.is_effective)
 
@@ -186,19 +194,24 @@ class SponsorshipGrantTests(_SponsorshipFixture):
     def test_sponsorship_is_scoped_to_the_approved_student(self):
         self.approve()
         other = User.objects.create_user(
-            email="sponsor-other@example.test", password="StrongPass123!",
+            email="sponsor-other@example.test",
+            password="StrongPass123!",
             role="student",
         )
         self.group.students.add(other)
         self.assertEqual(
-            get_effective_entitlement(other).source, SOURCE_DEFAULT,
+            get_effective_entitlement(other).source,
+            SOURCE_DEFAULT,
         )
 
 
 class SponsorshipOverrideTests(_SponsorshipFixture):
     def test_group_overrides_are_applied_on_top_of_the_sponsored_plan(self):
-        self.approve(image_essay_weekly_limit=10, text_essay_weekly_limit=None,
-                     is_unlimited_text_essays=True)
+        self.approve(
+            image_essay_weekly_limit=10,
+            text_essay_weekly_limit=None,
+            is_unlimited_text_essays=True,
+        )
         entitlement = get_effective_entitlement(self.student)
         self.assertEqual(entitlement.source, SOURCE_SPONSORED)
         self.assertEqual(entitlement.image_essay_weekly_limit, 10)
@@ -228,7 +241,9 @@ class SponsorshipPrecedenceTests(_SponsorshipFixture):
     def test_revoking_sponsorship_keeps_the_independent_paid_subscription(self):
         subscription = self.paid_subscription()
         sponsorship = self.approve()
-        self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_SPONSORED)
+        self.assertEqual(
+            get_effective_entitlement(self.student).source, SOURCE_SPONSORED
+        )
 
         sponsorship.is_active = False
         sponsorship.revoked_at = timezone.now()
@@ -242,7 +257,9 @@ class SponsorshipPrecedenceTests(_SponsorshipFixture):
 
     def test_revoking_sponsorship_leaves_a_sponsorless_student_on_default(self):
         sponsorship = self.approve()
-        self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_SPONSORED)
+        self.assertEqual(
+            get_effective_entitlement(self.student).source, SOURCE_SPONSORED
+        )
         sponsorship.is_active = False
         sponsorship.save(update_fields=["is_active", "updated_at"])
         self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_DEFAULT)
@@ -270,12 +287,15 @@ class SponsorshipPrecedenceTests(_SponsorshipFixture):
         )
         self.assertEqual(
             TeacherSponsorship.objects.filter(
-                student=self.student, is_active=True,
+                student=self.student,
+                is_active=True,
             ).count(),
             2,
         )
         # Still exactly one entitlement, and no duplicate subscription rows.
-        self.assertEqual(get_effective_entitlement(self.student).source, SOURCE_SPONSORED)
+        self.assertEqual(
+            get_effective_entitlement(self.student).source, SOURCE_SPONSORED
+        )
         self.assertEqual(UserSubscription.objects.filter(user=self.student).count(), 0)
 
     def test_active_sponsorship_per_group_is_unique(self):

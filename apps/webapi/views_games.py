@@ -3,6 +3,7 @@
 Uses the shared XP engine (apps.games.engine) so balances,
 combos and badges stay identical between the Django templates and React.
 """
+
 from __future__ import annotations
 
 from django.shortcuts import get_object_or_404
@@ -39,15 +40,17 @@ def hub_view(request):
         .select_related("badge")
         .order_by("-earned_at")[:5]
     )
-    return Response({
-        "games": GameSerializer(games, many=True).data,
-        "scores": UserGameScoreSerializer(scores, many=True).data,
-        "stats": _totals(request.user),
-        "recent_badges": [
-            {"name": b.badge.name, "emoji": b.badge.icon_emoji} for b in badges
-        ],
-        "leaderboard": _board(10),
-    })
+    return Response(
+        {
+            "games": GameSerializer(games, many=True).data,
+            "scores": UserGameScoreSerializer(scores, many=True).data,
+            "stats": _totals(request.user),
+            "recent_badges": [
+                {"name": b.badge.name, "emoji": b.badge.icon_emoji} for b in badges
+            ],
+            "leaderboard": _board(10),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -71,22 +74,26 @@ def play_view(request, slug: str):
     try:
         content = get_game_content(game, level, data, request.user.pk)
     except ValueError:
-        return Response({"detail": "This game level is currently unavailable."}, status=503)
+        return Response(
+            {"detail": "This game level is currently unavailable."}, status=503
+        )
 
     score = UserGameScore.objects.filter(user=request.user, game=game).first()
-    return Response({
-        "game": GameSerializer(game).data,
-        "level": {
-            "id": level.id,
-            "title": level.title,
-            "difficulty": level.difficulty,
-            "hint": level.hint,
-            "time_limit_seconds": level.time_limit_seconds,
-        },
-        "levels": GameLevelMetaSerializer(levels, many=True).data,
-        "content": content,
-        "my_score": UserGameScoreSerializer(score).data if score else None,
-    })
+    return Response(
+        {
+            "game": GameSerializer(game).data,
+            "level": {
+                "id": level.id,
+                "title": level.title,
+                "difficulty": level.difficulty,
+                "hint": level.hint,
+                "time_limit_seconds": level.time_limit_seconds,
+            },
+            "levels": GameLevelMetaSerializer(levels, many=True).data,
+            "content": content,
+            "my_score": UserGameScoreSerializer(score).data if score else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -94,9 +101,7 @@ def play_view(request, slug: str):
 def check_view(request, slug: str):
     """Validate a move — identical rules to the HTMX check views."""
     game = get_object_or_404(Game, slug=slug, is_active=True)
-    level = get_object_or_404(
-        GameLevel, id=request.data.get("level_id"), game=game
-    )
+    level = get_object_or_404(GameLevel, id=request.data.get("level_id"), game=game)
     data = level.question_data or {}
 
     answer: dict = {}
@@ -122,15 +127,22 @@ def check_view(request, slug: str):
             order = []
         try:
             _shuffled_lines, correct_order = gazal_puzzle_order(
-                level, request.user.pk, data,
+                level,
+                request.user.pk,
+                data,
             )
         except ValueError:
-            return Response({"detail": "This game level is currently unavailable."}, status=503)
+            return Response(
+                {"detail": "This game level is currently unavailable."}, status=503
+            )
         is_correct = len(order) == len(correct_order) and order == correct_order
         answer = {"correct_order": correct_order}
         challenge_key = "gazal"
     elif game.slug == "lugat_match":
-        c1, c2 = str(request.data.get("card1_id", "")), str(request.data.get("card2_id", ""))
+        c1, c2 = (
+            str(request.data.get("card1_id", "")),
+            str(request.data.get("card2_id", "")),
+        )
         is_match = False
         old_index = new_index = -1
         pair_count = len(data.get("pairs", []))
@@ -144,9 +156,7 @@ def check_view(request, slug: str):
                     is_match = False
         is_correct = is_match
         answer = {"is_match": is_match}
-        challenge_key = (
-            f"lugat:{old_index}" if is_match else "lugat:invalid"
-        )
+        challenge_key = f"lugat:{old_index}" if is_match else "lugat:invalid"
     else:
         return Response({"detail": "Unknown game."}, status=404)
 
@@ -157,8 +167,10 @@ def check_view(request, slug: str):
         level=level,
         challenge_key=challenge_key,
     )
-    return Response({
-        "is_correct": is_correct,
-        "answer": answer,
-        **result,
-    })
+    return Response(
+        {
+            "is_correct": is_correct,
+            "answer": answer,
+            **result,
+        }
+    )

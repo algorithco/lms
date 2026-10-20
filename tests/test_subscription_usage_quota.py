@@ -62,7 +62,8 @@ def make_plan(plan_type: str, **overrides) -> SubscriptionPlan:
     }
     defaults.update(overrides)
     plan, _created = SubscriptionPlan.objects.get_or_create(
-        plan_type=plan_type, defaults=defaults,
+        plan_type=plan_type,
+        defaults=defaults,
     )
     for field, value in defaults.items():
         setattr(plan, field, value)
@@ -117,7 +118,8 @@ class QuotaLimitTests(_QuotaTestCase):
 
         self.assertEqual(
             SubscriptionUsage.objects.filter(
-                user=self.student, kind=TEXT,
+                user=self.student,
+                kind=TEXT,
             ).count(),
             3,
         )
@@ -133,7 +135,8 @@ class QuotaLimitTests(_QuotaTestCase):
         self.assertIn("Haftalik rasmli esse limitingiz tugadi", sixth.message)
         self.assertEqual(
             SubscriptionUsage.objects.filter(
-                user=self.student, kind=IMAGE,
+                user=self.student,
+                kind=IMAGE,
             ).count(),
             5,
         )
@@ -155,12 +158,15 @@ class QuotaLimitTests(_QuotaTestCase):
 
         now = timezone.now()
         previous_window = quota_period_start(now) - timedelta(days=7)
-        self.assertNotEqual(quota_period_start(previous_window), quota_period_start(now))
+        self.assertNotEqual(
+            quota_period_start(previous_window), quota_period_start(now)
+        )
 
         # Move the existing usage into the previous window. ``created_at`` is
         # auto_now_add, so it has to be rewritten through an UPDATE.
         SubscriptionUsage.objects.filter(pk=first.usage.pk).update(
-            created_at=previous_window, period_start=previous_window,
+            created_at=previous_window,
+            period_start=previous_window,
         )
 
         third = self.reserve(TEXT, "reset-3")
@@ -188,7 +194,8 @@ class UnenforcedQuotaTests(TestCase):
             is_unlimited_tests=False,
         )
         UserSubscription.objects.create(
-            user=self.student, plan=plan,
+            user=self.student,
+            plan=plan,
             status=UserSubscription.Status.ACTIVE,
             started_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
@@ -196,7 +203,9 @@ class UnenforcedQuotaTests(TestCase):
 
         for index in range(10):
             result = reserve_usage(
-                self.student, TEXT, idempotency_key=f"unenforced-{index}",
+                self.student,
+                TEXT,
+                idempotency_key=f"unenforced-{index}",
             )
             self.assertTrue(result.ok, result.message)
         self.assertEqual(cooldown_seconds_remaining(self.student), 0)
@@ -226,7 +235,9 @@ class CooldownTests(_QuotaTestCase):
         self.assertEqual(second.reason, "cooldown")
         self.assertGreater(second.retry_after_seconds, 0)
         self.assertIn("Keyingi matnli esseni", second.message)
-        self.assertNotEqual(get_remaining_limits(self.student)["text_cooldown_until"], None)
+        self.assertNotEqual(
+            get_remaining_limits(self.student)["text_cooldown_until"], None
+        )
 
     def test_cooldown_does_not_block_image_essays(self):
         self.assertTrue(commit_usage(self.reserve(TEXT, "cool-img-1")))
@@ -397,7 +408,10 @@ class LastAllowanceTests(TransactionTestCase):
             try:
                 user = User.objects.get(pk=user_id)
                 reservation = reserve_usage(
-                    user, TEXT, idempotency_key=key, source="race-test",
+                    user,
+                    TEXT,
+                    idempotency_key=key,
+                    source="race-test",
                 )
                 results.append(reservation.ok)
             except Exception as exc:  # pragma: no cover - surfaced in the assert
@@ -414,7 +428,8 @@ class LastAllowanceTests(TransactionTestCase):
             thread.join()
 
         self.assertEqual(
-            sum(1 for result in results if result is True), 1,
+            sum(1 for result in results if result is True),
+            1,
             f"exactly one reservation may win, got {results!r}",
         )
         self.assertEqual(SubscriptionUsage.objects.count(), 1)

@@ -1,4 +1,5 @@
 """Two-channel Telegram account linking."""
+
 from __future__ import annotations
 
 import hashlib
@@ -26,7 +27,8 @@ def create_link_challenge(user) -> str:
     with transaction.atomic():
         # Only the newest challenge can be completed.
         TelegramLinkChallenge.objects.filter(
-            user=user, confirmed_at__isnull=True,
+            user=user,
+            confirmed_at__isnull=True,
         ).update(confirmed_at=timezone.now())
         TelegramLinkChallenge.objects.create(user=user, token_hash=_token_hash(token))
     return token
@@ -65,9 +67,12 @@ def _confirm_link_challenge_atomic(token: str, numeric_id: int, User) -> str:
         return "conflict"
     user.telegram_chat_id = numeric_id
     user.telegram_identity_verified_at = timezone.now()
-    user.save(update_fields=[
-        "telegram_chat_id", "telegram_identity_verified_at",
-    ])
+    user.save(
+        update_fields=[
+            "telegram_chat_id",
+            "telegram_identity_verified_at",
+        ]
+    )
     challenge.telegram_id = numeric_id
     challenge.confirmed_at = timezone.now()
     challenge.save(update_fields=["telegram_id", "confirmed_at"])
@@ -76,7 +81,8 @@ def _confirm_link_challenge_atomic(token: str, numeric_id: int, User) -> str:
 
 def link_challenge_status(user, token: str) -> str:
     challenge = TelegramLinkChallenge.objects.filter(
-        user=user, token_hash=_token_hash(token),
+        user=user,
+        token_hash=_token_hash(token),
     ).first()
     if challenge is None:
         return "invalid"

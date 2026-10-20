@@ -1,6 +1,7 @@
 """
 Celery tasks for Parent Monitoring & Smart Alerts.
 """
+
 from __future__ import annotations
 
 import logging
@@ -67,7 +68,9 @@ def send_parent_test_alert_task(self: Any, result_id: int) -> dict[str, Any]:
         ).exclude(id=result.id)
 
         if past_results.exists():
-            past_avg = sum(float(r.percentage) for r in past_results) / past_results.count()
+            past_avg = (
+                sum(float(r.percentage) for r in past_results) / past_results.count()
+            )
             if pct >= past_avg:
                 dynamics = "📈 Ijobiy (O'sish kuzatilmoqda)"
             else:
@@ -75,7 +78,11 @@ def send_parent_test_alert_task(self: Any, result_id: int) -> dict[str, Any]:
         else:
             dynamics = "📊 Birinchi haftalik natija"
 
-        total_questions = getattr(result, "total_questions", 0) or getattr(result.test, "question_count", 0) or 30
+        total_questions = (
+            getattr(result, "total_questions", 0)
+            or getattr(result.test, "question_count", 0)
+            or 30
+        )
         correct_answers = getattr(result, "correct_answers", 0)
         if not correct_answers and pct > 0:
             correct_answers = int(round(total_questions * (pct / 100.0)))
@@ -102,7 +109,9 @@ def send_parent_test_alert_task(self: Any, result_id: int) -> dict[str, Any]:
                 )
                 sent_count += 1
             except Exception as exc:
-                logger.warning("Failed to send parent alert to %s: %s", rel.parent_telegram_id, exc)
+                logger.warning(
+                    "Failed to send parent alert to %s: %s", rel.parent_telegram_id, exc
+                )
 
         return {"status": "sent", "count": sent_count}
 
@@ -161,8 +170,14 @@ def send_parent_weekly_digest_task(self: Any) -> dict[str, Any]:
                     session__lesson_date__gte=seven_days_ago.date(),
                 )
                 total_lessons = attendances.count()
-                attended_lessons = attendances.filter(status__in=["present", "late"]).count()
-                att_pct = f"{int((attended_lessons / total_lessons) * 100)}%" if total_lessons > 0 else "100%"
+                attended_lessons = attendances.filter(
+                    status__in=["present", "late"]
+                ).count()
+                att_pct = (
+                    f"{int((attended_lessons / total_lessons) * 100)}%"
+                    if total_lessons > 0
+                    else "100%"
+                )
             except Exception:
                 att_pct = "100%"
 
@@ -186,7 +201,9 @@ def send_parent_weekly_digest_task(self: Any) -> dict[str, Any]:
                 )
                 dispatched += 1
             except Exception as e:
-                logger.warning("Failed sending weekly digest to %s: %s", rel.parent_telegram_id, e)
+                logger.warning(
+                    "Failed sending weekly digest to %s: %s", rel.parent_telegram_id, e
+                )
 
         return {"status": "completed", "dispatched": dispatched}
 
@@ -210,7 +227,9 @@ def send_parent_essay_alert_task(self: Any, submission_id: int) -> dict[str, Any
         from apps.essays.models import EssaySubmission
         from apps.notifications.services.telegram_service import TelegramService
 
-        sub = EssaySubmission.objects.select_related("student", "topic").get(id=submission_id)
+        sub = EssaySubmission.objects.select_related("student", "topic").get(
+            id=submission_id
+        )
         student = sub.student
         topic_title = sub.topic.title if sub.topic else "Erkin mavzu"
 
@@ -246,11 +265,17 @@ def send_parent_essay_alert_task(self: Any, submission_id: int) -> dict[str, Any
                 )
                 sent_count += 1
             except Exception as exc:
-                logger.warning("Failed to send parent essay alert to %s: %s", rel.parent_telegram_id, exc)
+                logger.warning(
+                    "Failed to send parent essay alert to %s: %s",
+                    rel.parent_telegram_id,
+                    exc,
+                )
 
         return {"status": "sent", "count": sent_count}
     except Exception as exc:
-        logger.exception("Error in send_parent_essay_alert_task for sub_id=%s", submission_id)
+        logger.exception(
+            "Error in send_parent_essay_alert_task for sub_id=%s", submission_id
+        )
         raise self.retry(exc=exc)
 
 
@@ -260,7 +285,9 @@ def send_parent_essay_alert_task(self: Any, submission_id: int) -> dict[str, Any
     max_retries=3,
     default_retry_delay=30,
 )
-def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) -> dict[str, Any]:
+def send_parent_absence_alert_task(
+    self: Any, session_id: int, student_id: int
+) -> dict[str, Any]:
     """
     O'quvchi darsga kelmaganda (15 daqiqalik kutish oynasidan so'ng) ota-onasiga Telegram xabar yuborish.
     Agar o'quvchi 15 daqiqa ichida darsga kelib status 'present' yoki 'late' ga o'zgargan bo'lsa,
@@ -275,7 +302,9 @@ def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) 
         student = User.objects.get(id=student_id)
         student_name = student.get_full_name() or student.email
 
-        rec = AttendanceRecord.objects.filter(session_id=session_id, student_id=student_id).first()
+        rec = AttendanceRecord.objects.filter(
+            session_id=session_id, student_id=student_id
+        ).first()
         if rec is not None and rec.status != "absent":
             return {"status": "cancelled_student_arrived", "current_status": rec.status}
 
@@ -295,7 +324,9 @@ def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) 
             is_approved=True,
         ).select_related("parent")
         for link in links:
-            parent_tg = getattr(link.parent, "telegram_chat_id", None) or getattr(link.parent, "telegram_id", None)
+            parent_tg = getattr(link.parent, "telegram_chat_id", None) or getattr(
+                link.parent, "telegram_id", None
+            )
             if parent_tg and int(parent_tg) not in chat_ids:
                 chat_ids.append(int(parent_tg))
 
@@ -322,7 +353,9 @@ def send_parent_absence_alert_task(self: Any, session_id: int, student_id: int) 
                 )
                 sent_count += 1
             except Exception as exc:
-                logger.warning("Failed to send parent absence alert to %s: %s", chat_id, exc)
+                logger.warning(
+                    "Failed to send parent absence alert to %s: %s", chat_id, exc
+                )
 
         return {"status": "sent", "count": sent_count}
     except Exception as exc:
@@ -364,10 +397,16 @@ def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
             due_str = tuit.due_date.strftime("%d.%m.%Y")
 
             is_today = tuit.due_date == today
-            timing_text = "BUGUN to'lovning oxirgi kuni!" if is_today else f"To'lov muddatiga 2 kun qoldi ({due_str})."
+            timing_text = (
+                "BUGUN to'lovning oxirgi kuni!"
+                if is_today
+                else f"To'lov muddatiga 2 kun qoldi ({due_str})."
+            )
 
             # O'quvchiga Telegram xabar
-            student_tg_id = getattr(student, "telegram_chat_id", None) or getattr(student, "telegram_id", None)
+            student_tg_id = getattr(student, "telegram_chat_id", None) or getattr(
+                student, "telegram_id", None
+            )
             student_msg = (
                 f"💳 <b>Kurs to'lovi eslatmasi!</b>\n\n"
                 f"Hurmatli <b>{student_name}</b>, sizning <b>{group_name}</b> guruhi uchun oylik to'lovingiz: <b>{fee_formatted} so'm</b>.\n"
@@ -376,7 +415,9 @@ def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
             )
             if student_tg_id:
                 try:
-                    TelegramService.send_message(chat_id=student_tg_id, text=student_msg, parse_mode="HTML")
+                    TelegramService.send_message(
+                        chat_id=student_tg_id, text=student_msg, parse_mode="HTML"
+                    )
                     sent_count += 1
                 except Exception:
                     pass
@@ -396,7 +437,11 @@ def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
             )
             for rel in parent_rels:
                 try:
-                    TelegramService.send_message(chat_id=rel.parent_telegram_id, text=parent_msg, parse_mode="HTML")
+                    TelegramService.send_message(
+                        chat_id=rel.parent_telegram_id,
+                        text=parent_msg,
+                        parse_mode="HTML",
+                    )
                     sent_count += 1
                 except Exception:
                     pass
@@ -405,4 +450,3 @@ def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
     except Exception as exc:
         logger.exception("Error in send_tuition_due_alerts_task")
         raise self.retry(exc=exc)
-

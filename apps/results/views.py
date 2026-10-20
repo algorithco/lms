@@ -6,6 +6,7 @@ Endpoints:
     GET /api/results/{id}/detail/     — Natija tafsilotlari
     GET /api/results/stats/           — Umumiy statistika
 """
+
 from django.db.models import Avg, Count, Exists, OuterRef, Q, Sum
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -28,6 +29,7 @@ from .serializers import (
 # My Results (Student)
 # ---------------------------------------------------------------------------
 
+
 class MyResultsView(generics.ListAPIView):
     """
     GET /api/results/my-results/
@@ -48,22 +50,32 @@ class MyResultsView(generics.ListAPIView):
             test_id=OuterRef("test_id"),
         ).filter(
             Q(section__isnull=False)
-            | Q(question_type__in=(
-                Question.QuestionType.GAP_FILL,
-                Question.QuestionType.MATCHING,
-                Question.QuestionType.WRITTEN,
-            ))
+            | Q(
+                question_type__in=(
+                    Question.QuestionType.GAP_FILL,
+                    Question.QuestionType.MATCHING,
+                    Question.QuestionType.WRITTEN,
+                )
+            )
         )
-        return result_queryset_for_user(self.request.user).annotate(
-            is_milliy=Exists(milliy_questions),
-        ).select_related(
-            "test", "test__scoring_profile", "course", "student",
+        return (
+            result_queryset_for_user(self.request.user)
+            .annotate(
+                is_milliy=Exists(milliy_questions),
+            )
+            .select_related(
+                "test",
+                "test__scoring_profile",
+                "course",
+                "student",
+            )
         )
 
 
 # ---------------------------------------------------------------------------
 # Result Detail
 # ---------------------------------------------------------------------------
+
 
 class ResultDetailView(generics.RetrieveAPIView):
     """
@@ -77,9 +89,13 @@ class ResultDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return result_queryset_for_user(self.request.user).select_related(
-            "scoring_profile",
-        ).prefetch_related("section_scores")
+        return (
+            result_queryset_for_user(self.request.user)
+            .select_related(
+                "scoring_profile",
+            )
+            .prefetch_related("section_scores")
+        )
 
     def retrieve(self, request: Request, *args, **kwargs):
         instance = self.get_object()
@@ -90,6 +106,7 @@ class ResultDetailView(generics.RetrieveAPIView):
 # ---------------------------------------------------------------------------
 # Result Stats
 # ---------------------------------------------------------------------------
+
 
 class ResultStatsView(APIView):
     """
@@ -121,25 +138,27 @@ class ResultStatsView(APIView):
 
             # Best percentage (Max)
             from django.db.models import Max
+
             best = qs.aggregate(best=Max("percentage"))["best"]
             stats["best_percentage"] = float(best) if best else 0.0
-            stats["average_percentage"] = (
-                round(float(stats["average_percentage"] or 0), 2)
+            stats["average_percentage"] = round(
+                float(stats["average_percentage"] or 0), 2
             )
-            stats["total_time_spent_seconds"] = (
-                stats["total_time_spent_seconds"] or 0
-            )
+            stats["total_time_spent_seconds"] = stats["total_time_spent_seconds"] or 0
 
             serializer = ResultStatsSerializer(data=stats)
             serializer.is_valid(raise_exception=True)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception:
-            return Response({
-                "total_tests_taken": 0,
-                "total_passed": 0,
-                "total_failed": 0,
-                "average_percentage": 0.0,
-                "best_percentage": 0.0,
-                "total_time_spent_seconds": 0,
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "total_tests_taken": 0,
+                    "total_passed": 0,
+                    "total_failed": 0,
+                    "average_percentage": 0.0,
+                    "best_percentage": 0.0,
+                    "total_time_spent_seconds": 0,
+                },
+                status=status.HTTP_200_OK,
+            )

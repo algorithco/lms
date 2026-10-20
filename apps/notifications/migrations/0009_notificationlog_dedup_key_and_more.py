@@ -5,23 +5,31 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0018_essaysubmission_group_visibility_and_more'),
-        ('notifications', '0008_telegramauthtoken_uniq_tgauth_short_code_active'),
-        ('results', '0007_result_scoring_profile_result_scoring_version_and_more'),
-        ('tests', '0008_examscoringprofile_is_verified_test_scoring_profile'),
+        ("essays", "0018_essaysubmission_group_visibility_and_more"),
+        ("notifications", "0008_telegramauthtoken_uniq_tgauth_short_code_active"),
+        ("results", "0007_result_scoring_profile_result_scoring_version_and_more"),
+        ("tests", "0008_examscoringprofile_is_verified_test_scoring_profile"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='notificationlog',
-            name='dedup_key',
-            field=models.CharField(blank=True, default='', max_length=200, verbose_name='idempotentlik kaliti'),
+            model_name="notificationlog",
+            name="dedup_key",
+            field=models.CharField(
+                blank=True,
+                default="",
+                max_length=200,
+                verbose_name="idempotentlik kaliti",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='notificationlog',
-            constraint=models.UniqueConstraint(condition=models.Q(('dedup_key', ''), _negated=True), fields=('dedup_key',), name='uniq_notification_dedup_key'),
+            model_name="notificationlog",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("dedup_key", ""), _negated=True),
+                fields=("dedup_key",),
+                name="uniq_notification_dedup_key",
+            ),
         ),
     ]

@@ -13,6 +13,7 @@ Models:
     Har bir mezon: 0 / 0.5 / 1 / 1.5 / 2 ball
     Jami: 12 × 2 = 24 ball
 """
+
 from decimal import Decimal
 
 from django.conf import settings
@@ -44,6 +45,7 @@ def is_password_hashed(value: str) -> bool:
 # ---------------------------------------------------------------------------
 # EssayTopic  (essay writing topics)
 # ---------------------------------------------------------------------------
+
 
 class EssayTopic(models.Model):
     """
@@ -108,7 +110,9 @@ class EssayTopic(models.Model):
     sample_outline = models.TextField(
         _("namuna reja (outline)"),
         blank=True,
-        help_text=_("O'quvchiga ko'rsatiladigan namunaviy reja/kirish-ma'no-xulosa struktura."),
+        help_text=_(
+            "O'quvchiga ko'rsatiladigan namunaviy reja/kirish-ma'no-xulosa struktura."
+        ),
     )
     grammar_strictness = models.PositiveSmallIntegerField(
         _("grammatika talabchanligi (%)"),
@@ -119,14 +123,18 @@ class EssayTopic(models.Model):
     national_cert_scale = models.BooleanField(
         _("Milliy sertifikat shkalasi"),
         default=False,
-        help_text=_("Yoqilganda — Milliy sertifikat ball shkalasi bo'yicha baholanadi."),
+        help_text=_(
+            "Yoqilganda — Milliy sertifikat ball shkalasi bo'yicha baholanadi."
+        ),
     )
     password = models.CharField(
         _("parol"),
         max_length=128,
         blank=True,
         default="",
-        help_text=_("O'quvchi esse yozishni boshlash uchun kiritishi kerak bo'lgan parol. Bo'sh = parolsiz."),
+        help_text=_(
+            "O'quvchi esse yozishni boshlash uchun kiritishi kerak bo'lgan parol. Bo'sh = parolsiz."
+        ),
     )
     is_active = models.BooleanField(_("faolmi"), default=True)
     created_by = models.ForeignKey(
@@ -144,7 +152,9 @@ class EssayTopic(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["is_active"], name="idx_essaytopic_active"),
-            models.Index(fields=["subject", "is_active"], name="idx_essaytopic_subj_act"),
+            models.Index(
+                fields=["subject", "is_active"], name="idx_essaytopic_subj_act"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -166,6 +176,7 @@ class EssayTopic(models.Model):
 # ---------------------------------------------------------------------------
 # EssayAssignment  (teacher assigns a topic to one group)
 # ---------------------------------------------------------------------------
+
 
 class EssayAssignment(models.Model):
     """An explicit teacher→group assignment of an essay topic.
@@ -225,6 +236,7 @@ class EssayAssignment(models.Model):
 # EssaySubmission  (student essay)
 # ---------------------------------------------------------------------------
 
+
 class EssaySubmission(models.Model):
     """
     A student's essay submission.
@@ -250,20 +262,35 @@ class EssaySubmission(models.Model):
     # Every status change must go through transition_to() or an atomic
     # conditional update honouring this map — never assign .status blindly.
     STATUS_TRANSITIONS: dict[str, frozenset[str]] = {
-        Status.DRAFT: frozenset({Status.PENDING, Status.PENDING_TEACHER, Status.GRADED, Status.ERROR}),
-        Status.PENDING: frozenset({
-            Status.GRADED, Status.ERROR, Status.PENDING_TEACHER,
-        }),
+        Status.DRAFT: frozenset(
+            {Status.PENDING, Status.PENDING_TEACHER, Status.GRADED, Status.ERROR}
+        ),
+        Status.PENDING: frozenset(
+            {
+                Status.GRADED,
+                Status.ERROR,
+                Status.PENDING_TEACHER,
+            }
+        ),
         Status.ERROR: frozenset({Status.DRAFT}),
-        Status.PENDING_TEACHER: frozenset({
-            Status.DRAFT, Status.TEACHER_REVIEWED,
-        }),
-        Status.GRADED: frozenset({
-            Status.PENDING_TEACHER, Status.TEACHER_REVIEWED,
-        }),
-        Status.AI_EVALUATED: frozenset({
-            Status.PENDING_TEACHER, Status.TEACHER_REVIEWED,
-        }),
+        Status.PENDING_TEACHER: frozenset(
+            {
+                Status.DRAFT,
+                Status.TEACHER_REVIEWED,
+            }
+        ),
+        Status.GRADED: frozenset(
+            {
+                Status.PENDING_TEACHER,
+                Status.TEACHER_REVIEWED,
+            }
+        ),
+        Status.AI_EVALUATED: frozenset(
+            {
+                Status.PENDING_TEACHER,
+                Status.TEACHER_REVIEWED,
+            }
+        ),
         Status.TEACHER_REVIEWED: frozenset(),
     }
 
@@ -468,7 +495,9 @@ class EssaySubmission(models.Model):
     teacher_review_requested = models.BooleanField(
         _("ustoz tekshiruvi so'ralgan"),
         default=False,
-        help_text=_("O'quvchi AI bahosiga rozi bo'lmadi va ustozdan tekshirishni so'radi."),
+        help_text=_(
+            "O'quvchi AI bahosiga rozi bo'lmadi va ustozdan tekshirishni so'radi."
+        ),
     )
     teacher_review_requested_at = models.DateTimeField(
         _("tekshirish so'ralgan vaqt"),
@@ -500,7 +529,9 @@ class EssaySubmission(models.Model):
         decimal_places=1,
         null=True,
         blank=True,
-        help_text=_("O'qituvchi tomonidan tasdiqlangan yakuniy ball (agar mavjud bo'lsa)."),
+        help_text=_(
+            "O'qituvchi tomonidan tasdiqlangan yakuniy ball (agar mavjud bo'lsa)."
+        ),
     )
 
     graded_at = models.DateTimeField(
@@ -637,6 +668,7 @@ class EssaySubmission(models.Model):
     def remaining_seconds(self) -> int:
         """Qolgan vaqt (soniyalarda) — server-side hisob. Manfiy bo'lsa = vaqt tugagan."""
         from django.utils import timezone as tz
+
         if self.topic is None:
             # No topic → no time limit. Return 0 only when there is no active
             # timer start; callers must check is_expired (False) not this value.
@@ -689,6 +721,7 @@ class EssaySubmission(models.Model):
 # AIEvaluation  (AI pre-grading results)
 # ---------------------------------------------------------------------------
 
+
 class AIEvaluation(models.Model):
     """
     AI-generated evaluation of an essay.
@@ -713,6 +746,7 @@ class AIEvaluation(models.Model):
         {"type": "punctuation", "text": "...", "suggestion": "...", "line": 7}
     ]
     """
+
     submission = models.OneToOneField(
         EssaySubmission,
         on_delete=models.CASCADE,
@@ -761,6 +795,7 @@ class AIEvaluation(models.Model):
 # TeacherReview  (human review)
 # ---------------------------------------------------------------------------
 
+
 class TeacherReview(models.Model):
     """
     Teacher's final review and scoring.
@@ -770,6 +805,7 @@ class TeacherReview(models.Model):
         - Add their own feedback
         - Override the final grade
     """
+
     submission = models.OneToOneField(
         EssaySubmission,
         on_delete=models.CASCADE,
@@ -783,9 +819,7 @@ class TeacherReview(models.Model):
         blank=True,
         related_name="essay_reviews",
         verbose_name=_("tekshirgan o'qituvchi"),
-        help_text=_(
-            "O'qituvchi o'chirilganda tarix saqlanib qoladi (SET_NULL)."
-        ),
+        help_text=_("O'qituvchi o'chirilganda tarix saqlanib qoladi (SET_NULL)."),
     )
     criteria_scores = models.JSONField(
         _("ustoz mezon ballari (JSON)"),
@@ -818,6 +852,7 @@ class TeacherReview(models.Model):
 # ---------------------------------------------------------------------------
 # EssayCriterionScore  (12-mezon grading rubric)
 # ---------------------------------------------------------------------------
+
 
 class EssayGradingCache(models.Model):
     """
@@ -1064,6 +1099,7 @@ class EssayGradingCache(models.Model):
 
 class EssayRewriteCache(models.Model):
     """Persistent cache of improved essay text, keyed by essay + grading context."""
+
     text_hash = models.CharField(max_length=64, unique=True, db_index=True)
     essay_text = models.TextField()
     improved_content = models.TextField()
@@ -1094,6 +1130,7 @@ class EssayCriterionScore(models.Model):
     each scored on a {0, 0.5, 1, 1.5, 2} scale (max 2 points each).
     Total max score: 12 × 2 = 24.
     """
+
     CRITERION_NAMES = {
         1: "Mavzuning to'liq va teran ochib berilishi",
         2: "Fikrning mantiqiy izchilligi va kompozitsion yaxlitlik",
@@ -1131,7 +1168,9 @@ class EssayCriterionScore(models.Model):
     }
 
     VALID_SCORES = {0, 0.5, 1, 1.5, 2}
-    IELTS_VALID_SCORES = {Decimal(str(i * 0.5)) for i in range(0, 19)} | {i * 0.5 for i in range(0, 19)}
+    IELTS_VALID_SCORES = {Decimal(str(i * 0.5)) for i in range(0, 19)} | {
+        i * 0.5 for i in range(0, 19)
+    }
 
     submission = models.ForeignKey(
         EssaySubmission,
@@ -1176,7 +1215,10 @@ class EssayCriterionScore(models.Model):
         is_ielts = self.name in self.IELTS_CRITERION_NAMES.values() or (
             self.submission_id
             and getattr(self.submission, "topic", None)
-            and (self.submission.topic.subject == "english" or str(self.submission.topic.rubric_type).startswith("ielts"))
+            and (
+                self.submission.topic.subject == "english"
+                or str(self.submission.topic.rubric_type).startswith("ielts")
+            )
         )
         if is_ielts:
             return f"{self.name}: Band {self.score}/9.0"
@@ -1186,14 +1228,24 @@ class EssayCriterionScore(models.Model):
     def clean(self):
         """Validate score is in allowed set {0, 0.5, 1, 1.5, 2} (or Band 0.0-9.0 for IELTS)."""
         from django.core.exceptions import ValidationError
+
         is_ielts = self.name in self.IELTS_CRITERION_NAMES.values() or (
             self.submission_id
             and getattr(self.submission, "topic", None)
-            and (self.submission.topic.subject == "english" or str(self.submission.topic.rubric_type).startswith("ielts"))
+            and (
+                self.submission.topic.subject == "english"
+                or str(self.submission.topic.rubric_type).startswith("ielts")
+            )
         )
         if is_ielts:
-            if self.score not in self.IELTS_VALID_SCORES or self.score < 0 or self.score > Decimal("9.0"):
-                raise ValidationError(f"IELTS Band ball {self.score} yaroqsiz (0.0 dan 9.0 gacha 0.5 qadam bilan).")
+            if (
+                self.score not in self.IELTS_VALID_SCORES
+                or self.score < 0
+                or self.score > Decimal("9.0")
+            ):
+                raise ValidationError(
+                    f"IELTS Band ball {self.score} yaroqsiz (0.0 dan 9.0 gacha 0.5 qadam bilan)."
+                )
             return
         max_s = self.CRITERION_MAX_SCORES.get(self.criterion_id, Decimal("2.0"))
         if self.score not in self.VALID_SCORES or self.score > max_s:

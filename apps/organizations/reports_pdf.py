@@ -4,6 +4,7 @@ White-Label Monthly Report PDF Generator (apps/organizations/reports_pdf.py).
 Produces professional A4 PDF reports for parent-teacher meetings and academy directors
 incorporating the learning center's custom logo, name, brand color, and stamp/signature.
 """
+
 from __future__ import annotations
 
 import io
@@ -117,7 +118,9 @@ def generate_monthly_group_report_pdf(
 
     # 1. Top Header Banner with Brand Color
     center_name = branding.get("center_name") or "GRAND EDUCATION HAMKOR MARKAZI"
-    header_title = branding.get("header_title") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI"
+    header_title = (
+        branding.get("header_title") or "OYLIK AKADEMIK TAHLIL VA NATIJALAR HISOBOTI"
+    )
     group_name = getattr(group, "name", "Guruh")
     teacher_name = (
         getattr(group, "teacher", None).get_full_name()
@@ -132,19 +135,24 @@ def generate_monthly_group_report_pdf(
             Paragraph(f"Sana: <b>{today_str}</b>", header_subtitle),
         ],
         [
-            Paragraph(f"{header_title}<br/>Guruh: <b>{group_name}</b> | Ustoz: <b>{teacher_name}</b>", header_subtitle),
+            Paragraph(
+                f"{header_title}<br/>Guruh: <b>{group_name}</b> | Ustoz: <b>{teacher_name}</b>",
+                header_subtitle,
+            ),
             Paragraph("Rasmiy hisobot", header_subtitle),
         ],
     ]
 
     banner_table = Table(banner_data, colWidths=[130 * mm, 50 * mm])
     banner_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), brand_color),
-            ("PADDING", (0, 0), (-1, -1), 10),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), brand_color),
+                ("PADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
     )
     story.append(banner_table)
     story.append(Spacer(1, 10))
@@ -172,13 +180,15 @@ def generate_monthly_group_report_pdf(
 
     metrics_table = Table(metric_cards, colWidths=[45 * mm, 45 * mm, 45 * mm, 45 * mm])
     metrics_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
-            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#E2E8F0")),
-            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
-            ("PADDING", (0, 0), (-1, -1), 8),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#E2E8F0")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("PADDING", (0, 0), (-1, -1), 8),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ]
+        )
     )
     story.append(metrics_table)
     story.append(Spacer(1, 12))
@@ -204,30 +214,39 @@ def generate_monthly_group_report_pdf(
         essays = f"{student.get('essays_done', 0)} ta"
         grade = student.get("overall_grade", "Yaxshi")
 
-        table_rows.append([
-            Paragraph(str(idx), table_cell_center),
-            Paragraph(f"<b>{name}</b>", table_cell_style),
-            Paragraph(att, table_cell_center),
-            Paragraph(tests_count, table_cell_center),
-            Paragraph(score, table_cell_center),
-            Paragraph(essays, table_cell_center),
-            Paragraph(f"<b>{grade}</b>", table_cell_center),
-        ])
+        table_rows.append(
+            [
+                Paragraph(str(idx), table_cell_center),
+                Paragraph(f"<b>{name}</b>", table_cell_style),
+                Paragraph(att, table_cell_center),
+                Paragraph(tests_count, table_cell_center),
+                Paragraph(score, table_cell_center),
+                Paragraph(essays, table_cell_center),
+                Paragraph(f"<b>{grade}</b>", table_cell_center),
+            ]
+        )
 
     perf_table = Table(
         table_rows,
         colWidths=[10 * mm, 52 * mm, 22 * mm, 25 * mm, 23 * mm, 24 * mm, 24 * mm],
     )
     perf_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), brand_color),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("PADDING", (0, 0), (-1, -1), 5),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), brand_color),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("PADDING", (0, 0), (-1, -1), 5),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F8FAFC")],
+                ),
+            ]
+        )
     )
     story.append(perf_table)
     story.append(Spacer(1, 20))
@@ -235,7 +254,11 @@ def generate_monthly_group_report_pdf(
     # 4. Stamp, Signature and Official Verification Footer (KeepTogether)
     stamp_path = branding.get("stamp_signature_path")
     footer_elements = []
-    footer_elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#E2E8F0"), spaceAfter=10))
+    footer_elements.append(
+        HRFlowable(
+            width="100%", thickness=1, color=colors.HexColor("#E2E8F0"), spaceAfter=10
+        )
+    )
 
     stamp_cell = Paragraph(
         f"Ustoz: <b>{teacher_name}</b><br/>Imzo: _______________<br/>M.O'.",
@@ -244,6 +267,7 @@ def generate_monthly_group_report_pdf(
     if stamp_path:
         try:
             import os
+
             if os.path.exists(stamp_path):
                 stamp_cell = RLImage(stamp_path, width=35 * mm, height=20 * mm)
         except Exception:
@@ -263,10 +287,12 @@ def generate_monthly_group_report_pdf(
 
     footer_table = Table(footer_data, colWidths=[120 * mm, 60 * mm])
     footer_table.setStyle(
-        TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("PADDING", (0, 0), (-1, -1), 4),
-        ])
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
     )
     footer_elements.append(footer_table)
 

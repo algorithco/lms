@@ -25,16 +25,19 @@ def _dedupe_in_progress(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0005_studentanswer_text_answer'),
+        ("tests", "0005_studentanswer_text_answer"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RunPython(_dedupe_in_progress, migrations.RunPython.noop),
         migrations.AddConstraint(
-            model_name='testattempt',
-            constraint=models.UniqueConstraint(condition=models.Q(('status', 'in_progress')), fields=('test', 'student'), name='uniq_attempt_test_student_in_progress'),
+            model_name="testattempt",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("status", "in_progress")),
+                fields=("test", "student"),
+                name="uniq_attempt_test_student_in_progress",
+            ),
         ),
     ]

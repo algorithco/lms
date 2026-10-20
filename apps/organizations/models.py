@@ -1,6 +1,7 @@
 """
 Organizations app — LearningCenter and CenterBranch models for B2B SaaS.
 """
+
 from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
@@ -58,7 +59,9 @@ class LearningCenter(models.Model):
         max_length=200,
         blank=True,
         default="",
-        help_text=_("Rasmiy hisobot sarlavhasi, masalan 'GRAND EDUCATION Hamkor Markazi'"),
+        help_text=_(
+            "Rasmiy hisobot sarlavhasi, masalan 'GRAND EDUCATION Hamkor Markazi'"
+        ),
     )
     created_at = models.DateTimeField(_("Yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Yangilangan"), auto_now=True)
@@ -76,7 +79,11 @@ class LearningCenter(models.Model):
             base_slug = slugify(self.name) or "center"
             candidate = base_slug
             idx = 1
-            while LearningCenter.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+            while (
+                LearningCenter.objects.filter(slug=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            ):
                 candidate = f"{base_slug}-{idx}"
                 idx += 1
             self.slug = candidate

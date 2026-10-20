@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -15,63 +14,223 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='ArenaRoom',
+            name="ArenaRoom",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('status', models.CharField(choices=[('waiting', 'Kutilmoqda'), ('started', 'Boshlandi'), ('finished', 'Tugadi')], default='waiting', max_length=20, verbose_name='holat')),
-                ('total_questions', models.PositiveIntegerField(default=10, verbose_name='jami savollar')),
-                ('time_per_question', models.PositiveIntegerField(default=15, verbose_name='savol uchun vaqt (soniya)')),
-                ('current_question_index', models.PositiveIntegerField(default=0, verbose_name='joriy savol indeksi')),
-                ('room_code', models.CharField(blank=True, max_length=10, unique=True, verbose_name='xona kodi')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('started_at', models.DateTimeField(blank=True, null=True, verbose_name='boshlangan')),
-                ('finished_at', models.DateTimeField(blank=True, null=True, verbose_name='tugagan')),
-                ('player1', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arena_rooms_as_player1', to=settings.AUTH_USER_MODEL, verbose_name="1-o'yinchi")),
-                ('player2', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='arena_rooms_as_player2', to=settings.AUTH_USER_MODEL, verbose_name="2-o'yinchi")),
-                ('winner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='arena_wins', to=settings.AUTH_USER_MODEL, verbose_name="g'olib")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("waiting", "Kutilmoqda"),
+                            ("started", "Boshlandi"),
+                            ("finished", "Tugadi"),
+                        ],
+                        default="waiting",
+                        max_length=20,
+                        verbose_name="holat",
+                    ),
+                ),
+                (
+                    "total_questions",
+                    models.PositiveIntegerField(
+                        default=10, verbose_name="jami savollar"
+                    ),
+                ),
+                (
+                    "time_per_question",
+                    models.PositiveIntegerField(
+                        default=15, verbose_name="savol uchun vaqt (soniya)"
+                    ),
+                ),
+                (
+                    "current_question_index",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="joriy savol indeksi"
+                    ),
+                ),
+                (
+                    "room_code",
+                    models.CharField(
+                        blank=True, max_length=10, unique=True, verbose_name="xona kodi"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "started_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="boshlangan"
+                    ),
+                ),
+                (
+                    "finished_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="tugagan"),
+                ),
+                (
+                    "player1",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="arena_rooms_as_player1",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="1-o'yinchi",
+                    ),
+                ),
+                (
+                    "player2",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="arena_rooms_as_player2",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="2-o'yinchi",
+                    ),
+                ),
+                (
+                    "winner",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="arena_wins",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="g'olib",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Arena xonasi',
-                'verbose_name_plural': 'Arena xonalari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Arena xonasi",
+                "verbose_name_plural": "Arena xonalari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ArenaQuestion',
+            name="ArenaQuestion",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('question_text', models.TextField(verbose_name='savol matni')),
-                ('option_a', models.CharField(max_length=300, verbose_name='A variant')),
-                ('option_b', models.CharField(max_length=300, verbose_name='B variant')),
-                ('option_c', models.CharField(max_length=300, verbose_name='C variant')),
-                ('option_d', models.CharField(max_length=300, verbose_name='D variant')),
-                ('correct_answer', models.CharField(choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], max_length=1, verbose_name="to'g'ri javob")),
-                ('position', models.PositiveIntegerField(default=0, verbose_name='tartib')),
-                ('points', models.PositiveIntegerField(default=10, verbose_name='ball')),
-                ('room', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='questions', to='arena.arenaroom', verbose_name='xona')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("question_text", models.TextField(verbose_name="savol matni")),
+                (
+                    "option_a",
+                    models.CharField(max_length=300, verbose_name="A variant"),
+                ),
+                (
+                    "option_b",
+                    models.CharField(max_length=300, verbose_name="B variant"),
+                ),
+                (
+                    "option_c",
+                    models.CharField(max_length=300, verbose_name="C variant"),
+                ),
+                (
+                    "option_d",
+                    models.CharField(max_length=300, verbose_name="D variant"),
+                ),
+                (
+                    "correct_answer",
+                    models.CharField(
+                        choices=[("a", "A"), ("b", "B"), ("c", "C"), ("d", "D")],
+                        max_length=1,
+                        verbose_name="to'g'ri javob",
+                    ),
+                ),
+                (
+                    "position",
+                    models.PositiveIntegerField(default=0, verbose_name="tartib"),
+                ),
+                (
+                    "points",
+                    models.PositiveIntegerField(default=10, verbose_name="ball"),
+                ),
+                (
+                    "room",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="questions",
+                        to="arena.arenaroom",
+                        verbose_name="xona",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Arena savoli',
-                'verbose_name_plural': 'Arena savollari',
-                'ordering': ['position'],
+                "verbose_name": "Arena savoli",
+                "verbose_name_plural": "Arena savollari",
+                "ordering": ["position"],
             },
         ),
         migrations.CreateModel(
-            name='ArenaPlayer',
+            name="ArenaPlayer",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('score', models.PositiveIntegerField(default=0, verbose_name='ball')),
-                ('correct_answers', models.PositiveIntegerField(default=0, verbose_name="to'g'ri javoblar")),
-                ('answered_questions', models.PositiveIntegerField(default=0, verbose_name='javob berilgan')),
-                ('is_connected', models.BooleanField(default=False, verbose_name='ulanganmi')),
-                ('joined_at', models.DateTimeField(auto_now_add=True, verbose_name="qo'shilgan")),
-                ('player', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arena_players', to=settings.AUTH_USER_MODEL, verbose_name="o'yinchi")),
-                ('room', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='players', to='arena.arenaroom', verbose_name='xona')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("score", models.PositiveIntegerField(default=0, verbose_name="ball")),
+                (
+                    "correct_answers",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="to'g'ri javoblar"
+                    ),
+                ),
+                (
+                    "answered_questions",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="javob berilgan"
+                    ),
+                ),
+                (
+                    "is_connected",
+                    models.BooleanField(default=False, verbose_name="ulanganmi"),
+                ),
+                (
+                    "joined_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="qo'shilgan"),
+                ),
+                (
+                    "player",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="arena_players",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'yinchi",
+                    ),
+                ),
+                (
+                    "room",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="players",
+                        to="arena.arenaroom",
+                        verbose_name="xona",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "Arena o'yinchisi",
-                'verbose_name_plural': "Arena o'yinchilari",
-                'unique_together': {('room', 'player')},
+                "verbose_name": "Arena o'yinchisi",
+                "verbose_name_plural": "Arena o'yinchilari",
+                "unique_together": {("room", "player")},
             },
         ),
     ]

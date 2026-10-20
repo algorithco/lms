@@ -6,6 +6,7 @@ Endpoints:
     GET /api/results/{id}/detail/     — Natija tafsilotlari
     GET /api/results/stats/           — Umumiy statistika
 """
+
 from django.urls import path
 
 from . import views

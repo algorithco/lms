@@ -11,6 +11,7 @@ Endpoints:
     POST /arena/api/rooms/join/        — Join a custom room by invite code
     POST /arena/api/queue/             — Join the matchmaking queue (REST shortcut)
 """
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import F, Window
 from django.db.models.functions import RowNumber
@@ -56,9 +57,12 @@ def _leaderboard_rows(limit: int = 50):
 
 def _my_stats(user) -> dict:
     profile = services.get_or_create_profile(user)
-    rank = ArenaProfile.objects.filter(
-        user__is_bot=False, rating__gt=profile.rating
-    ).count() + 1
+    rank = (
+        ArenaProfile.objects.filter(
+            user__is_bot=False, rating__gt=profile.rating
+        ).count()
+        + 1
+    )
 
     # XP/coins earned through duels (games economy)
     xp = coins = 0
@@ -92,6 +96,7 @@ def _my_stats(user) -> dict:
 # Pages
 # ---------------------------------------------------------------------------
 
+
 def arena_lobby_view(request: HttpRequest) -> HttpResponse:
     """GET /arena/ — SPA shell (React Router owns /arena/)."""
     return serve_spa_shell(request, fallback="/")
@@ -114,6 +119,7 @@ def arena_auth_required(view_func):
     When authenticated via JWT, CSRF checks are exempted.
     When accessing with session cookie, standard CSRF & login_required are preserved.
     """
+
     @functools.wraps(view_func)
     def _wrapped_view(request: HttpRequest, *args, **kwargs):
         jwt_auth = JWTAuthentication()
@@ -128,7 +134,9 @@ def arena_auth_required(view_func):
                         request.user = user
                         return csrf_exempt(view_func)(request, *args, **kwargs)
             except Exception:
-                return JsonResponse({"detail": "Noto'g'ri yoki eskirgan token."}, status=401)
+                return JsonResponse(
+                    {"detail": "Noto'g'ri yoki eskirgan token."}, status=401
+                )
         return login_required(view_func)(request, *args, **kwargs)
 
     return _wrapped_view
@@ -137,6 +145,7 @@ def arena_auth_required(view_func):
 # ---------------------------------------------------------------------------
 # JSON API
 # ---------------------------------------------------------------------------
+
 
 @arena_auth_required
 def arena_api_leaderboard(request: HttpRequest) -> JsonResponse:
@@ -153,24 +162,23 @@ def arena_api_stats(request: HttpRequest) -> JsonResponse:
 @arena_auth_required
 def arena_api_invites(request: HttpRequest) -> JsonResponse:
     """GET /arena/api/invites/ — my pending custom-room invite codes."""
-    rooms = (
-        ArenaRoom.objects.filter(
-            player1=request.user,
-            mode=ArenaRoom.Mode.CUSTOM,
-            status=ArenaRoom.Status.WAITING,
-        )
-        .order_by("-created_at")
+    rooms = ArenaRoom.objects.filter(
+        player1=request.user,
+        mode=ArenaRoom.Mode.CUSTOM,
+        status=ArenaRoom.Status.WAITING,
+    ).order_by("-created_at")
+    return JsonResponse(
+        {
+            "invites": [
+                {
+                    "room_code": r.room_code,
+                    "created_at": r.created_at.isoformat(),
+                    "total_questions": r.total_questions,
+                }
+                for r in rooms
+            ],
+        }
     )
-    return JsonResponse({
-        "invites": [
-            {
-                "room_code": r.room_code,
-                "created_at": r.created_at.isoformat(),
-                "total_questions": r.total_questions,
-            }
-            for r in rooms
-        ],
-    })
 
 
 @arena_auth_required
@@ -178,11 +186,14 @@ def arena_api_invites(request: HttpRequest) -> JsonResponse:
 def arena_api_room_create(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/rooms/create/ — create a custom room with invite code."""
     room = services.create_custom_room(request.user)
-    return JsonResponse({
-        "room_code": room.room_code,
-        "url": f"/arena/{room.room_code}/",
-        "message": "Xona yaratildi. Invite kodni do'stingizga yuboring.",
-    }, status=201)
+    return JsonResponse(
+        {
+            "room_code": room.room_code,
+            "url": f"/arena/{room.room_code}/",
+            "message": "Xona yaratildi. Invite kodni do'stingizga yuboring.",
+        },
+        status=201,
+    )
 
 
 @arena_auth_required
@@ -193,6 +204,7 @@ def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     if not code and request.body:
         try:
             import json as _json
+
             body = _json.loads(request.body)
             code = body.get("code", "") if isinstance(body, dict) else ""
         except Exception:
@@ -203,11 +215,13 @@ def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     if room is None:
         return JsonResponse({"error": error or "Xonaga qo'shib bo'lmadi."}, status=400)
 
-    return JsonResponse({
-        "room_code": room.room_code,
-        "url": f"/arena/{room.room_code}/",
-        "message": "Xonaga qo'shildingiz! Duel boshlanmoqda.",
-    })
+    return JsonResponse(
+        {
+            "room_code": room.room_code,
+            "url": f"/arena/{room.room_code}/",
+            "message": "Xonaga qo'shildingiz! Duel boshlanmoqda.",
+        }
+    )
 
 
 @arena_auth_required
@@ -216,13 +230,17 @@ def arena_api_queue(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/queue/ — join matchmaking queue (REST convenience)."""
     entry, room = services.join_matchmaking_queue(request.user)
     if room is not None:
-        return JsonResponse({
-            "matched": True,
-            "room_code": room.room_code,
-            "url": f"/arena/{room.room_code}/",
-        })
-    return JsonResponse({
-        "matched": False,
-        "position": services.queue_position(request.user),
-        "bot_fallback_seconds": int(services._bot_fallback_seconds()),
-    })
+        return JsonResponse(
+            {
+                "matched": True,
+                "room_code": room.room_code,
+                "url": f"/arena/{room.room_code}/",
+            }
+        )
+    return JsonResponse(
+        {
+            "matched": False,
+            "position": services.queue_position(request.user),
+            "bot_fallback_seconds": int(services._bot_fallback_seconds()),
+        }
+    )

@@ -4,40 +4,95 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('results', '0005_certificatenumbercounter'),
+        ("results", "0005_certificatenumbercounter"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ResultSectionScore',
+            name="ResultSectionScore",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('section_code', models.CharField(blank=True, max_length=20, verbose_name="bo'lim kodi")),
-                ('section_name', models.CharField(blank=True, max_length=120, verbose_name="bo'lim nomi")),
-                ('earned', models.DecimalField(decimal_places=2, default=0, max_digits=7, verbose_name="to'plangan ball")),
-                ('maximum', models.DecimalField(decimal_places=2, default=0, max_digits=7, verbose_name='maksimal ball')),
-                ('weight', models.DecimalField(decimal_places=2, default=1, max_digits=5, verbose_name='vazn')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "section_code",
+                    models.CharField(
+                        blank=True, max_length=20, verbose_name="bo'lim kodi"
+                    ),
+                ),
+                (
+                    "section_name",
+                    models.CharField(
+                        blank=True, max_length=120, verbose_name="bo'lim nomi"
+                    ),
+                ),
+                (
+                    "earned",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=7,
+                        verbose_name="to'plangan ball",
+                    ),
+                ),
+                (
+                    "maximum",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=7,
+                        verbose_name="maksimal ball",
+                    ),
+                ),
+                (
+                    "weight",
+                    models.DecimalField(
+                        decimal_places=2, default=1, max_digits=5, verbose_name="vazn"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "Bo'lim bali",
-                'verbose_name_plural': "Bo'lim ballari",
+                "verbose_name": "Bo'lim bali",
+                "verbose_name_plural": "Bo'lim ballari",
             },
         ),
         migrations.AddField(
-            model_name='result',
-            name='grading_status',
-            field=models.CharField(default='graded', help_text='graded = yakuniy; pending_grading = yozma baho kutilmoqda.', max_length=20, verbose_name='baholash holati'),
+            model_name="result",
+            name="grading_status",
+            field=models.CharField(
+                default="graded",
+                help_text="graded = yakuniy; pending_grading = yozma baho kutilmoqda.",
+                max_length=20,
+                verbose_name="baholash holati",
+            ),
         ),
         migrations.AddField(
-            model_name='result',
-            name='objective_score',
-            field=models.DecimalField(decimal_places=2, default=0, help_text="Avtomatik tekshiriladigan savollar yig'indisi.", max_digits=7, verbose_name='obyektiv ball'),
+            model_name="result",
+            name="objective_score",
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                help_text="Avtomatik tekshiriladigan savollar yig'indisi.",
+                max_digits=7,
+                verbose_name="obyektiv ball",
+            ),
         ),
         migrations.AddField(
-            model_name='result',
-            name='rubric_version',
-            field=models.CharField(blank=True, default='', help_text='Yozma bahoni bergan esse rubrikasi versiyasi.', max_length=40, verbose_name='rubrika versiyasi'),
+            model_name="result",
+            name="rubric_version",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Yozma bahoni bergan esse rubrikasi versiyasi.",
+                max_length=40,
+                verbose_name="rubrika versiyasi",
+            ),
         ),
     ]

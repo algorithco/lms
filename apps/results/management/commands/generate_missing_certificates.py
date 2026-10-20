@@ -6,6 +6,7 @@ O'tgan lekin sertifikati yo'q natijalar uchun PDF sertifikat yaratadi.
 Usage:
     python manage.py generate_missing_certificates
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,10 +29,12 @@ class Command(BaseCommand):
         missing = passed_ids - cert_ids
 
         if not missing:
-            self.stdout.write(self.style.SUCCESS(
-                f"✅ Barcha o'tgan testlar sertifikatga ega "
-                f"({Certificate.objects.count()} ta sertifikat)"
-            ))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"✅ Barcha o'tgan testlar sertifikatga ega "
+                    f"({Certificate.objects.count()} ta sertifikat)"
+                )
+            )
             return
 
         self.stdout.write(f"📝 {len(missing)} ta sertifikat kerak...")
@@ -43,24 +46,28 @@ class Command(BaseCommand):
         failed = 0
 
         for result_id in missing:
-            result = Result.objects.select_related(
-                "student", "test", "course"
-            ).get(id=result_id)
+            result = Result.objects.select_related("student", "test", "course").get(
+                id=result_id
+            )
 
             try:
                 _generate_certificate_sync(result)
                 created += 1
-                self.stdout.write(self.style.SUCCESS(
-                    f"  ✅ {result.student.get_full_name()} — "
-                    f"{result.test.title} — {result.percentage}%"
-                ))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"  ✅ {result.student.get_full_name()} — "
+                        f"{result.test.title} — {result.percentage}%"
+                    )
+                )
             except Exception as e:
                 failed += 1
-                self.stdout.write(self.style.ERROR(
-                    f"  ❌ {result.student.get_full_name()} — {e}"
-                ))
+                self.stdout.write(
+                    self.style.ERROR(f"  ❌ {result.student.get_full_name()} — {e}")
+                )
 
-        self.stdout.write(self.style.SUCCESS(
-            f"\n📊 Natija: {created} yaratildi, {failed} xato, "
-            f"{Certificate.objects.count()} ta jami sertifikat"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n📊 Natija: {created} yaratildi, {failed} xato, "
+                f"{Certificate.objects.count()} ta jami sertifikat"
+            )
+        )

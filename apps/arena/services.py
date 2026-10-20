@@ -17,6 +17,7 @@ ELO model:
     new = max(100, round(r + K * (outcome - expected)))
     outcome: win=1.0, draw=0.5, loss=0.0
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,8 +44,8 @@ ELO_FLOOR = 100
 
 # Speed tiers: (max_seconds, bonus fraction of base points)
 TIME_BONUS_TIERS = [
-    (3, 0.5),   # ≤3s  → +50%
-    (5, 0.3),   # ≤5s  → +30%
+    (3, 0.5),  # ≤3s  → +50%
+    (5, 0.3),  # ≤5s  → +30%
     (8, 0.15),  # ≤8s  → +15%
 ]
 
@@ -65,7 +66,9 @@ BOT_ACCURACY = 0.7  # probability a bot answers correctly
 def _get_bot_email() -> str:
     """Get the bot email from settings with a sensible default."""
     from django.conf import settings
+
     return getattr(settings, "ARENA_BOT_EMAIL", "arena.bot@lms.local")
+
 
 # Elo windows used when searching for an opponent
 MATCH_WINDOWS = [150, 400, 100_000]
@@ -83,6 +86,7 @@ def _countdown_seconds() -> float:
 # ELO
 # ---------------------------------------------------------------------------
 
+
 def expected_score(rating_a: int, rating_b: int) -> float:
     """Expected score of player A against player B (0..1)."""
     return 1.0 / (1.0 + 10 ** ((rating_b - rating_a) / 400.0))
@@ -99,9 +103,11 @@ def compute_elo(rating: int, opponent_rating: int, outcome: float) -> int:
 # Profile / game-row helpers
 # ---------------------------------------------------------------------------
 
+
 def get_or_create_profile(user) -> "ArenaProfile":
     """Get or create the ArenaProfile row for a user (bot-safe)."""
     from .models import ArenaProfile
+
     profile, _ = ArenaProfile.objects.get_or_create(
         user=user,
         defaults={"rating": ELO_INITIAL},
@@ -112,6 +118,7 @@ def get_or_create_profile(user) -> "ArenaProfile":
 def get_arena_game():
     """Get (or create) the Game row that tracks Arena XP/coins."""
     from apps.games.models import Game
+
     game = Game.objects.filter(slug=ARENA_GAME_SLUG).first()
     if game is None:
         game = Game.objects.create(
@@ -131,6 +138,7 @@ def get_bot_user():
     import secrets
 
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
     bot = User.objects.filter(email=_get_bot_email()).first()
     if bot is None:
@@ -152,6 +160,7 @@ def get_bot_user():
 # Question generation
 # ---------------------------------------------------------------------------
 
+
 def generate_questions_for_room(room) -> int:
     """Fill the room with questions: DB test questions first, built-in fallback pool."""
     from .models import ArenaQuestion
@@ -163,8 +172,7 @@ def generate_questions_for_room(room) -> int:
                 Question.QuestionType.SINGLE_CHOICE,
                 Question.QuestionType.MULTIPLE_CHOICE,
             ]
-        )
-        .order_by("?")[: room.total_questions]
+        ).order_by("?")[: room.total_questions]
     )
 
     created = 0
@@ -197,21 +205,126 @@ def generate_questions_for_room(room) -> int:
 
     if created < room.total_questions:
         fallback_questions = [
-            {"text": "Ona tili so'zining to'g'ri yozilishi?", "a": "Ona tili", "b": "Ona-tili", "c": "Onatili", "d": "Ana tili", "correct": "a"},
-            {"text": "Qaysi jumlada vergul to'g'ri ishlatilgan?", "a": "U keldi va ketdi", "b": "U keldi, va ketdi", "c": "U keldi, ketdi", "d": "U, keldi ketdi", "correct": "c"},
-            {"text": "Alisher Navoiy nechinchi asrda yashagan?", "a": "XIV asr", "b": "XV asr", "c": "XVI asr", "d": "XIII asr", "correct": "b"},
-            {"text": "'She'r' so'zining to'g'ri plural shakli?", "a": "She'rlar", "b": "She'rlari", "c": "She'rim", "d": "She'rdan", "correct": "a"},
-            {"text": "Qaysi so'z ot chiqarish shaklida?", "a": "Kitob", "b": "Kitobdan", "c": "Kitobga", "d": "Kitobda", "correct": "b"},
-            {"text": "'Gullar' so'zida nechta unli harf bor?", "a": "2", "b": "3", "c": "4", "d": "1", "correct": "b"},
-            {"text": "Navoiyning mashhur asari?", "a": "Boburnoma", "b": "Xamsa", "c": "Muqaddima", "d": "Muhokama", "correct": "b"},
-            {"text": "Gap tuzilishida faol fe'l qaysi?", "a": "Kitob", "b": "Katta", "c": "O'qidi", "d": "Bugun", "correct": "c"},
-            {"text": "'Yurak' so'zining sinonimi?", "a": "Bosh", "b": "Qalb", "c": "Ko'z", "d": "Qo'l", "correct": "b"},
-            {"text": "Qaysi jumlada maf'ul to'g'ri aniqlangan?", "a": "O'quvchi kitobni o'qidi", "b": "O'quvchi kitob o'qidi", "c": "Kitob o'qidi o'quvchi", "d": "O'qidi o'quvchi kitob", "correct": "a"},
-            {"text": "'O'zbekiston' so'zida nechta unli harf bor?", "a": "3", "b": "4", "c": "5", "d": "2", "correct": "b"},
-            {"text": "Qaysi so'z sifat?", "a": "Ko'cha", "b": "Chiroyli", "c": "O'qish", "d": "Deraza", "correct": "b"},
-            {"text": "'Kitob' so'zining kelishik shakli?", "a": "Kitoblar", "b": "Kitobim", "c": "Kitobga", "d": "Kitobchi", "correct": "c"},
-            {"text": "O'zbek alifbosida nechta harf bor?", "a": "26", "b": "28", "c": "29", "d": "30", "correct": "c"},
-            {"text": "'Mehr' so'zining ma'nosi?", "a": "Nafrat", "b": "Muhabbat", "c": "G'azab", "d": "Qayg'u", "correct": "b"},
+            {
+                "text": "Ona tili so'zining to'g'ri yozilishi?",
+                "a": "Ona tili",
+                "b": "Ona-tili",
+                "c": "Onatili",
+                "d": "Ana tili",
+                "correct": "a",
+            },
+            {
+                "text": "Qaysi jumlada vergul to'g'ri ishlatilgan?",
+                "a": "U keldi va ketdi",
+                "b": "U keldi, va ketdi",
+                "c": "U keldi, ketdi",
+                "d": "U, keldi ketdi",
+                "correct": "c",
+            },
+            {
+                "text": "Alisher Navoiy nechinchi asrda yashagan?",
+                "a": "XIV asr",
+                "b": "XV asr",
+                "c": "XVI asr",
+                "d": "XIII asr",
+                "correct": "b",
+            },
+            {
+                "text": "'She'r' so'zining to'g'ri plural shakli?",
+                "a": "She'rlar",
+                "b": "She'rlari",
+                "c": "She'rim",
+                "d": "She'rdan",
+                "correct": "a",
+            },
+            {
+                "text": "Qaysi so'z ot chiqarish shaklida?",
+                "a": "Kitob",
+                "b": "Kitobdan",
+                "c": "Kitobga",
+                "d": "Kitobda",
+                "correct": "b",
+            },
+            {
+                "text": "'Gullar' so'zida nechta unli harf bor?",
+                "a": "2",
+                "b": "3",
+                "c": "4",
+                "d": "1",
+                "correct": "b",
+            },
+            {
+                "text": "Navoiyning mashhur asari?",
+                "a": "Boburnoma",
+                "b": "Xamsa",
+                "c": "Muqaddima",
+                "d": "Muhokama",
+                "correct": "b",
+            },
+            {
+                "text": "Gap tuzilishida faol fe'l qaysi?",
+                "a": "Kitob",
+                "b": "Katta",
+                "c": "O'qidi",
+                "d": "Bugun",
+                "correct": "c",
+            },
+            {
+                "text": "'Yurak' so'zining sinonimi?",
+                "a": "Bosh",
+                "b": "Qalb",
+                "c": "Ko'z",
+                "d": "Qo'l",
+                "correct": "b",
+            },
+            {
+                "text": "Qaysi jumlada maf'ul to'g'ri aniqlangan?",
+                "a": "O'quvchi kitobni o'qidi",
+                "b": "O'quvchi kitob o'qidi",
+                "c": "Kitob o'qidi o'quvchi",
+                "d": "O'qidi o'quvchi kitob",
+                "correct": "a",
+            },
+            {
+                "text": "'O'zbekiston' so'zida nechta unli harf bor?",
+                "a": "3",
+                "b": "4",
+                "c": "5",
+                "d": "2",
+                "correct": "b",
+            },
+            {
+                "text": "Qaysi so'z sifat?",
+                "a": "Ko'cha",
+                "b": "Chiroyli",
+                "c": "O'qish",
+                "d": "Deraza",
+                "correct": "b",
+            },
+            {
+                "text": "'Kitob' so'zining kelishik shakli?",
+                "a": "Kitoblar",
+                "b": "Kitobim",
+                "c": "Kitobga",
+                "d": "Kitobchi",
+                "correct": "c",
+            },
+            {
+                "text": "O'zbek alifbosida nechta harf bor?",
+                "a": "26",
+                "b": "28",
+                "c": "29",
+                "d": "30",
+                "correct": "c",
+            },
+            {
+                "text": "'Mehr' so'zining ma'nosi?",
+                "a": "Nafrat",
+                "b": "Muhabbat",
+                "c": "G'azab",
+                "d": "Qayg'u",
+                "correct": "b",
+            },
         ]
         random.shuffle(fallback_questions)
         for q in fallback_questions[: room.total_questions - created]:
@@ -234,6 +347,7 @@ def generate_questions_for_room(room) -> int:
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
+
 
 def _time_bonus_fraction(time_seconds: float) -> float:
     """Bonus fraction of base points for a response time (0 if too slow)."""
@@ -282,6 +396,7 @@ def score_answer(
 # Answer submission (used by consumer + tests)
 # ---------------------------------------------------------------------------
 
+
 def submit_answer(
     room,
     user_id: int,
@@ -311,9 +426,15 @@ def submit_answer(
         player = ArenaPlayer.objects.get(room=room, player_id=user_id)
 
         # No double answering
-        if ArenaAnswerLog.objects.filter(player=player, position=question_index).exists():
+        if ArenaAnswerLog.objects.filter(
+            player=player, position=question_index
+        ).exists():
             return None
-    except (ArenaRoom.DoesNotExist, ArenaQuestion.DoesNotExist, ArenaPlayer.DoesNotExist):
+    except (
+        ArenaRoom.DoesNotExist,
+        ArenaQuestion.DoesNotExist,
+        ArenaPlayer.DoesNotExist,
+    ):
         return None
 
     if time_seconds is None:
@@ -374,15 +495,20 @@ def bot_decide_answer(room, question_index: int, bot_user_id: int) -> dict[str, 
     if random.random() < BOT_ACCURACY:
         answer = question.correct_answer
     else:
-        answer = random.choice([c for c in ("a", "b", "c", "d") if c != question.correct_answer])
+        answer = random.choice(
+            [c for c in ("a", "b", "c", "d") if c != question.correct_answer]
+        )
 
-    delay = random.uniform(*getattr(settings, "ARENA_BOT_ANSWER_DELAY_RANGE", (3.0, 8.0)))
+    delay = random.uniform(
+        *getattr(settings, "ARENA_BOT_ANSWER_DELAY_RANGE", (3.0, 8.0))
+    )
     return {"answer": answer, "delay": delay}
 
 
 # ---------------------------------------------------------------------------
 # Room lifecycle
 # ---------------------------------------------------------------------------
+
 
 def _create_room_and_players(
     player1,
@@ -412,7 +538,9 @@ def _create_room_and_players(
     return room
 
 
-def join_matchmaking_queue(user, channel_name: str = "") -> tuple[Any, "ArenaRoom | None"]:
+def join_matchmaking_queue(
+    user, channel_name: str = ""
+) -> tuple[Any, "ArenaRoom | None"]:
     """
     Add the user to the queue and try to match them with a waiting opponent.
 
@@ -423,7 +551,9 @@ def join_matchmaking_queue(user, channel_name: str = "") -> tuple[Any, "ArenaRoo
 
     with transaction.atomic():
         # Invalidate any previous waiting entries for this user
-        ArenaQueueEntry.objects.filter(user=user, status=ArenaQueueEntry.Status.WAITING).update(
+        ArenaQueueEntry.objects.filter(
+            user=user, status=ArenaQueueEntry.Status.WAITING
+        ).update(
             status=ArenaQueueEntry.Status.EXPIRED,
         )
 
@@ -441,12 +571,14 @@ def join_matchmaking_queue(user, channel_name: str = "") -> tuple[Any, "ArenaRoo
 
         # Both entries are locked — build the duel
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
         player1 = User.objects.get(pk=entry.user_id)
         player2 = User.objects.get(pk=opponent_entry.user_id)
 
-        room = _create_room_and_players(player1, player2, mode=ArenaRoom.Mode.QUEUE,
-                                        status=ArenaRoom.Status.STARTED)
+        room = _create_room_and_players(
+            player1, player2, mode=ArenaRoom.Mode.QUEUE, status=ArenaRoom.Status.STARTED
+        )
         ArenaQueueEntry.objects.filter(pk__in=[entry.pk, opponent_entry.pk]).update(
             status=ArenaQueueEntry.Status.MATCHED,
             matched_at=timezone.now(),
@@ -483,8 +615,10 @@ def _find_opponent(entry):
 def create_custom_room(user) -> "ArenaRoom":
     """Create a WAITING custom room with an invite code for a friend."""
     from .models import ArenaRoom
-    room = _create_room_and_players(user, mode=ArenaRoom.Mode.CUSTOM,
-                                    status=ArenaRoom.Status.WAITING)
+
+    room = _create_room_and_players(
+        user, mode=ArenaRoom.Mode.CUSTOM, status=ArenaRoom.Status.WAITING
+    )
     return room
 
 
@@ -526,9 +660,11 @@ def join_custom_room(room_code: str, user) -> tuple["ArenaRoom | None", str | No
 def create_bot_room(user) -> "ArenaRoom":
     """Create a duel against the simulated AI opponent (mode=BOT)."""
     from .models import ArenaRoom
+
     bot = get_bot_user()
-    room = _create_room_and_players(user, player2=bot, mode=ArenaRoom.Mode.BOT,
-                                    status=ArenaRoom.Status.STARTED)
+    room = _create_room_and_players(
+        user, player2=bot, mode=ArenaRoom.Mode.BOT, status=ArenaRoom.Status.STARTED
+    )
     room.bot_user = bot
     room.save(update_fields=["bot_user"])
     return room
@@ -560,11 +696,16 @@ def assign_bot_opponent(entry_or_id) -> "ArenaRoom | None":
         opponent = _find_opponent(entry)
         if opponent is not None:
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             player1 = User.objects.get(pk=entry.user_id)
             player2 = User.objects.get(pk=opponent.user_id)
-            room = _create_room_and_players(player1, player2, mode=ArenaRoom.Mode.QUEUE,
-                                            status=ArenaRoom.Status.STARTED)
+            room = _create_room_and_players(
+                player1,
+                player2,
+                mode=ArenaRoom.Mode.QUEUE,
+                status=ArenaRoom.Status.STARTED,
+            )
             ArenaQueueEntry.objects.filter(pk__in=[entry.pk, opponent.pk]).update(
                 status=ArenaQueueEntry.Status.MATCHED,
                 matched_at=timezone.now(),
@@ -573,6 +714,7 @@ def assign_bot_opponent(entry_or_id) -> "ArenaRoom | None":
             return room
 
         from django.contrib.auth import get_user_model
+
         user = get_user_model().objects.get(pk=entry.user_id)
         room = create_bot_room(user)
         entry.status = ArenaQueueEntry.Status.MATCHED
@@ -622,7 +764,10 @@ def mark_question_started(room_code: str) -> bool:
             room = ArenaRoom.objects.select_for_update().get(room_code=room_code)
         except ArenaRoom.DoesNotExist:
             return False
-        if room.status != ArenaRoom.Status.STARTED or room.question_started_at is not None:
+        if (
+            room.status != ArenaRoom.Status.STARTED
+            or room.question_started_at is not None
+        ):
             return False
         room.question_started_at = timezone.now()
         room.save(update_fields=["question_started_at"])
@@ -632,6 +777,7 @@ def mark_question_started(room_code: str) -> bool:
 def queue_position(user) -> int:
     """Number of people ahead of the user in the queue (for display)."""
     from .models import ArenaQueueEntry
+
     entry = (
         ArenaQueueEntry.objects.filter(user=user, status=ArenaQueueEntry.Status.WAITING)
         .order_by("created_at")
@@ -651,6 +797,7 @@ def queue_position(user) -> int:
 # ---------------------------------------------------------------------------
 # Game flow control (locking helpers for the consumer)
 # ---------------------------------------------------------------------------
+
 
 def advance_question(
     room_code: str,
@@ -684,31 +831,58 @@ def advance_question(
             return {"finished": True, "index": 0, "total": 0, "advanced": False}
 
         if room.status != ArenaRoom.Status.STARTED:
-            return {"finished": True, "index": room.current_question_index, "total": room.total_questions, "advanced": False}
+            return {
+                "finished": True,
+                "index": room.current_question_index,
+                "total": room.total_questions,
+                "advanced": False,
+            }
 
         # Stale call — the room already moved past the question the caller saw.
         if expected_index is not None and room.current_question_index != expected_index:
-            return {"finished": False, "index": room.current_question_index, "total": room.total_questions, "advanced": False}
+            return {
+                "finished": False,
+                "index": room.current_question_index,
+                "total": room.total_questions,
+                "advanced": False,
+            }
 
         if not force:
             # Both-answered path: never advance past an open question.
             player_count = ArenaPlayer.objects.filter(room=room).count()
             answered = (
-                ArenaAnswerLog.objects.filter(room=room, position=room.current_question_index)
+                ArenaAnswerLog.objects.filter(
+                    room=room, position=room.current_question_index
+                )
                 .values("player_id")
                 .distinct()
                 .count()
             )
             if player_count == 0 or answered < player_count:
-                return {"finished": False, "index": room.current_question_index, "total": room.total_questions, "advanced": False}
+                return {
+                    "finished": False,
+                    "index": room.current_question_index,
+                    "total": room.total_questions,
+                    "advanced": False,
+                }
 
         if room.current_question_index >= room.total_questions - 1:
-            return {"finished": True, "index": room.current_question_index, "total": room.total_questions, "advanced": False}
+            return {
+                "finished": True,
+                "index": room.current_question_index,
+                "total": room.total_questions,
+                "advanced": False,
+            }
 
         room.current_question_index += 1
         room.question_started_at = timezone.now()
         room.save(update_fields=["current_question_index", "question_started_at"])
-        return {"finished": False, "index": room.current_question_index, "total": room.total_questions, "advanced": True}
+        return {
+            "finished": False,
+            "index": room.current_question_index,
+            "total": room.total_questions,
+            "advanced": True,
+        }
 
 
 def both_answered(room_code: str) -> bool:
@@ -740,7 +914,9 @@ def get_scores(room_code: str) -> list[dict[str, Any]]:
     except ArenaRoom.DoesNotExist:
         return []
 
-    players = ArenaPlayer.objects.filter(room=room).select_related("player").order_by("id")
+    players = (
+        ArenaPlayer.objects.filter(room=room).select_related("player").order_by("id")
+    )
     return [
         {
             "user_id": p.player_id,
@@ -758,6 +934,7 @@ def get_scores(room_code: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Duel completion & rewards
 # ---------------------------------------------------------------------------
+
 
 def finish_duel(room_code: str) -> dict[str, Any] | None:
     """
@@ -799,9 +976,15 @@ def finish_duel(room_code: str) -> dict[str, Any] | None:
                 winner = players[1]
             else:
                 winner = None
-            if winner is None and players[0].correct_answers > players[1].correct_answers:
+            if (
+                winner is None
+                and players[0].correct_answers > players[1].correct_answers
+            ):
                 winner = players[0]
-            elif winner is None and players[1].correct_answers > players[0].correct_answers:
+            elif (
+                winner is None
+                and players[1].correct_answers > players[0].correct_answers
+            ):
                 winner = players[1]
         else:
             winner = players[0]
@@ -827,15 +1010,28 @@ def finish_duel(room_code: str) -> dict[str, Any] | None:
                 xp += PERFORMANCE_BONUS[0]
                 coins += PERFORMANCE_BONUS[1]
 
-            opponent = players[0] if p.pk != players[0].pk else (players[1] if len(players) > 1 else None)
-            opp_rating = get_or_create_profile(opponent.player).rating if opponent else profile.rating
+            opponent = (
+                players[0]
+                if p.pk != players[0].pk
+                else (players[1] if len(players) > 1 else None)
+            )
+            opp_rating = (
+                get_or_create_profile(opponent.player).rating
+                if opponent
+                else profile.rating
+            )
             new_rating = compute_elo(profile.rating, opp_rating, outcome)
             p.rating_change = new_rating - profile.rating
             p.xp_earned = xp
             p.coins_earned = coins
-            p.save(update_fields=[
-                "rating_before", "rating_change", "xp_earned", "coins_earned",
-            ])
+            p.save(
+                update_fields=[
+                    "rating_before",
+                    "rating_change",
+                    "xp_earned",
+                    "coins_earned",
+                ]
+            )
 
             # --- ArenaProfile ------------------------------------------
             profile.duels_played += 1
@@ -845,7 +1041,9 @@ def finish_duel(room_code: str) -> dict[str, Any] | None:
             if outcome == 1.0:
                 profile.wins += 1
                 profile.current_win_streak += 1
-                profile.best_win_streak = max(profile.best_win_streak, profile.current_win_streak)
+                profile.best_win_streak = max(
+                    profile.best_win_streak, profile.current_win_streak
+                )
             elif outcome == 0.0:
                 profile.losses += 1
                 profile.current_win_streak = 0
@@ -856,19 +1054,30 @@ def finish_duel(room_code: str) -> dict[str, Any] | None:
 
             # --- UserGameScore (XP/coins through the games economy) -----
             if not p.player.is_bot:
-                _award_game_score(p.player, xp, coins, p.correct_answers,
-                                  p.answered_questions - p.correct_answers,
-                                  p.best_streak)
+                _award_game_score(
+                    p.player,
+                    xp,
+                    coins,
+                    p.correct_answers,
+                    p.answered_questions - p.correct_answers,
+                    p.best_streak,
+                )
 
         room.p1_rating_before = players[0].rating_before if players else None
         room.p2_rating_before = players[1].rating_before if len(players) > 1 else None
         room.p1_rating_change = players[0].rating_change if players else 0
         room.p2_rating_change = players[1].rating_change if len(players) > 1 else 0
-        room.save(update_fields=[
-            "winner", "status", "finished_at",
-            "p1_rating_before", "p2_rating_before",
-            "p1_rating_change", "p2_rating_change",
-        ])
+        room.save(
+            update_fields=[
+                "winner",
+                "status",
+                "finished_at",
+                "p1_rating_before",
+                "p2_rating_before",
+                "p1_rating_change",
+                "p2_rating_change",
+            ]
+        )
 
         # --- Badges (real users only) -----------------------------------
         for p in players:
@@ -886,9 +1095,7 @@ def _duel_summary(room) -> dict[str, Any]:
     from .models import ArenaPlayer
 
     players = list(
-        ArenaPlayer.objects.filter(room=room)
-        .select_related("player")
-        .order_by("id")
+        ArenaPlayer.objects.filter(room=room).select_related("player").order_by("id")
     )
     return {
         "room_code": room.room_code,
@@ -912,7 +1119,9 @@ def _duel_summary(room) -> dict[str, Any]:
     }
 
 
-def _award_game_score(user, xp: int, coins: int, correct: int, wrong: int, best_streak: int) -> None:
+def _award_game_score(
+    user, xp: int, coins: int, correct: int, wrong: int, best_streak: int
+) -> None:
     """Accumulate duel rewards into the user's UserGameScore for the arena game."""
     from django.db.models.functions import Greatest
 
@@ -934,6 +1143,7 @@ def _award_game_score(user, xp: int, coins: int, correct: int, wrong: int, best_
 # ---------------------------------------------------------------------------
 # Achievements / badges (arena-specific)
 # ---------------------------------------------------------------------------
+
 
 def award_badges(user) -> list:
     """
@@ -982,20 +1192,26 @@ def award_badges(user) -> list:
             # Bonus XP into the arena game economy
             try:
                 from apps.games.models import UserGameScore
-                score_row, _ = UserGameScore.objects.get_or_create(user=user, game=get_arena_game())
+
+                score_row, _ = UserGameScore.objects.get_or_create(
+                    user=user, game=get_arena_game()
+                )
                 UserGameScore.objects.filter(pk=score_row.pk).update(
                     total_xp=F("total_xp") + badge.xp_bonus,
                 )
             except Exception:
                 logger.exception("Badge XP bonus failed: user=%s", user.id)
             newly_earned.append(badge)
-            logger.info("Arena badge earned: user=%d, badge=%s", user.id, badge.badge_type)
+            logger.info(
+                "Arena badge earned: user=%d, badge=%s", user.id, badge.badge_type
+            )
 
     return newly_earned
 
 
 def _graded_essay_count(user) -> int:
     from apps.essays.models import EssaySubmission
+
     return EssaySubmission.objects.filter(student=user, status="graded").count()
 
 

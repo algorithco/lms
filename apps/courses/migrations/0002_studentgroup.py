@@ -6,29 +6,58 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0001_initial'),
+        ("courses", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='StudentGroup',
+            name="StudentGroup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150, verbose_name='guruh nomi')),
-                ('description', models.TextField(blank=True, verbose_name='tavsif')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('students', models.ManyToManyField(blank=True, related_name='student_groups', to=settings.AUTH_USER_MODEL, verbose_name='talabalar')),
-                ('teacher', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='managed_groups', to=settings.AUTH_USER_MODEL, verbose_name="o'qituvchi")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150, verbose_name="guruh nomi")),
+                ("description", models.TextField(blank=True, verbose_name="tavsif")),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "students",
+                    models.ManyToManyField(
+                        blank=True,
+                        related_name="student_groups",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="talabalar",
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="managed_groups",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'qituvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Guruh',
-                'verbose_name_plural': 'Guruhlar',
-                'ordering': ['name'],
-                'unique_together': {('teacher', 'name')},
+                "verbose_name": "Guruh",
+                "verbose_name_plural": "Guruhlar",
+                "ordering": ["name"],
+                "unique_together": {("teacher", "name")},
             },
         ),
     ]

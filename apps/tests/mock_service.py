@@ -2,6 +2,7 @@
 Fast Mock Test Service — Ustoz uchun 1 soniyada kalitlar orqali Mock sessiya yaratish
 va o'quvchilarning #MOCK-XXX kodi orqali testga ulanishi.
 """
+
 from __future__ import annotations
 
 import logging
@@ -112,7 +113,9 @@ def create_quick_mock(
     """
     keys = parse_mock_keys(key_string)
     if not keys:
-        raise ValueError("Kalitlar formati noto'g'ri yoki bo'sh. Masalan: 1a2b3c4d... yoki ABCD...")
+        raise ValueError(
+            "Kalitlar formati noto'g'ri yoki bo'sh. Masalan: 1a2b3c4d... yoki ABCD..."
+        )
 
     if custom_code:
         norm_code = custom_code.strip()
@@ -120,7 +123,9 @@ def create_quick_mock(
             norm_code = f"#{norm_code}"
         norm_code = norm_code.upper()
         if Test.objects.filter(mock_code=norm_code).exists():
-            raise ValueError(f"'{norm_code}' kodi allaqachon mavjud. Boshqa kod tanlang.")
+            raise ValueError(
+                f"'{norm_code}' kodi allaqachon mavjud. Boshqa kod tanlang."
+            )
         mock_code = norm_code
     else:
         mock_code = generate_unique_mock_code()
@@ -134,7 +139,9 @@ def create_quick_mock(
         course = _get_or_create_mock_course(teacher)
 
     total_q = len(keys)
-    test_title = title.strip() if title.strip() else f"Milliy Sertifikat Mock Test ({mock_code})"
+    test_title = (
+        title.strip() if title.strip() else f"Milliy Sertifikat Mock Test ({mock_code})"
+    )
     norm_subject = subject if subject in ("uzbek", "english") else "uzbek"
 
     test = Test.objects.create(
@@ -176,7 +183,12 @@ def create_quick_mock(
                 position=c_pos,
             )
 
-    logger.info("Created quick mock test: id=%s, code=%s, questions=%s", test.id, mock_code, total_q)
+    logger.info(
+        "Created quick mock test: id=%s, code=%s, questions=%s",
+        test.id,
+        mock_code,
+        total_q,
+    )
 
     return {
         "success": True,
@@ -209,9 +221,19 @@ def find_mock_by_code(code_str: str) -> Test | None:
         return found
 
     # Aliases backward compatibility
-    if raw_with_hash in ("#MOCK-BMB-DIAGNOSTIC", "#MOCK-SHUKUROV", "MOCK-BMB-DIAGNOSTIC", "MOCK-SHUKUROV"):
+    if raw_with_hash in (
+        "#MOCK-BMB-DIAGNOSTIC",
+        "#MOCK-SHUKUROV",
+        "MOCK-BMB-DIAGNOSTIC",
+        "MOCK-SHUKUROV",
+    ):
         return Test.objects.filter(
-            mock_code__in=["#MOCK-BMB-DIAGNOSTIC", "MOCK-BMB-DIAGNOSTIC", "#MOCK-SHUKUROV", "MOCK-SHUKUROV"],
+            mock_code__in=[
+                "#MOCK-BMB-DIAGNOSTIC",
+                "MOCK-BMB-DIAGNOSTIC",
+                "#MOCK-SHUKUROV",
+                "MOCK-SHUKUROV",
+            ],
             is_active=True,
         ).first()
 
@@ -241,27 +263,37 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
             bmb_counts[grade] += 1
 
         attempt = getattr(r, "attempt", None)
-        cheating_detected = bool(getattr(attempt, "cheating_detected", False)) if attempt else False
-        violation_count = int(getattr(attempt, "violation_count", 0) or 0) if attempt else 0
+        cheating_detected = (
+            bool(getattr(attempt, "cheating_detected", False)) if attempt else False
+        )
+        violation_count = (
+            int(getattr(attempt, "violation_count", 0) or 0) if attempt else 0
+        )
 
-        ranking.append({
-            "rank": idx,
-            "student_id": r.student_id,
-            "student_name": r.student.get_full_name() or r.student.email,
-            "score": float(r.score),
-            "max_score": float(r.max_score),
-            "percentage": float(r.percentage),
-            "bmb_grade": grade,
-            "bmb_title": grade_info["title"],
-            "badge_class": grade_info["badge_class"],
-            "time_taken_seconds": r.time_taken_seconds,
-            "cheating_detected": cheating_detected,
-            "violation_count": violation_count,
-            "calculated_at": r.calculated_at.isoformat(),
-        })
+        ranking.append(
+            {
+                "rank": idx,
+                "student_id": r.student_id,
+                "student_name": r.student.get_full_name() or r.student.email,
+                "score": float(r.score),
+                "max_score": float(r.max_score),
+                "percentage": float(r.percentage),
+                "bmb_grade": grade,
+                "bmb_title": grade_info["title"],
+                "badge_class": grade_info["badge_class"],
+                "time_taken_seconds": r.time_taken_seconds,
+                "cheating_detected": cheating_detected,
+                "violation_count": violation_count,
+                "calculated_at": r.calculated_at.isoformat(),
+            }
+        )
 
     total_candidates = len(ranking)
-    avg_score = round(sum(r["percentage"] for r in ranking) / total_candidates, 1) if total_candidates > 0 else 0.0
+    avg_score = (
+        round(sum(r["percentage"] for r in ranking) / total_candidates, 1)
+        if total_candidates > 0
+        else 0.0
+    )
 
     return {
         "test_id": test_id,

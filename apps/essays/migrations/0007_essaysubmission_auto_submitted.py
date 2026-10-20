@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0006_alter_essaysubmission_options_and_more'),
+        ("essays", "0006_alter_essaysubmission_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='essaysubmission',
-            name='auto_submitted',
-            field=models.BooleanField(default=False, help_text='Vaqt tugagani sababli avtomatik yuborilganmi.', verbose_name='avtomatik yuborilgan'),
+            model_name="essaysubmission",
+            name="auto_submitted",
+            field=models.BooleanField(
+                default=False,
+                help_text="Vaqt tugagani sababli avtomatik yuborilganmi.",
+                verbose_name="avtomatik yuborilgan",
+            ),
         ),
     ]

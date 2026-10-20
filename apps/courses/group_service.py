@@ -1,6 +1,7 @@
 """
 Ustozlar va Repetitorlar Kabineti — Guruh Tahlili, Monitoring va Excel/PDF Eksport Xizmati.
 """
+
 from __future__ import annotations
 
 import io
@@ -27,7 +28,9 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
       - Rasmiy BMB darajalari (A+, A, B+, B, C+, C, Fail)
       - Guruh reytingi va taqsimoti
     """
-    students = list(group.students.filter(is_active=True).order_by("first_name", "last_name"))
+    students = list(
+        group.students.filter(is_active=True).order_by("first_name", "last_name")
+    )
     student_ids = [s.id for s in students]
 
     # Test natijalari
@@ -52,7 +55,10 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
 
     # Kurs to'lovlari (Tuition Billing)
     from apps.tuition.models import StudentTuition
-    tuitions = StudentTuition.objects.filter(group=group, student_id__in=student_ids).order_by("-due_date")
+
+    tuitions = StudentTuition.objects.filter(
+        group=group, student_id__in=student_ids
+    ).order_by("-due_date")
     tuition_by_student: dict[int, StudentTuition] = {}
     for tuit in tuitions:
         if tuit.student_id not in tuition_by_student:
@@ -69,13 +75,16 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
         tests_count = len(s_results)
         avg_test_pct = (
             round(sum(float(r.percentage) for r in s_results) / tests_count, 1)
-            if tests_count > 0 else 0.0
+            if tests_count > 0
+            else 0.0
         )
         if tests_count > 0:
             all_pcts.append(avg_test_pct)
 
         latest_test = s_results[0] if s_results else None
-        latest_score_str = f"{latest_test.score}/{latest_test.max_score}" if latest_test else "—"
+        latest_score_str = (
+            f"{latest_test.score}/{latest_test.max_score}" if latest_test else "—"
+        )
         latest_pct = float(latest_test.percentage) if latest_test else 0.0
 
         # BMB darajasi
@@ -88,8 +97,16 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
         essays_count = len(s_essays)
         graded_essays = [e for e in s_essays if e.total_score is not None]
         avg_essay_score = (
-            round(sum(float(e.final_score if e.final_score is not None else e.total_score) for e in graded_essays) / len(graded_essays), 1)
-            if graded_essays else 0.0
+            round(
+                sum(
+                    float(e.final_score if e.final_score is not None else e.total_score)
+                    for e in graded_essays
+                )
+                / len(graded_essays),
+                1,
+            )
+            if graded_essays
+            else 0.0
         )
 
         last_active = None
@@ -101,30 +118,48 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
         if dates:
             last_active = max(dates).strftime("%d.%m.%Y %H:%M")
 
-        roster.append({
-            "student_id": s.id,
-            "student_name": s.get_full_name() or s.email,
-            "full_name": s.get_full_name() or s.email,
-            "email": s.email,
-            "has_pro": True,
-            "pro_status_label": "⭐ PRO (Faol)",
-            "tests_count": tests_count,
-            "tests_taken": tests_count,
-            "avg_test_percentage": avg_test_pct,
-            "avg_test_pct": avg_test_pct,
-            "latest_test_score": latest_score_str,
-            "latest_test_pct": latest_pct,
-            "latest_test_grade": grade if tests_count > 0 else "—",
-            "essays_count": essays_count,
-            "essays_written": essays_count,
-            "avg_essay_score": avg_essay_score,
-            "bmb_grade": grade if tests_count > 0 else "—",
-            "bmb_title": bmb_info["title"] if tests_count > 0 else "Test topshirmagan",
-            "badge_class": bmb_info["badge_class"] if tests_count > 0 else "badge",
-            "tuition_status": (tuition_by_student.get(s.id).status if tuition_by_student.get(s.id) else "pending"),
-            "tuition_label": ("To'langan" if tuition_by_student.get(s.id) and tuition_by_student.get(s.id).status == "paid" else ("Muddati o'tgan" if tuition_by_student.get(s.id) and tuition_by_student.get(s.id).status == "overdue" else "Kutilmoqda")),
-            "last_active": last_active or "Faollik yo'q",
-        })
+        roster.append(
+            {
+                "student_id": s.id,
+                "student_name": s.get_full_name() or s.email,
+                "full_name": s.get_full_name() or s.email,
+                "email": s.email,
+                "has_pro": True,
+                "pro_status_label": "⭐ PRO (Faol)",
+                "tests_count": tests_count,
+                "tests_taken": tests_count,
+                "avg_test_percentage": avg_test_pct,
+                "avg_test_pct": avg_test_pct,
+                "latest_test_score": latest_score_str,
+                "latest_test_pct": latest_pct,
+                "latest_test_grade": grade if tests_count > 0 else "—",
+                "essays_count": essays_count,
+                "essays_written": essays_count,
+                "avg_essay_score": avg_essay_score,
+                "bmb_grade": grade if tests_count > 0 else "—",
+                "bmb_title": bmb_info["title"]
+                if tests_count > 0
+                else "Test topshirmagan",
+                "badge_class": bmb_info["badge_class"] if tests_count > 0 else "badge",
+                "tuition_status": (
+                    tuition_by_student.get(s.id).status
+                    if tuition_by_student.get(s.id)
+                    else "pending"
+                ),
+                "tuition_label": (
+                    "To'langan"
+                    if tuition_by_student.get(s.id)
+                    and tuition_by_student.get(s.id).status == "paid"
+                    else (
+                        "Muddati o'tgan"
+                        if tuition_by_student.get(s.id)
+                        and tuition_by_student.get(s.id).status == "overdue"
+                        else "Kutilmoqda"
+                    )
+                ),
+                "last_active": last_active or "Faollik yo'q",
+            }
+        )
 
     # Sort roster by avg_test_pct descending
     roster.sort(key=lambda x: x["avg_test_pct"], reverse=True)
@@ -148,7 +183,11 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
             "total_essays_submitted": sum(r["essays_written"] for r in roster),
             "average_test_score": group_avg_pct,
             "average_test_percentage": group_avg_pct,
-            "average_essay_score": round(sum(r["avg_essay_score"] for r in roster) / len(roster), 1) if roster else 0.0,
+            "average_essay_score": round(
+                sum(r["avg_essay_score"] for r in roster) / len(roster), 1
+            )
+            if roster
+            else 0.0,
             "bmb_distribution": bmb_counts,
         },
         "students": roster,
@@ -157,7 +196,11 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
 
 def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
     """O'quvchi ustoz guruhiga qo'shilganda unga avtomatik PRO tarifini faollashtiradi."""
-    from apps.payments.models import SubscriptionPlan, UserSubscription, TeacherSponsorship
+    from apps.payments.models import (
+        SubscriptionPlan,
+        UserSubscription,
+        TeacherSponsorship,
+    )
     from apps.payments.subscriptions import grant_subscription
     from django.utils import timezone
 
@@ -168,10 +211,14 @@ def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
             profile.plan = "pro"
             profile.save(update_fields=["plan"])
     except Exception as e:
-        logger.warning("Could not update profile plan for student %s: %s", student.id, e)
+        logger.warning(
+            "Could not update profile plan for student %s: %s", student.id, e
+        )
 
     # 2. Grant 365-day PRO subscription
-    pro_plan = SubscriptionPlan.objects.filter(plan_type=SubscriptionPlan.PlanType.PRO).first()
+    pro_plan = SubscriptionPlan.objects.filter(
+        plan_type=SubscriptionPlan.PlanType.PRO
+    ).first()
     if pro_plan:
         try:
             grant_subscription(
@@ -183,7 +230,9 @@ def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
                 reason=f"Ustoz guruhi orqali avtomatik PRO: {group.name} (#{group.invite_code})",
             )
         except Exception as e:
-            logger.warning("Could not grant PRO subscription to student %s: %s", student.id, e)
+            logger.warning(
+                "Could not grant PRO subscription to student %s: %s", student.id, e
+            )
 
     # 3. Create or update approved TeacherSponsorship
     try:
@@ -202,7 +251,9 @@ def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
             },
         )
     except Exception as e:
-        logger.warning("Could not create teacher sponsorship for student %s: %s", student.id, e)
+        logger.warning(
+            "Could not create teacher sponsorship for student %s: %s", student.id, e
+        )
 
 
 def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
@@ -211,8 +262,10 @@ def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
     if raw.startswith("#"):
         raw = raw[1:]
 
-    group = StudentGroup.objects.filter(invite_code__iexact=raw).first() or \
-            StudentGroup.objects.filter(invite_code__iexact=f"#{raw}").first()
+    group = (
+        StudentGroup.objects.filter(invite_code__iexact=raw).first()
+        or StudentGroup.objects.filter(invite_code__iexact=f"#{raw}").first()
+    )
 
     if not group:
         raise ValueError(f"'{invite_code}' kodi bo'yicha guruh topilmadi.")
@@ -242,8 +295,12 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
 
     # Ranglar
     HEADER_BG = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
-    ROW_ALT_BG = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
-    SUMMARY_BG = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+    ROW_ALT_BG = PatternFill(
+        start_color="F8FAFC", end_color="F8FAFC", fill_type="solid"
+    )
+    SUMMARY_BG = PatternFill(
+        start_color="E2E8F0", end_color="E2E8F0", fill_type="solid"
+    )
 
     FONT_TITLE = Font(name="Calibri", size=16, bold=True, color="0F172A")
     FONT_SUBTITLE = Font(name="Calibri", size=11, italic=True, color="475569")
@@ -266,7 +323,9 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
     ws.row_dimensions[1].height = 30
 
     # 2. Qo'shimcha ma'lumotlar
-    ws["A2"] = f"Ustoz: {analytics['teacher_name']}  |  Guruh kodi: {analytics['invite_code']}  |  Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    ws["A2"] = (
+        f"Ustoz: {analytics['teacher_name']}  |  Guruh kodi: {analytics['invite_code']}  |  Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    )
     ws["A2"].font = FONT_SUBTITLE
     ws.merge_cells("A2:I2")
     ws.row_dimensions[2].height = 20
@@ -294,14 +353,16 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
         cell = ws.cell(row=4, column=col_idx, value=header)
         cell.fill = HEADER_BG
         cell.font = FONT_HEADER
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True
+        )
         cell.border = THIN_BORDER
 
     # 4. Ma'lumotlar qatorlari
     current_row = 5
     for item in analytics["students"]:
         ws.row_dimensions[current_row].height = 22
-        is_even = (current_row % 2 == 0)
+        is_even = current_row % 2 == 0
         row_fill = ROW_ALT_BG if is_even else None
 
         row_data = [
@@ -343,7 +404,11 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
         ("C", "D", f"{analytics['total_students']} nafar"),
         ("E", "F", f"O'rtacha guruh bali: {analytics['group_avg_percentage']}%"),
         ("G", "G", f"BMB: {analytics['group_bmb_grade']}"),
-        ("H", "J", f"A+: {analytics['bmb_distribution']['A+']} | A: {analytics['bmb_distribution']['A']} | B+: {analytics['bmb_distribution']['B+']} | B: {analytics['bmb_distribution']['B']}"),
+        (
+            "H",
+            "J",
+            f"A+: {analytics['bmb_distribution']['A+']} | A: {analytics['bmb_distribution']['A']} | B+: {analytics['bmb_distribution']['B+']} | B: {analytics['bmb_distribution']['B']}",
+        ),
     ]
     for start_c, end_c, val in summary_cells:
         if start_c != end_c:
@@ -359,7 +424,7 @@ def export_group_to_excel(group: StudentGroup) -> bytes:
 
     # Ustun kengliklarini avtomatik sozlash
     for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
+        max_len = max(len(str(cell.value or "")) for cell in col)
         col_letter = get_column_letter(col[0].column)
         ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
@@ -374,7 +439,13 @@ def export_group_to_pdf(group: StudentGroup) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     analytics = get_group_full_analytics(group)
 
@@ -433,7 +504,11 @@ def export_group_to_pdf(group: StudentGroup) -> bytes:
     story = []
 
     # Sarlavha
-    story.append(Paragraph(f"GRAND EDUCATION — {group.name.upper()} GURUHI HISOBOTI", title_style))
+    story.append(
+        Paragraph(
+            f"GRAND EDUCATION — {group.name.upper()} GURUHI HISOBOTI", title_style
+        )
+    )
     story.append(Spacer(1, 4))
     meta_text = (
         f"<b>Ustoz:</b> {analytics['teacher_name']} &nbsp;&nbsp;|&nbsp;&nbsp; "
@@ -461,42 +536,65 @@ def export_group_to_pdf(group: StudentGroup) -> bytes:
     story.append(Spacer(1, 10))
 
     # Jadval
-    table_data = [[
-        Paragraph("№", th_style),
-        Paragraph("O'quvchi F.I.Sh.", th_style),
-        Paragraph("Email", th_style),
-        Paragraph("Testlar", th_style),
-        Paragraph("O'rtacha %", th_style),
-        Paragraph("BMB Daraja", th_style),
-        Paragraph("Esselar", th_style),
-        Paragraph("Esse bali", th_style),
-        Paragraph("Oxirgi faollik", th_style),
-    ]]
+    table_data = [
+        [
+            Paragraph("№", th_style),
+            Paragraph("O'quvchi F.I.Sh.", th_style),
+            Paragraph("Email", th_style),
+            Paragraph("Testlar", th_style),
+            Paragraph("O'rtacha %", th_style),
+            Paragraph("BMB Daraja", th_style),
+            Paragraph("Esselar", th_style),
+            Paragraph("Esse bali", th_style),
+            Paragraph("Oxirgi faollik", th_style),
+        ]
+    ]
 
     for item in analytics["students"]:
-        table_data.append([
-            Paragraph(str(item["rank"]), td_bold),
-            Paragraph(item["full_name"], td_style),
-            Paragraph(item["email"], td_style),
-            Paragraph(str(item["tests_taken"]), td_bold),
-            Paragraph(f"{item['avg_test_pct']}%", td_bold),
-            Paragraph(item["bmb_grade"], td_bold),
-            Paragraph(str(item["essays_written"]), td_bold),
-            Paragraph(f"{item['avg_essay_score']}", td_bold),
-            Paragraph(item["last_active"], td_style),
-        ])
+        table_data.append(
+            [
+                Paragraph(str(item["rank"]), td_bold),
+                Paragraph(item["full_name"], td_style),
+                Paragraph(item["email"], td_style),
+                Paragraph(str(item["tests_taken"]), td_bold),
+                Paragraph(f"{item['avg_test_pct']}%", td_bold),
+                Paragraph(item["bmb_grade"], td_bold),
+                Paragraph(str(item["essays_written"]), td_bold),
+                Paragraph(f"{item['avg_essay_score']}", td_bold),
+                Paragraph(item["last_active"], td_style),
+            ]
+        )
 
-    col_widths = [1.2 * cm, 5.5 * cm, 4.5 * cm, 1.8 * cm, 2.4 * cm, 2.6 * cm, 1.8 * cm, 2.2 * cm, 4.0 * cm]
+    col_widths = [
+        1.2 * cm,
+        5.5 * cm,
+        4.5 * cm,
+        1.8 * cm,
+        2.4 * cm,
+        2.6 * cm,
+        1.8 * cm,
+        2.2 * cm,
+        4.0 * cm,
+    ]
     t = Table(table_data, colWidths=col_widths, repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F8FAFC")],
+                ),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
 
     story.append(t)
     doc.build(story)

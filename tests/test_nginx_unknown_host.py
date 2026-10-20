@@ -10,6 +10,7 @@ Covers deploy/nginx/nginx-ssl.conf — the template regenerated into the live
 deploy/nginx/nginx.conf on every deploy (see deploy/remote-deploy.sh).
 Pure text parsing: no nginx binary, no network, no root required.
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,11 @@ import re
 from django.test import SimpleTestCase
 
 CONF = os.path.join(
-    os.path.dirname(__file__), "..", "deploy", "nginx", "nginx-ssl.conf",
+    os.path.dirname(__file__),
+    "..",
+    "deploy",
+    "nginx",
+    "nginx-ssl.conf",
 )
 
 
@@ -39,7 +44,7 @@ def split_server_blocks(text: str) -> list[str]:
             elif text[i] == "}":
                 depth -= 1
                 if depth == 0:
-                    blocks.append(text[m.start():i + 1])
+                    blocks.append(text[m.start() : i + 1])
                     break
     return blocks
 
@@ -64,10 +69,16 @@ class Port80CatchAllTests(SimpleTestCase):
         super().setUpClass()
         cls.text = read_conf()
         cls.blocks = split_server_blocks(cls.text)
-        cls.port80 = [b for b in cls.blocks if any(re.match(r"80(\s|$)", ln) for ln in listen_lines(b))]
+        cls.port80 = [
+            b
+            for b in cls.blocks
+            if any(re.match(r"80(\s|$)", ln) for ln in listen_lines(b))
+        ]
 
     def test_has_server_blocks(self):
-        self.assertGreaterEqual(len(self.blocks), 4)  # 80 catch-all, 443 catch-all, redirect, 2x app host
+        self.assertGreaterEqual(
+            len(self.blocks), 4
+        )  # 80 catch-all, 443 catch-all, redirect, 2x app host
 
     def test_first_port80_block_is_default_catchall(self):
         self.assertTrue(self.port80, "no port-80 server block found")
@@ -102,7 +113,9 @@ class Port443CatchAllTests(SimpleTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.blocks = split_server_blocks(read_conf())
-        cls.port443 = [b for b in cls.blocks if any("443" in ln for ln in listen_lines(b))]
+        cls.port443 = [
+            b for b in cls.blocks if any("443" in ln for ln in listen_lines(b))
+        ]
 
     def test_unknown_sni_handshake_rejected(self):
         defaults = [b for b in self.port443 if "default_server" in b]

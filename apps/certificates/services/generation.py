@@ -4,6 +4,7 @@ Other modules (results tasks, notifications tasks, tests sync fallback) must
 call generate_certificate() instead of duplicating PDF/HMAC logic.
 Preserves format, HMAC/QR anti-fraud behavior, identifiers, idempotency.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,11 +24,13 @@ def exam_uses_milliy_rules(test) -> bool:
 
     return test.questions.filter(
         Q(section__isnull=False)
-        | Q(question_type__in=(
-            Question.QuestionType.GAP_FILL,
-            Question.QuestionType.MATCHING,
-            Question.QuestionType.WRITTEN,
-        ))
+        | Q(
+            question_type__in=(
+                Question.QuestionType.GAP_FILL,
+                Question.QuestionType.MATCHING,
+                Question.QuestionType.WRITTEN,
+            )
+        )
     ).exists()
 
 
@@ -75,7 +78,9 @@ def certificate_status(result, *, is_milliy: bool | None = None, profile=None) -
     return "eligible" if result.is_passed else "not_passed"
 
 
-def generate_certificate(result: Any, *, is_milliy: bool | None = None, profile=None) -> tuple[Any, bool]:
+def generate_certificate(
+    result: Any, *, is_milliy: bool | None = None, profile=None
+) -> tuple[Any, bool]:
     """Create-or-reuse Certificate for *result* and generate its PDF.
 
     Returns (cert, created_or_generated_bool). Idempotent: existing GENERATED
@@ -98,7 +103,8 @@ def generate_certificate(result: Any, *, is_milliy: bool | None = None, profile=
     if status != "eligible":
         logger.info(
             "Certificate refused: result=%s status=%s (no PDF, no row)",
-            getattr(result, "id", "?"), status,
+            getattr(result, "id", "?"),
+            status,
         )
         try:
             existing = Certificate.objects.filter(result=result).first()

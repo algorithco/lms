@@ -12,16 +12,21 @@ def backfill_pending_grading_started_at(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0014_remove_essaysubmission_uniq_essay_active_draft'),
+        ("essays", "0014_remove_essaysubmission_uniq_essay_active_draft"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='essaysubmission',
-            name='grading_started_at',
-            field=models.DateTimeField(blank=True, db_index=True, help_text='AI grading dispatch vaqti. PENDING holati cheksiz qolmasligi uchun ishlatiladi.', null=True, verbose_name='AI baholash boshlangan vaqt'),
+            model_name="essaysubmission",
+            name="grading_started_at",
+            field=models.DateTimeField(
+                blank=True,
+                db_index=True,
+                help_text="AI grading dispatch vaqti. PENDING holati cheksiz qolmasligi uchun ishlatiladi.",
+                null=True,
+                verbose_name="AI baholash boshlangan vaqt",
+            ),
         ),
         migrations.RunPython(
             backfill_pending_grading_started_at,

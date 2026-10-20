@@ -90,7 +90,9 @@ class ProviderResolutionTests(TestCase):
         self.assertFalse(ocr_available())
         self.assertIsInstance(get_provider(), NullOCRProvider)
 
-    @override_settings(ESSAY_OCR_PROVIDER="openrouter_vision", ESSAY_OCR_VISION_MODEL="")
+    @override_settings(
+        ESSAY_OCR_PROVIDER="openrouter_vision", ESSAY_OCR_VISION_MODEL=""
+    )
     def test_vision_provider_is_unavailable_without_a_model(self):
         self.assertFalse(get_provider("openrouter_vision").is_available())
 
@@ -148,8 +150,11 @@ class ExtractionTests(TestCase):
 
     def test_an_invalid_page_is_rejected_before_the_provider_runs(self):
         provider = _RecordingProvider()
-        with patch.dict(_REGISTRY, {"recording": provider}), override_settings(
-            ESSAY_OCR_PROVIDER="recording",
+        with (
+            patch.dict(_REGISTRY, {"recording": provider}),
+            override_settings(
+                ESSAY_OCR_PROVIDER="recording",
+            ),
         ):
             with self.assertRaises(OCRValidationError):
                 extract_text([png_bytes(), b"not-an-image"])
@@ -160,13 +165,18 @@ class ExtractionTests(TestCase):
         second_page, _ = normalize_image(png_bytes(color=(0, 0, 255)))
         provider = _RecordingProvider()
 
-        with patch.dict(_REGISTRY, {"recording": provider}), override_settings(
-            ESSAY_OCR_PROVIDER="recording",
+        with (
+            patch.dict(_REGISTRY, {"recording": provider}),
+            override_settings(
+                ESSAY_OCR_PROVIDER="recording",
+            ),
         ):
-            result = extract_text([
-                png_bytes(color=(255, 0, 0)),
-                png_bytes(color=(0, 0, 255)),
-            ])
+            result = extract_text(
+                [
+                    png_bytes(color=(255, 0, 0)),
+                    png_bytes(color=(0, 0, 255)),
+                ]
+            )
 
         self.assertEqual(provider.received, [first_page, second_page])
         self.assertEqual(provider.languages, DEFAULT_LANGUAGES)
@@ -176,8 +186,11 @@ class ExtractionTests(TestCase):
     def test_multi_page_essay_is_one_extraction_call(self):
         """A three-page album is ONE image essay: one extraction, not three."""
         provider = _RecordingProvider()
-        with patch.dict(_REGISTRY, {"recording": provider}), override_settings(
-            ESSAY_OCR_PROVIDER="recording",
+        with (
+            patch.dict(_REGISTRY, {"recording": provider}),
+            override_settings(
+                ESSAY_OCR_PROVIDER="recording",
+            ),
         ):
             extract_text([png_bytes(), png_bytes(), png_bytes()])
         self.assertEqual(len(provider.received), 3)
@@ -185,8 +198,11 @@ class ExtractionTests(TestCase):
 
     def test_a_very_short_transcription_is_flagged_for_review(self):
         provider = _RecordingProvider(text="ok")
-        with patch.dict(_REGISTRY, {"recording": provider}), override_settings(
-            ESSAY_OCR_PROVIDER="recording",
+        with (
+            patch.dict(_REGISTRY, {"recording": provider}),
+            override_settings(
+                ESSAY_OCR_PROVIDER="recording",
+            ),
         ):
             result = extract_text([png_bytes()])
         self.assertTrue(result.is_probably_incomplete)
@@ -196,8 +212,11 @@ class ExtractionTests(TestCase):
         provider = _RecordingProvider(
             text="Bu juda uzun va to'liq esse matni bo'lib, tekshirishga yaroqli.",
         )
-        with patch.dict(_REGISTRY, {"recording": provider}), override_settings(
-            ESSAY_OCR_PROVIDER="recording",
+        with (
+            patch.dict(_REGISTRY, {"recording": provider}),
+            override_settings(
+                ESSAY_OCR_PROVIDER="recording",
+            ),
         ):
             result = extract_text([png_bytes()])
         self.assertFalse(result.is_probably_incomplete)

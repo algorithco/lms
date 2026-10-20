@@ -12,6 +12,7 @@ Tavsiya etilgan chastota: har 1-2 daqiqa (cron yoki systemd timer).
 Cron misoli (har 2 daqiqa):
     */2 * * * * cd /path/to/lms_platform && python manage.py auto_submit_expired_essays >> logs/auto_submit.log 2>&1
 """
+
 from __future__ import annotations
 
 import logging
@@ -77,7 +78,9 @@ class Command(BaseCommand):
                 errors += 1
                 logger.error(
                     "Failed to auto-submit submission=%d: %s",
-                    submission.id, str(e), exc_info=True,
+                    submission.id,
+                    str(e),
+                    exc_info=True,
                 )
                 self.stdout.write(
                     self.style.ERROR(f"  submission={submission.id} → EXCEPTION: {e}")

@@ -10,6 +10,7 @@ Tests that:
     6. converted_score property works correctly
     7. submit-create redirects to essays:result after grading
 """
+
 from __future__ import annotations
 
 import json
@@ -63,6 +64,7 @@ class ImprovedEssayEndpointTests(TestCase):
 
     def setUp(self) -> None:
         from django.core.cache import cache
+
         cache.clear()
         self.student = User.objects.create_user(
             email="improve@test.com",
@@ -159,11 +161,10 @@ class ImprovedEssayEndpointTests(TestCase):
             "Xulosa qilib aytganda, kitob — eng sadoqatli usto va do'stdir."
         )
 
-        with patch(
-            "apps.essays.services._get_llm_client"
-        ) as mock_client, patch(
-            "apps.essays.services._chat_with_fallback"
-        ) as mock_chat:
+        with (
+            patch("apps.essays.services._get_llm_client") as mock_client,
+            patch("apps.essays.services._chat_with_fallback") as mock_chat,
+        ):
             mock_client.return_value = MagicMock()
             mock_chat.return_value = (fake_response, "test-model:free")
 
@@ -238,7 +239,8 @@ class URLReverseResolutionTests(TestCase):
 
         result_routes = [p for p in urlpatterns if p.name == "result"]
         self.assertEqual(
-            len(result_routes), 1,
+            len(result_routes),
+            1,
             f"Expected 1 'result' URL, found {len(result_routes)}: {result_routes}",
         )
 
@@ -432,11 +434,15 @@ class LegacyFlowRoutingTests(TestCase):
         self.client.login(email="student@test.com", password="testpass123")
         url = reverse("telegram_app:essay-start", kwargs={"topic_id": self.topic.id})
         denied = self.client.post(
-            url, {"password": "wrong"}, content_type="application/json",
+            url,
+            {"password": "wrong"},
+            content_type="application/json",
         )
         self.assertEqual(denied.status_code, 403)
         allowed = self.client.post(
-            url, {"password": "secret123"}, content_type="application/json",
+            url,
+            {"password": "secret123"},
+            content_type="application/json",
         )
         self.assertEqual(allowed.status_code, 200)
 
@@ -610,12 +616,18 @@ class ResultDataJsonTests(TestCase):
             summary="Yaxshi natija.",
         )
         names = [
-            "Uslub", "Ikkala qarash va shaxsiy fikr",
-            "Dalillar bilan asoslanganlik", "Kirish/asosiy qism/xulosa",
-            "Mantiqiy-qurilish", "Mantiqiy-mazmuniy izchillik",
-            "Imlo xatolari", "Punktuatsiya xatolari",
-            "Qo'shimcha qo'llash xatolari", "So'z qo'llash uslubiy xatolari",
-            "Leksik xilma-xillik", "Sheva/vulgarizm/parazit so'zlar",
+            "Uslub",
+            "Ikkala qarash va shaxsiy fikr",
+            "Dalillar bilan asoslanganlik",
+            "Kirish/asosiy qism/xulosa",
+            "Mantiqiy-qurilish",
+            "Mantiqiy-mazmuniy izchillik",
+            "Imlo xatolari",
+            "Punktuatsiya xatolari",
+            "Qo'shimcha qo'llash xatolari",
+            "So'z qo'llash uslubiy xatolari",
+            "Leksik xilma-xillik",
+            "Sheva/vulgarizm/parazit so'zlar",
         ]
         for i, name in enumerate(names, 1):
             EssayCriterionScore.objects.create(
@@ -635,7 +647,8 @@ class ResultDataJsonTests(TestCase):
         self.assertEqual(data["status"], EssaySubmission.Status.GRADED)
         self.assertEqual(len(data["criteria"]), 12)
         self.assertEqual(
-            [c["name"] for c in data["criteria"]], names,
+            [c["name"] for c in data["criteria"]],
+            names,
         )
         self.assertEqual(data["total_score"], 19.0)
         self.assertEqual(data["max_score"], 24)
@@ -665,7 +678,9 @@ class ResultDataJsonTests(TestCase):
     def test_result_data_foreign_submission_404(self) -> None:
         """Student A cannot read Student B's result data."""
         other = User.objects.create_user(
-            email="other@test.com", password="testpass123", role="student",
+            email="other@test.com",
+            password="testpass123",
+            role="student",
         )
         sub = EssaySubmission.objects.create(
             student=other,

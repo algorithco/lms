@@ -1,6 +1,7 @@
 """
 Certificates serializers — list and verify.
 """
+
 from rest_framework import serializers
 
 from apps.results.models import Certificate
@@ -16,8 +17,13 @@ class CertificateListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Certificate
         fields = [
-            "id", "certificate_number", "course_title", "test_title",
-            "percentage", "status", "issued_at",
+            "id",
+            "certificate_number",
+            "course_title",
+            "test_title",
+            "percentage",
+            "status",
+            "issued_at",
         ]
 
 

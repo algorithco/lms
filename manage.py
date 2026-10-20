@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
+
 import os
 import sys
 
@@ -7,7 +8,8 @@ import sys
 def main() -> None:
     """Run administrative tasks."""
     default_settings = (
-        "config.settings.test" if len(sys.argv) > 1 and sys.argv[1] == "test"
+        "config.settings.test"
+        if len(sys.argv) > 1 and sys.argv[1] == "test"
         else "config.settings.development"
     )
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", default_settings)

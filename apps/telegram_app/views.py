@@ -8,6 +8,7 @@ Flow:
     4. If user doesn't exist → auto-register + auto-login
     5. Render TMA HTML with JWT token
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,6 +45,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Auto Login / Register (API)
 # ---------------------------------------------------------------------------
+
 
 def _get_client_ip(request: Request) -> str:
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
@@ -82,7 +84,10 @@ def tma_auth_view(request: Request) -> Response:
     cnt = cache.get(tkey, 0)
     if cnt >= 10:
         return Response(
-            {"success": False, "error": "Juda ko'p so'rov. Bir ozdan keyin urinib ko'ring."},
+            {
+                "success": False,
+                "error": "Juda ko'p so'rov. Bir ozdan keyin urinib ko'ring.",
+            },
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
     cache.set(tkey, cnt + 1, timeout=60)
@@ -108,11 +113,13 @@ def tma_auth_view(request: Request) -> Response:
     last_name = telegram_user.get("last_name", "")
 
     try:
-        user, is_new_user = get_or_create_telegram_user({
-            "id": tg_id,
-            "first_name": first_name,
-            "last_name": last_name,
-        })
+        user, is_new_user = get_or_create_telegram_user(
+            {
+                "id": tg_id,
+                "first_name": first_name,
+                "last_name": last_name,
+            }
+        )
     except TelegramIdentityUnverified as exc:
         return Response(
             {"success": False, "error": str(exc)},
@@ -142,29 +149,33 @@ def tma_auth_view(request: Request) -> Response:
 
     from apps.accounts.access import is_platform_admin
 
-    return Response({
-        "success": True,
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.get_full_name(),
-            "role": user.role,
-            "first_name": user.first_name,
-            "is_staff": user.is_staff,
-            "is_superuser": user.is_superuser,
-            "is_platform_admin": is_platform_admin(user),
+    return Response(
+        {
+            "success": True,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.get_full_name(),
+                "role": user.role,
+                "first_name": user.first_name,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+                "is_platform_admin": is_platform_admin(user),
+            },
+            "tokens": {
+                "access": access_token,
+                "refresh": refresh_token,
+            },
+            "is_new_user": is_new_user,
         },
-        "tokens": {
-            "access": access_token,
-            "refresh": refresh_token,
-        },
-        "is_new_user": is_new_user,
-    }, status=status.HTTP_200_OK)
+        status=status.HTTP_200_OK,
+    )
 
 
 # ---------------------------------------------------------------------------
 # TMA Main Page
 # ---------------------------------------------------------------------------
+
 
 def tma_index_view(request: HttpRequest) -> HttpResponse:
     """
@@ -199,6 +210,7 @@ def tma_index_view(request: HttpRequest) -> HttpResponse:
 # TMA Profile (requires JWT)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_profile_view(request: Request) -> Response:
@@ -214,26 +226,29 @@ def tma_profile_view(request: Request) -> Response:
     certificates = Certificate.objects.filter(student=user)
     essays = EssaySubmission.objects.filter(student=user)
 
-    return Response({
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.get_full_name(),
-            "role": user.role,
-        },
-        "stats": {
-            "tests_taken": results.count(),
-            "tests_passed": results.filter(is_passed=True).count(),
-            "certificates": certificates.count(),
-            "total_xp": sum(gs.total_xp for gs in game_scores),
-            "essays_written": essays.count(),
-        },
-    })
+    return Response(
+        {
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.get_full_name(),
+                "role": user.role,
+            },
+            "stats": {
+                "tests_taken": results.count(),
+                "tests_passed": results.filter(is_passed=True).count(),
+                "certificates": certificates.count(),
+                "total_xp": sum(gs.total_xp for gs in game_scores),
+                "essays_written": essays.count(),
+            },
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Arena (API) — live stats, leaderboard, pending invites
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -252,7 +267,9 @@ def tma_arena_view(request: Request) -> Response:
     user = request.user
     profile = services.get_or_create_profile(user)
     rank = (
-        ArenaProfile.objects.filter(user__is_bot=False, rating__gt=profile.rating).count()
+        ArenaProfile.objects.filter(
+            user__is_bot=False, rating__gt=profile.rating
+        ).count()
         + 1
     )
 
@@ -294,29 +311,32 @@ def tma_arena_view(request: Request) -> Response:
         ).order_by("-created_at")
     ]
 
-    return Response({
-        "stats": {
-            "rating": profile.rating,
-            "rank": rank,
-            "wins": profile.wins,
-            "losses": profile.losses,
-            "draws": profile.draws,
-            "duels_played": profile.duels_played,
-            "current_win_streak": profile.current_win_streak,
-            "best_win_streak": profile.best_win_streak,
-            "accuracy": profile.accuracy,
-            "win_rate": profile.win_rate,
-            "xp": xp,
-            "coins": coins,
-        },
-        "leaderboard": leaderboard,
-        "invites": invites,
-    })
+    return Response(
+        {
+            "stats": {
+                "rating": profile.rating,
+                "rank": rank,
+                "wins": profile.wins,
+                "losses": profile.losses,
+                "draws": profile.draws,
+                "duels_played": profile.duels_played,
+                "current_win_streak": profile.current_win_streak,
+                "best_win_streak": profile.best_win_streak,
+                "accuracy": profile.accuracy,
+                "win_rate": profile.win_rate,
+                "xp": xp,
+                "coins": coins,
+            },
+            "leaderboard": leaderboard,
+            "invites": invites,
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Tests List (API)
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -330,25 +350,28 @@ def tma_tests_view(request: Request) -> Response:
         .order_by("-created_at")[:20]
     )
 
-    return Response({
-        "tests": [
-            {
-                "id": t.id,
-                "title": t.title,
-                "description": t.description,
-                "course": t.course.title if t.course else "",
-                "time_limit_minutes": t.time_limit_minutes,
-                "total_questions": t.total_questions,
-                "difficulty": t.difficulty,
-            }
-            for t in tests
-        ],
-    })
+    return Response(
+        {
+            "tests": [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "course": t.course.title if t.course else "",
+                    "time_limit_minutes": t.time_limit_minutes,
+                    "total_questions": t.total_questions,
+                    "difficulty": t.difficulty,
+                }
+                for t in tests
+            ],
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Results List (API)
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -362,26 +385,31 @@ def tma_results_view(request: Request) -> Response:
         .order_by("-calculated_at")[:20]
     )
 
-    return Response({
-        "results": [
-            {
-                "id": r.id,
-                "test_title": r.test.title if r.test else "",
-                "course_title": r.course.title if r.course else "",
-                "percentage": r.percentage,
-                "is_passed": r.is_passed,
-                "correct_answers": r.correct_answers,
-                "total_questions": r.total_questions,
-                "calculated_at": r.calculated_at.isoformat() if r.calculated_at else None,
-            }
-            for r in results
-        ],
-    })
+    return Response(
+        {
+            "results": [
+                {
+                    "id": r.id,
+                    "test_title": r.test.title if r.test else "",
+                    "course_title": r.course.title if r.course else "",
+                    "percentage": r.percentage,
+                    "is_passed": r.is_passed,
+                    "correct_answers": r.correct_answers,
+                    "total_questions": r.total_questions,
+                    "calculated_at": r.calculated_at.isoformat()
+                    if r.calculated_at
+                    else None,
+                }
+                for r in results
+            ],
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Essay Topics (API)
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -410,16 +438,15 @@ def tma_essay_topics_view(request: Request) -> Response:
                 Q(category__in=["ielts_task1", "ielts_task2"])
                 | Q(rubric_type__in=["ielts_task1", "ielts_task2"])
                 | Q(title__icontains="IELTS")
-            ).exclude(
-                Q(category="multilevel") | Q(title__icontains="Multi-level")
-            )
+            ).exclude(Q(category="multilevel") | Q(title__icontains="Multi-level"))
         elif category_filter in ("multilevel", "multi-level", "cefr"):
             topics_qs = topics_qs.filter(
                 Q(category="multilevel")
                 | Q(title__icontains="Multi-level")
                 | Q(title__icontains="CEFR")
             ).exclude(
-                Q(category__in=["ielts_task1", "ielts_task2"]) | Q(title__icontains="IELTS")
+                Q(category__in=["ielts_task1", "ielts_task2"])
+                | Q(title__icontains="IELTS")
             )
     elif subject_filter == "uzbek":
         topics_qs = topics_qs.filter(
@@ -443,46 +470,49 @@ def tma_essay_topics_view(request: Request) -> Response:
         if current is None:
             user_subs[submission.topic_id] = submission
             continue
-        if (
-            (current.is_expired and not submission.is_expired)
-            or (
-                current.is_expired == submission.is_expired
-                and submission.updated_at > current.updated_at
-            )
+        if (current.is_expired and not submission.is_expired) or (
+            current.is_expired == submission.is_expired
+            and submission.updated_at > current.updated_at
         ):
             user_subs[submission.topic_id] = submission
 
-    return Response({
-        "topics": [
-            {
-                "id": t.id,
-                "subject": t.subject,
-                "rubric_type": t.rubric_type,
-                "category": t.category,
-                "title": t.title,
-                "description": t.description,
-                "sample_outline": t.sample_outline,
-                "word_limit_min": t.word_limit_min,
-                "word_limit_max": t.word_limit_max,
-                "time_limit_minutes": t.time_limit_minutes,
-                "has_password": bool(t.password),
-                "user_status": (
-                    {
-                        "submission_id": user_subs[t.id].id,
-                        "status": user_subs[t.id].status,
-                        "total_score": float(user_subs[t.id].total_score) if user_subs[t.id].total_score else None,
-                    }
-                    if t.id in user_subs else None
-                ),
-            }
-            for t in topics
-        ],
-    })
+    return Response(
+        {
+            "topics": [
+                {
+                    "id": t.id,
+                    "subject": t.subject,
+                    "rubric_type": t.rubric_type,
+                    "category": t.category,
+                    "title": t.title,
+                    "description": t.description,
+                    "sample_outline": t.sample_outline,
+                    "word_limit_min": t.word_limit_min,
+                    "word_limit_max": t.word_limit_max,
+                    "time_limit_minutes": t.time_limit_minutes,
+                    "has_password": bool(t.password),
+                    "user_status": (
+                        {
+                            "submission_id": user_subs[t.id].id,
+                            "status": user_subs[t.id].status,
+                            "total_score": float(user_subs[t.id].total_score)
+                            if user_subs[t.id].total_score
+                            else None,
+                        }
+                        if t.id in user_subs
+                        else None
+                    ),
+                }
+                for t in topics
+            ],
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Essay Submissions List (API)
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -510,7 +540,8 @@ def tma_essay_submissions_view(request: Request) -> Response:
                 | Q(topic__rubric_type__in=["ielts_task1", "ielts_task2"])
                 | Q(topic__title__icontains="IELTS")
             ).exclude(
-                Q(topic__category="multilevel") | Q(topic__title__icontains="Multi-level")
+                Q(topic__category="multilevel")
+                | Q(topic__title__icontains="Multi-level")
             )
         elif category_filter in ("multilevel", "multi-level", "cefr"):
             qs = qs.filter(
@@ -518,11 +549,14 @@ def tma_essay_submissions_view(request: Request) -> Response:
                 | Q(topic__title__icontains="Multi-level")
                 | Q(topic__title__icontains="CEFR")
             ).exclude(
-                Q(topic__category__in=["ielts_task1", "ielts_task2"]) | Q(topic__title__icontains="IELTS")
+                Q(topic__category__in=["ielts_task1", "ielts_task2"])
+                | Q(topic__title__icontains="IELTS")
             )
     elif subject_filter == "uzbek":
         qs = qs.filter(
-            Q(topic__subject="uzbek") | Q(topic__subject="") | Q(topic__subject__isnull=True)
+            Q(topic__subject="uzbek")
+            | Q(topic__subject="")
+            | Q(topic__subject__isnull=True)
         ).exclude(
             Q(topic__category__in=["ielts_task1", "ielts_task2", "multilevel"])
             | Q(topic__rubric_type__in=["ielts_task1", "ielts_task2"])
@@ -533,37 +567,48 @@ def tma_essay_submissions_view(request: Request) -> Response:
 
     submissions = qs.order_by("-updated_at")[:20]
 
-    return Response({
-        "submissions": [
-            {
-                "id": s.id,
-                "topic_id": s.topic_id,
-                "topic_title": s.topic.title if s.topic else "",
-                "subject": s.topic.subject if s.topic else "uzbek",
-                "category": s.topic.category if s.topic else "",
-                "rubric_type": s.topic.rubric_type if s.topic else "bmb_12",
-                "status": s.status,
-                "total_score": float(s.total_score) if s.total_score is not None else None,
-                "max_score": s.max_score,
-                "converted_score": s.converted_score,
-                "overall_band": (
-                    float(s.total_score)
-                    if (s.topic and s.topic.subject == "english" and s.total_score is not None)
-                    else None
-                ),
-                "cefr_level": (s.raw_result or {}).get("cefr_level") if isinstance(s.raw_result, dict) else None,
-                "word_count": s.word_count,
-                "graded_at": s.graded_at.isoformat() if s.graded_at else None,
-                "is_off_topic": s.is_off_topic,
-            }
-            for s in submissions
-        ],
-    })
+    return Response(
+        {
+            "submissions": [
+                {
+                    "id": s.id,
+                    "topic_id": s.topic_id,
+                    "topic_title": s.topic.title if s.topic else "",
+                    "subject": s.topic.subject if s.topic else "uzbek",
+                    "category": s.topic.category if s.topic else "",
+                    "rubric_type": s.topic.rubric_type if s.topic else "bmb_12",
+                    "status": s.status,
+                    "total_score": float(s.total_score)
+                    if s.total_score is not None
+                    else None,
+                    "max_score": s.max_score,
+                    "converted_score": s.converted_score,
+                    "overall_band": (
+                        float(s.total_score)
+                        if (
+                            s.topic
+                            and s.topic.subject == "english"
+                            and s.total_score is not None
+                        )
+                        else None
+                    ),
+                    "cefr_level": (s.raw_result or {}).get("cefr_level")
+                    if isinstance(s.raw_result, dict)
+                    else None,
+                    "word_count": s.word_count,
+                    "graded_at": s.graded_at.isoformat() if s.graded_at else None,
+                    "is_off_topic": s.is_off_topic,
+                }
+                for s in submissions
+            ],
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Essay Start (password gate + create submission)
 # -----------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -588,13 +633,11 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
         if not topic.check_password(entered):
             return Response({"error": "Noto'g'ri parol"}, status=403)
 
-    candidates = (
-        EssaySubmission.objects.filter(
-            student=request.user, topic=topic,
-            password_verified_at__isnull=False,
-        )
-        .order_by("-password_verified_at", "-id")
-    )
+    candidates = EssaySubmission.objects.filter(
+        student=request.user,
+        topic=topic,
+        password_verified_at__isnull=False,
+    ).order_by("-password_verified_at", "-id")
     existing = None
     latest_expired = None
     for sub in candidates:
@@ -626,14 +669,16 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
     }
 
     if existing:
-        return Response({
-            "submission_id": existing.id,
-            "topic": topic_payload,
-            "remaining_seconds": existing.remaining_seconds,
-            "essay_text": existing.essay_text,
-            "word_count": existing.word_count,
-            "has_password": bool(topic.password),
-        })
+        return Response(
+            {
+                "submission_id": existing.id,
+                "topic": topic_payload,
+                "remaining_seconds": existing.remaining_seconds,
+                "essay_text": existing.essay_text,
+                "word_count": existing.word_count,
+                "has_password": bool(topic.password),
+            }
+        )
 
     # Create new submission
     submission = EssaySubmission.objects.create(
@@ -645,19 +690,22 @@ def tma_essay_start_view(request: Request, topic_id: int) -> Response:
         source=EssaySubmission.Source.TMA,
     )
 
-    return Response({
-        "submission_id": submission.id,
-        "topic": topic_payload,
-        "remaining_seconds": submission.remaining_seconds,
-        "essay_text": "",
-        "word_count": 0,
-        "has_password": bool(topic.password),
-    })
+    return Response(
+        {
+            "submission_id": submission.id,
+            "topic": topic_payload,
+            "remaining_seconds": submission.remaining_seconds,
+            "essay_text": "",
+            "word_count": 0,
+            "has_password": bool(topic.password),
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA Essay Submit
 # -----------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -685,7 +733,8 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
 
     try:
         submission = EssaySubmission.objects.get(
-            id=submission_id, student=request.user,
+            id=submission_id,
+            student=request.user,
         )
     except EssaySubmission.DoesNotExist:
         return Response({"error": "Submission topilmadi"}, status=404)
@@ -720,8 +769,12 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
         return Response({"error": "Esse matni bo'sh"}, status=400)
 
     from apps.essays.views import MAX_ESSAY_LENGTH as _MAXLEN
+
     if len(essay_text) > _MAXLEN:
-        return Response({"error": f"Esse juda uzun ({len(essay_text)}). Maksimal {_MAXLEN}."}, status=400)
+        return Response(
+            {"error": f"Esse juda uzun ({len(essay_text)}). Maksimal {_MAXLEN}."},
+            status=400,
+        )
 
     # Save text (grading background'da shu matn ustida ishlaydi)
     submission.essay_text = essay_text
@@ -732,15 +785,21 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
         # The browser countdown can race the server clock by a few seconds.
         # Keep ordinary late submits rejected, but let the explicit client
         # timeout path persist the final text and enter background grading.
-        if request.data.get("auto_submit") is not True or submission.status != EssaySubmission.Status.DRAFT:
+        if (
+            request.data.get("auto_submit") is not True
+            or submission.status != EssaySubmission.Status.DRAFT
+        ):
             return Response({"error": "Vaqt tugagan"}, status=410)
 
     # Word count check
     min_words = submission.topic.word_limit_min if submission.topic else 50
     if submission.word_count < min_words:
-        return Response({
-            "error": f"Kamida {min_words} so'z kerak. Hozir: {submission.word_count}",
-        }, status=400)
+        return Response(
+            {
+                "error": f"Kamida {min_words} so'z kerak. Hozir: {submission.word_count}",
+            },
+            status=400,
+        )
 
     submission.save(update_fields=["essay_text", "word_count", "updated_at"])
 
@@ -782,7 +841,10 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
         # Baholash navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
         release_usage(reservation)
         return Response(
-            {"status": "error", "error": dispatch.get("error") or "AI baholash boshlanmadi."},
+            {
+                "status": "error",
+                "error": dispatch.get("error") or "AI baholash boshlanmadi.",
+            },
             status=503,
         )
 
@@ -807,6 +869,7 @@ tma_essay_submit_view.throttle_scope = "tma-essay-submit"  # type: ignore[attr-d
 # TMA Essay Result
 # -----------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_essay_result_view(request: Request, submission_id: int) -> Response:
@@ -816,11 +879,15 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     Get essay grading result.
     """
     from apps.essays.models import EssaySubmission
-    from apps.essays.services import essay_has_grade_result, expire_overdue_pending_grading
+    from apps.essays.services import (
+        essay_has_grade_result,
+        expire_overdue_pending_grading,
+    )
 
     try:
         submission = EssaySubmission.objects.get(
-            id=submission_id, student=request.user,
+            id=submission_id,
+            student=request.user,
         )
     except EssaySubmission.DoesNotExist:
         return Response({"error": "Submission topilmadi"}, status=404)
@@ -846,15 +913,25 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
     strengths = raw_res.get("strengths", [])
     weaknesses = raw_res.get("weaknesses", [])
     teacher_recommendation = raw_res.get("teacher_recommendation", "")
-    improved_text = raw_res.get("improved_text") or getattr(submission, "improved_content", "") or ""
+    improved_text = (
+        raw_res.get("improved_text")
+        or getattr(submission, "improved_content", "")
+        or ""
+    )
     crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
-    ielts_mode = is_ielts_submission(submission) or raw_res.get("rubric_type") in ("ielts_task1", "ielts_task2", "ielts")
+    ielts_mode = is_ielts_submission(submission) or raw_res.get("rubric_type") in (
+        "ielts_task1",
+        "ielts_task2",
+        "ielts",
+    )
 
     response = {
         "id": submission.id,
         "topic_id": submission.topic_id,
         "topic_title": submission.topic.title if submission.topic else "",
-        "subject": submission.topic.subject if submission.topic else ("english" if ielts_mode else "uzbek"),
+        "subject": submission.topic.subject
+        if submission.topic
+        else ("english" if ielts_mode else "uzbek"),
         "rubric_type": (
             submission.topic.rubric_type
             if submission.topic
@@ -867,12 +944,16 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         ),
         "cefr_level": raw_res.get("cefr_level") if ielts_mode else None,
         "status": submission.status,
-        "total_score": float(submission.total_score) if submission.total_score is not None else None,
+        "total_score": float(submission.total_score)
+        if submission.total_score is not None
+        else None,
         "max_score": 9 if ielts_mode else submission.max_score,
         "converted_score": submission.converted_score,
         "score_percentage": submission.score_percentage,
         "summary": submission.summary,
-        "error": submission.error_message if submission.status == EssaySubmission.Status.ERROR else None,
+        "error": submission.error_message
+        if submission.status == EssaySubmission.Status.ERROR
+        else None,
         "can_retry": (
             submission.status == EssaySubmission.Status.ERROR
             and not essay_has_grade_result(submission)
@@ -888,13 +969,17 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "grading_source": submission.grading_source,
         "cached": submission.grading_source == EssaySubmission.GradingSource.CACHE,
         "graded_at": submission.graded_at.isoformat() if submission.graded_at else None,
-        "final_score": float(submission.final_score) if submission.final_score is not None else None,
+        "final_score": float(submission.final_score)
+        if submission.final_score is not None
+        else None,
         "criteria": [
             {
                 "id": c.criterion_id,
                 "name": c.name,
                 "score": float(c.score),
-                "max_score": 9.0 if ielts_mode else float(crit_maxes.get(c.criterion_id, 2.0)),
+                "max_score": 9.0
+                if ielts_mode
+                else float(crit_maxes.get(c.criterion_id, 2.0)),
                 "reason": c.reason,
                 "errors": raw_errors_by_id.get(c.criterion_id, []),
             }
@@ -909,6 +994,7 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
 # -----------------------------------------------------------------------
 # TMA Certificates List (API)
 # -----------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -932,18 +1018,26 @@ def tma_certificates_view(request: Request) -> Response:
             except Exception:
                 pass
 
-        title = c.result.course.title if (c.result and c.result.course) else (
-            c.result.test.title if (c.result and c.result.test) else "Kurs"
+        title = (
+            c.result.course.title
+            if (c.result and c.result.course)
+            else (c.result.test.title if (c.result and c.result.test) else "Kurs")
         )
-        data.append({
-            "id": c.id,
-            "certificate_number": c.certificate_number,
-            "title": title,
-            "issued_at": c.issued_at.isoformat() if c.issued_at else None,
-            "download_url": c.file.url if c.file else None,
-            "score": float(c.result.score) if c.result and c.result.score is not None else None,
-            "percentage": float(c.result.percentage) if c.result and c.result.percentage is not None else None,
-        })
+        data.append(
+            {
+                "id": c.id,
+                "certificate_number": c.certificate_number,
+                "title": title,
+                "issued_at": c.issued_at.isoformat() if c.issued_at else None,
+                "download_url": c.file.url if c.file else None,
+                "score": float(c.result.score)
+                if c.result and c.result.score is not None
+                else None,
+                "percentage": float(c.result.percentage)
+                if c.result and c.result.percentage is not None
+                else None,
+            }
+        )
 
     return Response({"certificates": data})
 
@@ -952,6 +1046,7 @@ def tma_certificates_view(request: Request) -> Response:
 # TMA My Plan / Entitlements (API)
 # -----------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_myplan_view(request: Request) -> Response:
@@ -959,31 +1054,40 @@ def tma_myplan_view(request: Request) -> Response:
     from apps.payments.entitlements import get_effective_entitlement
 
     entitlement = get_effective_entitlement(request.user)
-    return Response({
-        "plan_name": entitlement.plan_name,
-        "source": entitlement.source,
-        "is_sponsored": entitlement.is_sponsored,
-        "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
-    })
+    return Response(
+        {
+            "plan_name": entitlement.plan_name,
+            "source": entitlement.source,
+            "is_sponsored": entitlement.is_sponsored,
+            "expires_at": entitlement.expires_at.isoformat()
+            if entitlement.expires_at
+            else None,
+        }
+    )
 
 
 # -----------------------------------------------------------------------
 # TMA My Tuition / Invoices (API)
 # -----------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tma_mytuition_view(request: Request) -> Response:
     """GET /api/telegram/mytuition/ — User's tuition and invoice status."""
-    from apps.tuition.services import children_tuition_overview, student_tuition_overview
+    from apps.tuition.services import (
+        children_tuition_overview,
+        student_tuition_overview,
+    )
 
     user = request.user
     if user.role == "parent":
-        rows = [{**child, "is_child": True} for child in children_tuition_overview(user)]
+        rows = [
+            {**child, "is_child": True} for child in children_tuition_overview(user)
+        ]
     elif user.role == "student":
         rows = [{**student_tuition_overview(user, limit=12), "is_child": False}]
     else:
         rows = []
 
     return Response({"tuition": rows})
-

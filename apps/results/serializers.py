@@ -3,6 +3,7 @@ Results serializers — Result list, detail, and analytics.
 
 Read-only serializers for the analytics dashboard and student result views.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +16,7 @@ from .models import Certificate, Result
 # ---------------------------------------------------------------------------
 # Result Serializers
 # ---------------------------------------------------------------------------
+
 
 class ResultListSerializer(serializers.ModelSerializer):
     """
@@ -32,10 +34,22 @@ class ResultListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = [
-            "id", "test", "test_title", "course", "course_title",
-            "student_name", "score", "max_score", "percentage",
-            "is_passed", "time_taken_seconds", "calculated_at",
-            "grading_status", "certificate_status", "bmb_grade", "bmb_info",
+            "id",
+            "test",
+            "test_title",
+            "course",
+            "course_title",
+            "student_name",
+            "score",
+            "max_score",
+            "percentage",
+            "is_passed",
+            "time_taken_seconds",
+            "calculated_at",
+            "grading_status",
+            "certificate_status",
+            "bmb_grade",
+            "bmb_info",
         ]
 
     def get_certificate_status(self, obj: Result) -> str:
@@ -79,14 +93,33 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Result
         fields = [
-            "id", "test", "test_title", "course", "course_title",
-            "student_name", "total_questions", "correct_answers",
-            "wrong_answers", "unanswered", "score", "max_score",
-            "percentage", "is_passed", "time_taken_seconds",
-            "grading_status", "objective_score", "writing_score",
-            "scoring_version", "rubric_version",
-            "question_details", "section_scores", "certificate_status",
-            "certificate_info", "calculated_at", "bmb_grade", "bmb_info",
+            "id",
+            "test",
+            "test_title",
+            "course",
+            "course_title",
+            "student_name",
+            "total_questions",
+            "correct_answers",
+            "wrong_answers",
+            "unanswered",
+            "score",
+            "max_score",
+            "percentage",
+            "is_passed",
+            "time_taken_seconds",
+            "grading_status",
+            "objective_score",
+            "writing_score",
+            "scoring_version",
+            "rubric_version",
+            "question_details",
+            "section_scores",
+            "certificate_status",
+            "certificate_info",
+            "calculated_at",
+            "bmb_grade",
+            "bmb_info",
         ]
 
     def get_student_name(self, obj: Result) -> str:
@@ -132,19 +165,28 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             )
 
         # Barcha savollarni olish
-        questions = obj.test.questions.select_related(
-            "section",
-        ).prefetch_related(
-            "choices", "student_answers", "student_answers__selected_choices",
-            "gap_blanks", "matching_prompts__correct_pair",
-            "matching_prompts__correct_pair__correct_option",
-            "matching_options",
-        ).order_by("position")
+        questions = (
+            obj.test.questions.select_related(
+                "section",
+            )
+            .prefetch_related(
+                "choices",
+                "student_answers",
+                "student_answers__selected_choices",
+                "gap_blanks",
+                "matching_prompts__correct_pair",
+                "matching_prompts__correct_pair__correct_option",
+                "matching_options",
+            )
+            .order_by("position")
+        )
 
         # Student javoblari xaritasi
         answers_map: dict[int, Any] = {}
         for answer in attempt.answers.select_related("question").prefetch_related(
-            "selected_choices", "gap_responses", "matching_responses",
+            "selected_choices",
+            "gap_responses",
+            "matching_responses",
         ):
             answers_map[answer.question_id] = answer
 
@@ -157,7 +199,8 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             # while feedback is withheld; authorized course staff can review.
             correct_choices = (
                 list(q.choices.filter(is_correct=True).values("id", "text"))
-                if reveal_answers else []
+                if reveal_answers
+                else []
             )
 
             # Student tanlangan
@@ -177,9 +220,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
 
             if answer:
                 student_text_answer = (answer.text_answer or "").strip()
-                selected = list(
-                    answer.selected_choices.values("id", "text")
-                )
+                selected = list(answer.selected_choices.values("id", "text"))
                 if not selected and student_text_answer:
                     selected = [{"id": 0, "text": student_text_answer}]
 
@@ -195,53 +236,68 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                             chosen = mr.selected_option_id
                         except Exception:
                             chosen = None
-                        matching_review.append({
-                            "prompt_id": prompt.id,
-                            "prompt_text": prompt.text,
-                            "selected_option_id": chosen,
-                            "selected_text": option_text.get(chosen, "") if chosen else "",
-                            "correct_option_id": correct_id if reveal_answers else None,
-                            "correct_text": (
-                                option_text.get(correct_id, "")
-                                if reveal_answers and correct_id else ""
-                            ),
-                        })
+                        matching_review.append(
+                            {
+                                "prompt_id": prompt.id,
+                                "prompt_text": prompt.text,
+                                "selected_option_id": chosen,
+                                "selected_text": option_text.get(chosen, "")
+                                if chosen
+                                else "",
+                                "correct_option_id": correct_id
+                                if reveal_answers
+                                else None,
+                                "correct_text": (
+                                    option_text.get(correct_id, "")
+                                    if reveal_answers and correct_id
+                                    else ""
+                                ),
+                            }
+                        )
                 elif q.question_type == "gap_fill":
                     accepted: dict[int, list[str]] = {}
                     for blank in q.gap_blanks.all():
-                        accepted.setdefault(blank.position, []).append(blank.answer_text)
-                    given = {gr.blank_position: gr.response_text
-                             for gr in answer.gap_responses.all()}
+                        accepted.setdefault(blank.position, []).append(
+                            blank.answer_text
+                        )
+                    given = {
+                        gr.blank_position: gr.response_text
+                        for gr in answer.gap_responses.all()
+                    }
                     for pos in sorted(accepted):
-                        gap_review.append({
-                            "position": pos,
-                            "response": given.get(pos, ""),
-                            "accepted": accepted[pos] if reveal_answers else [],
-                        })
+                        gap_review.append(
+                            {
+                                "position": pos,
+                                "response": given.get(pos, ""),
+                                "accepted": accepted[pos] if reveal_answers else [],
+                            }
+                        )
                 elif q.question_type == "written":
                     written_review = {
                         "text": answer.written_text,
                         "word_count": answer.written_word_count,
                     }
 
-            result.append({
-                "question_id": q.id,
-                "question_text": q.text,
-                "question_type": q.question_type,
-                "points": q.points,
-                "section_id": q.section_id,
-                "correct_choices": correct_choices,
-                "selected_choices": selected,
-                "student_answer_text": student_text_answer,
-                "correct_text": correct_text_answer,
-                "gap_review": gap_review,
-                "matching_review": matching_review,
-                "written_review": written_review,
-                "is_correct": is_correct,
-                "explanation": (
-                    q.explanation if reveal_answers and is_correct is False else ""
-                ),
-            })
+            result.append(
+                {
+                    "question_id": q.id,
+                    "question_text": q.text,
+                    "question_type": q.question_type,
+                    "points": q.points,
+                    "section_id": q.section_id,
+                    "correct_choices": correct_choices,
+                    "selected_choices": selected,
+                    "student_answer_text": student_text_answer,
+                    "correct_text": correct_text_answer,
+                    "gap_review": gap_review,
+                    "matching_review": matching_review,
+                    "written_review": written_review,
+                    "is_correct": is_correct,
+                    "explanation": (
+                        q.explanation if reveal_answers and is_correct is False else ""
+                    ),
+                }
+            )
 
         return result
 

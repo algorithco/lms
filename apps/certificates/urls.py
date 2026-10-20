@@ -6,6 +6,7 @@ Endpoints:
     GET  /api/certificates/{id}/download/               — PDF yuklab olish
     POST /api/certificates/verify/{certificate_number}/  — Tekshirish (public)
 """
+
 from django.urls import path
 
 from . import views

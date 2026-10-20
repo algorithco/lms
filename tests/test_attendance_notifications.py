@@ -10,6 +10,7 @@ The privacy contract these tests pin down:
 * A classroom observation is not deliverable until the recording teacher
   confirms it.
 """
+
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -35,15 +36,23 @@ OK = {"success": True, "message_id": 1, "error": None}
 class _NotificationFixture(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="an-teacher@example.test", password="testpass123", role="teacher",
+            email="an-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.student = User.objects.create_user(
-            email="an-student@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="Valiyev",
+            email="an-student@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="Valiyev",
         )
         self.other_student = User.objects.create_user(
-            email="an-student2@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="Karimova",
+            email="an-student2@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="Karimova",
         )
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.student, self.other_student)
@@ -55,20 +64,29 @@ class _NotificationFixture(TestCase):
         }
         defaults.update(kwargs)
         return User.objects.create_user(
-            email=email, password="testpass123", role="parent", **defaults,
+            email=email,
+            password="testpass123",
+            role="parent",
+            **defaults,
         )
 
     def _approve(self, parent, student=None):
         return ParentStudentLink.objects.create(
-            parent=parent, student=student or self.student, is_approved=True,
+            parent=parent,
+            student=student or self.student,
+            is_approved=True,
         )
 
-    def _session_with(self, status=AttendanceRecord.Status.LATE, student=None,
-                     late_minutes=12):
+    def _session_with(
+        self, status=AttendanceRecord.Status.LATE, student=None, late_minutes=12
+    ):
         session, _ = att.create_session(group=self.group, teacher=self.teacher)
         record = att.mark(
-            session, student or self.student, status,
-            late_minutes=late_minutes, actor=self.teacher,
+            session,
+            student or self.student,
+            status,
+            late_minutes=late_minutes,
+            actor=self.teacher,
         )
         return session, record
 
@@ -113,11 +131,16 @@ class ParentNotificationTests(_NotificationFixture):
         _session, record = self._session_with()
 
         att_notifications.notify_parents_of_record(record)
-        att.mark(record.session, self.student, AttendanceRecord.Status.PRESENT,
-                 actor=self.teacher)
+        att.mark(
+            record.session,
+            self.student,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
+        )
         record.refresh_from_db()
         correction = att_notifications.notify_parents_of_record(
-            record, is_correction=True,
+            record,
+            is_correction=True,
         )
         self.assertEqual(correction["sent"], 1)
         self.assertEqual(mock_send.call_count, 2)
@@ -129,7 +152,9 @@ class ParentNotificationTests(_NotificationFixture):
         mock_send.return_value = OK
         parent = self._parent()
         ParentStudentLink.objects.create(
-            parent=parent, student=self.student, is_approved=False,
+            parent=parent,
+            student=self.student,
+            is_approved=False,
         )
         _session, record = self._session_with()
 
@@ -164,8 +189,9 @@ class ParentNotificationTests(_NotificationFixture):
     @patch(SEND_PATH)
     def test_unrelated_parent_never_receives_another_childs_data(self, mock_send):
         mock_send.return_value = OK
-        stranger = self._parent(email="an-stranger@example.test",
-                                telegram_chat_id=500777)
+        stranger = self._parent(
+            email="an-stranger@example.test", telegram_chat_id=500777
+        )
         self._approve(stranger, student=self.other_student)
         _session, record = self._session_with(student=self.student)
 
@@ -179,7 +205,8 @@ class ParentNotificationTests(_NotificationFixture):
         parent = self._parent()
         self._approve(parent)
         NotificationPreference.objects.create(
-            user=parent, attendance_alerts=False,
+            user=parent,
+            attendance_alerts=False,
         )
         _session, record = self._session_with()
         result = att_notifications.notify_parents_of_record(record)
@@ -201,12 +228,17 @@ class ParentNotificationTests(_NotificationFixture):
         mock_send.return_value = OK
         parent = self._parent()
         self._approve(parent)
-        parent_two = self._parent(email="an-parent2@example.test",
-                                  telegram_chat_id=500002)
+        parent_two = self._parent(
+            email="an-parent2@example.test", telegram_chat_id=500002
+        )
         self._approve(parent_two, student=self.other_student)
         session, _record = self._session_with()
-        att.mark(session, self.other_student, AttendanceRecord.Status.ABSENT,
-                 actor=self.teacher)
+        att.mark(
+            session,
+            self.other_student,
+            AttendanceRecord.Status.ABSENT,
+            actor=self.teacher,
+        )
 
         result = att_notifications.notify_parents_of_session(session)
         self.assertEqual(result["records"], 2)
@@ -229,21 +261,27 @@ class GroupDestinationTests(_NotificationFixture):
 
     def _finalize_both(self, session):
         """Mark the second student too, so the register can actually finalize."""
-        att.mark(session, self.other_student, AttendanceRecord.Status.PRESENT,
-                 actor=self.teacher)
+        att.mark(
+            session,
+            self.other_student,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
+        )
         return att.finalize(session, actor=self.teacher)
 
     @patch(SEND_PATH)
     def test_unapproved_destination_receives_nothing(self, mock_send):
         mock_send.return_value = OK
         GroupNotificationDestination.objects.create(
-            group=self.group, chat_id=-100999,
+            group=self.group,
+            chat_id=-100999,
             destination_type=GroupNotificationDestination.DestinationType.PARENT_PUBLIC,
             is_approved=False,
             allowed_categories=[CATEGORY_ATTENDANCE_SUMMARY],
         )
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
 
@@ -263,11 +301,13 @@ class GroupDestinationTests(_NotificationFixture):
             is_enabled=False,
         )
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
         self.assertEqual(
-            att_notifications.send_group_attendance_summary(session)["sent"], 0,
+            att_notifications.send_group_attendance_summary(session)["sent"],
+            0,
         )
         mock_send.assert_not_called()
 
@@ -276,7 +316,8 @@ class GroupDestinationTests(_NotificationFixture):
         mock_send.return_value = OK
         self._approved_destination()
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
 
@@ -295,7 +336,8 @@ class GroupDestinationTests(_NotificationFixture):
         mock_send.return_value = OK
         self._approved_destination()
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
 
@@ -309,11 +351,13 @@ class GroupDestinationTests(_NotificationFixture):
         mock_send.return_value = OK
         self._approved_destination(categories=["some_other_category"])
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
         self.assertEqual(
-            att_notifications.send_group_attendance_summary(session)["sent"], 0,
+            att_notifications.send_group_attendance_summary(session)["sent"],
+            0,
         )
         mock_send.assert_not_called()
 
@@ -321,16 +365,20 @@ class GroupDestinationTests(_NotificationFixture):
     def test_global_destination_applies_to_every_group(self, mock_send):
         mock_send.return_value = OK
         GroupNotificationDestination.objects.create(
-            group=None, chat_id=-100555,
+            group=None,
+            chat_id=-100555,
             destination_type=GroupNotificationDestination.DestinationType.STAFF,
-            is_approved=True, allowed_categories=[CATEGORY_ATTENDANCE_SUMMARY],
+            is_approved=True,
+            allowed_categories=[CATEGORY_ATTENDANCE_SUMMARY],
         )
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         self._finalize_both(session)
         self.assertEqual(
-            att_notifications.send_group_attendance_summary(session)["sent"], 1,
+            att_notifications.send_group_attendance_summary(session)["sent"],
+            1,
         )
 
 
@@ -370,8 +418,10 @@ class ObservationNotificationTests(_NotificationFixture):
         self.assertIn("Sinf qoidalari eslatildi.", text)
 
         observation.refresh_from_db()
-        self.assertEqual(observation.notification_status,
-                         ClassroomObservation.NotificationStatus.SENT)
+        self.assertEqual(
+            observation.notification_status,
+            ClassroomObservation.NotificationStatus.SENT,
+        )
         self.assertIsNotNone(observation.sent_at)
 
     @patch(SEND_PATH)
@@ -414,8 +464,10 @@ class ObservationNotificationTests(_NotificationFixture):
 class TeacherAndEssayNotificationTests(_NotificationFixture):
     def _teacher_with_telegram(self):
         return User.objects.create_user(
-            email="an-tg-teacher@example.test", password="testpass123",
-            role="teacher", telegram_chat_id=600001,
+            email="an-tg-teacher@example.test",
+            password="testpass123",
+            role="teacher",
+            telegram_chat_id=600001,
             telegram_identity_verified_at=timezone.now(),
         )
 
@@ -424,7 +476,9 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
         mock_send.return_value = OK
         unlinked = self.teacher
         result = att_notifications.notify_teacher(
-            teacher=unlinked, text="Salom", dedup_key="t-1",
+            teacher=unlinked,
+            text="Salom",
+            dedup_key="t-1",
         )
         self.assertFalse(result["success"])
         self.assertEqual(result["error"], "teacher not linked")
@@ -434,7 +488,9 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
         User.objects.filter(pk=linked.pk).update(telegram_identity_verified_at=None)
         linked.refresh_from_db()
         unverified = att_notifications.notify_teacher(
-            teacher=linked, text="Salom", dedup_key="t-2",
+            teacher=linked,
+            text="Salom",
+            dedup_key="t-2",
         )
         self.assertFalse(unverified["success"])
         self.assertEqual(unverified["error"], "teacher unverified")
@@ -445,16 +501,22 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
         mock_send.return_value = OK
         teacher = self._teacher_with_telegram()
         att_notifications.notify_teacher(
-            teacher=teacher, text="Xabar", dedup_key="dedup-teacher",
+            teacher=teacher,
+            text="Xabar",
+            dedup_key="dedup-teacher",
         )
         second = att_notifications.notify_teacher(
-            teacher=teacher, text="Xabar", dedup_key="dedup-teacher",
+            teacher=teacher,
+            text="Xabar",
+            dedup_key="dedup-teacher",
         )
         self.assertTrue(second["duplicate"])
         self.assertEqual(mock_send.call_count, 1)
 
     @patch(SEND_PATH)
-    def test_essay_submission_notification_reaches_only_the_owning_teacher(self, mock_send):
+    def test_essay_submission_notification_reaches_only_the_owning_teacher(
+        self, mock_send
+    ):
         from apps.essays.models import EssayAssignment, EssaySubmission, EssayTopic
 
         mock_send.return_value = OK
@@ -462,14 +524,21 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
         self.group.teacher = teacher
         self.group.save(update_fields=["teacher", "updated_at"])
         topic = EssayTopic.objects.create(
-            title="Kitobxonlik", description="d", created_by=teacher,
+            title="Kitobxonlik",
+            description="d",
+            created_by=teacher,
         )
         assignment = EssayAssignment.objects.create(
-            topic=topic, group=self.group, assigned_by=teacher,
+            topic=topic,
+            group=self.group,
+            assigned_by=teacher,
         )
         submission = EssaySubmission.objects.create(
-            student=self.student, topic=topic, assignment=assignment,
-            essay_text="Matn " * 60, status=EssaySubmission.Status.PENDING,
+            student=self.student,
+            topic=topic,
+            assignment=assignment,
+            essay_text="Matn " * 60,
+            status=EssaySubmission.Status.PENDING,
         )
 
         result = att_notifications.notify_teachers_of_submission(submission)
@@ -488,7 +557,9 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
 
         mock_send.return_value = OK
         submission = EssaySubmission.objects.create(
-            student=self.student, topic=None, essay_text="Matn " * 60,
+            student=self.student,
+            topic=None,
+            essay_text="Matn " * 60,
             status=EssaySubmission.Status.PENDING,
         )
         result = att_notifications.notify_teachers_of_submission(submission)
@@ -501,19 +572,26 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
 
         mock_send.return_value = OK
         student = User.objects.create_user(
-            email="an-tg-student@example.test", password="testpass123",
-            role="student", telegram_chat_id=700001,
+            email="an-tg-student@example.test",
+            password="testpass123",
+            role="student",
+            telegram_chat_id=700001,
             telegram_identity_verified_at=timezone.now(),
         )
-        parent = self._parent(email="an-parent-g@example.test",
-                              telegram_chat_id=700002)
+        parent = self._parent(email="an-parent-g@example.test", telegram_chat_id=700002)
         self._approve(parent, student=student)
         topic = EssayTopic.objects.create(
-            title="Tabiat", description="d", created_by=self.teacher,
+            title="Tabiat",
+            description="d",
+            created_by=self.teacher,
         )
         submission = EssaySubmission.objects.create(
-            student=student, topic=topic, essay_text="Matn " * 60,
-            status=EssaySubmission.Status.GRADED, total_score=18, max_score=24,
+            student=student,
+            topic=topic,
+            essay_text="Matn " * 60,
+            status=EssaySubmission.Status.GRADED,
+            total_score=18,
+            max_score=24,
         )
 
         result = att_notifications.notify_student_essay_graded(submission)
@@ -531,7 +609,8 @@ class TeacherAndEssayNotificationTests(_NotificationFixture):
     def test_group_summary_text_contains_no_identity_fields(self, mock_send):
         mock_send.return_value = OK
         session, _ = self._session_with(
-            status=AttendanceRecord.Status.ABSENT, late_minutes=0,
+            status=AttendanceRecord.Status.ABSENT,
+            late_minutes=0,
         )
         text = att_notifications.group_summary_text(session)
         self.assertNotIn("Ali", text)

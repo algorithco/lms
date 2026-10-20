@@ -7,6 +7,7 @@ avoided AI requests without a new metrics backend.
 What is deliberately NOT recorded: essay text, API keys, student identity,
 teacher comments. Only opaque cache keys, scores, durations and event names.
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,23 +18,23 @@ logger = logging.getLogger("apps.essays.metrics")
 
 #: Events emitted by the shared grading cache lifecycle.
 CACHE_EVENTS = (
-    "hit",                    # a completed evaluation was reused
-    "miss",                   # no reusable evaluation existed
-    "leader_claimed",         # this worker reserved the single AI operation
-    "dedup_wait",             # another worker owns the operation (waiting)
-    "reuse",                  # a waiter received the leader's evaluation
-    "distributed",            # a waiting submission was completed
-    "completed",              # canonical evaluation persisted
-    "failed",                 # provider/pipeline failure (never cached)
-    "provider_failure",       # AI provider raised
-    "context_mismatch",       # key collided on text but not on grading context
-    "bypass_scope",           # restricted/high-stakes assessment: no reuse
-    "lease_lost",             # lease expired before completion; not overwritten
+    "hit",  # a completed evaluation was reused
+    "miss",  # no reusable evaluation existed
+    "leader_claimed",  # this worker reserved the single AI operation
+    "dedup_wait",  # another worker owns the operation (waiting)
+    "reuse",  # a waiter received the leader's evaluation
+    "distributed",  # a waiting submission was completed
+    "completed",  # canonical evaluation persisted
+    "failed",  # provider/pipeline failure (never cached)
+    "provider_failure",  # AI provider raised
+    "context_mismatch",  # key collided on text but not on grading context
+    "bypass_scope",  # restricted/high-stakes assessment: no reuse
+    "lease_lost",  # lease expired before completion; not overwritten
     "stale_lease_recovered",  # abandoned PROCESSING lease released
-    "entry_discarded",        # corrupt/obsolete payload dropped
-    "invalidated",            # admin invalidation
-    "purged",                 # obsolete rows deleted
-    "ai_request",             # a paid AI grading request was made
+    "entry_discarded",  # corrupt/obsolete payload dropped
+    "invalidated",  # admin invalidation
+    "purged",  # obsolete rows deleted
+    "ai_request",  # a paid AI grading request was made
 )
 
 _lock = threading.Lock()

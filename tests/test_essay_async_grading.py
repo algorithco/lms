@@ -17,6 +17,7 @@ MUHIM: thread fallback testlari TransactionTestCase'da bo'lishi SHART —
 thread alohida DB ulanishida ishlaydi va TestCase'nin atomic tranzaksiyasi
 ichida yozilgan qatorlarni ko'ra olmaydi (yoki sqlite lock'ga tushadi).
 """
+
 from __future__ import annotations
 
 import json
@@ -83,7 +84,8 @@ class AsyncGradingFixtureMixin:
         # partial templates — the SPA submits via the TMA JSON endpoint,
         # which runs the same start_grading() contract (202 processing).
         self.submit_url = reverse(
-            "telegram_app:essay-submit", kwargs={"submission_id": self.submission.id},
+            "telegram_app:essay-submit",
+            kwargs={"submission_id": self.submission.id},
         )
         self.submit_body = {"essay_text": self.submission.essay_text}
 
@@ -110,19 +112,23 @@ class SubmitImmediateResponseTests(AsyncGradingBaseTestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     @patch("apps.essays.tasks.grade_submission_task")
     def test_submit_returns_immediately_with_pending_status(
-        self, mock_task: MagicMock,
+        self,
+        mock_task: MagicMock,
     ) -> None:
         """Broker ishlab tursa: task queue qilinadi, view darhol qaytadi."""
         mock_task.delay.return_value = MagicMock()
 
         resp = self.client.post(
-            self.submit_url, self.submit_body, content_type="application/json",
+            self.submit_url,
+            self.submit_body,
+            content_type="application/json",
         )
 
         self.assertEqual(resp.status_code, 202)
         self.assertEqual(resp.json()["status"], "processing")
         mock_task.delay.assert_called_once_with(
-            self.submission.id, fail_status=EssaySubmission.Status.ERROR,
+            self.submission.id,
+            fail_status=EssaySubmission.Status.ERROR,
         )
         mock_task.apply.assert_not_called()  # thread fallback ishga tushmagan
 
@@ -132,19 +138,23 @@ class SubmitImmediateResponseTests(AsyncGradingBaseTestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     @patch("apps.essays.tasks.grade_submission_task")
     def test_submit_never_calls_grade_essay_in_request_path(
-        self, mock_task: MagicMock,
+        self,
+        mock_task: MagicMock,
     ) -> None:
         """Request path'da sinxron grade_essay() chaqiruvi bo'lishi MUMKIN EMAS."""
         with patch("apps.essays.services.grade_essay") as mock_grade:
             self.client.post(
-                self.submit_url, self.submit_body, content_type="application/json",
+                self.submit_url,
+                self.submit_body,
+                content_type="application/json",
             )
             mock_grade.assert_not_called()
 
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL lock regression test")
 class PostgreSQLFullAIGradingLockRegressionTests(
-    AsyncGradingFixtureMixin, TransactionTestCase,
+    AsyncGradingFixtureMixin,
+    TransactionTestCase,
 ):
     """Exercise submit -> worker -> persisted grade on PostgreSQL.
 
@@ -160,12 +170,15 @@ class PostgreSQLFullAIGradingLockRegressionTests(
         self.client.force_login(self.student)
         with patch.object(grade_submission_task, "delay") as mock_enqueue:
             response = self.client.post(
-                self.submit_url, self.submit_body, content_type="application/json",
+                self.submit_url,
+                self.submit_body,
+                content_type="application/json",
             )
 
         self.assertEqual(response.status_code, 202)
         mock_enqueue.assert_called_once_with(
-            self.submission.id, fail_status=EssaySubmission.Status.ERROR,
+            self.submission.id,
+            fail_status=EssaySubmission.Status.ERROR,
         )
         self.submission.refresh_from_db()
         self.assertEqual(self.submission.status, EssaySubmission.Status.PENDING)
@@ -197,14 +210,17 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     @patch("apps.essays.tasks.grade_submission_task")
     def test_submit_thread_fallback_when_broker_down(
-        self, mock_task: MagicMock,
+        self,
+        mock_task: MagicMock,
     ) -> None:
         """Redis tushgan: delay xato beradi → background thread fallback."""
         mock_task.delay.side_effect = Exception("broker down")
         mock_task.apply.return_value = MagicMock()  # thread'da muvaffaqiyatli
 
         resp = self.client.post(
-            self.submit_url, self.submit_body, content_type="application/json",
+            self.submit_url,
+            self.submit_body,
+            content_type="application/json",
         )
 
         self.assertEqual(resp.status_code, 202)
@@ -216,10 +232,13 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
             kwargs={"fail_status": EssaySubmission.Status.ERROR},
         )
 
-    @override_settings(ESSAY_THREAD_RETRY_BACKOFF=FAST_BACKOFF, CELERY_TASK_ALWAYS_EAGER=False)
+    @override_settings(
+        ESSAY_THREAD_RETRY_BACKOFF=FAST_BACKOFF, CELERY_TASK_ALWAYS_EAGER=False
+    )
     @patch("apps.essays.tasks.grade_submission_task")
     def test_thread_fallback_marks_error_after_exhausted_retries(
-        self, mock_task: MagicMock,
+        self,
+        mock_task: MagicMock,
     ) -> None:
         """Retry'lar tugagach submission PENDING'da qotmasligi kerak.
 
@@ -230,7 +249,9 @@ class ThreadFallbackTests(AsyncGradingFixtureMixin, TransactionTestCase):
         mock_task.apply.side_effect = Exception("LLM ishlamadi")
 
         resp = self.client.post(
-            self.submit_url, self.submit_body, content_type="application/json",
+            self.submit_url,
+            self.submit_body,
+            content_type="application/json",
         )
         self.assertEqual(resp.status_code, 202)
 
@@ -249,7 +270,8 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
 
     @patch("apps.essays.services.grade_essay")
     def test_invalid_ai_configuration_finishes_without_retry(
-        self, mock_grade: MagicMock,
+        self,
+        mock_grade: MagicMock,
     ) -> None:
         """Provider configuration errors must not leave a submission pending."""
         from django.core.exceptions import ImproperlyConfigured
@@ -296,7 +318,9 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
         from apps.essays.tasks import grade_submission_task
 
         failure = openai.RateLimitError(
-            "429 temporarily busy", response=MagicMock(status_code=429, headers={}), body=None,
+            "429 temporarily busy",
+            response=MagicMock(status_code=429, headers={}),
+            body=None,
         )
         with patch("apps.essays.services.grade_essay", side_effect=failure):
             with self.assertRaises(Retry):
@@ -369,7 +393,9 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
             EssayCriterionScore.CRITERION_NAMES[1],
         )
         calls = llm_client.chat.completions.create.call_args_list
-        self.assertEqual([call.kwargs["model"] for call in calls], ["primary", "fallback"])
+        self.assertEqual(
+            [call.kwargs["model"] for call in calls], ["primary", "fallback"]
+        )
 
     def test_grade_task_notifies_student_on_graded(self) -> None:
         """Task GRADED qilganda NotificationLog (telegram) yoziladi."""
@@ -404,9 +430,12 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
         ):
             self.student.telegram_chat_id = 123456789
             self.student.telegram_identity_verified_at = timezone.now()
-            self.student.save(update_fields=[
-                "telegram_chat_id", "telegram_identity_verified_at",
-            ])
+            self.student.save(
+                update_fields=[
+                    "telegram_chat_id",
+                    "telegram_identity_verified_at",
+                ]
+            )
 
             grade_submission_task.apply(
                 args=[self.submission.id],
@@ -441,7 +470,8 @@ class GradeTaskNotificationTests(AsyncGradingBaseTestCase):
         self.assertEqual(self.submission.status, EssaySubmission.Status.GRADED)
         self.assertFalse(
             NotificationLog.objects.filter(
-                notification_type="essay_graded", recipient=self.student,
+                notification_type="essay_graded",
+                recipient=self.student,
             ).exists(),
         )
 
@@ -453,7 +483,8 @@ class StatusEndpointTests(AsyncGradingBaseTestCase):
         super().setUp()
         self.client.force_login(self.student)
         self.status_url = reverse(
-            "essays:grading-status", kwargs={"submission_id": self.submission.id},
+            "essays:grading-status",
+            kwargs={"submission_id": self.submission.id},
         )
 
     def test_pending_returns_poll_after(self) -> None:
@@ -516,7 +547,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         self.api = APIClient()
         self.api.force_authenticate(user=self.student)
         self.tma_url = reverse(
-            "telegram_app:essay-submit", kwargs={"submission_id": self.submission.id},
+            "telegram_app:essay-submit",
+            kwargs={"submission_id": self.submission.id},
         )
 
     @patch("apps.essays.services.start_grading")
@@ -524,7 +556,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         mock_start.return_value = {"success": True, "async": True, "mode": "celery"}
 
         resp = self.api.post(
-            self.tma_url, {"essay_text": "Yetarlicha uzun test esse matni " * 5},
+            self.tma_url,
+            {"essay_text": "Yetarlicha uzun test esse matni " * 5},
         )
 
         self.assertEqual(resp.status_code, 202)
@@ -537,13 +570,15 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
 
     @patch("apps.essays.services.start_grading")
     def test_tma_submit_rejects_double_submit_while_pending(
-        self, mock_start: MagicMock,
+        self,
+        mock_start: MagicMock,
     ) -> None:
         self.submission.status = EssaySubmission.Status.PENDING
         self.submission.save(update_fields=["status"])
 
         resp = self.api.post(
-            self.tma_url, {"essay_text": "Ikkinchi marta yuborish urinishi " * 5},
+            self.tma_url,
+            {"essay_text": "Ikkinchi marta yuborish urinishi " * 5},
         )
         self.assertEqual(resp.status_code, 202)
         mock_start.assert_not_called()  # ikkinchi task queue qilinmadi
@@ -553,7 +588,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         self.submission.save(update_fields=["status"])
 
         result_url = reverse(
-            "telegram_app:essay-result", kwargs={"submission_id": self.submission.id},
+            "telegram_app:essay-result",
+            kwargs={"submission_id": self.submission.id},
         )
         data = self.api.get(result_url).json()
         self.assertEqual(data["status"], "pending")
@@ -566,7 +602,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         self.submission.save(update_fields=["status", "grading_started_at"])
 
         result_url = reverse(
-            "telegram_app:essay-result", kwargs={"submission_id": self.submission.id},
+            "telegram_app:essay-result",
+            kwargs={"submission_id": self.submission.id},
         )
         data = self.api.get(result_url).json()
         self.assertEqual(data["status"], "error")
@@ -574,7 +611,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
 
     @patch("apps.essays.services.start_grading")
     def test_tma_auto_submit_persists_final_text_after_server_expiry(
-        self, mock_start: MagicMock,
+        self,
+        mock_start: MagicMock,
     ) -> None:
         """The countdown race must not lose the final browser text."""
         self.submission.password_verified_at = timezone.now() - timedelta(
@@ -611,7 +649,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
 
     @patch("apps.essays.services.start_grading")
     def test_tma_resubmit_after_error_requeues_grading(
-        self, mock_start: MagicMock,
+        self,
+        mock_start: MagicMock,
     ) -> None:
         """ERROR holatda (AI timeout) TMA qayta yuborishda queue qilinadi.
 
@@ -625,7 +664,8 @@ class TMASubmitAsyncTests(AsyncGradingBaseTestCase):
         self.submission.save(update_fields=["status", "error_message"])
 
         resp = self.api.post(
-            self.tma_url, {"essay_text": "Yetarlicha uzun test esse matni " * 5},
+            self.tma_url,
+            {"essay_text": "Yetarlicha uzun test esse matni " * 5},
         )
         self.assertEqual(resp.status_code, 202)
         self.assertEqual(resp.json()["status"], "processing")
@@ -682,7 +722,8 @@ class StartGradingModeTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.assertTrue(result["fallback"])
         self.submission.refresh_from_db()
         self.assertEqual(
-            self.submission.status, EssaySubmission.Status.PENDING_TEACHER,
+            self.submission.status,
+            EssaySubmission.Status.PENDING_TEACHER,
         )
 
 
@@ -708,7 +749,9 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
             mock_task.delay.return_value = MagicMock()
             resp = self.client.post(
-                self.submit_url, self.submit_body, content_type="application/json",
+                self.submit_url,
+                self.submit_body,
+                content_type="application/json",
             )
 
         self.assertEqual(resp.status_code, 202)
@@ -728,7 +771,9 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
 
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
             resp = self.client.post(
-                self.submit_url, self.submit_body, content_type="application/json",
+                self.submit_url,
+                self.submit_body,
+                content_type="application/json",
             )
 
         self.assertEqual(resp.status_code, 200)
@@ -741,7 +786,9 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.submission.save(update_fields=["status"])
 
         resp = self.client.post(
-            self.submit_url, self.submit_body, content_type="application/json",
+            self.submit_url,
+            self.submit_body,
+            content_type="application/json",
         )
         self.assertEqual(resp.status_code, 202)
         self.assertEqual(resp.json()["status"], "processing")
@@ -753,7 +800,9 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         self.submission.save(update_fields=["status", "final_score"])
 
         resp = self.client.post(
-            self.submit_url, self.submit_body, content_type="application/json",
+            self.submit_url,
+            self.submit_body,
+            content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "graded")
@@ -767,7 +816,9 @@ class ResubmitTests(AsyncGradingFixtureMixin, TransactionTestCase):
         with patch("apps.essays.tasks.grade_submission_task") as mock_task:
             mock_task.delay.return_value = MagicMock()
             resp = self.client.post(
-                self.submit_url, self.submit_body, content_type="application/json",
+                self.submit_url,
+                self.submit_body,
+                content_type="application/json",
             )
 
         self.assertEqual(resp.status_code, 202)
@@ -892,7 +943,8 @@ class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
         self.api = APIClient()
         self.api.force_authenticate(user=self.student)
         self.start_url = reverse(
-            "telegram_app:essay-start", kwargs={"topic_id": self.topic.id},
+            "telegram_app:essay-start",
+            kwargs={"topic_id": self.topic.id},
         )
         self._expired_at = timezone.now() - timedelta(
             minutes=self.topic.time_limit_minutes + 1,
@@ -924,7 +976,8 @@ class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
         # Shart: expired ro'yxatda (-updated_at bo'yicha) yuqorida.
         newest_first = list(
             EssaySubmission.objects.filter(
-                student=self.student, topic=self.topic,
+                student=self.student,
+                topic=self.topic,
                 password_verified_at__isnull=False,
             ).values_list("id", flat=True)
         )
@@ -940,7 +993,8 @@ class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
         from datetime import timedelta
 
         old = self._make_verified(
-            self._expired_at - timedelta(hours=1), essay_text="juda eski",
+            self._expired_at - timedelta(hours=1),
+            essay_text="juda eski",
         )
         latest = self._make_verified(self._expired_at, essay_text="so'nggi eski")
 
@@ -969,10 +1023,14 @@ class TMAEssayStartSelectionTests(AsyncGradingBaseTestCase):
         resp = self.api.get(url)
 
         self.assertEqual(resp.status_code, 200)
-        row = next(item for item in resp.json()["submissions"] if item["id"] == submission.id)
+        row = next(
+            item for item in resp.json()["submissions"] if item["id"] == submission.id
+        )
         self.assertEqual(row["topic_id"], self.topic.id)
 
-    def test_topics_screen_prefers_active_submission_over_later_expired_autosave(self) -> None:
+    def test_topics_screen_prefers_active_submission_over_later_expired_autosave(
+        self,
+    ) -> None:
         """The topic CTA must not send an active essay to an old result."""
         from datetime import timedelta
 

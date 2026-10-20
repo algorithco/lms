@@ -4,6 +4,7 @@ OMR Answer Sheet Scanner Views (apps/tests/views_omr.py).
 POST /api/v1/tests/scan-omr/
 Receives photo of paper answer sheet, runs vision grading, returns instant score.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,12 +35,17 @@ class ScanOMRView(APIView):
         image_file = request.FILES.get("image")
         if not image_file:
             return Response(
-                {"ok": False, "error": "Titul varaqa rasmi yuklanmadi (image maydoni talab qilinadi)."},
+                {
+                    "ok": False,
+                    "error": "Titul varaqa rasmi yuklanmadi (image maydoni talab qilinadi).",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         test_id_raw = request.data.get("test_id")
-        test_id = int(test_id_raw) if test_id_raw and str(test_id_raw).isdigit() else None
+        test_id = (
+            int(test_id_raw) if test_id_raw and str(test_id_raw).isdigit() else None
+        )
         mock_code = str(request.data.get("mock_code") or "").strip() or None
 
         user = request.user if request.user and request.user.is_authenticated else None

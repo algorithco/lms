@@ -7,6 +7,7 @@ Hierarchy:
 A Course belongs to a teacher (User with role=TEACHER).
 Modules and Lessons are ordered via `position` so instructors can drag/reorder.
 """
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -31,7 +32,9 @@ class Subject(models.Model):
     name = models.CharField(_("fan nomi"), max_length=120)
     slug = models.SlugField(_("slug"), max_length=50, unique=True, db_index=True)
     description = models.TextField(_("tavsif"), blank=True)
-    icon = models.CharField(_("ikonka / bayroq"), max_length=32, default="🇺🇿", blank=True)
+    icon = models.CharField(
+        _("ikonka / bayroq"), max_length=32, default="🇺🇿", blank=True
+    )
     is_active = models.BooleanField(_("faolmi"), default=True)
     position = models.PositiveSmallIntegerField(_("tartib"), default=0)
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
@@ -285,7 +288,10 @@ class StudentGroup(models.Model):
         verbose_name = _("Guruh")
         verbose_name_plural = _("Guruhlar")
         ordering = ["name"]
-        unique_together = ("teacher", "name")  # bir o'qituvchida bir xil nomli guruh bo'lmasin
+        unique_together = (
+            "teacher",
+            "name",
+        )  # bir o'qituvchida bir xil nomli guruh bo'lmasin
 
     def __str__(self) -> str:
         return f"{self.name} ({self.teacher.get_full_name()})"
@@ -293,6 +299,7 @@ class StudentGroup(models.Model):
     def save(self, *args, **kwargs) -> None:
         if not self.invite_code:
             import secrets
+
             self.invite_code = f"GR-{secrets.token_hex(3).upper()}"
         super().save(*args, **kwargs)
 
@@ -477,4 +484,3 @@ class HomeworkSubmission(models.Model):
     def __str__(self) -> str:
         status = "Bajarildi" if self.is_completed else "Bajarilmadi"
         return f"{self.student_id} — {self.homework_id} ({status})"
-

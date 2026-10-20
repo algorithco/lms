@@ -17,6 +17,7 @@ Lifecycle:
     3. SubmitAttemptService  — grade answers, compute score, create Result
     4. TimerService          — timeout enforcement (called by Celery beat or submit)
 """
+
 from __future__ import annotations
 
 import logging
@@ -67,6 +68,7 @@ logger = logging.getLogger(__name__)
 # Data classes for structured return values
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class AttemptResult:
     """Immutable data object returned after attempt submission."""
@@ -105,6 +107,7 @@ class QuestionResult:
 # 1. StartAttemptService
 # ---------------------------------------------------------------------------
 
+
 class StartAttemptService:
     """
     Testni boshlash — yangi TestAttempt yaratish.
@@ -125,14 +128,17 @@ class StartAttemptService:
         try:
             test = Test.objects.get(id=test_id, is_active=True)
         except Test.DoesNotExist:
-            logger.warning("Start attempt failed: test=%d not found or inactive", test_id)
+            logger.warning(
+                "Start attempt failed: test=%d not found or inactive", test_id
+            )
             raise ValueError("Test topilmadi yoki faol emas.")
 
         # -- Role tekshirish -----------------------------------------------
         if student.role != "student":
             logger.warning(
                 "Start attempt denied: user=%d role=%s (not student)",
-                student.id, student.role,
+                student.id,
+                student.role,
             )
             raise ValueError("Faqat o'quvchilar test topshira oladi.")
 
@@ -146,7 +152,8 @@ class StartAttemptService:
         if active_attempt:
             logger.info(
                 "Active attempt already exists: attempt=%d, student=%d",
-                active_attempt.id, student.id,
+                active_attempt.id,
+                student.id,
             )
             raise ValueError(
                 "Sizda allaqachon davom etayotgan attempt bor. "
@@ -167,7 +174,10 @@ class StartAttemptService:
             if completed_count >= test.max_attempts:
                 logger.warning(
                     "Max attempts exceeded: test=%d, student=%d, count=%d/%d",
-                    test.id, student.id, completed_count, test.max_attempts,
+                    test.id,
+                    student.id,
+                    completed_count,
+                    test.max_attempts,
                 )
                 raise ValueError(
                     f"Test uchun maksimal urinishlar soni ({test.max_attempts}) "
@@ -204,7 +214,9 @@ class StartAttemptService:
 
         logger.info(
             "Attempt started: id=%d, test=%d, student=%d",
-            attempt.id, test.id, student.id,
+            attempt.id,
+            test.id,
+            student.id,
         )
         return attempt
 
@@ -212,6 +224,7 @@ class StartAttemptService:
 # ---------------------------------------------------------------------------
 # 2. SaveAnswerService
 # ---------------------------------------------------------------------------
+
 
 class SaveAnswerService:
     """
@@ -281,14 +294,19 @@ class SaveAnswerService:
         """Javobni saqlash yoki yangilash."""
         # -- Attempt ni olish va tekshirish --------------------------------
         try:
-            attempt = TestAttempt.objects.select_related("test").select_for_update().get(
-                id=attempt_id,
-                student=student,
+            attempt = (
+                TestAttempt.objects.select_related("test")
+                .select_for_update()
+                .get(
+                    id=attempt_id,
+                    student=student,
+                )
             )
         except TestAttempt.DoesNotExist:
             logger.warning(
                 "Save answer failed: attempt=%d not found for user=%d",
-                attempt_id, student.id,
+                attempt_id,
+                student.id,
             )
             raise ValueError("Attempt topilmadi.")
 
@@ -296,11 +314,11 @@ class SaveAnswerService:
         if attempt.status != TestAttempt.Status.IN_PROGRESS:
             logger.warning(
                 "Save answer blocked: attempt=%d status=%s",
-                attempt.id, attempt.status,
+                attempt.id,
+                attempt.status,
             )
             raise ValueError(
-                "Bu attempt allaqachon yakunlangan. "
-                "Javob o'zgartirib bo'lmaydi."
+                "Bu attempt allaqachon yakunlangan. Javob o'zgartirib bo'lmaydi."
             )
 
         # -- Timer tekshirish ----------------------------------------------
@@ -319,7 +337,8 @@ class SaveAnswerService:
         except Question.DoesNotExist:
             logger.warning(
                 "Save answer failed: question=%d not in test=%d",
-                question_id, attempt.test.id,
+                question_id,
+                attempt.test.id,
             )
             raise ValueError("Savol topilmadi yoki bu testga tegishli emas.")
 
@@ -335,21 +354,30 @@ class SaveAnswerService:
                     progress.save(update_fields=["completed_at"])
                 logger.info(
                     "Section expired on save: attempt=%d section=%d",
-                    attempt.id, question.section_id,
+                    attempt.id,
+                    question.section_id,
                 )
                 return SaveAnswerService._SECTION_EXPIRED
 
         qtype = question.question_type
-        has_content = bool(choice_ids) or bool(text_answer.strip()) or gap_answers or matching
+        has_content = (
+            bool(choice_ids) or bool(text_answer.strip()) or gap_answers or matching
+        )
         if written_text is not None and written_text.strip():
             has_content = True
-        if allow_clear and not has_content and not (written_text and written_text.strip()):
+        if (
+            allow_clear
+            and not has_content
+            and not (written_text and written_text.strip())
+        ):
             StudentAnswer.objects.filter(attempt=attempt, question=question).delete()
             return SaveAnswerService._CLEARED
 
         # -- GAP_FILL -------------------------------------------------------
         if qtype == Question.QuestionType.GAP_FILL:
-            return SaveAnswerService._save_gap_fill(attempt, question, gap_answers or {})
+            return SaveAnswerService._save_gap_fill(
+                attempt, question, gap_answers or {}
+            )
 
         # -- MATCHING --------------------------------------------------------
         if qtype == Question.QuestionType.MATCHING:
@@ -357,7 +385,9 @@ class SaveAnswerService:
 
         # -- WRITTEN (qoralama; baholash esse dvigateli orqali) --------------
         if qtype == Question.QuestionType.WRITTEN:
-            return SaveAnswerService._save_written(attempt, question, written_text or "")
+            return SaveAnswerService._save_written(
+                attempt, question, written_text or ""
+            )
 
         # -- Matnli javob savollari (TEXT_MATCH) ---------------------------
         if qtype == Question.QuestionType.TEXT_MATCH:
@@ -384,16 +414,14 @@ class SaveAnswerService:
         if question.question_type == Question.QuestionType.SINGLE_CHOICE:
             if len(choice_ids) != 1:
                 raise ValueError(
-                    "Bitta to'g'ri javobli savolda faqat bitta variant "
-                    "tanlash kerak."
+                    "Bitta to'g'ri javobli savolda faqat bitta variant tanlash kerak."
                 )
 
         # -- Multiple choice tekshirish -------------------------------------
         if question.question_type == Question.QuestionType.MULTIPLE_CHOICE:
             if len(choice_ids) < 1:
                 raise ValueError(
-                    "Ko'p to'g'ri javobli savolda kamida bitta variant "
-                    "tanlash kerak."
+                    "Ko'p to'g'ri javobli savolda kamida bitta variant tanlash kerak."
                 )
 
         # -- Javobni saqlash (upsert) --------------------------------------
@@ -412,7 +440,10 @@ class SaveAnswerService:
         action = "created" if created else "updated"
         logger.debug(
             "Answer %s: attempt=%d, question=%d, choices=%s",
-            action, attempt.id, question.id, choice_ids,
+            action,
+            attempt.id,
+            question.id,
+            choice_ids,
         )
 
         return student_answer
@@ -423,10 +454,13 @@ class SaveAnswerService:
     def _save_gap_fill(attempt, question, gap_answers: dict) -> StudentAnswer:
         """Upsert per-blank responses. Unknown positions are ignored (extras)."""
         known = set(
-            GapBlank.objects.filter(question=question).values_list("position", flat=True)
+            GapBlank.objects.filter(question=question).values_list(
+                "position", flat=True
+            )
         )
         student_answer, _ = StudentAnswer.objects.get_or_create(
-            attempt=attempt, question=question,
+            attempt=attempt,
+            question=question,
         )
         for raw_pos, raw_text in (gap_answers or {}).items():
             try:
@@ -450,13 +484,18 @@ class SaveAnswerService:
         invalid mappings never persist.
         """
         prompt_ids = set(
-            MatchingPrompt.objects.filter(question=question).values_list("id", flat=True)
+            MatchingPrompt.objects.filter(question=question).values_list(
+                "id", flat=True
+            )
         )
         option_ids = set(
-            MatchingOption.objects.filter(question=question).values_list("id", flat=True)
+            MatchingOption.objects.filter(question=question).values_list(
+                "id", flat=True
+            )
         )
         student_answer, _ = StudentAnswer.objects.get_or_create(
-            attempt=attempt, question=question,
+            attempt=attempt,
+            question=question,
         )
         for raw_pid, raw_oid in (matching or {}).items():
             try:
@@ -491,7 +530,8 @@ class SaveAnswerService:
 
         text = str(written_text or "")
         student_answer, _ = StudentAnswer.objects.get_or_create(
-            attempt=attempt, question=question,
+            attempt=attempt,
+            question=question,
         )
         student_answer.written_text = text
         student_answer.written_word_count = WordCounter.count(text)
@@ -503,7 +543,10 @@ class SaveAnswerService:
 # Sync certificate generation (fallback when Celery is not running)
 # ---------------------------------------------------------------------------
 
-def _generate_certificate_sync(result, *, is_milliy: bool | None = None, profile=None) -> None:
+
+def _generate_certificate_sync(
+    result, *, is_milliy: bool | None = None, profile=None
+) -> None:
     """
     Sertifikat generatsiya qilish — Celery'siz, to'g'ridan-to'g'ri (thin wrapper).
 
@@ -517,7 +560,9 @@ def _generate_certificate_sync(result, *, is_milliy: bool | None = None, profile
         from apps.certificates.services.generation import generate_certificate as _gen
 
         _gen(result, is_milliy=is_milliy, profile=profile)
-        logger.info("Certificate generated (sync): result=%s", getattr(result, "id", "?"))
+        logger.info(
+            "Certificate generated (sync): result=%s", getattr(result, "id", "?")
+        )
     except Exception as e:
         logger.error("Sync certificate generation failed: %s", e, exc_info=True)
 
@@ -525,6 +570,7 @@ def _generate_certificate_sync(result, *, is_milliy: bool | None = None, profile
 # ---------------------------------------------------------------------------
 # 2b. ExamBridgeService — TestAttempt WRITTEN ↔ canonical EssaySubmission
 # ---------------------------------------------------------------------------
+
 
 class ExamBridgeService:
     """
@@ -547,7 +593,8 @@ class ExamBridgeService:
         if created:
             logger.info(
                 "Written bridge created: attempt=%d question=%d",
-                answer.attempt_id, answer.question_id,
+                answer.attempt_id,
+                answer.question_id,
             )
         return bridge
 
@@ -606,7 +653,8 @@ class ExamBridgeService:
             if not result.get("success"):
                 logger.warning(
                     "Written grading not started: submission=%d error=%s",
-                    submission.id, result.get("error"),
+                    submission.id,
+                    result.get("error"),
                 )
         except Exception:
             logger.exception(
@@ -635,6 +683,7 @@ class ExamBridgeService:
 # 3. SubmitAttemptService
 # ---------------------------------------------------------------------------
 
+
 class SubmitAttemptService:
     """
     Testni yakunlash va natijani hisoblash.
@@ -660,10 +709,13 @@ class SubmitAttemptService:
         try:
             attempt = (
                 TestAttempt.objects.select_related(
-                    "test", "test__course",
+                    "test",
+                    "test__course",
                 )
                 .prefetch_related(
-                    "answers", "answers__question", "answers__selected_choices",
+                    "answers",
+                    "answers__question",
+                    "answers__selected_choices",
                 )
                 .select_for_update()
                 .get(id=attempt_id, student=student)
@@ -671,7 +723,8 @@ class SubmitAttemptService:
         except TestAttempt.DoesNotExist:
             logger.warning(
                 "Submit failed: attempt=%d not found for user=%d",
-                attempt_id, student.id,
+                attempt_id,
+                student.id,
             )
             raise ValueError("Attempt topilmadi.")
 
@@ -690,7 +743,8 @@ class SubmitAttemptService:
         if attempt.status != TestAttempt.Status.IN_PROGRESS:
             logger.info(
                 "Submit blocked (already done): attempt=%d status=%s",
-                attempt.id, attempt.status,
+                attempt.id,
+                attempt.status,
             )
             raise ValueError("Bu attempt allaqachon yakunlangan.")
 
@@ -775,7 +829,8 @@ class SubmitAttemptService:
         # -- Javoblarni bir marta olish (queries: answers, M2M, gap, match) --
         answers = list(
             attempt.answers.select_related("question").prefetch_related(
-                "gap_responses", "matching_responses",
+                "gap_responses",
+                "matching_responses",
             )
         )
         answers_by_qid = {a.question_id: a for a in answers}
@@ -784,17 +839,16 @@ class SubmitAttemptService:
         match_map: dict[int, dict[int, int | None]] = {}
         if answers:
             through = StudentAnswer.selected_choices.through
-            rows = through.objects.filter(studentanswer_id__in=[a.id for a in answers]).values_list(
-                "studentanswer_id", "choice_id"
-            )
+            rows = through.objects.filter(
+                studentanswer_id__in=[a.id for a in answers]
+            ).values_list("studentanswer_id", "choice_id")
             tmp: dict[int, set[int]] = {}
             for ans_id, choice_id in rows:
                 tmp.setdefault(ans_id, set()).add(choice_id)
             for a in answers:
                 selected_map[a.id] = tmp.get(a.id, set())
                 gap_map[a.id] = {
-                    gr.blank_position: gr.response_text
-                    for gr in a.gap_responses.all()
+                    gr.blank_position: gr.response_text for gr in a.gap_responses.all()
                 }
                 match_map[a.id] = {
                     mr.prompt_id: mr.selected_option_id
@@ -803,8 +857,7 @@ class SubmitAttemptService:
 
         # -- To'g'ri javoblar xaritasi (prefetch'dan, qo'shimcha query yo'q) -
         correct_map = {
-            q.id: {c.id for c in q.choices.all() if c.is_correct}
-            for q in all_questions
+            q.id: {c.id for c in q.choices.all() if c.is_correct} for q in all_questions
         }
         gaps_by_qid: dict[int, dict[int, list[str]]] = {}
         for q in all_questions:
@@ -819,7 +872,11 @@ class SubmitAttemptService:
             if q.question_type != Question.QuestionType.MATCHING:
                 continue
             pairs_by_qid[q.id] = {
-                p.id: (p.correct_pair.correct_option_id if hasattr(p, "correct_pair") else None)
+                p.id: (
+                    p.correct_pair.correct_option_id
+                    if hasattr(p, "correct_pair")
+                    else None
+                )
                 for p in q.matching_prompts.all()
             }
 
@@ -853,11 +910,17 @@ class SubmitAttemptService:
             student_answer = answers_by_qid.get(question.id)
             if student_answer is None:
                 # Javob berilmagan
-                question_scores.append(QuestionScore(
-                    question_id=question.id, earned=Decimal("0"), maximum=qmax,
-                    is_correct=False, answered=False,
-                    section_code=section_code, section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=Decimal("0"),
+                        maximum=qmax,
+                        is_correct=False,
+                        answered=False,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
                 continue
 
             qtype = question.question_type
@@ -870,16 +933,23 @@ class SubmitAttemptService:
                     is_correct, earned = False, Decimal("0")
                 else:
                     gs = _grade_gap_fill(
-                        accepted, gap_map.get(student_answer.id, {}),
-                        question.points, partial_credit=partial_credit,
+                        accepted,
+                        gap_map.get(student_answer.id, {}),
+                        question.points,
+                        partial_credit=partial_credit,
                         case_sensitive=case_sensitive,
                     )
                     is_correct, earned = gs.fully_correct, gs.earned
-                question_scores.append(QuestionScore(
-                    question_id=question.id, earned=earned, maximum=qmax,
-                    is_correct=is_correct, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=earned,
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
                 if student_answer.is_correct != is_correct:
                     student_answer.is_correct = is_correct
                     to_update.append(student_answer)
@@ -888,7 +958,8 @@ class SubmitAttemptService:
             # -- MATCHING -----------------------------------------------------
             if qtype == Question.QuestionType.MATCHING:
                 correct_pairs = {
-                    pid: oid for pid, oid in pairs_by_qid.get(question.id, {}).items()
+                    pid: oid
+                    for pid, oid in pairs_by_qid.get(question.id, {}).items()
                     if oid is not None
                 }
                 if not correct_pairs:
@@ -896,15 +967,22 @@ class SubmitAttemptService:
                     is_correct, earned = False, Decimal("0")
                 else:
                     ms = _grade_matching(
-                        correct_pairs, match_map.get(student_answer.id, {}),
-                        question.points, partial_credit=partial_credit,
+                        correct_pairs,
+                        match_map.get(student_answer.id, {}),
+                        question.points,
+                        partial_credit=partial_credit,
                     )
                     is_correct, earned = ms.fully_correct, ms.earned
-                question_scores.append(QuestionScore(
-                    question_id=question.id, earned=earned, maximum=qmax,
-                    is_correct=is_correct, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=earned,
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
                 if student_answer.is_correct != is_correct:
                     student_answer.is_correct = is_correct
                     to_update.append(student_answer)
@@ -913,37 +991,56 @@ class SubmitAttemptService:
             # -- WRITTEN (esse ko'prigi; obyektiv ball yo'q) ------------------
             if qtype == Question.QuestionType.WRITTEN:
                 if not (student_answer.written_text or "").strip():
-                    question_scores.append(QuestionScore(
-                        question_id=question.id, earned=Decimal("0"), maximum=qmax,
-                        is_correct=False, answered=False,
-                        section_code=section_code, section_id=section_id,
-                        kind="written",
-                    ))
+                    question_scores.append(
+                        QuestionScore(
+                            question_id=question.id,
+                            earned=Decimal("0"),
+                            maximum=qmax,
+                            is_correct=False,
+                            answered=False,
+                            section_code=section_code,
+                            section_id=section_id,
+                            kind="written",
+                        )
+                    )
                     continue
                 submission = ExamBridgeService.submit_written(
                     student_answer, attempt.student_id
                 )
                 earned = (
                     ExamBridgeService.written_points(question, submission)
-                    if submission is not None else None
+                    if submission is not None
+                    else None
                 )
                 if earned is None:
                     pending_written_answers.append(student_answer)
-                    question_scores.append(QuestionScore(
-                        question_id=question.id, earned=Decimal("0"), maximum=qmax,
-                        is_correct=None, section_code=section_code,
-                        section_id=section_id, kind="written",
-                    ))
+                    question_scores.append(
+                        QuestionScore(
+                            question_id=question.id,
+                            earned=Decimal("0"),
+                            maximum=qmax,
+                            is_correct=None,
+                            section_code=section_code,
+                            section_id=section_id,
+                            kind="written",
+                        )
+                    )
                     if student_answer.is_correct is not None:
                         student_answer.is_correct = None
                         to_update.append(student_answer)
                 else:
                     is_correct = earned >= qmax
-                    question_scores.append(QuestionScore(
-                        question_id=question.id, earned=earned, maximum=qmax,
-                        is_correct=is_correct, section_code=section_code,
-                        section_id=section_id, kind="written",
-                    ))
+                    question_scores.append(
+                        QuestionScore(
+                            question_id=question.id,
+                            earned=earned,
+                            maximum=qmax,
+                            is_correct=is_correct,
+                            section_code=section_code,
+                            section_id=section_id,
+                            kind="written",
+                        )
+                    )
                     if student_answer.is_correct != is_correct:
                         student_answer.is_correct = is_correct
                         to_update.append(student_answer)
@@ -954,45 +1051,66 @@ class SubmitAttemptService:
 
             # -- Grading logic (semantika o'zgarmagan) ----------------------
             if qtype == Question.QuestionType.TEXT_MATCH:
-                raw_keys = [k.strip() for k in (question.correct_text or "").split("|") if k.strip()]
+                raw_keys = [
+                    k.strip()
+                    for k in (question.correct_text or "").split("|")
+                    if k.strip()
+                ]
                 is_correct = _evaluate_text_answer(student_answer.text_answer, raw_keys)
-                question_scores.append(QuestionScore(
-                    question_id=question.id,
-                    earned=qmax if is_correct else Decimal("0"), maximum=qmax,
-                    is_correct=is_correct, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=qmax if is_correct else Decimal("0"),
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
             elif not selected_choice_ids:
                 # Hech narsa tanlanmagan (matnli savollar yuqorida qaytdi)
-                question_scores.append(QuestionScore(
-                    question_id=question.id, earned=Decimal("0"), maximum=qmax,
-                    is_correct=False, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=Decimal("0"),
+                        maximum=qmax,
+                        is_correct=False,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
                 if student_answer.is_correct is not False:
                     student_answer.is_correct = False
                     to_update.append(student_answer)
                 continue
             elif qtype == Question.QuestionType.SINGLE_CHOICE:
                 is_correct = correct_choice_ids == selected_choice_ids
-                question_scores.append(QuestionScore(
-                    question_id=question.id,
-                    earned=qmax if is_correct else Decimal("0"), maximum=qmax,
-                    is_correct=is_correct, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=qmax if is_correct else Decimal("0"),
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
             else:
                 # Multiple choice: BARCHA to'g'ri tanlangan bo'lishi kerak
                 is_correct = (
                     correct_choice_ids == selected_choice_ids
                     and len(selected_choice_ids) > 0
                 )
-                question_scores.append(QuestionScore(
-                    question_id=question.id,
-                    earned=qmax if is_correct else Decimal("0"), maximum=qmax,
-                    is_correct=is_correct, section_code=section_code,
-                    section_id=section_id,
-                ))
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=qmax if is_correct else Decimal("0"),
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
 
             if student_answer.is_correct != is_correct:
                 student_answer.is_correct = is_correct
@@ -1005,7 +1123,8 @@ class SubmitAttemptService:
         agg = _aggregate_scores(question_scores, weights=profile.weights)
         section_names = {
             q.section_id: (q.section.name if q.section_id else "")
-            for q in all_questions if q.section_id
+            for q in all_questions
+            if q.section_id
         }
         for sec in agg.sections:
             if sec.section_id in section_names:
@@ -1105,7 +1224,12 @@ class SubmitAttemptService:
 
         logger.info(
             "Attempt graded: id=%d, score=%s/%s, pct=%s%%, passed=%s, status=%s",
-            attempt.id, total_score, max_score, percentage, is_passed, grading_status,
+            attempt.id,
+            total_score,
+            max_score,
+            percentage,
+            is_passed,
+            grading_status,
         )
 
         # -- Async tasks: PDF + Telegram (faqat to'liq baholanganda) --------
@@ -1126,6 +1250,7 @@ class SubmitAttemptService:
         def dispatch_result_task() -> None:
             try:
                 from apps.notifications.tasks import process_test_result_task
+
                 process_test_result_task.delay(result_id=result.id)
             except Exception:
                 logger.warning(
@@ -1134,14 +1259,18 @@ class SubmitAttemptService:
                     result.id,
                 )
                 try:
-                    _generate_certificate_sync(result, is_milliy=_is_milliy, profile=profile)
+                    _generate_certificate_sync(
+                        result, is_milliy=_is_milliy, profile=profile
+                    )
                 except Exception:
                     logger.error(
                         "Sync certificate generation also failed for result %d",
-                        result.id, exc_info=True,
+                        result.id,
+                        exc_info=True,
                     )
 
         from django.conf import settings
+
         if grading_status != "graded":
             logger.info(
                 "Result %d pending written grading — dispatch deferred.",
@@ -1172,7 +1301,8 @@ class SubmitAttemptService:
             writing_score=agg.writing_earned,
             pending_written_count=len(pending_written_answers),
             certificate_status=_cert_status(
-                result, is_milliy=_is_milliy, profile=profile),
+                result, is_milliy=_is_milliy, profile=profile
+            ),
         )
 
     @staticmethod
@@ -1211,7 +1341,8 @@ class SubmitAttemptService:
             except Exception:
                 logger.error(
                     "Sync certificate generation also failed for result %d",
-                    result.id, exc_info=True,
+                    result.id,
+                    exc_info=True,
                 )
 
     @staticmethod
@@ -1241,7 +1372,8 @@ class SubmitAttemptService:
                     ExamWrittenBridge.objects.filter(
                         attempt=attempt, essay_submission__isnull=False
                     ).count()
-                    if result.grading_status == "pending_grading" else 0
+                    if result.grading_status == "pending_grading"
+                    else 0
                 ),
                 certificate_status=_cert_status(result),
             )
@@ -1267,21 +1399,25 @@ class SubmitAttemptService:
             raise ValueError("Attempt topilmadi.")
         if attempt.status != TestAttempt.Status.PENDING_GRADING:
             if attempt.status in (
-                TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT,
+                TestAttempt.Status.COMPLETED,
+                TestAttempt.Status.TIMEOUT,
             ):
                 outcome = SubmitAttemptService._build_result_from_attempt(attempt)
                 SubmitAttemptService._dispatch_if_newly_eligible(attempt)
                 return outcome
             raise ValueError("Bu attempt yakunlanmagan.")
         bridges = list(
-            ExamWrittenBridge.objects.select_related("essay_submission", "answer__question")
-            .filter(attempt=attempt)
+            ExamWrittenBridge.objects.select_related(
+                "essay_submission", "answer__question"
+            ).filter(attempt=attempt)
         )
         from apps.essays.services import essay_has_grade_result
 
         still_pending = [
-            b for b in bridges
-            if b.essay_submission is None or not essay_has_grade_result(b.essay_submission)
+            b
+            for b in bridges
+            if b.essay_submission is None
+            or not essay_has_grade_result(b.essay_submission)
         ]
         # Retry dispatch for submissions stuck in DRAFT (AI failure recovery).
         for b in bridges:
@@ -1301,6 +1437,7 @@ class SubmitAttemptService:
 # ---------------------------------------------------------------------------
 # 4. TimerService
 # ---------------------------------------------------------------------------
+
 
 class TimerService:
     """

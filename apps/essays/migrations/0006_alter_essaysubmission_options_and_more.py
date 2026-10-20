@@ -4,28 +4,42 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0005_essaysubmission_final_score_and_more'),
+        ("essays", "0005_essaysubmission_final_score_and_more"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='essaysubmission',
-            options={'ordering': ['-updated_at'], 'verbose_name': 'Esse topshirish', 'verbose_name_plural': 'Esse topshirishlar'},
+            name="essaysubmission",
+            options={
+                "ordering": ["-updated_at"],
+                "verbose_name": "Esse topshirish",
+                "verbose_name_plural": "Esse topshirishlar",
+            },
         ),
         migrations.RemoveField(
-            model_name='essaysubmission',
-            name='started_at',
+            model_name="essaysubmission",
+            name="started_at",
         ),
         migrations.AddField(
-            model_name='essaysubmission',
-            name='password_verified_at',
-            field=models.DateTimeField(blank=True, help_text="Parol to'g'ri kiritilgan vaqt. Taymer shu paytdan boshlanadi.", null=True, verbose_name='parol tasdiqlangan'),
+            model_name="essaysubmission",
+            name="password_verified_at",
+            field=models.DateTimeField(
+                blank=True,
+                help_text="Parol to'g'ri kiritilgan vaqt. Taymer shu paytdan boshlanadi.",
+                null=True,
+                verbose_name="parol tasdiqlangan",
+            ),
         ),
         migrations.AddField(
-            model_name='essaytopic',
-            name='password',
-            field=models.CharField(blank=True, default='', help_text="O'quvchi esse yozishni boshlash uchun kiritishi kerak bo'lgan parol. Bo'sh = parolsiz.", max_length=128, verbose_name='parol'),
+            model_name="essaytopic",
+            name="password",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="O'quvchi esse yozishni boshlash uchun kiritishi kerak bo'lgan parol. Bo'sh = parolsiz.",
+                max_length=128,
+                verbose_name="parol",
+            ),
         ),
     ]

@@ -6,6 +6,7 @@ Models:
     ArenaPlayer  — Player in a room (score, answers, connected status)
     ArenaQuestion — Individual question in a duel round
 """
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -40,7 +41,8 @@ class ArenaRoom(models.Model):
     player2 = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="arena_rooms_as_player2",
         verbose_name=_("2-o'yinchi"),
     )
@@ -59,7 +61,8 @@ class ArenaRoom(models.Model):
     bot_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="arena_bot_rooms",
         verbose_name=_("bot hisob"),
         help_text=_("BOT rejimida ishlatiladigan sun'iy raqib hisobi."),
@@ -67,25 +70,35 @@ class ArenaRoom(models.Model):
     winner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="arena_wins",
         verbose_name=_("g'olib"),
     )
     total_questions = models.PositiveIntegerField(_("jami savollar"), default=10)
-    time_per_question = models.PositiveIntegerField(_("savol uchun vaqt (soniya)"), default=15)
-    current_question_index = models.PositiveIntegerField(_("joriy savol indeksi"), default=0)
+    time_per_question = models.PositiveIntegerField(
+        _("savol uchun vaqt (soniya)"), default=15
+    )
+    current_question_index = models.PositiveIntegerField(
+        _("joriy savol indeksi"), default=0
+    )
     room_code = models.CharField(_("xona kodi"), max_length=10, unique=True, blank=True)
 
     # -- Timing --------------------------------------------------------------
     question_started_at = models.DateTimeField(
         _("savol boshlangan"),
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text=_("Joriy savol yuborilgan vaqt — tezlik bonusi hisoblash uchun."),
     )
 
     # -- ELO snapshot --------------------------------------------------------
-    p1_rating_before = models.PositiveIntegerField(_("1-o'yinchi ELO"), null=True, blank=True)
-    p2_rating_before = models.PositiveIntegerField(_("2-o'yinchi ELO"), null=True, blank=True)
+    p1_rating_before = models.PositiveIntegerField(
+        _("1-o'yinchi ELO"), null=True, blank=True
+    )
+    p2_rating_before = models.PositiveIntegerField(
+        _("2-o'yinchi ELO"), null=True, blank=True
+    )
     p1_rating_change = models.IntegerField(_("1-o'yinchi ELO o'zgarishi"), default=0)
     p2_rating_change = models.IntegerField(_("2-o'yinchi ELO o'zgarishi"), default=0)
 
@@ -112,7 +125,9 @@ class ArenaRoom(models.Model):
 
             last_exc: Exception | None = None
             for _ in range(5):
-                self.room_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                self.room_code = "".join(
+                    random.choices(string.ascii_uppercase + string.digits, k=6)
+                )
                 try:
                     with transaction.atomic():
                         super().save(*args, **kwargs)
@@ -142,6 +157,7 @@ class ArenaPlayer(models.Model):
     """
     Player record within a duel room.
     """
+
     room = models.ForeignKey(
         ArenaRoom,
         on_delete=models.CASCADE,
@@ -179,7 +195,9 @@ class ArenaPlayer(models.Model):
     # -- Rewards -------------------------------------------------------------
     xp_earned = models.PositiveIntegerField(_("olgan XP"), default=0)
     coins_earned = models.PositiveIntegerField(_("olgan tangalar"), default=0)
-    rating_before = models.PositiveIntegerField(_("dueldan oldingi ELO"), null=True, blank=True)
+    rating_before = models.PositiveIntegerField(
+        _("dueldan oldingi ELO"), null=True, blank=True
+    )
     rating_change = models.IntegerField(_("ELO o'zgarishi"), default=0)
 
     joined_at = models.DateTimeField(_("qo'shilgan"), auto_now_add=True)
@@ -197,6 +215,7 @@ class ArenaQuestion(models.Model):
     """
     Individual question in a duel round.
     """
+
     room = models.ForeignKey(
         ArenaRoom,
         on_delete=models.CASCADE,
@@ -229,6 +248,7 @@ class ArenaQuestion(models.Model):
 # ArenaProfile  (ELO rating & duel stats per user)
 # ---------------------------------------------------------------------------
 
+
 class ArenaProfile(models.Model):
     """
     ELO rating and duel statistics for one player.
@@ -248,8 +268,12 @@ class ArenaProfile(models.Model):
     losses = models.PositiveIntegerField(_("mag'lubiyatlar"), default=0)
     draws = models.PositiveIntegerField(_("duranglar"), default=0)
     duels_played = models.PositiveIntegerField(_("o'ynalgan duellar"), default=0)
-    current_win_streak = models.PositiveIntegerField(_("joriy g'alaba seriyasi"), default=0)
-    best_win_streak = models.PositiveIntegerField(_("eng uzun g'alaba seriyasi"), default=0)
+    current_win_streak = models.PositiveIntegerField(
+        _("joriy g'alaba seriyasi"), default=0
+    )
+    best_win_streak = models.PositiveIntegerField(
+        _("eng uzun g'alaba seriyasi"), default=0
+    )
     total_correct = models.PositiveIntegerField(_("jami to'g'ri javoblar"), default=0)
     total_answers = models.PositiveIntegerField(_("jami javoblar"), default=0)
     total_time_seconds = models.PositiveIntegerField(_("jami javob vaqti"), default=0)
@@ -284,6 +308,7 @@ class ArenaProfile(models.Model):
 # ArenaQueueEntry  (matchmaking queue, DB-backed)
 # ---------------------------------------------------------------------------
 
+
 class ArenaQueueEntry(models.Model):
     """
     One row per player waiting in the matchmaking queue.
@@ -315,12 +340,15 @@ class ArenaQueueEntry(models.Model):
         max_length=200,
         blank=True,
         default="",
-        help_text=_("Navbatga tushgan WebSocket kanali — match topilganda xabar yuborish uchun."),
+        help_text=_(
+            "Navbatga tushgan WebSocket kanali — match topilganda xabar yuborish uchun."
+        ),
     )
     room = models.ForeignKey(
         ArenaRoom,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="queue_entries",
         verbose_name=_("xona"),
     )
@@ -342,6 +370,7 @@ class ArenaQueueEntry(models.Model):
 # ---------------------------------------------------------------------------
 # ArenaAnswerLog  (per-answer audit trail)
 # ---------------------------------------------------------------------------
+
 
 class ArenaAnswerLog(models.Model):
     """
@@ -393,6 +422,7 @@ class ArenaAnswerLog(models.Model):
 # Tournament models (Sunday Live League)
 # ---------------------------------------------------------------------------
 
+
 class Tournament(models.Model):
     """
     Jonli Yakshanba Turniri (Sunday Live League & Real-time E-Sport Leaderboard).
@@ -406,7 +436,9 @@ class Tournament(models.Model):
     title = models.CharField(_("Turnir nomi"), max_length=255)
     description = models.TextField(_("Tavsif"), blank=True)
     scheduled_at = models.DateTimeField(_("Boshlanish vaqti"))
-    duration_minutes = models.PositiveIntegerField(_("Davomiyligi (daqiqa)"), default=40)
+    duration_minutes = models.PositiveIntegerField(
+        _("Davomiyligi (daqiqa)"), default=40
+    )
     test = models.ForeignKey(
         "tests.Test",
         on_delete=models.CASCADE,
@@ -458,11 +490,17 @@ class TournamentParticipant(models.Model):
         related_name="tournament_participations",
         verbose_name=_("Ishtirokchi"),
     )
-    score = models.DecimalField(_("To'plangan ball"), max_digits=6, decimal_places=2, default=0)
+    score = models.DecimalField(
+        _("To'plangan ball"), max_digits=6, decimal_places=2, default=0
+    )
     correct_answers = models.PositiveIntegerField(_("To'g'ri javoblar"), default=0)
     total_questions = models.PositiveIntegerField(_("Jami savollar"), default=0)
-    time_taken_seconds = models.PositiveIntegerField(_("Sarflangan vaqt (sekund)"), default=0)
-    rank = models.PositiveIntegerField(_("O'rin (Rank)"), null=True, blank=True, db_index=True)
+    time_taken_seconds = models.PositiveIntegerField(
+        _("Sarflangan vaqt (sekund)"), default=0
+    )
+    rank = models.PositiveIntegerField(
+        _("O'rin (Rank)"), null=True, blank=True, db_index=True
+    )
     is_finished = models.BooleanField(_("Yakunlandimi"), default=False)
     joined_at = models.DateTimeField(_("Qo'shilgan vaqt"), auto_now_add=True)
     finished_at = models.DateTimeField(_("Yakunlangan vaqt"), null=True, blank=True)
@@ -475,4 +513,3 @@ class TournamentParticipant(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.get_full_name()} in {self.tournament.title} (Rank: {self.rank or '—'}, Score: {self.score})"
-

@@ -13,6 +13,7 @@ Design:
     - UserGameScore tracks cumulative XP/coins and per-game performance.
     - Badge provides motivation through achievement unlocks.
 """
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -22,6 +23,7 @@ from django.utils.translation import gettext_lazy as _
 # ---------------------------------------------------------------------------
 # Game  (game type definitions)
 # ---------------------------------------------------------------------------
+
 
 class Game(models.Model):
     """
@@ -38,7 +40,9 @@ class Game(models.Model):
         TELEGRAM_QUIZ = "telegram_quiz", _("Telegram Quiz")
 
     name = models.CharField(_("nomi"), max_length=100)
-    slug = models.SlugField(_("slug"), max_length=50, unique=True, choices=GameType.choices)
+    slug = models.SlugField(
+        _("slug"), max_length=50, unique=True, choices=GameType.choices
+    )
     description = models.TextField(_("tavsif"))
     icon_emoji = models.CharField(
         _("ikonka emoji"),
@@ -80,6 +84,7 @@ class Game(models.Model):
 # GameLevel  (individual challenges)
 # ---------------------------------------------------------------------------
 
+
 class GameLevel(models.Model):
     """
     A single level/challenge within a game.
@@ -89,6 +94,7 @@ class GameLevel(models.Model):
         - GAZAL_PUZZLE: {"bayt_lines": ["satr1", "satr2", ...], "correct_order": [1,0,2,3]}
         - LUGAT_MATCH: {"pairs": [{"old": "eski_so'z", "new": "zamonaviy_ma'no"}, ...]}
     """
+
     game = models.ForeignKey(
         Game,
         on_delete=models.CASCADE,
@@ -134,12 +140,14 @@ class GameLevel(models.Model):
 # UserGameScore  (player stats & XP)
 # ---------------------------------------------------------------------------
 
+
 class UserGameScore(models.Model):
     """
     Tracks a user's cumulative game stats and per-game performance.
 
     Updated after every game session completion.
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -240,6 +248,7 @@ class UserGameCompletion(models.Model):
 # Badge  (achievement system)
 # ---------------------------------------------------------------------------
 
+
 class Badge(models.Model):
     """
     Achievement badges earned through gameplay.
@@ -275,7 +284,9 @@ class Badge(models.Model):
     required_value = models.PositiveIntegerField(
         _("kerakli qiymat"),
         default=1,
-        help_text=_("Badge olish uchun kerakli minimal ko'rsatkich (masalan, 50 ta to'g'ri javob)."),
+        help_text=_(
+            "Badge olish uchun kerakli minimal ko'rsatkich (masalan, 50 ta to'g'ri javob)."
+        ),
     )
     xp_bonus = models.PositiveIntegerField(
         _("bonus XP"),
@@ -296,8 +307,10 @@ class Badge(models.Model):
 # UserBadge  (awarded badges)
 # ---------------------------------------------------------------------------
 
+
 class UserBadge(models.Model):
     """Tracks which badges a user has earned."""
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -328,16 +341,56 @@ class UserBadge(models.Model):
 
 # XP thresholds for each level (level 1 = 0 XP, level 2 = 100 XP, ...)
 LEVEL_THRESHOLDS = {
-    1: 0, 2: 100, 3: 250, 4: 500, 5: 800,
-    6: 1200, 7: 1700, 8: 2300, 9: 3000, 10: 4000,
-    11: 5200, 12: 6500, 13: 8000, 14: 10000, 15: 12500,
-    16: 15500, 17: 19000, 18: 23000, 19: 27500, 20: 32500,
-    21: 38000, 22: 44000, 23: 50500, 24: 57500, 25: 65000,
-    26: 73000, 27: 81500, 28: 90500, 29: 100000, 30: 110000,
-    31: 121000, 32: 132500, 33: 144500, 34: 157000, 35: 170000,
-    36: 184000, 37: 198500, 38: 213500, 39: 229000, 40: 245000,
-    41: 262000, 42: 280000, 43: 299000, 44: 319000, 45: 340000,
-    46: 362000, 47: 385000, 48: 410000, 49: 436000, 50: 465000,
+    1: 0,
+    2: 100,
+    3: 250,
+    4: 500,
+    5: 800,
+    6: 1200,
+    7: 1700,
+    8: 2300,
+    9: 3000,
+    10: 4000,
+    11: 5200,
+    12: 6500,
+    13: 8000,
+    14: 10000,
+    15: 12500,
+    16: 15500,
+    17: 19000,
+    18: 23000,
+    19: 27500,
+    20: 32500,
+    21: 38000,
+    22: 44000,
+    23: 50500,
+    24: 57500,
+    25: 65000,
+    26: 73000,
+    27: 81500,
+    28: 90500,
+    29: 100000,
+    30: 110000,
+    31: 121000,
+    32: 132500,
+    33: 144500,
+    34: 157000,
+    35: 170000,
+    36: 184000,
+    37: 198500,
+    38: 213500,
+    39: 229000,
+    40: 245000,
+    41: 262000,
+    42: 280000,
+    43: 299000,
+    44: 319000,
+    45: 340000,
+    46: 362000,
+    47: 385000,
+    48: 410000,
+    49: 436000,
+    50: 465000,
 }
 
 
@@ -358,7 +411,9 @@ def get_player_level(total_xp: int) -> dict:
     next_threshold = LEVEL_THRESHOLDS.get(level + 1, LEVEL_THRESHOLDS[50] + 50000)
     xp_range = next_threshold - current_threshold
     xp_in_level = total_xp - current_threshold
-    progress = min(100.0, round(xp_in_level / xp_range * 100, 1)) if xp_range > 0 else 100.0
+    progress = (
+        min(100.0, round(xp_in_level / xp_range * 100, 1)) if xp_range > 0 else 100.0
+    )
 
     return {
         "level": level,
@@ -373,6 +428,7 @@ def get_player_level(total_xp: int) -> dict:
 # ---------------------------------------------------------------------------
 # Weekly Challenge
 # ---------------------------------------------------------------------------
+
 
 class WeeklyChallenge(models.Model):
     """
@@ -415,6 +471,7 @@ class WeeklyChallenge(models.Model):
     @property
     def is_current(self) -> bool:
         from django.utils import timezone
+
         now = timezone.now()
         return self.starts_at <= now <= self.ends_at
 
@@ -423,8 +480,10 @@ class WeeklyChallenge(models.Model):
 # UserChallenge Progress
 # ---------------------------------------------------------------------------
 
+
 class UserChallenge(models.Model):
     """Foydalanuvchining challenge'dagi progressi."""
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -457,12 +516,15 @@ class UserChallenge(models.Model):
     def progress_pct(self) -> float:
         if self.challenge.target_value == 0:
             return 0.0
-        return min(100.0, round(self.current_value / self.challenge.target_value * 100, 1))
+        return min(
+            100.0, round(self.current_value / self.challenge.target_value * 100, 1)
+        )
 
 
 # ---------------------------------------------------------------------------
 # Daily Streak
 # ---------------------------------------------------------------------------
+
 
 class DailyStreak(models.Model):
     """
@@ -471,6 +533,7 @@ class DailyStreak(models.Model):
     Streak = ketma-ket kunlarda tizimga kirish.
     3 kun, 7 kun, 14 kun, 30 kun streak uchun bonus mukofotlar.
     """
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -516,7 +579,11 @@ class DailyStreak(models.Model):
         with transaction.atomic():
             locked = DailyStreak.objects.select_for_update().get(pk=self.pk)
             today = timezone.now().date()
-            result = {"new_streak": locked.current_streak, "reward_claimed": None, "xp_earned": 0}
+            result = {
+                "new_streak": locked.current_streak,
+                "reward_claimed": None,
+                "xp_earned": 0,
+            }
 
             if locked.last_login_date == today:
                 # Already logged in today
@@ -535,7 +602,9 @@ class DailyStreak(models.Model):
                 current_streak=new_streak,
                 last_login_date=today,
                 total_logins=F("total_logins") + 1,
-                best_streak=new_streak if new_streak > locked.best_streak else locked.best_streak,
+                best_streak=new_streak
+                if new_streak > locked.best_streak
+                else locked.best_streak,
             )
 
             # Check streak rewards
@@ -546,14 +615,20 @@ class DailyStreak(models.Model):
                 30: ("30_day", 500, 250, "reward_30claimed"),
             }
 
-            if new_streak in streak_rewards and not getattr(locked, streak_rewards[new_streak][3]):
+            if new_streak in streak_rewards and not getattr(
+                locked, streak_rewards[new_streak][3]
+            ):
                 reward_key, xp, coins, field = streak_rewards[new_streak]
                 DailyStreak.objects.filter(pk=self.pk).update(**{field: True})
                 result["reward_claimed"] = reward_key
                 result["xp_earned"] = xp
 
                 # Credit exactly one game-score row (earliest) — never all rows.
-                target = UserGameScore.objects.filter(user_id=self.user_id).order_by("id").first()
+                target = (
+                    UserGameScore.objects.filter(user_id=self.user_id)
+                    .order_by("id")
+                    .first()
+                )
                 if target is not None:
                     UserGameScore.objects.filter(pk=target.pk).update(
                         total_xp=F("total_xp") + xp,

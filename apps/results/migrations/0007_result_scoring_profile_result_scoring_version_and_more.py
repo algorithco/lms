@@ -5,40 +5,67 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('results', '0006_resultsectionscore_result_grading_status_and_more'),
-        ('tests', '0007_question_config_studentanswer_written_text_and_more'),
+        ("results", "0006_resultsectionscore_result_grading_status_and_more"),
+        ("tests", "0007_question_config_studentanswer_written_text_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='result',
-            name='scoring_profile',
-            field=models.ForeignKey(blank=True, help_text="Natija hisoblangan konfiguratsiya (tarixiy o'zgarmas).", null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='results', to='tests.examscoringprofile', verbose_name='skoring profili'),
+            model_name="result",
+            name="scoring_profile",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Natija hisoblangan konfiguratsiya (tarixiy o'zgarmas).",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="results",
+                to="tests.examscoringprofile",
+                verbose_name="skoring profili",
+            ),
         ),
         migrations.AddField(
-            model_name='result',
-            name='scoring_version',
-            field=models.CharField(blank=True, default='', max_length=40, verbose_name='skoring versiyasi'),
+            model_name="result",
+            name="scoring_version",
+            field=models.CharField(
+                blank=True, default="", max_length=40, verbose_name="skoring versiyasi"
+            ),
         ),
         migrations.AddField(
-            model_name='result',
-            name='writing_score',
-            field=models.DecimalField(decimal_places=2, default=0, help_text="Esse dvigateli orqali baholangan yozma ishlar yig'indisi.", max_digits=7, verbose_name='yozma ball'),
+            model_name="result",
+            name="writing_score",
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                help_text="Esse dvigateli orqali baholangan yozma ishlar yig'indisi.",
+                max_digits=7,
+                verbose_name="yozma ball",
+            ),
         ),
         migrations.AddField(
-            model_name='resultsectionscore',
-            name='result',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='section_scores', to='results.result', verbose_name='natija'),
+            model_name="resultsectionscore",
+            name="result",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="section_scores",
+                to="results.result",
+                verbose_name="natija",
+            ),
         ),
         migrations.AddField(
-            model_name='resultsectionscore',
-            name='section',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to='tests.examsection', verbose_name="bo'lim"),
+            model_name="resultsectionscore",
+            name="section",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to="tests.examsection",
+                verbose_name="bo'lim",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='resultsectionscore',
-            unique_together={('result', 'section_code')},
+            name="resultsectionscore",
+            unique_together={("result", "section_code")},
         ),
     ]

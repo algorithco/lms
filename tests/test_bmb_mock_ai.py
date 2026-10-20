@@ -1,7 +1,11 @@
 import pytest
 from django.contrib.auth import get_user_model
 from apps.tests.bmb_grading import calculate_bmb_grade, bmb_grade_distribution
-from apps.tests.mock_service import parse_mock_keys, create_quick_mock, find_mock_by_code
+from apps.tests.mock_service import (
+    parse_mock_keys,
+    create_quick_mock,
+    find_mock_by_code,
+)
 from apps.tests.ai_tutor import explain_question_mistake
 from apps.courses.models import StudentGroup
 from apps.courses.group_service import (

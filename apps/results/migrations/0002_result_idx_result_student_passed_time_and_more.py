@@ -5,25 +5,31 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('courses', '0001_initial'),
-        ('results', '0001_initial'),
-        ('tests', '0003_testattempt_idx_att_status_stu_time_and_more'),
+        ("courses", "0001_initial"),
+        ("results", "0001_initial"),
+        ("tests", "0003_testattempt_idx_att_status_stu_time_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='result',
-            index=models.Index(fields=['student', 'is_passed', '-calculated_at'], name='idx_result_student_passed_time'),
+            model_name="result",
+            index=models.Index(
+                fields=["student", "is_passed", "-calculated_at"],
+                name="idx_result_student_passed_time",
+            ),
         ),
         migrations.AddIndex(
-            model_name='result',
-            index=models.Index(fields=['course', '-calculated_at'], name='idx_result_course_time'),
+            model_name="result",
+            index=models.Index(
+                fields=["course", "-calculated_at"], name="idx_result_course_time"
+            ),
         ),
         migrations.AddIndex(
-            model_name='result',
-            index=models.Index(fields=['student', '-percentage'], name='idx_result_student_pct'),
+            model_name="result",
+            index=models.Index(
+                fields=["student", "-percentage"], name="idx_result_student_pct"
+            ),
         ),
     ]

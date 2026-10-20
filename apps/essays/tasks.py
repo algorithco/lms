@@ -5,6 +5,7 @@ auto_submit_expired_essays — muddati o'tgan draft esselarni avtomatik baholash
 
 Scheduled via Celery Beat: every 2 minutes.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,7 +48,7 @@ def _mark_grading_failed(submission_id: int, error: Exception) -> None:
     acks_late=True,
     bind=True,
     max_retries=2,
-    retry_backoff=True,        # exponential backoff: ~2s, ~4s, ...
+    retry_backoff=True,  # exponential backoff: ~2s, ~4s, ...
     retry_backoff_max=120,
     retry_jitter=True,
     # Override the global 120/90s limits — an LLM call with max_tokens=4096
@@ -55,7 +56,9 @@ def _mark_grading_failed(submission_id: int, error: Exception) -> None:
     time_limit=240,
     soft_time_limit=200,
 )
-def grade_submission_task(self, submission_id: int, fail_status: str = "pending_teacher") -> dict:
+def grade_submission_task(
+    self, submission_id: int, fail_status: str = "pending_teacher"
+) -> dict:
     """
     AI baholashni Celery worker'da bajarish (web thread'ni bloklamaslik).
 
@@ -111,13 +114,20 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             topic_title = submission.topic.title if submission.topic else ""
             ielts_mode = is_ielts_submission(submission)
             if ielts_mode and submission.topic:
-                ielts_task_type = getattr(submission.topic, "rubric_type", "ielts_task2") or "ielts_task2"
+                ielts_task_type = (
+                    getattr(submission.topic, "rubric_type", "ielts_task2")
+                    or "ielts_task2"
+                )
                 ielts_min_words = getattr(
                     submission.topic,
                     "word_limit_min",
                     150 if ielts_task_type == "ielts_task1" else 250,
                 )
-            if essay_text and submission.status in _GRADEABLE_STATUSES and not ielts_mode:
+            if (
+                essay_text
+                and submission.status in _GRADEABLE_STATUSES
+                and not ielts_mode
+            ):
                 try:
                     cache_context = grading_context_for_submission(submission)
                     cache_key = stamp_grading_cache_key(submission)
@@ -133,7 +143,8 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             _mark_grading_failed(submission_id, exc)
         logger.warning(
             "Essay grade task claim failed: submission=%d, error=%s",
-            submission_id, exc,
+            submission_id,
+            exc,
         )
         raise self.retry(exc=exc)
 
@@ -146,8 +157,13 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     .filter(pk=submission_id)
                     .first()
                 )
-                if locked and locked.status in _GRADEABLE_STATUSES and not (locked.essay_text or "").strip():
+                if (
+                    locked
+                    and locked.status in _GRADEABLE_STATUSES
+                    and not (locked.essay_text or "").strip()
+                ):
                     from apps.essays.services import _send_to_teacher as _s2t
+
                     result = _s2t(locked, "empty")
                     return {"status": "ok", "result": result}
                 return {"status": "not_gradeable"}
@@ -158,6 +174,7 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
 
     if not topic_none and essay_text and not ielts_mode:
         from apps.essays.services import WordCounter
+
         try:
             with transaction.atomic():
                 locked = (
@@ -166,10 +183,21 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     .filter(pk=submission_id)
                     .first()
                 )
-                if locked and locked.status in _GRADEABLE_STATUSES and locked.topic is not None:
-                    if WordCounter.count((locked.essay_text or "").strip()) < locked.topic.word_limit_min:
+                if (
+                    locked
+                    and locked.status in _GRADEABLE_STATUSES
+                    and locked.topic is not None
+                ):
+                    if (
+                        WordCounter.count((locked.essay_text or "").strip())
+                        < locked.topic.word_limit_min
+                    ):
                         from apps.essays.services import _send_to_teacher as _s2t2
-                        result2 = _s2t2(locked, f"under_min ({WordCounter.count((locked.essay_text or '').strip())} < {locked.topic.word_limit_min})")
+
+                        result2 = _s2t2(
+                            locked,
+                            f"under_min ({WordCounter.count((locked.essay_text or '').strip())} < {locked.topic.word_limit_min})",
+                        )
                         return {"status": "ok", "result": result2}
         except Exception as exc:
             if self.request.retries >= self.max_retries:
@@ -180,10 +208,13 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
     if topic_none:
         try:
             result_llm = grade_essay(
-                essay_text or "", topic_title="", cache_context=cache_context,
+                essay_text or "",
+                topic_title="",
+                cache_context=cache_context,
             )
         except (ValueError, ImportError, ImproperlyConfigured) as exc:
             from django.core.exceptions import ImproperlyConfigured as _IC
+
             if isinstance(exc, _IC):
                 pass
             try:
@@ -196,9 +227,13 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     if sub2 is not None and sub2.status in _GRADEABLE_STATUSES:
                         sub2.status = EssaySubmission.Status.ERROR
                         sub2.error_message = str(exc)
-                        sub2.save(update_fields=["status", "error_message", "updated_at"])
+                        sub2.save(
+                            update_fields=["status", "error_message", "updated_at"]
+                        )
                 logger.error(
-                    "Grade task failed: submission=%d, error=%s", submission_id, exc,
+                    "Grade task failed: submission=%d, error=%s",
+                    submission_id,
+                    exc,
                 )
                 return {"status": "error", "error": str(exc)}
             except Exception as e2:
@@ -210,7 +245,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                 _mark_grading_failed(submission_id, exc)
             logger.warning(
                 "Essay grade task attempt %d failed: submission=%d, error=%s",
-                self.request.retries + 1, submission_id, exc,
+                self.request.retries + 1,
+                submission_id,
+                exc,
             )
             raise self.retry(exc=exc)
         # LLM succeeded for topic-less — persist in short txn C.
@@ -222,13 +259,19 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     .first()
                 )
                 if sub3 is None or sub3.status not in _GRADEABLE_STATUSES:
-                    return {"status": "not_gradeable", "current": getattr(sub3, "status", None)}
+                    return {
+                        "status": "not_gradeable",
+                        "current": getattr(sub3, "status", None),
+                    }
                 apply_ai_result(sub3, result_llm, cache_key=cache_key)
                 if sub3.status == EssaySubmission.Status.GRADED:
                     sub3.auto_submitted = True
                     from django.utils import timezone as _tz3
+
                     sub3.submitted_at = _tz3.now()
-                    sub3.save(update_fields=["auto_submitted", "submitted_at", "updated_at"])
+                    sub3.save(
+                        update_fields=["auto_submitted", "submitted_at", "updated_at"]
+                    )
                     notify_student_essay_graded(sub3)
                 graded = sub3.status == EssaySubmission.Status.GRADED
                 score = str(sub3.total_score)
@@ -251,10 +294,13 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             )
         else:
             result_llm2 = grade_essay(
-                essay_text or "", topic_title=topic_title, cache_context=cache_context,
+                essay_text or "",
+                topic_title=topic_title,
+                cache_context=cache_context,
             )
     except (ValueError, ImportError, ImproperlyConfigured) as ie:
         from django.core.exceptions import ImproperlyConfigured as _IC2
+
         if isinstance(ie, _IC2):
             # Config errors are fatal — do not Celery-retry; record fail_status.
             try:
@@ -268,9 +314,18 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                         subf.status = fail_status
                         subf.auto_submitted = True
                         from django.utils import timezone as _tz
+
                         subf.submitted_at = _tz.now()
                         subf.error_message = str(ie)
-                        subf.save(update_fields=["status", "auto_submitted", "submitted_at", "error_message", "updated_at"])
+                        subf.save(
+                            update_fields=[
+                                "status",
+                                "auto_submitted",
+                                "submitted_at",
+                                "error_message",
+                                "updated_at",
+                            ]
+                        )
                 return {"status": "error", "error": str(ie)}
             except Exception as e2:
                 if self.request.retries >= self.max_retries:
@@ -288,9 +343,18 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                     subf2.status = fail_status
                     subf2.auto_submitted = True
                     from django.utils import timezone as _tz2
+
                     subf2.submitted_at = _tz2.now()
                     subf2.error_message = str(ie)
-                    subf2.save(update_fields=["status", "auto_submitted", "submitted_at", "error_message", "updated_at"])
+                    subf2.save(
+                        update_fields=[
+                            "status",
+                            "auto_submitted",
+                            "submitted_at",
+                            "error_message",
+                            "updated_at",
+                        ]
+                    )
             return {"status": "error", "error": str(ie)}
         except Exception as e2:
             if self.request.retries >= self.max_retries:
@@ -301,7 +365,9 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             _mark_grading_failed(submission_id, exc)
         logger.warning(
             "Essay grade task attempt %d failed: submission=%d, error=%s",
-            self.request.retries + 1, submission_id, exc,
+            self.request.retries + 1,
+            submission_id,
+            exc,
         )
         raise self.retry(exc=exc)
 
@@ -314,10 +380,14 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
                 .first()
             )
             if subc is None or subc.status not in _GRADEABLE_STATUSES:
-                return {"status": "not_gradeable", "current": getattr(subc, "status", None)}
+                return {
+                    "status": "not_gradeable",
+                    "current": getattr(subc, "status", None),
+                }
             apply_ai_result(subc, result_llm2, cache_key=cache_key)
             subc.auto_submitted = True
             from django.utils import timezone as _tz3
+
             subc.submitted_at = _tz3.now()
             subc.save(update_fields=["auto_submitted", "submitted_at", "updated_at"])
             # Re-check graded state after apply.
@@ -332,7 +402,8 @@ def grade_submission_task(self, submission_id: int, fail_status: str = "pending_
             _mark_grading_failed(submission_id, exc)
         logger.warning(
             "Essay grade persist failed: submission=%d, error=%s",
-            submission_id, exc,
+            submission_id,
+            exc,
         )
         raise self.retry(exc=exc)
 
@@ -387,7 +458,9 @@ def reap_stale_pending_essays(self) -> dict:
         EssaySubmission.objects.filter(
             status=EssaySubmission.Status.PENDING,
             updated_at__lte=threshold,
-        ).exclude(pk__in=overdue).values_list("id", flat=True)[:20]
+        )
+        .exclude(pk__in=overdue)
+        .values_list("id", flat=True)[:20]
     )
     requeued = 0
     for sid in batch:
@@ -395,7 +468,11 @@ def reap_stale_pending_essays(self) -> dict:
             with transaction.atomic():
                 claimed = (
                     EssaySubmission.objects.select_for_update()
-                    .filter(pk=sid, status=EssaySubmission.Status.PENDING, updated_at__lte=threshold)
+                    .filter(
+                        pk=sid,
+                        status=EssaySubmission.Status.PENDING,
+                        updated_at__lte=threshold,
+                    )
                     .first()
                 )
                 if claimed is None:
@@ -405,8 +482,11 @@ def reap_stale_pending_essays(self) -> dict:
                 claimed.save(update_fields=["updated_at"])
             # Enqueue outside the txn so worker sees committed row.
             from apps.essays.tasks import grade_submission_task
+
             try:
-                grade_submission_task.delay(sid, fail_status=EssaySubmission.Status.ERROR)
+                grade_submission_task.delay(
+                    sid, fail_status=EssaySubmission.Status.ERROR
+                )
                 requeued += 1
             except Exception as exc:
                 # Broker down — leave PENDING; next sweep will retry. Do not
@@ -478,11 +558,17 @@ def auto_submit_expired_essays(self) -> dict:
                 locked.auto_submitted = True
                 locked.status = EssaySubmission.Status.PENDING
                 locked.grading_started_at = timezone.now()
-                locked.save(update_fields=[
-                    "auto_submitted", "status", "grading_started_at", "updated_at",
-                ])
+                locked.save(
+                    update_fields=[
+                        "auto_submitted",
+                        "status",
+                        "grading_started_at",
+                        "updated_at",
+                    ]
+                )
             # Enqueue grading outside txn.
             from apps.essays.tasks import grade_submission_task
+
             try:
                 grade_submission_task.delay(submission.pk)
                 enqueued += 1
@@ -499,22 +585,33 @@ def auto_submit_expired_essays(self) -> dict:
                         fb.status = EssaySubmission.Status.DRAFT
                         fb.auto_submitted = False
                         fb.grading_started_at = None
-                        fb.save(update_fields=[
-                            "status", "auto_submitted", "grading_started_at", "updated_at",
-                        ])
-                logger.warning("Auto-submit enqueue failed: id=%d %s", submission.pk, exc)
+                        fb.save(
+                            update_fields=[
+                                "status",
+                                "auto_submitted",
+                                "grading_started_at",
+                                "updated_at",
+                            ]
+                        )
+                logger.warning(
+                    "Auto-submit enqueue failed: id=%d %s", submission.pk, exc
+                )
 
         except Exception as e:
             error_count += 1
             logger.error(
                 "Auto-submit task failed: submission=%d, error=%s",
-                submission.id, str(e), exc_info=True,
+                submission.id,
+                str(e),
+                exc_info=True,
             )
 
     if count > 0 or enqueued > 0:
         logger.info(
             "Auto-submit task: %d enqueued, %d fallback, %d errors",
-            enqueued, fallback_count, error_count,
+            enqueued,
+            fallback_count,
+            error_count,
         )
 
     return {

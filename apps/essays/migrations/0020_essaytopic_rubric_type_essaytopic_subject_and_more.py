@@ -6,45 +6,89 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('essays', '0019_alter_essaytopic_word_limit_min'),
+        ("essays", "0019_alter_essaytopic_word_limit_min"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='essaytopic',
-            name='rubric_type',
-            field=models.CharField(choices=[('bmb_12', 'BMB 12 mezon (Ona tili)'), ('ielts_task1', "IELTS Writing Task 1 (150+ so'z, Band 1.0–9.0)"), ('ielts_task2', "IELTS Writing Task 2 (250+ so'z, Band 1.0–9.0)")], default='bmb_12', max_length=20, verbose_name='baholash mezoni turi'),
+            model_name="essaytopic",
+            name="rubric_type",
+            field=models.CharField(
+                choices=[
+                    ("bmb_12", "BMB 12 mezon (Ona tili)"),
+                    ("ielts_task1", "IELTS Writing Task 1 (150+ so'z, Band 1.0–9.0)"),
+                    ("ielts_task2", "IELTS Writing Task 2 (250+ so'z, Band 1.0–9.0)"),
+                ],
+                default="bmb_12",
+                max_length=20,
+                verbose_name="baholash mezoni turi",
+            ),
         ),
         migrations.AddField(
-            model_name='essaytopic',
-            name='subject',
-            field=models.CharField(choices=[('uzbek', 'Ona tili va adabiyot'), ('english', 'Ingliz tili (IELTS & Multi-level)')], db_index=True, default='uzbek', max_length=20, verbose_name="fan / yo'nalish"),
+            model_name="essaytopic",
+            name="subject",
+            field=models.CharField(
+                choices=[
+                    ("uzbek", "Ona tili va adabiyot"),
+                    ("english", "Ingliz tili (IELTS & Multi-level)"),
+                ],
+                db_index=True,
+                default="uzbek",
+                max_length=20,
+                verbose_name="fan / yo'nalish",
+            ),
         ),
         migrations.AlterField(
-            model_name='essaycriterionscore',
-            name='score',
-            field=models.DecimalField(decimal_places=1, max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(9)], verbose_name='ball'),
+            model_name="essaycriterionscore",
+            name="score",
+            field=models.DecimalField(
+                decimal_places=1,
+                max_digits=3,
+                validators=[
+                    django.core.validators.MinValueValidator(0),
+                    django.core.validators.MaxValueValidator(9),
+                ],
+                verbose_name="ball",
+            ),
         ),
         migrations.AlterField(
-            model_name='essaygradingcache',
-            name='max_score',
-            field=models.PositiveSmallIntegerField(default=20, verbose_name='maksimal ball'),
+            model_name="essaygradingcache",
+            name="max_score",
+            field=models.PositiveSmallIntegerField(
+                default=20, verbose_name="maksimal ball"
+            ),
         ),
         migrations.AlterField(
-            model_name='essaysubmission',
-            name='max_score',
-            field=models.PositiveSmallIntegerField(default=20, verbose_name='maksimal ball'),
+            model_name="essaysubmission",
+            name="max_score",
+            field=models.PositiveSmallIntegerField(
+                default=20, verbose_name="maksimal ball"
+            ),
         ),
         migrations.AlterField(
-            model_name='essaytopic',
-            name='category',
-            field=models.CharField(choices=[('ona_tili', 'Ona tili'), ('adabiyot', 'Adabiyot'), ('tarix', 'Tarix'), ('umumiy', 'Umumiy'), ('ielts_task1', 'IELTS Writing Task 1'), ('ielts_task2', 'IELTS Writing Task 2'), ('multilevel', 'Multi-level Writing')], default='ona_tili', max_length=20, verbose_name='kategoriya'),
+            model_name="essaytopic",
+            name="category",
+            field=models.CharField(
+                choices=[
+                    ("ona_tili", "Ona tili"),
+                    ("adabiyot", "Adabiyot"),
+                    ("tarix", "Tarix"),
+                    ("umumiy", "Umumiy"),
+                    ("ielts_task1", "IELTS Writing Task 1"),
+                    ("ielts_task2", "IELTS Writing Task 2"),
+                    ("multilevel", "Multi-level Writing"),
+                ],
+                default="ona_tili",
+                max_length=20,
+                verbose_name="kategoriya",
+            ),
         ),
         migrations.AddIndex(
-            model_name='essaytopic',
-            index=models.Index(fields=['subject', 'is_active'], name='idx_essaytopic_subj_act'),
+            model_name="essaytopic",
+            index=models.Index(
+                fields=["subject", "is_active"], name="idx_essaytopic_subj_act"
+            ),
         ),
     ]

@@ -1,4 +1,5 @@
 """Admin configuration for tests app."""
+
 from django.contrib import admin
 
 from .models import (
@@ -66,8 +67,13 @@ class QuestionAdmin(admin.ModelAdmin):
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
     list_display = (
-        "title", "course", "difficulty",
-        "time_limit_minutes", "max_attempts", "is_active", "scoring_profile",
+        "title",
+        "course",
+        "difficulty",
+        "time_limit_minutes",
+        "max_attempts",
+        "is_active",
+        "scoring_profile",
     )
     list_filter = ("difficulty", "is_active", "course")
     search_fields = ("title",)
@@ -114,7 +120,13 @@ class MatchingPairAdmin(admin.ModelAdmin):
 
 @admin.register(ExamWrittenBridge)
 class ExamWrittenBridgeAdmin(admin.ModelAdmin):
-    list_display = ("attempt", "question", "essay_submission", "rubric_version", "created_at")
+    list_display = (
+        "attempt",
+        "question",
+        "essay_submission",
+        "rubric_version",
+        "created_at",
+    )
     readonly_fields = ("attempt", "question", "answer", "created_at")
 
 
@@ -127,8 +139,12 @@ class AttemptSectionProgressAdmin(admin.ModelAdmin):
 @admin.register(ExamScoringProfile)
 class ExamScoringProfileAdmin(admin.ModelAdmin):
     list_display = (
-        "name", "version", "is_active", "is_verified",
-        "certificate_min_percentage", "created_at",
+        "name",
+        "version",
+        "is_active",
+        "is_verified",
+        "certificate_min_percentage",
+        "created_at",
     )
     list_filter = ("is_active", "is_verified")
 
@@ -148,8 +164,12 @@ class MatchingResponseAdmin(admin.ModelAdmin):
 @admin.register(TestAttempt)
 class TestAttemptAdmin(admin.ModelAdmin):
     list_display = (
-        "student", "test", "status",
-        "score", "percentage", "is_passed",
+        "student",
+        "test",
+        "status",
+        "score",
+        "percentage",
+        "is_passed",
         "started_at",
     )
     list_filter = ("status", "is_passed")

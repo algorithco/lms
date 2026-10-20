@@ -4,20 +4,41 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0013_profile_daily_plan_summary_profile_exam_target_and_more'),
+        ("accounts", "0013_profile_daily_plan_summary_profile_exam_target_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='active_subject',
-            field=models.CharField(choices=[('uzbek', 'Ona tili va adabiyot'), ('english', 'Ingliz tili (IELTS & Multi-level)')], db_index=True, default='uzbek', help_text='Foydalanuvchining hozirgi tanlagan fani: uzbek yoki english', max_length=20, verbose_name='faol fan'),
+            model_name="profile",
+            name="active_subject",
+            field=models.CharField(
+                choices=[
+                    ("uzbek", "Ona tili va adabiyot"),
+                    ("english", "Ingliz tili (IELTS & Multi-level)"),
+                ],
+                db_index=True,
+                default="uzbek",
+                help_text="Foydalanuvchining hozirgi tanlagan fani: uzbek yoki english",
+                max_length=20,
+                verbose_name="faol fan",
+            ),
         ),
         migrations.AlterField(
-            model_name='profile',
-            name='exam_target',
-            field=models.CharField(choices=[('national_certificate', 'Milliy sertifikat'), ('attestation', 'Attestatsiya 2026'), ('ielts', 'IELTS Academic / General'), ('multilevel', 'Multi-level (CEFR B1–C1)'), ('undecided', 'Hali aniqlanmagan')], db_index=True, default='undecided', max_length=32, verbose_name='imtihon maqsadi'),
+            model_name="profile",
+            name="exam_target",
+            field=models.CharField(
+                choices=[
+                    ("national_certificate", "Milliy sertifikat"),
+                    ("attestation", "Attestatsiya 2026"),
+                    ("ielts", "IELTS Academic / General"),
+                    ("multilevel", "Multi-level (CEFR B1–C1)"),
+                    ("undecided", "Hali aniqlanmagan"),
+                ],
+                db_index=True,
+                default="undecided",
+                max_length=32,
+                verbose_name="imtihon maqsadi",
+            ),
         ),
     ]

@@ -1,6 +1,7 @@
 """
 Payments services: Receipt approval, rejection, notifications, and subscription activation.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -39,7 +40,7 @@ def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
     2. Validates format via magic bytes (JPG/PNG/WEBP).
     3. Calculates SHA-256 hash.
     4. Anti-fraud check: Checks if another receipt with same hash is pending or approved.
-    
+
     Returns (image_hash, raw_bytes).
     Raises ValueError on validation failure.
     """
@@ -64,7 +65,9 @@ def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
     # WEBP: starts with RIFF and WEBP at bytes 8..12
     is_jpeg = raw_bytes[:3] == b"\xff\xd8\xff"
     is_png = raw_bytes[:8] == b"\x89PNG\r\n\x1a\n"
-    is_webp = raw_bytes[:4] == b"RIFF" and len(raw_bytes) > 12 and raw_bytes[8:12] == b"WEBP"
+    is_webp = (
+        raw_bytes[:4] == b"RIFF" and len(raw_bytes) > 12 and raw_bytes[8:12] == b"WEBP"
+    )
 
     if not (is_jpeg or is_png or is_webp):
         # Also try opening with Pillow as verification
@@ -72,9 +75,13 @@ def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
             with Image.open(BytesIO(raw_bytes)) as img:
                 fmt = (img.format or "").upper()
                 if fmt not in ("JPEG", "JPG", "PNG", "WEBP"):
-                    raise ValueError("Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi.")
+                    raise ValueError(
+                        "Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi."
+                    )
         except Exception:
-            raise ValueError("Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi.")
+            raise ValueError(
+                "Faqat JPG, PNG yoki WEBP formatidagi cheklar qabul qilinadi."
+            )
 
     image_hash = hashlib.sha256(raw_bytes).hexdigest()
 
@@ -85,7 +92,9 @@ def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
     ).exists()
 
     if duplicate:
-        raise ValueError("⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi.")
+        raise ValueError(
+            "⚠️ Ushbu to'lov cheki avval tizimga yuklangan! Qayta ishlatish taqiqlanadi."
+        )
 
     return image_hash, raw_bytes
 
@@ -97,7 +106,11 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
 
     user = receipt.user
     user_name = user.get_full_name() or user.email
-    user_phone = getattr(user, "phone_number", None) or getattr(user, "phone", None) or "Mavjud emas"
+    user_phone = (
+        getattr(user, "phone_number", None)
+        or getattr(user, "phone", None)
+        or "Mavjud emas"
+    )
     plan_name = receipt.plan.capitalize()
     created_str = (
         receipt.created_at.strftime("%d.%m.%Y %H:%M")
@@ -116,14 +129,20 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
     reply_markup = {
         "inline_keyboard": [
             [
-                {"text": "✅ Tasdiqlash", "callback_data": f"adm_rec_appr_{receipt.id}"},
+                {
+                    "text": "✅ Tasdiqlash",
+                    "callback_data": f"adm_rec_appr_{receipt.id}",
+                },
                 {"text": "❌ Rad etish", "callback_data": f"adm_rec_rej_{receipt.id}"},
             ]
         ]
     }
 
     if not bot_token:
-        logger.warning("TELEGRAM_BOT_TOKEN not configured; cannot notify admin of receipt #%s", receipt.id)
+        logger.warning(
+            "TELEGRAM_BOT_TOKEN not configured; cannot notify admin of receipt #%s",
+            receipt.id,
+        )
         return
 
     # Try sending photo if receipt_image exists
@@ -240,7 +259,9 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
 
 
 @transaction.atomic
-def approve_payment_receipt(receipt: PaymentReceipt, admin_user=None) -> UserSubscription:
+def approve_payment_receipt(
+    receipt: PaymentReceipt, admin_user=None
+) -> UserSubscription:
     """
     To'lov chekini tasdiqlash:
     - Status 'approved' qilinadi.
@@ -317,7 +338,9 @@ def approve_payment_receipt(receipt: PaymentReceipt, admin_user=None) -> UserSub
 
 
 @transaction.atomic
-def reject_payment_receipt(receipt: PaymentReceipt, note: str = "", admin_user=None) -> None:
+def reject_payment_receipt(
+    receipt: PaymentReceipt, note: str = "", admin_user=None
+) -> None:
     """
     To'lov chekini rad etish:
     - Status 'rejected' qilinadi.
@@ -331,7 +354,11 @@ def reject_payment_receipt(receipt: PaymentReceipt, note: str = "", admin_user=N
     telegram_id = getattr(receipt.user, "telegram_chat_id", None)
     if telegram_id:
         try:
-            reason_text = f"Sabab: <i>{note}</i>" if note else "Iltimos, to'lov ma'lumotlarini tekshirib qaytadan urinib ko'ring."
+            reason_text = (
+                f"Sabab: <i>{note}</i>"
+                if note
+                else "Iltimos, to'lov ma'lumotlarini tekshirib qaytadan urinib ko'ring."
+            )
             msg = (
                 f"⚠️ <b>To'lov chekingiz rad etildi</b>\n\n"
                 f"📦 Tarif: <b>{receipt.plan.capitalize()}</b>\n"

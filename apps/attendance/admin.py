@@ -88,8 +88,12 @@ class AttendanceSessionAdmin(admin.ModelAdmin):
             "Dars",
             {
                 "fields": (
-                    "group", "teacher", "lesson_date",
-                    "start_time", "end_time", "title",
+                    "group",
+                    "teacher",
+                    "lesson_date",
+                    "start_time",
+                    "end_time",
+                    "title",
                 ),
             },
         ),
@@ -140,11 +144,14 @@ class AttendanceSessionAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request) -> bool:
-        return can_manage_attendance(request.user) and super().has_add_permission(request)
+        return can_manage_attendance(request.user) and super().has_add_permission(
+            request
+        )
 
     def has_delete_permission(self, request, obj=None) -> bool:
         # Deleting a register would destroy the attendance history and the
@@ -183,14 +190,18 @@ class AttendanceSessionAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 f"{skipped_unmarked} ta dars yakunlanmadi: belgilanmagan o'quvchilar "
-                "bor. Ular avtomatik ravishda \"kelmadi\" qilib belgilanmaydi — "
+                'bor. Ular avtomatik ravishda "kelmadi" qilib belgilanmaydi — '
                 "avval ro'yxatni to'ldiring yoki alohida amaldan foydalaning.",
                 level=messages.WARNING,
             )
         self.message_user(
             request,
             f"{finalized} ta davomat darsi yakunlandi"
-            + (f", {skipped_done} tasi allaqachon yakunlangan edi." if skipped_done else "."),
+            + (
+                f", {skipped_done} tasi allaqachon yakunlangan edi."
+                if skipped_done
+                else "."
+            ),
             level=messages.SUCCESS,
         )
 
@@ -232,8 +243,7 @@ class AttendanceSessionAdmin(admin.ModelAdmin):
         ).update(status=AttendanceSession.Status.CANCELLED, updated_at=timezone.now())
         self.message_user(
             request,
-            f"{cancelled} ta dars bekor qilindi (yakunlangan darslar "
-            "o'zgartirilmadi).",
+            f"{cancelled} ta dars bekor qilindi (yakunlangan darslar o'zgartirilmadi).",
             level=messages.SUCCESS,
         )
 
@@ -264,8 +274,11 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "late_minutes", "session__group")
     search_fields = (
-        "student__email", "student__first_name", "student__last_name",
-        "session__group__name", "note",
+        "student__email",
+        "student__first_name",
+        "student__last_name",
+        "session__group__name",
+        "note",
     )
     raw_id_fields = ("session", "student", "marked_by")
     date_hierarchy = "marked_at"
@@ -283,15 +296,19 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request) -> bool:
-        return can_manage_attendance(request.user) and super().has_add_permission(request)
+        return can_manage_attendance(request.user) and super().has_add_permission(
+            request
+        )
 
     def has_delete_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
 
@@ -321,15 +338,26 @@ class AttendanceAuditLogAdmin(admin.ModelAdmin):
     )
     list_filter = ("field", "session__group")
     search_fields = (
-        "student__email", "student__first_name", "student__last_name",
-        "actor__email", "session__group__name", "reason",
+        "student__email",
+        "student__first_name",
+        "student__last_name",
+        "actor__email",
+        "session__group__name",
+        "reason",
     )
     raw_id_fields = ("session", "record", "student", "actor")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     readonly_fields = (
-        "session", "record", "student", "actor",
-        "field", "old_value", "new_value", "reason", "created_at",
+        "session",
+        "record",
+        "student",
+        "actor",
+        "field",
+        "old_value",
+        "new_value",
+        "reason",
+        "created_at",
     )
 
     def has_add_permission(self, request) -> bool:
@@ -375,8 +403,11 @@ class ClassroomObservationAdmin(admin.ModelAdmin):
     )
     list_filter = ("observation_type", "notification_status")
     search_fields = (
-        "student__email", "student__first_name", "student__last_name",
-        "teacher__email", "neutral_description",
+        "student__email",
+        "student__first_name",
+        "student__last_name",
+        "teacher__email",
+        "neutral_description",
     )
     raw_id_fields = ("student", "session", "teacher", "confirmed_by")
     date_hierarchy = "created_at"
@@ -389,15 +420,19 @@ class ClassroomObservationAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request) -> bool:
-        return can_manage_attendance(request.user) and super().has_add_permission(request)
+        return can_manage_attendance(request.user) and super().has_add_permission(
+            request
+        )
 
     def has_delete_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     @admin.action(
@@ -501,7 +536,13 @@ class GroupNotificationDestinationAdmin(admin.ModelAdmin):
     list_filter = ("destination_type", "is_enabled", "is_approved")
     search_fields = ("title", "chat_id", "group__name")
     raw_id_fields = ("group", "approved_by")
-    readonly_fields = ("is_usable_display", "created_at", "updated_at", "approved_at", "approved_by")
+    readonly_fields = (
+        "is_usable_display",
+        "created_at",
+        "updated_at",
+        "approved_at",
+        "approved_by",
+    )
     actions = ("approve_selected", "revoke_selected")
 
     @admin.display(description="Guruh", ordering="group__name")
@@ -514,17 +555,21 @@ class GroupNotificationDestinationAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request) -> bool:
         # A destination is only meaningful once an administrator approves it,
         # so creation runs through the same gate.
-        return can_manage_attendance(request.user) and super().has_add_permission(request)
+        return can_manage_attendance(request.user) and super().has_add_permission(
+            request
+        )
 
     def has_delete_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_delete_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def save_model(self, request, obj, form, change):
@@ -549,7 +594,9 @@ class GroupNotificationDestinationAdmin(admin.ModelAdmin):
     def approve_selected(self, request, queryset):
         now = timezone.now()
         approved = queryset.filter(is_approved=False).update(
-            is_approved=True, approved_by=request.user, approved_at=now,
+            is_approved=True,
+            approved_by=request.user,
+            approved_at=now,
             updated_at=now,
         )
         self.message_user(
@@ -565,13 +612,14 @@ class GroupNotificationDestinationAdmin(admin.ModelAdmin):
     )
     def revoke_selected(self, request, queryset):
         revoked = queryset.filter(is_approved=True).update(
-            is_approved=False, approved_by=None, approved_at=None,
+            is_approved=False,
+            approved_by=None,
+            approved_at=None,
             updated_at=timezone.now(),
         )
         self.message_user(
             request,
-            f"{revoked} ta manzil bekor qilindi — endi unga hech narsa "
-            "yuborilmaydi.",
+            f"{revoked} ta manzil bekor qilindi — endi unga hech narsa yuborilmaydi.",
             level=messages.SUCCESS,
         )
 
@@ -609,7 +657,9 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
         "observation_alerts",
     )
     search_fields = (
-        "user__email", "user__first_name", "user__last_name",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
     )
     raw_id_fields = ("user",)
     readonly_fields = ("created_at", "updated_at")
@@ -618,17 +668,25 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
     def role_display(self, obj: NotificationPreference) -> str:
         if not obj.user_id:
             return "—"
-        return obj.user.get_role_display() if hasattr(
-            obj.user, "get_role_display",
-        ) else obj.user.role
+        return (
+            obj.user.get_role_display()
+            if hasattr(
+                obj.user,
+                "get_role_display",
+            )
+            else obj.user.role
+        )
 
     def has_change_permission(self, request, obj=None) -> bool:
         return can_manage_attendance(request.user) and super().has_change_permission(
-            request, obj,
+            request,
+            obj,
         )
 
     def has_add_permission(self, request) -> bool:
-        return can_manage_attendance(request.user) and super().has_add_permission(request)
+        return can_manage_attendance(request.user) and super().has_add_permission(
+            request
+        )
 
     def has_delete_permission(self, request, obj=None) -> bool:
         # Preferences are recreated on demand; deleting them would silently

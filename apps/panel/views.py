@@ -4,6 +4,7 @@ The React SPA owns all panel routes (/panel/*, /control-panel/*).
 These views serve the baked SPA shell so that direct navigation and
 browser refresh work. All data flows through /api/v1/panel/* JSON APIs.
 """
+
 from django.http import HttpRequest, HttpResponse
 
 from apps.core.spa import serve_spa_shell
@@ -14,6 +15,7 @@ from apps.core.spa import serve_spa_shell
 # The @admin_required decorator is enforced by the React route guard
 # (AdminRoute) and the API endpoints (/api/v1/panel/*) enforce permissions.
 # ---------------------------------------------------------------------------
+
 
 def dashboard_view(request: HttpRequest) -> HttpResponse:
     return serve_spa_shell(request, fallback="/panel")

@@ -10,6 +10,7 @@ Endpoints:
     PATCH /me/               — Profilni tahrirlash
     POST /telegram/connect/  — Telegram Chat ID biriktirish
 """
+
 from django.urls import path
 
 from . import views
@@ -34,21 +35,18 @@ urlpatterns = [
         views.CustomTokenRefreshView.as_view(),
         name="token_refresh",
     ),
-
     # -- Auth (Authenticated) -------------------------------------------------
     path(
         "logout/",
         views.LogoutView.as_view(),
         name="logout",
     ),
-
     # -- Profile --------------------------------------------------------------
     path(
         "me/",
         views.ProfileView.as_view(),
         name="profile",
     ),
-
     # -- Password reset (JSON, React SPA) ---------------------------------------
     path(
         "password-reset/",
@@ -60,7 +58,6 @@ urlpatterns = [
         views.PasswordResetConfirmAPIView.as_view(),
         name="password_reset_confirm_api",
     ),
-
     # -- Django session bridge (React SPA: WS + session JSON) -------------------
     path(
         "session/",
@@ -77,7 +74,6 @@ urlpatterns = [
         views.SessionLogoutView.as_view(),
         name="session_logout",
     ),
-
     # -- Telegram -------------------------------------------------------------
     path(
         "telegram/widget/",
@@ -99,7 +95,6 @@ urlpatterns = [
         views.DirectTelegramLinkView.as_view(),
         name="telegram_direct_link",
     ),
-
     # -- Google OAuth ----------------------------------------------------------
     path(
         "google/",

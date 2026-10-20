@@ -28,7 +28,6 @@ def reverse_noop(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("accounts", "0007_telegramlinkchallenge"),
     ]
@@ -37,6 +36,8 @@ class Migration(migrations.Migration):
         migrations.RunPython(normalize_emails, reverse_noop, elidable=False),
         migrations.AddConstraint(
             model_name="user",
-            constraint=models.UniqueConstraint(Func.Lower("email"), name="uniq_user_email_lower"),
+            constraint=models.UniqueConstraint(
+                Func.Lower("email"), name="uniq_user_email_lower"
+            ),
         ),
     ]

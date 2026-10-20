@@ -4,15 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('payments', '0004_alter_usersubscription_payment_method'),
+        ("payments", "0004_alter_usersubscription_payment_method"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentrequest',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Tekshirilmoqda'), ('approved', 'Tasdiqlangan'), ('rejected', 'Rad etilgan')], db_index=True, default='pending', max_length=20, verbose_name='holat'),
+            model_name="paymentrequest",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Tekshirilmoqda"),
+                    ("approved", "Tasdiqlangan"),
+                    ("rejected", "Rad etilgan"),
+                ],
+                db_index=True,
+                default="pending",
+                max_length=20,
+                verbose_name="holat",
+            ),
         ),
     ]

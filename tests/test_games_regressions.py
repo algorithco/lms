@@ -68,7 +68,9 @@ class GamesRegressionTests(TestCase):
             question_data={"bayt_lines": ["Birinchi satr", "Ikkinchi satr"]},
         )
         _shuffled_lines, expected_order = gazal_puzzle_order(
-            gazal_level, self.user.pk, gazal_level.question_data,
+            gazal_level,
+            self.user.pk,
+            gazal_level.question_data,
         )
         submitted_order = ",".join(map(str, expected_order))
         lugat_game = Game.objects.create(
@@ -101,7 +103,11 @@ class GamesRegressionTests(TestCase):
         # malformed input. Server-owned score state determines both rewards.
         second_gazal_response = self.client.post(
             reverse("webapi:games-check", args=[gazal_game.slug]),
-            {"level_id": gazal_level.pk, "order": submitted_order, "combo": "not-a-number"},
+            {
+                "level_id": gazal_level.pk,
+                "order": submitted_order,
+                "combo": "not-a-number",
+            },
         )
 
         self.assertEqual(gazal_response.status_code, 200)
@@ -132,7 +138,9 @@ class GamesRegressionTests(TestCase):
 
     def test_gazal_level_serializes_scramble_and_hides_answer(self):
         game = Game.objects.create(
-            name="Gazal", slug=Game.GameType.GAZAL_PUZZLE, description="Puzzle",
+            name="Gazal",
+            slug=Game.GameType.GAZAL_PUZZLE,
+            description="Puzzle",
         )
         level = GameLevel.objects.create(
             game=game,
@@ -146,7 +154,9 @@ class GamesRegressionTests(TestCase):
         play = self.client.get(reverse("webapi:games-play", args=[game.slug]))
         self.assertEqual(play.status_code, 200)
         _shuffled, expected_order = gazal_puzzle_order(
-            level, self.user.pk, level.question_data,
+            level,
+            self.user.pk,
+            level.question_data,
         )
         self.assertNotIn("correct_order", play.json()["content"])
         self.assertEqual(play.json()["content"]["shuffled_lines"], _shuffled)
@@ -166,7 +176,9 @@ class GamesRegressionTests(TestCase):
 
     def test_invalid_gazal_level_is_unavailable_without_awarding_rewards(self):
         game = Game.objects.create(
-            name="Gazal", slug=Game.GameType.GAZAL_PUZZLE, description="Puzzle",
+            name="Gazal",
+            slug=Game.GameType.GAZAL_PUZZLE,
+            description="Puzzle",
         )
         level = GameLevel.objects.create(
             game=game,

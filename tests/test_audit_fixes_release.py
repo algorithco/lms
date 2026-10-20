@@ -6,6 +6,7 @@ Tests for AUDIT_AND_SOLUTIONS_REPORT fixes:
 4. Nginx /admin/ gate hardening on grandec.uz.
 5. SPA redirect loop prevention and template-missing auth views.
 """
+
 from __future__ import annotations
 
 import os
@@ -141,7 +142,9 @@ class AuditEssaysJwtTests(TestCase):
 
     @patch("apps.essays.services.generate_improved_essay")
     def test_drf_essay_improve_endpoint(self, mock_generate):
-        mock_generate.return_value = "Improved essay version with richer vocabulary and grammar."
+        mock_generate.return_value = (
+            "Improved essay version with richer vocabulary and grammar."
+        )
         res = self.client.post(f"/api/v1/essays/{self.submission.id}/improve/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -226,7 +229,11 @@ class AuditSchoolSecurityTests(TestCase):
 class AuditNginxHardeningTests(TestCase):
     def test_admin_blocked_on_grandec_uz(self):
         conf_path = os.path.join(
-            os.path.dirname(__file__), "..", "deploy", "nginx", "nginx-ssl.conf",
+            os.path.dirname(__file__),
+            "..",
+            "deploy",
+            "nginx",
+            "nginx-ssl.conf",
         )
         with open(conf_path, encoding="utf-8") as f:
             content = f.read()
@@ -241,7 +248,9 @@ class AuditNginxHardeningTests(TestCase):
         self.assertIsNotNone(grandec_block)
         self.assertIn("location /admin/ {", grandec_block)
         self.assertIn("return 404;", grandec_block)
-        self.assertNotIn("proxy_pass", grandec_block.split("location /admin/ {")[1].split("}")[0])
+        self.assertNotIn(
+            "proxy_pass", grandec_block.split("location /admin/ {")[1].split("}")[0]
+        )
 
 
 class AuditSpaAndAuthViewsTests(TestCase):
@@ -271,7 +280,9 @@ class AuditSpaAndAuthViewsTests(TestCase):
         self.assertIn(res.status_code, (200, 302))
 
         # POST /register/ with bad data
-        res_post = client.post("/register/", {"email": "bad"}, HTTP_ACCEPT="application/json")
+        res_post = client.post(
+            "/register/", {"email": "bad"}, HTTP_ACCEPT="application/json"
+        )
         self.assertEqual(res_post.status_code, 400)
 
         # GET /password-reset/

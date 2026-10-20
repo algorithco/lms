@@ -1,4 +1,5 @@
 """DRF permissions for the React API (mirrors apps/panel/decorators.py)."""
+
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.access import is_platform_admin
@@ -28,10 +29,7 @@ class IsTeacherOrAdmin(BasePermission):
         return bool(
             user
             and user.is_authenticated
-            and (
-                getattr(user, "role", None) == "teacher"
-                or is_platform_admin(user)
-            )
+            and (getattr(user, "role", None) == "teacher" or is_platform_admin(user))
         )
 
 
@@ -57,8 +55,4 @@ class IsPanelAdminOrEssayCreator(BasePermission):
         if _can_create_essay_topic(user):
             return True
         # Fallback to IsPanelAdmin check (covers superuser edge)
-        return bool(
-            user
-            and user.is_authenticated
-            and is_panel_admin(user)
-        )
+        return bool(user and user.is_authenticated and is_panel_admin(user))

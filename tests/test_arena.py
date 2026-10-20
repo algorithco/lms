@@ -14,6 +14,7 @@ Covers:
 WebSocket tests use TransactionTestCase (no transaction wrapping) so the
 consumer's worker-thread DB access can see everything.
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -82,8 +83,8 @@ def _wrong_answer(q: "ArenaQuestion") -> str:
 # 1. MATCHMAKING & ROOMS
 # ============================================================================
 
-class MatchmakingTests(LMSBaseTestCase):
 
+class MatchmakingTests(LMSBaseTestCase):
     def test_elo_matching_pairs_close_ratings(self):
         a = self.student
         b = _make_user("b@test.com", first="B")
@@ -98,9 +99,7 @@ class MatchmakingTests(LMSBaseTestCase):
         entry_b, room_b = services.join_matchmaking_queue(b)
         self.assertIsNotNone(room_b, "close ratings (1000 vs 1005) must match")
         self.assertEqual(room_b.mode, ArenaRoom.Mode.QUEUE)
-        self.assertEqual(
-            {room_b.player1_id, room_b.player2_id}, {a.id, b.id}
-        )
+        self.assertEqual({room_b.player1_id, room_b.player2_id}, {a.id, b.id})
         self.assertEqual(
             ArenaQuestion.objects.filter(room=room_b).count(),
             room_b.total_questions,
@@ -137,9 +136,12 @@ class MatchmakingTests(LMSBaseTestCase):
         self.assertGreater(ArenaQuestion.objects.filter(room=joined).count(), 0)
 
         third = type(self.student).objects.create_user(
-            email="third-player@example.com", password="pass",
+            email="third-player@example.com",
+            password="pass",
         )
-        duplicate_join, duplicate_error = services.join_custom_room(room.room_code, third)
+        duplicate_join, duplicate_error = services.join_custom_room(
+            room.room_code, third
+        )
         self.assertIsNone(duplicate_join)
         self.assertIsNotNone(duplicate_error)
         room.refresh_from_db()
@@ -187,18 +189,22 @@ class MatchmakingTests(LMSBaseTestCase):
 # 2. SCORING: STREAK + TIME BONUS
 # ============================================================================
 
-class ScoringTests(LMSBaseTestCase):
 
+class ScoringTests(LMSBaseTestCase):
     def setUp(self):
         super().setUp()
         self.room = services.create_bot_room(self.student)
         self.player = ArenaPlayer.objects.get(room=self.room, player=self.student)
         self.bot_player = ArenaPlayer.objects.get(room=self.room, is_bot=True)
-        self.questions = list(ArenaQuestion.objects.filter(room=self.room).order_by("position"))
+        self.questions = list(
+            ArenaQuestion.objects.filter(room=self.room).order_by("position")
+        )
 
     def test_time_bonus_and_combo(self):
         q0 = self.questions[0]
-        r1 = services.submit_answer(self.room, self.student.id, q0.correct_answer, 0, time_seconds=2.0)
+        r1 = services.submit_answer(
+            self.room, self.student.id, q0.correct_answer, 0, time_seconds=2.0
+        )
         self.assertIsNotNone(r1)
         self.assertEqual(r1["streak"], 1)
         # base 10 + 0 combo + 50% time bonus (5) = 15
@@ -207,7 +213,9 @@ class ScoringTests(LMSBaseTestCase):
         self.assertEqual(r1["combo_bonus"], 0)
 
         q1 = self.questions[1]
-        r2 = services.submit_answer(self.room, self.student.id, q1.correct_answer, 1, time_seconds=4.0)
+        r2 = services.submit_answer(
+            self.room, self.student.id, q1.correct_answer, 1, time_seconds=4.0
+        )
         self.assertEqual(r2["streak"], 2)
         # base 10 + combo min(2-1,5)*2=2 + time 30% of 10 = 3 → 15
         self.assertEqual(r2["points"], 15)
@@ -222,11 +230,15 @@ class ScoringTests(LMSBaseTestCase):
 
     def test_wrong_answer_resets_streak(self):
         q0 = self.questions[0]
-        services.submit_answer(self.room, self.student.id, q0.correct_answer, 0, time_seconds=1.0)
+        services.submit_answer(
+            self.room, self.student.id, q0.correct_answer, 0, time_seconds=1.0
+        )
 
         q1 = self.questions[1]
         wrong = "a" if q1.correct_answer != "a" else "b"
-        r = services.submit_answer(self.room, self.student.id, wrong, 1, time_seconds=1.0)
+        r = services.submit_answer(
+            self.room, self.student.id, wrong, 1, time_seconds=1.0
+        )
         self.assertFalse(r["is_correct"])
         self.assertEqual(r["streak"], 0)
         self.assertEqual(r["points"], 0)
@@ -237,14 +249,20 @@ class ScoringTests(LMSBaseTestCase):
 
     def test_duplicate_answer_rejected(self):
         q0 = self.questions[0]
-        first = services.submit_answer(self.room, self.student.id, q0.correct_answer, 0, time_seconds=1.0)
+        first = services.submit_answer(
+            self.room, self.student.id, q0.correct_answer, 0, time_seconds=1.0
+        )
         self.assertIsNotNone(first)
-        duplicate = services.submit_answer(self.room, self.student.id, "b", 0, time_seconds=1.0)
+        duplicate = services.submit_answer(
+            self.room, self.student.id, "b", 0, time_seconds=1.0
+        )
         self.assertIsNone(duplicate, "a player must not answer the same question twice")
         self.assertEqual(ArenaAnswerLog.objects.filter(player=self.player).count(), 1)
 
     def test_invalid_answer_ignored(self):
-        result = services.submit_answer(self.room, self.student.id, "e", 0, time_seconds=1.0)
+        result = services.submit_answer(
+            self.room, self.student.id, "e", 0, time_seconds=1.0
+        )
         self.assertIsNone(result)
 
     def test_mark_question_sent_starts_speed_clock_at_display_time(self):
@@ -275,8 +293,8 @@ class ScoringTests(LMSBaseTestCase):
 # 3. REWARDS: XP, COINS, ELO
 # ============================================================================
 
-class RewardsTests(LMSBaseTestCase):
 
+class RewardsTests(LMSBaseTestCase):
     def _play_bot_duel(self, student_wins: bool = True):
         """Drive a full bot duel where the student answers everything."""
         room = services.create_bot_room(self.student)
@@ -284,9 +302,13 @@ class RewardsTests(LMSBaseTestCase):
         bot_player = ArenaPlayer.objects.get(room=room, is_bot=True)
 
         for i, q in enumerate(questions):
-            services.submit_answer(room, self.student.id, q.correct_answer, i, time_seconds=1.0)
+            services.submit_answer(
+                room, self.student.id, q.correct_answer, i, time_seconds=1.0
+            )
             wrong = "a" if q.correct_answer != "a" else "b"
-            services.submit_answer(room, bot_player.player_id, wrong, i, time_seconds=1.0)
+            services.submit_answer(
+                room, bot_player.player_id, wrong, i, time_seconds=1.0
+            )
 
         return room
 
@@ -368,8 +390,8 @@ class RewardsTests(LMSBaseTestCase):
 # 4. ACHIEVEMENTS / BADGES
 # ============================================================================
 
-class BadgeTests(LMSBaseTestCase):
 
+class BadgeTests(LMSBaseTestCase):
     def _badge(self, badge_type: str) -> Badge:
         return Badge.objects.get(badge_type=badge_type)
 
@@ -389,8 +411,7 @@ class BadgeTests(LMSBaseTestCase):
             user=self.student, game__slug=services.ARENA_GAME_SLUG
         )
         expected_bonus = (
-            self._badge("duel_winner_10").xp_bonus
-            + self._badge("arena_elite").xp_bonus
+            self._badge("duel_winner_10").xp_bonus + self._badge("arena_elite").xp_bonus
         )
         self.assertEqual(game_score.total_xp, expected_bonus)
 
@@ -440,6 +461,7 @@ class BadgeTests(LMSBaseTestCase):
 # ============================================================================
 # 5. REST API
 # ============================================================================
+
 
 class ArenaAPITests(LMSBaseTestCase):
     """Arena REST endpoints are session-based @login_required views."""
@@ -542,7 +564,9 @@ class ArenaAPITests(LMSBaseTestCase):
         # via get_token() (public, no auth needed for the plant itself).
         csrf_client.get("/api/notifications/push/vapid-key/")
         csrftoken = csrf_client.cookies.get("csrftoken")
-        self.assertIsNotNone(csrftoken, "CSRF cookie must be planted for session clients")
+        self.assertIsNotNone(
+            csrftoken, "CSRF cookie must be planted for session clients"
+        )
         csrf_value = csrftoken.value  # type: ignore[union-attr]
 
         resp = csrf_client.post("/arena/api/rooms/create/", HTTP_X_CSRFTOKEN=csrf_value)
@@ -571,6 +595,7 @@ class ArenaAPITests(LMSBaseTestCase):
 # 6. WEB SOCKET END-TO-END
 # ============================================================================
 
+
 class ArenaConsumerTests(TransactionTestCase):
     """End-to-end WebSocket duels. TransactionTestCase: consumer threads see data."""
 
@@ -578,7 +603,9 @@ class ArenaConsumerTests(TransactionTestCase):
         self.student = _make_user("ws1@test.com", first="W1")
         self.other = _make_user("ws2@test.com", first="W2")
 
-    async def _drain_to(self, comm, event_type: str, timeout: float = 10.0, label: str = "comm"):
+    async def _drain_to(
+        self, comm, event_type: str, timeout: float = 10.0, label: str = "comm"
+    ):
         while True:
             msg = await comm.receive_json_from(timeout=timeout)
             if msg.get("type") == event_type:
@@ -606,7 +633,9 @@ class ArenaConsumerTests(TransactionTestCase):
             room_code = mf1["room_code"]
             self.assertEqual(mf1["mode"], "queue")
 
-            room = await database_sync_to_async(ArenaRoom.objects.get)(room_code=room_code)
+            room = await database_sync_to_async(ArenaRoom.objects.get)(
+                room_code=room_code
+            )
             total = room.total_questions
 
             for i in range(total):
@@ -626,14 +655,22 @@ class ArenaConsumerTests(TransactionTestCase):
                 # the last question so the duel has a deterministic winner.
                 answer1 = q.correct_answer
                 answer2 = q.correct_answer if i < total - 1 else _wrong_answer(q)
-                await comm1.send_json_to({
-                    "type": "submit_answer", "room_code": room_code,
-                    "answer": answer1, "question_index": i,
-                })
-                await comm2.send_json_to({
-                    "type": "submit_answer", "room_code": room_code,
-                    "answer": answer2, "question_index": i,
-                })
+                await comm1.send_json_to(
+                    {
+                        "type": "submit_answer",
+                        "room_code": room_code,
+                        "answer": answer1,
+                        "question_index": i,
+                    }
+                )
+                await comm2.send_json_to(
+                    {
+                        "type": "submit_answer",
+                        "room_code": room_code,
+                        "answer": answer2,
+                        "question_index": i,
+                    }
+                )
 
             go1 = await self._drain_to(comm1, "game_over", label="c1")
             go2 = await self._drain_to(comm2, "game_over", label="c2")
@@ -643,9 +680,7 @@ class ArenaConsumerTests(TransactionTestCase):
 
             # Both players were persisted with rewards
             def check_rewards():
-                players = list(
-                    ArenaPlayer.objects.filter(room__room_code=room_code)
-                )
+                players = list(ArenaPlayer.objects.filter(room__room_code=room_code))
                 self.assertEqual(len(players), 2)
                 for p in players:
                     self.assertGreaterEqual(p.xp_earned, 0)
@@ -673,7 +708,9 @@ class ArenaConsumerTests(TransactionTestCase):
             self.assertEqual(mf["mode"], "bot")
             room_code = mf["room_code"]
 
-            room = await database_sync_to_async(ArenaRoom.objects.get)(room_code=room_code)
+            room = await database_sync_to_async(ArenaRoom.objects.get)(
+                room_code=room_code
+            )
             self.assertIsNotNone(room.bot_user_id)
             total = room.total_questions
 
@@ -685,10 +722,14 @@ class ArenaConsumerTests(TransactionTestCase):
                 self.assertEqual(msg["question_index"], i)
                 self.assertNotIn("correct_answer", msg["question"])
 
-                await comm.send_json_to({
-                    "type": "submit_answer", "room_code": room_code,
-                    "answer": q.correct_answer, "question_index": i,
-                })
+                await comm.send_json_to(
+                    {
+                        "type": "submit_answer",
+                        "room_code": room_code,
+                        "answer": q.correct_answer,
+                        "question_index": i,
+                    }
+                )
 
             go = await self._drain_to(comm, "game_over", label="bot-go")
             self.assertIn(go["winner_id"], (None, self.student.id))
@@ -737,6 +778,7 @@ class ArenaConsumerTests(TransactionTestCase):
         re-arms the timer/bot flow. Disconnecting must NOT finish the duel
         (that would kill every queued bot match at the redirect step).
         """
+
         async def scenario():
             comm = WebsocketCommunicator(QuizArenaConsumer.as_asgi(), "/ws/arena/")
             comm.scope["user"] = self.student
@@ -751,7 +793,9 @@ class ArenaConsumerTests(TransactionTestCase):
             # The redirect closes the lobby socket mid-countdown
             await comm.disconnect()
 
-            room = await database_sync_to_async(ArenaRoom.objects.get)(room_code=room_code)
+            room = await database_sync_to_async(ArenaRoom.objects.get)(
+                room_code=room_code
+            )
             self.assertEqual(room.status, ArenaRoom.Status.STARTED)
 
             # The duel page reconnects and rejoins the room
@@ -770,10 +814,14 @@ class ArenaConsumerTests(TransactionTestCase):
                 question_row = await database_sync_to_async(
                     lambda: ArenaQuestion.objects.get(room=room, position=i)
                 )()
-                await comm2.send_json_to({
-                    "type": "submit_answer", "room_code": room_code,
-                    "answer": question_row.correct_answer, "question_index": i,
-                })
+                await comm2.send_json_to(
+                    {
+                        "type": "submit_answer",
+                        "room_code": room_code,
+                        "answer": question_row.correct_answer,
+                        "question_index": i,
+                    }
+                )
 
             go = await self._drain_to(comm2, "game_over")
             self.assertEqual(len(go["scores"]), 2)

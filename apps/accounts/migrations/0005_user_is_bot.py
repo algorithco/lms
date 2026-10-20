@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0004_user_language'),
+        ("accounts", "0004_user_language"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='is_bot',
-            field=models.BooleanField(default=False, help_text="Sun'iy AI raqib (Arena bot) hisobi. Real foydalanuvchi emas.", verbose_name='botmi'),
+            model_name="user",
+            name="is_bot",
+            field=models.BooleanField(
+                default=False,
+                help_text="Sun'iy AI raqib (Arena bot) hisobi. Real foydalanuvchi emas.",
+                verbose_name="botmi",
+            ),
         ),
     ]

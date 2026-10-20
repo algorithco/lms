@@ -5,6 +5,7 @@ a teacher must never read or write another teacher's register, annotate a
 student they do not teach, or enumerate another group's essays — regardless of
 what the caller asks for.
 """
+
 import datetime as dt
 
 from django.core.exceptions import PermissionDenied
@@ -26,42 +27,62 @@ from apps.essays.models import EssayAssignment, EssaySubmission, EssayTopic
 class _AuthFixture(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
-            email="az-admin@example.test", password="testpass123",
+            email="az-admin@example.test",
+            password="testpass123",
         )
         self.teacher = User.objects.create_user(
-            email="az-teacher@example.test", password="testpass123", role="teacher",
+            email="az-teacher@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.other_teacher = User.objects.create_user(
-            email="az-other@example.test", password="testpass123", role="teacher",
+            email="az-other@example.test",
+            password="testpass123",
+            role="teacher",
         )
         self.mine_student = User.objects.create_user(
-            email="az-mine@example.test", password="testpass123", role="student",
-            first_name="Ali", last_name="V",
+            email="az-mine@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Ali",
+            last_name="V",
         )
         self.shared_student = User.objects.create_user(
-            email="az-shared@example.test", password="testpass123", role="student",
-            first_name="Zuhra", last_name="K",
+            email="az-shared@example.test",
+            password="testpass123",
+            role="student",
+            first_name="Zuhra",
+            last_name="K",
         )
         self.stranger_student = User.objects.create_user(
-            email="az-stranger@example.test", password="testpass123", role="student",
+            email="az-stranger@example.test",
+            password="testpass123",
+            role="student",
         )
 
         self.group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         self.group.students.add(self.mine_student, self.shared_student)
 
         self.other_group = StudentGroup.objects.create(
-            teacher=self.other_teacher, name="10-B",
+            teacher=self.other_teacher,
+            name="10-B",
         )
         self.other_group.students.add(self.shared_student)
 
         self.topic = EssayTopic.objects.create(
-            title="Kitobxonlik", description="d", created_by=self.teacher,
+            title="Kitobxonlik",
+            description="d",
+            created_by=self.teacher,
         )
         self.my_assignment = EssayAssignment.objects.create(
-            topic=self.topic, group=self.group, assigned_by=self.teacher,
+            topic=self.topic,
+            group=self.group,
+            assigned_by=self.teacher,
         )
         self.foreign_assignment = EssayAssignment.objects.create(
-            topic=self.topic, group=self.other_group, assigned_by=self.other_teacher,
+            topic=self.topic,
+            group=self.other_group,
+            assigned_by=self.other_teacher,
         )
 
     def _my_session(self):
@@ -70,7 +91,8 @@ class _AuthFixture(TestCase):
 
     def _foreign_session(self):
         session, _ = att.create_session(
-            group=self.other_group, teacher=self.other_teacher,
+            group=self.other_group,
+            teacher=self.other_teacher,
         )
         return session
 
@@ -108,10 +130,12 @@ class SessionAccessTests(_AuthFixture):
             att.get_session_for_user(self.teacher, foreign.pk)
         # The owner (and a platform admin) can open their own.
         self.assertEqual(
-            att.get_session_for_user(self.other_teacher, foreign.pk).pk, foreign.pk,
+            att.get_session_for_user(self.other_teacher, foreign.pk).pk,
+            foreign.pk,
         )
         self.assertEqual(
-            att.get_session_for_user(self.admin, foreign.pk).pk, foreign.pk,
+            att.get_session_for_user(self.admin, foreign.pk).pk,
+            foreign.pk,
         )
 
     def test_get_session_for_user_raises_for_missing_session(self):
@@ -120,10 +144,15 @@ class SessionAccessTests(_AuthFixture):
 
     def test_student_can_only_read_a_session_they_have_a_record_in(self):
         session = self._my_session()
-        att.mark(session, self.mine_student, AttendanceRecord.Status.PRESENT,
-                 actor=self.teacher)
+        att.mark(
+            session,
+            self.mine_student,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
+        )
         self.assertEqual(
-            att.session_for_student(self.mine_student, session.pk).pk, session.pk,
+            att.session_for_student(self.mine_student, session.pk).pk,
+            session.pk,
         )
         with self.assertRaises(AttendanceSession.DoesNotExist):
             att.session_for_student(self.stranger_student, session.pk)
@@ -133,16 +162,24 @@ class MarkingAuthorizationTests(_AuthFixture):
     def test_mark_rejects_a_student_outside_the_group(self):
         session = self._my_session()
         with self.assertRaises(att.AttendanceError):
-            att.mark(session, self.stranger_student,
-                     AttendanceRecord.Status.PRESENT, actor=self.teacher)
+            att.mark(
+                session,
+                self.stranger_student,
+                AttendanceRecord.Status.PRESENT,
+                actor=self.teacher,
+            )
 
     def test_mark_rejects_a_cancelled_session(self):
         session = self._my_session()
         session.status = AttendanceSession.Status.CANCELLED
         session.save(update_fields=["status", "updated_at"])
         with self.assertRaises(att.AttendanceError):
-            att.mark(session, self.mine_student,
-                     AttendanceRecord.Status.PRESENT, actor=self.teacher)
+            att.mark(
+                session,
+                self.mine_student,
+                AttendanceRecord.Status.PRESENT,
+                actor=self.teacher,
+            )
 
     def test_teacher_cannot_take_attendance_for_a_student_in_another_group(self):
         foreign = self._foreign_session()
@@ -182,7 +219,8 @@ class ObservationAuthorizationTests(_AuthFixture):
         )
         with self.assertRaises(PermissionDenied):
             att.update_observation(
-                observation, actor=self.other_teacher,
+                observation,
+                actor=self.other_teacher,
                 neutral_description="Boshqa o'qituvchi tahriri.",
             )
         with self.assertRaises(PermissionDenied):
@@ -223,7 +261,8 @@ class EssayReportScopingTests(_AuthFixture):
         report = group_reports.group_essay_results(self.group)
         self.assertEqual(report["total"], 1)
         self.assertEqual(
-            [row["submission_id"] for row in report["results"]], [mine.pk],
+            [row["submission_id"] for row in report["results"]],
+            [mine.pk],
         )
         self.assertNotIn("outside_roster", report["results"][0])
 
@@ -238,7 +277,9 @@ class EssayReportScopingTests(_AuthFixture):
             group_reports.assert_group_access(self.teacher, self.other_group)
         with self.assertRaises(PermissionDenied):
             group_reports.create_assignment(
-                topic=self.topic, group=self.other_group, assigned_by=self.teacher,
+                topic=self.topic,
+                group=self.other_group,
+                assigned_by=self.teacher,
             )
 
     def test_teacher_essay_overview_only_covers_owned_groups(self):
@@ -246,17 +287,21 @@ class EssayReportScopingTests(_AuthFixture):
         self._submit(assignment=self.foreign_assignment, student=self.shared_student)
         overview = group_reports.teacher_essay_overview(self.teacher)
         self.assertEqual(
-            [row["group_name"] for row in overview["groups"]], ["9-A"],
+            [row["group_name"] for row in overview["groups"]],
+            ["9-A"],
         )
         self.assertEqual(overview["groups"][0]["graded"], 1)
 
     def test_teacher_cannot_assign_a_topic_to_another_teachers_group(self):
         other_topic = EssayTopic.objects.create(
-            title="Boshqa", description="d", created_by=self.other_teacher,
+            title="Boshqa",
+            description="d",
+            created_by=self.other_teacher,
         )
         with self.assertRaises(PermissionDenied):
             group_reports.create_assignment(
-                topic=other_topic, group=self.other_group,
+                topic=other_topic,
+                group=self.other_group,
                 assigned_by=self.teacher,
             )
 
@@ -264,26 +309,38 @@ class EssayReportScopingTests(_AuthFixture):
 class ReportPeriodScopingTests(_AuthFixture):
     def test_student_report_can_be_limited_to_one_group(self):
         session, _ = att.create_session(group=self.group, teacher=self.teacher)
-        att.mark(session, self.shared_student, AttendanceRecord.Status.PRESENT,
-                 actor=self.teacher)
+        att.mark(
+            session,
+            self.shared_student,
+            AttendanceRecord.Status.PRESENT,
+            actor=self.teacher,
+        )
         foreign, _ = att.create_session(
-            group=self.other_group, teacher=self.other_teacher,
+            group=self.other_group,
+            teacher=self.other_teacher,
         )
         # The student is marked in the foreign register as well; a report scoped
         # to this group must ignore it.
-        att.mark(foreign, self.shared_student, AttendanceRecord.Status.ABSENT,
-                 actor=self.other_teacher)
+        att.mark(
+            foreign,
+            self.shared_student,
+            AttendanceRecord.Status.ABSENT,
+            actor=self.other_teacher,
+        )
 
         today = timezone.localdate()
         scoped = att.student_attendance_report(
-            self.shared_student, start=today - dt.timedelta(days=7),
-            end=today + dt.timedelta(days=1), group=self.group,
+            self.shared_student,
+            start=today - dt.timedelta(days=7),
+            end=today + dt.timedelta(days=1),
+            group=self.group,
         )
         self.assertEqual(scoped["present"], 1)
         self.assertEqual(scoped["absent"], 0)
 
         unscoped = att.student_attendance_report(
-            self.shared_student, start=today - dt.timedelta(days=7),
+            self.shared_student,
+            start=today - dt.timedelta(days=7),
             end=today + dt.timedelta(days=1),
         )
         self.assertEqual(unscoped["marked_records"], 2)

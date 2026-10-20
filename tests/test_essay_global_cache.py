@@ -9,6 +9,7 @@ isolation.
 No test ever reaches a real AI provider: ``_grade_via_llm`` is patched and its
 call count is the assertion that matters.
 """
+
 from __future__ import annotations
 
 import copy
@@ -23,7 +24,12 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.essays import metrics
-from apps.essays.models import EssayGradingCache, EssaySubmission, EssayTopic, TeacherReview
+from apps.essays.models import (
+    EssayGradingCache,
+    EssaySubmission,
+    EssayTopic,
+    TeacherReview,
+)
 from apps.essays.services import (
     _claim_grading_cache_entry,
     _complete_cache_entry,
@@ -51,15 +57,38 @@ MODEL = "grandec-test-model"
 
 def _grade(total_per_criterion: float | None = None) -> dict:
     """A complete, valid 12-criterion grade payload."""
-    max_scores = {1: 2.0, 2: 2.0, 3: 2.0, 4: 1.5, 5: 1.5, 6: 1.5, 7: 2.0, 8: 1.5, 9: 1.5, 10: 1.5, 11: 1.5, 12: 1.5}
+    max_scores = {
+        1: 2.0,
+        2: 2.0,
+        3: 2.0,
+        4: 1.5,
+        5: 1.5,
+        6: 1.5,
+        7: 2.0,
+        8: 1.5,
+        9: 1.5,
+        10: 1.5,
+        11: 1.5,
+        12: 1.5,
+    }
     if total_per_criterion is not None:
         criteria = [
-            {"id": i, "name": f"Criterion {i}", "score": min(total_per_criterion, max_scores[i]), "reason": "Izoh."}
+            {
+                "id": i,
+                "name": f"Criterion {i}",
+                "score": min(total_per_criterion, max_scores[i]),
+                "reason": "Izoh.",
+            }
             for i in range(1, 13)
         ]
     else:
         criteria = [
-            {"id": i, "name": f"Criterion {i}", "score": max_scores[i], "reason": "Izoh."}
+            {
+                "id": i,
+                "name": f"Criterion {i}",
+                "score": max_scores[i],
+                "reason": "Izoh.",
+            }
             for i in range(1, 13)
         ]
     total = sum(c["score"] for c in criteria)
@@ -91,13 +120,22 @@ class SharedEssayCacheTestCase(TestCase):
     def setUp(self) -> None:
         cache.clear()
         metrics.reset()
-        self.user_a = User.objects.create_user(email="cache-a@example.test", password="StrongPass123!")
-        self.user_b = User.objects.create_user(email="cache-b@example.test", password="StrongPass123!")
+        self.user_a = User.objects.create_user(
+            email="cache-a@example.test", password="StrongPass123!"
+        )
+        self.user_b = User.objects.create_user(
+            email="cache-b@example.test", password="StrongPass123!"
+        )
         self.topic = EssayTopic.objects.create(
-            title="Kitob va inson", category="essay", word_limit_min=10, word_limit_max=500,
+            title="Kitob va inson",
+            category="essay",
+            word_limit_min=10,
+            word_limit_max=500,
         )
         self.llm = MagicMock()
-        patcher_client = patch("apps.essays.services._get_llm_client", return_value=self.llm)
+        patcher_client = patch(
+            "apps.essays.services._get_llm_client", return_value=self.llm
+        )
         patcher_client.start()
         self.addCleanup(patcher_client.stop)
 
@@ -118,7 +156,9 @@ class SharedEssayCacheTestCase(TestCase):
         self.addCleanup(patcher.stop)
         return grader
 
-    def submission(self, student, *, text: str = ESSAY, topic=None, scope=None, status=None):
+    def submission(
+        self, student, *, text: str = ESSAY, topic=None, scope=None, status=None
+    ):
         return EssaySubmission.objects.create(
             student=student,
             topic=self.topic if topic is None else topic,
@@ -133,7 +173,8 @@ class SharedEssayCacheTestCase(TestCase):
         from apps.essays.tasks import grade_submission_task
 
         return grade_submission_task.apply(
-            args=[submission.pk], kwargs={"fail_status": EssaySubmission.Status.ERROR},
+            args=[submission.pk],
+            kwargs={"fail_status": EssaySubmission.Status.ERROR},
         ).get()
 
 
@@ -172,7 +213,9 @@ class CrossAccountReuseTests(SharedEssayCacheTestCase):
 
         entry = EssayGradingCache.objects.get()
         self.assertEqual(entry.status, EssayGradingCache.Status.COMPLETED)
-        self.assertEqual(entry.cache_schema_version, EssayGradingCache.CACHE_SCHEMA_VERSION)
+        self.assertEqual(
+            entry.cache_schema_version, EssayGradingCache.CACHE_SCHEMA_VERSION
+        )
         self.assertTrue(entry.is_reusable())
         self.assertEqual(entry.hit_count, 2)
         self.assertEqual(entry.reuse_count, 1)
@@ -248,7 +291,9 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
             normalize_essay_text("Men kitob o'qimayman."),
         )
         # Punctuation is meaningful and must not be stripped.
-        self.assertNotEqual(normalize_essay_text("Yaxshi."), normalize_essay_text("Yaxshi"))
+        self.assertNotEqual(
+            normalize_essay_text("Yaxshi."), normalize_essay_text("Yaxshi")
+        )
 
     def test_different_topic_is_a_cache_miss(self):
         grader = self.patch_grader()
@@ -258,10 +303,16 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
 
     def test_topic_identity_and_instructions_participate_in_the_key(self):
         topic_a = EssayTopic.objects.create(
-            title="Bir xil sarlavha", description="Birinchi qo'llanma", category="essay", word_limit_min=10,
+            title="Bir xil sarlavha",
+            description="Birinchi qo'llanma",
+            category="essay",
+            word_limit_min=10,
         )
         topic_b = EssayTopic.objects.create(
-            title="Bir xil sarlavha", description="Butunlay boshqa qo'llanma", category="essay", word_limit_min=10,
+            title="Bir xil sarlavha",
+            description="Butunlay boshqa qo'llanma",
+            category="essay",
+            word_limit_min=10,
         )
         ctx_a = build_grading_context(topic=topic_a, scope="practice")
         ctx_b = build_grading_context(topic=topic_b, scope="practice")
@@ -275,14 +326,19 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
 
         # Identical topic content and instructions → identical identity.
         twin = EssayTopic.objects.create(
-            title="Bir xil sarlavha", description="Birinchi qo'llanma", category="essay", word_limit_min=10,
+            title="Bir xil sarlavha",
+            description="Birinchi qo'llanma",
+            category="essay",
+            word_limit_min=10,
         )
         ctx_twin = build_grading_context(topic=twin, scope="practice")
         self.assertEqual(ctx_twin["topic_digest"], ctx_a["topic_digest"])
 
     def test_changed_topic_instructions_are_a_cache_miss(self):
         grader = self.patch_grader()
-        topic = EssayTopic.objects.create(title="Qo'llanma testi", category="essay", word_limit_min=10)
+        topic = EssayTopic.objects.create(
+            title="Qo'llanma testi", category="essay", word_limit_min=10
+        )
         ctx = build_grading_context(topic=topic, scope="practice")
         grade_essay(ESSAY, topic.title, cache_context=ctx)
 
@@ -304,7 +360,9 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
     def test_changed_rubric_version_is_a_cache_miss(self):
         grader = self.patch_grader()
         grade_essay(ESSAY, "Topic")
-        with patch("apps.essays.services.ESSAY_RUBRIC_VERSION", "grandec-essay-12x2-v2"):
+        with patch(
+            "apps.essays.services.ESSAY_RUBRIC_VERSION", "grandec-essay-12x2-v2"
+        ):
             result = grade_essay(ESSAY, "Topic")
         self.assertFalse(result["_from_cache"])
         self.assertEqual(grader.call_count, 2)
@@ -312,7 +370,9 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
     def test_changed_model_is_a_cache_miss(self):
         grader = self.patch_grader()
         grade_essay(ESSAY, "Topic")
-        with override_settings(ESSAY_AI_MODEL="other-model", OPENROUTER_AI_MODEL="other-model"):
+        with override_settings(
+            ESSAY_AI_MODEL="other-model", OPENROUTER_AI_MODEL="other-model"
+        ):
             result = grade_essay(ESSAY, "Topic")
         self.assertFalse(result["_from_cache"])
         self.assertEqual(grader.call_count, 2)
@@ -326,7 +386,9 @@ class ContextIsolationTests(SharedEssayCacheTestCase):
         self.assertEqual(grader.call_count, 2)
 
     def test_changed_language_is_a_cache_miss(self):
-        p = patch("apps.essays.services.grading_cache_identity", wraps=grading_cache_identity)
+        p = patch(
+            "apps.essays.services.grading_cache_identity", wraps=grading_cache_identity
+        )
         p.start()
         self.addCleanup(p.stop)
         grader = self.patch_grader()
@@ -343,15 +405,21 @@ class HighStakesIsolationTests(SharedEssayCacheTestCase):
     def test_high_stakes_scope_never_reuses_across_accounts(self):
         grader = self.patch_grader()
         identity = grading_cache_identity(
-            ESSAY, "", context=build_grading_context(topic_title="", scope="high_stakes"),
+            ESSAY,
+            "",
+            context=build_grading_context(topic_title="", scope="high_stakes"),
         )
         self.assertFalse(identity["cacheable"])
 
         first = grade_essay(
-            ESSAY, "", cache_context=build_grading_context(topic_title="", scope="high_stakes"),
+            ESSAY,
+            "",
+            cache_context=build_grading_context(topic_title="", scope="high_stakes"),
         )
         second = grade_essay(
-            ESSAY, "", cache_context=build_grading_context(topic_title="", scope="high_stakes"),
+            ESSAY,
+            "",
+            cache_context=build_grading_context(topic_title="", scope="high_stakes"),
         )
         self.assertFalse(first["_from_cache"])
         self.assertFalse(second["_from_cache"])
@@ -367,9 +435,11 @@ class HighStakesIsolationTests(SharedEssayCacheTestCase):
         self.assertTrue(shared["_from_cache"])
 
         highs = grade_essay(
-            ESSAY, "Kitob va inson",
+            ESSAY,
+            "Kitob va inson",
             cache_context=build_grading_context(
-                topic_title="Kitob va inson", scope="high_stakes",
+                topic_title="Kitob va inson",
+                scope="high_stakes",
             ),
         )
         self.assertFalse(highs["_from_cache"])
@@ -383,14 +453,22 @@ class HighStakesIsolationTests(SharedEssayCacheTestCase):
             StartAttemptService,
             SubmitAttemptService,
         )
-        from tests.test_official_rules_readiness import build_milliy_exam, make_user, no_dispatch
+        from tests.test_official_rules_readiness import (
+            build_milliy_exam,
+            make_user,
+            no_dispatch,
+        )
 
         teacher = make_user("cache-exam-t@e.com", "teacher")
         student = make_user("cache-exam-s@e.com")
         exam = build_milliy_exam(teacher, title="Cache exam")
         attempt = StartAttemptService.execute(test_id=exam["test"].id, student=student)
         SaveAnswerService.execute(
-            attempt.id, exam["q_w"].id, [], student, written_text="Matn. " * 30,
+            attempt.id,
+            exam["q_w"].id,
+            [],
+            student,
+            written_text="Matn. " * 30,
         )
         with no_dispatch():
             SubmitAttemptService.execute(attempt.id, student)
@@ -399,7 +477,8 @@ class HighStakesIsolationTests(SharedEssayCacheTestCase):
 
         self.assertIsNotNone(bridge.essay_submission_id)
         self.assertEqual(
-            bridge.essay_submission.cache_scope, EssaySubmission.CacheScope.HIGH_STAKES,
+            bridge.essay_submission.cache_scope,
+            EssaySubmission.CacheScope.HIGH_STAKES,
         )
         self.assertEqual(bridge.rubric_version, ESSAY_RUBRIC_VERSION)
         # The bridge kept working: the submission exists and is queued/pending,
@@ -450,7 +529,9 @@ class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
 
         # Reserve the key exactly as the submission's own context would.
         identity = grading_cache_identity(
-            ESSAY, self.topic.title, context=grading_context_for_submission(sub_a),
+            ESSAY,
+            self.topic.title,
+            context=grading_context_for_submission(sub_a),
         )
         self.assertEqual(identity["cache_key"], grading_cache_key_for_submission(sub_b))
         claim = _claim_grading_cache_entry(identity, ESSAY)
@@ -460,7 +541,9 @@ class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
         # paying for a second AI request.
         with self.assertRaises(TimeoutError):
             grade_essay(
-                ESSAY, self.topic.title, cache_context=grading_context_for_submission(sub_b),
+                ESSAY,
+                self.topic.title,
+                cache_context=grading_context_for_submission(sub_b),
             )
         # Through the canonical task the same thing surfaces as a Celery retry.
         with self.assertRaises((TimeoutError, Retry)):
@@ -529,7 +612,9 @@ class ConcurrencyAndRecoveryTests(SharedEssayCacheTestCase):
         result = grade_essay(ESSAY, "Kitob va inson")
         self.assertFalse(result["_from_cache"])
         self.assertEqual(grader.call_count, 1)
-        self.assertEqual(EssayGradingCache.objects.get().status, EssayGradingCache.Status.COMPLETED)
+        self.assertEqual(
+            EssayGradingCache.objects.get().status, EssayGradingCache.Status.COMPLETED
+        )
 
     def test_expired_lease_does_not_overwrite_a_newer_valid_result(self):
         first = self.patch_grader()
@@ -578,18 +663,30 @@ class SimultaneousSubmissionTests(TransactionTestCase):
     def setUp(self) -> None:
         cache.clear()
         metrics.reset()
-        self.user_a = User.objects.create_user(email="race-a@example.test", password="StrongPass123!")
-        self.user_b = User.objects.create_user(email="race-b@example.test", password="StrongPass123!")
+        self.user_a = User.objects.create_user(
+            email="race-a@example.test", password="StrongPass123!"
+        )
+        self.user_b = User.objects.create_user(
+            email="race-b@example.test", password="StrongPass123!"
+        )
         self.topic = EssayTopic.objects.create(
-            title="Bir vaqtda topshirish", category="essay", word_limit_min=10,
+            title="Bir vaqtda topshirish",
+            category="essay",
+            word_limit_min=10,
         )
         self.sub_a = EssaySubmission.objects.create(
-            student=self.user_a, topic=self.topic, essay_text=ESSAY,
-            word_count=12, status=EssaySubmission.Status.PENDING,
+            student=self.user_a,
+            topic=self.topic,
+            essay_text=ESSAY,
+            word_count=12,
+            status=EssaySubmission.Status.PENDING,
         )
         self.sub_b = EssaySubmission.objects.create(
-            student=self.user_b, topic=self.topic, essay_text=ESSAY,
-            word_count=12, status=EssaySubmission.Status.PENDING,
+            student=self.user_b,
+            topic=self.topic,
+            essay_text=ESSAY,
+            word_count=12,
+            status=EssaySubmission.Status.PENDING,
         )
 
     def test_two_simultaneous_identical_submissions_make_one_ai_request(self):
@@ -615,15 +712,20 @@ class SimultaneousSubmissionTests(TransactionTestCase):
         def run(name: str, submission_id: int) -> None:
             try:
                 outcomes[name] = grade_submission_task.apply(
-                    args=[submission_id], kwargs={"fail_status": EssaySubmission.Status.ERROR},
+                    args=[submission_id],
+                    kwargs={"fail_status": EssaySubmission.Status.ERROR},
                 ).get()
             except Exception as exc:  # noqa: BLE001 - recorded and asserted below
                 outcomes[name] = exc
             finally:
                 connection.close()
 
-        with patch("apps.essays.services._grade_via_llm", side_effect=stub_grader), patch(
-            "apps.essays.services._get_llm_client", return_value=MagicMock(),
+        with (
+            patch("apps.essays.services._grade_via_llm", side_effect=stub_grader),
+            patch(
+                "apps.essays.services._get_llm_client",
+                return_value=MagicMock(),
+            ),
         ):
             first = threading.Thread(target=run, args=("a", self.sub_a.pk), daemon=True)
             first.start()
@@ -632,7 +734,9 @@ class SimultaneousSubmissionTests(TransactionTestCase):
                 f"leader never reached the provider: outcomes={outcomes}",
             )
 
-            second = threading.Thread(target=run, args=("b", self.sub_b.pk), daemon=True)
+            second = threading.Thread(
+                target=run, args=("b", self.sub_b.pk), daemon=True
+            )
             second.start()
 
             # Wait until the second submission is registered as a waiter on the
@@ -652,7 +756,11 @@ class SimultaneousSubmissionTests(TransactionTestCase):
             second.join(timeout=40)
 
         self.assertTrue(waiting, "the second submission never registered as a waiter")
-        self.assertEqual(len(provider_calls), 1, f"expected exactly one AI request, got {provider_calls}")
+        self.assertEqual(
+            len(provider_calls),
+            1,
+            f"expected exactly one AI request, got {provider_calls}",
+        )
 
         self.sub_a.refresh_from_db()
         self.sub_b.refresh_from_db()
@@ -819,8 +927,13 @@ class ProvenanceAndPrivacyTests(SharedEssayCacheTestCase):
 
         serialized = json.dumps(payload)
         for leaked in (
-            "text_hash", "grading_context", "grading_cache_key", "lease_owner",
-            self.user_a.email, str(self.sub_a.pk), "fingerprint",
+            "text_hash",
+            "grading_context",
+            "grading_cache_key",
+            "lease_owner",
+            self.user_a.email,
+            str(self.sub_a.pk),
+            "fingerprint",
         ):
             self.assertNotIn(leaked, serialized)
 
@@ -828,7 +941,9 @@ class ProvenanceAndPrivacyTests(SharedEssayCacheTestCase):
         from django.urls import reverse
 
         self.client.force_login(self.user_a)
-        response = self.client.get(reverse("essays:grading-status", args=[self.sub_b.pk]))
+        response = self.client.get(
+            reverse("essays:grading-status", args=[self.sub_b.pk])
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_cache_payload_has_no_user_identity_or_teacher_data(self):
@@ -838,9 +953,19 @@ class ProvenanceAndPrivacyTests(SharedEssayCacheTestCase):
             self.assertNotIn(leaked, payload)
         for identity_key in ("email", "student", "user", "account"):
             self.assertNotIn(identity_key, payload.lower().replace("topic_title", ""))
-        self.assertEqual(sorted(entry.raw_result.keys()), sorted(
-            ["criteria", "total_score", "max_score", "summary", "topic_match", "topic_match_reason"],
-        ))
+        self.assertEqual(
+            sorted(entry.raw_result.keys()),
+            sorted(
+                [
+                    "criteria",
+                    "total_score",
+                    "max_score",
+                    "summary",
+                    "topic_match",
+                    "topic_match_reason",
+                ],
+            ),
+        )
 
     def test_teacher_override_stays_local_to_one_submission(self):
         TeacherReview.objects.create(
@@ -869,7 +994,8 @@ class AdminAndOperationsTests(SharedEssayCacheTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.admin = User.objects.create_superuser(
-            email="cache-admin@example.test", password="StrongPass123!",
+            email="cache-admin@example.test",
+            password="StrongPass123!",
         )
         self.client.force_login(self.admin)
 
@@ -997,7 +1123,8 @@ class EssayEditAndCompatibilityTests(SharedEssayCacheTestCase):
         self.assertIn(result["status"], ("graded", "ok"))
         self.assertTrue(submission.grading_cache_key)
         self.assertEqual(
-            submission.grading_cache_key, grading_cache_key_for_submission(submission),
+            submission.grading_cache_key,
+            grading_cache_key_for_submission(submission),
         )
 
     def test_metrics_record_hits_reuses_and_avoided_requests(self):

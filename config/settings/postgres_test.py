@@ -3,6 +3,7 @@
 Set POSTGRES_TEST_ENABLE=1 and the POSTGRES_TEST_* connection variables.
 Django's test runner creates and drops a separate test_<name> database.
 """
+
 import os
 
 from .test import *  # noqa: F401,F403

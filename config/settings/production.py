@@ -1,4 +1,5 @@
 """Production settings — PostgreSQL, security hardening."""
+
 import os
 
 from .base import *  # noqa: F401,F403
@@ -76,9 +77,9 @@ SECURE_HSTS_PRELOAD = True
 # than FILE_UPLOAD_MAX_MEMORY_SIZE spill to disk; view-level checks below
 # additionally cap CSV imports at 5 MB.
 # ---------------------------------------------------------------------------
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB request body
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB request body
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # 5 MB before spill-to-disk
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB before spill-to-disk
 
 # ---------------------------------------------------------------------------
 # Channels — Redis channel layer (WebSockets across workers/processes)
@@ -92,9 +93,9 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [os.environ.get("REDIS_URL", "redis://redis:6379/1")],
-            "capacity": 100,           # max connections per process pool
-            "expiry": 60,              # channel message TTL (seconds)
-            "group_expiry": 3600,      # stale groups reaped after 1h
+            "capacity": 100,  # max connections per process pool
+            "expiry": 60,  # channel message TTL (seconds)
+            "group_expiry": 3600,  # stale groups reaped after 1h
         },
     },
 }
@@ -166,8 +167,16 @@ LOGGING = {
         "level": LOG_LEVEL,
     },
     "loggers": {
-        "django.request": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
-        "django.db.backends": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django.request": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "celery": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
         "daphne": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
     },
@@ -184,7 +193,9 @@ if SENTRY_DSN:
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            traces_sample_rate=float(
+                os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")
+            ),
             send_default_pii=False,
         )
     except Exception:  # never break boot on observability errors
@@ -199,7 +210,13 @@ _TEMPLATE_KEYS = {
     "django-insecure-change-me-in-production-!@#$%^&*()",
     "your-super-secret-key-change-this-in-production",
 }
-_PLACEHOLDER_FRAGMENTS = ("change-me", "changeme", "change_this", "change-this", "your-")
+_PLACEHOLDER_FRAGMENTS = (
+    "change-me",
+    "changeme",
+    "change_this",
+    "change-this",
+    "your-",
+)
 if (
     not SECRET_KEY
     or SECRET_KEY in _TEMPLATE_KEYS
@@ -209,9 +226,11 @@ if (
     raise ImproperlyConfigured(
         "SECRET_KEY must be a long random value via the DJANGO_SECRET_KEY env var "
         "in production (no placeholders, min 32 chars). Generate one with: "
-        "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        'python -c "import secrets; print(secrets.token_urlsafe(64))"'
     )
-if not ALLOWED_HOSTS or all(h in ("127.0.0.1", "localhost", "web") for h in ALLOWED_HOSTS):
+if not ALLOWED_HOSTS or all(
+    h in ("127.0.0.1", "localhost", "web") for h in ALLOWED_HOSTS
+):
     raise ImproperlyConfigured(
         "DJANGO_ALLOWED_HOSTS must be set explicitly in production "
         "(comma-separated), e.g. example.com,www.example.com."
@@ -237,6 +256,4 @@ if os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").lower() in ("1", "true", "yes"
         "CELERY_TASK_ALWAYS_EAGER must not be true in production (would run LLM inline)."
     )
 if os.environ.get("ESSAY_AI_MOCK_MODE", "").lower() in ("1", "true", "yes"):
-    raise ImproperlyConfigured(
-        "ESSAY_AI_MOCK_MODE must not be true in production."
-    )
+    raise ImproperlyConfigured("ESSAY_AI_MOCK_MODE must not be true in production.")

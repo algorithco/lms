@@ -10,6 +10,7 @@ Email types:
     3. Certificate — certificate number + download link.
     4. Welcome — on registration.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,7 +31,9 @@ class EmailService:
     Barcha xabarlar NotificationLog modelida qayd etiladi.
     """
 
-    DEFAULT_FROM = getattr(settings, "DEFAULT_FROM_EMAIL", "Ona Tili & Adabiyot <noreply@lms-platform.uz>")
+    DEFAULT_FROM = getattr(
+        settings, "DEFAULT_FROM_EMAIL", "Ona Tili & Adabiyot <noreply@lms-platform.uz>"
+    )
 
     @classmethod
     def _get_from(cls) -> str:

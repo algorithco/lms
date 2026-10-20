@@ -4,6 +4,7 @@ Custom middleware for development/proxy environments.
 Fixes CSRF issues when accessing Django through ngrok, cloudflare tunnels,
 or other reverse proxies where the Origin header changes on restart.
 """
+
 import logging
 import re
 
@@ -13,9 +14,7 @@ from django.core.exceptions import PermissionDenied
 logger = logging.getLogger(__name__)
 
 # Ngrok URL patterns (free tier and paid)
-NGROK_ORIGINS_RE = re.compile(
-    r"^https://[a-z0-9-]+\.ngrok(?:-free)?\.(?:app|dev)$"
-)
+NGROK_ORIGINS_RE = re.compile(r"^https://[a-z0-9-]+\.ngrok(?:-free)?\.(?:app|dev)$")
 
 
 class NgrokCsrfMiddleware:
@@ -50,7 +49,9 @@ class NgrokCsrfMiddleware:
 
                 try:
                     parts = urlsplit(origin)
-                    candidate = f"{parts.scheme}://{parts.netloc}" if parts.netloc else ""
+                    candidate = (
+                        f"{parts.scheme}://{parts.netloc}" if parts.netloc else ""
+                    )
                 except Exception:
                     candidate = ""
                 if candidate and NGROK_ORIGINS_RE.match(candidate):

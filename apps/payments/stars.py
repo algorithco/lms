@@ -77,7 +77,10 @@ def mark_invoice_sent(order: TelegramOrder) -> TelegramOrder:
 
 
 def cancel_order(order: TelegramOrder) -> TelegramOrder:
-    if order.status in {TelegramOrder.Status.CREATED, TelegramOrder.Status.INVOICE_SENT}:
+    if order.status in {
+        TelegramOrder.Status.CREATED,
+        TelegramOrder.Status.INVOICE_SENT,
+    }:
         order.status = TelegramOrder.Status.CANCELLED
         order.save(update_fields=["status", "updated_at"])
     return order
@@ -86,6 +89,7 @@ def cancel_order(order: TelegramOrder) -> TelegramOrder:
 # ---------------------------------------------------------------------------
 # Pre-checkout
 # ---------------------------------------------------------------------------
+
 
 def validate_pre_checkout(
     *,
@@ -102,7 +106,8 @@ def validate_pre_checkout(
     if order is None:
         return False, "Buyurtma topilmadi.", None
     if order.status not in {
-        TelegramOrder.Status.CREATED, TelegramOrder.Status.INVOICE_SENT,
+        TelegramOrder.Status.CREATED,
+        TelegramOrder.Status.INVOICE_SENT,
     }:
         return False, "Buyurtma holati to'lovga mos emas.", order
     if currency != STARS_CURRENCY:
@@ -110,7 +115,9 @@ def validate_pre_checkout(
     if int(total_amount) != int(order.amount_stars):
         logger.warning(
             "Stars amount mismatch for order %s: expected %s got %s",
-            order.payload, order.amount_stars, total_amount,
+            order.payload,
+            order.amount_stars,
+            total_amount,
         )
         return False, "To'lov summasi buyurtmaga mos kelmadi.", order
     plan = order.plan
@@ -125,6 +132,7 @@ def validate_pre_checkout(
 # ---------------------------------------------------------------------------
 # Payment confirmation
 # ---------------------------------------------------------------------------
+
 
 def activate_from_successful_payment(
     *,
@@ -172,7 +180,9 @@ def activate_from_successful_payment(
             order.save(update_fields=["status", "raw_payload", "updated_at"])
             logger.warning(
                 "Paid amount mismatch for order %s: expected %s got %s",
-                order.payload, order.amount_stars, total_amount,
+                order.payload,
+                order.amount_stars,
+                total_amount,
             )
             return False, "To'lov summasi mos kelmadi.", None
 
@@ -183,7 +193,8 @@ def activate_from_successful_payment(
             return False, "Reja narxi o'zgargan.", None
 
         if order.status not in {
-            TelegramOrder.Status.CREATED, TelegramOrder.Status.INVOICE_SENT,
+            TelegramOrder.Status.CREATED,
+            TelegramOrder.Status.INVOICE_SENT,
         }:
             return False, "Buyurtma holati to'lovni qabul qilmaydi.", None
 
@@ -199,10 +210,16 @@ def activate_from_successful_payment(
             # below would fail with TransactionManagementError on every
             # backend. Same guard as apps/accounts/services/telegram_identity.
             with transaction.atomic():
-                order.save(update_fields=[
-                    "telegram_payment_charge_id", "provider_payment_charge_id",
-                    "raw_payload", "status", "paid_at", "updated_at",
-                ])
+                order.save(
+                    update_fields=[
+                        "telegram_payment_charge_id",
+                        "provider_payment_charge_id",
+                        "raw_payload",
+                        "status",
+                        "paid_at",
+                        "updated_at",
+                    ]
+                )
         except IntegrityError:
             # The same charge id was recorded concurrently — do not double-grant.
             order.refresh_from_db()
@@ -235,9 +252,7 @@ def refund_order(order: TelegramOrder, *, actor=None, reason: str = "") -> bool:
         order.status = TelegramOrder.Status.REFUNDED
         order.save(update_fields=["status", "updated_at"])
         subscription = (
-            UserSubscription.objects.select_for_update()
-            .filter(user=order.user)
-            .first()
+            UserSubscription.objects.select_for_update().filter(user=order.user).first()
         )
         if subscription is not None:
             subscription.status = UserSubscription.Status.REFUNDED
@@ -261,6 +276,9 @@ def pending_orders_for(user) -> list[TelegramOrder]:
     return list(
         TelegramOrder.objects.filter(
             user=user,
-            status__in=(TelegramOrder.Status.CREATED, TelegramOrder.Status.INVOICE_SENT),
+            status__in=(
+                TelegramOrder.Status.CREATED,
+                TelegramOrder.Status.INVOICE_SENT,
+            ),
         ).select_related("plan")
     )

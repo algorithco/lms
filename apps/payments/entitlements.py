@@ -66,8 +66,14 @@ ESSAY_KINDS = {
 class QuotaDenied(Exception):
     """Raised by :func:`enforce_essay_quota` / :func:`enforce_test_quota`."""
 
-    def __init__(self, code: str, message: str, *, remaining: dict | None = None,
-                 retry_after_seconds: int = 0):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        remaining: dict | None = None,
+        retry_after_seconds: int = 0,
+    ):
         super().__init__(message)
         self.code = code
         self.message = message
@@ -78,6 +84,7 @@ class QuotaDenied(Exception):
 # ---------------------------------------------------------------------------
 # Platform defaults (all administrator-overridable via settings / plan rows)
 # ---------------------------------------------------------------------------
+
 
 def _platform_defaults() -> dict:
     """Fallback configuration for a tier that leaves a field unset.
@@ -90,13 +97,19 @@ def _platform_defaults() -> dict:
     """
     return {
         "image_essay_weekly_limit": getattr(
-            settings, "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT", None,
+            settings,
+            "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT",
+            None,
         ),
         "text_essay_weekly_limit": getattr(
-            settings, "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT", None,
+            settings,
+            "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT",
+            None,
         ),
         "text_essay_cooldown_hours": getattr(
-            settings, "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS", None,
+            settings,
+            "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS",
+            None,
         ),
         "test_limit": getattr(settings, "SUBSCRIPTION_DEFAULT_TEST_LIMIT", None),
         "is_unlimited_image_essays": False,
@@ -134,7 +147,10 @@ def quota_period_start(
     local = (now or timezone.now()).astimezone(tz)
     days_since = (local.weekday() - reset_weekday) % 7
     start_local = (local - timedelta(days=days_since)).replace(
-        hour=0, minute=0, second=0, microsecond=0,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
     )
     try:
         length = int(period_days or 7)
@@ -151,6 +167,7 @@ def quota_period_start(
 # ---------------------------------------------------------------------------
 # Effective entitlement
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Entitlement:
@@ -243,9 +260,7 @@ def _subscription_for(user) -> UserSubscription | None:
     if user is None or not getattr(user, "pk", None):
         return None
     return (
-        UserSubscription.objects.select_related("plan")
-        .filter(user_id=user.pk)
-        .first()
+        UserSubscription.objects.select_related("plan").filter(user_id=user.pk).first()
     )
 
 
@@ -261,8 +276,9 @@ def _active_override(user) -> SubscriptionOverride | None:
 def _effective_sponsorship(user) -> TeacherSponsorship | None:
     now = timezone.now()
     qs = (
-        TeacherSponsorship.objects.filter(student=user, is_active=True,
-                                           approved_at__isnull=False)
+        TeacherSponsorship.objects.filter(
+            student=user, is_active=True, approved_at__isnull=False
+        )
         .select_related("group")
         .order_by("-approved_at", "-id")
     )
@@ -283,8 +299,11 @@ def get_effective_entitlement(user) -> Entitlement:
 
     if user is None or not getattr(user, "is_authenticated", False):
         return Entitlement(
-            source=SOURCE_DEFAULT, plan_type=None, plan_name="Mehmon",
-            is_sponsored=False, is_active=False,
+            source=SOURCE_DEFAULT,
+            plan_type=None,
+            plan_name="Mehmon",
+            is_sponsored=False,
+            is_active=False,
             image_essay_weekly_limit=config["image_essay_weekly_limit"],
             text_essay_weekly_limit=config["text_essay_weekly_limit"],
             text_essay_cooldown_hours=config["text_essay_cooldown_hours"],
@@ -331,10 +350,14 @@ def get_effective_entitlement(user) -> Entitlement:
             is_sponsored = True
             expires_at = sponsorship.expires_at
             return Entitlement(
-                source=source, plan_type=sponsored_plan.plan_type,
-                plan_name=plan_name, is_sponsored=is_sponsored,
-                plan=entitlement_plan, expires_at=expires_at,
-                override_fields=contributed + contributed2, **merged,
+                source=source,
+                plan_type=sponsored_plan.plan_type,
+                plan_name=plan_name,
+                is_sponsored=is_sponsored,
+                plan=entitlement_plan,
+                expires_at=expires_at,
+                override_fields=contributed + contributed2,
+                **merged,
             )
         logger.warning(
             "Student %s has an approved sponsorship but no "
@@ -351,19 +374,33 @@ def get_effective_entitlement(user) -> Entitlement:
             subscription.purchase_source == UserSubscription.Source.TEACHER_SPONSORED
         )
         source = SOURCE_SPONSORED if is_teacher_sponsored else SOURCE_SUBSCRIPTION
-        plan_name = "PRO (Ustoz guruhi orqali)" if is_teacher_sponsored else (plan.name if plan else "PRO")
+        plan_name = (
+            "PRO (Ustoz guruhi orqali)"
+            if is_teacher_sponsored
+            else (plan.name if plan else "PRO")
+        )
         is_sponsored = is_teacher_sponsored
         expires_at = subscription.expires_at
         if plan is not None:
             merged, contributed = _apply_layer(dict(config), plan)
             return Entitlement(
-                source=source, plan_type=plan.plan_type, plan_name=plan_name,
-                is_sponsored=is_sponsored, plan=plan, subscription=subscription,
-                expires_at=expires_at, override_fields=contributed, **merged,
+                source=source,
+                plan_type=plan.plan_type,
+                plan_name=plan_name,
+                is_sponsored=is_sponsored,
+                plan=plan,
+                subscription=subscription,
+                expires_at=expires_at,
+                override_fields=contributed,
+                **merged,
             )
         return Entitlement(
-            source=source, plan_type=None, plan_name=plan_name,
-            is_sponsored=is_sponsored, subscription=subscription, expires_at=expires_at,
+            source=source,
+            plan_type=None,
+            plan_name=plan_name,
+            is_sponsored=is_sponsored,
+            subscription=subscription,
+            expires_at=expires_at,
             image_essay_weekly_limit=config["image_essay_weekly_limit"],
             text_essay_weekly_limit=config["text_essay_weekly_limit"],
             text_essay_cooldown_hours=config["text_essay_cooldown_hours"],
@@ -379,12 +416,18 @@ def get_effective_entitlement(user) -> Entitlement:
     if free_plan is not None:
         merged, contributed = _apply_layer(dict(config), free_plan)
         return Entitlement(
-            source=SOURCE_DEFAULT, plan_type=free_plan.plan_type,
-            plan_name=free_plan.name or "Bepul", is_sponsored=False,
-            plan=free_plan, override_fields=contributed, **merged,
+            source=SOURCE_DEFAULT,
+            plan_type=free_plan.plan_type,
+            plan_name=free_plan.name or "Bepul",
+            is_sponsored=False,
+            plan=free_plan,
+            override_fields=contributed,
+            **merged,
         )
     return Entitlement(
-        source=SOURCE_DEFAULT, plan_type=None, plan_name=plan_name,
+        source=SOURCE_DEFAULT,
+        plan_type=None,
+        plan_name=plan_name,
         is_sponsored=False,
         image_essay_weekly_limit=config["image_essay_weekly_limit"],
         text_essay_weekly_limit=config["text_essay_weekly_limit"],
@@ -397,6 +440,7 @@ def get_effective_entitlement(user) -> Entitlement:
 # ---------------------------------------------------------------------------
 # Read-only reporting helpers
 # ---------------------------------------------------------------------------
+
 
 def _used_in_window(user, kind: str, period_start: datetime) -> int:
     return SubscriptionUsage.objects.filter(
@@ -464,19 +508,24 @@ def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
     entitlement = entitlement or get_effective_entitlement(user)
     now = timezone.now()
     period_start = quota_period_start(
-        now, period_days=entitlement.quota_period_days,
+        now,
+        period_days=entitlement.quota_period_days,
     )
 
     def bucket(kind: str, limit: int | None, unlimited: bool) -> dict:
         used = 0 if unlimited else _used_in_window(user, kind, period_start)
         if unlimited:
             return {
-                "unlimited": True, "limit": None, "used": used,
+                "unlimited": True,
+                "limit": None,
+                "used": used,
                 "remaining": None,
             }
         remaining = None if limit is None else max(0, int(limit) - used)
         return {
-            "unlimited": False, "limit": limit, "used": used,
+            "unlimited": False,
+            "limit": limit,
+            "used": used,
             "remaining": remaining,
         }
 
@@ -487,7 +536,9 @@ def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
         "plan_name": entitlement.plan_name,
         "is_sponsored": entitlement.is_sponsored,
         "is_paid": entitlement.is_paid,
-        "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+        "expires_at": entitlement.expires_at.isoformat()
+        if entitlement.expires_at
+        else None,
         "period_start": period_start.isoformat(),
         "period_end": (
             period_start + timedelta(days=entitlement.quota_period_days)
@@ -549,6 +600,7 @@ def _remaining_message(kind: str, remaining: dict) -> str:
 # Eligibility checks
 # ---------------------------------------------------------------------------
 
+
 def can_submit_essay(user, kind: str) -> tuple[bool, str | None, dict]:
     """Non-mutating eligibility check. Returns ``(ok, reason, remaining)``."""
     if kind not in ESSAY_KINDS:
@@ -594,6 +646,7 @@ def _kind_key(kind: str) -> str:
 # ---------------------------------------------------------------------------
 # Atomic reservation
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Reservation:
@@ -670,7 +723,8 @@ def reserve_usage(
             return Reservation(
                 ok=existing.status != SubscriptionUsage.Status.RELEASED,
                 usage=existing,
-                reason=None if existing.status != SubscriptionUsage.Status.RELEASED
+                reason=None
+                if existing.status != SubscriptionUsage.Status.RELEASED
                 else "released",
                 message="",
                 # Resolved here rather than reusing a local: on the replay path
@@ -683,7 +737,8 @@ def reserve_usage(
         entitlement = get_effective_entitlement(user)
         now = timezone.now()
         period_start = quota_period_start(
-            now, period_days=entitlement.quota_period_days,
+            now,
+            period_days=entitlement.quota_period_days,
         )
         unlimited = entitlement.is_unlimited_for(kind)
         limit = entitlement.limit_for(kind)
@@ -695,9 +750,10 @@ def reserve_usage(
                 remaining = get_remaining_limits(user, entitlement)
                 message = _limit_message(kind)
                 return Reservation(
-                    ok=False, reason="limit_exceeded",
+                    ok=False,
+                    reason="limit_exceeded",
                     message=f"{message}\n{UPGRADE_HINT}\n"
-                            f"{_remaining_message(kind, remaining)}",
+                    f"{_remaining_message(kind, remaining)}",
                     remaining=remaining,
                 )
             if kind == SubscriptionUsage.Kind.TEXT_ESSAY:
@@ -705,7 +761,8 @@ def reserve_usage(
                 if cooldown > 0:
                     remaining = get_remaining_limits(user, entitlement)
                     return Reservation(
-                        ok=False, reason="cooldown",
+                        ok=False,
+                        reason="cooldown",
                         message=(
                             "Keyingi matnli esseni "
                             f"{format_duration(cooldown)}dan keyin "
@@ -739,14 +796,19 @@ def reserve_usage(
             if existing is None:
                 raise
             return Reservation(
-                ok=True, usage=existing, replayed=True,
+                ok=True,
+                usage=existing,
+                replayed=True,
                 remaining=get_remaining_limits(user, entitlement),
                 not_counted=not existing.counts_towards_quota,
             )
 
     remaining = get_remaining_limits(user, entitlement)
     return Reservation(
-        ok=True, usage=usage, remaining=remaining, not_counted=not counts,
+        ok=True,
+        usage=usage,
+        remaining=remaining,
+        not_counted=not counts,
     )
 
 
@@ -757,13 +819,17 @@ def commit_usage(reservation: Reservation | SubscriptionUsage | None) -> bool:
         return False
     if usage.status == SubscriptionUsage.Status.COMMITTED:
         return True
-    updated = SubscriptionUsage.objects.filter(
-        pk=usage.pk,
-    ).exclude(
-        status=SubscriptionUsage.Status.COMMITTED,
-    ).update(
-        status=SubscriptionUsage.Status.COMMITTED,
-        committed_at=timezone.now(),
+    updated = (
+        SubscriptionUsage.objects.filter(
+            pk=usage.pk,
+        )
+        .exclude(
+            status=SubscriptionUsage.Status.COMMITTED,
+        )
+        .update(
+            status=SubscriptionUsage.Status.COMMITTED,
+            committed_at=timezone.now(),
+        )
     )
     return bool(updated) or True
 
@@ -779,7 +845,8 @@ def release_usage(reservation: Reservation | SubscriptionUsage | None) -> bool:
     if usage is None:
         return False
     updated = SubscriptionUsage.objects.filter(
-        pk=usage.pk, status=SubscriptionUsage.Status.RESERVED,
+        pk=usage.pk,
+        status=SubscriptionUsage.Status.RESERVED,
     ).update(
         status=SubscriptionUsage.Status.RELEASED,
         released_at=timezone.now(),
@@ -801,11 +868,16 @@ def _as_usage(obj) -> SubscriptionUsage | None:
 # Convenience enforcement helpers for view/handler call sites
 # ---------------------------------------------------------------------------
 
-def enforce_essay_quota(user, kind: str, *, idempotency_key: str | None = None,
-                        source: str = "") -> Reservation:
+
+def enforce_essay_quota(
+    user, kind: str, *, idempotency_key: str | None = None, source: str = ""
+) -> Reservation:
     """Reserve an essay allowance or raise :class:`QuotaDenied`."""
     reservation = reserve_usage(
-        user, kind, idempotency_key=idempotency_key, source=source,
+        user,
+        kind,
+        idempotency_key=idempotency_key,
+        source=source,
     )
     if not reservation.ok:
         raise QuotaDenied(
@@ -817,8 +889,9 @@ def enforce_essay_quota(user, kind: str, *, idempotency_key: str | None = None,
     return reservation
 
 
-def enforce_test_quota(user, *, idempotency_key: str | None = None,
-                       source: str = "") -> Reservation:
+def enforce_test_quota(
+    user, *, idempotency_key: str | None = None, source: str = ""
+) -> Reservation:
     """Reserve a test allowance or raise :class:`QuotaDenied`."""
     ok, reason, remaining = can_start_test(user)
     if not ok:
@@ -829,8 +902,10 @@ def enforce_test_quota(user, *, idempotency_key: str | None = None,
             remaining=remaining,
         )
     reservation = reserve_usage(
-        user, SubscriptionUsage.Kind.TEST,
-        idempotency_key=idempotency_key, source=source,
+        user,
+        SubscriptionUsage.Kind.TEST,
+        idempotency_key=idempotency_key,
+        source=source,
     )
     if not reservation.ok:
         raise QuotaDenied(

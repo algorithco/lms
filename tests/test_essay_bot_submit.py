@@ -11,20 +11,28 @@ from apps.notifications.bot.handlers import (
     essay_submit_handler,
 )
 
+
 class TelegramEssaySubmissionTests(TestCase):
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
         self.user = User.objects.create_user(
             email="essay-bot@example.test",
             password=None,
             first_name="Essay",
             telegram_chat_id=77123456,
-            telegram_identity_verified_at=__import__("django.utils.timezone", fromlist=["now"]).now(),
+            telegram_identity_verified_at=__import__(
+                "django.utils.timezone", fromlist=["now"]
+            ).now(),
         )
-        self.message = SimpleNamespace(text="A sufficiently long direct essay body.", reply_text=AsyncMock())
+        self.message = SimpleNamespace(
+            text="A sufficiently long direct essay body.", reply_text=AsyncMock()
+        )
         self.update = SimpleNamespace(
-            effective_user=SimpleNamespace(id=self.user.telegram_chat_id, first_name="Essay", last_name=""),
+            effective_user=SimpleNamespace(
+                id=self.user.telegram_chat_id, first_name="Essay", last_name=""
+            ),
             message=self.message,
             callback_query=None,
         )
@@ -66,7 +74,9 @@ class TelegramEssaySubmissionTests(TestCase):
 
         self.assertEqual(EssaySubmission.objects.filter(student=self.user).count(), 1)
         mock_task.delay.assert_not_called()
-        self.assertIn("allaqachon qabul qilingan", self.message.reply_text.await_args.args[0])
+        self.assertIn(
+            "allaqachon qabul qilingan", self.message.reply_text.await_args.args[0]
+        )
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
     @patch("apps.essays.tasks.grade_submission_task")
@@ -80,9 +90,9 @@ class TelegramEssaySubmissionTests(TestCase):
             max_score=20,
         )
 
-        async_to_sync(essay_submit_handler)(self.update, SimpleNamespace(
-            args=[self.message.text], user_data={}
-        ))
+        async_to_sync(essay_submit_handler)(
+            self.update, SimpleNamespace(args=[self.message.text], user_data={})
+        )
 
         self.assertEqual(EssaySubmission.objects.filter(student=self.user).count(), 1)
         mock_task.delay.assert_not_called()

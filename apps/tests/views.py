@@ -13,6 +13,7 @@ Endpoints:
     POST /api/tests/attempts/{id}/submit/        — Testni yakunlash
     GET  /api/tests/                             — Testlar ro'yxati
 """
+
 from typing import Any
 
 import logging
@@ -172,7 +173,10 @@ class TestDetailView(generics.RetrieveAPIView):
         except Exception as exc:
             logger.exception("Failed to serialize test: %s", exc)
             return Response(
-                {"error": "Test ma'lumotlarini yuklashda xatolik yuz berdi.", "detail": str(exc)},
+                {
+                    "error": "Test ma'lumotlarini yuklashda xatolik yuz berdi.",
+                    "detail": str(exc),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -207,7 +211,9 @@ class StartAttemptView(APIView):
         },
         tags=["Tests"],
     )
-    def post(self, request: Request, test_id: int, *args: Any, **kwargs: Any) -> Response:
+    def post(
+        self, request: Request, test_id: int, *args: Any, **kwargs: Any
+    ) -> Response:
         """Yangi attempt yaratish."""
         try:
             attempt = StartAttemptService.execute(
@@ -217,16 +223,23 @@ class StartAttemptView(APIView):
         except ValueError as e:
             logger.warning(
                 "Start attempt failed: test=%d, user=%d, error=%s",
-                test_id, request.user.id, str(e),
+                test_id,
+                request.user.id,
+                str(e),
             )
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
-            logger.exception("Unexpected error starting attempt test=%d: %s", test_id, e)
+            logger.exception(
+                "Unexpected error starting attempt test=%d: %s", test_id, e
+            )
             return Response(
-                {"error": "Testni boshlashda kutilmagan xatolik yuz berdi.", "detail": str(e)},
+                {
+                    "error": "Testni boshlashda kutilmagan xatolik yuz berdi.",
+                    "detail": str(e),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -264,10 +277,13 @@ class AttemptDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return TestAttempt.objects.select_related(
-            "test", "student",
+            "test",
+            "student",
         ).prefetch_related(
-            "answers", "answers__selected_choices",
-            "section_progress", "section_progress__section",
+            "answers",
+            "answers__selected_choices",
+            "section_progress",
+            "section_progress__section",
         )
 
     def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
@@ -277,7 +293,10 @@ class AttemptDetailView(generics.RetrieveAPIView):
         except Exception as exc:
             logger.warning("Attempt retrieve get_object failed: %s", exc)
             return Response(
-                {"error": "Attempt topilmadi yoki ruxsat berilmagan.", "detail": str(exc)},
+                {
+                    "error": "Attempt topilmadi yoki ruxsat berilmagan.",
+                    "detail": str(exc),
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -285,29 +304,41 @@ class AttemptDetailView(generics.RetrieveAPIView):
             if instance.status == TestAttempt.Status.IN_PROGRESS:
                 if instance.is_time_expired:
                     from .services import SubmitAttemptService
+
                     SubmitAttemptService._timeout_attempt(instance)
                     instance.refresh_from_db()
                     logger.info("Auto-timeout on attempt view: id=%d", instance.id)
             elif instance.status == TestAttempt.Status.PENDING_GRADING:
                 from .services import SubmitAttemptService
+
                 try:
                     SubmitAttemptService.finalize_pending_grading(
-                        attempt_id=instance.id, student=request.user,
+                        attempt_id=instance.id,
+                        student=request.user,
                     )
                     instance.refresh_from_db()
                     logger.info("Auto-finalized on attempt view: id=%d", instance.id)
                 except ValueError:
                     pass
         except Exception as exc:
-            logger.warning("Timeout/grading check error on attempt %s: %s", getattr(instance, "id", None), exc)
+            logger.warning(
+                "Timeout/grading check error on attempt %s: %s",
+                getattr(instance, "id", None),
+                exc,
+            )
 
         try:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
         except Exception as exc:
-            logger.exception("Failed to serialize attempt %s: %s", getattr(instance, "id", None), exc)
+            logger.exception(
+                "Failed to serialize attempt %s: %s", getattr(instance, "id", None), exc
+            )
             return Response(
-                {"error": "Attempt ma'lumotlarini yuklashda xatolik yuz berdi.", "detail": str(exc)},
+                {
+                    "error": "Attempt ma'lumotlarini yuklashda xatolik yuz berdi.",
+                    "detail": str(exc),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -337,18 +368,22 @@ class SaveAnswerView(APIView):
         responses={
             200: {
                 "description": "Javob saqlandi",
-                "examples": [{
-                    "message": "Javob saqlandi.",
-                    "question_id": 15,
-                    "saved_choices": [23],
-                    "remaining_seconds": 1750,
-                }],
+                "examples": [
+                    {
+                        "message": "Javob saqlandi.",
+                        "question_id": 15,
+                        "saved_choices": [23],
+                        "remaining_seconds": 1750,
+                    }
+                ],
             },
             400: {"description": "Validation xatoligi"},
         },
         tags=["Tests"],
     )
-    def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
+    def post(
+        self, request: Request, attempt_id: int, *args: Any, **kwargs: Any
+    ) -> Response:
         """Javobni saqlash (barcha savol turlari; kalitlar hech qachon qaytmaydi)."""
         try:
             if _own_attempt_or_404(request, attempt_id) is None:
@@ -371,10 +406,14 @@ class SaveAnswerView(APIView):
             )
             saved_choices = []
             if hasattr(answer, "selected_choices"):
-                saved_choices = list(answer.selected_choices.values_list("id", flat=True))
+                saved_choices = list(
+                    answer.selected_choices.values_list("id", flat=True)
+                )
             saved_gaps = []
             if hasattr(answer, "gap_responses"):
-                saved_gaps = sorted(answer.gap_responses.values_list("blank_position", flat=True))
+                saved_gaps = sorted(
+                    answer.gap_responses.values_list("blank_position", flat=True)
+                )
             matching_cnt = 0
             if hasattr(answer, "matching_responses"):
                 matching_cnt = answer.matching_responses.count()
@@ -385,7 +424,9 @@ class SaveAnswerView(APIView):
             return Response(
                 {
                     "message": "Javob saqlandi.",
-                    "question_id": getattr(answer, "question_id", serializer.validated_data["question_id"]),
+                    "question_id": getattr(
+                        answer, "question_id", serializer.validated_data["question_id"]
+                    ),
                     "saved_choices": saved_choices,
                     "saved_gap_positions": saved_gaps,
                     "saved_matching_count": matching_cnt,
@@ -397,14 +438,18 @@ class SaveAnswerView(APIView):
         except ValueError as e:
             logger.warning(
                 "Save answer failed: attempt=%d, user=%d, error=%s",
-                attempt_id, request.user.id, str(e),
+                attempt_id,
+                request.user.id,
+                str(e),
             )
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as exc:
-            logger.exception("Save answer unexpected error attempt=%d: %s", attempt_id, exc)
+            logger.exception(
+                "Save answer unexpected error attempt=%d: %s", attempt_id, exc
+            )
             return Response(
                 {"error": "Javobni saqlashda xatolik yuz berdi.", "detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -439,27 +484,31 @@ class SubmitAttemptView(APIView):
         responses={
             200: {
                 "description": "Test yakunlandi",
-                "examples": [{
-                    "message": "Test muvaffaqiyatli yakunlandi!",
-                    "result": {
-                        "attempt_id": 1,
-                        "total_questions": 10,
-                        "correct_answers": 8,
-                        "wrong_answers": 2,
-                        "unanswered": 0,
-                        "score": "8.00",
-                        "max_score": "10.00",
-                        "percentage": "80.00",
-                        "is_passed": True,
-                        "time_taken_seconds": 1200,
-                    },
-                }],
+                "examples": [
+                    {
+                        "message": "Test muvaffaqiyatli yakunlandi!",
+                        "result": {
+                            "attempt_id": 1,
+                            "total_questions": 10,
+                            "correct_answers": 8,
+                            "wrong_answers": 2,
+                            "unanswered": 0,
+                            "score": "8.00",
+                            "max_score": "10.00",
+                            "percentage": "80.00",
+                            "is_passed": True,
+                            "time_taken_seconds": 1200,
+                        },
+                    }
+                ],
             },
             400: {"description": "Business rule xatoligi"},
         },
         tags=["Tests"],
     )
-    def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
+    def post(
+        self, request: Request, attempt_id: int, *args: Any, **kwargs: Any
+    ) -> Response:
         """Testni yakunlash."""
         if _own_attempt_or_404(request, attempt_id) is None:
             return Response(
@@ -474,7 +523,9 @@ class SubmitAttemptView(APIView):
         except ValueError as e:
             logger.warning(
                 "Submit failed: attempt=%d, user=%d, error=%s",
-                attempt_id, request.user.id, str(e),
+                attempt_id,
+                request.user.id,
+                str(e),
             )
             return Response(
                 {"error": str(e)},
@@ -482,6 +533,7 @@ class SubmitAttemptView(APIView):
             )
         try:
             from apps.accounts.gamification import record_user_activity
+
             xp = 25 if getattr(result, "is_passed", False) else 15
             record_user_activity(request.user, xp_amount=xp, activity_type="test")
         except Exception:
@@ -534,10 +586,15 @@ class FinalizeAttemptView(APIView):
             "- Boshqa holatlar → 400 (noto'g'ri o'tish)"
         ),
         request=None,
-        responses={200: {"description": "Yakunlandi"}, 202: {"description": "Hali kutilmoqda"}},
+        responses={
+            200: {"description": "Yakunlandi"},
+            202: {"description": "Hali kutilmoqda"},
+        },
         tags=["Tests"],
     )
-    def post(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
+    def post(
+        self, request: Request, attempt_id: int, *args: Any, **kwargs: Any
+    ) -> Response:
         """Kutilayotgan baholashni yakunlash."""
         if _own_attempt_or_404(request, attempt_id) is None:
             return Response(
@@ -558,7 +615,9 @@ class FinalizeAttemptView(APIView):
                 )
             logger.warning(
                 "Finalize failed: attempt=%d, user=%d, error=%s",
-                attempt_id, request.user.id, message,
+                attempt_id,
+                request.user.id,
+                message,
             )
             return Response(
                 {"error": message},
@@ -594,6 +653,7 @@ class FinalizeAttemptView(APIView):
 # 24/7 AI Tutor & Mistake Diagnostics Views
 # ===========================================================================
 
+
 class ResultDiagnosticsView(APIView):
     """
     POST /api/tests/results/<int:result_id>/diagnostics/
@@ -601,6 +661,7 @@ class ResultDiagnosticsView(APIView):
 
     Test natijasi bo'yicha zaif mavzular tahlili va shaxsiy tavsiyalar.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get_or_post(self, request: Request, result_id: int) -> Response:
@@ -609,14 +670,21 @@ class ResultDiagnosticsView(APIView):
 
         result = Result.objects.filter(id=result_id).first()
         if not result:
-            return Response({"error": "Natija topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Natija topilmadi."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         if not (
             result.student_id == request.user.id
             or is_platform_admin(request.user)
-            or (getattr(request.user, "role", None) == "teacher" and result.course.teacher_id == request.user.id)
+            or (
+                getattr(request.user, "role", None) == "teacher"
+                and result.course.teacher_id == request.user.id
+            )
         ):
-            return Response({"error": "Ruxsat etilmagan."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Ruxsat etilmagan."}, status=status.HTTP_403_FORBIDDEN
+            )
 
         data = get_result_diagnostics(result_id)
         return Response(data, status=status.HTTP_200_OK)
@@ -635,6 +703,7 @@ class QuestionExplainMistakeView(APIView):
     Xato ishlangan savol uchun interaktiv 24/7 repetitor tushuntirishi.
     Body: {"selected_choice_id": 12, "attempt_id": 34}
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, question_id: int) -> Response:
@@ -679,6 +748,7 @@ class QuestionExplainMistakeView(APIView):
 # Fast Key-Based Mock Test Views
 # ===========================================================================
 
+
 class QuickMockCreateView(APIView):
     """
     POST /api/tests/mock/create/
@@ -692,6 +762,7 @@ class QuickMockCreateView(APIView):
         "custom_code": "#MOCK-401"
     }
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
@@ -699,7 +770,9 @@ class QuickMockCreateView(APIView):
         role = getattr(user, "role", None)
         if not (role in ("teacher", "admin") or is_platform_admin(user)):
             return Response(
-                {"error": "Faqat o'qituvchilar va administratorlar mock sessiya yarata oladi."},
+                {
+                    "error": "Faqat o'qituvchilar va administratorlar mock sessiya yarata oladi."
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -747,6 +820,7 @@ class QuickMockJoinView(APIView):
     O'quvchi #MOCK-XXX kodi orqali testga ulanadi va testni boshlaydi.
     Body: {"code": "#MOCK-401", "auto_start": true}
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
@@ -754,45 +828,63 @@ class QuickMockJoinView(APIView):
         auto_start = bool(request.data.get("auto_start", True))
 
         if not code or not str(code).strip():
-            return Response({"error": "Mock kodi kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Mock kodi kiritilmadi."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         code_clean = str(code).strip()
         from apps.tests.mock_service import find_mock_by_code
+
         test = find_mock_by_code(code_clean)
         if not test:
             return Response(
-                {"error": f"'{code_clean}' kodi bo'yicha faol Mock test topilmadi. Kodni tekshirib qayta kiriting."},
+                {
+                    "error": f"'{code_clean}' kodi bo'yicha faol Mock test topilmadi. Kodni tekshirib qayta kiriting."
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         attempt_id = None
         if auto_start:
             # Mavjud active attempt bormi?
-            active = test.attempts.filter(student=request.user, status="in_progress").first()
+            active = test.attempts.filter(
+                student=request.user, status="in_progress"
+            ).first()
             if active:
                 attempt_id = active.id
             else:
                 try:
-                    attempt = StartAttemptService.execute(test_id=test.id, student=request.user)
+                    attempt = StartAttemptService.execute(
+                        test_id=test.id, student=request.user
+                    )
                     attempt_id = attempt.id
                 except ValueError as err:
                     # e.g. already reached max attempts
-                    active = test.attempts.filter(student=request.user).order_by("-started_at").first()
+                    active = (
+                        test.attempts.filter(student=request.user)
+                        .order_by("-started_at")
+                        .first()
+                    )
                     if active:
                         attempt_id = active.id
                     else:
-                        return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {"error": str(err)}, status=status.HTTP_400_BAD_REQUEST
+                        )
 
-        return Response({
-            "test_id": test.id,
-            "title": test.title,
-            "mock_code": test.mock_code,
-            "total_questions": test.total_questions,
-            "time_limit_minutes": test.time_limit_minutes,
-            "is_strict_mode": test.is_strict_mode,
-            "subject": test.subject,
-            "attempt_id": attempt_id,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "test_id": test.id,
+                "title": test.title,
+                "mock_code": test.mock_code,
+                "total_questions": test.total_questions,
+                "time_limit_minutes": test.time_limit_minutes,
+                "is_strict_mode": test.is_strict_mode,
+                "subject": test.subject,
+                "attempt_id": attempt_id,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class MockLeaderboardView(APIView):
@@ -801,10 +893,12 @@ class MockLeaderboardView(APIView):
 
     Mock test bo'yicha guruh reytingi va BMB darajalari taqsimoti.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, test_id: int) -> Response:
         from apps.tests.mock_service import get_mock_leaderboard
+
         data = get_mock_leaderboard(test_id)
         return Response(data, status=status.HTTP_200_OK)
 
@@ -817,6 +911,7 @@ class ReportViolationView(APIView):
     ogohlantirish sonini oshiradi. 3 marta takrorlansa (3/3), test avtomatik
     yakunlanadi va 'cheating_detected = True' belgisi qo'yiladi.
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, attempt_id: int) -> Response:
@@ -828,31 +923,40 @@ class ReportViolationView(APIView):
             .first()
         )
         if not attempt:
-            return Response({"error": "Urinish topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Urinish topilmadi."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        violation_type = str(request.data.get("type", "tab_switch") or "tab_switch")[:64]
+        violation_type = str(request.data.get("type", "tab_switch") or "tab_switch")[
+            :64
+        ]
         max_violations = 3
 
         if attempt.status != TestAttempt.Status.IN_PROGRESS:
             res_obj = getattr(attempt, "result", None)
-            return Response({
-                "attempt_id": attempt.id,
-                "violation_count": attempt.violation_count,
-                "max_violations": max_violations,
-                "cheating_detected": attempt.cheating_detected,
-                "terminated": attempt.cheating_detected or attempt.violation_count >= max_violations,
-                "status": attempt.status,
-                "result_id": res_obj.id if res_obj else None,
-                "message": "Test allaqachon yakunlangan.",
-            })
+            return Response(
+                {
+                    "attempt_id": attempt.id,
+                    "violation_count": attempt.violation_count,
+                    "max_violations": max_violations,
+                    "cheating_detected": attempt.cheating_detected,
+                    "terminated": attempt.cheating_detected
+                    or attempt.violation_count >= max_violations,
+                    "status": attempt.status,
+                    "result_id": res_obj.id if res_obj else None,
+                    "message": "Test allaqachon yakunlangan.",
+                }
+            )
 
         attempt.violation_count = int(attempt.violation_count or 0) + 1
         logs = list(attempt.violation_logs or [])
-        logs.append({
-            "type": violation_type,
-            "count": attempt.violation_count,
-            "timestamp": timezone.now().isoformat(),
-        })
+        logs.append(
+            {
+                "type": violation_type,
+                "count": attempt.violation_count,
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
         attempt.violation_logs = logs
 
         terminated = False
@@ -861,7 +965,9 @@ class ReportViolationView(APIView):
         if attempt.violation_count >= max_violations:
             attempt.cheating_detected = True
             terminated = True
-            attempt.save(update_fields=["violation_count", "cheating_detected", "violation_logs"])
+            attempt.save(
+                update_fields=["violation_count", "cheating_detected", "violation_logs"]
+            )
             try:
                 result = SubmitAttemptService.execute(
                     attempt_id=attempt.id,
@@ -870,7 +976,11 @@ class ReportViolationView(APIView):
                 result_id = result.id
                 attempt.refresh_from_db()
             except Exception as exc:
-                logger.warning("Auto-submit on 3rd violation failed for attempt %s: %s", attempt.id, exc)
+                logger.warning(
+                    "Auto-submit on 3rd violation failed for attempt %s: %s",
+                    attempt.id,
+                    exc,
+                )
         else:
             attempt.save(update_fields=["violation_count", "violation_logs"])
 
@@ -879,15 +989,16 @@ class ReportViolationView(APIView):
         else:
             msg = f"⚠️ Diqqat! Boshqa oynaga o'tish taqiqlanadi ({attempt.violation_count}/{max_violations} urinish)"
 
-        return Response({
-            "attempt_id": attempt.id,
-            "violation_count": attempt.violation_count,
-            "max_violations": max_violations,
-            "cheating_detected": attempt.cheating_detected,
-            "terminated": terminated,
-            "status": attempt.status,
-            "result_id": result_id,
-            "message": msg,
-        }, status=status.HTTP_200_OK)
-
-
+        return Response(
+            {
+                "attempt_id": attempt.id,
+                "violation_count": attempt.violation_count,
+                "max_violations": max_violations,
+                "cheating_detected": attempt.cheating_detected,
+                "terminated": terminated,
+                "status": attempt.status,
+                "result_id": result_id,
+                "message": msg,
+            },
+            status=status.HTTP_200_OK,
+        )

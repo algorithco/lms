@@ -1,4 +1,5 @@
 """Contract tests for the repaired High-severity test and grading paths."""
+
 from datetime import timedelta
 from decimal import Decimal
 
@@ -11,7 +12,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.certificates.services.anti_fraud import generate_and_store_checksum
 from apps.courses.models import Category, Course, StudentGroup
 from apps.essays.models import EssaySubmission, EssayTopic
-from apps.essays.services import TeacherReviewService, _compute_text_hash, _validate_result
+from apps.essays.services import (
+    TeacherReviewService,
+    _compute_text_hash,
+    _validate_result,
+)
 from apps.results.models import Certificate, CertificateNumberCounter, Result
 from apps.tests.models import Choice, Question, StudentAnswer, Test, TestAttempt
 from apps.tests.services import SaveAnswerService, SubmitAttemptService
@@ -23,59 +28,83 @@ User = get_user_model()
 class TestSubmissionRegressionTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
-            email="flow-teacher@example.com", password="pass", role="teacher",
+            email="flow-teacher@example.com",
+            password="pass",
+            role="teacher",
         )
         self.student = User.objects.create_user(
-            email="flow-student@example.com", password="pass", role="student",
+            email="flow-student@example.com",
+            password="pass",
+            role="student",
         )
         self.other_student = User.objects.create_user(
-            email="other-student@example.com", password="pass", role="student",
+            email="other-student@example.com",
+            password="pass",
+            role="student",
         )
         category = Category.objects.create(name="High regression")
         self.course = Course.objects.create(
-            teacher=self.teacher, category=category, title="Secure course", description="",
+            teacher=self.teacher,
+            category=category,
+            title="Secure course",
+            description="",
         )
         self.test = Test.objects.create(
-            course=self.course, title="Secure test", time_limit_minutes=10,
+            course=self.course,
+            title="Secure test",
+            time_limit_minutes=10,
             pass_percentage=60,
         )
         self.question = Question.objects.create(
-            test=self.test, text="One plus one?", position=1,
+            test=self.test,
+            text="One plus one?",
+            position=1,
         )
-        self.correct = Choice.objects.create(question=self.question, text="Two", is_correct=True)
+        self.correct = Choice.objects.create(
+            question=self.question, text="Two", is_correct=True
+        )
         self.wrong = Choice.objects.create(question=self.question, text="Three")
         self.second = Question.objects.create(
-            test=self.test, text="Three plus one?", position=2,
+            test=self.test,
+            text="Three plus one?",
+            position=2,
         )
         self.second_choice = Choice.objects.create(
-            question=self.second, text="Four", is_correct=True,
+            question=self.second,
+            text="Four",
+            is_correct=True,
         )
         token = str(RefreshToken.for_user(self.student).access_token)
         self.header = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
     def test_tma_start_answer_submit_and_result_contract(self):
         start = self.client.post(
-            f"/tma/api/tests/{self.test.pk}/start/", data="{}",
-            content_type="application/json", **self.header,
+            f"/tma/api/tests/{self.test.pk}/start/",
+            data="{}",
+            content_type="application/json",
+            **self.header,
         )
         self.assertEqual(start.status_code, 200)
         attempt_id = start.json()["attempt_id"]
         answer = self.client.post(
             f"/tma/api/tests/{self.test.pk}/answer/",
             data=f'{{"attempt_id":{attempt_id},"question_id":{self.question.pk},"choice_ids":[{self.correct.pk}]}}',
-            content_type="application/json", **self.header,
+            content_type="application/json",
+            **self.header,
         )
         self.assertEqual(answer.status_code, 200)
         submit = self.client.post(
             f"/tma/api/tests/{self.test.pk}/submit/",
             data=f'{{"attempt_id":{attempt_id},"answers":{{"{self.second.pk}":[{self.second_choice.pk}]}}}}',
-            content_type="application/json", **self.header,
+            content_type="application/json",
+            **self.header,
         )
         self.assertEqual(submit.status_code, 200)
         self.assertEqual(submit.json()["correct_answers"], 2)
         self.assertTrue(submit.json()["is_passed"])
         result = self.client.get(
-            f"/tma/api/attempts/{attempt_id}/result/", **self.header,
+            f"/tma/api/attempts/{attempt_id}/result/",
+            **self.header,
         )
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()["result_id"], submit.json()["result_id"])
@@ -89,7 +118,8 @@ class TestSubmissionRegressionTests(TestCase):
                 f'"{self.question.pk}":[{self.correct.pk}],'
                 f'"{self.second.pk}":[{self.wrong.pk}]}}}}'
             ),
-            content_type="application/json", **self.header,
+            content_type="application/json",
+            **self.header,
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(StudentAnswer.objects.filter(attempt=attempt).exists())
@@ -98,7 +128,8 @@ class TestSubmissionRegressionTests(TestCase):
     def test_tma_cannot_read_another_students_result(self):
         attempt = TestAttempt.objects.create(test=self.test, student=self.other_student)
         response = self.client.get(
-            f"/tma/api/attempts/{attempt.pk}/result/", **self.header,
+            f"/tma/api/attempts/{attempt.pk}/result/",
+            **self.header,
         )
         self.assertEqual(response.status_code, 404)
 
@@ -108,16 +139,28 @@ class TestSubmissionRegressionTests(TestCase):
         self.test.show_results_immediately = False
         self.test.save(update_fields=["show_results_immediately"])
         attempt = TestAttempt.objects.create(
-            test=self.test, student=self.student, status=TestAttempt.Status.COMPLETED,
+            test=self.test,
+            student=self.student,
+            status=TestAttempt.Status.COMPLETED,
         )
         answer = StudentAnswer.objects.create(
-            attempt=attempt, question=self.question, is_correct=True,
+            attempt=attempt,
+            question=self.question,
+            is_correct=True,
         )
         answer.selected_choices.set([self.correct])
         result = Result.objects.create(
-            attempt=attempt, student=self.student, test=self.test, course=self.course,
-            total_questions=1, correct_answers=1, wrong_answers=0,
-            score=1, max_score=1, percentage=100, is_passed=True,
+            attempt=attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=1,
+            correct_answers=1,
+            wrong_answers=0,
+            score=1,
+            max_score=1,
+            percentage=100,
+            is_passed=True,
             time_taken_seconds=10,
         )
 
@@ -129,7 +172,8 @@ class TestSubmissionRegressionTests(TestCase):
         self.assertIsNone(question_detail["is_correct"])
 
         tma_response = self.client.get(
-            f"/tma/api/attempts/{attempt.pk}/result/", **self.header,
+            f"/tma/api/attempts/{attempt.pk}/result/",
+            **self.header,
         )
         self.assertEqual(tma_response.status_code, 200)
         tma_question = tma_response.json()["question_details"][0]
@@ -149,19 +193,33 @@ class TestSubmissionRegressionTests(TestCase):
         from apps.results.models import Result
 
         parent = User.objects.create_user(
-            email="parent-regression@example.com", password="pass", role="parent",
+            email="parent-regression@example.com",
+            password="pass",
+            role="parent",
         )
         attempt = TestAttempt.objects.create(
-            test=self.test, student=self.student, status=TestAttempt.Status.COMPLETED,
+            test=self.test,
+            student=self.student,
+            status=TestAttempt.Status.COMPLETED,
         )
         Result.objects.create(
-            attempt=attempt, student=self.student, test=self.test, course=self.course,
-            total_questions=1, correct_answers=1, wrong_answers=0,
-            score=1, max_score=1, percentage=100, is_passed=True,
+            attempt=attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=1,
+            correct_answers=1,
+            wrong_answers=0,
+            score=1,
+            max_score=1,
+            percentage=100,
+            is_passed=True,
             time_taken_seconds=10,
         )
         ParentStudentLink.objects.create(
-            parent=parent, student=self.student, is_approved=False,
+            parent=parent,
+            student=self.student,
+            is_approved=False,
         )
         self.client.force_login(parent)
         response = self.client.get("/api/v1/school/parent/")
@@ -202,7 +260,9 @@ class TestSubmissionRegressionTests(TestCase):
         self.assertTrue(group.students.filter(pk=self.student.pk).exists())
         # Ownership scope: another teacher cannot touch this group.
         outsider = User.objects.create_user(
-            email="outsider-teacher@example.com", password="pass", role="teacher",
+            email="outsider-teacher@example.com",
+            password="pass",
+            role="teacher",
         )
         self.client.force_login(outsider)
         denied = self.client.patch(
@@ -216,7 +276,10 @@ class TestSubmissionRegressionTests(TestCase):
 
         csv = "question,choice_a,choice_b,correct,points\nTwo plus two?,3,4,B,1\n"
         imported = BulkTestImportService.import_test(
-            csv, "Imported", self.course.pk, created_by=self.teacher,
+            csv,
+            "Imported",
+            self.course.pk,
+            created_by=self.teacher,
         )
         self.assertTrue(imported["success"], imported["errors"])
         question = Question.objects.get(test_id=imported["test_id"])
@@ -224,11 +287,16 @@ class TestSubmissionRegressionTests(TestCase):
 
     def test_bulk_import_rejects_unrelated_teacher_at_service_layer(self):
         outsider = User.objects.create_user(
-            email="outsider@example.com", password="pass", role="teacher",
+            email="outsider@example.com",
+            password="pass",
+            role="teacher",
         )
         csv = "question,choice_a,choice_b,correct\nTwo plus two?,3,4,B\n"
         denied = BulkTestImportService.import_test(
-            csv, "Unauthorized", self.course.pk, created_by=outsider,
+            csv,
+            "Unauthorized",
+            self.course.pk,
+            created_by=outsider,
         )
         self.assertFalse(denied["success"])
         self.assertFalse(Test.objects.filter(title="Unauthorized").exists())
@@ -240,7 +308,10 @@ class TestSubmissionRegressionTests(TestCase):
         )
         with self.assertRaisesRegex(ValueError, "Vaqt tugadi"):
             SaveAnswerService.execute(
-                attempt.pk, self.question.pk, [self.correct.pk], self.student,
+                attempt.pk,
+                self.question.pk,
+                [self.correct.pk],
+                self.student,
             )
         attempt.refresh_from_db()
         self.assertEqual(attempt.status, TestAttempt.Status.TIMEOUT)
@@ -254,7 +325,8 @@ class TestSubmissionRegressionTests(TestCase):
         response = self.client.post(
             f"/tma/api/tests/{self.test.pk}/submit/",
             data=f'{{"attempt_id":{attempt.pk},"answers":{{"{self.question.pk}":[{self.correct.pk}]}}}}',
-            content_type="application/json", **self.header,
+            content_type="application/json",
+            **self.header,
         )
         self.assertEqual(response.status_code, 408)
         self.assertTrue(response.json()["time_expired"])
@@ -266,6 +338,7 @@ class TestSubmissionRegressionTests(TestCase):
     def test_result_task_is_dispatched_only_on_commit(self):
         attempt = TestAttempt.objects.create(test=self.test, student=self.student)
         from unittest.mock import patch
+
         with patch("apps.notifications.tasks.process_test_result_task.delay") as delay:
             with self.captureOnCommitCallbacks(execute=True) as callbacks:
                 SubmitAttemptService.execute(attempt.pk, self.student)
@@ -276,33 +349,60 @@ class TestSubmissionRegressionTests(TestCase):
     def test_certificate_counter_does_not_reuse_deleted_number(self):
         attempt = TestAttempt.objects.create(test=self.test, student=self.student)
         result = Result.objects.create(
-            attempt=attempt, student=self.student, test=self.test,
-            course=self.course, total_questions=0, correct_answers=0,
-            wrong_answers=0, score=0, max_score=0, percentage=0,
-            is_passed=False, time_taken_seconds=0,
+            attempt=attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=0,
+            correct_answers=0,
+            wrong_answers=0,
+            score=0,
+            max_score=0,
+            percentage=0,
+            is_passed=False,
+            time_taken_seconds=0,
         )
         first = Certificate.objects.create(
-            result=result, student=self.student, test=self.test, course=self.course,
+            result=result,
+            student=self.student,
+            test=self.test,
+            course=self.course,
         )
         first_number = first.certificate_number
         first.delete()
         second = Certificate.objects.create(
-            result=result, student=self.student, test=self.test, course=self.course,
+            result=result,
+            student=self.student,
+            test=self.test,
+            course=self.course,
         )
         self.assertGreater(int(second.certificate_number[-6:]), int(first_number[-6:]))
-        self.assertGreater(CertificateNumberCounter.objects.get(year=timezone.now().year).last_value, 1)
+        self.assertGreater(
+            CertificateNumberCounter.objects.get(year=timezone.now().year).last_value, 1
+        )
 
     def test_certificate_verification_reflects_checksum(self):
         attempt = TestAttempt.objects.create(test=self.test, student=self.student)
         result = Result.objects.create(
-            attempt=attempt, student=self.student, test=self.test,
-            course=self.course, total_questions=2, correct_answers=2,
-            wrong_answers=0, score=2, max_score=2, percentage=100,
-            is_passed=True, time_taken_seconds=1,
+            attempt=attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=2,
+            correct_answers=2,
+            wrong_answers=0,
+            score=2,
+            max_score=2,
+            percentage=100,
+            is_passed=True,
+            time_taken_seconds=1,
         )
         certificate = Certificate.objects.create(
-            result=result, student=self.student, test=self.test,
-            course=self.course, status=Certificate.Status.GENERATED,
+            result=result,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            status=Certificate.Status.GENERATED,
         )
         url = f"/api/certificates/verify/{certificate.certificate_number}/"
         self.assertEqual(self.client.get(url).status_code, 422)
@@ -330,14 +430,25 @@ class TestSubmissionRegressionTests(TestCase):
 
         attempt = TestAttempt.objects.create(test=self.test, student=self.student)
         result = Result.objects.create(
-            attempt=attempt, student=self.student, test=self.test,
-            course=self.course, total_questions=1, correct_answers=1,
-            wrong_answers=0, score=1, max_score=1, percentage=100,
-            is_passed=True, time_taken_seconds=1,
+            attempt=attempt,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            total_questions=1,
+            correct_answers=1,
+            wrong_answers=0,
+            score=1,
+            max_score=1,
+            percentage=100,
+            is_passed=True,
+            time_taken_seconds=1,
         )
         certificate = Certificate.objects.create(
-            result=result, student=self.student, test=self.test,
-            course=self.course, status=Certificate.Status.GENERATED,
+            result=result,
+            student=self.student,
+            test=self.test,
+            course=self.course,
+            status=Certificate.Status.GENERATED,
         )
         migration = importlib.import_module(
             "apps.results.migrations.0004_certificate_sequence_and_checksums"
@@ -349,11 +460,19 @@ class TestSubmissionRegressionTests(TestCase):
 
 class EssayAndScheduleRegressionTests(TestCase):
     def test_teacher_appeal_from_graded_state_is_atomic_and_owned(self):
-        student = User.objects.create_user(email="appeal-student@example.com", password="pass")
-        teacher = User.objects.create_user(email="appeal-teacher@example.com", password="pass", role="teacher")
-        topic = EssayTopic.objects.create(title="Appeal", description="", created_by=teacher)
+        student = User.objects.create_user(
+            email="appeal-student@example.com", password="pass"
+        )
+        teacher = User.objects.create_user(
+            email="appeal-teacher@example.com", password="pass", role="teacher"
+        )
+        topic = EssayTopic.objects.create(
+            title="Appeal", description="", created_by=teacher
+        )
         submission = EssaySubmission.objects.create(
-            student=student, topic=topic, essay_text="Essay text",
+            student=student,
+            topic=topic,
+            essay_text="Essay text",
             status=EssaySubmission.Status.GRADED,
         )
         TeacherReviewService.request_teacher_review(submission, student, "Check rubric")
@@ -362,7 +481,9 @@ class EssayAndScheduleRegressionTests(TestCase):
         self.assertTrue(submission.teacher_review_requested)
         self.assertEqual(submission.teacher_review_reason, "Check rubric")
         review = TeacherReviewService.submit_review(
-            submission, teacher, {i: 1 for i in range(1, 13)},
+            submission,
+            teacher,
+            {i: 1 for i in range(1, 13)},
         )
         submission.refresh_from_db()
         self.assertEqual(submission.status, EssaySubmission.Status.TEACHER_REVIEWED)
@@ -374,7 +495,12 @@ class EssayAndScheduleRegressionTests(TestCase):
             {"id": i, "name": f"Criterion {i}", "score": 1, "reason": "OK"}
             for i in range(1, 13)
         ]
-        payload = {"criteria": criteria, "total_score": 999, "max_score": 0, "summary": "OK"}
+        payload = {
+            "criteria": criteria,
+            "total_score": 999,
+            "max_score": 0,
+            "summary": "OK",
+        }
         _validate_result(payload)
         self.assertEqual(payload["total_score"], 12.0)
         self.assertEqual(payload["max_score"], 20)
@@ -387,22 +513,36 @@ class EssayAndScheduleRegressionTests(TestCase):
             _validate_result(payload)
 
     def test_cache_key_separates_model_prompt_rubric_and_mode(self):
-        base = dict(provider="groq", model="model-a", mock_mode=False,
-                    prompt_version="v1", rubric_digest="digest-a", language="uz")
+        base = dict(
+            provider="groq",
+            model="model-a",
+            mock_mode=False,
+            prompt_version="v1",
+            rubric_digest="digest-a",
+            language="uz",
+        )
         original = _compute_text_hash("Essay", "Topic", **base)
         for field, replacement in (
-            ("provider", "openrouter"), ("model", "model-b"),
-            ("mock_mode", True), ("prompt_version", "v2"),
-            ("rubric_digest", "digest-b"), ("language", "ru"),
+            ("provider", "openrouter"),
+            ("model", "model-b"),
+            ("mock_mode", True),
+            ("prompt_version", "v2"),
+            ("rubric_digest", "digest-b"),
+            ("language", "ru"),
         ):
             changed = {**base, field: replacement}
-            self.assertNotEqual(original, _compute_text_hash("Essay", "Topic", **changed))
+            self.assertNotEqual(
+                original, _compute_text_hash("Essay", "Topic", **changed)
+            )
 
     def test_every_beat_task_resolves_and_schedule_is_valid(self):
         from celery.schedules import crontab, schedule
         from config.celery import app
+
         app.autodiscover_tasks(force=True)
         for name, entry in settings.CELERY_BEAT_SCHEDULE.items():
             with self.subTest(entry=name):
                 self.assertIn(entry["task"], app.tasks)
-                self.assertTrue(isinstance(entry["schedule"], (int, float, schedule, crontab)))
+                self.assertTrue(
+                    isinstance(entry["schedule"], (int, float, schedule, crontab))
+                )

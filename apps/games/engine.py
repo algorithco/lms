@@ -4,6 +4,7 @@ Games engine — shared XP, combo, and badge logic.
 Used by both the legacy Django views (HTMX) and the React SPA JSON API
 (apps.webapi.views_games) to ensure identical behavior.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -19,12 +20,17 @@ from .models import Badge, Game, GameLevel, UserBadge, UserGameCompletion, UserG
 
 # XP bonus constants
 COMBO_BONUS_XP = 5  # extra XP per combo level
-STREAK_MILESTONES = {3: "🔥 3x COMBO!", 5: "⚡ 5x SUPER COMBO!", 10: "🌟 10x LEGENDARY!"}
+STREAK_MILESTONES = {
+    3: "🔥 3x COMBO!",
+    5: "⚡ 5x SUPER COMBO!",
+    10: "🌟 10x LEGENDARY!",
+}
 
 
 # ---------------------------------------------------------------------------
 # Helper: XP & Badge engine
 # ---------------------------------------------------------------------------
+
 
 @transaction.atomic
 def award_xp(
@@ -56,7 +62,9 @@ def award_xp(
     combo = (
         score.current_streak
         if already_completed
-        else score.current_streak + 1 if credited_correct else 0
+        else score.current_streak + 1
+        if credited_correct
+        else 0
     )
     if credited_correct:
         multiplier = float(game.combo_multiplier) ** min(max(combo - 1, 0), 5)
@@ -84,7 +92,9 @@ def award_xp(
         score.wrong_answers = F("wrong_answers") + 1
         update_fields.append("wrong_answers")
 
-    if time_seconds > 0 and (score.best_time_seconds == 0 or time_seconds < score.best_time_seconds):
+    if time_seconds > 0 and (
+        score.best_time_seconds == 0 or time_seconds < score.best_time_seconds
+    ):
         score.best_time_seconds = time_seconds
         update_fields.append("best_time_seconds")
 
@@ -106,7 +116,9 @@ def award_xp(
         "total_coins": score.total_coins,
         "combo": combo,
         "streak": combo,
-        "new_badges": [{"name": b.badge.name, "emoji": b.badge.icon_emoji} for b in new_badges],
+        "new_badges": [
+            {"name": b.badge.name, "emoji": b.badge.icon_emoji} for b in new_badges
+        ],
         "already_completed": already_completed,
     }
 
@@ -194,8 +206,7 @@ def get_user_stats(user) -> dict:
 def _get_leaderboard(limit: int = 10) -> list:
     """Get top players by total XP across all games."""
     return (
-        UserGameScore.objects
-        .values("user__id", "user__first_name", "user__last_name")
+        UserGameScore.objects.values("user__id", "user__first_name", "user__last_name")
         .annotate(
             total_xp=Sum("total_xp"),
             total_coins=Sum("total_coins"),
@@ -213,10 +224,17 @@ def get_leaderboard_full() -> list:
     raw_board = _get_leaderboard(50)
 
     level_names = {
-        1: "Boshlang'ich", 5: "O'quvchi", 10: "Tajribali",
-        15: "Mutaxassis", 20: "Usta", 25: "Katta Usta",
-        30: "Ekspert", 35: "Master", 40: "Grand Master",
-        45: "Legend", 50: "Titan",
+        1: "Boshlang'ich",
+        5: "O'quvchi",
+        10: "Tajribali",
+        15: "Mutaxassis",
+        20: "Usta",
+        25: "Katta Usta",
+        30: "Ekspert",
+        35: "Master",
+        40: "Grand Master",
+        45: "Legend",
+        50: "Titan",
     }
 
     leaderboard = []
@@ -228,21 +246,24 @@ def get_leaderboard_full() -> list:
                 level_name = level_names[lvl]
                 break
 
-        leaderboard.append({
-            "id": entry["user__id"],
-            "name": f"{entry['user__first_name']} {entry['user__last_name']}",
-            "total_xp": entry["total_xp"] or 0,
-            "total_coins": entry["total_coins"] or 0,
-            "games_played": entry["games_played"] or 0,
-            "level": lvl_info["level"],
-            "level_name": level_name,
-        })
+        leaderboard.append(
+            {
+                "id": entry["user__id"],
+                "name": f"{entry['user__first_name']} {entry['user__last_name']}",
+                "total_xp": entry["total_xp"] or 0,
+                "total_coins": entry["total_coins"] or 0,
+                "games_played": entry["games_played"] or 0,
+                "level": lvl_info["level"],
+                "level_name": level_name,
+            }
+        )
     return leaderboard
 
 
 def get_games_hub_etag(request, *args, **kwargs) -> str:
     """ETAG for games hub — changes when game count or user XP changes."""
     from django.core.cache import cache as dj_cache
+
     user_id = request.user.id
     cache_key = f"games_hub_etag_{user_id}"
     etag = dj_cache.get(cache_key)
@@ -250,9 +271,12 @@ def get_games_hub_etag(request, *args, **kwargs) -> str:
         return etag
 
     game_count = Game.objects.filter(is_active=True).count()
-    user_xp = UserGameScore.objects.filter(user=request.user).aggregate(
-        total=Sum("total_xp")
-    )["total"] or 0
+    user_xp = (
+        UserGameScore.objects.filter(user=request.user).aggregate(
+            total=Sum("total_xp")
+        )["total"]
+        or 0
+    )
     raw = f"{game_count}:{user_xp}:{user_id}"
     # Cache validator, not a security primitive: sha256 keeps the digest
     # family consistent with the rest of the codebase and satisfies bandit
@@ -267,7 +291,10 @@ def pick_level(game, level_id=None):
     levels = GameLevel.objects.filter(game=game, is_active=True).order_by("sort_order")
     if level_id:
         from django.shortcuts import get_object_or_404
-        return get_object_or_404(GameLevel, id=level_id, game=game, is_active=True), levels
+
+        return get_object_or_404(
+            GameLevel, id=level_id, game=game, is_active=True
+        ), levels
     level = levels.filter(difficulty__lte=3).order_by("?").first() or levels.first()
     return level, levels
 
@@ -300,7 +327,9 @@ def gazal_puzzle_order(level, user_id: int, data: dict) -> tuple[list[str], list
     if len(shuffled_indexes) > 1 and shuffled_indexes == correct_order:
         shuffled_indexes = shuffled_indexes[1:] + shuffled_indexes[:1]
 
-    expected_order = [shuffled_indexes.index(source_index) for source_index in correct_order]
+    expected_order = [
+        shuffled_indexes.index(source_index) for source_index in correct_order
+    ]
     return [lines[index] for index in shuffled_indexes], expected_order
 
 
@@ -317,8 +346,22 @@ def get_game_content(game, level, data, user_id: int):
         pairs = data.get("pairs", [])
         cards = []
         for i, pair in enumerate(pairs):
-            cards.append({"id": f"old_{i}", "pair_id": i, "text": pair.get("old", ""), "type": "old"})
-            cards.append({"id": f"new_{i}", "pair_id": i, "text": pair.get("new", ""), "type": "new"})
+            cards.append(
+                {
+                    "id": f"old_{i}",
+                    "pair_id": i,
+                    "text": pair.get("old", ""),
+                    "type": "old",
+                }
+            )
+            cards.append(
+                {
+                    "id": f"new_{i}",
+                    "pair_id": i,
+                    "text": pair.get("new", ""),
+                    "type": "new",
+                }
+            )
         random.shuffle(cards)
         content = {"cards": cards, "pairs_count": len(pairs)}
     else:

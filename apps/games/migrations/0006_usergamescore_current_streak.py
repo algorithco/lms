@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('games', '0005_arena_badges_and_game'),
+        ("games", "0005_arena_badges_and_game"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='usergamescore',
-            name='current_streak',
-            field=models.PositiveIntegerField(default=0, help_text="Joriy ketma-ket to'g'ri javoblar zanjiri.", verbose_name='joriy streak'),
+            model_name="usergamescore",
+            name="current_streak",
+            field=models.PositiveIntegerField(
+                default=0,
+                help_text="Joriy ketma-ket to'g'ri javoblar zanjiri.",
+                verbose_name="joriy streak",
+            ),
         ),
     ]

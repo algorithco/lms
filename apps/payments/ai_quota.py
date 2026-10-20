@@ -6,6 +6,7 @@ Quotas:
   - Starter subscribers: 20 requests / day
   - Premium subscribers: unlimited
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,7 +30,10 @@ def get_user_plan_tier(user: Any) -> str:
         return "free"
 
     # Superusers, platform staff, teachers and admins have unlimited access
-    if getattr(user, "is_superuser", False) or getattr(user, "role", None) in ("admin", "teacher"):
+    if getattr(user, "is_superuser", False) or getattr(user, "role", None) in (
+        "admin",
+        "teacher",
+    ):
         return "premium"
 
     sub = getattr(user, "subscription", None)

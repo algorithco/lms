@@ -1,6 +1,7 @@
 """
 WebSocket Consumer for Real-time Tournament Live Leaderboard.
 """
+
 from __future__ import annotations
 
 import json
@@ -37,11 +38,13 @@ class TournamentConsumer(AsyncWebsocketConsumer):
             int(self.tournament_id)
         )
         await self.send(
-            text_data=json.dumps({
-                "type": "init",
-                "tournament_id": self.tournament_id,
-                "leaderboard": leaderboard,
-            })
+            text_data=json.dumps(
+                {
+                    "type": "init",
+                    "tournament_id": self.tournament_id,
+                    "leaderboard": leaderboard,
+                }
+            )
         )
 
     async def disconnect(self, close_code):
@@ -67,7 +70,11 @@ class TournamentConsumer(AsyncWebsocketConsumer):
         if action == "submit":
             user = self.scope.get("user")
             if not user or not user.is_authenticated:
-                await self.send(text_data=json.dumps({"type": "error", "message": "Avtorizatsiyadan o'tilmagan"}))
+                await self.send(
+                    text_data=json.dumps(
+                        {"type": "error", "message": "Avtorizatsiyadan o'tilmagan"}
+                    )
+                )
                 return
 
             answers = data.get("answers", {})
@@ -79,13 +86,17 @@ class TournamentConsumer(AsyncWebsocketConsumer):
                 answers_dict=answers,
                 time_taken_seconds=time_taken,
             )
-            await self.send(text_data=json.dumps({"type": "submit_success", "result": result}))
+            await self.send(
+                text_data=json.dumps({"type": "submit_success", "result": result})
+            )
 
     async def tournament_leaderboard_update(self, event):
         """Handler called when group receives leaderboard broadcast."""
         await self.send(
-            text_data=json.dumps({
-                "type": "leaderboard_update",
-                "leaderboard": event["leaderboard"],
-            })
+            text_data=json.dumps(
+                {
+                    "type": "leaderboard_update",
+                    "leaderboard": event["leaderboard"],
+                }
+            )
         )

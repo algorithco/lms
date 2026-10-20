@@ -5,19 +5,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('games', '0001_initial'),
+        ("games", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='usergamescore',
-            index=models.Index(fields=['user', 'game', '-total_xp'], name='idx_score_user_game_xp'),
+            model_name="usergamescore",
+            index=models.Index(
+                fields=["user", "game", "-total_xp"], name="idx_score_user_game_xp"
+            ),
         ),
         migrations.AddIndex(
-            model_name='usergamescore',
-            index=models.Index(fields=['game', '-correct_answers'], name='idx_score_game_correct'),
+            model_name="usergamescore",
+            index=models.Index(
+                fields=["game", "-correct_answers"], name="idx_score_game_correct"
+            ),
         ),
     ]

@@ -7,6 +7,7 @@ Usage:
     python manage.py run_bot
     python manage.py run_bot --webhook --domain your-domain.com
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,6 +52,7 @@ class Command(BaseCommand):
                 )
             )
             import time
+
             while True:
                 time.sleep(3600)
 

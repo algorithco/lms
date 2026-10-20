@@ -54,7 +54,6 @@ def noop(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("essays", "0011_essaysubmission_improved_at_and_more"),
     ]

@@ -13,6 +13,7 @@ NOT supported (rejected, never silently converted):
 Rationale: silent type conversion once produced fake MCQ-written questions
 (see deleted create_mock_test.py). Unknown input must fail loudly.
 """
+
 from __future__ import annotations
 
 import csv
@@ -88,7 +89,9 @@ class BulkTestImportService:
                 "success": False,
                 "test_id": None,
                 "questions_created": 0,
-                "errors": [{"row": 0, "error": f"Kerakli ustunlar yo'q: {', '.join(missing)}"}],
+                "errors": [
+                    {"row": 0, "error": f"Kerakli ustunlar yo'q: {', '.join(missing)}"}
+                ],
             }
 
         unknown = set(reader.fieldnames or []) - cls.VALID_COLUMNS
@@ -97,14 +100,16 @@ class BulkTestImportService:
                 "success": False,
                 "test_id": None,
                 "questions_created": 0,
-                "errors": [{
-                    "row": 0,
-                    "error": (
-                        "Qo'llab-quvvatlanmaydigan ustunlar: "
-                        f"{', '.join(sorted(unknown))}. Faqat SINGLE savollar "
-                        "import qilinadi (gap_fill/matching/written emas)."
-                    ),
-                }],
+                "errors": [
+                    {
+                        "row": 0,
+                        "error": (
+                            "Qo'llab-quvvatlanmaydigan ustunlar: "
+                            f"{', '.join(sorted(unknown))}. Faqat SINGLE savollar "
+                            "import qilinadi (gap_fill/matching/written emas)."
+                        ),
+                    }
+                ],
             }
 
         questions_data = []
@@ -132,7 +137,9 @@ class BulkTestImportService:
                     errors.append({"row": i, "error": "B javobi bo'sh"})
                     continue
                 if correct not in ("A", "B", "C", "D"):
-                    errors.append({"row": i, "error": f"To'g'ri javob noto'g'ri: {correct}"})
+                    errors.append(
+                        {"row": i, "error": f"To'g'ri javob noto'g'ri: {correct}"}
+                    )
                     continue
 
                 # Build choices
@@ -145,12 +152,14 @@ class BulkTestImportService:
                 if choice_d:
                     choices.append({"text": choice_d, "is_correct": correct == "D"})
 
-                questions_data.append({
-                    "text": question_text,
-                    "choices": choices,
-                    "points": points,
-                    "explanation": explanation,
-                })
+                questions_data.append(
+                    {
+                        "text": question_text,
+                        "choices": choices,
+                        "points": points,
+                        "explanation": explanation,
+                    }
+                )
 
             except Exception as e:
                 errors.append({"row": i, "error": str(e)})
@@ -160,7 +169,8 @@ class BulkTestImportService:
                 "success": False,
                 "test_id": None,
                 "questions_created": 0,
-                "errors": errors or [{"row": 0, "error": "Hech qanday savol topilmadi"}],
+                "errors": errors
+                or [{"row": 0, "error": "Hech qanday savol topilmadi"}],
             }
 
         # Create test with questions in a transaction
@@ -174,8 +184,11 @@ class BulkTestImportService:
 
                 is_admin = is_platform_admin(created_by)
                 is_teacher_owner = bool(
-                    created_by and created_by.is_authenticated and created_by.is_active
-                    and created_by.role == "teacher" and course.teacher_id == created_by.pk
+                    created_by
+                    and created_by.is_authenticated
+                    and created_by.is_active
+                    and created_by.role == "teacher"
+                    and course.teacher_id == created_by.pk
                 )
                 if not is_admin and not is_teacher_owner:
                     raise PermissionError("Bu kursga test import qilishga ruxsat yo'q.")
@@ -207,7 +220,9 @@ class BulkTestImportService:
 
             logger.info(
                 "Bulk test import: test=%d, questions=%d, errors=%d",
-                test.id, len(questions_data), len(errors),
+                test.id,
+                len(questions_data),
+                len(errors),
             )
 
             return {
@@ -240,7 +255,12 @@ class BulkTestImportService:
         reader = csv.DictReader(io.StringIO(csv_content))
 
         if not reader.fieldnames:
-            return {"valid": False, "errors": ["CSV fayl bo'sh"], "row_count": 0, "columns": []}
+            return {
+                "valid": False,
+                "errors": ["CSV fayl bo'sh"],
+                "row_count": 0,
+                "columns": [],
+            }
 
         missing = cls.REQUIRED_COLUMNS - set(reader.fieldnames)
         if missing:

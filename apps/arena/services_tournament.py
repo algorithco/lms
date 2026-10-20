@@ -1,6 +1,7 @@
 """
 Services for Sunday Live League & Real-time E-Sport Tournaments.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,16 +28,18 @@ def get_tournament_leaderboard(tournament_id: int) -> list[dict[str, Any]]:
     for idx, p in enumerate(participants, 1):
         effective_rank = p.rank or idx
         full_name = p.user.get_full_name() or p.user.email
-        result.append({
-            "rank": effective_rank,
-            "user_id": p.user_id,
-            "name": full_name,
-            "score": float(p.score),
-            "correct_answers": p.correct_answers,
-            "total_questions": p.total_questions,
-            "time_taken_seconds": p.time_taken_seconds,
-            "is_finished": p.is_finished,
-        })
+        result.append(
+            {
+                "rank": effective_rank,
+                "user_id": p.user_id,
+                "name": full_name,
+                "score": float(p.score),
+                "correct_answers": p.correct_answers,
+                "total_questions": p.total_questions,
+                "time_taken_seconds": p.time_taken_seconds,
+                "is_finished": p.is_finished,
+            }
+        )
     return result
 
 
@@ -57,7 +60,9 @@ def submit_tournament_answers(
     )
 
     test = tournament.test
-    questions = list(test.questions.all().prefetch_related("choices").order_by("position"))
+    questions = list(
+        test.questions.all().prefetch_related("choices").order_by("position")
+    )
     total_q = len(questions) or 1
     correct_count = 0
     letters = ["A", "B", "C", "D", "E", "F"]
@@ -150,7 +155,9 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
     tournament.save(update_fields=["status", "updated_at"])
 
     top_participants = (
-        TournamentParticipant.objects.filter(tournament_id=tournament_id, is_finished=True)
+        TournamentParticipant.objects.filter(
+            tournament_id=tournament_id, is_finished=True
+        )
         .select_related("user")
         .order_by("rank", "-score", "time_taken_seconds")[:3]
     )
@@ -175,7 +182,10 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
         if plan_to_give:
             sub, _ = UserSubscription.objects.get_or_create(
                 user=u,
-                defaults={"plan": plan_to_give, "status": UserSubscription.Status.ACTIVE},
+                defaults={
+                    "plan": plan_to_give,
+                    "status": UserSubscription.Status.ACTIVE,
+                },
             )
             sub.plan = plan_to_give
             sub.status = UserSubscription.Status.ACTIVE
@@ -190,8 +200,16 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
 
         # Send congratulation telegram message
         if u.telegram_chat_id:
-            badge_icon = "🥇 OLTIN KUBOK" if p.rank == 1 else ("🥈 KUMUSH MEDAL" if p.rank == 2 else "🥉 BRONZA MEDAL")
-            prize_name = "1 oylik bepul Premium obuna" if p.rank == 1 else "1 oylik bepul Starter obuna"
+            badge_icon = (
+                "🥇 OLTIN KUBOK"
+                if p.rank == 1
+                else ("🥈 KUMUSH MEDAL" if p.rank == 2 else "🥉 BRONZA MEDAL")
+            )
+            prize_name = (
+                "1 oylik bepul Premium obuna"
+                if p.rank == 1
+                else "1 oylik bepul Starter obuna"
+            )
             msg = (
                 f"🏆 <b>TABRIKLAYMIZ! SIZ TURNIR G'OLIBISIZ!</b>\n\n"
                 f"📌 <b>Turnir:</b> {tournament.title}\n"
@@ -210,11 +228,13 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
             except Exception as e:
                 logger.warning("Failed sending winner notification: %s", e)
 
-        awarded.append({
-            "user_id": u.id,
-            "name": u.get_full_name(),
-            "rank": p.rank,
-            "score": float(p.score),
-        })
+        awarded.append(
+            {
+                "user_id": u.id,
+                "name": u.get_full_name(),
+                "rank": p.rank,
+                "score": float(p.score),
+            }
+        )
 
     return {"status": "finished", "awarded": awarded}

@@ -14,6 +14,7 @@ Conventions (safe and predictable):
   essay submission linked via ExamWrittenBridge, scaled to the question's
   points. Ungraded writing is pending, never zero.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -39,7 +40,7 @@ def unify_apostrophes(text: str) -> str:
 
 def clean_punctuation_and_spaces(text: str) -> str:
     """Taqqoslash uchun tinish belgilarini bo'shliqqa almashtiradi va bo'shliqlarni ixchamlaydi."""
-    for ch in (";", ",", ".", "!", "?", "(", ")", "[", "]", "{", "}", "\"", ":"):
+    for ch in (";", ",", ".", "!", "?", "(", ")", "[", "]", "{", "}", '"', ":"):
         text = text.replace(ch, " ")
     return " ".join(text.split())
 
@@ -61,7 +62,11 @@ def evaluate_text_answer(
     if not given:
         return False
 
-    norm_keys = [normalize_text(k, case_sensitive=case_sensitive) for k in accepted_keys if str(k).strip()]
+    norm_keys = [
+        normalize_text(k, case_sensitive=case_sensitive)
+        for k in accepted_keys
+        if str(k).strip()
+    ]
     if not norm_keys:
         return False
 
@@ -98,7 +103,7 @@ def evaluate_text_answer(
         for k in norm_keys:
             k_parts = _extract_parts(k)
             if k_parts and k_parts[0]:
-                ka_match = (g_a == k_parts[0])
+                ka_match = g_a == k_parts[0]
                 kb_match = (g_b == k_parts[1]) if k_parts[1] else True
                 if ka_match and kb_match:
                     return True
@@ -106,12 +111,16 @@ def evaluate_text_answer(
     return False
 
 
-def blank_is_correct(response_text: Any, accepted: list[str], *, case_sensitive: bool = False) -> bool:
+def blank_is_correct(
+    response_text: Any, accepted: list[str], *, case_sensitive: bool = False
+) -> bool:
     """True when the response matches ANY accepted answer for the blank."""
     given = normalize_text(response_text, case_sensitive=case_sensitive)
     if not given:
         return False
-    return any(given == normalize_text(a, case_sensitive=case_sensitive) for a in accepted)
+    return any(
+        given == normalize_text(a, case_sensitive=case_sensitive) for a in accepted
+    )
 
 
 @dataclass(frozen=True)
@@ -139,7 +148,9 @@ def grade_gap_fill(
     correct = sum(
         1
         for pos, accepted in blanks_by_position.items()
-        if blank_is_correct(responses.get(pos, ""), accepted, case_sensitive=case_sensitive)
+        if blank_is_correct(
+            responses.get(pos, ""), accepted, case_sensitive=case_sensitive
+        )
     )
     fully = correct == total
     if fully:
@@ -176,7 +187,8 @@ def grade_matching(
     correct = sum(
         1
         for prompt_id, option_id in correct_map.items()
-        if responses.get(prompt_id) is not None and responses.get(prompt_id) == option_id
+        if responses.get(prompt_id) is not None
+        and responses.get(prompt_id) == option_id
     )
     fully = correct == total
     if fully:
@@ -307,5 +319,7 @@ def aggregate(
         weighted_earned += sec.earned * w
         weighted_max += sec.maximum * w
     if weighted_max > 0:
-        agg.weighted_percentage = (weighted_earned / weighted_max * 100).quantize(Decimal("0.01"))
+        agg.weighted_percentage = (weighted_earned / weighted_max * 100).quantize(
+            Decimal("0.01")
+        )
     return agg

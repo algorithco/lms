@@ -9,6 +9,7 @@ Usage:
     python manage.py run_all --no-bot          # faqat web server
     python manage.py run_all --no-web          # faqat bot
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,19 +32,24 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--port", type=int, default=8000,
+            "--port",
+            type=int,
+            default=8000,
             help="Web server porti (default: 8000)",
         )
         parser.add_argument(
-            "--no-bot", action="store_true",
+            "--no-bot",
+            action="store_true",
             help="Faqat web server (botni ishga tushirmaydi)",
         )
         parser.add_argument(
-            "--no-web", action="store_true",
+            "--no-web",
+            action="store_true",
             help="Faqat Telegram bot (web serverni ishga tushirmaydi)",
         )
         parser.add_argument(
-            "--noreload", action="store_true",
+            "--noreload",
+            action="store_true",
             help="Fayl o'zgarishlarini kuzatmaslik (production uchun)",
         )
 
@@ -53,10 +59,14 @@ class Command(BaseCommand):
         run_bot = not options["no_bot"]
 
         if not run_web and not run_bot:
-            raise CommandError("Hech narsa ishga tushirilmaydi! --no-bot yoki --no-web ni olib tashlang.")
+            raise CommandError(
+                "Hech narsa ishga tushirilmaydi! --no-bot yoki --no-web ni olib tashlang."
+            )
 
         self.stdout.write(self.style.SUCCESS("=" * 60))
-        self.stdout.write(self.style.SUCCESS("  🚀 LMS Platform — bir paytda ishga tushirilmoqda"))
+        self.stdout.write(
+            self.style.SUCCESS("  🚀 LMS Platform — bir paytda ishga tushirilmoqda")
+        )
         self.stdout.write(self.style.SUCCESS("=" * 60))
 
         threads = []
@@ -71,15 +81,19 @@ class Command(BaseCommand):
                 name="web-server",
             )
             threads.append(web_thread)
-            self.stdout.write(self.style.SUCCESS(f"  🌐 Web server: http://127.0.0.1:{port}/"))
+            self.stdout.write(
+                self.style.SUCCESS(f"  🌐 Web server: http://127.0.0.1:{port}/")
+            )
 
         # --- Telegram Bot ---
         if run_bot:
             token = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
             if not token:
-                self.stdout.write(self.style.WARNING(
-                    "  ⚠️  TELEGRAM_BOT_TOKEN sozlanmagan — bot ishga tushmaydi"
-                ))
+                self.stdout.write(
+                    self.style.WARNING(
+                        "  ⚠️  TELEGRAM_BOT_TOKEN sozlanmagan — bot ishga tushmaydi"
+                    )
+                )
             else:
                 bot_thread = threading.Thread(
                     target=self._run_telegram_bot,
@@ -88,9 +102,9 @@ class Command(BaseCommand):
                     name="telegram-bot",
                 )
                 threads.append(bot_thread)
-                self.stdout.write(self.style.SUCCESS(
-                    f"  🤖 Telegram bot: @uz_essaygrader_bot"
-                ))
+                self.stdout.write(
+                    self.style.SUCCESS(f"  🤖 Telegram bot: @uz_essaygrader_bot")
+                )
 
         self.stdout.write(self.style.SUCCESS("=" * 60))
         self.stdout.write(self.style.SUCCESS("  To'xtatish uchun: Ctrl+C"))
@@ -121,9 +135,11 @@ class Command(BaseCommand):
                 # O'lik thread'larni tekshirish
                 for t in threads:
                     if not t.is_alive() and not stop_event.is_set():
-                        self.stdout.write(self.style.WARNING(
-                            f"  ⚠️  {t.name} to'xtadi — qayta ishga tushirilmoqda..."
-                        ))
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  ⚠️  {t.name} to'xtadi — qayta ishga tushirilmoqda..."
+                            )
+                        )
                         if t.name == "web-server":
                             t_new = threading.Thread(
                                 target=self._run_web_server,
@@ -148,11 +164,15 @@ class Command(BaseCommand):
             stop_event.set()
             self.stdout.write(self.style.SUCCESS("\n✅ Hammasi to'xtatildi!"))
 
-    def _run_web_server(self, port: int, noreload: bool, stop_event: threading.Event) -> None:
+    def _run_web_server(
+        self, port: int, noreload: bool, stop_event: threading.Event
+    ) -> None:
         """Web serverni alohida thread'da ishga tushirish."""
         try:
             # Django settings ni this thread uchun tayyorlash
-            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
+            os.environ.setdefault(
+                "DJANGO_SETTINGS_MODULE", "config.settings.development"
+            )
 
             from django.core.management import execute_from_command_line
 
@@ -173,10 +193,13 @@ class Command(BaseCommand):
     def _run_telegram_bot(self, token: str, stop_event: threading.Event) -> None:
         """Telegram bot'ni alohida thread'da ishga tushirish."""
         try:
-            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
+            os.environ.setdefault(
+                "DJANGO_SETTINGS_MODULE", "config.settings.development"
+            )
 
             # Django setup — har bir thread uchun kerak
             import django
+
             django.setup()
 
             from telegram.ext import ApplicationBuilder

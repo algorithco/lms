@@ -29,6 +29,7 @@ Inline Keyboards:
     - Test list navigation
     - Essay topic selection
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -43,7 +44,15 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from apps.accounts.access import is_platform_admin
-from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
 from telegram.ext import ContextTypes
 
 if TYPE_CHECKING:
@@ -57,7 +66,10 @@ async def _require_private_chat(update: Update) -> bool:
     chat = getattr(update, "effective_chat", None)
     if chat is None or getattr(chat, "type", None) == "private":
         return True
-    await send_reply(update, "Shaxsiy moliyaviy va o'quvchi hisobotlari faqat bot bilan shaxsiy chatda ochiladi.")
+    await send_reply(
+        update,
+        "Shaxsiy moliyaviy va o'quvchi hisobotlari faqat bot bilan shaxsiy chatda ochiladi.",
+    )
     return False
 
 
@@ -73,16 +85,22 @@ def _get_or_create_user(update: Update) -> "User | None":
     if not tg_user:
         return None
     try:
-        user, created = get_or_create_telegram_user({
-            "id": tg_user.id,
-            "first_name": tg_user.first_name or "",
-            "last_name": tg_user.last_name or "",
-        })
+        user, created = get_or_create_telegram_user(
+            {
+                "id": tg_user.id,
+                "first_name": tg_user.first_name or "",
+                "last_name": tg_user.last_name or "",
+            }
+        )
     except TelegramIdentityUnverified:
-        logger.warning("Legacy Telegram identity requires verification: tg_id=%d", tg_user.id)
+        logger.warning(
+            "Legacy Telegram identity requires verification: tg_id=%d", tg_user.id
+        )
         return None
     if created:
-        logger.info("Bot: new user registered: tg_id=%d, user_id=%d", tg_user.id, user.id)
+        logger.info(
+            "Bot: new user registered: tg_id=%d, user_id=%d", tg_user.id, user.id
+        )
     return user if user.is_active else None
 
 
@@ -139,7 +157,9 @@ def _error_keyboard(retry_callback: str | None = None) -> InlineKeyboardMarkup:
     """Friendly navigation keyboard for error states."""
     buttons = []
     if retry_callback:
-        buttons.append([InlineKeyboardButton("🔄 Qayta urinish", callback_data=retry_callback)])
+        buttons.append(
+            [InlineKeyboardButton("🔄 Qayta urinish", callback_data=retry_callback)]
+        )
     buttons.append([InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")])
     return InlineKeyboardMarkup(buttons)
 
@@ -172,14 +192,22 @@ def _get_user_role(user: "User | None", tg_id: int | None = None) -> str:
     Superadmin ID (5582178765) or platform admins always resolve to 'admin'.
     """
     from django.conf import settings as _settings
+
     admin_tg_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
     if tg_id and int(tg_id) == admin_tg_id:
         return "admin"
     if not user:
         return "student"
-    if getattr(user, "telegram_chat_id", None) and int(user.telegram_chat_id) == admin_tg_id:
+    if (
+        getattr(user, "telegram_chat_id", None)
+        and int(user.telegram_chat_id) == admin_tg_id
+    ):
         return "admin"
-    if getattr(user, "is_superuser", False) or (getattr(user, "role", "") or "").lower() == "admin" or is_platform_admin(user):
+    if (
+        getattr(user, "is_superuser", False)
+        or (getattr(user, "role", "") or "").lower() == "admin"
+        or is_platform_admin(user)
+    ):
         return "admin"
     if (getattr(user, "role", "") or "").lower() == "teacher":
         return "teacher"
@@ -189,28 +217,41 @@ def _get_user_role(user: "User | None", tg_id: int | None = None) -> str:
 def require_role(*roles: str):
     """Decorator to enforce role-based access control (RBAC) on bot handlers and callbacks."""
     from functools import wraps
+
     normalized_roles = [r.lower() for r in roles]
 
     def decorator(handler_func):
         @wraps(handler_func)
-        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        async def wrapper(
+            update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
+        ):
             try:
                 chat = getattr(update, "effective_chat", None)
-                if chat and getattr(chat, "type", None) != "private" and handler_func.__name__ in ("weekly_report_handler", "group_payments_handler"):
+                if (
+                    chat
+                    and getattr(chat, "type", None) != "private"
+                    and handler_func.__name__
+                    in ("weekly_report_handler", "group_payments_handler")
+                ):
                     if not await _require_private_chat(update):
                         return
 
                 tg_user = getattr(update, "effective_user", None)
                 tg_id = tg_user.id if tg_user else None
                 from django.conf import settings as _settings
-                admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
 
-                is_superadmin = (tg_id is not None and int(tg_id) == admin_id)
+                admin_id = int(
+                    getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID)
+                )
+
+                is_superadmin = tg_id is not None and int(tg_id) == admin_id
 
                 user = await _get_or_create_user_async(update) if tg_user else None
 
                 if user is None and not is_superadmin:
-                    await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
+                    await send_reply(
+                        update, "Hisobni aniqlab bo'lmadi. /start ni bosing."
+                    )
                     return
 
                 user_role = _get_user_role(user, tg_id)
@@ -220,7 +261,10 @@ def require_role(*roles: str):
                     has_access = True
                 elif "admin" in normalized_roles and user_role == "admin":
                     has_access = True
-                elif "teacher" in normalized_roles and user_role in ("teacher", "admin"):
+                elif "teacher" in normalized_roles and user_role in (
+                    "teacher",
+                    "admin",
+                ):
                     has_access = True
                 elif "student" in normalized_roles:
                     has_access = True
@@ -235,7 +279,9 @@ def require_role(*roles: str):
 
                     if getattr(update, "callback_query", None):
                         try:
-                            await update.callback_query.answer(denied_msg, show_alert=True)
+                            await update.callback_query.answer(
+                                denied_msg, show_alert=True
+                            )
                         except Exception:
                             pass
                         try:
@@ -255,7 +301,11 @@ def require_role(*roles: str):
 
                 return await handler_func(update, context, *args, **kwargs)
             except Exception as exc:
-                logger.exception("Error in handler %s: %s", getattr(handler_func, "__name__", "unknown"), exc)
+                logger.exception(
+                    "Error in handler %s: %s",
+                    getattr(handler_func, "__name__", "unknown"),
+                    exc,
+                )
                 try:
                     await send_friendly_error(
                         update,
@@ -265,6 +315,7 @@ def require_role(*roles: str):
                     pass
 
         return wrapper
+
     return decorator
 
 
@@ -274,18 +325,36 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
     if norm_role in ("admin", "superadmin"):
         return ReplyKeyboardMarkup(
             [
-                [KeyboardButton("📥 Yangi to'lov cheklari (Tasdiqlash)"), KeyboardButton("📈 Umumiy statistika")],
-                [KeyboardButton("👨‍🏫 O'qituvchilarni tasdiqlash"), KeyboardButton("⚙️ Tizim sozlamalari")],
-                [KeyboardButton("🎓 O'quvchi menyusi"), KeyboardButton("👨‍🏫 O'qituvchi menyusi")],
+                [
+                    KeyboardButton("📥 Yangi to'lov cheklari (Tasdiqlash)"),
+                    KeyboardButton("📈 Umumiy statistika"),
+                ],
+                [
+                    KeyboardButton("👨‍🏫 O'qituvchilarni tasdiqlash"),
+                    KeyboardButton("⚙️ Tizim sozlamalari"),
+                ],
+                [
+                    KeyboardButton("🎓 O'quvchi menyusi"),
+                    KeyboardButton("👨‍🏫 O'qituvchi menyusi"),
+                ],
             ],
             resize_keyboard=True,
         )
     elif norm_role == "teacher":
         return ReplyKeyboardMarkup(
             [
-                [KeyboardButton("📝 Yangi Mock yaratish (/newmock)"), KeyboardButton("📷 Titul varaqni tekshirish")],
-                [KeyboardButton("👥 Mening guruhlarim"), KeyboardButton("📊 O'quvchilar hisoboti (Excel)")],
-                [KeyboardButton("📚 Testlar bazasi"), KeyboardButton("👤 Shaxsiy kabinet")],
+                [
+                    KeyboardButton("📝 Yangi Mock yaratish (/newmock)"),
+                    KeyboardButton("📷 Titul varaqni tekshirish"),
+                ],
+                [
+                    KeyboardButton("👥 Mening guruhlarim"),
+                    KeyboardButton("📊 O'quvchilar hisoboti (Excel)"),
+                ],
+                [
+                    KeyboardButton("📚 Testlar bazasi"),
+                    KeyboardButton("👤 Shaxsiy kabinet"),
+                ],
             ],
             resize_keyboard=True,
         )
@@ -294,8 +363,14 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
         return ReplyKeyboardMarkup(
             [
                 [KeyboardButton("✍️ Esse yozish"), KeyboardButton("📚 Test ishlash")],
-                [KeyboardButton("📝 Mock Test (#kod)"), KeyboardButton("⚔️ Arena (1v1)")],
-                [KeyboardButton("👤 Natijalar / Profil"), KeyboardButton("💳 Tariflar / Obuna")],
+                [
+                    KeyboardButton("📝 Mock Test (#kod)"),
+                    KeyboardButton("⚔️ Arena (1v1)"),
+                ],
+                [
+                    KeyboardButton("👤 Natijalar / Profil"),
+                    KeyboardButton("💳 Tariflar / Obuna"),
+                ],
             ],
             resize_keyboard=True,
         )
@@ -304,83 +379,135 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
 def _student_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Main menu inline keyboard for students."""
     from django.conf import settings as _settings
+
     _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📝 Mock Test (#kod)", callback_data="menu_mock_join"),
-            InlineKeyboardButton("📱 Fast CBT Test", web_app={"url": f"{_site_url}/tma/#/tests"}),
-        ],
-        [
-            InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
-            InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
-        ],
-        [
-            InlineKeyboardButton("🧠 Telegram Quiz", callback_data="menu_quiz"),
-            InlineKeyboardButton("📜 Sertifikatlarim (PDF)", callback_data="menu_certificates"),
-        ],
-        [
-            InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
-            InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
-        ],
-        [
-            InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
-            InlineKeyboardButton("🏆 ELO Reyting", callback_data="menu_leaderboard"),
-        ],
-        [
-            InlineKeyboardButton("🏆 Yakshanba Turniri", callback_data="menu_tournament"),
-            InlineKeyboardButton("👨‍👩‍👧 Ota-onalar nazorati", callback_data="menu_parents"),
-        ],
-        [
-            InlineKeyboardButton("🌐 Web Platformaga o'tish", url=f"{_site_url}/dashboard/"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "📝 Mock Test (#kod)", callback_data="menu_mock_join"
+                ),
+                InlineKeyboardButton(
+                    "📱 Fast CBT Test", web_app={"url": f"{_site_url}/tma/#/tests"}
+                ),
+            ],
+            [
+                InlineKeyboardButton("✍️ Esse yozish", callback_data="menu_essays"),
+                InlineKeyboardButton("⚔️ Arena (1v1)", callback_data="menu_arena"),
+            ],
+            [
+                InlineKeyboardButton("🧠 Telegram Quiz", callback_data="menu_quiz"),
+                InlineKeyboardButton(
+                    "📜 Sertifikatlarim (PDF)", callback_data="menu_certificates"
+                ),
+            ],
+            [
+                InlineKeyboardButton("📊 Natijalarim", callback_data="menu_results"),
+                InlineKeyboardButton("👤 Profilim", callback_data="menu_profile"),
+            ],
+            [
+                InlineKeyboardButton("💳 Tarif / To'lov", callback_data="cb_myplan"),
+                InlineKeyboardButton(
+                    "🏆 ELO Reyting", callback_data="menu_leaderboard"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🏆 Yakshanba Turniri", callback_data="menu_tournament"
+                ),
+                InlineKeyboardButton(
+                    "👨‍👩‍👧 Ota-onalar nazorati", callback_data="menu_parents"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Web Platformaga o'tish", url=f"{_site_url}/dashboard/"
+                ),
+            ],
+        ]
+    )
 
 
 def _teacher_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Main menu inline keyboard for teachers."""
     from django.conf import settings as _settings
+
     _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📝 Yangi Mock yaratish (/newmock)", callback_data="menu_teacher_newmock"),
-            InlineKeyboardButton("👥 Mening guruhlarim", callback_data="tgrplist"),
-        ],
-        [
-            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data="menu_teacher_excel"),
-            InlineKeyboardButton("📚 Testlar bazasi", web_app={"url": f"{_site_url}/tma/#/tests"}),
-        ],
-        [
-            InlineKeyboardButton("🗓 Bugungi davomat", callback_data="menu_teacher_attendance"),
-            InlineKeyboardButton("📈 Guruh hisobotlari", callback_data="menu_teacher_reports"),
-        ],
-        [
-            InlineKeyboardButton("👤 Shaxsiy kabinet", callback_data="menu_teacher_profile"),
-            InlineKeyboardButton("🌐 O'qituvchi boshqaruv paneli", url=f"{_site_url}/dashboard/"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "📝 Yangi Mock yaratish (/newmock)",
+                    callback_data="menu_teacher_newmock",
+                ),
+                InlineKeyboardButton("👥 Mening guruhlarim", callback_data="tgrplist"),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📊 Excel hisobot (.xlsx)", callback_data="menu_teacher_excel"
+                ),
+                InlineKeyboardButton(
+                    "📚 Testlar bazasi", web_app={"url": f"{_site_url}/tma/#/tests"}
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🗓 Bugungi davomat", callback_data="menu_teacher_attendance"
+                ),
+                InlineKeyboardButton(
+                    "📈 Guruh hisobotlari", callback_data="menu_teacher_reports"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "👤 Shaxsiy kabinet", callback_data="menu_teacher_profile"
+                ),
+                InlineKeyboardButton(
+                    "🌐 O'qituvchi boshqaruv paneli", url=f"{_site_url}/dashboard/"
+                ),
+            ],
+        ]
+    )
 
 
 def _admin_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Main menu inline keyboard for superadmin."""
     from django.conf import settings as _settings
+
     _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📥 Yangi to'lov cheklari", callback_data="adm_pending_receipts"),
-            InlineKeyboardButton("📈 Umumiy statistika", callback_data="adm_stats"),
-        ],
-        [
-            InlineKeyboardButton("👨‍🏫 O'qituvchilarni tasdiqlash", callback_data="adm_pending_teachers"),
-            InlineKeyboardButton("⚙️ Tizim sozlamalari", callback_data="adm_settings"),
-        ],
-        [
-            InlineKeyboardButton("🎓 O'quvchi menyusiga o'tish", callback_data="adm_switch_student"),
-            InlineKeyboardButton("👨‍🏫 O'qituvchi menyusiga o'tish", callback_data="adm_switch_teacher"),
-        ],
-        [
-            InlineKeyboardButton("🌐 Django Admin Panel", url=f"{_site_url}/admin/"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "📥 Yangi to'lov cheklari", callback_data="adm_pending_receipts"
+                ),
+                InlineKeyboardButton("📈 Umumiy statistika", callback_data="adm_stats"),
+            ],
+            [
+                InlineKeyboardButton(
+                    "👨‍🏫 O'qituvchilarni tasdiqlash",
+                    callback_data="adm_pending_teachers",
+                ),
+                InlineKeyboardButton(
+                    "⚙️ Tizim sozlamalari", callback_data="adm_settings"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🎓 O'quvchi menyusiga o'tish", callback_data="adm_switch_student"
+                ),
+                InlineKeyboardButton(
+                    "👨‍🏫 O'qituvchi menyusiga o'tish",
+                    callback_data="adm_switch_teacher",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Django Admin Panel", url=f"{_site_url}/admin/"
+                ),
+            ],
+        ]
+    )
 
 
 def _main_menu_keyboard(role: str = "student") -> InlineKeyboardMarkup:
@@ -397,16 +524,21 @@ def _main_menu_keyboard(role: str = "student") -> InlineKeyboardMarkup:
 # /start
 # ---------------------------------------------------------------------------
 
+
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command — welcome + auto-link + auth token support + RBAC onboarding."""
     args = context.args if context.args else []
 
     if args and args[0].startswith("link_"):
         from apps.accounts.services.telegram_link import confirm_link_challenge
+
         tg_user = update.effective_user
         state = (
-            await _run_db(confirm_link_challenge, args[0].removeprefix("link_"), tg_user.id)
-            if tg_user else "invalid"
+            await _run_db(
+                confirm_link_challenge, args[0].removeprefix("link_"), tg_user.id
+            )
+            if tg_user
+            else "invalid"
         )
         messages = {
             "confirmed": "✅ Telegram hisobingiz veb profilingizga bog'landi.",
@@ -438,9 +570,12 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if args and (args[0].startswith("join_") or args[0].upper().startswith("GR-")):
         invite_code = args[0].removeprefix("join_").upper()
         from apps.courses.group_service import join_group_by_invite_code
+
         user = await _get_or_create_user_async(update)
         if user:
-            ok, msg, joined_grp = await _run_db(join_group_by_invite_code, user, invite_code)
+            ok, msg, joined_grp = await _run_db(
+                join_group_by_invite_code, user, invite_code
+            )
             if ok and joined_grp:
                 await update.message.reply_text(
                     f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
@@ -459,12 +594,16 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     from django.conf import settings as _settings
+
     admin_tg_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
-    is_superadmin = (tg_user.id == admin_tg_id)
+    is_superadmin = tg_user.id == admin_tg_id
 
     # Check if user is already registered in DB
     from apps.accounts.models import User as UserModel
-    existing_user = await _run_db(lambda: UserModel.objects.filter(telegram_chat_id=tg_user.id).first())
+
+    existing_user = await _run_db(
+        lambda: UserModel.objects.filter(telegram_chat_id=tg_user.id).first()
+    )
 
     # First-time user onboarding (if not superadmin and not registered yet)
     if existing_user is None and not is_superadmin:
@@ -473,12 +612,18 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"🎓 *Ona Tili & Adabiyot* (grandec.uz) — Rasmiy ta'lim platformasiga xush kelibsiz!\n\n"
             f"Platformadagi rolingizni tanlang:"
         )
-        onboarding_kb = InlineKeyboardMarkup([
+        onboarding_kb = InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("🎓 Men o'quvchiman", callback_data="role_select_student"),
-                InlineKeyboardButton("👨‍🏫 Men o'qituvchiman", callback_data="role_select_teacher"),
+                [
+                    InlineKeyboardButton(
+                        "🎓 Men o'quvchiman", callback_data="role_select_student"
+                    ),
+                    InlineKeyboardButton(
+                        "👨‍🏫 Men o'qituvchiman", callback_data="role_select_teacher"
+                    ),
+                ]
             ]
-        ])
+        )
         await update.message.reply_text(
             onboarding_text,
             parse_mode="Markdown",
@@ -560,7 +705,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
-async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str) -> None:
+async def _handle_auth_token(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str
+) -> None:
     """Handle /start auth_<token>.
 
     A verified Telegram link is already sufficient to identify an existing
@@ -610,6 +757,7 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         resolve_bot_auth_user,
         normalize_phone,
     )
+
     try:
         linked_user, how = await _run_db(resolve_bot_auth_user, tg_user.id, "")
     except TelegramIdentityUnverified as exc:
@@ -620,6 +768,7 @@ async def _handle_auth_token(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
 
     if linked_user is not None and how == "tg":
+
         def _linked_profile_phone():
             try:
                 return normalize_phone(linked_user.profile.phone)
@@ -700,11 +849,19 @@ def _complete_auth_login(auth_token_str: str, user, full_name: str, clean_phone:
         at.telegram_chat_id = getattr(user, "telegram_chat_id", None)
         at.is_verified = True
         at.verified_at = timezone.now()
-        at.save(update_fields=[
-            "full_name", "phone_number", "phone_verified",
-            "conversation_state", "short_code", "user",
-            "telegram_chat_id", "is_verified", "verified_at",
-        ])
+        at.save(
+            update_fields=[
+                "full_name",
+                "phone_number",
+                "phone_verified",
+                "conversation_state",
+                "short_code",
+                "user",
+                "telegram_chat_id",
+                "is_verified",
+                "verified_at",
+            ]
+        )
 
         profile, _ = Profile.objects.get_or_create(user=user)
         if has_verified_phone and (not profile.phone or profile.phone == clean_phone):
@@ -713,7 +870,9 @@ def _complete_auth_login(auth_token_str: str, user, full_name: str, clean_phone:
     return code
 
 
-async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code: str, is_new: bool) -> None:
+async def _send_auth_code(
+    update: Update, full_name: str, clean_phone: str, code: str, is_new: bool
+) -> None:
     """Deliver the 6-digit website-login code (contact keyboard removed)."""
     code_display = "  ".join(code)
     identity_line = (
@@ -723,8 +882,8 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
     )
     hello = (
         "🎉 *Ma'lumotlar saqlandi!*\n\n"
-        if is_new else
-        f"🎉 *Xush kelibsiz, {full_name}!*\n\n"
+        if is_new
+        else f"🎉 *Xush kelibsiz, {full_name}!*\n\n"
     )
     tail = (
         f"👤 Ism: *{full_name}*\n"
@@ -735,7 +894,7 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"⏰ Kod 10 daqiqa ichida eskiradi.\n\n"
         f"🌐 Veb-saytda shu kodni kiriting:\n"
-        f"1. \"Telegram orqali kirish\" tugmasini bosing\n"
+        f'1. "Telegram orqali kirish" tugmasini bosing\n'
         f"2. Kodni kiriting\n"
         f"3. Tizimga kiring!"
     )
@@ -748,7 +907,9 @@ async def _send_auth_code(update: Update, full_name: str, clean_phone: str, code
     )
 
 
-async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def auth_conversation_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle text messages during Telegram auth or essay submission."""
     essay_state = context.user_data.get("bot_essay_state")
     if essay_state in ("awaiting_text", "awaiting_submission"):
@@ -767,10 +928,21 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     if raw_text in ("✍️ Esse yozish", "✍️ Esse"):
         await essays_handler(update, context)
         return
-    elif raw_text in ("📚 Test ishlash", "📚 Test topshirish", "🧠 Test / Quiz", "🧠 Quiz", "📝 Testlar"):
+    elif raw_text in (
+        "📚 Test ishlash",
+        "📚 Test topshirish",
+        "🧠 Test / Quiz",
+        "🧠 Quiz",
+        "📝 Testlar",
+    ):
         await tests_handler(update, context)
         return
-    elif raw_text in ("📷 Titul varaqni tekshirish", "📷 Titul varaq", "/omr", "Titul varaq"):
+    elif raw_text in (
+        "📷 Titul varaqni tekshirish",
+        "📷 Titul varaq",
+        "/omr",
+        "Titul varaq",
+    ):
         await omr_scan_prompt_handler(update, context)
         return
     elif raw_text in ("⚔️ Arena (1v1)", "⚔️ Arena"):
@@ -779,12 +951,27 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     elif raw_text in ("📜 Sertifikatlarim", "📜 Sertifikatlar"):
         await certificates_handler(update, context)
         return
-    elif raw_text in ("💳 Tariflar / Obuna", "💳 Tariflar", "💳 Obuna", "💳 Mening tarifim", "💳 To'lov", "💳 Tarif"):
+    elif raw_text in (
+        "💳 Tariflar / Obuna",
+        "💳 Tariflar",
+        "💳 Obuna",
+        "💳 Mening tarifim",
+        "💳 To'lov",
+        "💳 Tarif",
+    ):
         await plans_and_payment_handler(update, context)
         return
-    elif raw_text in ("👤 Natijalar / Profil", "👤 Profil", "👤 Profilim", "📊 Natijalarim", "📊 Natijalar"):
+    elif raw_text in (
+        "👤 Natijalar / Profil",
+        "👤 Profil",
+        "👤 Profilim",
+        "📊 Natijalarim",
+        "📊 Natijalar",
+    ):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role == "teacher":
             await teacher_profile_handler(update, context)
         elif role == "admin":
@@ -795,10 +982,20 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     elif raw_text in ("📅 Davomat", "📅 Davomatim"):
         await myattendance_handler(update, context)
         return
-    elif raw_text in ("👨‍👩‍👧 Ota-ona nazorati", "👨‍👩‍👧 Ota-onani ulash", "Ota-ona nazorati", "Ota-ona"):
+    elif raw_text in (
+        "👨‍👩‍👧 Ota-ona nazorati",
+        "👨‍👩‍👧 Ota-onani ulash",
+        "Ota-ona nazorati",
+        "Ota-ona",
+    ):
         await parent_start_handler(update, context)
         return
-    elif raw_text in ("🏆 Yakshanba Turniri", "🏆 Turnir", "Yakshanba Turniri", "Turnir"):
+    elif raw_text in (
+        "🏆 Yakshanba Turniri",
+        "🏆 Turnir",
+        "Yakshanba Turniri",
+        "Turnir",
+    ):
         await tournament_handler(update, context)
         return
     elif raw_text in ("📝 Mock Test (#kod)", "📝 Mock Test", "Mock Test"):
@@ -815,7 +1012,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     # --- Teacher Persistent Buttons ---
     elif raw_text in ("📝 Yangi Mock yaratish (/newmock)", "📝 Yangi Mock yaratish"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role not in ("teacher", "admin"):
             await update.message.reply_text(
                 "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
@@ -826,7 +1025,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("👥 Mening guruhlarim", "👥 Guruhlarim", "Mening guruhlarim"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role not in ("teacher", "admin"):
             await update.message.reply_text(
                 "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
@@ -835,9 +1036,15 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
         await groups_handler(update, context)
         return
-    elif raw_text in ("📊 O'quvchilar hisoboti (Excel)", "📊 O'quvchilar hisoboti", "O'quvchilar hisoboti (Excel)"):
+    elif raw_text in (
+        "📊 O'quvchilar hisoboti (Excel)",
+        "📊 O'quvchilar hisoboti",
+        "O'quvchilar hisoboti (Excel)",
+    ):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role not in ("teacher", "admin"):
             await update.message.reply_text(
                 "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
@@ -848,7 +1055,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("📚 Testlar bazasi", "Testlar bazasi"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role not in ("teacher", "admin"):
             await update.message.reply_text(
                 "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
@@ -859,7 +1068,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("👤 Shaxsiy kabinet", "Shaxsiy kabinet"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role == "teacher":
             await teacher_profile_handler(update, context)
             return
@@ -871,9 +1082,15 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
 
     # --- Superadmin Persistent Buttons ---
-    elif raw_text in ("📥 Yangi to'lov cheklari (Tasdiqlash)", "📥 Yangi to'lov cheklari", "Yangi to'lov cheklari"):
+    elif raw_text in (
+        "📥 Yangi to'lov cheklari (Tasdiqlash)",
+        "📥 Yangi to'lov cheklari",
+        "Yangi to'lov cheklari",
+    ):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
             await update.message.reply_text(
                 "⛔️ Bu bo'lim faqat administratorlar uchun!",
@@ -884,7 +1101,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("📈 Umumiy statistika", "Umumiy statistika"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
             await update.message.reply_text(
                 "⛔️ Bu bo'lim faqat administratorlar uchun!",
@@ -895,7 +1114,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("👨‍🏫 O'qituvchilarni tasdiqlash", "O'qituvchilarni tasdiqlash"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
             await update.message.reply_text(
                 "⛔️ Bu bo'lim faqat administratorlar uchun!",
@@ -906,7 +1127,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("⚙️ Tizim sozlamalari", "Tizim sozlamalari"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
             await update.message.reply_text(
                 "⛔️ Bu bo'lim faqat administratorlar uchun!",
@@ -917,9 +1140,13 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text == "🎓 O'quvchi menyusi":
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
-            await update.message.reply_text("⛔️ Bu buyruq faqat administratorlar uchun!")
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat administratorlar uchun!"
+            )
             return
         await update.message.reply_text(
             "🎓 O'quvchi rejimi ko'rinishi faollashtirildi 👇",
@@ -933,9 +1160,13 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text == "👨‍🏫 O'qituvchi menyusi":
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
-            await update.message.reply_text("⛔️ Bu buyruq faqat administratorlar uchun!")
+            await update.message.reply_text(
+                "⛔️ Bu buyruq faqat administratorlar uchun!"
+            )
             return
         await update.message.reply_text(
             "👨‍🏫 O'qituvchi rejimi ko'rinishi faollashtirildi 👇",
@@ -949,9 +1180,13 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         return
     elif raw_text in ("👑 Admin menyusi", "👑 Admin paneli"):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role != "admin":
-            await update.message.reply_text("⛔️ Bu bo'lim faqat administratorlar uchun!")
+            await update.message.reply_text(
+                "⛔️ Bu bo'lim faqat administratorlar uchun!"
+            )
             return
         await admin_panel_handler(update, context)
         return
@@ -965,7 +1200,10 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             await update.message.reply_text("Iltimos, guruh nomini to'liqroq kiriting.")
             return
         from apps.courses.models import StudentGroup
-        grp = await _run_db(lambda: StudentGroup.objects.create(teacher=user, name=group_name))
+
+        grp = await _run_db(
+            lambda: StudentGroup.objects.create(teacher=user, name=group_name)
+        )
         invite_code = grp.invite_code or f"GR-{grp.id}"
         await update.message.reply_text(
             f"✅ *Yangi guruh muvaffaqiyatli ochildi!*\n\n"
@@ -981,9 +1219,15 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     # Check for #MOCK-XXX or MOCK-XXX code input or awaiting_mock_code
     upper_raw = raw_text.upper().strip()
     is_awaiting_mock = bool(context.user_data.get("awaiting_mock_code"))
-    if upper_raw.startswith("#MOCK-") or (upper_raw.startswith("MOCK-") and len(upper_raw) >= 6) or is_awaiting_mock:
+    if (
+        upper_raw.startswith("#MOCK-")
+        or (upper_raw.startswith("MOCK-") and len(upper_raw) >= 6)
+        or is_awaiting_mock
+    ):
+
         def _load_mock():
             from apps.tests.mock_service import find_mock_by_code
+
             m = find_mock_by_code(raw_text)
             if not m:
                 return None
@@ -1005,13 +1249,30 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
                 f"🎯 Rasmiy BMB darajalari baholanadi (A+, A, B+, B, C+, C).\n\n"
                 f"Testni Telegramda boshlashga tayyormisiz?"
             )
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🚀 Testni boshlash", callback_data=f"quiz_start_{mock_test['id']}")],
-                [InlineKeyboardButton("❌ Bekor qilish", callback_data="menu_main")],
-            ])
-            await update.message.reply_text(text, parse_mode="Markdown", reply_markup=buttons)
+            buttons = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🚀 Testni boshlash",
+                            callback_data=f"quiz_start_{mock_test['id']}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "❌ Bekor qilish", callback_data="menu_main"
+                        )
+                    ],
+                ]
+            )
+            await update.message.reply_text(
+                text, parse_mode="Markdown", reply_markup=buttons
+            )
             return
-        elif is_awaiting_mock or upper_raw.startswith("#MOCK-") or upper_raw.startswith("MOCK-"):
+        elif (
+            is_awaiting_mock
+            or upper_raw.startswith("#MOCK-")
+            or upper_raw.startswith("MOCK-")
+        ):
             context.user_data.pop("awaiting_mock_code", None)
             await update.message.reply_text(
                 f"❌ '{raw_text}' kodi bo'yicha Mock test topilmadi.\n"
@@ -1021,7 +1282,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
 
     # Check for #GR-XXX or GR-XXX group invite code input
-    if upper_raw.startswith("#GR-") or (upper_raw.startswith("GR-") and len(upper_raw) >= 5):
+    if upper_raw.startswith("#GR-") or (
+        upper_raw.startswith("GR-") and len(upper_raw) >= 5
+    ):
         clean_code = upper_raw.removeprefix("#").strip()
         from apps.courses.group_service import join_group_by_invite_code
 
@@ -1056,16 +1319,22 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         context.user_data.pop("awaiting_teacher_contact", None)
         contact_phone = getattr(contact, "phone_number", "") or ""
         import re
+
         digits = re.sub(r"\D", "", contact_phone)
         clean_9 = digits[-9:] if len(digits) >= 9 else ""
 
         def _verify_teacher_phone(phone_tail: str, chat_id: int):
             from apps.accounts.models import User as UserModel
-            t = UserModel.objects.filter(profile__phone__endswith=phone_tail, role=UserModel.Role.TEACHER).first()
+
+            t = UserModel.objects.filter(
+                profile__phone__endswith=phone_tail, role=UserModel.Role.TEACHER
+            ).first()
             if t:
                 t.telegram_chat_id = chat_id
                 t.telegram_identity_verified_at = timezone.now()
-                t.save(update_fields=["telegram_chat_id", "telegram_identity_verified_at"])
+                t.save(
+                    update_fields=["telegram_chat_id", "telegram_identity_verified_at"]
+                )
                 return t
             return None
 
@@ -1096,19 +1365,25 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     if contact and is_awaiting_parent:
         contact_phone = getattr(contact, "phone_number", "") or ""
         import re
+
         digits = re.sub(r"\D", "", contact_phone)
         clean_9 = digits[-9:] if len(digits) >= 9 else ""
 
         def _link_by_phone(phone_tail: str, chat_id: int):
             from apps.accounts.models import ParentStudentRelation
-            rels = ParentStudentRelation.objects.filter(parent_phone__endswith=phone_tail).select_related("student")
+
+            rels = ParentStudentRelation.objects.filter(
+                parent_phone__endswith=phone_tail
+            ).select_related("student")
             if not rels.exists():
                 return None
             names = []
             for r in rels:
                 r.parent_telegram_id = chat_id
                 r.is_verified = True
-                r.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
+                r.save(
+                    update_fields=["parent_telegram_id", "is_verified", "updated_at"]
+                )
                 names.append(r.student.get_full_name() or r.student.email)
             return names
 
@@ -1134,9 +1409,15 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
 
     if raw_text.isdigit() and len(raw_text) == 6:
+
         def _check_and_link(code_val: str, chat_id: int):
             from apps.accounts.models import ParentStudentRelation
-            rel = ParentStudentRelation.objects.filter(verification_code=code_val).select_related("student").first()
+
+            rel = (
+                ParentStudentRelation.objects.filter(verification_code=code_val)
+                .select_related("student")
+                .first()
+            )
             if not rel:
                 return None
             rel.parent_telegram_id = chat_id
@@ -1144,7 +1425,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             rel.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
             return rel.student.get_full_name() or rel.student.email
 
-        student_name = await _run_db(_check_and_link, raw_text, update.effective_user.id)
+        student_name = await _run_db(
+            _check_and_link, raw_text, update.effective_user.id
+        )
         if student_name:
             context.user_data.pop("awaiting_parent_code", None)
             await update.message.reply_text(
@@ -1157,9 +1440,13 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
 
     # Teacher /newmock command with strict RBAC
-    if raw_text.lower().startswith("/newmock") or raw_text.lower().startswith("#newmock"):
+    if raw_text.lower().startswith("/newmock") or raw_text.lower().startswith(
+        "#newmock"
+    ):
         user = await _get_or_create_user_async(update)
-        role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+        role = _get_user_role(
+            user, update.effective_user.id if update.effective_user else None
+        )
         if role not in ("teacher", "admin"):
             await update.message.reply_text(
                 "⛔️ Bu buyruq faqat o'qituvchilar uchun!",
@@ -1178,6 +1465,7 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             return
         key_str = parts[1].strip()
         from apps.tests.mock_service import create_quick_mock
+
         try:
             res = await _run_db(create_quick_mock, user, key_str)
             code = res["mock_code"]
@@ -1225,10 +1513,14 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
     if auth_state == "awaiting_name":
         # Name for a NEW account — the verified phone is already stored.
         if update.message.contact:
-            await update.message.reply_text("Iltimos, ism-familiyangizni matn bilan yozing.")
+            await update.message.reply_text(
+                "Iltimos, ism-familiyangizni matn bilan yozing."
+            )
             return
         if len(text) < 3 or len(text) > 100:
-            await update.message.reply_text("Iltimos, to'liq ism-familiyani kiriting (3-100 belgi).")
+            await update.message.reply_text(
+                "Iltimos, to'liq ism-familiyani kiriting (3-100 belgi)."
+            )
             return
         clean_phone = context.user_data.get("auth_phone", "")
         if not clean_phone:
@@ -1250,7 +1542,9 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
         user.first_name = name_parts[0][:150]
         user.last_name = (name_parts[1] if len(name_parts) > 1 else "")[:150]
         await _run_db(user.save, update_fields=["first_name", "last_name"])
-        await _finish_new_account(update, context, auth_token_str, user, text, clean_phone)
+        await _finish_new_account(
+            update, context, auth_token_str, user, text, clean_phone
+        )
         return
 
     elif auth_state == "awaiting_phone":
@@ -1264,18 +1558,35 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
                 await update.message.reply_text(
                     "Kontakt sizga tegishli emas. Iltimos, o'z kontaktingizni yuboring.",
                     reply_markup=ReplyKeyboardMarkup(
-                        [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+                        [
+                            [
+                                KeyboardButton(
+                                    text="📱 Telefonni yuborish", request_contact=True
+                                )
+                            ]
+                        ],
                         resize_keyboard=True,
                         one_time_keyboard=True,
                     ),
                 )
                 return
-            clean_phone = contact.phone_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            clean_phone = (
+                contact.phone_number.replace(" ", "")
+                .replace("-", "")
+                .replace("(", "")
+                .replace(")", "")
+            )
             if not _re.fullmatch(r"\+?\d{7,15}", clean_phone):
                 await update.message.reply_text(
                     "Noto'g'ri telefon raqam. Iltimos, tugmani qayta bosing.",
                     reply_markup=ReplyKeyboardMarkup(
-                        [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
+                        [
+                            [
+                                KeyboardButton(
+                                    text="📱 Telefonni yuborish", request_contact=True
+                                )
+                            ]
+                        ],
                         resize_keyboard=True,
                         one_time_keyboard=True,
                     ),
@@ -1304,11 +1615,18 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
             find_users_by_phone,
             resolve_bot_auth_user,
         )
+
         try:
             user, _how = await _run_db(resolve_bot_auth_user, tg_user.id, clean_phone)
-        except (TelegramAuthConflict, TelegramAuthAmbiguous, TelegramIdentityUnverified) as exc:
+        except (
+            TelegramAuthConflict,
+            TelegramAuthAmbiguous,
+            TelegramIdentityUnverified,
+        ) as exc:
             _clear_auth_state(context)
-            await update.message.reply_text(str(exc), reply_markup=ReplyKeyboardRemove())
+            await update.message.reply_text(
+                str(exc), reply_markup=ReplyKeyboardRemove()
+            )
             return
         except ValueError as exc:
             _clear_auth_state(context)
@@ -1331,14 +1649,19 @@ async def auth_conversation_handler(update: Update, context: ContextTypes.DEFAUL
 
         # Existing account (Telegram link or phone match): fast code.
         await _finish_existing_account(
-            update, context, auth_token_str, user,
+            update,
+            context,
+            auth_token_str,
+            user,
             user.get_full_name() or tg_user.first_name or "",
             clean_phone,
         )
         return
 
 
-async def _finish_existing_account(update, context, auth_token_str, user, full_name, clean_phone) -> None:
+async def _finish_existing_account(
+    update, context, auth_token_str, user, full_name, clean_phone
+) -> None:
     """Complete bot login for a matched account: uniqueness guard + code."""
     from apps.accounts.services.telegram_identity import find_users_by_phone
 
@@ -1355,7 +1678,9 @@ async def _finish_existing_account(update, context, auth_token_str, user, full_n
         )
         return
 
-    code = await _run_db(_complete_auth_login, auth_token_str, user, full_name, clean_phone)
+    code = await _run_db(
+        _complete_auth_login, auth_token_str, user, full_name, clean_phone
+    )
     if code is None:
         _clear_auth_state(context)
         await update.message.reply_text(
@@ -1368,11 +1693,14 @@ async def _finish_existing_account(update, context, auth_token_str, user, full_n
     _clear_auth_state(context)
     logger.info(
         "TG auth fast code: user_id=%s, tg_id=%s",
-        user.pk, tg_user.id if tg_user else "?",
+        user.pk,
+        tg_user.id if tg_user else "?",
     )
 
 
-async def _finish_new_account(update, context, auth_token_str, user, full_name, clean_phone) -> None:
+async def _finish_new_account(
+    update, context, auth_token_str, user, full_name, clean_phone
+) -> None:
     """Complete bot login for a just-provisioned account."""
     from apps.accounts.services.telegram_identity import find_users_by_phone
 
@@ -1389,7 +1717,9 @@ async def _finish_new_account(update, context, auth_token_str, user, full_name, 
         )
         return
 
-    code = await _run_db(_complete_auth_login, auth_token_str, user, full_name, clean_phone)
+    code = await _run_db(
+        _complete_auth_login, auth_token_str, user, full_name, clean_phone
+    )
     if code is None:
         _clear_auth_state(context)
         await update.message.reply_text(
@@ -1402,13 +1732,15 @@ async def _finish_new_account(update, context, auth_token_str, user, full_name, 
     _clear_auth_state(context)
     logger.info(
         "TG auth code generated: user=%s, tg_id=%s",
-        full_name, tg_user.id if tg_user else "?",
+        full_name,
+        tg_user.id if tg_user else "?",
     )
 
 
 # ---------------------------------------------------------------------------
 # /help
 # ---------------------------------------------------------------------------
+
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
@@ -1438,6 +1770,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 # /profile
 # ---------------------------------------------------------------------------
 
+
 async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /profile command — show user stats."""
     user = await _get_or_create_user_async(update)
@@ -1461,7 +1794,7 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "test_count": results.count(),
             "passed_count": results.filter(is_passed=True).count(),
             "essay_count": essays.count(),
-            "graded_count": essays.filter(status='graded').count(),
+            "graded_count": essays.filter(status="graded").count(),
             "cert_count": certificates.count(),
             "games_played": sum(gs.games_played for gs in game_scores),
             "total_xp": total_xp,
@@ -1493,14 +1826,18 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # /tests
 # ---------------------------------------------------------------------------
 
+
 async def tests_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /tests command & '📚 Test ishlash' menu button."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_reply(update, "Xatolik yuz berdi. Iltimos, /start buyrug'ini yuboring.")
+        await send_reply(
+            update, "Xatolik yuz berdi. Iltimos, /start buyrug'ini yuboring."
+        )
         return
 
     from django.conf import settings as _settings
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
     text = (
@@ -1513,9 +1850,17 @@ async def tests_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "3️⃣ *📝 Mock Test (#kod)* — Ustozingiz yoki repetitoringiz bergan maxsus kod orqali imtihon topshirish."
     )
     buttons = [
-        [InlineKeyboardButton("📱 Fast CBT (Mini App)", web_app={"url": f"{site_url}/tma/#/tests"})],
+        [
+            InlineKeyboardButton(
+                "📱 Fast CBT (Mini App)", web_app={"url": f"{site_url}/tma/#/tests"}
+            )
+        ],
         [InlineKeyboardButton("🧠 Telegram Chat Quiz", callback_data="menu_quiz")],
-        [InlineKeyboardButton("📝 Mock Test (#kod orqali)", callback_data="menu_mock_join")],
+        [
+            InlineKeyboardButton(
+                "📝 Mock Test (#kod orqali)", callback_data="menu_mock_join"
+            )
+        ],
         [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
     ]
     await send_reply(
@@ -1526,13 +1871,14 @@ async def tests_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
 
 
-
-
 # ---------------------------------------------------------------------------
 # /results — Barcha natijalar (test + esse + tahlil)
 # ---------------------------------------------------------------------------
 
-async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_TYPE, teacher) -> None:
+
+async def _show_students_results(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, teacher
+) -> None:
     """Show all students' results for teachers/admins."""
 
     def _get_students_overview():
@@ -1554,9 +1900,7 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
                 test_passed=Count("id", filter=Q(is_passed=True)),
             )
         )
-        test_stats = {
-            r["student_id"]: r for r in test_rows
-        }
+        test_stats = {r["student_id"]: r for r in test_rows}
 
         # Aggregated graded-essay stats per student
         essay_rows = (
@@ -1567,9 +1911,7 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
                 essay_avg=Coalesce(Avg("total_score"), Value(0)),
             )
         )
-        essay_stats = {
-            r["student_id"]: r for r in essay_rows
-        }
+        essay_stats = {r["student_id"]: r for r in essay_rows}
 
         overview = []
         for student in User.objects.filter(role="student").order_by("first_name"):
@@ -1579,18 +1921,22 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
             essay_count = e.get("essay_count", 0)
 
             if test_count > 0 or essay_count > 0:
-                overview.append({
-                    "id": student.id,
-                    "name": student.get_full_name() or student.email,
-                    "test_count": test_count,
-                    "test_avg": round(float(t.get("test_avg") or 0), 1),
-                    "test_passed": t.get("test_passed", 0),
-                    "essay_count": essay_count,
-                    "essay_avg": round(float(e.get("essay_avg") or 0), 1),
-                })
+                overview.append(
+                    {
+                        "id": student.id,
+                        "name": student.get_full_name() or student.email,
+                        "test_count": test_count,
+                        "test_avg": round(float(t.get("test_avg") or 0), 1),
+                        "test_passed": t.get("test_passed", 0),
+                        "essay_count": essay_count,
+                        "essay_avg": round(float(e.get("essay_avg") or 0), 1),
+                    }
+                )
 
         # Sort by overall score (descending)
-        overview.sort(key=lambda x: (x["test_avg"] + x["essay_avg"] * 100 / 24) / 2, reverse=True)
+        overview.sort(
+            key=lambda x: (x["test_avg"] + x["essay_avg"] * 100 / 24) / 2, reverse=True
+        )
         return overview
 
     students = await _run_db(_get_students_overview)
@@ -1610,8 +1956,16 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
     # Top 3 badge
     medals = ["🥇", "🥈", "🥉"]
     for i, s in enumerate(students[:20]):  # Top 20
-        medal = medals[i] if i < 3 else f"{i+1}."
-        grade = "A" if s["test_avg"] >= 80 else "B" if s["test_avg"] >= 60 else "C" if s["test_avg"] >= 40 else "D"
+        medal = medals[i] if i < 3 else f"{i + 1}."
+        grade = (
+            "A"
+            if s["test_avg"] >= 80
+            else "B"
+            if s["test_avg"] >= 60
+            else "C"
+            if s["test_avg"] >= 40
+            else "D"
+        )
         lines.append(
             f"{medal} *{s['name']}*\n"
             f"   📝 {s['test_count']} test (o'rt: {s['test_avg']}%) {grade}\n"
@@ -1624,12 +1978,13 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
     # Buttons for each student (first 8)
     buttons = []
     for s in students[:8]:
-        buttons.append([
-            InlineKeyboardButton(
-                f"👤 {s['name'][:25]}",
-                callback_data=f"student_result_{s['id']}"
-            )
-        ])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"👤 {s['name'][:25]}", callback_data=f"student_result_{s['id']}"
+                )
+            ]
+        )
     buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
 
     await send_reply(
@@ -1640,7 +1995,9 @@ async def _show_students_results(update: Update, context: ContextTypes.DEFAULT_T
     )
 
 
-async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, student_id: int) -> None:
+async def _show_student_detail(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, student_id: int
+) -> None:
     """Show detailed results for a specific student (teacher/admin view)."""
 
     def _get_student_detail():
@@ -1673,13 +2030,17 @@ async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYP
         test_passed = 0
         test_total = all_tests.count()
         if test_total > 0:
-            test_avg = round(float(all_tests.aggregate(avg=Avg("percentage"))["avg"] or 0), 1)
+            test_avg = round(
+                float(all_tests.aggregate(avg=Avg("percentage"))["avg"] or 0), 1
+            )
             test_passed = all_tests.filter(is_passed=True).count()
 
         essay_avg = 0
         essay_count = all_essays.count()
         if essay_count > 0:
-            essay_avg = round(float(all_essays.aggregate(avg=Avg("total_score"))["avg"] or 0), 1)
+            essay_avg = round(
+                float(all_essays.aggregate(avg=Avg("total_score"))["avg"] or 0), 1
+            )
 
         target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
 
@@ -1712,10 +2073,10 @@ async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYP
         lines.append("📝 *TEST NATIJALARI*\n")
         for r in data["test_results"]:
             icon = "✅" if r.is_passed else "❌"
-            lines.append(
-                f"{icon} *{r.test.title}* — {r.percentage}%"
-            )
-        lines.append(f"\n📊 O'rtacha: *{data['test_avg']}%* ({data['test_passed']}/{data['test_total']} o'tilgan)")
+            lines.append(f"{icon} *{r.test.title}* — {r.percentage}%")
+        lines.append(
+            f"\n📊 O'rtacha: *{data['test_avg']}%* ({data['test_passed']}/{data['test_total']} o'tilgan)"
+        )
     else:
         lines.append("📝 Testlar: yo'q")
 
@@ -1725,9 +2086,7 @@ async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYP
         for e in data["essay_results"]:
             topic = e.topic.title if e.topic else "?"
             score = float(e.total_score) if e.total_score else 0
-            lines.append(
-                f"• *{topic}* — {score}/24"
-            )
+            lines.append(f"• *{topic}* — {score}/24")
         lines.append(f"\n📊 O'rtacha: *{data['essay_avg']}/24*")
     else:
         lines.append("\n✍️ Esselar: yo'q")
@@ -1741,6 +2100,7 @@ async def _show_student_detail(update: Update, context: ContextTypes.DEFAULT_TYP
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
+
 
 async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /results command — show ALL results with analysis.
@@ -1787,6 +2147,7 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         test_total = all_tests.count()
         if test_total > 0:
             from django.db.models import Avg
+
             avg_data = all_tests.aggregate(avg=Avg("percentage"))
             test_avg = round(float(avg_data["avg"] or 0), 1)
             test_passed = all_tests.filter(is_passed=True).count()
@@ -1795,6 +2156,7 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         essay_count = all_essays.count()
         if essay_count > 0:
             from django.db.models import Avg
+
             avg_data = all_essays.aggregate(avg=Avg("total_score"))
             essay_avg = round(float(avg_data["avg"] or 0), 1)
 
@@ -1862,7 +2224,17 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             topic_name = e.topic.title if e.topic else "Mavzu yo'q"
             score = float(e.total_score) if e.total_score else 0
             converted = round(score / 24 * data["essay_target"]) if score > 0 else 0
-            grade = "A" if score >= 20 else "B" if score >= 16 else "C" if score >= 12 else "D" if score >= 8 else "F"
+            grade = (
+                "A"
+                if score >= 20
+                else "B"
+                if score >= 16
+                else "C"
+                if score >= 12
+                else "D"
+                if score >= 8
+                else "F"
+            )
 
             lines.append(
                 f"{i}. *{topic_name}*\n"
@@ -1916,13 +2288,15 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if len(text) > 4000:
         text = text[:3950] + "\n\n... (to'liq versiya veb-saytda)"
 
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📝 Testlar", callback_data="menu_tests"),
-            InlineKeyboardButton("✍️ Esselar", callback_data="menu_essays"),
-        ],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-    ])
+            [
+                InlineKeyboardButton("📝 Testlar", callback_data="menu_tests"),
+                InlineKeyboardButton("✍️ Esselar", callback_data="menu_essays"),
+            ],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
 
     await send_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
 
@@ -1931,7 +2305,10 @@ async def results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # /essay_submit — submit free-form essay directly to the canonical grader
 # ---------------------------------------------------------------------------
 
-async def essay_submit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def essay_submit_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Start the bot essay flow; /essay_submit <text> also submits directly."""
     user = await _get_or_create_user_async(update)
     if not user:
@@ -1951,20 +2328,29 @@ async def essay_submit_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
-async def _handle_bot_essay_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _handle_bot_essay_text(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     text = (getattr(update.message, "text", "") or "").strip()
     if not text:
-        await send_reply(update, "Matnli esse yuboring yoki /cancel_essay bilan bekor qiling.")
+        await send_reply(
+            update, "Matnli esse yuboring yoki /cancel_essay bilan bekor qiling."
+        )
         return
     await _submit_bot_essay(update, context, text)
 
 
-async def _submit_bot_essay(update: Update, context: ContextTypes.DEFAULT_TYPE, essay_text: str) -> None:
+async def _submit_bot_essay(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, essay_text: str
+) -> None:
     """Submit a free-form TEXT essay through the canonical cached grader."""
     from apps.payments.models import SubscriptionUsage
 
     await _submit_essay_with_quota(
-        update, context, essay_text, kind=SubscriptionUsage.Kind.TEXT_ESSAY,
+        update,
+        context,
+        essay_text,
+        kind=SubscriptionUsage.Kind.TEXT_ESSAY,
     )
 
 
@@ -2028,7 +2414,9 @@ async def _submit_essay_with_quota(
 
     if len(essay_text) > MAX_ESSAY_LENGTH:
         _clear_essay_state(context)
-        await send_reply(update, f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi.")
+        await send_reply(
+            update, f"Esse juda uzun. Maksimal {MAX_ESSAY_LENGTH:,} belgi."
+        )
         return
     if not essay_text.strip():
         await send_reply(update, "Esse matni bo'sh bo'lmasligi kerak.")
@@ -2050,8 +2438,11 @@ async def _submit_essay_with_quota(
     )
     try:
         reservation = await _run_db(
-            enforce_essay_quota, user, kind,
-            idempotency_key=key, source="telegram_bot",
+            enforce_essay_quota,
+            user,
+            kind,
+            idempotency_key=key,
+            source="telegram_bot",
         )
     except QuotaDenied as exc:
         _clear_essay_state(context)
@@ -2064,14 +2455,22 @@ async def _submit_essay_with_quota(
         topic = None
         if topic_id:
             from apps.essays.models import EssayTopic
+
             topic = EssayTopic.objects.filter(id=topic_id).first()
 
-        existing = EssaySubmission.objects.filter(
-            student=user,
-            topic=topic,
-            essay_text=essay_text,
-            status__in=(EssaySubmission.Status.PENDING, EssaySubmission.Status.GRADED),
-        ).order_by("-id").first()
+        existing = (
+            EssaySubmission.objects.filter(
+                student=user,
+                topic=topic,
+                essay_text=essay_text,
+                status__in=(
+                    EssaySubmission.Status.PENDING,
+                    EssaySubmission.Status.GRADED,
+                ),
+            )
+            .order_by("-id")
+            .first()
+        )
         if existing:
             return existing, None, "existing"
 
@@ -2128,7 +2527,9 @@ async def _submit_essay_with_quota(
     )
 
 
-async def cancel_essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def cancel_essay_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     _clear_essay_state(context)
     await send_reply(update, "Esse topshirish bekor qilindi.")
 
@@ -2143,7 +2544,12 @@ ESSAY_IMAGE_PAGES_STATE = "awaiting_image_pages"
 ESSAY_OCR_CONFIRM_STATE = "awaiting_ocr_confirm"
 ESSAY_OCR_EDIT_STATE = "awaiting_ocr_text"
 
-_ESSAY_STATE_KEYS = ("bot_essay_state", "essay_pages", "essay_ocr_text", "bot_essay_topic_id")
+_ESSAY_STATE_KEYS = (
+    "bot_essay_state",
+    "essay_pages",
+    "essay_ocr_text",
+    "bot_essay_topic_id",
+)
 
 
 def _clear_essay_state(context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -2157,45 +2563,68 @@ def _clear_essay_state(context: ContextTypes.DEFAULT_TYPE) -> bool:
 
 def _site_url() -> str:
     from django.conf import settings as _settings
+
     return getattr(_settings, "SITE_URL", "http://localhost:8000").rstrip("/")
 
 
 def _result_keyboard(submission_id: int) -> InlineKeyboardMarkup:
     """Link the student to their OWN result page or check status in bot."""
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📊 Natijani tekshirish", callback_data=f"essay_check:{submission_id}"),
-            InlineKeyboardButton("📄 Web'da ko'rish", url=f"{_site_url()}/essays/result/{submission_id}/"),
-        ],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-    ])
+            [
+                InlineKeyboardButton(
+                    "📊 Natijani tekshirish",
+                    callback_data=f"essay_check:{submission_id}",
+                ),
+                InlineKeyboardButton(
+                    "📄 Web'da ko'rish",
+                    url=f"{_site_url()}/essays/result/{submission_id}/",
+                ),
+            ],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
 
 
 def _essay_denied_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
-        [InlineKeyboardButton("🌐 Obuna sahifasi", url=f"{_site_url()}/subscribe/")],
-    ])
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
+            [
+                InlineKeyboardButton(
+                    "🌐 Obuna sahifasi", url=f"{_site_url()}/subscribe/"
+                )
+            ],
+        ]
+    )
 
 
 def _pages_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Yana sahifa", callback_data="cb_pages_more")],
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📤 Tekshirishga yuborish", callback_data="cb_pages_done"),
-            InlineKeyboardButton("❌ Bekor qilish", callback_data="cb_pages_cancel"),
-        ],
-    ])
+            [InlineKeyboardButton("➕ Yana sahifa", callback_data="cb_pages_more")],
+            [
+                InlineKeyboardButton(
+                    "📤 Tekshirishga yuborish", callback_data="cb_pages_done"
+                ),
+                InlineKeyboardButton(
+                    "❌ Bekor qilish", callback_data="cb_pages_cancel"
+                ),
+            ],
+        ]
+    )
 
 
 def _ocr_confirm_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Tasdiqlash", callback_data="cb_ocr_confirm")],
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("✏️ Tahrirlash", callback_data="cb_ocr_edit"),
-            InlineKeyboardButton("🔄 Qayta yuborish", callback_data="cb_ocr_retry"),
-        ],
-    ])
+            [InlineKeyboardButton("✅ Tasdiqlash", callback_data="cb_ocr_confirm")],
+            [
+                InlineKeyboardButton("✏️ Tahrirlash", callback_data="cb_ocr_edit"),
+                InlineKeyboardButton("🔄 Qayta yuborish", callback_data="cb_ocr_retry"),
+            ],
+        ]
+    )
 
 
 def _plan_quota_line(plan) -> str:
@@ -2208,15 +2637,22 @@ def _plan_quota_line(plan) -> str:
             return f"{noun}: sozlanmagan"
         return f"{noun}: {limit}/hafta"
 
-    return " · ".join([
-        bucket(plan.image_essay_weekly_limit, plan.is_unlimited_image_essays, "Rasmli"),
-        bucket(plan.text_essay_weekly_limit, plan.is_unlimited_text_essays, "Matnli"),
-    ])
+    return " · ".join(
+        [
+            bucket(
+                plan.image_essay_weekly_limit, plan.is_unlimited_image_essays, "Rasmli"
+            ),
+            bucket(
+                plan.text_essay_weekly_limit, plan.is_unlimited_text_essays, "Matnli"
+            ),
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
 # /essay — pick the submission channel
 # ---------------------------------------------------------------------------
+
 
 async def essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/essay — ask how the student wants to submit the essay."""
@@ -2230,11 +2666,13 @@ async def essay_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         update,
         "✍️ *Esse topshirish*\n\nEsenni qanday yuborasiz?",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⌨️ Matn orqali", callback_data="cb_essay_text")],
-            [InlineKeyboardButton("🖼 Rasm orqali", callback_data="cb_essay_image")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("⌨️ Matn orqali", callback_data="cb_essay_text")],
+                [InlineKeyboardButton("🖼 Rasm orqali", callback_data="cb_essay_image")],
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+            ]
+        ),
     )
 
 
@@ -2270,7 +2708,10 @@ async def _handle_essay_image_choice(update, context) -> None:
 # Image essays — page collection, OCR and confirmation
 # ---------------------------------------------------------------------------
 
-async def essay_image_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def essay_image_message_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Collect essay page images while the image-essay flow is active.
 
     Registered in a LOWER handler group than the payment-screenshot handler, so
@@ -2278,7 +2719,11 @@ async def essay_image_message_handler(update: Update, context: ContextTypes.DEFA
     receive its own photos.
     """
     current_state = context.user_data.get("bot_essay_state")
-    if current_state not in (ESSAY_IMAGE_PAGES_STATE, "awaiting_submission", "awaiting_text"):
+    if current_state not in (
+        ESSAY_IMAGE_PAGES_STATE,
+        "awaiting_submission",
+        "awaiting_text",
+    ):
         return
     message = update.message
     if message is None:
@@ -2393,7 +2838,9 @@ async def _handle_pages_done(update, context) -> None:
         return
     except OCRValidationError as exc:
         await send_reply(
-            update, f"Rasm qabul qilinmadi: {exc}", reply_markup=_pages_keyboard(),
+            update,
+            f"Rasm qabul qilinmadi: {exc}",
+            reply_markup=_pages_keyboard(),
         )
         return
     except OCRFailed as exc:
@@ -2405,7 +2852,8 @@ async def _handle_pages_done(update, context) -> None:
         return
     except Exception:
         logger.exception(
-            "Unexpected OCR failure for chat=%s", getattr(update.effective_chat, "id", None),
+            "Unexpected OCR failure for chat=%s",
+            getattr(update.effective_chat, "id", None),
         )
         await send_reply(
             update,
@@ -2442,7 +2890,10 @@ async def _handle_ocr_confirm(update, context) -> None:
         await send_reply(update, "Matn topilmadi. /essay bilan qaytadan boshlang.")
         return
     await _submit_essay_with_quota(
-        update, context, text, kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
+        update,
+        context,
+        text,
+        kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
     )
 
 
@@ -2483,7 +2934,10 @@ async def _handle_ocr_corrected_text(update, context) -> None:
         )
         return
     await _submit_essay_with_quota(
-        update, context, text, kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
+        update,
+        context,
+        text,
+        kind=SubscriptionUsage.Kind.IMAGE_ESSAY,
     )
 
 
@@ -2491,9 +2945,13 @@ async def _handle_ocr_corrected_text(update, context) -> None:
 # /plans, card payments & receipt uploads
 # ---------------------------------------------------------------------------
 
-async def plans_and_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def plans_and_payment_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Show Grand Education card details, plans and payment receipt instructions."""
     from django.conf import settings as _settings
+
     card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
     starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 15000
@@ -2525,22 +2983,34 @@ async def plans_and_payment_handler(update: Update, context: ContextTypes.DEFAUL
         f"3. Chek kelgach, 5-15 daqiqa ichida admin tekshiradi va obunangiz faollashadi!"
     )
 
-    buttons = InlineKeyboardMarkup([
+    buttons = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(f"⚡️ Starter ({starter_price:,} so'm)", callback_data="pay_plan_starter"),
-            InlineKeyboardButton(f"🚀 Pro ({pro_price:,} so'm)", callback_data="pay_plan_pro"),
-        ],
-        [
-            InlineKeyboardButton(f"👑 Premium ({premium_price:,} so'm)", callback_data="pay_plan_premium"),
-        ],
-        [
-            InlineKeyboardButton("🌐 Veb-saytda to'lash", url="https://grandec.uz/subscribe/"),
-            InlineKeyboardButton("📊 Mening limitlarim", callback_data="cb_limits"),
-        ],
-        [
-            InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    f"⚡️ Starter ({starter_price:,} so'm)",
+                    callback_data="pay_plan_starter",
+                ),
+                InlineKeyboardButton(
+                    f"🚀 Pro ({pro_price:,} so'm)", callback_data="pay_plan_pro"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    f"👑 Premium ({premium_price:,} so'm)",
+                    callback_data="pay_plan_premium",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Veb-saytda to'lash", url="https://grandec.uz/subscribe/"
+                ),
+                InlineKeyboardButton("📊 Mening limitlarim", callback_data="cb_limits"),
+            ],
+            [
+                InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
+            ],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
@@ -2553,6 +3023,7 @@ async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     def _load():
         from apps.payments.models import SubscriptionPlan
+
         return list(
             SubscriptionPlan.objects.filter(is_active=True, is_public=True)
             .exclude(plan_type=SubscriptionPlan.PlanType.TEACHER_SPONSORED)
@@ -2561,7 +3032,9 @@ async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     plans = await _run_db(_load)
     if not plans:
-        await send_reply(update, "Hozircha tariflar mavjud emas. Keyinroq urinib ko'ring.")
+        await send_reply(
+            update, "Hozircha tariflar mavjud emas. Keyinroq urinib ko'ring."
+        )
         return
 
     lines = ["💎 *Grandec tariflari*", ""]
@@ -2573,10 +3046,14 @@ async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         stars_price = plan.telegram_stars_price
         if stars_price:
             lines.append(f"   💫 Narx: *{stars_price} Stars*")
-            buttons.append([InlineKeyboardButton(
-                f"💫 {plan.name} — {stars_price} Stars",
-                callback_data=f"tg_buy_{plan.id}",
-            )])
+            buttons.append(
+                [
+                    InlineKeyboardButton(
+                        f"💫 {plan.name} — {stars_price} Stars",
+                        callback_data=f"tg_buy_{plan.id}",
+                    )
+                ]
+            )
         else:
             lines.append(
                 "   ⚠️ Telegram orqali sotuv sozlanmagan "
@@ -2659,9 +3136,12 @@ async def _send_stars_invoice(update, context, plan) -> None:
             payload=order.payload,
             provider_token="",  # Telegram Stars requires an empty token
             currency=stars.STARS_CURRENCY,
-            prices=[LabeledPrice(
-                label=f"Grandec {plan.name}", amount=order.amount_stars,
-            )],
+            prices=[
+                LabeledPrice(
+                    label=f"Grandec {plan.name}",
+                    amount=order.amount_stars,
+                )
+            ],
         )
     except Exception:
         logger.exception("Failed to send Stars invoice for order %s", order.payload)
@@ -2676,7 +3156,9 @@ async def _send_stars_invoice(update, context, plan) -> None:
     await _run_db(stars.mark_invoice_sent, order)
 
 
-async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def pre_checkout_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Answer a Telegram Stars pre-checkout query. Never activates access."""
     from apps.payments import stars
 
@@ -2699,7 +3181,8 @@ async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             )
     except Exception:
         logger.exception(
-            "pre_checkout answer failed for payload=%s", query.invoice_payload,
+            "pre_checkout answer failed for payload=%s",
+            query.invoice_payload,
         )
 
 
@@ -2712,12 +3195,15 @@ def _payment_summary(subscription) -> dict:
         "plan_name": plan.name if plan else "",
         "expires_at": (
             subscription.expires_at.strftime("%d.%m.%Y")
-            if subscription.expires_at else ""
+            if subscription.expires_at
+            else ""
         ),
     }
 
 
-async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def successful_payment_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Activate a subscription from a verified Telegram Stars payment."""
     from apps.payments import stars
 
@@ -2820,27 +3306,34 @@ async def myplan_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
     if data["is_sponsored"]:
-        card += "🎁 *Ustoz homiyligi:* Ushbu tarif ustozingiz tomonidan taqdim etilgan.\n\n"
+        card += (
+            "🎁 *Ustoz homiyligi:* Ushbu tarif ustozingiz tomonidan taqdim etilgan.\n\n"
+        )
     else:
         card += "💡 *Qo'shimcha imkoniyatlar uchun tarifni yangilashingiz mumkin.*\n\n"
 
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits"),
-            InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans"),
-        ],
-        [
-            InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition"),
-            InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
-        ],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+            [
+                InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits"),
+                InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans"),
+            ],
+            [
+                InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition"),
+                InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
+            ],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, card, parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/mytuition — private tuition overview card for a student or verified parent."""
-    from apps.tuition.services import children_tuition_overview, student_tuition_overview
+    from apps.tuition.services import (
+        children_tuition_overview,
+        student_tuition_overview,
+    )
 
     if not await _require_private_chat(update):
         return
@@ -2860,10 +3353,12 @@ async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     rows = await _run_db(_overview)
     if not rows:
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💎 Tarif rejasi", callback_data="cb_myplan")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-        ])
+        keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("💎 Tarif rejasi", callback_data="cb_myplan")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]
+        )
         await send_reply(
             update,
             "💳 *KURS TO'LOVLARI*\n━━━━━━━━━━━━━━━━━━━━━━━━━\nSiz uchun ko'rish mumkin bo'lgan kurs to'lovi topilmadi.",
@@ -2902,18 +3397,24 @@ async def mytuition_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     lines.append("📌 _Eslatma: Platforma tarifi va kurs to'lovi alohida to'lanadi._")
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🧾 Dalil yuborish", callback_data="payment_proof")],
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("💎 Platforma tarifi", callback_data="cb_myplan"),
-            InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
-        ],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
-    await send_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
+            [InlineKeyboardButton("🧾 Dalil yuborish", callback_data="payment_proof")],
+            [
+                InlineKeyboardButton("💎 Platforma tarifi", callback_data="cb_myplan"),
+                InlineKeyboardButton("📅 Davomat", callback_data="cb_attendance"),
+            ],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
+    await send_reply(
+        update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard
+    )
 
 
-async def course_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def course_payment_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/course_payment — private own/open invoice status; parents use /mytuition."""
     from apps.tuition.models import CourseInvoice
 
@@ -2925,13 +3426,20 @@ async def course_payment_handler(update: Update, context: ContextTypes.DEFAULT_T
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return
     if user.role != "student":
-        await send_reply(update, "Bu buyruq faqat o'quvchining shaxsiy hisoblari uchun.")
+        await send_reply(
+            update, "Bu buyruq faqat o'quvchining shaxsiy hisoblari uchun."
+        )
         return
 
     def _load():
-        return list(CourseInvoice.objects.filter(student_id=user.pk).select_related(
-            "policy", "course",
-        ).order_by("-billing_period_start", "-pk")[:12])
+        return list(
+            CourseInvoice.objects.filter(student_id=user.pk)
+            .select_related(
+                "policy",
+                "course",
+            )
+            .order_by("-billing_period_start", "-pk")[:12]
+        )
 
     invoices = await _run_db(_load)
     if not invoices:
@@ -2947,7 +3455,9 @@ async def course_payment_handler(update: Update, context: ContextTypes.DEFAULT_T
     await send_reply(update, "\n".join(lines), parse_mode="Markdown")
 
 
-async def payment_history_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def payment_history_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/payment_history — this linked user's private course-payment history."""
     from apps.tuition.models import CoursePayment
 
@@ -2962,17 +3472,29 @@ async def payment_history_handler(update: Update, context: ContextTypes.DEFAULT_
     def _load():
         if user.role == "parent":
             from apps.accounts.models import ParentStudentLink
+
             child_ids = ParentStudentLink.objects.filter(
-                parent=user, is_approved=True, student__is_active=True,
+                parent=user,
+                is_approved=True,
+                student__is_active=True,
             ).values_list("student_id", flat=True)
-            return list(CoursePayment.objects.filter(student_id__in=child_ids).select_related(
-                "invoice", "student",
-            ).order_by("-created_at")[:20])
+            return list(
+                CoursePayment.objects.filter(student_id__in=child_ids)
+                .select_related(
+                    "invoice",
+                    "student",
+                )
+                .order_by("-created_at")[:20]
+            )
         if user.role != "student":
             return []
-        return list(CoursePayment.objects.filter(student_id=user.pk).select_related(
-            "invoice",
-        ).order_by("-created_at")[:20])
+        return list(
+            CoursePayment.objects.filter(student_id=user.pk)
+            .select_related(
+                "invoice",
+            )
+            .order_by("-created_at")[:20]
+        )
 
     payments = await _run_db(_load)
     if not payments:
@@ -2980,10 +3502,15 @@ async def payment_history_handler(update: Update, context: ContextTypes.DEFAULT_
         return
     lines = ["🧾 *Kurs to'lovlari tarixi*", ""]
     for payment in payments:
-        period = payment.invoice.period_label if payment.invoice_id else "Hisobga biriktirilmagan"
+        period = (
+            payment.invoice.period_label
+            if payment.invoice_id
+            else "Hisobga biriktirilmagan"
+        )
         student_name = (
             f"{payment.student.get_full_name() or payment.student.email} · "
-            if user.role == "parent" else ""
+            if user.role == "parent"
+            else ""
         )
         lines.append(
             f"• {student_name}{period}: {_format_uzs(payment.amount_uzs)} so'm · "
@@ -2992,7 +3519,9 @@ async def payment_history_handler(update: Update, context: ContextTypes.DEFAULT_
     await send_reply(update, "\n".join(lines), parse_mode="Markdown")
 
 
-async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def payment_proof_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/payment_proof <invoice_id> <amount> [reference] records a private claim."""
     if not await _require_private_chat(update):
         return
@@ -3000,13 +3529,19 @@ async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TY
     from apps.tuition.models import CourseInvoice, PaymentMethod
     from django.db import IntegrityError
     from apps.tuition import services as tuition_services
+
     user = await _get_or_create_user_async(update)
     if not user or user.role not in ("student", "parent"):
-        await send_reply(update, "Hisobni aniqlab bo'lmadi yoki buyruq faqat o'quvchi va tasdiqlangan ota-onalar uchun.")
+        await send_reply(
+            update,
+            "Hisobni aniqlab bo'lmadi yoki buyruq faqat o'quvchi va tasdiqlangan ota-onalar uchun.",
+        )
         return
     args = [value.strip() for value in (context.args or [])]
     if len(args) < 2:
-        await send_reply(update, "Format: /payment_proof <hisob_id> <summa> [to'lov_raqami]")
+        await send_reply(
+            update, "Format: /payment_proof <hisob_id> <summa> [to'lov_raqami]"
+        )
         return
     try:
         invoice_id = int(args[0])
@@ -3023,20 +3558,34 @@ async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         student_id = user.pk
         if user.role == "parent":
-            student_id = ParentStudentLink.objects.filter(
-                parent=user, is_approved=True, student__is_active=True,
-            ).values_list("student_id", flat=True).first()
+            student_id = (
+                ParentStudentLink.objects.filter(
+                    parent=user,
+                    is_approved=True,
+                    student__is_active=True,
+                )
+                .values_list("student_id", flat=True)
+                .first()
+            )
             if student_id is None:
                 return None, "Tasdiqlangan farzand hisobiga to'lov bog'lanmadi."
-        invoice = CourseInvoice.objects.filter(pk=invoice_id, student_id=student_id).select_related(
-            "policy", "student",
-        ).first()
+        invoice = (
+            CourseInvoice.objects.filter(pk=invoice_id, student_id=student_id)
+            .select_related(
+                "policy",
+                "student",
+            )
+            .first()
+        )
         if invoice is None:
             return None, "Hisob-faktura topilmadi."
         try:
             payment = tuition_services.register_payment(
-                student=invoice.student, invoice=invoice, amount=amount,
-                method=PaymentMethod.CARD, reference=reference,
+                student=invoice.student,
+                invoice=invoice,
+                amount=amount,
+                method=PaymentMethod.CARD,
+                reference=reference,
                 submitted_by=user,
             )
         except tuition_services.TuitionError as exc:
@@ -3059,7 +3608,9 @@ async def payment_proof_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 @require_role("TEACHER")
-async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def weekly_report_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/weekly_report [group_id] [history] — authorized private teacher reports."""
     if not await _require_private_chat(update):
         return
@@ -3070,7 +3621,9 @@ async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     user = await _get_or_create_user_async(update)
     if not user or not await _run_db(_is_teacher_account, user):
-        await send_reply(update, "Bu buyruq faqat o'qituvchilar va administratorlar uchun.")
+        await send_reply(
+            update, "Bu buyruq faqat o'qituvchilar va administratorlar uchun."
+        )
         return
     args = [value.strip() for value in (context.args or [])]
     group_id = None
@@ -3078,7 +3631,8 @@ async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TY
         group_id = int(args.pop(0))
     include_history = bool(args and args[0].lower() in ("history", "tarix"))
     can_view_history = is_platform_admin(user) or await _run_db(
-        user.has_perm, "weekly_reports.view_weeklygroupreport",
+        user.has_perm,
+        "weekly_reports.view_weeklygroupreport",
     )
     include_history = include_history and can_view_history
 
@@ -3118,7 +3672,9 @@ async def weekly_report_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 @require_role("TEACHER")
-async def group_payments_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def group_payments_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/group_payments <group_id> — aggregate-only for explicit finance readers."""
     if not await _require_private_chat(update):
         return
@@ -3133,7 +3689,9 @@ async def group_payments_handler(update: Update, context: ContextTypes.DEFAULT_T
         await send_reply(update, "Bu buyruq faqat vakolatli xodimlar uchun.")
         return
     if not can_view_tuition(user):
-        await send_reply(update, "To'lovlarni ko'rish uchun alohida moliyaviy ruxsat kerak.")
+        await send_reply(
+            update, "To'lovlarni ko'rish uchun alohida moliyaviy ruxsat kerak."
+        )
         return
     args = [value.strip() for value in (context.args or [])]
     if len(args) != 1 or not args[0].isdigit():
@@ -3147,8 +3705,12 @@ async def group_payments_handler(update: Update, context: ContextTypes.DEFAULT_T
         group = groups.first()
         if group is None:
             return None, None
-        period_start, period_end = tuition_services.month_bounds(tuition_services.today())
-        return group, tuition_services.group_finance_summary(group, period_start, period_end)
+        period_start, period_end = tuition_services.month_bounds(
+            tuition_services.today()
+        )
+        return group, tuition_services.group_finance_summary(
+            group, period_start, period_end
+        )
 
     group, summary = await _run_db(_load)
     if group is None:
@@ -3219,14 +3781,18 @@ async def limits_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         update,
         "\n".join(lines),
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
-            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
+                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+            ]
+        ),
     )
 
 
-async def paysupport_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def paysupport_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/paysupport — payment support information."""
     from django.conf import settings as _settings
 
@@ -3280,6 +3846,7 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # /essays
 # ---------------------------------------------------------------------------
 
+
 async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /essays or '✍️ Esse yozish' — show topics with inline buttons."""
     user = await _get_or_create_user_async(update)
@@ -3290,10 +3857,11 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     from apps.essays.models import EssayTopic, EssaySubmission
 
     def _get_essay_data():
-        topics = list(EssayTopic.objects.filter(is_active=True).order_by("-created_at")[:10])
+        topics = list(
+            EssayTopic.objects.filter(is_active=True).order_by("-created_at")[:10]
+        )
         user_subs = {
-            s.topic_id: s
-            for s in EssaySubmission.objects.filter(student=user)
+            s.topic_id: s for s in EssaySubmission.objects.filter(student=user)
         }
         return topics, user_subs
 
@@ -3304,10 +3872,16 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             update,
             "✍️ *Esse yozish*\n\n"
             "Hozircha tizimda tayyor mavzular mavjud emas. Biroq siz erkin mavzuda esse yozishingiz mumkin:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📝 Erkin mavzuda yozish", callback_data="cb_topic_select:0")],
-                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "📝 Erkin mavzuda yozish", callback_data="cb_topic_select:0"
+                        )
+                    ],
+                    [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+                ]
+            ),
         )
         return
 
@@ -3319,7 +3893,11 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         sub = user_subs.get(topic.id)
         if sub:
             if sub.status == "graded":
-                status = f"✅ {sub.total_score}/{sub.max_score}" if sub.total_score else "✅ Baholangan"
+                status = (
+                    f"✅ {sub.total_score}/{sub.max_score}"
+                    if sub.total_score
+                    else "✅ Baholangan"
+                )
             else:
                 status = f"⏳ {sub.get_status_display()}"
         else:
@@ -3331,14 +3909,22 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             f"   📌 Holat: {status}\n\n"
         )
 
-        buttons.append([
-            InlineKeyboardButton(
-                f"✍️ {topic.title[:32]}",
-                callback_data=f"cb_topic_select:{topic.id}",
-            )
-        ])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"✍️ {topic.title[:32]}",
+                    callback_data=f"cb_topic_select:{topic.id}",
+                )
+            ]
+        )
 
-    buttons.append([InlineKeyboardButton("📝 Erkin mavzu (Mavzusiz yozish)", callback_data="cb_topic_select:0")])
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                "📝 Erkin mavzu (Mavzusiz yozish)", callback_data="cb_topic_select:0"
+            )
+        ]
+    )
     buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
 
     await send_reply(
@@ -3349,7 +3935,9 @@ async def essays_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
-async def essay_topic_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, topic_id: int) -> None:
+async def essay_topic_select_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, topic_id: int
+) -> None:
     """Set active topic and prompt user to submit text or photo."""
     query = update.callback_query
     if query:
@@ -3367,12 +3955,17 @@ async def essay_topic_select_callback(update: Update, context: ContextTypes.DEFA
 
     if topic_id > 0:
         from apps.essays.models import EssayTopic
+
         topic = await _run_db(lambda: EssayTopic.objects.filter(id=topic_id).first())
         if topic:
             title = topic.title
             if topic.description:
                 desc = f"\n💬 _{topic.description}_\n"
-            t_min = f"⏱ {topic.time_limit_minutes} daqiqa" if topic.time_limit_minutes else ""
+            t_min = (
+                f"⏱ {topic.time_limit_minutes} daqiqa"
+                if topic.time_limit_minutes
+                else ""
+            )
             w_lim = f"📏 {topic.word_limit_min}-{topic.word_limit_max} so'z"
             limits_line = f"\n{t_min} · {w_lim}\n"
 
@@ -3385,15 +3978,19 @@ async def essay_topic_select_callback(update: Update, context: ContextTypes.DEFA
         f"_Jarayonni to'xtatish uchun quyidagi tugmani bosing:_"
     )
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_essay")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_essay")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
 
     await send_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
 
 
-async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+async def essay_improve_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int
+) -> None:
     """Improve essay via AI and return the upgraded version directly in chat."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3418,6 +4015,7 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
         if sub.improved_content:
             return True, ""
         from apps.payments.ai_quota import check_and_consume_ai_quota
+
         return check_and_consume_ai_quota(user)
 
     allowed, _ = await _run_db(_check_cached_or_consume)
@@ -3426,11 +4024,22 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
             "⚠️ *Sizning bugungi AI limitingiz tugadi!*\n\n"
             "Cheksiz AI tahlili va barcha imkoniyatlar uchun tarifingizni yangilang."
         )
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💳 Tarifni yangilash", callback_data="cb_plans")],
-            [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-        ])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "💳 Tarifni yangilash", callback_data="cb_plans"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🔙 Natijaga qaytish",
+                        callback_data=f"essay_check:{submission_id}",
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]
+        )
         await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
         return
 
@@ -3448,16 +4057,25 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
     content, orig_text, err = await _run_db(_improve)
     if err or not content:
         msg = f"❌ Esseni qayta yozishda xatolik yuz berdi: {err or 'Noma`lum xatolik'}\n\nIltimos, qaytadan urinib ko'ring."
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-        ])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔙 Natijaga qaytish",
+                        callback_data=f"essay_check:{submission_id}",
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]
+        )
         await send_reply(update, msg, reply_markup=buttons)
         return
 
     preview = content[:3200]
     orig_snippet = (orig_text or "")[:400]
-    orig_section = f"📝 *Asl matn (parcha):*\n_{orig_snippet}..._\n\n" if orig_snippet else ""
+    orig_section = (
+        f"📝 *Asl matn (parcha):*\n_{orig_snippet}..._\n\n" if orig_snippet else ""
+    )
 
     msg = (
         "🪄 *AI orqali qayta yozilgan variant (Oldin / Keyin):*\n\n"
@@ -3468,16 +4086,34 @@ async def essay_improve_callback(update: Update, context: ContextTypes.DEFAULT_T
         "💡 *Repetitor maslahati:* Matnda imlo, tinish belgilari va gap bo'laklari bog'lanishidagi "
         "kamchiliklar to'g'rilandi. Fikrni dalillashda asardan iqtiboslar keltirish tavsiya etiladi."
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👨‍🏫 Ustoz tekshiruviga yuborish", callback_data=f"essay_review:{submission_id}")],
-        [InlineKeyboardButton("📄 PDF xulosani yuklab olish", callback_data=f"essay_pdf:{submission_id}")],
-        [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "👨‍🏫 Ustoz tekshiruviga yuborish",
+                    callback_data=f"essay_review:{submission_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📄 PDF xulosani yuklab olish",
+                    callback_data=f"essay_pdf:{submission_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}"
+                )
+            ],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
 
 
-async def essay_review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+async def essay_review_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int
+) -> None:
     """Request teacher review for an essay submission."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3500,7 +4136,9 @@ async def essay_review_callback(update: Update, context: ContextTypes.DEFAULT_TY
         if not sub:
             return False, "Esse topilmadi."
         try:
-            TeacherReviewService.request_teacher_review(sub, user, "Telegram bot orqali tekshirish so'rovi")
+            TeacherReviewService.request_teacher_review(
+                sub, user, "Telegram bot orqali tekshirish so'rovi"
+            )
             return True, None
         except Exception as exc:
             return False, str(exc)
@@ -3515,14 +4153,22 @@ async def essay_review_callback(update: Update, context: ContextTypes.DEFAULT_TY
             "O'qituvchi baholagach, xulosa shu yerga yuboriladi. 👨‍🏫"
         )
 
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🔙 Natijaga qaytish", callback_data=f"essay_check:{submission_id}"
+                )
+            ],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, msg, parse_mode="Markdown", reply_markup=buttons)
 
 
-async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+async def essay_check_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int
+) -> None:
     """Check essay grading status and show interactive action buttons."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3539,12 +4185,16 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     from apps.essays.models import EssaySubmission
 
-    sub = await _run_db(lambda: EssaySubmission.objects.filter(id=submission_id, student=user).first())
+    sub = await _run_db(
+        lambda: EssaySubmission.objects.filter(id=submission_id, student=user).first()
+    )
     if not sub:
         await send_reply(
             update,
             "❌ Esse topilmadi.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]),
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]
+            ),
         )
         return
 
@@ -3553,10 +4203,17 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             "⏳ *Essangiz hali tekshirilmoqda...*\n\n"
             "AI tahlili fon rejimida davom etmoqda. Iltimos, birozdan so'ng qayta tekshiring:"
         )
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Qayta tekshirish", callback_data=f"essay_check:{submission_id}")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-        ])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔄 Qayta tekshirish",
+                        callback_data=f"essay_check:{submission_id}",
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]
+        )
         await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
         return
 
@@ -3576,10 +4233,15 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     text += f"📋 Natija: {status_line}\n\n"
 
     from apps.essays.models import EssayCriterionScore
+
     crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
 
     def _get_criteria():
-        return list(sub.criteria.order_by("criterion_id")) if hasattr(sub, "criteria") else []
+        return (
+            list(sub.criteria.order_by("criterion_id"))
+            if hasattr(sub, "criteria")
+            else []
+        )
 
     criteria_qs = await _run_db(_get_criteria)
     if criteria_qs:
@@ -3602,23 +4264,36 @@ async def essay_check_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     text += "Kerakli amalni tanlang 👇"
 
-    buttons = InlineKeyboardMarkup([
+    buttons = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("🪄 AI tahririni ko'rish", callback_data=f"essay_improve:{sub.id}"),
-            InlineKeyboardButton("👨‍🏫 Ustoz tekshiruviga yuborish", callback_data=f"essay_review:{sub.id}"),
-        ],
-        [
-            InlineKeyboardButton("📄 Batafsil PDF xulosa", callback_data=f"essay_pdf:{sub.id}"),
-        ],
-        [
-            InlineKeyboardButton("🌐 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"),
-            InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "🪄 AI tahririni ko'rish", callback_data=f"essay_improve:{sub.id}"
+                ),
+                InlineKeyboardButton(
+                    "👨‍🏫 Ustoz tekshiruviga yuborish",
+                    callback_data=f"essay_review:{sub.id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📄 Batafsil PDF xulosa", callback_data=f"essay_pdf:{sub.id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Web'da ko'rish", url=f"{_site_url()}/essays/result/{sub.id}/"
+                ),
+                InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main"),
+            ],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
-async def essay_pdf_download_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int) -> None:
+async def essay_pdf_download_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, submission_id: int
+) -> None:
     """Generate and send official PDF certificate/result document directly to Telegram chat."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3648,7 +4323,9 @@ async def essay_pdf_download_callback(update: Update, context: ContextTypes.DEFA
 
     res, err = await _run_db(_gen)
     if not res:
-        await send_friendly_error(update, f"PDF yaratishda xatolik: {err or 'Esse topilmadi'}")
+        await send_friendly_error(
+            update, f"PDF yaratishda xatolik: {err or 'Esse topilmadi'}"
+        )
         return
 
     sub, pdf_buf = res
@@ -3660,13 +4337,20 @@ async def essay_pdf_download_callback(update: Update, context: ContextTypes.DEFA
         f"📊 Natija: *{score_str}* (75 lik shkalada: *{sub.converted_score or 0}*)\n"
         f"🎓 Rasmiy tekshiruv hujjati ilova qilindi."
     )
-    buttons = InlineKeyboardMarkup([
+    buttons = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("🪄 AI orqali qayta yozish", callback_data=f"essay_improve:{sub.id}"),
-            InlineKeyboardButton("👨‍🏫 O'qituvchiga tekshirtirish", callback_data=f"essay_review:{sub.id}"),
-        ],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+            [
+                InlineKeyboardButton(
+                    "🪄 AI orqali qayta yozish", callback_data=f"essay_improve:{sub.id}"
+                ),
+                InlineKeyboardButton(
+                    "👨‍🏫 O'qituvchiga tekshirtirish",
+                    callback_data=f"essay_review:{sub.id}",
+                ),
+            ],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
 
     try:
         await context.bot.send_document(
@@ -3682,7 +4366,9 @@ async def essay_pdf_download_callback(update: Update, context: ContextTypes.DEFA
         await send_friendly_error(update, f"PDF yuborishda xatolik yuz berdi: {exc}")
 
 
-async def certificates_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def certificates_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /certificates — list user's earned certificates with download buttons."""
     user = await _get_or_create_user_async(update)
     if not user:
@@ -3705,18 +4391,26 @@ async def certificates_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "📜 *Sizda hali sertifikatlar yo'q.*\n\n"
             "Testlarni muvaffaqiyatli topshiring va rasmiy PDF sertifikatlarga ega bo'ling! 🎓",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🧠 Quiz topshirish", callback_data="menu_quiz")],
-                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🧠 Quiz topshirish", callback_data="menu_quiz"
+                        )
+                    ],
+                    [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+                ]
+            ),
         )
         return
 
     text = "📜 *Sizning sertifikatlaringiz:*\n\n"
     buttons = []
     for i, c in enumerate(certs, 1):
-        c_title = c.result.course.title if c.result and c.result.course else (
-            c.result.test.title if c.result and c.result.test else "Kurs"
+        c_title = (
+            c.result.course.title
+            if c.result and c.result.course
+            else (c.result.test.title if c.result and c.result.test else "Kurs")
         )
         date_str = c.issued_at.strftime("%d.%m.%Y") if c.issued_at else ""
         text += (
@@ -3724,18 +4418,24 @@ async def certificates_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             f"   📋 Sertifikat: `{c.certificate_number}`\n"
             f"   📅 Berilgan: {date_str}\n\n"
         )
-        buttons.append([
-            InlineKeyboardButton(
-                f"📥 Yuklab olish ({c.certificate_number})",
-                callback_data=f"cert_dl:{c.id}",
-            )
-        ])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"📥 Yuklab olish ({c.certificate_number})",
+                    callback_data=f"cert_dl:{c.id}",
+                )
+            ]
+        )
 
     buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-    await send_reply(update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+    await send_reply(
+        update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons)
+    )
 
 
-async def certificate_download_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, cert_id: int) -> None:
+async def certificate_download_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, cert_id: int
+) -> None:
     """Send certificate PDF document directly to Telegram chat."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3774,6 +4474,7 @@ async def certificate_download_callback(update: Update, context: ContextTypes.DE
 
     try:
         import os
+
         with open(cert_path, "rb") as doc_f:
             await context.bot.send_document(
                 chat_id=update.effective_chat.id,
@@ -3787,7 +4488,9 @@ async def certificate_download_callback(update: Update, context: ContextTypes.DE
         await send_reply(update, f"PDF yuborishda xatolik yuz berdi: {exc}")
 
 
-async def myattendance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def myattendance_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /myattendance — display student attendance overview card."""
     user = await _get_or_create_user_async(update)
     if not user:
@@ -3832,10 +4535,12 @@ async def myattendance_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         f"━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💳 Kurs to'lovlari", callback_data="cb_tuition")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, card, parse_mode="Markdown", reply_markup=keyboard)
 
 
@@ -3843,7 +4548,10 @@ async def myattendance_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 # Arena 1v1 Bot Duel Handlers
 # ---------------------------------------------------------------------------
 
-async def arena_bot_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def arena_bot_start_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Start an interactive 1v1 Arena duel against AI bot in Telegram chat."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3880,11 +4588,18 @@ async def arena_bot_start_callback(update: Update, context: ContextTypes.DEFAULT
         "bot_correct": 0,
     }
 
-    await _show_arena_question(update, context, room.room_code, q0, 0, room.total_questions)
+    await _show_arena_question(
+        update, context, room.room_code, q0, 0, room.total_questions
+    )
 
 
 async def _show_arena_question(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, q, idx: int, total: int,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    room_code: str,
+    q,
+    idx: int,
+    total: int,
 ) -> None:
     opt_a = getattr(q, "option_a", getattr(q, "choice_a", ""))
     opt_b = getattr(q, "option_b", getattr(q, "choice_b", ""))
@@ -3912,11 +4627,17 @@ async def _show_arena_question(
         ],
         [InlineKeyboardButton("❌ Duelni tark etish", callback_data="menu_arena")],
     ]
-    await send_reply(update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+    await send_reply(
+        update, text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons)
+    )
 
 
 async def arena_answer_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, idx: int, choice: str,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    room_code: str,
+    idx: int,
+    choice: str,
 ) -> None:
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -3942,12 +4663,21 @@ async def arena_answer_callback(
         if not q:
             return None
 
-        player_res = services.submit_answer(room, user.id, choice, idx, time_seconds=3.0) or {}
+        player_res = (
+            services.submit_answer(room, user.id, choice, idx, time_seconds=3.0) or {}
+        )
         bot_user_id = room.player2_id
         bot_dec = services.bot_decide_answer(room, idx, bot_user_id)
-        bot_res = services.submit_answer(
-            room, bot_user_id, bot_dec["answer"], idx, time_seconds=bot_dec.get("delay", 3.0),
-        ) or {}
+        bot_res = (
+            services.submit_answer(
+                room,
+                bot_user_id,
+                bot_dec["answer"],
+                idx,
+                time_seconds=bot_dec.get("delay", 3.0),
+            )
+            or {}
+        )
 
         return {
             "room": room,
@@ -3988,19 +4718,35 @@ async def arena_answer_callback(
     )
 
     if next_idx < total:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➡️ Keyingi savol", callback_data=f"ar_next:{room_code}:{next_idx}")],
-        ])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "➡️ Keyingi savol",
+                        callback_data=f"ar_next:{room_code}:{next_idx}",
+                    )
+                ],
+            ]
+        )
     else:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏁 Duelni yakunlash", callback_data=f"ar_finish:{room_code}")],
-        ])
+        buttons = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🏁 Duelni yakunlash", callback_data=f"ar_finish:{room_code}"
+                    )
+                ],
+            ]
+        )
 
     await send_reply(update, round_text, parse_mode="Markdown", reply_markup=buttons)
 
 
 async def arena_next_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str, next_idx: int,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    room_code: str,
+    next_idx: int,
 ) -> None:
     query = update.callback_query
     if query:
@@ -4022,11 +4768,15 @@ async def arena_next_callback(
     if not room or not q:
         await send_reply(update, "Savol topilmadi.")
         return
-    await _show_arena_question(update, context, room_code, q, next_idx, room.total_questions)
+    await _show_arena_question(
+        update, context, room_code, q, next_idx, room.total_questions
+    )
 
 
 async def arena_finish_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, room_code: str,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    room_code: str,
 ) -> None:
     query = update.callback_query
     user = await _get_or_create_user_async(update)
@@ -4090,15 +4840,19 @@ async def arena_finish_callback(
         f"{rating_line}"
         f"{streak_line}"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚔️ Yangi duel", callback_data="arena_bot_start")],
-        [InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("⚔️ Yangi duel", callback_data="arena_bot_start")],
+            [InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
-async def arena_invite_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def arena_invite_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Create a 1v1 Arena custom room and provide instant Telegram share invite link."""
     query = update.callback_query
     if query:
@@ -4109,19 +4863,24 @@ async def arena_invite_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini aniqlab bo'lmadi.")
+        await send_friendly_error(
+            update, "Foydalanuvchi ma'lumotlarini aniqlab bo'lmadi."
+        )
         return
 
     from urllib.parse import quote_plus
     from django.conf import settings as _settings
     from apps.arena import services
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
     try:
         room = await _run_db(services.create_custom_room, user)
     except Exception as exc:
         logger.exception("Failed to create custom arena room: %s", exc)
-        await send_friendly_error(update, "Xona yaratishda xatolik yuz berdi.", retry_callback="arena_create")
+        await send_friendly_error(
+            update, "Xona yaratishda xatolik yuz berdi.", retry_callback="arena_create"
+        )
         return
 
     share_text = f"⚔️ Men bilan GRAND EDUCATION Quiz Arenada 1v1 bellashishga tayyormisan? Xona kodi: {room.room_code}"
@@ -4133,15 +4892,28 @@ async def arena_invite_callback(update: Update, context: ContextTypes.DEFAULT_TY
         f"Do'stingizni jangga chorlash uchun quyidagi tugmani bosing va unga taklif yuboring:\n\n"
         f"Do'stingiz ushbu havola orqali yoki botda `/arena_join {room.room_code}` buyrug'i bilan xonaga ulanishi mumkin."
     )
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📲 Do'stni Telegram orqali chorlash", url=share_url)],
-        [InlineKeyboardButton("⚔️ Xonaga kirish (Web Arena)", url=f"{site_url}/arena/{room.room_code}/")],
-        [InlineKeyboardButton("🔙 Arenaga qaytish", callback_data="menu_arena")],
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "📲 Do'stni Telegram orqali chorlash", url=share_url
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "⚔️ Xonaga kirish (Web Arena)",
+                    url=f"{site_url}/arena/{room.room_code}/",
+                )
+            ],
+            [InlineKeyboardButton("🔙 Arenaga qaytish", callback_data="menu_arena")],
+        ]
+    )
 
     if query and query.message:
         try:
-            await query.edit_message_text(msg_text, parse_mode="Markdown", reply_markup=keyboard)
+            await query.edit_message_text(
+                msg_text, parse_mode="Markdown", reply_markup=keyboard
+            )
             return
         except Exception:
             pass
@@ -4152,7 +4924,10 @@ async def arena_invite_callback(update: Update, context: ContextTypes.DEFAULT_TY
 # Inline keyboard callback handlers
 # ---------------------------------------------------------------------------
 
-async def _dispatch_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, handler) -> None:
+
+async def _dispatch_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, handler
+) -> None:
     """Dispatch to a handler that uses send_reply — safe from both message and callback.
 
     The handler must use send_reply() instead of update.message.reply_text().
@@ -4174,7 +4949,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         if data == "menu_main":
             user = await _get_or_create_user_async(update)
-            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            role = _get_user_role(
+                user, update.effective_user.id if update.effective_user else None
+            )
             if role == "admin":
                 title = "👑 *GRAND EDUCATION* — Administrator boshqaruv paneli\n\nQuyidagi bo'limlardan foydalaning 👇"
             elif role == "teacher":
@@ -4208,22 +4985,44 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await admin_settings_handler(update, context)
         elif data == "adm_switch_student":
             user = await _get_or_create_user_async(update)
-            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            role = _get_user_role(
+                user, update.effective_user.id if update.effective_user else None
+            )
             if role != "admin":
-                await query.answer("⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True)
+                await query.answer(
+                    "⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True
+                )
                 return
             if query.message:
-                await query.message.reply_text("🎓 O'quvchi rejimi ko'rinishi faollashtirildi 👇", reply_markup=_persistent_menu_keyboard("student"))
-                await query.message.reply_text("🎓 *Ona Tili & Adabiyot* — O'quvchi boshqaruv paneli:", parse_mode="Markdown", reply_markup=_student_main_menu_keyboard())
+                await query.message.reply_text(
+                    "🎓 O'quvchi rejimi ko'rinishi faollashtirildi 👇",
+                    reply_markup=_persistent_menu_keyboard("student"),
+                )
+                await query.message.reply_text(
+                    "🎓 *Ona Tili & Adabiyot* — O'quvchi boshqaruv paneli:",
+                    parse_mode="Markdown",
+                    reply_markup=_student_main_menu_keyboard(),
+                )
         elif data == "adm_switch_teacher":
             user = await _get_or_create_user_async(update)
-            role = _get_user_role(user, update.effective_user.id if update.effective_user else None)
+            role = _get_user_role(
+                user, update.effective_user.id if update.effective_user else None
+            )
             if role != "admin":
-                await query.answer("⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True)
+                await query.answer(
+                    "⛔️ Bu buyruq faqat administratorlar uchun!", show_alert=True
+                )
                 return
             if query.message:
-                await query.message.reply_text("👨‍🏫 O'qituvchi rejimi ko'rinishi faollashtirildi 👇", reply_markup=_persistent_menu_keyboard("teacher"))
-                await query.message.reply_text("👨‍🏫 *GRAND EDUCATION* — O'qituvchi boshqaruv paneli:", parse_mode="Markdown", reply_markup=_teacher_main_menu_keyboard())
+                await query.message.reply_text(
+                    "👨‍🏫 O'qituvchi rejimi ko'rinishi faollashtirildi 👇",
+                    reply_markup=_persistent_menu_keyboard("teacher"),
+                )
+                await query.message.reply_text(
+                    "👨‍🏫 *GRAND EDUCATION* — O'qituvchi boshqaruv paneli:",
+                    parse_mode="Markdown",
+                    reply_markup=_teacher_main_menu_keyboard(),
+                )
         elif data == "menu_teacher_newmock":
             await newmock_handler(update, context)
         elif data == "menu_teacher_excel":
@@ -4246,12 +5045,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 "Masalan: `#MOCK-401` yoki `MOCK-401`\n\n"
                 "📌 Kodni yuborganingizdan so'ng, test darhol ochiladi va rasmiy BMB darajangiz (A+, A, B+...) hisoblab beriladi."
             )
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")]
-            ])
-            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=buttons)
+            buttons = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")]]
+            )
+            await query.edit_message_text(
+                text, parse_mode="Markdown", reply_markup=buttons
+            )
         elif data == "menu_tests":
             from django.conf import settings as _settings
+
             site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
             text = (
                 "📚 *ONA TILI VA ADABIYOTIDAN TEST TOPSHIRISH*\n\n"
@@ -4261,15 +5063,31 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 "3️⃣ *📝 Mock Test (#kod)* — Ustozingiz bergan kod orqali mock imtihon topshirish."
             )
             buttons = [
-                [InlineKeyboardButton("📱 Fast CBT (Mini App)", web_app={"url": f"{site_url}/tma/#/tests"})],
-                [InlineKeyboardButton("🧠 Telegram Chat Quiz", callback_data="menu_quiz")],
-                [InlineKeyboardButton("📝 Mock Test (#kod orqali)", callback_data="menu_mock_join")],
+                [
+                    InlineKeyboardButton(
+                        "📱 Fast CBT (Mini App)",
+                        web_app={"url": f"{site_url}/tma/#/tests"},
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🧠 Telegram Chat Quiz", callback_data="menu_quiz"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📝 Mock Test (#kod orqali)", callback_data="menu_mock_join"
+                    )
+                ],
                 [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
             ]
-            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+            await query.edit_message_text(
+                text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons)
+            )
 
         elif data == "menu_quiz":
             from apps.notifications.bot.quiz import quiz_handler
+
             await _dispatch_handler(update, context, quiz_handler)
         elif data in ("menu_certs", "cb_certs"):
             await _dispatch_handler(update, context, certificates_handler)
@@ -4338,10 +5156,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             context.user_data["selected_plan_slug"] = selected_slug
             context.user_data["payment_state"] = "awaiting_screenshot"
             from django.conf import settings as _settings
-            card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+
+            card_number = (
+                getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+            )
             card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
             defaults = {"starter": 15000, "pro": 49000, "premium": 60000}
-            price = getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0) or defaults[selected_slug]
+            price = (
+                getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0)
+                or defaults[selected_slug]
+            )
             text = (
                 f"💳 To'lov uchun karta: `{card_number}`\n"
                 f"👤 Egasi: {card_holder}\n"
@@ -4349,10 +5173,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"💰 To'lov summasi: {price:,} so'm\n\n"
                 f"To'lovni amalga oshirgach, chek skrinshotini ushbu chatga rasm qilib yuboring."
             )
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Boshqa tarif tanlash", callback_data="cb_plans")]
-            ])
-            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=buttons)
+            buttons = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🔙 Boshqa tarif tanlash", callback_data="cb_plans"
+                        )
+                    ]
+                ]
+            )
+            await query.edit_message_text(
+                text, parse_mode="Markdown", reply_markup=buttons
+            )
         elif data == "cb_limits":
             await _dispatch_handler(update, context, limits_handler)
         elif data == "cb_essay_text":
@@ -4398,7 +5230,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif data.startswith("student_result_"):
             student_id = _safe_callback_int(data, prefix="student_result_")
             if student_id is not None:
-                await _dispatch_handler(update, context, lambda u, c: _show_student_detail(u, c, student_id))
+                await _dispatch_handler(
+                    update, context, lambda u, c: _show_student_detail(u, c, student_id)
+                )
         # -- Teacher groups, attendance and group reports ------------------------
         elif data == "tgrplist":
             await _dispatch_handler(update, context, groups_handler)
@@ -4445,16 +5279,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif data.startswith("terspend_"):
             group_id = _safe_callback_int(data, prefix="terspend_")
             if group_id is not None:
-                await _essay_results_callback(update, context, group_id, state="pending")
+                await _essay_results_callback(
+                    update, context, group_id, state="pending"
+                )
         elif data.startswith("tersp_"):
-            parts = data[len("tersp_"):].split("_")
+            parts = data[len("tersp_") :].split("_")
             try:
                 group_id, offset = int(parts[0]), int(parts[1])
             except (IndexError, TypeError, ValueError):
                 logger.warning("Malformed essay page callback: %r", data)
             else:
                 await _essay_results_callback(
-                    update, context, group_id, offset=max(0, offset),
+                    update,
+                    context,
+                    group_id,
+                    offset=max(0, offset),
                 )
         elif data.startswith("ters_"):
             group_id = _safe_callback_int(data, prefix="ters_")
@@ -4500,13 +5339,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             report_id = _safe_report_callback_id(data)
             if report_id is not None:
                 section = next(
-                    prefix for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_")
+                    prefix
+                    for prefix in (
+                        "wr_att_",
+                        "wr_ess_",
+                        "wr_tst_",
+                        "wr_fin_",
+                        "wr_full_",
+                    )
                     if data.startswith(prefix)
                 )
-                await _weekly_report_detail_callback(update, context, report_id, section)
+                await _weekly_report_detail_callback(
+                    update, context, report_id, section
+                )
         else:
             # Unknown callback data — give user a main menu button
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+            buttons = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]
+            )
             if query:
                 try:
                     await query.edit_message_text(
@@ -4519,7 +5369,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     except Exception as exc:
         logger.exception("Error in callback query (%s): %s", data, exc)
-        buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+        buttons = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]
+        )
         try:
             if query and query.message:
                 await query.message.reply_text(
@@ -4541,7 +5393,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # /leaderboard — ranking
 # ---------------------------------------------------------------------------
 
-async def leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def leaderboard_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /leaderboard command — top students by XP + test scores."""
     user = await _get_or_create_user_async(update)
     if not user:
@@ -4586,13 +5441,15 @@ async def leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             test_avg = r.get("test_avg") or 0
 
             if total_xp > 0 or test_count > 0:
-                leaderboard.append({
-                    "name": student.get_full_name() or student.email,
-                    "total_xp": total_xp,
-                    "total_coins": x.get("total_coins") or 0,
-                    "test_count": test_count,
-                    "test_avg": round(float(test_avg), 1),
-                })
+                leaderboard.append(
+                    {
+                        "name": student.get_full_name() or student.email,
+                        "total_xp": total_xp,
+                        "total_coins": x.get("total_coins") or 0,
+                        "test_count": test_count,
+                        "test_avg": round(float(test_avg), 1),
+                    }
+                )
 
         leaderboard.sort(key=lambda x: x["total_xp"], reverse=True)
         return leaderboard[:15]
@@ -4612,7 +5469,7 @@ async def leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     lines = ["🏆 *LEADERBOARD*\n"]
 
     for i, s in enumerate(leaderboard):
-        medal = medals[i] if i < 3 else f"{i+1}."
+        medal = medals[i] if i < 3 else f"{i + 1}."
         lines.append(
             f"{medal} *{s['name']}*\n"
             f"   ⚡ {s['total_xp']} XP · 🪙 {s['total_coins']} tanga\n"
@@ -4629,6 +5486,7 @@ async def leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ---------------------------------------------------------------------------
 # /streak — kunlik streak
 # ---------------------------------------------------------------------------
+
 
 async def streak_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /streak command — show daily streak info."""
@@ -4692,6 +5550,7 @@ async def streak_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # /daily — kunlik vazifa
 # ---------------------------------------------------------------------------
 
+
 async def daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /daily command — daily tasks & rewards."""
     user = await _get_or_create_user_async(update)
@@ -4707,19 +5566,43 @@ async def daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         from datetime import timedelta
 
         today = timezone.now().date()
-        today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+        today_start = timezone.make_aware(
+            timezone.datetime.combine(today, timezone.datetime.min.time())
+        )
 
         # Today's activity
-        tests_today = Result.objects.filter(student=user, calculated_at__gte=today_start).count()
-        essays_today = EssaySubmission.objects.filter(student=user, submitted_at__gte=today_start).count()
-        games_today = UserGameScore.objects.filter(user=user, last_played_at__gte=today_start).count()
+        tests_today = Result.objects.filter(
+            student=user, calculated_at__gte=today_start
+        ).count()
+        essays_today = EssaySubmission.objects.filter(
+            student=user, submitted_at__gte=today_start
+        ).count()
+        games_today = UserGameScore.objects.filter(
+            user=user, last_played_at__gte=today_start
+        ).count()
 
         # Tasks
         tasks = []
-        tasks.append({"name": "1 ta test topshirish", "done": tests_today >= 1, "reward": "+10 XP"})
-        tasks.append({"name": "1 ta esse yozish", "done": essays_today >= 1, "reward": "+15 XP"})
-        tasks.append({"name": "1 ta o'yin o'ynash", "done": games_today >= 1, "reward": "+5 XP"})
-        tasks.append({"name": "3 ta test topshirish", "done": tests_today >= 3, "reward": "+25 XP"})
+        tasks.append(
+            {
+                "name": "1 ta test topshirish",
+                "done": tests_today >= 1,
+                "reward": "+10 XP",
+            }
+        )
+        tasks.append(
+            {"name": "1 ta esse yozish", "done": essays_today >= 1, "reward": "+15 XP"}
+        )
+        tasks.append(
+            {"name": "1 ta o'yin o'ynash", "done": games_today >= 1, "reward": "+5 XP"}
+        )
+        tasks.append(
+            {
+                "name": "3 ta test topshirish",
+                "done": tests_today >= 3,
+                "reward": "+25 XP",
+            }
+        )
 
         completed = sum(1 for t in tasks if t["done"])
         total_xp = sum(gs.total_xp for gs in UserGameScore.objects.filter(user=user))
@@ -4753,6 +5636,7 @@ async def daily_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # /premium — obuna olish
 # ---------------------------------------------------------------------------
 
+
 async def premium_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/premium — legacy alias for /plans.
 
@@ -4782,7 +5666,9 @@ PAYMENT_CARD_HOLDER = getattr(_django_settings, "PAYMENT_CARD_HOLDER", "")
 PAYMENT_ADMIN_USERNAME = getattr(_django_settings, "PAYMENT_ADMIN_USERNAME", "")
 
 
-async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, plan_id: int) -> None:
+async def buy_plan_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, plan_id: int
+) -> None:
     """Handle buy_plan_<id> callback — show card number for payment."""
     query = update.callback_query
     # NOTE: query.answer() already called by callback_handler
@@ -4794,6 +5680,7 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     def _get_plan():
         from apps.payments.models import SubscriptionPlan
+
         return SubscriptionPlan.objects.filter(id=plan_id, is_active=True).first()
 
     plan = await _run_db(_get_plan)
@@ -4831,7 +5718,9 @@ async def buy_plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     await query.edit_message_text(text, parse_mode="Markdown")
 
 
-async def omr_scan_prompt_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def omr_scan_prompt_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Prompt user to upload a photo of their OMR answer sheet."""
     context.user_data["omr_state"] = "awaiting_photo"
     text = (
@@ -4851,15 +5740,17 @@ async def omr_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return False
 
     caption = (update.message.caption or "").lower()
-    is_omr = (
-        context.user_data.get("omr_state") == "awaiting_photo"
-        or any(w in caption for w in ("titul", "omr", "varaq", "answer sheet"))
+    is_omr = context.user_data.get("omr_state") == "awaiting_photo" or any(
+        w in caption for w in ("titul", "omr", "varaq", "answer sheet")
     )
     if not is_omr:
         return False
 
     context.user_data.pop("omr_state", None)
-    status_msg = await update.message.reply_text("⏳ <i>Titul varaqa skanerlanmoqda va doirachalar tahlil qilinmoqda...</i>", parse_mode="HTML")
+    status_msg = await update.message.reply_text(
+        "⏳ <i>Titul varaqa skanerlanmoqda va doirachalar tahlil qilinmoqda...</i>",
+        parse_mode="HTML",
+    )
 
     try:
         photo = update.message.photo[-1]
@@ -4878,11 +5769,15 @@ async def omr_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         preview_lines = []
         for b in result.get("breakdown", [])[:15]:
             mark = "✅" if b["is_correct"] else "❌"
-            preview_lines.append(f"{mark} {b['question_number']}-savol: Siz: {b['selected_answer']} (To'g'ri: {b['correct_answer']})")
+            preview_lines.append(
+                f"{mark} {b['question_number']}-savol: Siz: {b['selected_answer']} (To'g'ri: {b['correct_answer']})"
+            )
 
         preview_text = "\n".join(preview_lines)
         if len(result.get("breakdown", [])) > 15:
-            preview_text += f"\n<i>... va yana {len(result['breakdown']) - 15} ta savol</i>"
+            preview_text += (
+                f"\n<i>... va yana {len(result['breakdown']) - 15} ta savol</i>"
+            )
 
         pass_badge = "🎉 O'TDI" if result.get("is_passed") else "⚠️ O'TMADI"
 
@@ -4906,14 +5801,18 @@ async def omr_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return True
 
 
-async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def payment_screenshot_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle photo messages — check if it's a payment screenshot and create PaymentReceipt."""
     # Check if this photo is an OMR answer sheet
     if await omr_photo_handler(update, context):
         return
 
     # Never intercept essay image submissions
-    if context.user_data.get("essay_state") == "awaiting_photo" or context.user_data.get("active_topic_id"):
+    if context.user_data.get(
+        "essay_state"
+    ) == "awaiting_photo" or context.user_data.get("active_topic_id"):
         return
 
     payment_state = context.user_data.get("payment_state")
@@ -4924,7 +5823,18 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
     is_payment = (
         payment_state == "awaiting_screenshot"
         or selected_slug is not None
-        or any(w in caption for w in ("chek", "to'lov", "tolov", "starter", "premium", "kvitansiya", "obuna"))
+        or any(
+            w in caption
+            for w in (
+                "chek",
+                "to'lov",
+                "tolov",
+                "starter",
+                "premium",
+                "kvitansiya",
+                "obuna",
+            )
+        )
     )
     if not is_payment:
         return
@@ -4939,6 +5849,7 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
         return
 
     from django.conf import settings as _settings
+
     starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 15000)
     pro_price = getattr(_settings, "PLAN_PRO_PRICE", 49000)
     premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 60000)
@@ -4971,9 +5882,15 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("Rasm yuklanmadi. Qaytadan yuboring.")
         return
 
-    from apps.payments.services import validate_and_hash_receipt_image, notify_admin_new_receipt
+    from apps.payments.services import (
+        validate_and_hash_receipt_image,
+        notify_admin_new_receipt,
+    )
+
     try:
-        image_hash, validated_bytes = await _run_db(validate_and_hash_receipt_image, bytes(file_bytes))
+        image_hash, validated_bytes = await _run_db(
+            validate_and_hash_receipt_image, bytes(file_bytes)
+        )
     except ValueError as exc:
         await update.message.reply_text(str(exc))
         return
@@ -5019,7 +5936,9 @@ async def payment_screenshot_handler(update: Update, context: ContextTypes.DEFAU
     )
 
 
-async def _notify_admins_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, payment_request) -> None:
+async def _notify_admins_payment(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, payment_request
+) -> None:
     """Notify platform administrators about a new payment request."""
     from django.contrib.auth import get_user_model
     from django.db.models import Q
@@ -5029,7 +5948,8 @@ async def _notify_admins_payment(update: Update, context: ContextTypes.DEFAULT_T
         User = get_user_model()
         candidates = (
             User.objects.filter(
-                Q(role="admin") | Q(is_superuser=True)
+                Q(role="admin")
+                | Q(is_superuser=True)
                 | Q(user_permissions__codename="change_paymentrequest")
             )
             .filter(is_active=True)
@@ -5058,12 +5978,19 @@ async def _notify_admins_payment(update: Update, context: ContextTypes.DEFAULT_T
         f"Tekshirib, tasdiqlang yoki rad eting."
     )
 
-    buttons = InlineKeyboardMarkup([
+    buttons = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_payment_{payment_request.id}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_payment_{payment_request.id}"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "✅ Tasdiqlash",
+                    callback_data=f"approve_payment_{payment_request.id}",
+                ),
+                InlineKeyboardButton(
+                    "❌ Rad etish", callback_data=f"reject_payment_{payment_request.id}"
+                ),
+            ],
+        ]
+    )
 
     for admin in admins:
         try:
@@ -5077,13 +6004,16 @@ async def _notify_admins_payment(update: Update, context: ContextTypes.DEFAULT_T
             logger.warning("Failed to notify admin %s: %s", admin.email, e)
 
 
-async def approve_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, payment_id: int) -> None:
+async def approve_payment_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, payment_id: int
+) -> None:
     """Handle approve_payment_<id> — admin approves payment."""
     query = update.callback_query
     # NOTE: query.answer() already called by callback_handler
 
     admin_user = await _get_or_create_user_async(update)
     from apps.payments.access import can_manage_payments
+
     if not can_manage_payments(admin_user):
         await query.edit_message_text("Sizda ruxsat yo'q.")
         return
@@ -5094,7 +6024,11 @@ async def approve_payment_callback(update: Update, context: ContextTypes.DEFAULT
         from django.db import transaction
         from django.utils import timezone
 
-        from apps.payments.models import PaymentHistory, PaymentRequest, UserSubscription
+        from apps.payments.models import (
+            PaymentHistory,
+            PaymentRequest,
+            UserSubscription,
+        )
 
         with transaction.atomic():
             # Row-lock the request so two admins approving the same payment
@@ -5102,12 +6036,14 @@ async def approve_payment_callback(update: Update, context: ContextTypes.DEFAULT
             # the lock makes the whole approve→subscribe→log flow atomic —
             # a crash mid-way can never leave a paid request un-activated.
             try:
-                pr = (
-                    PaymentRequest.objects.select_for_update()
-                    .get(id=payment_id, status="pending")
+                pr = PaymentRequest.objects.select_for_update().get(
+                    id=payment_id, status="pending"
                 )
             except PaymentRequest.DoesNotExist:
-                return False, "To'lov so'rovi topilmadi yoki allaqachon ko'rib chiqilgan."
+                return (
+                    False,
+                    "To'lov so'rovi topilmadi yoki allaqachon ko'rib chiqilgan.",
+                )
 
             pr.status = "approved"
             pr.reviewed_by = admin_user
@@ -5184,13 +6120,16 @@ async def approve_payment_callback(update: Update, context: ContextTypes.DEFAULT
         await query.edit_message_text(f"❌ {result}")
 
 
-async def reject_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, payment_id: int) -> None:
+async def reject_payment_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, payment_id: int
+) -> None:
     """Handle reject_payment_<id> — admin rejects payment."""
     query = update.callback_query
     # NOTE: query.answer() already called by callback_handler
 
     admin_user = await _get_or_create_user_async(update)
     from apps.payments.access import can_manage_payments
+
     if not can_manage_payments(admin_user):
         await query.edit_message_text("Sizda ruxsat yo'q.")
         return
@@ -5205,9 +6144,8 @@ async def reject_payment_callback(update: Update, context: ContextTypes.DEFAULT_
             # Same row-lock as approve: serializes against a concurrent
             # approve so the final status is the last writer, never both.
             try:
-                pr = (
-                    PaymentRequest.objects.select_for_update()
-                    .get(id=payment_id, status="pending")
+                pr = PaymentRequest.objects.select_for_update().get(
+                    id=payment_id, status="pending"
                 )
             except PaymentRequest.DoesNotExist:
                 return False, "To'lov so'rovi topilmadi."
@@ -5216,7 +6154,9 @@ async def reject_payment_callback(update: Update, context: ContextTypes.DEFAULT_
             pr.reviewed_by = admin_user
             pr.reviewed_at = timezone.now()
             pr.admin_note = "Admin tomonidan rad etildi"
-            pr.save(update_fields=["status", "reviewed_by", "reviewed_at", "admin_note"])
+            pr.save(
+                update_fields=["status", "reviewed_by", "reviewed_at", "admin_note"]
+            )
 
         return True, pr
 
@@ -5252,18 +6192,27 @@ async def reject_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text(f"❌ {result}")
 
 
-async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int) -> None:
+async def approve_receipt_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int
+) -> None:
     """Handle adm_rec_appr_<id> — admin approves payment receipt."""
     query = update.callback_query
     from django.conf import settings
+
     admin_id = str(getattr(settings, "ADMIN_TELEGRAM_ID", "5582178765"))
     tg_uid = str(update.effective_user.id) if update.effective_user else ""
     admin_user = await _get_or_create_user_async(update)
 
     from apps.payments.access import can_manage_payments
-    is_authorized = (
-        tg_uid == admin_id
-        or (admin_user and (admin_user.is_staff or admin_user.is_superuser or getattr(admin_user, "role", "") == "admin" or can_manage_payments(admin_user)))
+
+    is_authorized = tg_uid == admin_id or (
+        admin_user
+        and (
+            admin_user.is_staff
+            or admin_user.is_superuser
+            or getattr(admin_user, "role", "") == "admin"
+            or can_manage_payments(admin_user)
+        )
     )
     if not is_authorized:
         if query:
@@ -5278,9 +6227,12 @@ async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT
 
     def _approve():
         from django.db import transaction
+
         with transaction.atomic():
             try:
-                rec = PaymentReceipt.objects.select_for_update().get(id=receipt_id, status=PaymentReceipt.Status.PENDING)
+                rec = PaymentReceipt.objects.select_for_update().get(
+                    id=receipt_id, status=PaymentReceipt.Status.PENDING
+                )
             except PaymentReceipt.DoesNotExist:
                 return False, "To'lov cheki topilmadi yoki allaqachon ko'rib chiqilgan."
             approve_payment_receipt(rec, admin_user=admin_user)
@@ -5290,7 +6242,11 @@ async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT
 
     admin_name = ""
     if update.effective_user:
-        admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+        admin_name = (
+            update.effective_user.first_name
+            or update.effective_user.username
+            or "Admin"
+        )
     elif admin_user:
         admin_name = admin_user.get_full_name() or admin_user.username or "Admin"
     else:
@@ -5302,10 +6258,16 @@ async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT
             try:
                 if getattr(query.message, "photo", None):
                     orig = query.message.caption_html or query.message.caption or ""
-                    await query.edit_message_caption(caption=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                    await query.edit_message_caption(
+                        caption=f"{orig}{note_text}",
+                        parse_mode="HTML",
+                        reply_markup=None,
+                    )
                 else:
                     orig = query.message.text_html or query.message.text or ""
-                    await query.edit_message_text(text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                    await query.edit_message_text(
+                        text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None
+                    )
             except Exception as e:
                 logger.warning("Failed to edit admin receipt message: %s", e)
         if query:
@@ -5321,18 +6283,27 @@ async def approve_receipt_callback(update: Update, context: ContextTypes.DEFAULT
                 pass
 
 
-async def reject_receipt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int) -> None:
+async def reject_receipt_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, receipt_id: int
+) -> None:
     """Handle adm_rec_rej_<id> — admin rejects payment receipt."""
     query = update.callback_query
     from django.conf import settings
+
     admin_id = str(getattr(settings, "ADMIN_TELEGRAM_ID", "5582178765"))
     tg_uid = str(update.effective_user.id) if update.effective_user else ""
     admin_user = await _get_or_create_user_async(update)
 
     from apps.payments.access import can_manage_payments
-    is_authorized = (
-        tg_uid == admin_id
-        or (admin_user and (admin_user.is_staff or admin_user.is_superuser or getattr(admin_user, "role", "") == "admin" or can_manage_payments(admin_user)))
+
+    is_authorized = tg_uid == admin_id or (
+        admin_user
+        and (
+            admin_user.is_staff
+            or admin_user.is_superuser
+            or getattr(admin_user, "role", "") == "admin"
+            or can_manage_payments(admin_user)
+        )
     )
     if not is_authorized:
         if query:
@@ -5347,19 +6318,28 @@ async def reject_receipt_callback(update: Update, context: ContextTypes.DEFAULT_
 
     def _reject():
         from django.db import transaction
+
         with transaction.atomic():
             try:
-                rec = PaymentReceipt.objects.select_for_update().get(id=receipt_id, status=PaymentReceipt.Status.PENDING)
+                rec = PaymentReceipt.objects.select_for_update().get(
+                    id=receipt_id, status=PaymentReceipt.Status.PENDING
+                )
             except PaymentReceipt.DoesNotExist:
                 return False, "To'lov cheki topilmadi yoki allaqachon ko'rib chiqilgan."
-            reject_payment_receipt(rec, note="Admin tomonidan rad etildi", admin_user=admin_user)
+            reject_payment_receipt(
+                rec, note="Admin tomonidan rad etildi", admin_user=admin_user
+            )
             return True, rec
 
     success, result = await _run_db(_reject)
 
     admin_name = ""
     if update.effective_user:
-        admin_name = update.effective_user.first_name or update.effective_user.username or "Admin"
+        admin_name = (
+            update.effective_user.first_name
+            or update.effective_user.username
+            or "Admin"
+        )
     elif admin_user:
         admin_name = admin_user.get_full_name() or admin_user.username or "Admin"
     else:
@@ -5371,10 +6351,16 @@ async def reject_receipt_callback(update: Update, context: ContextTypes.DEFAULT_
             try:
                 if getattr(query.message, "photo", None):
                     orig = query.message.caption_html or query.message.caption or ""
-                    await query.edit_message_caption(caption=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                    await query.edit_message_caption(
+                        caption=f"{orig}{note_text}",
+                        parse_mode="HTML",
+                        reply_markup=None,
+                    )
                 else:
                     orig = query.message.text_html or query.message.text or ""
-                    await query.edit_message_text(text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None)
+                    await query.edit_message_text(
+                        text=f"{orig}{note_text}", parse_mode="HTML", reply_markup=None
+                    )
             except Exception as e:
                 logger.warning("Failed to edit admin receipt message: %s", e)
         if query:
@@ -5393,6 +6379,7 @@ async def reject_receipt_callback(update: Update, context: ContextTypes.DEFAULT_
 # ---------------------------------------------------------------------------
 # /arena — 1v1 Quiz Arena
 # ---------------------------------------------------------------------------
+
 
 def _arena_leaderboard_text(top: int = 5) -> str:
     """Top players by ELO rating (excluding bots)."""
@@ -5420,23 +6407,42 @@ def _arena_leaderboard_text(top: int = 5) -> str:
 def _arena_keyboard() -> InlineKeyboardMarkup:
     """Arena action keyboard."""
     from django.conf import settings as _settings
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⚔️ Bot bilan duel (Telegram chatda)", callback_data="arena_bot_start")],
-        [InlineKeyboardButton("📲 Do'stni duelga chorlash (Xona yaratish)", callback_data="arena_create")],
-        [InlineKeyboardButton("🌐 Web Arenaga o'tish (Jonli 1v1)", url=f"{site_url}/arena/")],
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb"),
-            InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    "⚔️ Bot bilan duel (Telegram chatda)",
+                    callback_data="arena_bot_start",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📲 Do'stni duelga chorlash (Xona yaratish)",
+                    callback_data="arena_create",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Web Arenaga o'tish (Jonli 1v1)", url=f"{site_url}/arena/"
+                )
+            ],
+            [
+                InlineKeyboardButton("🏆 ELO Reyting", callback_data="arena_lb"),
+                InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
+            ],
+        ]
+    )
 
 
 async def arena_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /arena — show my ELO stats + top players + actions."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi.")
+        await send_friendly_error(
+            update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi."
+        )
         return
 
     from apps.arena import services
@@ -5444,9 +6450,12 @@ async def arena_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     def _get_arena_data():
         profile = services.get_or_create_profile(user)
-        rank = ArenaProfile.objects.filter(
-            user__is_bot=False, rating__gt=profile.rating
-        ).count() + 1
+        rank = (
+            ArenaProfile.objects.filter(
+                user__is_bot=False, rating__gt=profile.rating
+            ).count()
+            + 1
+        )
         return profile, rank
 
     profile, rank = await _run_db(_get_arena_data)
@@ -5465,17 +6474,24 @@ async def arena_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"Raqib topilmasa ~15 soniyadan keyin AI bot bilan o'ynaysiz 🤖"
     )
 
-    await send_reply(update, text, parse_mode="Markdown", reply_markup=_arena_keyboard())
+    await send_reply(
+        update, text, parse_mode="Markdown", reply_markup=_arena_keyboard()
+    )
 
 
-async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def arena_join_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /arena_join <CODE> — join a custom room by invite code."""
     user = await _get_or_create_user_async(update)
     if not user:
-        await send_friendly_error(update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi.")
+        await send_friendly_error(
+            update, "Foydalanuvchi ma'lumotlarini yuklashda xatolik yuz berdi."
+        )
         return
 
     from django.conf import settings as _settings
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
     args = context.args if context.args else []
@@ -5487,10 +6503,16 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "`/arena_join KOD123`\n\n"
             "Yoki quyidagi tugma orqali Web Arenaga o'ting 👇",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 Web Arenaga o'tish", url=f"{site_url}/arena/")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🌐 Web Arenaga o'tish", url=f"{site_url}/arena/"
+                        )
+                    ],
+                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+                ]
+            ),
         )
         return
 
@@ -5506,13 +6528,15 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         room, error = await _run_db(_join)
     except Exception as exc:
         logger.exception("Error in arena_join_handler: %s", exc)
-        await send_friendly_error(update, "Xonaga qo'shilishda kutilmagan xatolik yuz berdi.")
+        await send_friendly_error(
+            update, "Xonaga qo'shilishda kutilmagan xatolik yuz berdi."
+        )
         return
 
     if room is None:
         await send_reply(
             update,
-            f"❌ *Xonaga qo'shib bo'lmadi*\n\n{error or 'Kod xato yoki xona to\'la.'}\n\n"
+            f"❌ *Xonaga qo'shib bo'lmadi*\n\n{error or "Kod xato yoki xona to'la."}\n\n"
             f"To'g'ri kod bilan qayta urinib ko'ring: `/arena_join KOD`",
             parse_mode="Markdown",
             reply_markup=_error_keyboard(),
@@ -5526,14 +6550,22 @@ async def arena_join_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"⚔️ Duel boshlanmoqda — Web orqali kiring:\n"
         f"{site_url}/arena/{room.room_code}/",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚔️ Arenaga o'tish", url=f"{site_url}/arena/{room.room_code}/")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
-        ]),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "⚔️ Arenaga o'tish", url=f"{site_url}/arena/{room.room_code}/"
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")],
+            ]
+        ),
     )
 
 
-async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def arena_callback_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle arena inline buttons (arena_create / arena_lb / arena_bot_start / ar_*)."""
     query = update.callback_query
     if query:
@@ -5571,13 +6603,15 @@ async def arena_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.edit_message_text(
                 f"🏆 *ELO REYTING (TOP 10)*\n\n{text}",
                 parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Orqaga", callback_data="menu_arena")
-                ]]),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("🔙 Orqaga", callback_data="menu_arena")]]
+                ),
             )
 
         else:
-            buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]])
+            buttons = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("🏠 Bosh menyu", callback_data="menu_main")]]
+            )
             await send_reply(update, "Arena amali yakunlangan.", reply_markup=buttons)
 
     except Exception as exc:
@@ -5610,13 +6644,17 @@ def _is_teacher_account(user, tg_id: int | None = None) -> bool:
     """Teachers, superadmin and platform admins may use the group commands."""
     from apps.accounts.access import is_platform_admin
     from django.conf import settings as _settings
+
     admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
 
     if tg_id and int(tg_id) == admin_id:
         return True
     if user is None:
         return False
-    if getattr(user, "telegram_chat_id", None) and int(user.telegram_chat_id) == admin_id:
+    if (
+        getattr(user, "telegram_chat_id", None)
+        and int(user.telegram_chat_id) == admin_id
+    ):
         return True
     if (getattr(user, "role", None) or "").lower() in ("teacher", "admin"):
         return True
@@ -5651,12 +6689,16 @@ async def _load_managed_group(user, group_id: int):
     return await _run_db(lambda: teacher_groups(user).filter(pk=group_id).first())
 
 
-def _group_list_keyboard(groups, callback_prefix: str = "tgrp_") -> InlineKeyboardMarkup:
+def _group_list_keyboard(
+    groups, callback_prefix: str = "tgrp_"
+) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(f"🏫 {g.name}", callback_data=f"{callback_prefix}{g.id}")]
         for g in groups
     ]
-    rows.append([InlineKeyboardButton("➕ Yangi guruh ochish", callback_data="tgrp_create_new")])
+    rows.append(
+        [InlineKeyboardButton("➕ Yangi guruh ochish", callback_data="tgrp_create_new")]
+    )
     rows.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
@@ -5666,20 +6708,28 @@ def _attendance_keyboard(session, rows) -> InlineKeyboardMarkup:
     keyboard = []
     for row in rows[:_ATTENDANCE_PAGE_SIZE]:
         student_id = row["student_id"]
-        keyboard.append([
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    _STATUS_EMOJI[status],
+                    callback_data=f"tmk_{session.id}_{student_id}_{status}",
+                )
+                for status in ("present", "late", "excused", "absent")
+            ]
+        )
+    keyboard.append(
+        [
             InlineKeyboardButton(
-                _STATUS_EMOJI[status],
-                callback_data=f"tmk_{session.id}_{student_id}_{status}",
-            )
-            for status in ("present", "late", "excused", "absent")
-        ])
-    keyboard.append([
-        InlineKeyboardButton("✅ Hammasi keldi", callback_data=f"tall_{session.id}"),
-    ])
-    keyboard.append([
-        InlineKeyboardButton("💾 Yakunlash", callback_data=f"tfin_{session.id}"),
-        InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{session.group_id}"),
-    ])
+                "✅ Hammasi keldi", callback_data=f"tall_{session.id}"
+            ),
+        ]
+    )
+    keyboard.append(
+        [
+            InlineKeyboardButton("💾 Yakunlash", callback_data=f"tfin_{session.id}"),
+            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{session.group_id}"),
+        ]
+    )
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -5745,7 +6795,9 @@ async def groups_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     lines.append("")
     lines.append("Guruhni tanlang 👇")
     await send_reply(
-        update, "\n".join(lines), parse_mode="Markdown",
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
         reply_markup=_group_list_keyboard(groups),
     )
 
@@ -5761,10 +6813,8 @@ async def _send_group_card(update: Update, context, user, group) -> None:
         data = await _run_db(summary, session)
         attendance_line = (
             f"✅ {data['present']} · ⏰ {data['late']} · 📄 {data['excused']} · "
-            f"❌ {data['absent']}" + (
-                f" · ⚠️ belgilanmagan: {data['unmarked']}"
-                if data["unmarked"] else ""
-            )
+            f"❌ {data['absent']}"
+            + (f" · ⚠️ belgilanmagan: {data['unmarked']}" if data["unmarked"] else "")
         )
     else:
         attendance_line = "Bugun davomat olinmagan."
@@ -5780,28 +6830,47 @@ async def _send_group_card(update: Update, context, user, group) -> None:
         f"📝 Esse — baholangan: *{essays['graded']}*, kutilmoqda: "
         f"*{essays['pending']}*, topshirilmagan: *{essays['not_submitted']}*"
     )
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("🗓 Davomat olish", callback_data=f"tatt_{group.id}"),
-            InlineKeyboardButton("💳 To'lov holati", callback_data=f"ttuition_{group.id}"),
-        ],
-        [
-            InlineKeyboardButton("👥 O'quvchilar va BMB", callback_data=f"tstu_{group.id}"),
-            InlineKeyboardButton("📚 Uyga vazifa", callback_data=f"thw_{group.id}"),
-        ],
-        [
-            InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
-            InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}"),
-        ],
-        [
-            InlineKeyboardButton("📈 Davomat hisoboti", callback_data=f"trpt_{group.id}"),
-            InlineKeyboardButton("🏆 Guruhlar reytingi", callback_data="tgrpleaderboard"),
-        ],
-        [
-            InlineKeyboardButton("📋 Taklif kodini ulashish", url=f"https://t.me/share/url?url=%23{invite_code}&text={group.name}+guruhimizga+qo%27shiling!"),
-        ],
-        [InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")],
-    ])
+            [
+                InlineKeyboardButton(
+                    "🗓 Davomat olish", callback_data=f"tatt_{group.id}"
+                ),
+                InlineKeyboardButton(
+                    "💳 To'lov holati", callback_data=f"ttuition_{group.id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "👥 O'quvchilar va BMB", callback_data=f"tstu_{group.id}"
+                ),
+                InlineKeyboardButton("📚 Uyga vazifa", callback_data=f"thw_{group.id}"),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"
+                ),
+                InlineKeyboardButton(
+                    "📝 Esse natijalari", callback_data=f"ters_{group.id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📈 Davomat hisoboti", callback_data=f"trpt_{group.id}"
+                ),
+                InlineKeyboardButton(
+                    "🏆 Guruhlar reytingi", callback_data="tgrpleaderboard"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📋 Taklif kodini ulashish",
+                    url=f"https://t.me/share/url?url=%23{invite_code}&text={group.name}+guruhimizga+qo%27shiling!",
+                ),
+            ],
+            [InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")],
+        ]
+    )
     await edit_or_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
 
 
@@ -5823,6 +6892,7 @@ async def newmock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     key_str = args[0].strip()
     user = await _get_or_create_user_async(update)
     from apps.tests.mock_service import create_quick_mock
+
     try:
         res = await _run_db(create_quick_mock, user, key_str)
         code = res["mock_code"]
@@ -5839,7 +6909,9 @@ async def newmock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text(f"Xatolik: {e}")
 
 
-async def _send_group_excel_document(update: Update, context: ContextTypes.DEFAULT_TYPE, group) -> None:
+async def _send_group_excel_document(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, group
+) -> None:
     """Generate and send an Excel document (.xlsx) for a student group."""
     from apps.courses.group_service import export_group_to_excel
     import io
@@ -5847,7 +6919,9 @@ async def _send_group_excel_document(update: Update, context: ContextTypes.DEFAU
     excel_bytes = await _run_db(export_group_to_excel, group)
     f = io.BytesIO(excel_bytes)
     f.name = f"{group.name}_hisobot.xlsx"
-    chat_id = update.effective_chat.id if update.effective_chat else update.effective_user.id
+    chat_id = (
+        update.effective_chat.id if update.effective_chat else update.effective_user.id
+    )
     await context.bot.send_document(
         chat_id=chat_id,
         document=f,
@@ -5858,10 +6932,13 @@ async def _send_group_excel_document(update: Update, context: ContextTypes.DEFAU
 
 
 @require_role("TEACHER")
-async def teacher_excel_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def teacher_excel_report_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Send student report in Excel format for teacher groups."""
     user = await _get_or_create_user_async(update)
     from apps.attendance.services import teacher_groups
+
     groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
     if not groups:
         await send_reply(
@@ -5889,14 +6966,18 @@ async def teacher_excel_report_handler(update: Update, context: ContextTypes.DEF
 
 
 @require_role("TEACHER")
-async def teacher_group_excel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+async def teacher_group_excel_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int
+) -> None:
     """Handle texcel_<id> callback to export excel."""
     query = update.callback_query
     user = await _get_or_create_user_async(update)
     group = await _load_managed_group(user, group_id)
     if not group:
         if query:
-            await query.answer("Guruh topilmadi yoki sizga tegishli emas.", show_alert=True)
+            await query.answer(
+                "Guruh topilmadi yoki sizga tegishli emas.", show_alert=True
+            )
         return
 
     if query:
@@ -5905,7 +6986,9 @@ async def teacher_group_excel_callback(update: Update, context: ContextTypes.DEF
 
 
 @require_role("TEACHER")
-async def create_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def create_group_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Create a new group via /create_group <name> or start interactive name input."""
     user = await _teacher_from_update(update)
     if not user:
@@ -5914,7 +6997,10 @@ async def create_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if args:
         name = " ".join(args).strip()
         from apps.courses.models import StudentGroup
-        grp = await _run_db(lambda: StudentGroup.objects.create(teacher=user, name=name))
+
+        grp = await _run_db(
+            lambda: StudentGroup.objects.create(teacher=user, name=name)
+        )
         invite_code = grp.invite_code or f"GR-{grp.id}"
         await update.message.reply_text(
             f"✅ *Yangi guruh muvaffaqiyatli ochildi!*\n\n"
@@ -5936,7 +7022,9 @@ async def create_group_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
-async def _tuition_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+async def _tuition_group_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int
+) -> None:
     """Show tuition billing status for students in the group with one-click payment toggle."""
     user = await _teacher_from_update(update)
     if not user:
@@ -5950,7 +7038,9 @@ async def _tuition_group_callback(update: Update, context: ContextTypes.DEFAULT_
     from apps.tuition.models import StudentTuition
 
     def _sync_and_get_tuition(grp):
-        students = list(grp.students.filter(is_active=True).order_by("first_name", "last_name"))
+        students = list(
+            grp.students.filter(is_active=True).order_by("first_name", "last_name")
+        )
         today = date.today()
         due_date = date(today.year, today.month, 20)
         recs = []
@@ -5959,7 +7049,10 @@ async def _tuition_group_callback(update: Update, context: ContextTypes.DEFAULT_
                 student=s,
                 group=grp,
                 due_date=due_date,
-                defaults={"monthly_fee": 400000, "status": StudentTuition.Status.PENDING},
+                defaults={
+                    "monthly_fee": 400000,
+                    "status": StudentTuition.Status.PENDING,
+                },
             )
             recs.append(rec)
         return recs
@@ -5983,26 +7076,37 @@ async def _tuition_group_callback(update: Update, context: ContextTypes.DEFAULT_
         else:
             pending_count += 1
             lines.append(f"{idx}. *{s_name}* — {fee_str} so'm ❌ *(Qarzdor)*")
-            unpaid_buttons.append([
-                InlineKeyboardButton(
-                    f"✅ To'landi: {s_name[:18]}",
-                    callback_data=f"tuitpay_{tuit.id}",
-                )
-            ])
+            unpaid_buttons.append(
+                [
+                    InlineKeyboardButton(
+                        f"✅ To'landi: {s_name[:18]}",
+                        callback_data=f"tuitpay_{tuit.id}",
+                    )
+                ]
+            )
 
     lines.append(f"\n📊 *Jami:* {paid_count} to'langan, {pending_count} qarzdor.")
     if pending_count > 0:
         lines.append("Quyidagi tugma orqali to'lovni 1-bosishda tasdiqlang 👇")
 
     keyboard_rows = unpaid_buttons[:8]
-    keyboard_rows.append([
-        InlineKeyboardButton("🔄 Yangilash", callback_data=f"ttuition_{group.id}"),
-        InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
-    ])
-    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard_rows))
+    keyboard_rows.append(
+        [
+            InlineKeyboardButton("🔄 Yangilash", callback_data=f"ttuition_{group.id}"),
+            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
+        ]
+    )
+    await edit_or_reply(
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard_rows),
+    )
 
 
-async def _tuition_mark_paid_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, tuition_id: int) -> None:
+async def _tuition_mark_paid_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, tuition_id: int
+) -> None:
     """One-click payment confirmation by teacher with automatic student & parent notice."""
     query = update.callback_query
     from apps.tuition.models import StudentTuition
@@ -6010,7 +7114,11 @@ async def _tuition_mark_paid_callback(update: Update, context: ContextTypes.DEFA
     from apps.notifications.services.telegram_service import TelegramService
 
     def _mark_paid(t_id):
-        tuit = StudentTuition.objects.select_related("student", "group").filter(id=t_id).first()
+        tuit = (
+            StudentTuition.objects.select_related("student", "group")
+            .filter(id=t_id)
+            .first()
+        )
         if not tuit:
             return None
         tuit.mark_paid()
@@ -6036,17 +7144,23 @@ async def _tuition_mark_paid_callback(update: Update, context: ContextTypes.DEFA
         f"oylik to'lovingizni (<b>{fee_str} so'm</b>) qabul qildi va tasdiqladi. Rahmat!\n\n"
         f"<i>GRAND EDUCATION</i>"
     )
-    student_tg = getattr(student, "telegram_chat_id", None) or getattr(student, "telegram_id", None)
+    student_tg = getattr(student, "telegram_chat_id", None) or getattr(
+        student, "telegram_id", None
+    )
     if student_tg:
         try:
-            TelegramService.send_message(chat_id=student_tg, text=alert_text, parse_mode="HTML")
+            TelegramService.send_message(
+                chat_id=student_tg, text=alert_text, parse_mode="HTML"
+            )
         except Exception:
             pass
 
     parent_rels = await _run_db(
-        lambda: list(ParentStudentRelation.objects.filter(
-            student=student, is_verified=True, parent_telegram_id__isnull=False
-        ))
+        lambda: list(
+            ParentStudentRelation.objects.filter(
+                student=student, is_verified=True, parent_telegram_id__isnull=False
+            )
+        )
     )
     parent_alert_text = (
         f"🎉 <b>Hurmatli ota-ona!</b>\n\n"
@@ -6056,14 +7170,20 @@ async def _tuition_mark_paid_callback(update: Update, context: ContextTypes.DEFA
     )
     for rel in parent_rels:
         try:
-            TelegramService.send_message(chat_id=rel.parent_telegram_id, text=parent_alert_text, parse_mode="HTML")
+            TelegramService.send_message(
+                chat_id=rel.parent_telegram_id,
+                text=parent_alert_text,
+                parse_mode="HTML",
+            )
         except Exception:
             pass
 
     await _tuition_group_callback(update, context, tuit.group_id)
 
 
-async def group_leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def group_leaderboard_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Show learning center groups leaderboard based on average test scores."""
     from apps.courses.models import StudentGroup
     from apps.results.models import Result
@@ -6073,17 +7193,23 @@ async def group_leaderboard_handler(update: Update, context: ContextTypes.DEFAUL
         groups = StudentGroup.objects.all().prefetch_related("students")
         board = []
         for g in groups:
-            st_ids = list(g.students.filter(is_active=True).values_list("id", flat=True))
+            st_ids = list(
+                g.students.filter(is_active=True).values_list("id", flat=True)
+            )
             if not st_ids:
                 continue
-            avg_res = Result.objects.filter(student_id__in=st_ids).aggregate(avg=Avg("percentage"))["avg"]
+            avg_res = Result.objects.filter(student_id__in=st_ids).aggregate(
+                avg=Avg("percentage")
+            )["avg"]
             avg_pct = round(float(avg_res), 1) if avg_res else 0.0
-            board.append({
-                "group_name": g.name,
-                "teacher_name": g.teacher.get_full_name() or g.teacher.email,
-                "students_count": len(st_ids),
-                "avg_pct": avg_pct,
-            })
+            board.append(
+                {
+                    "group_name": g.name,
+                    "teacher_name": g.teacher.get_full_name() or g.teacher.email,
+                    "students_count": len(st_ids),
+                    "avg_pct": avg_pct,
+                }
+            )
         board.sort(key=lambda x: x["avg_pct"], reverse=True)
         return board[:10]
 
@@ -6094,8 +7220,9 @@ async def group_leaderboard_handler(update: Update, context: ContextTypes.DEFAUL
     ]
     medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
     for i, item in enumerate(board):
-        m = medals[i] if i < len(medals) else f"{i+1}."
+        m = medals[i] if i < len(medals) else f"{i + 1}."
         from apps.tests.bmb_grading import calculate_bmb_grade
+
         grade = calculate_bmb_grade(item["avg_pct"])["grade"]
         lines.append(
             f"{m} *{item['group_name']}* — *{item['avg_pct']}%* (BMB: {grade})\n"
@@ -6104,17 +7231,24 @@ async def group_leaderboard_handler(update: Update, context: ContextTypes.DEFAUL
     if not board:
         lines.append("Hozircha guruhlar statistikasi shakllanmagan.")
 
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")]])
-    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🔙 Guruhlarim", callback_data="tgrplist")]]
+    )
+    await edit_or_reply(
+        update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard
+    )
 
 
 @require_role("TEACHER")
-async def export_group_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def export_group_report_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Export group report to Excel immediately via /export_group_report."""
     user = await _teacher_from_update(update)
     if not user:
         return
     from apps.attendance.services import teacher_groups
+
     groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
     if not groups:
         await update.message.reply_text("Sizga tegishli guruh topilmadi.")
@@ -6133,11 +7267,18 @@ async def export_group_report_handler(update: Update, context: ContextTypes.DEFA
         target_group = groups[0]
 
     if target_group:
-        await update.message.reply_text(f"📊 *{target_group.name}* guruhi bo'yicha Excel hisobot tayyorlanmoqda...", parse_mode="Markdown")
+        await update.message.reply_text(
+            f"📊 *{target_group.name}* guruhi bo'yicha Excel hisobot tayyorlanmoqda...",
+            parse_mode="Markdown",
+        )
         await _send_group_excel_document(update, context, target_group)
     else:
         buttons = [
-            [InlineKeyboardButton(f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}")]
+            [
+                InlineKeyboardButton(
+                    f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}"
+                )
+            ]
             for g in groups
         ]
         await update.message.reply_text(
@@ -6147,7 +7288,9 @@ async def export_group_report_handler(update: Update, context: ContextTypes.DEFA
         )
 
 
-async def _homework_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int) -> None:
+async def _homework_group_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int
+) -> None:
     """Show homework assignments for the group."""
     user = await _teacher_from_update(update)
     if not user:
@@ -6170,25 +7313,33 @@ async def _homework_group_callback(update: Update, context: ContextTypes.DEFAULT
     else:
         for idx, hw in enumerate(hws, 1):
             due_str = hw.due_date.strftime("%d.%m.%Y %H:%M")
-            lines.append(
-                f"{idx}. *{hw.title}*\n"
-                f"   ⏰ Muddat: *{due_str}*\n"
-            )
+            lines.append(f"{idx}. *{hw.title}*\n   ⏰ Muddat: *{due_str}*\n")
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Yangi vazifa berish", callback_data=f"thwadd_{group.id}")],
-        [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
-    ])
-    await edit_or_reply(update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard)
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "➕ Yangi vazifa berish", callback_data=f"thwadd_{group.id}"
+                )
+            ],
+            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+        ]
+    )
+    await edit_or_reply(
+        update, "\n".join(lines), parse_mode="Markdown", reply_markup=keyboard
+    )
 
 
 @require_role("TEACHER")
-async def new_homework_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def new_homework_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Create a homework assignment for the group: /new_homework <vazifa nomi>."""
     user = await _teacher_from_update(update)
     if not user:
         return
     from apps.attendance.services import teacher_groups
+
     groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
     if not groups:
         await update.message.reply_text("Sizga tegishli guruh topilmadi.")
@@ -6206,7 +7357,7 @@ async def new_homework_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     hw_title = " ".join(args).strip()
-    target_group = groups[0] # Birinchi guruh
+    target_group = groups[0]  # Birinchi guruh
 
     from apps.courses.models import Homework
     from django.utils import timezone
@@ -6239,7 +7390,9 @@ async def new_homework_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         s_tg = getattr(s, "telegram_chat_id", None) or getattr(s, "telegram_id", None)
         if s_tg:
             try:
-                TelegramService.send_message(chat_id=s_tg, text=notify_text, parse_mode="HTML")
+                TelegramService.send_message(
+                    chat_id=s_tg, text=notify_text, parse_mode="HTML"
+                )
             except Exception:
                 pass
 
@@ -6255,11 +7408,15 @@ async def new_homework_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 @require_role("TEACHER")
-async def teacher_test_bank_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def teacher_test_bank_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Show test bank for teachers."""
     from django.conf import settings as _settings
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
     from apps.tests.models import Test
+
     test_count = await _run_db(lambda: Test.objects.filter(is_active=True).count())
     text = (
         f"📚 *TESTLAR BAZASI (GRAND EDUCATION)*\n\n"
@@ -6267,23 +7424,39 @@ async def teacher_test_bank_handler(update: Update, context: ContextTypes.DEFAUL
         f"Siz Fast CBT Mini App orqali barcha testlar savollarini ko'rishingiz "
         f"yoki yangi testlar tuzishingiz mumkin 👇"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📱 Fast CBT Testlar", web_app={"url": f"{site_url}/tma/#/tests"})],
-        [InlineKeyboardButton("🌐 Web Testlar Banki", url=f"{site_url}/dashboard/")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "📱 Fast CBT Testlar", web_app={"url": f"{site_url}/tma/#/tests"}
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Web Testlar Banki", url=f"{site_url}/dashboard/"
+                )
+            ],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
 @require_role("TEACHER")
-async def teacher_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def teacher_profile_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Show teacher profile and statistics."""
     user = await _get_or_create_user_async(update)
     from apps.attendance.services import teacher_groups
+
     groups = await _run_db(lambda: list(teacher_groups(user)))
     group_count = len(groups)
-    total_students = await _run_db(lambda: sum(g.students.filter(is_active=True).count() for g in groups))
+    total_students = await _run_db(
+        lambda: sum(g.students.filter(is_active=True).count() for g in groups)
+    )
     from apps.tests.models import Test
+
     my_tests = await _run_db(lambda: Test.objects.filter(course__teacher=user).count())
 
     name = user.get_full_name() or user.first_name or "Ustoz"
@@ -6297,11 +7470,17 @@ async def teacher_profile_handler(update: Update, context: ContextTypes.DEFAULT_
         f"• 👥 Jami o'quvchilar: *{total_students} nafar*\n"
         f"• 📝 Mualliflik testlari: *{my_tests} ta*\n"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👥 Guruhlarim", callback_data="tgrplist")],
-        [InlineKeyboardButton("📝 Yangi Mock yaratish", callback_data="menu_teacher_newmock")],
-        [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("👥 Guruhlarim", callback_data="tgrplist")],
+            [
+                InlineKeyboardButton(
+                    "📝 Yangi Mock yaratish", callback_data="menu_teacher_newmock"
+                )
+            ],
+            [InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
@@ -6309,7 +7488,10 @@ async def teacher_profile_handler(update: Update, context: ContextTypes.DEFAULT_
 # First-Time Onboarding & Role Selection Callbacks
 # ---------------------------------------------------------------------------
 
-async def role_select_student_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def role_select_student_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Callback when a new user selects '🎓 Men o'quvchiman'."""
     query = update.callback_query
     if query:
@@ -6324,8 +7506,10 @@ async def role_select_student_callback(update: Update, context: ContextTypes.DEF
 
     def _set_student():
         from apps.accounts.models import User as UserModel
+
         user.role = UserModel.Role.STUDENT
         user.save(update_fields=["role"])
+
     await _run_db(_set_student)
 
     welcome = (
@@ -6342,7 +7526,11 @@ async def role_select_student_callback(update: Update, context: ContextTypes.DEF
     )
     if query:
         try:
-            await query.edit_message_text(welcome, parse_mode="Markdown", reply_markup=_student_main_menu_keyboard())
+            await query.edit_message_text(
+                welcome,
+                parse_mode="Markdown",
+                reply_markup=_student_main_menu_keyboard(),
+            )
         except Exception:
             pass
         if query.message:
@@ -6352,7 +7540,9 @@ async def role_select_student_callback(update: Update, context: ContextTypes.DEF
             )
 
 
-async def role_select_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def role_select_teacher_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Callback when a user selects '👨‍🏫 Men o'qituvchiman'."""
     query = update.callback_query
     if query:
@@ -6365,6 +7555,7 @@ async def role_select_teacher_callback(update: Update, context: ContextTypes.DEF
     tg_user = update.effective_user
 
     from django.conf import settings as _settings
+
     admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
     # Notify admin
     try:
@@ -6374,16 +7565,22 @@ async def role_select_teacher_callback(update: Update, context: ContextTypes.DEF
                 f"👨‍🏫 <b>Yangi o'qituvchi arizasi!</b>\n\n"
                 f"👤 Ism: <b>{tg_user.first_name} {tg_user.last_name or ''}</b>\n"
                 f"🆔 Telegram ID: <code>{tg_user.id}</code>\n"
-                f"📱 Username: @{tg_user.username or 'yo\'q'}\n\n"
+                f"📱 Username: @{tg_user.username or "yo'q"}\n\n"
                 f"Ushbu foydalanuvchini o'qituvchi sifatida tasdiqlaysizmi?"
             ),
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup([
+            reply_markup=InlineKeyboardMarkup(
                 [
-                    InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"adm_appr_tchr_{tg_user.id}"),
-                    InlineKeyboardButton("❌ Rad etish", callback_data=f"adm_rej_tchr_{tg_user.id}"),
+                    [
+                        InlineKeyboardButton(
+                            "✅ Tasdiqlash", callback_data=f"adm_appr_tchr_{tg_user.id}"
+                        ),
+                        InlineKeyboardButton(
+                            "❌ Rad etish", callback_data=f"adm_rej_tchr_{tg_user.id}"
+                        ),
+                    ]
                 ]
-            ]),
+            ),
         )
     except Exception as e:
         logger.warning("Failed to notify admin of teacher request: %s", e)
@@ -6407,13 +7604,18 @@ async def role_select_teacher_callback(update: Update, context: ContextTypes.DEF
                 resize_keyboard=True,
                 one_time_keyboard=True,
             )
-            await query.message.reply_text("Telefon raqamingizni ulashing:", reply_markup=contact_kb)
+            await query.message.reply_text(
+                "Telefon raqamingizni ulashing:", reply_markup=contact_kb
+            )
 
 
-async def admin_approve_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int) -> None:
+async def admin_approve_teacher_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int
+) -> None:
     """Admin approves a teacher application."""
     query = update.callback_query
     from django.conf import settings as _settings
+
     admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
     if not (update.effective_user and update.effective_user.id == admin_id):
         if query:
@@ -6422,6 +7624,7 @@ async def admin_approve_teacher_callback(update: Update, context: ContextTypes.D
 
     def _do_approve():
         from apps.accounts.models import User as UserModel
+
         u = UserModel.objects.filter(telegram_chat_id=target_tg_id).first()
         if u:
             u.role = UserModel.Role.TEACHER
@@ -6433,7 +7636,9 @@ async def admin_approve_teacher_callback(update: Update, context: ContextTypes.D
     if query:
         await query.answer("O'qituvchi tasdiqlandi!")
         try:
-            await query.edit_message_text(f"✅ O'qituvchi muvaffaqiyatli tasdiqlandi (TG ID: {target_tg_id})")
+            await query.edit_message_text(
+                f"✅ O'qituvchi muvaffaqiyatli tasdiqlandi (TG ID: {target_tg_id})"
+            )
         except Exception:
             pass
 
@@ -6453,10 +7658,13 @@ async def admin_approve_teacher_callback(update: Update, context: ContextTypes.D
         logger.warning("Could not notify teacher %d: %s", target_tg_id, e)
 
 
-async def admin_reject_teacher_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int) -> None:
+async def admin_reject_teacher_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, target_tg_id: int
+) -> None:
     """Admin rejects a teacher application."""
     query = update.callback_query
     from django.conf import settings as _settings
+
     admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
     if not (update.effective_user and update.effective_user.id == admin_id):
         if query:
@@ -6466,7 +7674,9 @@ async def admin_reject_teacher_callback(update: Update, context: ContextTypes.DE
     if query:
         await query.answer("Ariza rad etildi.")
         try:
-            await query.edit_message_text(f"❌ O'qituvchi arizasi rad etildi (TG ID: {target_tg_id})")
+            await query.edit_message_text(
+                f"❌ O'qituvchi arizasi rad etildi (TG ID: {target_tg_id})"
+            )
         except Exception:
             pass
 
@@ -6484,8 +7694,11 @@ async def admin_reject_teacher_callback(update: Update, context: ContextTypes.DE
 # Superadmin Handlers
 # ---------------------------------------------------------------------------
 
+
 @require_role("ADMIN")
-async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_panel_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Admin command: /admin"""
     await send_reply(
         update,
@@ -6497,10 +7710,19 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 @require_role("ADMIN")
-async def admin_pending_receipts_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_pending_receipts_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """List pending payment receipts for admin verification."""
     from apps.payments.models import PaymentReceipt
-    receipts = await _run_db(lambda: list(PaymentReceipt.objects.filter(status=PaymentReceipt.Status.PENDING).select_related("user").order_by("-id")[:5]))
+
+    receipts = await _run_db(
+        lambda: list(
+            PaymentReceipt.objects.filter(status=PaymentReceipt.Status.PENDING)
+            .select_related("user")
+            .order_by("-id")[:5]
+        )
+    )
     if not receipts:
         await send_reply(
             update,
@@ -6514,11 +7736,19 @@ async def admin_pending_receipts_handler(update: Update, context: ContextTypes.D
     buttons = []
     for r in receipts:
         user_name = r.user.get_full_name() or r.user.email
-        text_lines.append(f"• ID #{r.id} | {user_name} | Tarif: *{r.plan}* | {r.amount} so'm")
-        buttons.append([
-            InlineKeyboardButton(f"✅ #{r.id} Tasdiqlash", callback_data=f"adm_rec_appr_{r.id}"),
-            InlineKeyboardButton(f"❌ #{r.id} Rad etish", callback_data=f"adm_rec_rej_{r.id}"),
-        ])
+        text_lines.append(
+            f"• ID #{r.id} | {user_name} | Tarif: *{r.plan}* | {r.amount} so'm"
+        )
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"✅ #{r.id} Tasdiqlash", callback_data=f"adm_rec_appr_{r.id}"
+                ),
+                InlineKeyboardButton(
+                    f"❌ #{r.id} Rad etish", callback_data=f"adm_rec_rej_{r.id}"
+                ),
+            ]
+        )
     buttons.append([InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")])
     await send_reply(
         update,
@@ -6529,7 +7759,9 @@ async def admin_pending_receipts_handler(update: Update, context: ContextTypes.D
 
 
 @require_role("ADMIN")
-async def admin_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_stats_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Display overall system statistics for superadmin."""
     from apps.accounts.models import User as UserModel
     from apps.results.models import Result
@@ -6543,7 +7775,9 @@ async def admin_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     groups = await _run_db(StudentGroup.objects.count)
     results = await _run_db(Result.objects.count)
     essays = await _run_db(EssaySubmission.objects.count)
-    pending_receipts = await _run_db(lambda: PaymentReceipt.objects.filter(status="pending").count())
+    pending_receipts = await _run_db(
+        lambda: PaymentReceipt.objects.filter(status="pending").count()
+    )
 
     stats_msg = (
         "📈 *GRAND EDUCATION — UMUMIY STATISTIKA*\n\n"
@@ -6556,15 +7790,19 @@ async def admin_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"💳 Kutilayotgan to'lov cheklari: *{pending_receipts} ta*\n\n"
         f"⚡️ Server holati: *Online (200 OK)*"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Yangilash", callback_data="adm_stats")],
-        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔄 Yangilash", callback_data="adm_stats")],
+            [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+        ]
+    )
     await send_reply(update, stats_msg, parse_mode="Markdown", reply_markup=buttons)
 
 
 @require_role("ADMIN")
-async def admin_pending_teachers_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_pending_teachers_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Display teacher approval management."""
     text = (
         "👨‍🏫 *O'QITUVCHILARNI TASDIQLASH VA TAYINLASH*\n\n"
@@ -6573,14 +7811,18 @@ async def admin_pending_teachers_handler(update: Update, context: ContextTypes.D
         "Istalgan foydalanuvchini darhol o'qituvchiga aylantirish uchun quyidagi buyruqdan foydalaning:\n"
         "`/promote_teacher <telegram_id yoki email>`"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
 @require_role("ADMIN")
-async def admin_settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_settings_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Display system settings."""
     text = (
         "⚙️ *TIZIM SOZLAMALARI (GRAND EDUCATION)*\n\n"
@@ -6591,22 +7833,30 @@ async def admin_settings_handler(update: Update, context: ContextTypes.DEFAULT_T
         "• Ma'lumotlar bazasi: PostgreSQL (Healthy)\n"
         "• Kesh & Navbat: Redis + Celery (Healthy)\n"
     )
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
-    ])
+    buttons = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔙 Admin Panel", callback_data="menu_admin")],
+        ]
+    )
     await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
 
 
 @require_role("ADMIN")
-async def promote_teacher_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def promote_teacher_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Admin command: /promote_teacher <telegram_id or email>"""
     args = context.args or []
     if not args:
-        await update.message.reply_text("Format: `/promote_teacher <telegram_id yoki email>`", parse_mode="Markdown")
+        await update.message.reply_text(
+            "Format: `/promote_teacher <telegram_id yoki email>`", parse_mode="Markdown"
+        )
         return
     query_str = args[0].strip()
+
     def _promote_by_query():
         from apps.accounts.models import User as UserModel
+
         if query_str.isdigit():
             u = UserModel.objects.filter(telegram_chat_id=int(query_str)).first()
         else:
@@ -6637,7 +7887,9 @@ async def promote_teacher_handler(update: Update, context: ContextTypes.DEFAULT_
 
 
 @require_role("TEACHER")
-async def attendance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def attendance_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/attendance — choose a group, then take the register."""
     user = await _teacher_from_update(update)
     if not user:
@@ -6664,13 +7916,22 @@ async def _start_attendance(update: Update, context, user, group) -> None:
     # A redelivered callback must not open a second register for the same
     # group/day: the key is derived from the update identity.
     update_id = getattr(update, "update_id", None) or getattr(
-        getattr(update, "callback_query", None), "id", None,
+        getattr(update, "callback_query", None),
+        "id",
+        None,
     )
-    key = f"tatt:{getattr(update.effective_user, 'id', 0)}:{update_id}" if update_id else None
+    key = (
+        f"tatt:{getattr(update.effective_user, 'id', 0)}:{update_id}"
+        if update_id
+        else None
+    )
     try:
         session, _created = await _run_db(
             lambda: create_session(
-                group=group, teacher=user, actor=user, idempotency_key=key,
+                group=group,
+                teacher=user,
+                actor=user,
+                idempotency_key=key,
             )
         )
     except AttendanceError as exc:
@@ -6687,19 +7948,29 @@ async def _start_attendance(update: Update, context, user, group) -> None:
             update,
             f"ℹ️ *{group.name}* uchun bugungi davomat allaqachon yakunlangan.",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("📊 Hisobot", callback_data=f"trpt_{group.id}"),
-            ], [
-                InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
-            ]]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "📊 Hisobot", callback_data=f"trpt_{group.id}"
+                        ),
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "🏠 Guruh", callback_data=f"tgrp_{group.id}"
+                        ),
+                    ],
+                ]
+            ),
         )
         return
 
     await _render_attendance(update, context, session)
 
 
-async def _mark_student(update: Update, context, user, session_id: int,
-                        student_id: int, status: str) -> None:
+async def _mark_student(
+    update: Update, context, user, session_id: int, student_id: int, status: str
+) -> None:
     """Apply one status tap and re-render the register."""
     from apps.attendance.models import AttendanceRecord
     from apps.attendance.services import (
@@ -6741,8 +8012,9 @@ async def _mark_all_present(update: Update, context, user, session_id: int) -> N
     await _render_attendance(update, context, session)
 
 
-async def _finalize_attendance(update: Update, context, user, session_id: int,
-                               mark_unmarked_absent: bool = False) -> None:
+async def _finalize_attendance(
+    update: Update, context, user, session_id: int, mark_unmarked_absent: bool = False
+) -> None:
     """Finalize a register, refusing to invent absences without confirmation."""
     from apps.attendance.services import (
         AttendanceError,
@@ -6754,7 +8026,8 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
         session = await _run_db(get_session_for_user, user, session_id)
         result = await _run_db(
             lambda: finalize_and_notify(
-                session, actor=user,
+                session,
+                actor=user,
                 mark_unmarked_as_absent=mark_unmarked_absent,
                 reason="Bot orqali yakunlandi",
             )
@@ -6776,15 +8049,22 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
             f"Belgilanmagan o'quvchilar ({len(unmarked)}):\n{names}\n\n"
             "Avval ularni belgilang yoki ularni kelmadi deb tasdiqlang.",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(
-                    "Belgilanmaganlarni kelmadi deb belgilash",
-                    callback_data=f"tfinabs_{session.id}",
-                )],
-                [InlineKeyboardButton(
-                    "Orqaga", callback_data=f"tatt_{session.group_id}",
-                )],
-            ]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "Belgilanmaganlarni kelmadi deb belgilash",
+                            callback_data=f"tfinabs_{session.id}",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "Orqaga",
+                            callback_data=f"tatt_{session.group_id}",
+                        )
+                    ],
+                ]
+            ),
         )
         return
 
@@ -6801,6 +8081,7 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
     # Kelmagan o'quvchilar ota-onalariga ogohlantirish yuborish
     def _notify_absences(sess):
         from apps.notifications.tasks_parent import send_parent_absence_alert_task
+
         absent_recs = sess.records.filter(status="absent")
         for rec in absent_recs:
             try:
@@ -6811,16 +8092,30 @@ async def _finalize_attendance(update: Update, context, user, session_id: int,
     await _run_db(_notify_absences, session)
 
     await edit_or_reply(
-        update, text, parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 Hisobot", callback_data=f"trpt_{session.group_id}")],
-            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{session.group_id}")],
-        ]),
+        update,
+        text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📊 Hisobot", callback_data=f"trpt_{session.group_id}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🏠 Guruh", callback_data=f"tgrp_{session.group_id}"
+                    )
+                ],
+            ]
+        ),
     )
 
 
 @require_role("TEACHER")
-async def attendance_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def attendance_report_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/attendance_report — choose a group for attendance statistics."""
     user = await _teacher_from_update(update)
     if not user:
@@ -6839,7 +8134,9 @@ async def attendance_report_handler(update: Update, context: ContextTypes.DEFAUL
     )
 
 
-async def _send_attendance_report(update: Update, context, user, group, days: int | None) -> None:
+async def _send_attendance_report(
+    update: Update, context, user, group, days: int | None
+) -> None:
     from apps.attendance.services import group_attendance_report
 
     if days:
@@ -6857,15 +8154,19 @@ async def _send_attendance_report(update: Update, context, user, group, days: in
 
     percentage = (
         f"{report['attendance_percentage']}%"
-        if report["attendance_percentage"] is not None else "—"
+        if report["attendance_percentage"] is not None
+        else "—"
     )
     text = (
         f"📊 *{report['group_name']} — davomat hisoboti*\n"
         f"_{report['start']} — {report['end']}_\n\n"
         f"👥 O'quvchilar: *{report['roster_size']}*\n"
         f"🗓 Darslar: *{report['finalized_sessions']}* yakunlangan"
-        + (f", {report['pending_sessions']} yakunlanmagan\n"
-           if report["pending_sessions"] else "\n")
+        + (
+            f", {report['pending_sessions']} yakunlanmagan\n"
+            if report["pending_sessions"]
+            else "\n"
+        )
         + f"📈 Davomat: *{percentage}*\n\n"
         f"✅ Keldi: *{report['present']}*\n"
         f"⏰ Kechikdi: *{report['late']}*\n"
@@ -6874,12 +8175,16 @@ async def _send_attendance_report(update: Update, context, user, group, days: in
         "_Yakunlanmagan davomat darslari kelmaganlik deb hisoblanmaydi._"
     )
     await edit_or_reply(
-        update, text, parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗓 Haftalik", callback_data=f"trptw_{group.id}")],
-            [InlineKeyboardButton("🗓 Oylik", callback_data=f"trptm_{group.id}")],
-            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
-        ]),
+        update,
+        text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🗓 Haftalik", callback_data=f"trptw_{group.id}")],
+                [InlineKeyboardButton("🗓 Oylik", callback_data=f"trptm_{group.id}")],
+                [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+            ]
+        ),
     )
 
 
@@ -6916,9 +8221,15 @@ async def _send_students(update: Update, context, user, group) -> None:
             f"Taklif kodi: `#{invite_code}`\n"
             f"O'quvchilar ushbu kodni botga yozishi bilan bu yerda paydo bo'ladi.",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}"),
-            ]]),
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🏠 Guruh", callback_data=f"tgrp_{group.id}"
+                        ),
+                    ]
+                ]
+            ),
         )
         return
 
@@ -6928,7 +8239,9 @@ async def _send_students(update: Update, context, user, group) -> None:
         f"Jami a'zolar: *{len(roster)} nafar* · Guruh o'rtacha: *{group_avg}%*\n",
     ]
     for index, s in enumerate(roster, 1):
-        name = s.get("student_name") or s.get("full_name") or s.get("name") or "O'quvchi"
+        name = (
+            s.get("student_name") or s.get("full_name") or s.get("name") or "O'quvchi"
+        )
         tests_count = s.get("tests_count", s.get("tests_taken", 0))
         avg_test_pct = s.get("avg_test_percentage", s.get("avg_test_pct", 0.0))
         bmb_grade = s.get("latest_test_grade") or s.get("bmb_grade") or "—"
@@ -6948,20 +8261,29 @@ async def _send_students(update: Update, context, user, group) -> None:
         lines.append(f"🏆 *BMB Taqsimoti:* {bmb_line}")
 
     await edit_or_reply(
-        update, "\n".join(lines), parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"),
-                InlineKeyboardButton("💳 To'lov holati", callback_data=f"ttuition_{group.id}"),
-            ],
-            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
-        ]),
+                [
+                    InlineKeyboardButton(
+                        "📊 Excel hisobot (.xlsx)", callback_data=f"texcel_{group.id}"
+                    ),
+                    InlineKeyboardButton(
+                        "💳 To'lov holati", callback_data=f"ttuition_{group.id}"
+                    ),
+                ],
+                [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+            ]
+        ),
     )
 
 
-
 @require_role("TEACHER")
-async def essay_results_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def essay_results_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/essay_results — choose a group for its essay results."""
     user = await _teacher_from_update(update)
     if not user:
@@ -6980,15 +8302,19 @@ async def essay_results_handler(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
-async def _send_essay_results(update: Update, context, user, group, *,
-                              state: str | None = None, offset: int = 0) -> None:
+async def _send_essay_results(
+    update: Update, context, user, group, *, state: str | None = None, offset: int = 0
+) -> None:
     """Page of essay result rows. Aggregate header, never a full essay dump."""
     from apps.essays.group_reports import group_essay_results, group_essay_summary
 
     summary = await _run_db(group_essay_summary, group)
     data = await _run_db(
         lambda: group_essay_results(
-            group, state=state, limit=_ESSAY_PAGE_SIZE, offset=offset,
+            group,
+            state=state,
+            limit=_ESSAY_PAGE_SIZE,
+            offset=offset,
         )
     )
 
@@ -7007,7 +8333,8 @@ async def _send_essay_results(update: Update, context, user, group, *,
     for row in data["results"]:
         score = (
             f"{row['effective_score']}/{row['max_score']}"
-            if row["effective_score"] is not None else "—"
+            if row["effective_score"] is not None
+            else "—"
         )
         lines.append(
             f"• *{row['student_name']}* — {row['topic_title']}\n"
@@ -7022,29 +8349,44 @@ async def _send_essay_results(update: Update, context, user, group, *,
         # Link to the authenticated panel (the same route the main menu uses)
         # rather than dumping essays and detailed feedback into the chat.
         [InlineKeyboardButton("📋 To'liq hisobot", url=f"{_site_url()}/dashboard/")],
-        [InlineKeyboardButton("⏳ Baholanmaganlar", callback_data=f"terspend_{group.id}")],
+        [
+            InlineKeyboardButton(
+                "⏳ Baholanmaganlar", callback_data=f"terspend_{group.id}"
+            )
+        ],
     ]
     nav = []
     if offset > 0:
-        nav.append(InlineKeyboardButton(
-            "⬅️ Oldingi", callback_data=f"tersp_{group.id}_{max(0, offset - _ESSAY_PAGE_SIZE)}",
-        ))
+        nav.append(
+            InlineKeyboardButton(
+                "⬅️ Oldingi",
+                callback_data=f"tersp_{group.id}_{max(0, offset - _ESSAY_PAGE_SIZE)}",
+            )
+        )
     if offset + _ESSAY_PAGE_SIZE < data["total"]:
-        nav.append(InlineKeyboardButton(
-            "➡️ Keyingi", callback_data=f"tersp_{group.id}_{offset + _ESSAY_PAGE_SIZE}",
-        ))
+        nav.append(
+            InlineKeyboardButton(
+                "➡️ Keyingi",
+                callback_data=f"tersp_{group.id}_{offset + _ESSAY_PAGE_SIZE}",
+            )
+        )
     if nav:
         keyboard_rows.append(nav)
-    keyboard_rows.append([InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")])
+    keyboard_rows.append(
+        [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")]
+    )
     await edit_or_reply(
-        update, "\n".join(lines), parse_mode="Markdown",
+        update,
+        "\n".join(lines),
+        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard_rows),
     )
 
 
-
 @require_role("TEACHER")
-async def group_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def group_report_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """/group_report — choose a group for a combined performance report."""
     user = await _teacher_from_update(update)
     if not user:
@@ -7073,15 +8415,19 @@ async def _send_group_report(update: Update, context, user, group) -> None:
     overdue = [row for row in overdue if row["group_name"] == group.name]
     percentage = (
         f"{attendance['attendance_percentage']}%"
-        if attendance["attendance_percentage"] is not None else "—"
+        if attendance["attendance_percentage"] is not None
+        else "—"
     )
     text = (
         f"📈 *{group.name} — guruh hisoboti*\n"
         f"_{attendance['start']} — {attendance['end']}_\n\n"
         f"👥 O'quvchilar: *{attendance['roster_size']}*\n"
         f"📊 Davomat: *{percentage}* ({attendance['finalized_sessions']} dars)"
-        + (f" · yakunlanmagan: {attendance['pending_sessions']}"
-           if attendance["pending_sessions"] else "")
+        + (
+            f" · yakunlanmagan: {attendance['pending_sessions']}"
+            if attendance["pending_sessions"]
+            else ""
+        )
         + "\n\n"
         f"📝 *Esse*\n"
         f"✅ Baholangan: *{essays['graded']}*\n"
@@ -7096,12 +8442,24 @@ async def _send_group_report(update: Update, context, user, group) -> None:
         for row in overdue[:5]:
             text += f"• {row['topic_title']} — {row['not_submitted']} topshirilmagan\n"
     await edit_or_reply(
-        update, text, parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 Davomat hisoboti", callback_data=f"trpt_{group.id}")],
-            [InlineKeyboardButton("📝 Esse natijalari", callback_data=f"ters_{group.id}")],
-            [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
-        ]),
+        update,
+        text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📊 Davomat hisoboti", callback_data=f"trpt_{group.id}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📝 Esse natijalari", callback_data=f"ters_{group.id}"
+                    )
+                ],
+                [InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{group.id}")],
+            ]
+        ),
     )
 
 
@@ -7113,7 +8471,7 @@ def _parse_mark_callback(data: str) -> tuple[int, int, str] | None:
     """
     from apps.attendance.models import AttendanceRecord
 
-    parts = data[len("tmk_"):].split("_")
+    parts = data[len("tmk_") :].split("_")
     if len(parts) != 3:
         logger.warning("Malformed attendance callback: %r", data)
         return None
@@ -7151,8 +8509,9 @@ async def _attendance_callback(update: Update, context, group_id: int) -> None:
     await _start_attendance(update, context, user, group)
 
 
-async def _mark_callback(update: Update, context, session_id: int,
-                         student_id: int, status: str) -> None:
+async def _mark_callback(
+    update: Update, context, session_id: int, student_id: int, status: str
+) -> None:
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -7166,19 +8525,24 @@ async def _all_present_callback(update: Update, context, session_id: int) -> Non
     await _mark_all_present(update, context, user, session_id)
 
 
-async def _finalize_callback(update: Update, context, session_id: int,
-                             mark_unmarked_absent: bool = False) -> None:
+async def _finalize_callback(
+    update: Update, context, session_id: int, mark_unmarked_absent: bool = False
+) -> None:
     user = await _teacher_from_update(update)
     if not user:
         return
     await _finalize_attendance(
-        update, context, user, session_id,
+        update,
+        context,
+        user,
+        session_id,
         mark_unmarked_absent=mark_unmarked_absent,
     )
 
 
-async def _attendance_report_callback(update: Update, context, group_id: int,
-                                      days: int | None = None) -> None:
+async def _attendance_report_callback(
+    update: Update, context, group_id: int, days: int | None = None
+) -> None:
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -7200,9 +8564,9 @@ async def _students_callback(update: Update, context, group_id: int) -> None:
     await _send_students(update, context, user, group)
 
 
-async def _essay_results_callback(update: Update, context, group_id: int, *,
-                                  state: str | None = None,
-                                  offset: int = 0) -> None:
+async def _essay_results_callback(
+    update: Update, context, group_id: int, *, state: str | None = None, offset: int = 0
+) -> None:
     user = await _teacher_from_update(update)
     if not user:
         return
@@ -7224,8 +8588,9 @@ async def _group_report_callback(update: Update, context, group_id: int) -> None
     await _send_group_report(update, context, user, group)
 
 
-async def _weekly_report_detail_callback(update: Update, context,
-                                         report_id: int, section: str) -> None:
+async def _weekly_report_detail_callback(
+    update: Update, context, report_id: int, section: str
+) -> None:
     """Show a private section of a stored weekly report to its authorized teacher."""
     from apps.accounts.access import is_platform_admin
     from apps.weekly_reports import delivery as report_delivery
@@ -7237,8 +8602,11 @@ async def _weekly_report_detail_callback(update: Update, context,
         return
 
     report = await _run_db(
-        lambda: WeeklyGroupReport.objects.filter(pk=report_id)
-        .select_related("group").first(),
+        lambda: (
+            WeeklyGroupReport.objects.filter(pk=report_id)
+            .select_related("group")
+            .first()
+        ),
     )
     if report is None or not await _run_db(
         lambda: is_platform_admin(user) or report.group.teacher_id == user.pk,
@@ -7266,7 +8634,12 @@ async def _weekly_report_detail_callback(update: Update, context,
             "outstanding_uzs": "Qoldiq (so'm)",
         }
         block = visible.get("finance") or {}
-        lines = [title, "", f"Guruh: {report.group.name}", f"Davr: {report.period_label}"]
+        lines = [
+            title,
+            "",
+            f"Guruh: {report.group.name}",
+            f"Davr: {report.period_label}",
+        ]
         lines.extend(f"{label}: {block.get(key, '—')}" for key, label in labels.items())
     else:
         title_map = {
@@ -7285,53 +8658,84 @@ async def _weekly_report_detail_callback(update: Update, context,
         else:
             await edit_or_reply(update, "Hisobot bo'limi topilmadi.")
             return
-        lines = [title, "", f"Guruh: {report.group.name}", f"Davr: {report.period_label}"]
+        lines = [
+            title,
+            "",
+            f"Guruh: {report.group.name}",
+            f"Davr: {report.period_label}",
+        ]
         for key in block_keys:
             block = summary.get(key)
             if block is not None:
                 lines.extend(["", _weekly_section_text(key, block)])
     await edit_or_reply(
-        update, "\n".join(lines),
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 Asosiy hisobot", callback_data=f"wr_full_{report.pk}"),
-            InlineKeyboardButton("🏠 Guruh", callback_data=f"tgrp_{report.group_id}"),
-        ]]),
+        update,
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔙 Asosiy hisobot", callback_data=f"wr_full_{report.pk}"
+                    ),
+                    InlineKeyboardButton(
+                        "🏠 Guruh", callback_data=f"tgrp_{report.group_id}"
+                    ),
+                ]
+            ]
+        ),
     )
 
 
 def _weekly_section_text(section: str, values: dict) -> str:
     """Render persisted aggregate values without any student identifiers."""
     titles = {
-        "attendance": "📋 Davomat", "essays": "📝 Esse natijalari",
-        "tests": "🧪 Test natijalari", "finance": "💳 Kurs to'lovlari",
+        "attendance": "📋 Davomat",
+        "essays": "📝 Esse natijalari",
+        "tests": "🧪 Test natijalari",
+        "finance": "💳 Kurs to'lovlari",
     }
     lines = [titles.get(section, section)]
     labels = {
         "attendance": {
-            "active_students": "Faol o'quvchilar", "finalized_lessons": "Yakunlangan darslar",
-            "unfinished_lessons": "Yakunlanmagan darslar", "present": "Keldi",
-            "late": "Kechikdi", "excused_absences": "Sababli yo'qlik",
+            "active_students": "Faol o'quvchilar",
+            "finalized_lessons": "Yakunlangan darslar",
+            "unfinished_lessons": "Yakunlanmagan darslar",
+            "present": "Keldi",
+            "late": "Kechikdi",
+            "excused_absences": "Sababli yo'qlik",
             "unexcused_absences": "Sababsiz yo'qlik",
-            "attendance_percentage": "Davomat foizi", "follow_up_count": "Davomat bo'yicha kuzatuv",
+            "attendance_percentage": "Davomat foizi",
+            "follow_up_count": "Davomat bo'yicha kuzatuv",
         },
         "essays": {
-            "assigned_essays": "Biriktirilgan esselar", "expected_submissions": "Kutilayotgan topshiriqlar",
-            "submitted_students": "Topshirgan o'quvchilar", "missing_submissions": "Topshirilmagan",
-            "graded": "Baholangan", "pending_ai": "AI baholash kutilmoqda",
-            "teacher_reviewed": "O'qituvchi tekshirgan", "grading_failed": "Baholash xatosi",
-            "average_raw_score": "O'rtacha xom ball", "score_distribution": "Ball taqsimoti",
+            "assigned_essays": "Biriktirilgan esselar",
+            "expected_submissions": "Kutilayotgan topshiriqlar",
+            "submitted_students": "Topshirgan o'quvchilar",
+            "missing_submissions": "Topshirilmagan",
+            "graded": "Baholangan",
+            "pending_ai": "AI baholash kutilmoqda",
+            "teacher_reviewed": "O'qituvchi tekshirgan",
+            "grading_failed": "Baholash xatosi",
+            "average_raw_score": "O'rtacha xom ball",
+            "score_distribution": "Ball taqsimoti",
         },
         "tests": {
-            "assigned_tests": "Biriktirilgan testlar", "completed_attempts": "Yakunlangan urinishlar",
-            "incomplete_attempts": "Yakunlanmagan urinishlar", "pending_grading": "Baholash kutilmoqda",
+            "assigned_tests": "Biriktirilgan testlar",
+            "completed_attempts": "Yakunlangan urinishlar",
+            "incomplete_attempts": "Yakunlanmagan urinishlar",
+            "pending_grading": "Baholash kutilmoqda",
             "average_practice_percentage": "O'rtacha mashq foizi",
             "needs_support_count": "Qo'shimcha yordam kerak",
         },
         "finance": {
-            "policy_configured": "Siyosat sozlangan", "paid_count": "To'langan o'quvchilar",
-            "partial_count": "Qisman to'langan o'quvchilar", "unpaid_count": "To'lanmagan o'quvchilar",
-            "overdue_count": "Muddati o'tgan o'quvchilar", "billed_uzs": "Hisoblangan so'm",
-            "confirmed_paid_uzs": "Tasdiqlangan so'm", "outstanding_uzs": "Qoldiq so'm",
+            "policy_configured": "Siyosat sozlangan",
+            "paid_count": "To'langan o'quvchilar",
+            "partial_count": "Qisman to'langan o'quvchilar",
+            "unpaid_count": "To'lanmagan o'quvchilar",
+            "overdue_count": "Muddati o'tgan o'quvchilar",
+            "billed_uzs": "Hisoblangan so'm",
+            "confirmed_paid_uzs": "Tasdiqlangan so'm",
+            "outstanding_uzs": "Qoldiq so'm",
         },
     }
     for key, label in labels.get(section, {}).items():
@@ -7344,7 +8748,7 @@ def _weekly_section_text(section: str, values: dict) -> str:
 def _safe_report_callback_id(data: str) -> int | None:
     for prefix in ("wr_att_", "wr_ess_", "wr_tst_", "wr_fin_", "wr_full_"):
         if data.startswith(prefix):
-            raw = data[len(prefix):]
+            raw = data[len(prefix) :]
             if raw.isdecimal():
                 return int(raw)
             logger.warning("Malformed weekly report callback: %r", data)
@@ -7356,9 +8760,10 @@ def _safe_report_callback_id(data: str) -> int | None:
 # Safe parsing of callback payloads
 # ---------------------------------------------------------------------------
 
+
 def _safe_callback_int(data: str, prefix: str) -> int | None:
     """Parse an integer from a callback string, tolerating malformed payloads."""
-    raw = data[len(prefix):] if data.startswith(prefix) else data
+    raw = data[len(prefix) :] if data.startswith(prefix) else data
     try:
         return int(raw)
     except (ValueError, TypeError):
@@ -7370,7 +8775,10 @@ def _safe_callback_int(data: str, prefix: str) -> int | None:
 # 👨‍👩‍👧 Ota-onalar nazorati & 🏆 Turnir Handlers
 # ---------------------------------------------------------------------------
 
-async def parent_start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def parent_start_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /parent_start or /parent — Parent registration and smart alerts linking."""
     tg_user = update.effective_user
     if not tg_user:
@@ -7383,7 +8791,12 @@ async def parent_start_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     def _link_by_code(code_val: str, chat_id: int):
         from apps.accounts.models import ParentStudentRelation
-        rel = ParentStudentRelation.objects.filter(verification_code=code_val).select_related("student").first()
+
+        rel = (
+            ParentStudentRelation.objects.filter(verification_code=code_val)
+            .select_related("student")
+            .first()
+        )
         if not rel:
             return None
         rel.parent_telegram_id = chat_id
@@ -7415,7 +8828,12 @@ async def parent_start_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     # Check if this telegram user already has linked students
     def _get_linked_students(chat_id: int):
         from apps.accounts.models import ParentStudentRelation
-        rels = list(ParentStudentRelation.objects.filter(parent_telegram_id=chat_id, is_verified=True).select_related("student"))
+
+        rels = list(
+            ParentStudentRelation.objects.filter(
+                parent_telegram_id=chat_id, is_verified=True
+            ).select_related("student")
+        )
         return [r.student.get_full_name() or r.student.email for r in rels]
 
     linked = await _run_db(_get_linked_students, tg_user.id)
@@ -7443,17 +8861,26 @@ async def parent_start_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         "2. Yoki pastdagi tugma orqali telefon raqamingizni yuboring."
     )
     keyboard = ReplyKeyboardMarkup(
-        [[KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)], [KeyboardButton("🔙 Asosiy menyu")]],
+        [
+            [KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)],
+            [KeyboardButton("🔙 Asosiy menyu")],
+        ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
     if update.callback_query:
-        await update.callback_query.message.reply_text(welcome_msg, parse_mode="HTML", reply_markup=keyboard)
+        await update.callback_query.message.reply_text(
+            welcome_msg, parse_mode="HTML", reply_markup=keyboard
+        )
     else:
-        await update.message.reply_text(welcome_msg, parse_mode="HTML", reply_markup=keyboard)
+        await update.message.reply_text(
+            welcome_msg, parse_mode="HTML", reply_markup=keyboard
+        )
 
 
-async def parent_link_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def parent_link_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /parent_link <phone> — Student initiates linking parent phone."""
     args = context.args if context.args else []
     user = await _get_or_create_user_async(update)
@@ -7474,9 +8901,13 @@ async def parent_link_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     raw_phone = args[0].strip()
     import re
+
     digits = re.sub(r"\D", "", raw_phone)
     if len(digits) < 9:
-        await update.message.reply_text("Telefon raqami noto'g'ri. Masalan: <code>/parent_link +998901234567</code>", parse_mode="HTML")
+        await update.message.reply_text(
+            "Telefon raqami noto'g'ri. Masalan: <code>/parent_link +998901234567</code>",
+            parse_mode="HTML",
+        )
         return
 
     clean_phone = "+998" + digits[-9:]
@@ -7484,11 +8915,16 @@ async def parent_link_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     def _create_relation(student_user, phone: str):
         import random
         from apps.accounts.models import ParentStudentRelation
+
         code_val = f"{random.randint(100000, 999999)}"
         rel, _ = ParentStudentRelation.objects.get_or_create(
             student=student_user,
             parent_phone=phone,
-            defaults={"verification_code": code_val, "weekly_report_enabled": True, "instant_alerts_enabled": True},
+            defaults={
+                "verification_code": code_val,
+                "weekly_report_enabled": True,
+                "instant_alerts_enabled": True,
+            },
         )
         if not rel.is_verified:
             rel.verification_code = code_val
@@ -7505,14 +8941,22 @@ async def parent_link_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
-async def tournament_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def tournament_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /tournament — Sunday Live League info and quick entry."""
     from django.conf import settings as _settings
+
     site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
 
     def _get_tournaments():
         from apps.arena.models import Tournament
-        t = Tournament.objects.filter(status__in=["upcoming", "live"]).order_by("scheduled_at").first()
+
+        t = (
+            Tournament.objects.filter(status__in=["upcoming", "live"])
+            .order_by("scheduled_at")
+            .first()
+        )
         if not t:
             t = Tournament.objects.order_by("-scheduled_at").first()
         if not t:
@@ -7536,7 +8980,9 @@ async def tournament_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(msg_none)
         return
 
-    status_badge = "🔴 HOZIR JONLI!" if t_data["status"] == "live" else "⏳ YAQINLASHMOQDA"
+    status_badge = (
+        "🔴 HOZIR JONLI!" if t_data["status"] == "live" else "⏳ YAQINLASHMOQDA"
+    )
 
     msg = (
         f"🏆 <b>JONLI YAKSHANBA TURNIRI (SUNDAY LIVE LEAGUE)</b>\n\n"
@@ -7551,13 +8997,17 @@ async def tournament_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
     t_url = f"{site_url}/tournaments/{t_data['id']}/live"
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 Turnirga kirish (Live)", url=t_url)],
-        [InlineKeyboardButton("📊 ELO Reyting", callback_data="menu_leaderboard")],
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🚀 Turnirga kirish (Live)", url=t_url)],
+            [InlineKeyboardButton("📊 ELO Reyting", callback_data="menu_leaderboard")],
+        ]
+    )
 
     if update.callback_query:
-        await update.callback_query.message.reply_text(msg, parse_mode="HTML", reply_markup=keyboard)
+        await update.callback_query.message.reply_text(
+            msg, parse_mode="HTML", reply_markup=keyboard
+        )
     else:
         await update.message.reply_text(msg, parse_mode="HTML", reply_markup=keyboard)
 
@@ -7566,9 +9016,15 @@ async def tournament_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # Bot setup
 # ---------------------------------------------------------------------------
 
+
 def setup_handlers(app) -> None:
     """Register all handlers with the Application."""
-    from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
+    from telegram.ext import (
+        CallbackQueryHandler,
+        CommandHandler,
+        MessageHandler,
+        filters,
+    )
 
     # Global error handler — a crash in one handler must never kill the bot
     app.add_error_handler(error_handler)
@@ -7626,6 +9082,7 @@ def setup_handlers(app) -> None:
     # Telegram Stars payments — registered before the generic message handlers
     # so a paid update can never be swallowed by the text/photo routers.
     from telegram.ext import PreCheckoutQueryHandler
+
     app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
     app.add_handler(
         MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler)
@@ -7635,22 +9092,28 @@ def setup_handlers(app) -> None:
     # working: each handler no-ops when its own flow is not active.
     app.add_handler(
         MessageHandler(
-            filters.PHOTO | filters.Document.ALL, essay_image_message_handler,
+            filters.PHOTO | filters.Document.ALL,
+            essay_image_message_handler,
         ),
         group=-1,
     )
 
     # Arena callbacks (must be before generic callback_handler)
-    app.add_handler(CallbackQueryHandler(arena_callback_handler, pattern=r"^(arena_|ar_)"))
+    app.add_handler(
+        CallbackQueryHandler(arena_callback_handler, pattern=r"^(arena_|ar_)")
+    )
 
     # Quiz handler (must be before generic callback_handler)
     from apps.notifications.bot.quiz import quiz_handler, quiz_callback_handler
+
     app.add_handler(CommandHandler("quiz", quiz_handler))
     app.add_handler(CallbackQueryHandler(quiz_callback_handler, pattern=r"^quiz_"))
 
     # Auth conversation handler — catches text/contact during auth flow
     # Must be before generic callback_handler but after command handlers
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auth_conversation_handler))
+    app.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, auth_conversation_handler)
+    )
     app.add_handler(MessageHandler(filters.CONTACT, auth_conversation_handler))
 
     # Photo handler — payment screenshots
@@ -7679,14 +9142,18 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     if isinstance(error, telegram.error.TelegramError) and any(
         marker in error_str
         for marker in (
-            "429", "too many requests",
-            "bot was blocked", "forbidden: bot was blocked",
-            "chat not found", "user is deactivated",
+            "429",
+            "too many requests",
+            "bot was blocked",
+            "forbidden: bot was blocked",
+            "chat not found",
+            "user is deactivated",
         )
     ):
         logger.warning(
             "Bot API error (non-fatal): %s (update=%s)",
-            error, getattr(update, "update_id", "?"),
+            error,
+            getattr(update, "update_id", "?"),
         )
         return
 
@@ -7707,42 +9174,44 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def post_init(app) -> None:
     """Set bot commands menu after initialization."""
-    await app.bot.set_my_commands([
-        BotCommand("start", "Botni ishga tushirish"),
-        BotCommand("help", "Yordam"),
-        BotCommand("quiz", "🧠 Telegram Quiz — test topshirish"),
-        BotCommand("results", "Barcha natijalar"),
-        BotCommand("profile", "Shaxsiy profil"),
-        BotCommand("tests", "Mavjud testlar"),
-        BotCommand("essays", "Esse mavzulari"),
-        BotCommand("essay_submit", "Esseni botda topshirish"),
-        BotCommand("cancel_essay", "Esse yuborishni bekor qilish"),
-        BotCommand("leaderboard", "Reyting"),
-        BotCommand("streak", "Kunlik streak"),
-        BotCommand("daily", "Kunlik vazifalar"),
-        BotCommand("essay", "Esse topshirish (matn/rasm)"),
-        BotCommand("certificates", "📜 Rasmiy PDF sertifikatlar"),
-        BotCommand("plans", "Tariflar va narxlar"),
-        BotCommand("buy", "Tarif sotib olish (Telegram Stars)"),
-        BotCommand("myplan", "Mening platforma tarifim"),
-        BotCommand("mytuition", "Kurs to'lovlari"),
-        BotCommand("myattendance", "📅 Mening davomatim"),
-        BotCommand("course_payment", "Mening to'lov holatim"),
-        BotCommand("payment_history", "To'lovlar tarixi"),
-        BotCommand("payment_proof", "To'lov dalilini yuborish"),
-        BotCommand("weekly_report", "Haftalik guruh hisobotlari"),
-        BotCommand("group_payments", "Guruh bo'yicha jami to'lovlar"),
-        BotCommand("limits", "Qolgan limitingiz"),
-        BotCommand("paysupport", "To'lov bo'yicha yordam"),
-        BotCommand("cancel", "Joriy amalni bekor qilish"),
-        BotCommand("premium", "Premium obuna"),
-        BotCommand("groups", "🏫 Guruhlarim (o'qituvchi)"),
-        BotCommand("attendance", "🗓 Davomat olish"),
-        BotCommand("attendance_report", "📊 Davomat hisoboti"),
-        BotCommand("students", "👥 Guruh o'quvchilari"),
-        BotCommand("essay_results", "📝 Guruh esse natijalari"),
-        BotCommand("group_report", "📈 Guruh hisoboti"),
-        BotCommand("arena", "⚔️ 1v1 Arena — ELO reyting"),
-        BotCommand("arena_join", "Invite kod bilan xonaga qo'shilish"),
-    ])
+    await app.bot.set_my_commands(
+        [
+            BotCommand("start", "Botni ishga tushirish"),
+            BotCommand("help", "Yordam"),
+            BotCommand("quiz", "🧠 Telegram Quiz — test topshirish"),
+            BotCommand("results", "Barcha natijalar"),
+            BotCommand("profile", "Shaxsiy profil"),
+            BotCommand("tests", "Mavjud testlar"),
+            BotCommand("essays", "Esse mavzulari"),
+            BotCommand("essay_submit", "Esseni botda topshirish"),
+            BotCommand("cancel_essay", "Esse yuborishni bekor qilish"),
+            BotCommand("leaderboard", "Reyting"),
+            BotCommand("streak", "Kunlik streak"),
+            BotCommand("daily", "Kunlik vazifalar"),
+            BotCommand("essay", "Esse topshirish (matn/rasm)"),
+            BotCommand("certificates", "📜 Rasmiy PDF sertifikatlar"),
+            BotCommand("plans", "Tariflar va narxlar"),
+            BotCommand("buy", "Tarif sotib olish (Telegram Stars)"),
+            BotCommand("myplan", "Mening platforma tarifim"),
+            BotCommand("mytuition", "Kurs to'lovlari"),
+            BotCommand("myattendance", "📅 Mening davomatim"),
+            BotCommand("course_payment", "Mening to'lov holatim"),
+            BotCommand("payment_history", "To'lovlar tarixi"),
+            BotCommand("payment_proof", "To'lov dalilini yuborish"),
+            BotCommand("weekly_report", "Haftalik guruh hisobotlari"),
+            BotCommand("group_payments", "Guruh bo'yicha jami to'lovlar"),
+            BotCommand("limits", "Qolgan limitingiz"),
+            BotCommand("paysupport", "To'lov bo'yicha yordam"),
+            BotCommand("cancel", "Joriy amalni bekor qilish"),
+            BotCommand("premium", "Premium obuna"),
+            BotCommand("groups", "🏫 Guruhlarim (o'qituvchi)"),
+            BotCommand("attendance", "🗓 Davomat olish"),
+            BotCommand("attendance_report", "📊 Davomat hisoboti"),
+            BotCommand("students", "👥 Guruh o'quvchilari"),
+            BotCommand("essay_results", "📝 Guruh esse natijalari"),
+            BotCommand("group_report", "📈 Guruh hisoboti"),
+            BotCommand("arena", "⚔️ 1v1 Arena — ELO reyting"),
+            BotCommand("arena_join", "Invite kod bilan xonaga qo'shilish"),
+        ]
+    )
     logger.info("Bot commands menu set.")

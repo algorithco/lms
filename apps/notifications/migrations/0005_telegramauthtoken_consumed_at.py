@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('notifications', '0004_telegramauthtoken_conversation_state_and_more'),
+        ("notifications", "0004_telegramauthtoken_conversation_state_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='telegramauthtoken',
-            name='consumed_at',
+            model_name="telegramauthtoken",
+            name="consumed_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

@@ -28,6 +28,7 @@ Ishlatish:
     python manage.py recover_essay_caches --purge
     python manage.py recover_essay_caches --purge --keep-days 7
 """
+
 from __future__ import annotations
 
 import logging
@@ -76,7 +77,9 @@ class Command(BaseCommand):
 
         if keep_days is not None and keep_days < 1:
             self.stdout.write(
-                self.style.WARNING("--keep-days 1 dan kichik bo'lishi mumkin emas — e'tiborga olinmadi.")
+                self.style.WARNING(
+                    "--keep-days 1 dan kichik bo'lishi mumkin emas — e'tiborga olinmadi."
+                )
             )
             keep_days = None
 
@@ -93,13 +96,17 @@ class Command(BaseCommand):
             purged = purge_obsolete_cache_entries(keep_days=keep_days)
             if purged:
                 self.stdout.write(
-                    self.style.SUCCESS(f"Eskirgan kesh yozuvlari o'chirildi: {purged} ta.")
+                    self.style.SUCCESS(
+                        f"Eskirgan kesh yozuvlari o'chirildi: {purged} ta."
+                    )
                 )
             else:
                 self.stdout.write("O'chiriladigan eskirgan kesh yozuvi topilmadi.")
         elif keep_days is not None:
             self.stdout.write(
-                self.style.WARNING("--keep-days faqat --purge bilan ishlatiladi — hisobga olinmadi.")
+                self.style.WARNING(
+                    "--keep-days faqat --purge bilan ishlatiladi — hisobga olinmadi."
+                )
             )
 
         counters = snapshot()

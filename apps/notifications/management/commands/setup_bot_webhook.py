@@ -7,6 +7,7 @@ Usage:
     python manage.py setup_bot_webhook --domain your-domain.com
     python manage.py setup_bot_webhook --remove
 """
+
 from __future__ import annotations
 
 import logging
@@ -79,7 +80,11 @@ class Command(BaseCommand):
                 data = resp.json()
 
                 if data.get("ok"):
-                    self.stdout.write(self.style.SUCCESS(f"Webhook muvaffaqiyatli o'rnatildi: {webhook_url}"))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Webhook muvaffaqiyatli o'rnatildi: {webhook_url}"
+                        )
+                    )
 
                     # Verify (inside the same client session)
                     resp2 = client.get(f"{api_base}/getWebhookInfo")
@@ -87,11 +92,19 @@ class Command(BaseCommand):
                     if info.get("ok"):
                         wh = info["result"]
                         self.stdout.write(f"  URL: {wh.get('url', 'N/A')}")
-                        self.stdout.write(f"  Pending: {wh.get('pending_update_count', 0)}")
+                        self.stdout.write(
+                            f"  Pending: {wh.get('pending_update_count', 0)}"
+                        )
                         if wh.get("last_error_date"):
-                            self.stdout.write(f"  Last error: {wh.get('last_error_message', 'N/A')}")
+                            self.stdout.write(
+                                f"  Last error: {wh.get('last_error_message', 'N/A')}"
+                            )
                 else:
-                    self.stdout.write(self.style.ERROR(f"Xatolik: {data.get('description', 'Unknown')}"))
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"Xatolik: {data.get('description', 'Unknown')}"
+                        )
+                    )
 
         except Exception as e:
             raise CommandError(f"Webhook o'rnatishda xatolik: {e}")
@@ -105,9 +118,13 @@ class Command(BaseCommand):
                 data = resp.json()
 
             if data.get("ok"):
-                self.stdout.write(self.style.SUCCESS("Webhook muvaffaqiyatli o'chirildi."))
+                self.stdout.write(
+                    self.style.SUCCESS("Webhook muvaffaqiyatli o'chirildi.")
+                )
             else:
-                self.stdout.write(self.style.ERROR(f"Xatolik: {data.get('description', 'Unknown')}"))
+                self.stdout.write(
+                    self.style.ERROR(f"Xatolik: {data.get('description', 'Unknown')}")
+                )
 
         except Exception as e:
             raise CommandError(f"Webhook o'chirishda xatolik: {e}")

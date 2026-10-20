@@ -1,4 +1,5 @@
 """Essays admin."""
+
 from django.contrib import admin, messages
 from django.db.models import Q
 from django.utils import timezone
@@ -36,17 +37,32 @@ class EssayCriterionScoreInline(admin.TabularInline):
 
 @admin.register(EssayTopic)
 class EssayTopicAdmin(admin.ModelAdmin):
-    list_display = ["title", "category", "word_limit_min", "word_limit_max", "time_limit_minutes", "has_password", "is_active"]
+    list_display = [
+        "title",
+        "category",
+        "word_limit_min",
+        "word_limit_max",
+        "time_limit_minutes",
+        "has_password",
+        "is_active",
+    ]
     list_filter = ["category", "is_active"]
     search_fields = ["title"]
     fields = [
-        "title", "description", "category",
-        "word_limit_min", "word_limit_max", "time_limit_minutes",
-        "password", "is_active", "created_by",
+        "title",
+        "description",
+        "category",
+        "word_limit_min",
+        "word_limit_max",
+        "time_limit_minutes",
+        "password",
+        "is_active",
+        "created_by",
     ]
 
     def has_password(self, obj: EssayTopic) -> bool:
         return bool(obj.password)
+
     has_password.short_description = "🔒 Parol"
     has_password.boolean = True
 
@@ -54,13 +70,27 @@ class EssayTopicAdmin(admin.ModelAdmin):
 @admin.register(EssaySubmission)
 class EssaySubmissionAdmin(admin.ModelAdmin):
     list_display = [
-        "student", "topic", "word_count", "status", "total_score", "max_score",
-        "grading_source", "auto_submitted", "graded_at", "password_verified_at",
+        "student",
+        "topic",
+        "word_count",
+        "status",
+        "total_score",
+        "max_score",
+        "grading_source",
+        "auto_submitted",
+        "graded_at",
+        "password_verified_at",
     ]
     list_filter = ["status", "grading_source", "auto_submitted"]
     search_fields = ["student__email", "topic__title", "essay_text"]
     raw_id_fields = ["student", "topic"]
-    readonly_fields = ["total_score", "max_score", "graded_at", "raw_result", "error_message"]
+    readonly_fields = [
+        "total_score",
+        "max_score",
+        "graded_at",
+        "raw_result",
+        "error_message",
+    ]
     inlines = [EssayCriterionScoreInline]
 
 
@@ -245,7 +275,10 @@ class EssayGradingCacheAdmin(admin.ModelAdmin):
         retryable = (
             Q(status=EssayGradingCache.Status.FAILED)
             | Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__lte=now)
-            | Q(status=EssayGradingCache.Status.PROCESSING, lease_expires_at__isnull=True)
+            | Q(
+                status=EssayGradingCache.Status.PROCESSING,
+                lease_expires_at__isnull=True,
+            )
         )
         total = queryset.count()
         retried = queryset.filter(retryable).update(
@@ -256,7 +289,9 @@ class EssayGradingCacheAdmin(admin.ModelAdmin):
         skipped = total - retried
         message = f"{retried} ta yozuv qayta baholash uchun navbatga tushirildi."
         if skipped:
-            message += f" {skipped} ta yozuv o'tkazib yuborildi (faol ijara yoki yakunlangan)."
+            message += (
+                f" {skipped} ta yozuv o'tkazib yuborildi (faol ijara yoki yakunlangan)."
+            )
         self.message_user(request, message, level=messages.SUCCESS)
 
     @admin.action(

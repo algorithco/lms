@@ -1,4 +1,5 @@
 """Small authentication feature flags for server-rendered navigation."""
+
 from django.conf import settings
 
 

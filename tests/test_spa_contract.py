@@ -6,6 +6,7 @@ Covers:
     2. Auth identity flags (is_staff / is_superuser / is_platform_admin / language)
     3. Teacher essay review JSON API (/api/v1/essays/teacher/*)
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -23,8 +24,11 @@ User = get_user_model()
 class SessionBridgeTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email="bridge@test.com", password="testpass123",
-            first_name="Bridge", last_name="User", role="student",
+            email="bridge@test.com",
+            password="testpass123",
+            first_name="Bridge",
+            last_name="User",
+            role="student",
         )
         self.login_url = reverse("accounts:session_login")
         self.status_url = reverse("accounts:session_status")
@@ -62,7 +66,8 @@ class SessionBridgeTests(TestCase):
 
     def test_login_requires_both_fields(self):
         response = self.client.post(
-            self.login_url, {"email": "bridge@test.com"},
+            self.login_url,
+            {"email": "bridge@test.com"},
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
@@ -80,6 +85,7 @@ class SessionBridgeTests(TestCase):
 
     def test_session_logout_requires_auth(self):
         from rest_framework.test import APIClient
+
         response = APIClient().post(self.logout_url)
         self.assertIn(response.status_code, (401, 403))
 
@@ -87,7 +93,9 @@ class SessionBridgeTests(TestCase):
 class AuthIdentityFlagTests(TestCase):
     def test_login_and_me_expose_platform_flags(self):
         user = User.objects.create_user(
-            email="flags@test.com", password="testpass123", role="teacher",
+            email="flags@test.com",
+            password="testpass123",
+            role="teacher",
         )
         response = self.client.post(
             reverse("accounts:token_obtain_pair"),
@@ -109,7 +117,8 @@ class AuthIdentityFlagTests(TestCase):
 
     def test_superuser_student_role_is_platform_admin(self):
         su = User.objects.create_superuser(
-            email="su@test.com", password="testpass123",
+            email="su@test.com",
+            password="testpass123",
         )
         su.role = "student"
         su.save(update_fields=["role"])
@@ -122,13 +131,19 @@ class AuthIdentityFlagTests(TestCase):
 class TeacherEssaysApiTests(TestCase):
     def setUp(self):
         self.student = User.objects.create_user(
-            email="essay-student@test.com", password="testpass123", role="student",
+            email="essay-student@test.com",
+            password="testpass123",
+            role="student",
         )
         self.teacher = User.objects.create_user(
-            email="essay-teacher@test.com", password="testpass123", role="teacher",
+            email="essay-teacher@test.com",
+            password="testpass123",
+            role="teacher",
         )
         self.topic = EssayTopic.objects.create(
-            title="Mavzu", description="Tavsif", created_by=self.teacher,
+            title="Mavzu",
+            description="Tavsif",
+            created_by=self.teacher,
         )
         group = StudentGroup.objects.create(teacher=self.teacher, name="9-A")
         group.students.add(self.student)
@@ -143,8 +158,10 @@ class TeacherEssaysApiTests(TestCase):
         )
         for i in range(1, 13):
             EssayCriterionScore.objects.create(
-                submission=self.sub, criterion_id=i,
-                name=f"Mezon {i}", score=Decimal("1.5"),
+                submission=self.sub,
+                criterion_id=i,
+                name=f"Mezon {i}",
+                score=Decimal("1.5"),
             )
         self.queue_url = reverse("webapi:essays-teacher-queue")
 
@@ -198,7 +215,9 @@ class TeacherEssaysApiTests(TestCase):
         self.client.force_login(self.student)
         url = reverse("webapi:essays-teacher-review", args=[self.sub.id])
         response = self.client.post(
-            url, {"criteria_scores": {}}, content_type="application/json",
+            url,
+            {"criteria_scores": {}},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 403)
 
@@ -212,6 +231,7 @@ def _ignore_missing_dir(path):
 
 class TmaPageTests(TestCase):
     """GET /tma/ (bot web_app button) serves the SPA shell (no redirect loop)."""
+
     def _write_baked_shell(self):
         from pathlib import Path
 
@@ -264,20 +284,26 @@ class LegacyPageShellTests(TestCase):
         from apps.payments.models import SubscriptionPlan
 
         self.student = User.objects.create_user(
-            email="shell-student@test.com", password="testpass123", role="student",
+            email="shell-student@test.com",
+            password="testpass123",
+            role="student",
         )
         self.teacher = User.objects.create_user(
-            email="shell-teacher@test.com", password="testpass123", role="teacher",
+            email="shell-teacher@test.com",
+            password="testpass123",
+            role="teacher",
         )
         self.topic = EssayTopic.objects.create(
-            title="Shell mavzu", description="Tavsif", created_by=self.teacher,
+            title="Shell mavzu",
+            description="Tavsif",
+            created_by=self.teacher,
         )
         self.sub = EssaySubmission.objects.create(
             student=self.student,
             topic=self.topic,
             essay_text="Esse matni " * 30,
             status=EssaySubmission.Status.DRAFT,
-        )        # The commercial plan catalogue is seeded by migration, so reuse the
+        )  # The commercial plan catalogue is seeded by migration, so reuse the
         # ``pro`` row when it already exists rather than assuming an empty table.
         self.plan, _ = SubscriptionPlan.objects.get_or_create(
             plan_type="pro",
@@ -287,9 +313,11 @@ class LegacyPageShellTests(TestCase):
                 "price_monthly": Decimal("49000"),
                 "is_active": True,
             },
-        )
+        )
+
         self.room = ArenaRoom.objects.create(
-            room_code="SHELL01", player1=self.student,
+            room_code="SHELL01",
+            player1=self.student,
         )
         self.pages = [
             reverse("payments:plans"),
@@ -338,10 +366,10 @@ class LegacyPageShellTests(TestCase):
     def test_bogus_ids_still_404(self):
         self.client.force_login(self.student)
         self.assertEqual(
-            self.client.get(
-                reverse("payments:subscribe", args=[99999])
-            ).status_code, 404,
+            self.client.get(reverse("payments:subscribe", args=[99999])).status_code,
+            404,
         )
         self.assertEqual(
-            self.client.get(reverse("arena:room", args=["NOPE00"])).status_code, 404,
+            self.client.get(reverse("arena:room", args=["NOPE00"])).status_code,
+            404,
         )

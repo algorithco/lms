@@ -3,6 +3,7 @@
 Labels are intentionally plain — templates render their own localized
 labels via the {% t %} system so every field is UZ/RU/EN aware.
 """
+
 from django import forms
 
 from apps.essays.models import EssayTopic

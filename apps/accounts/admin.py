@@ -1,4 +1,5 @@
 """Admin configuration for accounts app."""
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
@@ -12,11 +13,23 @@ class UserAdmin(BaseUserAdmin):
 
     model = User
     list_display = (
-        "email", "first_name", "last_name", "role",
-        "can_create_essay_topic", "can_create_test",
-        "is_active", "is_staff", "created_at",
+        "email",
+        "first_name",
+        "last_name",
+        "role",
+        "can_create_essay_topic",
+        "can_create_test",
+        "is_active",
+        "is_staff",
+        "created_at",
     )
-    list_filter = ("role", "is_active", "is_staff", "can_create_essay_topic", "can_create_test")
+    list_filter = (
+        "role",
+        "is_active",
+        "is_staff",
+        "can_create_essay_topic",
+        "can_create_test",
+    )
     search_fields = ("email", "first_name", "last_name")
     ordering = ("-created_at",)
 
@@ -27,9 +40,20 @@ class UserAdmin(BaseUserAdmin):
         ("Telegram", {"fields": ("telegram_chat_id", "telegram_identity_verified_at")}),
         (
             "Permissions",
-            {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
         ),
-        ("Teacher creation permissions", {"fields": ("can_create_essay_topic", "can_create_test")}),
+        (
+            "Teacher creation permissions",
+            {"fields": ("can_create_essay_topic", "can_create_test")},
+        ),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
     readonly_fields = ("telegram_identity_verified_at",)
@@ -41,8 +65,12 @@ class UserAdmin(BaseUserAdmin):
             {
                 "classes": ("wide",),
                 "fields": (
-                    "email", "first_name", "last_name", "role",
-                    "password1", "password2",
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "role",
+                    "password1",
+                    "password2",
                 ),
             },
         ),

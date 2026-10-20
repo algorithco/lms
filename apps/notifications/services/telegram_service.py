@@ -9,6 +9,7 @@ Message types:
     2. Certificate notification — certificate number + PDF document.
     3. General notification — arbitrary text message.
 """
+
 from __future__ import annotations
 
 import logging
@@ -153,7 +154,9 @@ class TelegramService:
         [ 🪄 AI orqali qayta yozish ] va [ 👨‍🏫 O'qituvchiga tekshirtirish ].
         """
         topic_title = submission.topic.title if submission.topic else "Erkin mavzu"
-        score = str(submission.total_score) if submission.total_score is not None else "-"
+        score = (
+            str(submission.total_score) if submission.total_score is not None else "-"
+        )
         max_score = str(submission.max_score) if submission.max_score else "20"
         is_passed = bool(submission.is_passed)
         converted = submission.converted_score
@@ -171,6 +174,7 @@ class TelegramService:
         text += f"\n{status_line}\n\n"
 
         from apps.essays.models import EssayCriterionScore
+
         crit_maxes = EssayCriterionScore.CRITERION_MAX_SCORES
 
         criteria_lines = []
@@ -178,11 +182,17 @@ class TelegramService:
             if hasattr(submission, "criteria") and submission.criteria.exists():
                 for c in submission.criteria.order_by("criterion_id"):
                     c_max = crit_maxes.get(c.criterion_id, 2.0)
-                    criteria_lines.append(f"  • {c.criterion_id}. {c.name}: *{c.score}/{c_max}*")
+                    criteria_lines.append(
+                        f"  • {c.criterion_id}. {c.name}: *{c.score}/{c_max}*"
+                    )
         except Exception:
             pass
         if criteria_lines:
-            text += "📋 *12 Mezon bo'yicha tahlil:*\n" + "\n".join(criteria_lines[:12]) + "\n\n"
+            text += (
+                "📋 *12 Mezon bo'yicha tahlil:*\n"
+                + "\n".join(criteria_lines[:12])
+                + "\n\n"
+            )
 
         raw_res = getattr(submission, "raw_result", {}) or {}
         spelling_errors = raw_res.get("spelling_errors", [])
@@ -199,14 +209,26 @@ class TelegramService:
         site_url = getattr(settings, "SITE_URL", "http://localhost:8000").rstrip("/")
         buttons = [
             [
-                {"text": "🪄 AI tahririni ko'rish", "callback_data": f"essay_improve:{submission.id}"},
-                {"text": "👨‍🏫 O'qituvchiga tekshirtirish", "callback_data": f"essay_review:{submission.id}"},
+                {
+                    "text": "🪄 AI tahririni ko'rish",
+                    "callback_data": f"essay_improve:{submission.id}",
+                },
+                {
+                    "text": "👨‍🏫 O'qituvchiga tekshirtirish",
+                    "callback_data": f"essay_review:{submission.id}",
+                },
             ],
             [
-                {"text": "📄 Batafsil PDF xulosa", "callback_data": f"essay_pdf:{submission.id}"},
+                {
+                    "text": "📄 Batafsil PDF xulosa",
+                    "callback_data": f"essay_pdf:{submission.id}",
+                },
             ],
             [
-                {"text": "🌐 Web'da ko'rish", "url": f"{site_url}/essays/result/{submission.id}/"},
+                {
+                    "text": "🌐 Web'da ko'rish",
+                    "url": f"{site_url}/essays/result/{submission.id}/",
+                },
                 {"text": "🏠 Bosh menyu", "callback_data": "menu_main"},
             ],
         ]
@@ -336,9 +358,7 @@ class TelegramService:
         )
         if reason:
             text += f"💬 Sabab: _{reason}_\n"
-        text += (
-            f"\n🔗 Tekshirish: /essays/teacher/{submission_id}/review/"
-        )
+        text += f"\n🔗 Tekshirish: /essays/teacher/{submission_id}/review/"
 
         return cls._send_message(
             chat_id=chat_id,
@@ -499,6 +519,7 @@ class TelegramService:
 
         if recipient is None:
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             recipient = User.objects.filter(telegram_chat_id=chat_id).first()
 
@@ -536,13 +557,18 @@ class TelegramService:
                     log_entry.status = NotificationLog.Status.SENT
                     log_entry.external_id = str(message_id)
                     log_entry.sent_at = timezone.now()
-                    log_entry.save(update_fields=[
-                        "status", "external_id", "sent_at",
-                    ])
+                    log_entry.save(
+                        update_fields=[
+                            "status",
+                            "external_id",
+                            "sent_at",
+                        ]
+                    )
 
                 logger.info(
                     "Telegram message sent: chat_id=%s, message_id=%s",
-                    chat_id, message_id,
+                    chat_id,
+                    message_id,
                 )
                 return {"success": True, "message_id": message_id, "error": None}
             else:
@@ -554,7 +580,8 @@ class TelegramService:
 
                 logger.error(
                     "Telegram API error: chat_id=%s, error=%s",
-                    chat_id, error_msg,
+                    chat_id,
+                    error_msg,
                 )
                 return {"success": False, "message_id": None, "error": error_msg}
 
@@ -609,9 +636,13 @@ class TelegramService:
                 log_entry.status = NotificationLog.Status.SENT
                 log_entry.external_id = str(message_id)
                 log_entry.sent_at = timezone.now()
-                log_entry.save(update_fields=[
-                    "status", "external_id", "sent_at",
-                ])
+                log_entry.save(
+                    update_fields=[
+                        "status",
+                        "external_id",
+                        "sent_at",
+                    ]
+                )
                 return {"success": True, "message_id": message_id, "error": None}
             else:
                 error_msg = result.get("description", "Unknown error")

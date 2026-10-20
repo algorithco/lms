@@ -16,6 +16,7 @@ Web Pages:
     GET  /certificates/verify/<number>/                  — Tekshirish sahifasi (HTML)
     GET  /certificates/<id>/download/                    — PDF yuklab olish (web)
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 # API: My Certificates List
 # -------------------------------------------------------------------
 
+
 class MyCertificatesView(generics.ListAPIView):
     """
     GET /api/certificates/my-certificates/
@@ -63,6 +65,7 @@ class MyCertificatesView(generics.ListAPIView):
 # API: Download Certificate PDF
 # -------------------------------------------------------------------
 
+
 class CertificateDownloadView(APIView):
     """
     GET /api/certificates/{id}/download/
@@ -79,7 +82,8 @@ class CertificateDownloadView(APIView):
         """PDF faylni qaytarish."""
         try:
             certificate = Certificate.objects.select_related(
-                "student", "result",
+                "student",
+                "result",
             ).get(pk=pk)
         except Certificate.DoesNotExist:
             logger.warning("Certificate not found: pk=%d", pk)
@@ -91,7 +95,8 @@ class CertificateDownloadView(APIView):
         if not can_access_certificate(request.user, certificate):
             logger.warning(
                 "Certificate access denied: pk=%d, user=%d",
-                pk, request.user.id,
+                pk,
+                request.user.id,
             )
             return Response(
                 {"error": "Bu sertifikatni ko'rishga ruxsatingiz yo'q."},
@@ -124,14 +129,13 @@ class CertificateDownloadView(APIView):
                 content_type="application/pdf",
             )
             filename = f"{certificate.certificate_number}.pdf"
-            response["Content-Disposition"] = (
-                f'attachment; filename="{filename}"'
-            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except FileNotFoundError:
             logger.error(
                 "Certificate PDF file missing: cert=%s, path=%s",
-                certificate.certificate_number, certificate.file.name,
+                certificate.certificate_number,
+                certificate.file.name,
             )
             return Response(
                 {"error": "PDF fayl topilmadi."},
@@ -142,6 +146,7 @@ class CertificateDownloadView(APIView):
 # -------------------------------------------------------------------
 # API: Verify Certificate (Public JSON API)
 # -------------------------------------------------------------------
+
 
 class CertificateVerifyView(APIView):
     """
@@ -154,18 +159,24 @@ class CertificateVerifyView(APIView):
 
     permission_classes = [AllowAny]
 
-    def post(self, request: Request, certificate_number: str, *args: Any, **kwargs: Any) -> Response:
+    def post(
+        self, request: Request, certificate_number: str, *args: Any, **kwargs: Any
+    ) -> Response:
         """Sertifikatni tekshirish (JSON API)."""
         return self._verify(certificate_number)
 
-    def get(self, request: Request, certificate_number: str, *args: Any, **kwargs: Any) -> Response:
+    def get(
+        self, request: Request, certificate_number: str, *args: Any, **kwargs: Any
+    ) -> Response:
         """Sertifikatni tekshirish (GET ham qo'llab-quvvatlaydi)."""
         return self._verify(certificate_number)
 
     def _verify(self, certificate_number: str) -> Response:
         try:
             certificate = Certificate.objects.select_related(
-                "student", "test", "course",
+                "student",
+                "test",
+                "course",
             ).get(certificate_number=certificate_number)
         except Certificate.DoesNotExist:
             result = {
@@ -176,6 +187,7 @@ class CertificateVerifyView(APIView):
 
         # Anti-fraud verification
         from apps.certificates.services.anti_fraud import verify_certificate_checksum
+
         fraud_check = verify_certificate_checksum(certificate)
 
         result = {
@@ -193,7 +205,9 @@ class CertificateVerifyView(APIView):
             "anti_fraud": {
                 "verified": fraud_check["valid"],
                 "reason": fraud_check["reason"],
-                "checksum": certificate.fraud_checksum[:16] + "..." if certificate.fraud_checksum else None,
+                "checksum": certificate.fraud_checksum[:16] + "..."
+                if certificate.fraud_checksum
+                else None,
             },
         }
 
@@ -230,9 +244,13 @@ def certificate_verify_page_view(request, certificate_number: str):
 
     try:
         certificate = Certificate.objects.select_related(
-            "student", "test", "course", "result",
+            "student",
+            "test",
+            "course",
+            "result",
         ).get(certificate_number=certificate_number)
         from apps.certificates.services.anti_fraud import verify_certificate_checksum
+
         fraud_check = verify_certificate_checksum(certificate)
         if (
             not fraud_check["valid"]
@@ -263,6 +281,7 @@ def certificate_verify_page_view(request, certificate_number: str):
 # Web: Certificate Download (HTML redirect)
 # -------------------------------------------------------------------
 
+
 def certificate_web_download_view(request, cert_id: int):
     """
     GET /certificates/<id>/download/
@@ -276,6 +295,7 @@ def certificate_web_download_view(request, cert_id: int):
 
     if not cert.file:
         from django.contrib import messages
+
         messages.error(request, "PDF fayl hali generatsiya qilinmagan.")
         return redirect("web:my-certificates")
 
@@ -288,5 +308,6 @@ def certificate_web_download_view(request, cert_id: int):
     except FileNotFoundError:
         logger.error("Certificate PDF file missing: cert_id=%d", cert_id)
         from django.contrib import messages
+
         messages.error(request, "PDF fayl topilmadi.")
         return redirect("web:my-certificates")
