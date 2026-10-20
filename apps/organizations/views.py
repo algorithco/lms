@@ -49,6 +49,11 @@ def enterprise_dashboard_view(request):
     - Filiallararo raqobat statistikasi.
     """
     user = request.user
+    if getattr(user, "role", None) == "student" and not user.is_staff:
+        return Response(
+            {"error": "O\'quvchilar uchun markaz boshqaruvi ruxsat etilmagan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     center = _get_user_center(user)
 
     # If user doesn't have a center yet, auto-provision one for demo/owner
@@ -191,6 +196,11 @@ def enterprise_bulk_import_view(request):
     O'quvchilarni ommaviy yuklash (Bulk Import via CSV / Excel / JSON).
     Bir vaqtning o'zida 500 tagacha o'quvchini bazaga kiritish.
     """
+    if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
+        return Response(
+            {"error": "O\'quvchilar uchun ommaviy yuklash ruxsat etilmagan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     center = _get_user_center(request.user)
     if not center:
         return Response(
@@ -317,6 +327,11 @@ def enterprise_report_export_view(request):
     """
     Markaz logotipi va imzosi tushirilgan umumiy oylik tahliliy hisobotni eksport qilish.
     """
+    if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
+        return Response(
+            {"error": "O\'quvchilar uchun hisobot eksporti ruxsat etilmagan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     center = _get_user_center(request.user)
     if not center:
         return Response(
@@ -378,6 +393,11 @@ def branding_update_view(request):
       - stamp_signature: file
     """
     user = request.user
+    if getattr(user, "role", None) == "student" and not user.is_staff:
+        return Response(
+            {"error": "O\'quvchilar uchun brending sozlamalari ruxsat etilmagan."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     center = _get_user_center(user)
     if not center and (
         user.role in ("teacher", "admin", "center_admin") or user.is_staff
@@ -456,13 +476,8 @@ def monthly_report_pdf_view(request, group_id: int):
     from .reports_pdf import generate_monthly_group_report_pdf
 
     group = get_object_or_404(StudentGroup, pk=group_id)
-
-    # Security check: only group's teacher or admin/staff
-    if (
-        group.teacher_id != request.user.id
-        and request.user.role not in ("teacher", "admin")
-        and not request.user.is_staff
-    ):
+    is_admin = getattr(request.user, "role", None) == "admin" or request.user.is_staff
+    if not (is_admin or group.teacher_id == request.user.id):
         return Response(
             {"error": "Sizda ushbu guruh hisobotini yuklash huquqi yo'q."},
             status=status.HTTP_403_FORBIDDEN,

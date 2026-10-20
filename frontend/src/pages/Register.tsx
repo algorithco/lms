@@ -133,7 +133,7 @@ export default function Register() {
 
         <div style={{ position: 'relative', textAlign: 'center', margin: '14px 0' }}>
           <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(148, 163, 184, 0.12)' }} />
-          <span style={{ position: 'relative', background: '#0f172a', padding: '0 10px', fontSize: 12, color: '#94a3b8' }}>
+          <span style={{ position: 'relative', background: 'var(--card)', padding: '0 10px', fontSize: 12, color: 'var(--muted)' }}>
             yoki email orqali
           </span>
         </div>

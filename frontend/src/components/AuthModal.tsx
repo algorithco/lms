@@ -739,8 +739,8 @@ export default function AuthModal() {
             onClick={() => setShowEmailForm((v) => !v)}
             style={{
               position: 'relative',
-              background: '#0f172a',
-              border: '1px solid rgba(148, 163, 184, 0.16)',
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
               borderRadius: 999,
               padding: '4px 14px',
               fontSize: 11,

@@ -265,10 +265,15 @@ export default function EssayWrite() {
   }, [remaining, hasLimit]);
 
   useEffect(() => {
-    if (!hasLimit || remaining === null || remaining <= 0 || timeUp) return;
-    const tmr = setInterval(() => setRemaining((r) => (r !== null ? r - 1 : r)), 1000);
+    if (!hasLimit || timeUp) return;
+    const tmr = setInterval(() => {
+      setRemaining((r) => {
+        if (r === null || r <= 0) return r;
+        return r - 1;
+      });
+    }, 1000);
     return () => clearInterval(tmr);
-  }, [remaining === null, hasLimit, timeUp]);
+  }, [hasLimit, timeUp]);
 
   const saveNow = async () => {
     if (submissionId === null) {

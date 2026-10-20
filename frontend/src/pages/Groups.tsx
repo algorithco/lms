@@ -794,9 +794,9 @@ export default function Groups() {
               margin: 0,
               maxHeight: '90vh',
               overflowY: 'auto',
-              background: '#0f172a',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--card-shadow, 0 20px 40px rgba(0, 0, 0, 0.3))',
               borderRadius: 16,
               padding: 24,
             }}

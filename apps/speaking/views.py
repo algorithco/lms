@@ -155,8 +155,18 @@ class SpeakingSubmissionDetailView(APIView):
 
     def get(self, request: Request, pk: int) -> Response:
         sub = SpeakingSubmission.objects.filter(pk=pk, user=request.user).first()
-        if not sub and request.user.role in ("teacher", "admin"):
-            sub = SpeakingSubmission.objects.filter(pk=pk).first()
+        if not sub:
+            is_admin = getattr(request.user, "role", None) == "admin" or request.user.is_staff
+            if is_admin:
+                sub = SpeakingSubmission.objects.filter(pk=pk).first()
+            elif getattr(request.user, "role", None) == "teacher":
+                sub = (
+                    SpeakingSubmission.objects.filter(
+                        pk=pk, user__student_groups__teacher=request.user
+                    )
+                    .distinct()
+                    .first()
+                )
 
         if not sub:
             return Response(

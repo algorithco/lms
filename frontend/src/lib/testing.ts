@@ -118,7 +118,9 @@ export type DraftMap = Record<
 
 export function loadDraft(attemptId: string): DraftMap {
   try {
-    const raw = sessionStorage.getItem(draftKey(attemptId));
+    const raw =
+      localStorage.getItem(draftKey(attemptId)) ||
+      sessionStorage.getItem(draftKey(attemptId));
     if (!raw) return {};
     const parsed = JSON.parse(raw) as DraftMap;
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -128,15 +130,21 @@ export function loadDraft(attemptId: string): DraftMap {
 }
 
 export function storeDraft(attemptId: string, draft: DraftMap): void {
+  const json = JSON.stringify(draft);
   try {
-    sessionStorage.setItem(draftKey(attemptId), JSON.stringify(draft));
+    localStorage.setItem(draftKey(attemptId), json);
   } catch {
-    /* storage full / private mode — non-fatal */
+    try {
+      sessionStorage.setItem(draftKey(attemptId), json);
+    } catch {
+      /* storage full / private mode — non-fatal */
+    }
   }
 }
 
 export function clearDraft(attemptId: string): void {
   try {
+    localStorage.removeItem(draftKey(attemptId));
     sessionStorage.removeItem(draftKey(attemptId));
   } catch {
     /* ignore */

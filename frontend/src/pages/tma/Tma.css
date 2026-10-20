@@ -199,7 +199,7 @@
   background: rgba(22, 33, 62, 0.95);
   backdrop-filter: blur(12px);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
 }
 .tma-nav-inner {

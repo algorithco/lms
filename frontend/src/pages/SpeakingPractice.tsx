@@ -119,7 +119,7 @@ export default function SpeakingPractice() {
 
       mediaRecorder.start();
       setPhase('recording');
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       setError(
         "Mikrofonga ruxsat berilmadi yoki mikrofon topilmadi. Iltimos, brauzer sozlamalarida mikrofonga ruxsat bering."
       );
@@ -208,10 +208,10 @@ export default function SpeakingPractice() {
           style={{
             borderRadius: 20,
             border: '2px solid rgba(99, 102, 241, 0.3)',
-            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%)',
+            background: 'var(--card)',
             padding: 28,
             marginBottom: 24,
-            boxShadow: '0 20px 40px -15px rgba(0,0,0,0.5)',
+            boxShadow: 'var(--card-shadow, 0 10px 25px -5px rgba(0,0,0,0.1))',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -283,12 +283,12 @@ export default function SpeakingPractice() {
               style={{
                 padding: '16px 20px',
                 borderRadius: 14,
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'rgba(99, 102, 241, 0.06)',
+                border: '1px solid rgba(99, 102, 241, 0.15)',
                 marginBottom: 16,
               }}
             >
-              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#A5B4FC', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--accent, #6366f1)', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
                 You should say:
               </span>
               <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--ink)' }}>

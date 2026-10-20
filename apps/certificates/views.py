@@ -275,39 +275,3 @@ def certificate_verify_page_view(request, certificate_number: str):
         f"<title>{escape(certificate_number)}</title></head>"
         f"<body>{body}</body></html>"
     )
-
-
-# -------------------------------------------------------------------
-# Web: Certificate Download (HTML redirect)
-# -------------------------------------------------------------------
-
-
-def certificate_web_download_view(request, cert_id: int):
-    """
-    GET /certificates/<id>/download/
-
-    Web-based PDF download (requires auth).
-    """
-    cert = get_object_or_404(Certificate, id=cert_id)
-
-    if not can_access_certificate(request.user, cert):
-        raise PermissionDenied
-
-    if not cert.file:
-        from django.contrib import messages
-
-        messages.error(request, "PDF fayl hali generatsiya qilinmagan.")
-        return redirect("web:my-certificates")
-
-    try:
-        response = FileResponse(cert.file.open("rb"), content_type="application/pdf")
-        response["Content-Disposition"] = (
-            f'attachment; filename="{cert.certificate_number}.pdf"'
-        )
-        return response
-    except FileNotFoundError:
-        logger.error("Certificate PDF file missing: cert_id=%d", cert_id)
-        from django.contrib import messages
-
-        messages.error(request, "PDF fayl topilmadi.")
-        return redirect("web:my-certificates")

@@ -260,3 +260,90 @@ class TelegramQuizSaveTests(TestCase):
         quiz = self._quiz_state()
         quiz["test_id"] = 999999
         self.assertIsNone(_save_quiz_result_sync(self.student, quiz))
+
+
+class AuditWorkflowSecurityTests(TestCase):
+    """Regression tests for audit security & RBAC isolation."""
+
+    def setUp(self) -> None:
+        self.student = User.objects.create_user(
+            email="audit_student@test.com",
+            password="testpass123",
+            first_name="Audit",
+            last_name="Student",
+            role="student",
+        )
+        self.teacher1 = User.objects.create_user(
+            email="audit_teacher1@test.com",
+            password="testpass123",
+            first_name="Audit",
+            last_name="Teacher1",
+            role="teacher",
+        )
+        self.teacher2 = User.objects.create_user(
+            email="audit_teacher2@test.com",
+            password="testpass123",
+            first_name="Audit",
+            last_name="Teacher2",
+            role="teacher",
+        )
+        from apps.courses.models import StudentGroup
+        self.group1 = StudentGroup.objects.create(
+            teacher=self.teacher1,
+            name="Teacher 1 Group",
+            subject="uzbek",
+        )
+        self.group1.students.add(self.student)
+
+    def test_student_blocked_from_enterprise_views(self) -> None:
+        self.client.login(email="audit_student@test.com", password="testpass123")
+        r1 = self.client.get("/api/v1/enterprise/dashboard/")
+        self.assertEqual(r1.status_code, 403)
+
+        r2 = self.client.post("/api/v1/enterprise/students/bulk-import/", {})
+        self.assertEqual(r2.status_code, 403)
+
+        r3 = self.client.get("/api/v1/enterprise/report/download/")
+        self.assertEqual(r3.status_code, 403)
+
+        r4 = self.client.get("/api/v1/organizations/branding/")
+        self.assertEqual(r4.status_code, 403)
+
+    def test_monthly_report_pdf_blocked_for_other_teacher(self) -> None:
+        self.client.login(email="audit_teacher2@test.com", password="testpass123")
+        res = self.client.get(f"/api/v1/school/groups/{self.group1.id}/export/monthly-report-pdf/")
+        self.assertEqual(res.status_code, 403)
+
+    def test_speaking_submission_detail_isolation(self) -> None:
+        from apps.speaking.models import SpeakingTopic, SpeakingSubmission
+        topic = SpeakingTopic.objects.create(
+            title="Audit Test Topic",
+            prompt="Describe something.",
+            part="part1",
+        )
+        sub = SpeakingSubmission.objects.create(
+            user=self.student,
+            topic=topic,
+            transcript="Hello world",
+        )
+        # Teacher 2 (not managing student) gets 404/not found
+        self.client.login(email="audit_teacher2@test.com", password="testpass123")
+        res = self.client.get(f"/api/v1/speaking/submissions/{sub.id}/")
+        self.assertEqual(res.status_code, 404)
+
+        # Teacher 1 (manages student) gets 200 OK
+        self.client.login(email="audit_teacher1@test.com", password="testpass123")
+        res = self.client.get(f"/api/v1/speaking/submissions/{sub.id}/")
+        self.assertEqual(res.status_code, 200)
+
+    def test_essay_safe_render_partial_json_fallback(self) -> None:
+        from django.test import RequestFactory
+        from apps.essays.views import _safe_render_partial
+        rf = RequestFactory()
+        req = rf.get("/essays/fake/")
+        resp = _safe_render_partial(req, "essays/nonexistent_template.html", {"status": "ok", "foo": "bar"}, status=200)
+        self.assertEqual(resp.status_code, 200)
+        import json
+        data = json.loads(resp.content)
+        self.assertTrue(data.get("ok"))
+        self.assertEqual(data.get("foo"), "bar")

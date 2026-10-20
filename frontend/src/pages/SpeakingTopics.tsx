@@ -114,8 +114,9 @@ export default function SpeakingTopics() {
                   justifyContent: 'space-between',
                   padding: 20,
                   borderRadius: 16,
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--card)',
+                  boxShadow: 'var(--card-shadow, 0 4px 12px rgba(0,0,0,0.06))',
                 }}
               >
                 <div>

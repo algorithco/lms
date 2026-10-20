@@ -55,6 +55,32 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Backend: 
 uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
+### 2.27. To'liq Tizim Auditi (/audit), Xavfsizlik & RBAC Himoyasi, Aktivlar Tozalanishi va Zero-Downtime Deploy
+- [x] 1-bosqich: Fayllar va bog'liqliklar auditi (apps/, frontend/src/, config/):
+  * Barcha 20 ta Django ilovasi, 46 ta React sahifasi va 24 ta komponent to'liq tahlil qilindi.
+  * O'lik aktivlar (`frontend/src/assets/hero.png`, `react.svg`, `vite.svg`) aniqlandi.
+  * Ishlatilmayotgan og'ir kutubxonalar (`three`, `@react-three/fiber`, `@react-three/drei`, `@types/three`, `gsap`, `motion`) aniqlandi.
+- [x] 2-bosqich: Ortiqcha va eskirgan kodlarni xavfsiz tozalash:
+  * Ishlatilmayotgan frontend aktivlari o'chirildi (`hero.png`, `react.svg`, `vite.svg`).
+  * `frontend/package.json` dan foydalanilmayotgan paketlar tozalandi, bundle vaqtida 0 xato bilan yig'ildi.
+  * `apps/certificates/views.py` dagi ulanmagan va xatoga moyil `certificate_web_download_view` olib tashlandi.
+- [x] 3-bosqich: Xavfsizlik va Mantiqiy Buglarni Tuzatish (RBAC & Error Handling):
+  * `apps/organizations/views.py`: `monthly_report_pdf_view` dagi mantiqiy xato tuzatildi — begona ustozlar boshqa ustozning guruh hisoboti va talabalarini yuklay olmaydi (faqat guruh ustozi yoki admin/staff yuklay oladi).
+  * `apps/organizations/views.py`: B2B Enterprise boshqaruv endpointlari (`enterprise_dashboard_view`, `enterprise_bulk_import_view`, `enterprise_report_export_view`, `branding_update_view`) student rolidan 403 Forbidden bilan qat'iy himoyalandi.
+  * `apps/speaking/views.py`: `SpeakingSubmissionDetailView` dagi RBAC mustahkamlandi — ustoz faqat o'ziga biriktirilgan guruhdagi o'quvchilarning speaking yozuvlarini eshita oladi.
+  * `apps/essays/views.py`: `_safe_render_partial` xavfsiz JSON fallback mexanizmi joriy etildi — shablon mavjud bo'lmaganda 500 xato o'rniga toza JSON qaytariladi.
+- [x] 4-bosqich: UI/UX, Kontrast va Mobil Moslashuvchanlikni Silliqlash:
+  * `SpeakingPractice.tsx` va `SpeakingTopics.tsx`: Light rejimda qorong'i fonda qora matn ko'rinmay qolish muammosi `var(--card)` va moslashtirilgan nishonlar yordamida to'liq bartaraf etildi.
+  * `Groups.tsx`: Brending modali fonidagi qora `#0f172a` qatlami `var(--card)` va `var(--border)` ga almashtirildi (Light/Dark mosligi).
+  * `Register.tsx` va `AuthModal.tsx`: O'rtadagi ajratuvchi chiziq matni foni `var(--card)` ga moslashtirildi.
+  * `frontend/src/index.css` & `Tma.css`: `.content` va mobil `.single-q-actions` ga `env(safe-area-inset-bottom, 0px)` qo'shildi, mobil ekranlardagi pastki Home-bar tugmalarni to'sib qo'ymaydi.
+  * `frontend/src/lib/testing.ts`: Test topshirishda qoralamani saqlash `localStorage` ga o'tkazildi (mobil tab yopilganda yozma javoblar yo'qolmaydi).
+- [x] 5-bosqich: Sifat Nazorati (QA Gate 100% PASS):
+  * `python -m ruff check apps/`: 0 xato, barcha tekshiruvlardan o'tdi.
+  * `pytest`: 1196 ta backend testi 100% PASS, audit xavfsizlik testlari (`tests/test_audit_fixes.py`) 10/10 PASS.
+  * `npm run lint`: oxlint 0 xato.
+  * `npm run build`: tsc va vite build 2.62 soniyada 0 xato bilan yig'ildi.
+
 ### 2.25. To'liq 3 Tilli Tarjimalar Bazasini To'ldirish va Xavfsiz Fallback Tizimi (Landing i18n Fix)
 - [x] Translations.json Fayliga Barcha Kalitlarni Qo'shish:
   * Navbar kalitlari (

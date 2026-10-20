@@ -400,6 +400,23 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------------------
 
 
+def _safe_render_partial(request, template_name: str, context: dict | None = None, *, status: int = 200):
+    """Render the partial template, safely falling back to JsonResponse if template is missing."""
+    from django.template import TemplateDoesNotExist
+    context = context or {}
+    try:
+        return render(request, template_name, context, status=status)
+    except TemplateDoesNotExist:
+        data = {"ok": status < 400}
+        for k, v in context.items():
+            if k == "submission" and hasattr(v, "pk"):
+                data["submission_id"] = v.pk
+                data["status"] = getattr(v, "status", "")
+            elif isinstance(v, (str, int, float, bool, list, dict)) or v is None:
+                data[k] = v
+        return JsonResponse(data, status=status)
+
+
 def _quota_denied_response(
     request, exc, template_name: str, context: dict, *, status: int = 429
 ):
@@ -459,9 +476,7 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
     # To'liq baholangan → bloklash. Baho hali yo'q → qayta baholashga ruxsat.
     if essay_has_grade_result(submission):
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": False,
                 "error": "Bu esse allaqachon baholangan.",
@@ -471,9 +486,7 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     # Baholash hali davom etmoqda — queue'ga takror qo'shish shart emas;
     # frontend natija sahifasiga o'tib, statusni poll qiladi.
     if submission.status == EssaySubmission.Status.PENDING:
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": True,
                 "submission": submission,
@@ -483,9 +496,7 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
     # Server-side vaqt nazorati
     if submission.password_verified_at and submission.is_expired:
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": False,
                 "error": "Vaqt tugadi. Essingizni endi yubora olmaysiz.",
@@ -497,9 +508,7 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         min_words = submission.topic.word_limit_min
         word_count = WordCounter.count(submission.essay_text)
         if word_count < min_words:
-            return render(
-                request,
-                "essays/submit_result_partial.html",
+            return _safe_render_partial(request, "essays/submit_result_partial.html",
                 {
                     "success": False,
                     "error": f"Kamida {min_words} so'z kerak. Hozir: {word_count} so'z.",
@@ -565,9 +574,7 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     if not result.get("success"):
         # Baholash navbatga qo'yilmadi → ajratilgan limitni qaytaramiz.
         release_usage(reservation)
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": False,
                 "error": result.get("error") or "AI baholash boshlanmadi.",
@@ -582,18 +589,14 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     if result["fallback"] and not result.get("async"):
         # Bo'sh / kam so'zli matn → o'qituvchiga yuborildi (defensive —
         # word-count validation yuqorida allaqachon o'tgan)
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": False,
                 "error": result.get("error") or "Esse o'qituvchiga yuborildi.",
             },
         )
 
-    return render(
-        request,
-        "essays/submit_result_partial.html",
+    return _safe_render_partial(request, "essays/submit_result_partial.html",
         {
             "success": True,
             "submission": submission,
@@ -772,8 +775,7 @@ def _render_review_result(
     from django.template import TemplateDoesNotExist
 
     try:
-        return render(
-            request, "essays/review_request_partial.html", context, status=status
+        return _safe_render_partial(request, "essays/review_request_partial.html", context, status=status
         )
     except TemplateDoesNotExist:
         return JsonResponse(
@@ -897,9 +899,7 @@ def teacher_submit_review_view(
         raw = request.POST.get(f"score_{cid}", "0")
         raw_str = str(raw).strip() if raw is not None else ""
         if raw_str == "":
-            return render(
-                request,
-                "essays/teacher_review_result_partial.html",
+            return _safe_render_partial(request, "essays/teacher_review_result_partial.html",
                 {
                     "success": False,
                     "error": f"Mezon #{cid}: ball kiritilmadi.",
@@ -908,9 +908,7 @@ def teacher_submit_review_view(
         try:
             val = float(raw_str)
         except (ValueError, TypeError):
-            return render(
-                request,
-                "essays/teacher_review_result_partial.html",
+            return _safe_render_partial(request, "essays/teacher_review_result_partial.html",
                 {
                     "success": False,
                     "error": f"Mezon #{cid}: ball noto'g'ri format '{raw_str}'.",
@@ -920,9 +918,7 @@ def teacher_submit_review_view(
         import math
 
         if not math.isfinite(val) or val not in allowed:
-            return render(
-                request,
-                "essays/teacher_review_result_partial.html",
+            return _safe_render_partial(request, "essays/teacher_review_result_partial.html",
                 {
                     "success": False,
                     "error": f"Mezon #{cid}: ball {raw_str} yaroqsiz. Ruxsat: {sorted(allowed)}",
@@ -940,9 +936,7 @@ def teacher_submit_review_view(
             teacher_comments=teacher_comments,
         )
     except ValueError as e:
-        return render(
-            request,
-            "essays/teacher_review_result_partial.html",
+        return _safe_render_partial(request, "essays/teacher_review_result_partial.html",
             {
                 "success": False,
                 "error": str(e),
@@ -957,9 +951,7 @@ def teacher_submit_review_view(
         review.final_score,
     )
 
-    return render(
-        request,
-        "essays/teacher_review_result_partial.html",
+    return _safe_render_partial(request, "essays/teacher_review_result_partial.html",
         {
             "success": True,
             "review": review,
@@ -1024,9 +1016,7 @@ def essay_create_view(request: HttpRequest) -> HttpResponse:
     result = start_grading(submission, fail_status=EssaySubmission.Status.ERROR)
 
     if not result.get("success"):
-        return render(
-            request,
-            "essays/submit_result_partial.html",
+        return _safe_render_partial(request, "essays/submit_result_partial.html",
             {
                 "success": False,
                 "error": result.get("error") or "AI baholash boshlanmadi.",
