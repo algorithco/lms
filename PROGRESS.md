@@ -9,6 +9,30 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.23. Dual-Track Dynamic Hero & Demo, Features Switcher va Onboarding Integratsiyasi (Landing 2.0)
+- [x] Dual-Track Fan Tanlash Pill Switcheri (Hero & Navbar):
+  * Bosh sahifa (Landing) yuqori qismida zamonaviy pill switcher: [ 🇺🇿 Ona tili va Adabiyot ] va [ 🇬🇧 English (IELTS & Multi-level) ].
+  * Tanlov o'zgarganda Framer Motion animatsiyasi bilan sarlavhalar, nishonlar va interaktiv kartochkalar o'sha zahoti yangilanadi.
+  * Tanlov localStorage.setItem('landing_subject', ...) va lms_subject ga saqlanadi hamda global subject-changed event tarqatadi.
+- [x] Dinamik Hero Interaktiv Demo Vidjeti:
+  * 🇺🇿 Ona tili rejimi:
+    - ✍️ AI Esse (12 Mezon): Alisher Navoiy essesi, 54.5/60 (A daraja), 12 ta BMB rasmiy mezoni interaktiv bosiladigan ballar va izohlar bilan.
+    - 📚 Fast CBT Test: Navoiy ijodiga oid test savoli, javob variantlari, bir zumda tahlil va konfetti animatsiyasi.
+  * 🇬🇧 Ingliz tili rejimi:
+    - ✍️ IELTS Writing AI: AI Task 2 essesi, Band 7.5, 4 ta IELTS mezonlari (TR, CC, LR, GRA) va interaktiv tahlil.
+    - 🎙 AI Speaking: Part 2 Cue Card, Band 7.5, jonli ovoz to'lqini (waveform), Play/Pause simulyatsiyasi, matn ta'kidlanishi va batafsil tahlil.
+    - 🎧 CBT Reading & Listening: Kembrij formati test savoli, tezkor tahlil va konfetti animatsiyasi.
+- [x] Dinamik Imkoniyatlar (Features) Bo'limi:
+  * Tanlangan fanga qarab 'Features' bo'limidagi barcha kartochkalar mos ravishda Ona tili yoki IELTS/Multi-level xususiyatlariga o'zgaradi.
+- [x] OnboardingModal va Ro'yxatdan O'tish Integratsiyasi:
+  * 'Bepul boshlash' bosilganda OnboardingModal Landingda tanlangan fanni avtomatik o'qib oladi va foydalanuvchiga to'g'ri fanni ko'rsatadi.
+- [x] Sifat Nazorati (QA Gate):
+  * Frontend: oxlint 0 xato, 	sc -b && vite build 0 xato bilan 3.42 soniyada muvaffaqiyatli yig'ildi.
+  * Backend: 
+uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
+
+---
+
 ---
 
 ## 2. Bajarildi

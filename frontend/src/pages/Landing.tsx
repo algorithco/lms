@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Mic, Headphones, Play, Pause } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -27,7 +29,9 @@ import {
   XIcon,
 } from '../components/icons';
 
-// 12 BMB Milliy Sertifikat Essay Assessment Criteria
+// ---------------------------------------------------------------------------
+// 12 BMB Milliy Sertifikat Essay Assessment Criteria (Uzbek Track)
+// ---------------------------------------------------------------------------
 interface CriterionData {
   id: number;
   name: string;
@@ -162,7 +166,7 @@ const ESSAY_12_CRITERIA: CriterionData[] = [
   },
 ];
 
-// Interactive CBT Sample Question
+// Interactive CBT Sample Question (Uzbek Track)
 interface CbtSampleQuestion {
   question: string;
   options: { key: string; text: string; correct: boolean }[];
@@ -181,6 +185,120 @@ const CBT_QUESTION: CbtSampleQuestion = {
     "'Lison ut-tayr' (Qushlar tili) Navoiyning alohida falsafiy dostoni boʻlib, 'Xamsa' beshligiga kirmaydi. 'Xamsa' beshligiga: Hayrat ul-abror, Farhod va Shirin, Layli va Majnun, Sab'ai sayyor hamda Saddi Iskandariy dostonlari kiradi.",
 };
 
+// ---------------------------------------------------------------------------
+// 4 Official IELTS Writing Criteria (English Track)
+// ---------------------------------------------------------------------------
+interface IeltsCriterionData {
+  id: number;
+  name: string;
+  code: string;
+  score: string;
+  band: number;
+  desc: string;
+  advice: string;
+  highlights: string[];
+}
+
+const IELTS_4_CRITERIA: IeltsCriterionData[] = [
+  {
+    id: 1,
+    name: 'Task Response',
+    code: 'TR',
+    score: '7.5 / 9.0',
+    band: 7.5,
+    desc: 'Barcha savol qismlari toʻliq va teran ochilgan. Asosiy argumentlar aniq keltirilib, izchil pozitsiya saqlangan.',
+    advice: '2-asosiy qismda yana bitta empirik dalil (misol) keltirilsa, ball 8.0+ darajaga koʻtariladi.',
+    highlights: ['Well-developed position', 'Relevant arguments', 'Clear thesis statement'],
+  },
+  {
+    id: 2,
+    name: 'Coherence & Cohesion',
+    code: 'CC',
+    score: '7.0 / 9.0',
+    band: 7.0,
+    desc: 'Paragraflar mantiqan toʻgʻri taqsimlangan. Fikrlar ketma-ketligi silliq va bogʻlovchi vositalar oʻrinli qoʻllangan.',
+    advice: 'Paragraflararo oʻtishda faqat "Moreover", "Furthermore" bilan cheklanmay, murakkab jumlalar bilan bogʻlang.',
+    highlights: ['Logical sequencing', 'Clear central topic', 'Diverse cohesive devices'],
+  },
+  {
+    id: 3,
+    name: 'Lexical Resource',
+    code: 'LR',
+    score: '8.0 / 9.0',
+    band: 8.0,
+    desc: 'Keng va murakkab akademik soʻz boyligi hamda tabiiy kollokatsiyalar (soʻz birikmalari) muvaffaqiyatli ishlatilgan.',
+    advice: '"paradigm shift", "pedagogical efficacy", "heuristic adaptability" kabi Band 8+ soʻzlar oʻrinli tanlangan.',
+    highlights: ['Sophisticated collocations', 'Precise academic vocabulary', 'Natural phrasing'],
+  },
+  {
+    id: 4,
+    name: 'Grammatical Range & Accuracy',
+    code: 'GRA',
+    score: '7.5 / 9.0',
+    band: 7.5,
+    desc: 'Murakkab ergash gaplar, inversion va passiv konstruksiyalardan yuqori aniqlikda foydalanilgan.',
+    advice: 'Kollektiv otlar va nisbiy olmoshlar moslashuvidagi 1 ta kichik punktuatsion holatga eʼtibor qarating.',
+    highlights: ['Wide syntactic variety', 'Complex sentence structures', 'High accuracy rate'],
+  },
+];
+
+// Interactive Speaking Sample (English Track)
+interface SpeakingDemoData {
+  part: string;
+  topic: string;
+  overallBand: number;
+  scores: {
+    fluency: number;
+    pronunciation: number;
+    lexical: number;
+    grammar: number;
+  };
+  duration: string;
+  transcript: string;
+  highlightWords: string[];
+  aiFeedback: string;
+}
+
+const SPEAKING_DEMO: SpeakingDemoData = {
+  part: 'Part 2: Long Turn (Cue Card)',
+  topic: 'Describe an educational journey that significantly influenced your life',
+  overallBand: 7.5,
+  scores: {
+    fluency: 8.0,
+    pronunciation: 7.0,
+    lexical: 8.0,
+    grammar: 7.5,
+  },
+  duration: '0:42 / 1:30',
+  transcript:
+    'When I first commenced my studies in modern pedagogy, I realized the profound transformative power of interactive learning paradigms. It not only broadened my cognitive horizon, but also inspired me to persevere in rigorous academic research...',
+  highlightWords: ['commenced', 'profound transformative power', 'cognitive horizon', 'persevere'],
+  aiFeedback:
+    "💡 'commenced' va 'cognitive horizon' kabi ifodalar Lexical Resource ballini 8.0 ga chiqardi. Talaffuzda intonatsiya tabiiy, Band 8.0 darajasidagi ravonlik saqlangan.",
+};
+
+// Interactive Cambridge CBT Question (English Track)
+interface EnglishCbtQuestion {
+  section: string;
+  question: string;
+  options: { key: string; text: string; correct: boolean }[];
+  explanation: string;
+}
+
+const ENGLISH_CBT_QUESTION: EnglishCbtQuestion = {
+  section: 'Academic Reading — Passage 2',
+  question:
+    'According to cognitive psychologists, what is the primary neurobiological advantage of spaced repetition in memory consolidation?',
+  options: [
+    { key: 'A', text: 'Accelerating superficial cramming before high-stakes exams', correct: false },
+    { key: 'B', text: 'Strengthening synaptic neural pathways through timed retrieval intervals', correct: true },
+    { key: 'C', text: 'Completely eliminating mental fatigue during prolonged study sessions', correct: false },
+    { key: 'D', text: 'Minimizing the total number of vocabulary items required for fluency', correct: false },
+  ],
+  explanation:
+    "To'g'ri javob: B. Tadqiqotlarga ko'ra, oraliq takrorlash (spaced repetition) neyronlar orasidagi sinaptik bog'lanishlarni mustahkamlaydi va ma'lumotni qisqa muddatli xotiradan uzoq muddatli xotiraga o'tkazishni ta'minlaydi.",
+};
+
 export default function Landing() {
   const { t } = useLang();
   const { user, openAuthModal } = useAuth();
@@ -188,12 +306,31 @@ export default function Landing() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hero interactive demo widget mode
-  const [demoTab, setDemoTab] = useState<'essay' | 'test'>('essay');
-  const [selectedCrit, setSelectedCrit] = useState<CriterionData>(ESSAY_12_CRITERIA[0]);
+  // -------------------------------------------------------------------------
+  // DUAL-TRACK SUBJECT STATE (Uzbek vs English)
+  // -------------------------------------------------------------------------
+  const [landingSubject, setLandingSubject] = useState<'uzbek' | 'english'>(() => {
+    const saved = localStorage.getItem('landing_subject') || localStorage.getItem('lms_subject');
+    return saved === 'english' ? 'english' : 'uzbek';
+  });
 
-  // CBT interactive choice state
-  const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(null);
+  const handleSubjectSwitch = (sub: 'uzbek' | 'english') => {
+    if (sub === landingSubject) return;
+    setLandingSubject(sub);
+    localStorage.setItem('landing_subject', sub);
+    localStorage.setItem('lms_subject', sub);
+    window.dispatchEvent(new CustomEvent('subject-changed', { detail: sub }));
+  };
+
+  // Hero interactive demo widget modes
+  const [demoTabUzbek, setDemoTabUzbek] = useState<'essay' | 'test'>('essay');
+  const [selectedCritUzbek, setSelectedCritUzbek] = useState<CriterionData>(ESSAY_12_CRITERIA[0]);
+  const [selectedOptionKeyUzbek, setSelectedOptionKeyUzbek] = useState<string | null>(null);
+
+  const [demoTabEnglish, setDemoTabEnglish] = useState<'writing' | 'speaking' | 'cbt'>('writing');
+  const [selectedCritEnglish, setSelectedCritEnglish] = useState<IeltsCriterionData>(IELTS_4_CRITERIA[0]);
+  const [selectedOptionKeyEnglish, setSelectedOptionKeyEnglish] = useState<string | null>(null);
+  const [isSpeakingPlaying, setIsSpeakingPlaying] = useState<boolean>(false);
 
   // Live platform stats
   const [stats, setStats] = useState<{
@@ -254,8 +391,8 @@ export default function Landing() {
     });
   }, []);
 
-  const handleCbtOptionClick = (key: string) => {
-    setSelectedOptionKey(key);
+  const handleCbtOptionClickUzbek = (key: string) => {
+    setSelectedOptionKeyUzbek(key);
     if (key === 'C') {
       try {
         confetti({
@@ -263,6 +400,22 @@ export default function Landing() {
           spread: 60,
           origin: { y: 0.65 },
           colors: ['#10B981', '#34D399', '#F59E0B'],
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const handleCbtOptionClickEnglish = (key: string) => {
+    setSelectedOptionKeyEnglish(key);
+    if (key === 'B') {
+      try {
+        confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#38BDF8', '#10B981', '#F59E0B'],
         });
       } catch {
         /* ignore */
@@ -279,6 +432,8 @@ export default function Landing() {
   };
 
   const handleAction = (destination: string) => {
+    localStorage.setItem('landing_subject', landingSubject);
+    localStorage.setItem('lms_subject', landingSubject);
     if (user) {
       navigate(destination);
     } else {
@@ -296,7 +451,7 @@ export default function Landing() {
         url: 'https://grandec.uz',
         logo: 'https://grandec.uz/grandec.png',
         description:
-          "Ona tili va adabiyoti bo'yicha Milliy sertifikatga tayyorlovchi zamonaviy LMS va AI Esse platformasi.",
+          "Milliy sertifikat (Ona tili) va IELTS & Multi-level (Ingliz tili) bo'yicha AI Esse, AI Speaking va CBT test platformasi.",
         sameAs: ['https://t.me/uz_essaygrader_bot'],
       },
     ],
@@ -315,8 +470,16 @@ export default function Landing() {
       }}
     >
       <SEO
-        title="Ona tili va adabiyot LMS | Milliy sertifikat & AI Esse"
-        description="Ona tili va adabiyotidan Milliy sertifikatga tayyorlovchi LMS platformasi — GRAND EDUCATION (grandec.uz). 12 mezonli AI Esse tahlili, Fast CBT simulyatori va 1v1 Arena."
+        title={
+          landingSubject === 'english'
+            ? 'IELTS & Multi-level LMS | AI Writing & Speaking Simulator'
+            : 'Ona tili va adabiyot LMS | Milliy sertifikat & AI Esse'
+        }
+        description={
+          landingSubject === 'english'
+            ? "IELTS Band 1.0–9.0 va CEFR Multi-level bo'yicha AI Writing tahlili, AI Speaking simulyatori va Cambridge CBT testlari — GRAND EDUCATION."
+            : "Ona tili va adabiyotidan Milliy sertifikatga tayyorlovchi LMS platformasi — GRAND EDUCATION (grandec.uz). 12 mezonli AI Esse tahlili, Fast CBT simulyatori va 1v1 Arena."
+        }
         canonical="/"
         jsonLd={jsonLdData}
       />
@@ -664,510 +827,1166 @@ export default function Landing() {
 
       {/* MAIN HERO SECTION */}
       <main id="main-content" style={{ position: 'relative', zIndex: 1, paddingTop: '5.5rem' }}>
-        <section id="hero" style={{ padding: '40px 20px 60px' }}>
+        <section id="hero" style={{ padding: '36px 20px 60px' }}>
           <div
             style={{
               margin: '0 auto',
               maxWidth: 1200,
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: 44,
-              alignItems: 'center',
             }}
-            className="hero-grid"
           >
-            {/* Left Column: Headlines & 1-Click CTAs */}
-            <div>
-              {/* Badge */}
-              <div style={{ marginBottom: 20 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 16px',
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    color: '#F59E0B',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                    boxShadow: '0 0 20px rgba(245, 158, 11, 0.1)',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 999,
-                      background: '#10B981',
-                      boxShadow: '0 0 10px #10B981',
-                    }}
-                  />
-                  {t('hero_badge_text')}
-                </span>
-              </div>
-
-              {/* Main Headline */}
-              <h1
-                style={{
-                  fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
-                  lineHeight: 1.1,
-                  fontWeight: 900,
-                  letterSpacing: '-0.03em',
-                  color: 'var(--ink)',
-                  margin: '0 0 20px',
-                }}
-              >
-                {t('hero_title_1')}{' '}
-                <span className="hero-title-gradient">{t('hero_title_2')}</span>
-              </h1>
-
-              {/* Subhead */}
-              <p
-                style={{
-                  fontSize: 'clamp(1.05rem, 1.8vw, 1.2rem)',
-                  lineHeight: 1.7,
-                  color: 'var(--muted)',
-                  maxWidth: 540,
-                  margin: '0 0 32px',
-                }}
-              >
-                {t('hero_subhead_desc')}
-              </p>
-
-              {/* 1-Click Action Buttons */}
+            {/* DUAL-TRACK SEGMENTED PILL SWITCHER */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 28 }}>
               <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 14,
-                  alignItems: 'center',
-                  marginBottom: 28,
-                }}
+                role="group"
+                aria-label="Asosiy yo'nalishni tanlang"
+                className="hero-subject-switcher"
               >
+                {/* 🇺🇿 Ona tili */}
                 <button
                   type="button"
-                  onClick={() => (user ? navigate(startTo) : openAuthModal('register'))}
-                  className="btn-glow"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '14px 28px',
-                    borderRadius: 14,
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: '#090d16',
-                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
-                    transition: 'all 0.2s ease',
-                  }}
+                  onClick={() => handleSubjectSwitch('uzbek')}
+                  className={`hero-switcher-btn ${landingSubject === 'uzbek' ? 'active' : ''}`}
+                  aria-pressed={landingSubject === 'uzbek'}
                 >
-                  <span>{t('hero_cta_start_free')}</span>
-                  <span style={{ fontSize: 16 }}>→</span>
+                  <span style={{ fontSize: 18 }}>🇺🇿</span>
+                  <span>Ona tili va Adabiyot</span>
+                  <span className="switcher-subtag">Milliy sertifikat</span>
                 </button>
 
+                {/* 🇬🇧 English */}
                 <button
                   type="button"
-                  onClick={() => (user ? navigate(startTo) : openAuthModal('login'))}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '13px 22px',
-                    borderRadius: 14,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--ink)',
-                    background: 'var(--card-2)',
-                    border: '1px solid var(--border)',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(12px)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)';
-                    e.currentTarget.style.background = 'var(--dropdown-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                    e.currentTarget.style.background = 'var(--card-2)';
-                  }}
+                  onClick={() => handleSubjectSwitch('english')}
+                  className={`hero-switcher-btn ${landingSubject === 'english' ? 'active' : ''}`}
+                  aria-pressed={landingSubject === 'english'}
                 >
-                  <span>{t('hero_cta_login_1click')}</span>
+                  <span style={{ fontSize: 18 }}>🇬🇧</span>
+                  <span>English (IELTS & Multi-level)</span>
+                  <span className="switcher-subtag">Band 1–9</span>
                 </button>
-              </div>
-
-              {/* Trust Indicators */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '10px 24px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#94a3b8',
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
-                  {t('trust_ai_speed')}
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
-                  {t('trust_bmb_criteria')}
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
-                  {t('trust_elo_arena')}
-                </span>
               </div>
             </div>
 
-            {/* Right Column: High-End Interactive Demo Widget */}
-            <div>
-              <div
-                className="glass-card lcard-hover demo-card"
-                style={{
-                  borderRadius: 24,
-                  padding: 24,
-                  backdropFilter: 'blur(16px)',
-                }}
-              >
-                {/* Segmented Demo Tabs */}
-                <div
-                  className="demo-tabs-wrap"
-                  style={{
-                    display: 'flex',
-                    background: 'var(--card-2)',
-                    borderRadius: 14,
-                    padding: 4,
-                    marginBottom: 20,
-                    border: '1px solid var(--border)',
-                  }}
+            {/* HERO GRID */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: 44,
+                alignItems: 'center',
+              }}
+              className="hero-grid"
+            >
+              {/* Left Column: Headlines & 1-Click CTAs */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={landingSubject}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.24, ease: 'easeOut' }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setDemoTab('essay')}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      fontSize: 13,
-                      fontWeight: 800,
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      background: demoTab === 'essay' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
-                      color: demoTab === 'essay' ? '#F59E0B' : 'var(--muted)',
-                      boxShadow: demoTab === 'essay' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
-                    }}
-                  >
-                    {t('demo_tab_essay')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDemoTab('test')}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      fontSize: 13,
-                      fontWeight: 800,
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      background: demoTab === 'test' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                      color: demoTab === 'test' ? '#10B981' : 'var(--muted)',
-                      boxShadow: demoTab === 'test' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
-                    }}
-                  >
-                    {t('demo_tab_test')}
-                  </button>
-                </div>
-
-                {/* TAB 1: AI ESSE DEMO */}
-                {demoTab === 'essay' && (
-                  <div>
-                    {/* Demo Topic Header */}
-                    <div
+                  {/* Badge */}
+                  <div style={{ marginBottom: 20 }}>
+                    <span
                       style={{
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 10,
-                        marginBottom: 12,
+                        gap: 8,
+                        padding: '6px 16px',
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background:
+                          landingSubject === 'english'
+                            ? 'rgba(56, 189, 248, 0.12)'
+                            : 'rgba(245, 158, 11, 0.1)',
+                        color: landingSubject === 'english' ? '#38BDF8' : '#F59E0B',
+                        border:
+                          landingSubject === 'english'
+                            ? '1px solid rgba(56, 189, 248, 0.3)'
+                            : '1px solid rgba(245, 158, 11, 0.25)',
+                        boxShadow:
+                          landingSubject === 'english'
+                            ? '0 0 20px rgba(56, 189, 248, 0.15)'
+                            : '0 0 20px rgba(245, 158, 11, 0.1)',
                       }}
                     >
-                      <div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
-                          {t('demo_topic_label')}
-                        </span>
-                        <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
-                          {t('demo_topic_title')}
-                        </h4>
-                      </div>
                       <span
                         style={{
-                          padding: '4px 10px',
-                          borderRadius: 8,
-                          fontSize: 11,
-                          fontWeight: 800,
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#34D399',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          whiteSpace: 'nowrap',
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          background: landingSubject === 'english' ? '#38BDF8' : '#10B981',
+                          boxShadow: `0 0 10px ${landingSubject === 'english' ? '#38BDF8' : '#10B981'}`,
                         }}
-                      >
-                        {t('demo_grade_badge')}
-                      </span>
-                    </div>
+                      />
+                      {landingSubject === 'english'
+                        ? '🎯 IELTS Band 1.0–9.0 · CEFR Multi-level (B2/C1)'
+                        : '⭐️ Milliy sertifikat & Attestatsiya 2026 (Yangi format)'}
+                    </span>
+                  </div>
 
-                    {/* Score summary bar */}
-                    <div
-                      className="demo-score-box"
+                  {/* Main Headline */}
+                  <h1
+                    style={{
+                      fontSize: 'clamp(2.3rem, 4.8vw, 3.8rem)',
+                      lineHeight: 1.12,
+                      fontWeight: 900,
+                      letterSpacing: '-0.03em',
+                      color: 'var(--ink)',
+                      margin: '0 0 20px',
+                    }}
+                  >
+                    {landingSubject === 'english' ? (
+                      <>
+                        IELTS va Multi-level imtihonlariga{' '}
+                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                      </>
+                    ) : (
+                      <>
+                        Milliy sertifikatga{' '}
+                        <span className="hero-title-gradient">AI bilan tayyorlaning</span>
+                      </>
+                    )}
+                  </h1>
+
+                  {/* Subhead */}
+                  <p
+                    style={{
+                      fontSize: 'clamp(1.05rem, 1.8vw, 1.18rem)',
+                      lineHeight: 1.7,
+                      color: 'var(--muted)',
+                      maxWidth: 540,
+                      margin: '0 0 32px',
+                    }}
+                  >
+                    {landingSubject === 'english'
+                      ? 'Rasmiy 4 ta mezon boʻyicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va toʻliq CBT Reading & Listening simulyatori.'
+                      : 'BMB Davlat standarti asosidagi 12 ta mezonli AI Esse tahlili, Fast CBT test simulyatori va jonli 1v1 Arena bellashuvlari.'}
+                  </p>
+
+                  {/* 1-Click Action Buttons */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 14,
+                      alignItems: 'center',
+                      marginBottom: 28,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleAction(landingSubject === 'english' ? '/speaking' : '/essays')}
+                      className="btn-glow"
                       style={{
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
+                        gap: 8,
+                        padding: '14px 28px',
                         borderRadius: 14,
-                        background: 'var(--card-2)',
-                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                        marginBottom: 16,
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: '#090d16',
+                        background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
+                        transition: 'all 0.2s ease',
                       }}
                     >
-                      <div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{t('demo_total_score')}</span>
-                        <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
-                          54.5 <span style={{ fontSize: 14, color: '#F59E0B' }}>/ 60</span>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{t('demo_text_volume')}</span>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>{t('demo_words_count')}</div>
-                      </div>
-                    </div>
-
-                    {/* Criteria Selector Chips */}
-                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
-                      {t('demo_select_criterion')}
-                    </p>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 6,
-                        marginBottom: 14,
-                      }}
-                    >
-                      {ESSAY_12_CRITERIA.slice(0, 6).map((crit) => {
-                        const isSel = selectedCrit.id === crit.id;
-                        return (
-                          <button
-                            key={crit.id}
-                            type="button"
-                            onClick={() => setSelectedCrit(crit)}
-                            style={{
-                              padding: '6px 10px',
-                              borderRadius: 8,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.5)' : 'var(--border)'}`,
-                              background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
-                              color: isSel ? '#F59E0B' : 'var(--ink-soft)',
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            {crit.id}. {crit.name.split(' ')[0]} ({crit.score})
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Active Criterion Critique Box */}
-                    <div
-                      className="active-critique-box"
-                      style={{
-                        padding: '14px',
-                        borderRadius: 14,
-                        background: 'var(--card-2)',
-                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                        marginBottom: 16,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <b style={{ fontSize: 13, color: '#F59E0B' }}>
-                          {selectedCrit.id}. {selectedCrit.name}
-                        </b>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCrit.score}</span>
-                      </div>
-                      <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 6px', lineHeight: 1.5 }}>
-                        {selectedCrit.desc}
-                      </p>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: 'var(--muted)',
-                          background: 'rgba(245, 158, 11, 0.08)',
-                          padding: '6px 10px',
-                          borderRadius: 8,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <LightbulbIcon size={14} style={{ color: '#F59E0B', flexShrink: 0 }} />
-                        <span>{selectedCrit.advice}</span>
-                      </div>
-                    </div>
+                      <span>{t('hero_cta_start_free')}</span>
+                      <span style={{ fontSize: 16 }}>→</span>
+                    </button>
 
                     <button
                       type="button"
-                      onClick={() => handleAction('/essays')}
+                      onClick={() => (user ? navigate(startTo) : openAuthModal('login'))}
                       style={{
-                        width: '100%',
-                        padding: '11px',
-                        borderRadius: 12,
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        color: '#F59E0B',
-                        fontSize: 13,
-                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '13px 22px',
+                        borderRadius: 14,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: 'var(--ink)',
+                        background: 'var(--card-2)',
+                        border: '1px solid var(--border)',
                         cursor: 'pointer',
+                        backdropFilter: 'blur(12px)',
                         transition: 'all 0.2s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.background = 'var(--dropdown-hover)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.background = 'var(--card-2)';
                       }}
                     >
-                      {t('demo_analyze_own_essay')}
+                      <span>{t('hero_cta_login_1click')}</span>
                     </button>
                   </div>
-                )}
 
-                {/* TAB 2: FAST CBT TEST DEMO */}
-                {demoTab === 'test' && (
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--muted)',
-                        marginBottom: 12,
-                      }}
-                    >
-                      <span style={{ color: '#10B981' }}>{t('demo_cbt_question_count')}</span>
-                      <span>{t('demo_cbt_time_left')}</span>
-                    </div>
+                  {/* Trust Indicators */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '10px 24px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#94a3b8',
+                    }}
+                  >
+                    {landingSubject === 'english' ? (
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          Instant Band Score (1.0–9.0)
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          4 ta rasmiy IELTS mezoni
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          AI Speaking & Audio tahlil
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
+                          {t('trust_ai_speed')}
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
+                          {t('trust_bmb_criteria')}
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
+                          {t('trust_elo_arena')}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
 
-                    <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                      {CBT_QUESTION.question}
-                    </h4>
-
-                    {/* Choices */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                      {CBT_QUESTION.options.map((opt) => {
-                        const isChosen = selectedOptionKey === opt.key;
-                        const isCorrect = opt.correct;
-                        const showCorrectState = selectedOptionKey !== null && isCorrect;
-                        const showWrongState = isChosen && !isCorrect;
-
-                        return (
+              {/* Right Column: High-End Interactive Demo Widget */}
+              <div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={landingSubject}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="glass-card lcard-hover demo-card"
+                    style={{
+                      borderRadius: 24,
+                      padding: 24,
+                      backdropFilter: 'blur(16px)',
+                    }}
+                  >
+                    {/* ----------------------------------------------------------------- */}
+                    {/* UZBEK TRACK DEMO WIDGET */}
+                    {/* ----------------------------------------------------------------- */}
+                    {landingSubject === 'uzbek' && (
+                      <div>
+                        {/* Segmented Demo Tabs */}
+                        <div
+                          className="demo-tabs-wrap"
+                          style={{
+                            display: 'flex',
+                            background: 'var(--card-2)',
+                            borderRadius: 14,
+                            padding: 4,
+                            marginBottom: 20,
+                            border: '1px solid var(--border)',
+                          }}
+                        >
                           <button
-                            key={opt.key}
                             type="button"
-                            onClick={() => handleCbtOptionClick(opt.key)}
+                            onClick={() => setDemoTabUzbek('essay')}
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              width: '100%',
-                              padding: '11px 14px',
-                              borderRadius: 12,
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
                               fontSize: 13,
-                              fontWeight: 700,
+                              fontWeight: 800,
+                              border: 'none',
                               cursor: 'pointer',
-                              textAlign: 'left',
                               transition: 'all 0.2s ease',
-                              background: showCorrectState
-                                ? 'rgba(16, 185, 129, 0.2)'
-                                : showWrongState
-                                ? 'rgba(239, 68, 68, 0.2)'
-                                : 'var(--card-2)',
-                              border: `1px solid ${
-                                showCorrectState
-                                  ? '#10B981'
-                                  : showWrongState
-                                  ? '#ef4444'
-                                  : 'var(--border)'
-                              }`,
-                              color: showCorrectState
-                                ? '#34D399'
-                                : showWrongState
-                                ? '#f87171'
-                                : 'var(--ink)',
+                              background: demoTabUzbek === 'essay' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
+                              color: demoTabUzbek === 'essay' ? '#F59E0B' : 'var(--muted)',
+                              boxShadow: demoTabUzbek === 'essay' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
                             }}
                           >
-                            <span>
-                              <b>{opt.key})</b> {opt.text}
-                            </span>
-                            {showCorrectState && <span>{t('demo_cbt_correct')}</span>}
-                            {showWrongState && <span>{t('demo_cbt_wrong')}</span>}
+                            ✍️ AI Esse (12 Mezon)
                           </button>
-                        );
-                      })}
-                    </div>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabUzbek('test')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: 800,
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: demoTabUzbek === 'test' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
+                              color: demoTabUzbek === 'test' ? '#10B981' : 'var(--muted)',
+                              boxShadow: demoTabUzbek === 'test' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
+                            }}
+                          >
+                            📚 Fast CBT Test
+                          </button>
+                        </div>
 
-                    {/* Explanation */}
-                    {selectedOptionKey && (
-                      <div
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 12,
-                          background: 'rgba(16, 185, 129, 0.1)',
-                          border: '1px solid rgba(16, 185, 129, 0.25)',
-                          fontSize: 12,
-                          color: '#cbd5e1',
-                          lineHeight: 1.5,
-                          marginBottom: 16,
-                        }}
-                      >
-                        <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>{t('demo_cbt_analysis_title')}</b>
-                        {CBT_QUESTION.explanation}
+                        {/* TAB 1: AI ESSE DEMO */}
+                        {demoTabUzbek === 'essay' && (
+                          <div>
+                            {/* Demo Topic Header */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 10,
+                                marginBottom: 12,
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                                  Namuna Esse Tahlili
+                                </span>
+                                <h4 style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
+                                  Alisher Navoiy ijodida insonparvarlik gʻoyalari
+                                </h4>
+                              </div>
+                              <span
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: 'rgba(16, 185, 129, 0.15)',
+                                  color: '#34D399',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                A Daraja (90.8%)
+                              </span>
+                            </div>
+
+                            {/* Score summary bar */}
+                            <div
+                              className="demo-score-box"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 16px',
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Umumiy BMB Ball</span>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--ink)' }}>
+                                  54.5 <span style={{ fontSize: 14, color: '#F59E0B' }}>/ 60</span>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Matn Hajmi</span>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>278 ta soʻz</div>
+                              </div>
+                            </div>
+
+                            {/* Criteria Selector Chips */}
+                            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
+                              Mezonni tanlang va tavsiyalarni koʻring:
+                            </p>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 6,
+                                marginBottom: 14,
+                              }}
+                            >
+                              {ESSAY_12_CRITERIA.slice(0, 6).map((crit) => {
+                                const isSel = selectedCritUzbek.id === crit.id;
+                                return (
+                                  <button
+                                    key={crit.id}
+                                    type="button"
+                                    onClick={() => setSelectedCritUzbek(crit)}
+                                    style={{
+                                      padding: '6px 10px',
+                                      borderRadius: 8,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.5)' : 'var(--border)'}`,
+                                      background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
+                                      color: isSel ? '#F59E0B' : 'var(--ink-soft)',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    {crit.id}. {crit.name.split(' ')[0]} ({crit.score})
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Active Criterion Critique Box */}
+                            <div
+                              className="active-critique-box"
+                              style={{
+                                padding: '14px',
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <b style={{ fontSize: 13, color: '#F59E0B' }}>
+                                  {selectedCritUzbek.id}. {selectedCritUzbek.name}
+                                </b>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCritUzbek.score}</span>
+                              </div>
+                              <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 6px', lineHeight: 1.5 }}>
+                                {selectedCritUzbek.desc}
+                              </p>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: 'var(--muted)',
+                                  background: 'rgba(245, 158, 11, 0.08)',
+                                  padding: '6px 10px',
+                                  borderRadius: 8,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <LightbulbIcon size={14} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                                <span>{selectedCritUzbek.advice}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAction('/essays')}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: 12,
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                color: '#F59E0B',
+                                fontSize: 13,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                              }}
+                            >
+                              ✍️ Oʻz essemni tahlil qilish →
+                            </button>
+                          </div>
+                        )}
+
+                        {/* TAB 2: FAST CBT TEST DEMO */}
+                        {demoTabUzbek === 'test' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: 'var(--muted)',
+                                marginBottom: 12,
+                              }}
+                            >
+                              <span style={{ color: '#10B981' }}>Savol 1 / 1</span>
+                              <span>⏱ 00:45</span>
+                            </div>
+
+                            <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                              {CBT_QUESTION.question}
+                            </h4>
+
+                            {/* Choices */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                              {CBT_QUESTION.options.map((opt) => {
+                                const isChosen = selectedOptionKeyUzbek === opt.key;
+                                const isCorrect = opt.correct;
+                                const showCorrectState = selectedOptionKeyUzbek !== null && isCorrect;
+                                const showWrongState = isChosen && !isCorrect;
+
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => handleCbtOptionClickUzbek(opt.key)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      width: '100%',
+                                      padding: '11px 14px',
+                                      borderRadius: 12,
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      textAlign: 'left',
+                                      transition: 'all 0.2s ease',
+                                      background: showCorrectState
+                                        ? 'rgba(16, 185, 129, 0.2)'
+                                        : showWrongState
+                                        ? 'rgba(239, 68, 68, 0.2)'
+                                        : 'var(--card-2)',
+                                      border: `1px solid ${
+                                        showCorrectState
+                                          ? '#10B981'
+                                          : showWrongState
+                                          ? '#ef4444'
+                                          : 'var(--border)'
+                                      }`,
+                                      color: showCorrectState
+                                        ? '#34D399'
+                                        : showWrongState
+                                        ? '#f87171'
+                                        : 'var(--ink)',
+                                    }}
+                                  >
+                                    <span>
+                                      <b>{opt.key})</b> {opt.text}
+                                    </span>
+                                    {showCorrectState && <span>✓ Toʻgʻri</span>}
+                                    {showWrongState && <span>✕ Xato</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Explanation */}
+                            {selectedOptionKeyUzbek && (
+                              <div
+                                style={{
+                                  padding: '12px 14px',
+                                  borderRadius: 12,
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  fontSize: 12,
+                                  color: '#cbd5e1',
+                                  lineHeight: 1.5,
+                                  marginBottom: 16,
+                                }}
+                              >
+                                <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>💡 Ilmiy tahlil:</b>
+                                {CBT_QUESTION.explanation}
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleAction('/tests')}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: 12,
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                color: '#10B981',
+                                fontSize: 13,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              Toʻliq testni boshlash →
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleAction('/tests')}
-                      style={{
-                        width: '100%',
-                        padding: '11px',
-                        borderRadius: 12,
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
-                        color: '#10B981',
-                        fontSize: 13,
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      {t('demo_cbt_start_full_test')}
-                    </button>
-                  </div>
-                )}
+                    {/* ----------------------------------------------------------------- */}
+                    {/* ENGLISH TRACK DEMO WIDGET */}
+                    {/* ----------------------------------------------------------------- */}
+                    {landingSubject === 'english' && (
+                      <div>
+                        {/* Segmented Demo Tabs: Writing | Speaking | CBT */}
+                        <div
+                          className="demo-tabs-wrap"
+                          style={{
+                            display: 'flex',
+                            background: 'var(--card-2)',
+                            borderRadius: 14,
+                            padding: 4,
+                            marginBottom: 20,
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabEnglish('writing')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 8px',
+                              borderRadius: 10,
+                              fontSize: 12,
+                              fontWeight: 800,
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: demoTabEnglish === 'writing' ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
+                              color: demoTabEnglish === 'writing' ? '#F59E0B' : 'var(--muted)',
+                              boxShadow: demoTabEnglish === 'writing' ? '0 0 12px rgba(245, 158, 11, 0.2)' : 'none',
+                            }}
+                          >
+                            ✍️ IELTS Writing
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabEnglish('speaking')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 8px',
+                              borderRadius: 10,
+                              fontSize: 12,
+                              fontWeight: 800,
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: demoTabEnglish === 'speaking' ? 'rgba(56, 189, 248, 0.18)' : 'transparent',
+                              color: demoTabEnglish === 'speaking' ? '#38BDF8' : 'var(--muted)',
+                              boxShadow: demoTabEnglish === 'speaking' ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none',
+                            }}
+                          >
+                            🎙 AI Speaking
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDemoTabEnglish('cbt')}
+                            style={{
+                              flex: 1,
+                              padding: '10px 8px',
+                              borderRadius: 10,
+                              fontSize: 12,
+                              fontWeight: 800,
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: demoTabEnglish === 'cbt' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
+                              color: demoTabEnglish === 'cbt' ? '#10B981' : 'var(--muted)',
+                              boxShadow: demoTabEnglish === 'cbt' ? '0 0 12px rgba(16, 185, 129, 0.2)' : 'none',
+                            }}
+                          >
+                            🎧 CBT Reading
+                          </button>
+                        </div>
+
+                        {/* TAB 1: IELTS WRITING AI */}
+                        {demoTabEnglish === 'writing' && (
+                          <div>
+                            {/* Topic Header */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 10,
+                                marginBottom: 12,
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase' }}>
+                                  Academic Task 2
+                                </span>
+                                <h4 style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+                                  The impact of AI on traditional education systems
+                                </h4>
+                              </div>
+                              <span
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#F59E0B',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Band 7.5 (C1)
+                              </span>
+                            </div>
+
+                            {/* Score summary bar */}
+                            <div
+                              className="demo-score-box"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 16px',
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Overall Band Score</span>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#F59E0B' }}>
+                                  7.5 <span style={{ fontSize: 13, color: 'var(--muted)' }}>/ 9.0</span>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>Word Count</span>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>284 words</div>
+                              </div>
+                            </div>
+
+                            {/* 4 Official IELTS Criteria Chips */}
+                            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', margin: '0 0 8px' }}>
+                              Rasmiy 4 ta baholash mezonini koʻring:
+                            </p>
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: 6,
+                                marginBottom: 14,
+                              }}
+                            >
+                              {IELTS_4_CRITERIA.map((crit) => {
+                                const isSel = selectedCritEnglish.id === crit.id;
+                                return (
+                                  <button
+                                    key={crit.id}
+                                    type="button"
+                                    onClick={() => setSelectedCritEnglish(crit)}
+                                    style={{
+                                      padding: '8px 10px',
+                                      borderRadius: 10,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      border: `1px solid ${isSel ? 'rgba(245, 158, 11, 0.6)' : 'var(--border)'}`,
+                                      background: isSel ? 'rgba(245, 158, 11, 0.18)' : 'var(--card-2)',
+                                      color: isSel ? '#F59E0B' : 'var(--ink-soft)',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                  >
+                                    <span>{crit.code}</span>
+                                    <b>{crit.score}</b>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Active Criterion Box */}
+                            <div
+                              className="active-critique-box"
+                              style={{
+                                padding: '14px',
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <b style={{ fontSize: 13, color: '#F59E0B' }}>
+                                  {selectedCritEnglish.name} ({selectedCritEnglish.code})
+                                </b>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>{selectedCritEnglish.score}</span>
+                              </div>
+                              <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                                {selectedCritEnglish.desc}
+                              </p>
+
+                              {/* Highlights badges */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                                {selectedCritEnglish.highlights.map((h) => (
+                                  <span
+                                    key={h}
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      padding: '2px 8px',
+                                      borderRadius: 6,
+                                      background: 'rgba(56, 189, 248, 0.12)',
+                                      color: '#38BDF8',
+                                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                                    }}
+                                  >
+                                    ✓ {h}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: 'var(--muted)',
+                                  background: 'rgba(245, 158, 11, 0.08)',
+                                  padding: '6px 10px',
+                                  borderRadius: 8,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <LightbulbIcon size={14} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                                <span>{selectedCritEnglish.advice}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAction('/essays')}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: 12,
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                color: '#F59E0B',
+                                fontSize: 13,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              ✍️ IELTS Writing tahlil qilish →
+                            </button>
+                          </div>
+                        )}
+
+                        {/* TAB 2: AI SPEAKING SIMULATOR */}
+                        {demoTabEnglish === 'speaking' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 10,
+                                marginBottom: 12,
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase' }}>
+                                  {SPEAKING_DEMO.part}
+                                </span>
+                                <h4 style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>
+                                  {SPEAKING_DEMO.topic}
+                                </h4>
+                              </div>
+                              <span
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  color: '#38BDF8',
+                                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Band {SPEAKING_DEMO.overallBand}
+                              </span>
+                            </div>
+
+                            {/* Audio waveform simulator */}
+                            <div
+                              style={{
+                                padding: '14px 16px',
+                                borderRadius: 14,
+                                background: 'var(--card-2)',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                marginBottom: 14,
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsSpeakingPlaying((p) => !p)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    padding: '6px 12px',
+                                    borderRadius: 10,
+                                    background: isSpeakingPlaying ? '#38BDF8' : 'rgba(56, 189, 248, 0.15)',
+                                    color: isSpeakingPlaying ? '#090D16' : '#38BDF8',
+                                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                                    cursor: 'pointer',
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    transition: 'all 0.2s ease',
+                                  }}
+                                >
+                                  {isSpeakingPlaying ? <Pause size={14} /> : <Play size={14} />}
+                                  <span>{isSpeakingPlaying ? "To'xtatish" : "Eshitish"}</span>
+                                </button>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#38BDF8' }}>
+                                  {SPEAKING_DEMO.duration}
+                                </span>
+                              </div>
+
+                              {/* Equalizer bars */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  height: 32,
+                                  gap: 3,
+                                  padding: '0 4px',
+                                }}
+                              >
+                                {[18, 24, 12, 28, 32, 20, 26, 30, 16, 22, 28, 14, 26, 32, 20, 15, 25, 29, 18].map(
+                                  (h, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`waveform-bar ${isSpeakingPlaying ? 'playing' : ''}`}
+                                      style={{
+                                        height: isSpeakingPlaying ? undefined : `${h * 0.75}px`,
+                                        animationDelay: `${idx * 0.05}s`,
+                                      }}
+                                    />
+                                  ),
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 4-Criteria Score Grid */}
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gap: 6,
+                                marginBottom: 12,
+                                textAlign: 'center',
+                              }}
+                            >
+                              {[
+                                { label: 'Fluency', val: SPEAKING_DEMO.scores.fluency, color: '#34D399' },
+                                { label: 'Pronun.', val: SPEAKING_DEMO.scores.pronunciation, color: '#F59E0B' },
+                                { label: 'Lexical', val: SPEAKING_DEMO.scores.lexical, color: '#38BDF8' },
+                                { label: 'Grammar', val: SPEAKING_DEMO.scores.grammar, color: '#A78BFA' },
+                              ].map((item) => (
+                                <div
+                                  key={item.label}
+                                  style={{
+                                    padding: '8px 4px',
+                                    borderRadius: 10,
+                                    background: 'var(--card-2)',
+                                    border: '1px solid var(--border)',
+                                  }}
+                                >
+                                  <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700 }}>{item.label}</div>
+                                  <div style={{ fontSize: 15, fontWeight: 900, color: item.color, marginTop: 2 }}>
+                                    {item.val.toFixed(1)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* AI Transcription & Feedback */}
+                            <div
+                              style={{
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                background: 'rgba(56, 189, 248, 0.08)',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                fontSize: 12,
+                                color: 'var(--ink-soft)',
+                                lineHeight: 1.5,
+                                marginBottom: 16,
+                              }}
+                            >
+                              <div style={{ fontSize: 11, fontWeight: 800, color: '#38BDF8', marginBottom: 4 }}>
+                                🎙 AI Transkripsiya (Excerpt):
+                              </div>
+                              <p style={{ margin: '0 0 6px', fontStyle: 'italic', color: '#cbd5e1' }}>
+                                "{SPEAKING_DEMO.transcript.slice(0, 160)}..."
+                              </p>
+                              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                                {SPEAKING_DEMO.aiFeedback}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAction('/speaking')}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: 12,
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38BDF8',
+                                fontSize: 13,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              🎙 Speaking trenajyorni sinash →
+                            </button>
+                          </div>
+                        )}
+
+                        {/* TAB 3: CBT READING & LISTENING */}
+                        {demoTabEnglish === 'cbt' && (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: 'var(--muted)',
+                                marginBottom: 12,
+                              }}
+                            >
+                              <span style={{ color: '#10B981' }}>{ENGLISH_CBT_QUESTION.section}</span>
+                              <span>⏱ 00:55</span>
+                            </div>
+
+                            <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                              {ENGLISH_CBT_QUESTION.question}
+                            </h4>
+
+                            {/* Choices */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                              {ENGLISH_CBT_QUESTION.options.map((opt) => {
+                                const isChosen = selectedOptionKeyEnglish === opt.key;
+                                const isCorrect = opt.correct;
+                                const showCorrectState = selectedOptionKeyEnglish !== null && isCorrect;
+                                const showWrongState = isChosen && !isCorrect;
+
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    type="button"
+                                    onClick={() => handleCbtOptionClickEnglish(opt.key)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      width: '100%',
+                                      padding: '10px 12px',
+                                      borderRadius: 12,
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      textAlign: 'left',
+                                      transition: 'all 0.2s ease',
+                                      background: showCorrectState
+                                        ? 'rgba(16, 185, 129, 0.2)'
+                                        : showWrongState
+                                        ? 'rgba(239, 68, 68, 0.2)'
+                                        : 'var(--card-2)',
+                                      border: `1px solid ${
+                                        showCorrectState
+                                          ? '#10B981'
+                                          : showWrongState
+                                          ? '#ef4444'
+                                          : 'var(--border)'
+                                      }`,
+                                      color: showCorrectState
+                                        ? '#34D399'
+                                        : showWrongState
+                                        ? '#f87171'
+                                        : 'var(--ink)',
+                                    }}
+                                  >
+                                    <span>
+                                      <b>{opt.key})</b> {opt.text}
+                                    </span>
+                                    {showCorrectState && <span>✓ Correct</span>}
+                                    {showWrongState && <span>✕ Incorrect</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Explanation */}
+                            {selectedOptionKeyEnglish && (
+                              <div
+                                style={{
+                                  padding: '12px 14px',
+                                  borderRadius: 12,
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  fontSize: 12,
+                                  color: '#cbd5e1',
+                                  lineHeight: 1.5,
+                                  marginBottom: 16,
+                                }}
+                              >
+                                <b style={{ color: '#10B981', display: 'block', marginBottom: 4 }}>💡 Key Explanation:</b>
+                                {ENGLISH_CBT_QUESTION.explanation}
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleAction('/tests')}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: 12,
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                color: '#10B981',
+                                fontSize: 13,
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              🎧 Cambridge CBT testini boshlash →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -1192,7 +2011,7 @@ export default function Landing() {
                   textTransform: 'uppercase',
                 }}
               >
-                {t('features_main_eyebrow')}
+                {landingSubject === 'english' ? 'CAMBRIDGE & CEFR ECOSYSTEM' : t('features_main_eyebrow')}
               </span>
               <h2
                 style={{
@@ -1202,292 +2021,550 @@ export default function Landing() {
                   margin: '12px 0',
                 }}
               >
-                {t('features_main_title_1')}{' '}
-                <span className="hero-title-gradient">{t('features_main_title_2')}</span>
+                {landingSubject === 'english' ? (
+                  <>
+                    IELTS & Multi-level imkoniyatlari{' '}
+                    <span className="hero-title-gradient">bitta platformada</span>
+                  </>
+                ) : (
+                  <>
+                    {t('features_main_title_1')}{' '}
+                    <span className="hero-title-gradient">{t('features_main_title_2')}</span>
+                  </>
+                )}
               </h2>
               <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>
-                {t('features_main_subtitle')}
+                {landingSubject === 'english'
+                  ? 'IELTS Band 7.5+ va Multi-level C1 darajasiga erishish uchun eng soʻnggi AI texnologiyalari.'
+                  : t('features_main_subtitle')}
               </p>
             </div>
 
             {/* 3 Core Direction Cards Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: 24,
-              }}
-            >
-              {/* Card 1: AI Esse */}
-              <div
-                className="glass-card lcard-hover"
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={landingSubject}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.22 }}
                 style={{
-                  borderRadius: 24,
-                  padding: '32px 28px',
-                  display: 'flex',
-                  flexDirection: 'column',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: 24,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 16,
-                      background: 'rgba(245, 158, 11, 0.12)',
-                      border: '1px solid rgba(245, 158, 11, 0.28)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#F59E0B',
-                      boxShadow: '0 0 20px rgba(245, 158, 11, 0.15)',
-                    }}
-                  >
-                    <PenLineIcon size={26} />
-                  </div>
-                  <span
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      background: 'rgba(245, 158, 11, 0.15)',
-                      color: '#F59E0B',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                    }}
-                  >
-                    {t('feature_card_essay_badge')}
-                  </span>
-                </div>
+                {landingSubject === 'uzbek' ? (
+                  <>
+                    {/* Uzbek Card 1: AI Esse */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            border: '1px solid rgba(245, 158, 11, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#F59E0B',
+                            boxShadow: '0 0 20px rgba(245, 158, 11, 0.15)',
+                          }}
+                        >
+                          <PenLineIcon size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: '#F59E0B',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                          }}
+                        >
+                          {t('feature_card_essay_badge')}
+                        </span>
+                      </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  {t('feature_card_essay_title')}
-                </h3>
-                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  {t('feature_card_essay_desc')}
-                </p>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        {t('feature_card_essay_title')}
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        {t('feature_card_essay_desc')}
+                      </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>{t('feature_card_essay_bullet1')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>{t('feature_card_essay_bullet2')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                    <span>{t('feature_card_essay_bullet3')}</span>
-                  </div>
-                </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>{t('feature_card_essay_bullet1')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>{t('feature_card_essay_bullet2')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>{t('feature_card_essay_bullet3')}</span>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleAction('/essays')}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: 12,
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    color: '#F59E0B',
-                    fontWeight: 800,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
-                  }}
-                >
-                  {t('feature_card_essay_action')}
-                </button>
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/essays')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#F59E0B',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {t('feature_card_essay_action')}
+                      </button>
+                    </div>
 
-              {/* Card 2: CBT Tests */}
-              <div
-                className="glass-card lcard-hover"
-                style={{
-                  borderRadius: 24,
-                  padding: '32px 28px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 16,
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.28)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#10B981',
-                      boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
-                    }}
-                  >
-                    <FileTextIcon size={26} />
-                  </div>
-                  <span
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      color: '#34D399',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                    }}
-                  >
-                    {t('feature_card_cbt_badge')}
-                  </span>
-                </div>
+                    {/* Uzbek Card 2: CBT Tests */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#10B981',
+                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
+                          }}
+                        >
+                          <FileTextIcon size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34D399',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                          }}
+                        >
+                          {t('feature_card_cbt_badge')}
+                        </span>
+                      </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  {t('feature_card_cbt_title')}
-                </h3>
-                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  {t('feature_card_cbt_desc')}
-                </p>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        {t('feature_card_cbt_title')}
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        {t('feature_card_cbt_desc')}
+                      </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>{t('feature_card_cbt_bullet1')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>{t('feature_card_cbt_bullet2')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#10B981' }} />
-                    <span>{t('feature_card_cbt_bullet3')}</span>
-                  </div>
-                </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>{t('feature_card_cbt_bullet1')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>{t('feature_card_cbt_bullet2')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>{t('feature_card_cbt_bullet3')}</span>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleAction('/tests')}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: 12,
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    color: '#34D399',
-                    fontWeight: 800,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)';
-                  }}
-                >
-                  {t('feature_card_cbt_action')}
-                </button>
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/tests')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#34D399',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {t('feature_card_cbt_action')}
+                      </button>
+                    </div>
 
-              {/* Card 3: 1v1 Arena */}
-              <div
-                className="glass-card lcard-hover"
-                style={{
-                  borderRadius: 24,
-                  padding: '32px 28px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 16,
-                      background: 'rgba(139, 92, 246, 0.12)',
-                      border: '1px solid rgba(139, 92, 246, 0.28)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#A78BFA',
-                      boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
-                    }}
-                  >
-                    <SwordsIcon size={26} />
-                  </div>
-                  <span
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      background: 'rgba(139, 92, 246, 0.15)',
-                      color: '#A78BFA',
-                      border: '1px solid rgba(139, 92, 246, 0.3)',
-                    }}
-                  >
-                    {t('feature_card_arena_badge')}
-                  </span>
-                </div>
+                    {/* Uzbek Card 3: 1v1 Arena */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(139, 92, 246, 0.12)',
+                            border: '1px solid rgba(139, 92, 246, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#A78BFA',
+                            boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
+                          }}
+                        >
+                          <SwordsIcon size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(139, 92, 246, 0.15)',
+                            color: '#A78BFA',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                          }}
+                        >
+                          {t('feature_card_arena_badge')}
+                        </span>
+                      </div>
 
-                <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
-                  {t('feature_card_arena_title')}
-                </h3>
-                <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                  {t('feature_card_arena_desc')}
-                </p>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        {t('feature_card_arena_title')}
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        {t('feature_card_arena_desc')}
+                      </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>{t('feature_card_arena_bullet1')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>{t('feature_card_arena_bullet2')}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckIcon size={16} style={{ color: '#A78BFA' }} />
-                    <span>{t('feature_card_arena_bullet3')}</span>
-                  </div>
-                </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <span>{t('feature_card_arena_bullet1')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <span>{t('feature_card_arena_bullet2')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#A78BFA' }} />
+                          <span>{t('feature_card_arena_bullet3')}</span>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleAction('/arena')}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: 12,
-                    background: 'rgba(139, 92, 246, 0.15)',
-                    border: '1px solid rgba(139, 92, 246, 0.35)',
-                    color: '#A78BFA',
-                    fontWeight: 800,
-                    fontSize: 14,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
-                  }}
-                >
-                  {t('feature_card_arena_action')}
-                </button>
-              </div>
-            </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/arena')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(139, 92, 246, 0.15)',
+                          border: '1px solid rgba(139, 92, 246, 0.35)',
+                          color: '#A78BFA',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {t('feature_card_arena_action')}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* English Card 1: IELTS Writing AI Grader */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            border: '1px solid rgba(245, 158, 11, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#F59E0B',
+                            boxShadow: '0 0 20px rgba(245, 158, 11, 0.15)',
+                          }}
+                        >
+                          <PenLineIcon size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: '#F59E0B',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                          }}
+                        >
+                          IELTS Band 1.0–9.0
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        IELTS Writing AI Grader (Task 1 & 2)
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Rasmiy 4 ta mezon (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq ekspertiza, ilgʻor akademik sinonimlar va aniq Band Score.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>Task 1 (Grafik/Jadval) va Task 2 tahlili</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>Band 8+ akademik kollokatsiyalar taklifi</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                          <span>CEFR darajasi (B2, C1, C2) muvofiqligi</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/essays')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#F59E0B',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        Writing topshirish →
+                      </button>
+                    </div>
+
+                    {/* English Card 2: AI Speaking Simulator */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#38BDF8',
+                            boxShadow: '0 0 20px rgba(56, 189, 248, 0.15)',
+                          }}
+                        >
+                          <Mic size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            color: '#38BDF8',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                          }}
+                        >
+                          Gemini Multimodal Speech AI
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        AI Speaking Simulyatori
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Part 1, Part 2 (Cue Card 1 daqiqa tayyorgarlik) va Part 3 savollariga ovozli javob bering. Talaffuz va ravonlik tahlili.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Jonli audio toʻlqin va aniq transkripsiya</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Talaffuz (Pronunciation) va ravonlik bahosi</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
+                          <span>Grammatik tahrirlar va Band 8+ sinonimlar</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/speaking')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                          color: '#38BDF8',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        Speakingni sinash →
+                      </button>
+                    </div>
+
+                    {/* English Card 3: Cambridge CBT Reading & Listening */}
+                    <div
+                      className="glass-card lcard-hover"
+                      style={{
+                        borderRadius: 24,
+                        padding: '32px 28px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 16,
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.28)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#10B981',
+                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)',
+                          }}
+                        >
+                          <Headphones size={26} />
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34D399',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                          }}
+                        >
+                          Cambridge CBT Standard
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
+                        CBT Reading & Listening
+                      </h3>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                        Rasmiy British Council va IDP kompyuterlashtirilgan formati. Audio boshqaruvi, interaktiv savollar va lahzalik aniq Band.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Haqiqiy Cambridge test formatlari</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Audio pleer va interaktiv skript matni</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckIcon size={16} style={{ color: '#10B981' }} />
+                          <span>Tezkor xatolar ustida ishlash rejimi</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAction('/tests')}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: 12,
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          color: '#34D399',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        CBT Testni boshlash →
+                      </button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </section>
 
@@ -1747,6 +2824,80 @@ export default function Landing() {
 
       {/* Style overrides for media queries */}
       <style>{`
+        @keyframes wavePulse {
+          0%, 100% { height: 6px; }
+          50% { height: 26px; }
+        }
+        .waveform-bar {
+          width: 4px;
+          border-radius: 999px;
+          background: #38BDF8;
+          transition: height 0.15s ease;
+        }
+        .waveform-bar.playing {
+          animation: wavePulse 0.8s ease-in-out infinite;
+        }
+        .hero-subject-switcher {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--card-2);
+          padding: 6px;
+          border-radius: 18px;
+          border: 1px solid var(--border);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+        }
+        .hero-switcher-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          border-radius: 14px;
+          border: 1px solid transparent;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--muted);
+          background: transparent;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .hero-switcher-btn:hover {
+          color: var(--ink);
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .hero-switcher-btn.active {
+          background: linear-gradient(135deg, #F59E0B, #FBBF24);
+          color: #090D16;
+          font-weight: 800;
+          box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+        }
+        .switcher-subtag {
+          font-size: 11px;
+          font-weight: 800;
+          padding: 2px 7px;
+          border-radius: 6px;
+          background: rgba(0, 0, 0, 0.12);
+          color: inherit;
+          opacity: 0.9;
+        }
+        .hero-switcher-btn:not(.active) .switcher-subtag {
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--muted);
+        }
+        @media (max-width: 640px) {
+          .hero-subject-switcher {
+            width: 100%;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .hero-switcher-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 10px 14px;
+          }
+        }
         @media (min-width: 900px) {
           .hero-grid {
             grid-template-columns: 1.05fr 0.95fr !important;

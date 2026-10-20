@@ -27,18 +27,28 @@ type TargetType = 'national_certificate' | 'attestation' | 'ielts' | 'multilevel
 export default function OnboardingModal({ isOpen, onClose, onSuccess }: OnboardingModalProps) {
   const { user, updateUserLocal, refreshUser } = useAuth();
 
-  const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(
-    user?.active_subject === 'english' ? 'english' : 'uzbek',
-  );
+  const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
+    if (user?.active_subject === 'english') return 'english';
+    const saved = localStorage.getItem('landing_subject') || localStorage.getItem('lms_subject');
+    return saved === 'english' ? 'english' : 'uzbek';
+  });
 
   // 1-Step: Goals
-  const [examTarget, setExamTarget] = useState<TargetType>(
-    user?.active_subject === 'english' ? 'ielts' : 'national_certificate',
-  );
+  const [examTarget, setExamTarget] = useState<TargetType>(() => {
+    const isEng =
+      user?.active_subject === 'english' ||
+      localStorage.getItem('landing_subject') === 'english' ||
+      localStorage.getItem('lms_subject') === 'english';
+    return isEng ? 'ielts' : 'national_certificate';
+  });
   const [timelineMonths, setTimelineMonths] = useState<number>(3);
-  const [targetGrade, setTargetGrade] = useState<string>(
-    user?.active_subject === 'english' ? 'Band 7.5' : 'A+',
-  );
+  const [targetGrade, setTargetGrade] = useState<string>(() => {
+    const isEng =
+      user?.active_subject === 'english' ||
+      localStorage.getItem('landing_subject') === 'english' ||
+      localStorage.getItem('lms_subject') === 'english';
+    return isEng ? 'Band 7.5' : 'A+';
+  });
 
   // 2-Step: Quiz state
   const [step, setStep] = useState<Step>('goals');
@@ -69,7 +79,9 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   useEffect(() => {
     if (isOpen) {
       const sub =
-        user?.active_subject === 'english' || localStorage.getItem('lms_subject') === 'english'
+        user?.active_subject === 'english' ||
+        localStorage.getItem('landing_subject') === 'english' ||
+        localStorage.getItem('lms_subject') === 'english'
           ? 'english'
           : 'uzbek';
       setActiveSubject(sub);
