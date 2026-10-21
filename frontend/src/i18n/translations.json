@@ -1656,7 +1656,10 @@
     "feat_multi_w_btn": "Writing yozishni boshlash →",
     "feat_multi_cbt_title": "Multi-level CBT Testlari",
     "feat_multi_cbt_sub": "Rasmiy DTM/BMB formati boʻyicha 5 ta qismdan iborat Reading va Listening imtihon simulyatori.",
-    "feat_multi_cbt_btn": "Multi-level testini boshlash →"
+    "feat_multi_cbt_btn": "Multi-level testini boshlash →",
+    "flag_question": "Belgilash",
+    "flagged_active": "Shubhali",
+    "take_flagged_stat": "ta shubhali"
   },
   "ru": {
     "main": "Главное",
@@ -3315,7 +3318,10 @@
     "feat_multi_w_btn": "Начать практику Writing →",
     "feat_multi_cbt_title": "Тесты Multi-level CBT",
     "feat_multi_cbt_sub": "Симулятор экзамена Reading и Listening из 5 частей по официальному формату БМБ.",
-    "feat_multi_cbt_btn": "Начать тест Multi-level →"
+    "feat_multi_cbt_btn": "Начать тест Multi-level →",
+    "flag_question": "Отметить",
+    "flagged_active": "Отмечено",
+    "take_flagged_stat": "отмечено"
   },
   "en": {
     "main": "Main",
@@ -4974,6 +4980,9 @@
     "feat_multi_w_btn": "Start Writing Practice →",
     "feat_multi_cbt_title": "Multi-level CBT Tests",
     "feat_multi_cbt_sub": "Full 5-part Reading and Listening exam simulation according to official BMB format.",
-    "feat_multi_cbt_btn": "Start Multi-level Test →"
+    "feat_multi_cbt_btn": "Start Multi-level Test →",
+    "flag_question": "Flag for review",
+    "flagged_active": "Flagged",
+    "take_flagged_stat": "flagged"
   }
 }

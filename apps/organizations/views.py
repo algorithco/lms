@@ -51,7 +51,7 @@ def enterprise_dashboard_view(request):
     user = request.user
     if getattr(user, "role", None) == "student" and not user.is_staff:
         return Response(
-            {"error": "O\'quvchilar uchun markaz boshqaruvi ruxsat etilmagan."},
+            {"error": "O'quvchilar uchun markaz boshqaruvi ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
     center = _get_user_center(user)
@@ -198,7 +198,7 @@ def enterprise_bulk_import_view(request):
     """
     if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
         return Response(
-            {"error": "O\'quvchilar uchun ommaviy yuklash ruxsat etilmagan."},
+            {"error": "O'quvchilar uchun ommaviy yuklash ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
     center = _get_user_center(request.user)
@@ -329,7 +329,7 @@ def enterprise_report_export_view(request):
     """
     if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
         return Response(
-            {"error": "O\'quvchilar uchun hisobot eksporti ruxsat etilmagan."},
+            {"error": "O'quvchilar uchun hisobot eksporti ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
     center = _get_user_center(request.user)
@@ -395,7 +395,7 @@ def branding_update_view(request):
     user = request.user
     if getattr(user, "role", None) == "student" and not user.is_staff:
         return Response(
-            {"error": "O\'quvchilar uchun brending sozlamalari ruxsat etilmagan."},
+            {"error": "O'quvchilar uchun brending sozlamalari ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
     center = _get_user_center(user)

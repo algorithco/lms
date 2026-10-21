@@ -20,7 +20,10 @@ from django.conf import settings
 from django.db import transaction
 
 from apps.courses.models import Course
-from apps.tests.mock_service import _get_or_create_mock_course, generate_unique_mock_code
+from apps.tests.mock_service import (
+    _get_or_create_mock_course,
+    generate_unique_mock_code,
+)
 from apps.tests.models import Choice, Question, ReadingPassage, Test
 
 logger = logging.getLogger(__name__)
@@ -110,9 +113,7 @@ def _call_gemini_vision(image_bytes: bytes, mime_type: str, prompt: str) -> str:
         return ""
 
 
-def _call_openrouter_vision(
-    image_bytes: bytes, mime_type: str, prompt: str
-) -> str:
+def _call_openrouter_vision(image_bytes: bytes, mime_type: str, prompt: str) -> str:
     """OpenRouter multimodal (vision) API orqali rasmni tahlil qilish."""
     api_key = getattr(settings, "OPENROUTER_API_KEY", "") or getattr(
         settings, "GROQ_API_KEY", ""
@@ -128,13 +129,16 @@ def _call_openrouter_vision(
         else getattr(settings, "GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     )
 
-    model_name = getattr(
-        settings,
-        "ESSAY_OCR_VISION_MODEL",
-        "google/gemini-flash-1.5"
-        if "openrouter" in base_url
-        else "llama-3.2-11b-vision-preview",
-    ) or "google/gemini-flash-1.5"
+    model_name = (
+        getattr(
+            settings,
+            "ESSAY_OCR_VISION_MODEL",
+            "google/gemini-flash-1.5"
+            if "openrouter" in base_url
+            else "llama-3.2-11b-vision-preview",
+        )
+        or "google/gemini-flash-1.5"
+    )
 
     b64 = base64.b64encode(image_bytes).decode("ascii")
     data_uri = f"data:{mime_type};base64,{b64}"
@@ -372,7 +376,11 @@ def _clean_json_response(raw_resp: str) -> dict[str, Any] | None:
 
     try:
         data = json.loads(cleaned)
-        if isinstance(data, dict) and "questions" in data and isinstance(data["questions"], list):
+        if (
+            isinstance(data, dict)
+            and "questions" in data
+            and isinstance(data["questions"], list)
+        ):
             return data
     except Exception as e:
         logger.warning("JSON parsing xatoligi: %s (Raw: %s)", e, raw_resp[:200])
@@ -390,13 +398,9 @@ def convert_document_to_test_data(
     Asosiy kirish funksiyasi:
     Yuklangan fayl (PDF yoki rasm)ni tahlil qilib, interaktiv test JSON ma'lumotlarini qaytaradi.
     """
-    is_pdf = (
-        content_type == "application/pdf"
-        or filename.lower().endswith(".pdf")
-    )
-    is_image = (
-        content_type.startswith("image/")
-        or filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".heic"))
+    is_pdf = content_type == "application/pdf" or filename.lower().endswith(".pdf")
+    is_image = content_type.startswith("image/") or filename.lower().endswith(
+        (".png", ".jpg", ".jpeg", ".webp", ".heic")
     )
 
     norm_subject = subject if subject in ("uzbek", "english") else "uzbek"
@@ -458,8 +462,7 @@ def convert_document_to_test_data(
             ]
 
     return {
-        "test_title": parsed_result.get("test_title")
-        or f"{subject_label} — AI Test",
+        "test_title": parsed_result.get("test_title") or f"{subject_label} — AI Test",
         "reading_passage": parsed_result.get("reading_passage", "").strip(),
         "subject": norm_subject,
         "questions_count": len(questions),

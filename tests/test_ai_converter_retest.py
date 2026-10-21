@@ -54,8 +54,12 @@ class AiConverterAndRetestTests(TestCase):
             points=1,
             explanation="Fonetika nutq tovushlarini o'rganadi.",
         )
-        Choice.objects.create(question=self.q1, text="Nutq tovushlarini", is_correct=True, position=1)
-        Choice.objects.create(question=self.q1, text="So'z ma'nolarini", is_correct=False, position=2)
+        Choice.objects.create(
+            question=self.q1, text="Nutq tovushlarini", is_correct=True, position=1
+        )
+        Choice.objects.create(
+            question=self.q1, text="So'z ma'nolarini", is_correct=False, position=2
+        )
 
         self.q2 = Question.objects.create(
             test=self.test,
@@ -64,19 +68,33 @@ class AiConverterAndRetestTests(TestCase):
             points=1,
             explanation="Morfologiya so'z turkumlarini o'rganadi.",
         )
-        Choice.objects.create(question=self.q2, text="So'z turkumlarini", is_correct=True, position=1)
-        Choice.objects.create(question=self.q2, text="Gap bo'laklarini", is_correct=False, position=2)
+        Choice.objects.create(
+            question=self.q2, text="So'z turkumlarini", is_correct=True, position=1
+        )
+        Choice.objects.create(
+            question=self.q2, text="Gap bo'laklarini", is_correct=False, position=2
+        )
 
     def test_student_blocked_from_ai_converter(self) -> None:
         self.client.login(email="retest_student@test.com", password="testpass123")
-        dummy_file = SimpleUploadedFile("test.png", b"fake_image_content", content_type="image/png")
-        res = self.client.post("/api/v1/tests/ai-convert-document/", {"file": dummy_file, "subject": "uzbek"})
+        dummy_file = SimpleUploadedFile(
+            "test.png", b"fake_image_content", content_type="image/png"
+        )
+        res = self.client.post(
+            "/api/v1/tests/ai-convert-document/",
+            {"file": dummy_file, "subject": "uzbek"},
+        )
         self.assertEqual(res.status_code, 403)
 
     def test_teacher_ai_convert_document_success(self) -> None:
         self.client.login(email="converter_teacher@test.com", password="testpass123")
-        dummy_file = SimpleUploadedFile("sample_test.png", b"fake_png_data", content_type="image/png")
-        res = self.client.post("/api/v1/tests/ai-convert-document/", {"file": dummy_file, "subject": "uzbek"})
+        dummy_file = SimpleUploadedFile(
+            "sample_test.png", b"fake_png_data", content_type="image/png"
+        )
+        res = self.client.post(
+            "/api/v1/tests/ai-convert-document/",
+            {"file": dummy_file, "subject": "uzbek"},
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data.get("success"))
@@ -105,7 +123,9 @@ class AiConverterAndRetestTests(TestCase):
                 }
             ],
         }
-        res = self.client.post("/api/v1/tests/ai-save-converted/", payload, content_type="application/json")
+        res = self.client.post(
+            "/api/v1/tests/ai-save-converted/", payload, content_type="application/json"
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertTrue(data.get("success"))
@@ -127,11 +147,15 @@ class AiConverterAndRetestTests(TestCase):
         )
 
         c1 = self.q1.choices.filter(is_correct=True).first()
-        ans1 = StudentAnswer.objects.create(attempt=attempt, question=self.q1, is_correct=True)
+        ans1 = StudentAnswer.objects.create(
+            attempt=attempt, question=self.q1, is_correct=True
+        )
         ans1.selected_choices.add(c1)
 
         c2_wrong = self.q2.choices.filter(is_correct=False).first()
-        ans2 = StudentAnswer.objects.create(attempt=attempt, question=self.q2, is_correct=False)
+        ans2 = StudentAnswer.objects.create(
+            attempt=attempt, question=self.q2, is_correct=False
+        )
         ans2.selected_choices.add(c2_wrong)
 
         self.client.login(email="retest_student@test.com", password="testpass123")
@@ -155,7 +179,9 @@ class AiConverterAndRetestTests(TestCase):
             status=TestAttempt.Status.COMPLETED,
         )
         c2_wrong = self.q2.choices.filter(is_correct=False).first()
-        ans2 = StudentAnswer.objects.create(attempt=attempt, question=self.q2, is_correct=False)
+        ans2 = StudentAnswer.objects.create(
+            attempt=attempt, question=self.q2, is_correct=False
+        )
         ans2.selected_choices.add(c2_wrong)
 
         self.client.login(email="retest_student@test.com", password="testpass123")

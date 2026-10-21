@@ -28,7 +28,7 @@ whitenoise>=6.12.0,<7.0               # Static file serving
 
 # PDF generation
 reportlab>=5.0.1,<6.0                # PDF certificates
-Pillow>=12.3,<13.0                 # Image processing (avatars, etc.)
+Pillow>=13.0.0,<14.0                 # Image processing (avatars, etc.)
 qrcode>=8.2,<9.0                   # Certificate QR codes
 
 # Telegram bot

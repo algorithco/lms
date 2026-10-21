@@ -288,6 +288,7 @@ class AuditWorkflowSecurityTests(TestCase):
             role="teacher",
         )
         from apps.courses.models import StudentGroup
+
         self.group1 = StudentGroup.objects.create(
             teacher=self.teacher1,
             name="Teacher 1 Group",
@@ -311,11 +312,14 @@ class AuditWorkflowSecurityTests(TestCase):
 
     def test_monthly_report_pdf_blocked_for_other_teacher(self) -> None:
         self.client.login(email="audit_teacher2@test.com", password="testpass123")
-        res = self.client.get(f"/api/v1/school/groups/{self.group1.id}/export/monthly-report-pdf/")
+        res = self.client.get(
+            f"/api/v1/school/groups/{self.group1.id}/export/monthly-report-pdf/"
+        )
         self.assertEqual(res.status_code, 403)
 
     def test_speaking_submission_detail_isolation(self) -> None:
         from apps.speaking.models import SpeakingTopic, SpeakingSubmission
+
         topic = SpeakingTopic.objects.create(
             title="Audit Test Topic",
             prompt="Describe something.",
@@ -339,11 +343,18 @@ class AuditWorkflowSecurityTests(TestCase):
     def test_essay_safe_render_partial_json_fallback(self) -> None:
         from django.test import RequestFactory
         from apps.essays.views import _safe_render_partial
+
         rf = RequestFactory()
         req = rf.get("/essays/fake/")
-        resp = _safe_render_partial(req, "essays/nonexistent_template.html", {"status": "ok", "foo": "bar"}, status=200)
+        resp = _safe_render_partial(
+            req,
+            "essays/nonexistent_template.html",
+            {"status": "ok", "foo": "bar"},
+            status=200,
+        )
         self.assertEqual(resp.status_code, 200)
         import json
+
         data = json.loads(resp.content)
         self.assertTrue(data.get("ok"))
         self.assertEqual(data.get("foo"), "bar")
