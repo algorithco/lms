@@ -23,6 +23,7 @@ import {
   PenLineIcon,
   ReceiptIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   SwordsIcon,
   TrophyIcon,
   UploadIcon,
@@ -148,6 +149,7 @@ export default function Layout() {
             <Section title={t('role_teacher')}>
               <NavLink to="/teacher" end className={linkClass} onClick={close}><UsersIcon size={16} className="ico" /> {t('students')}</NavLink>
               <NavLink to="/groups" className={linkClass} onClick={close}><FolderOpenIcon size={16} className="ico" /> {t('groups')}</NavLink>
+              <NavLink to="/teacher/ai-converter" className={linkClass} onClick={close}><SparklesIcon size={16} className="ico" /> AI Test Konvertor</NavLink>
               <NavLink to="/analytics" className={linkClass} onClick={close}><BarChartIcon size={16} className="ico" /> {t('analytics')}</NavLink>
               <NavLink to="/import" className={linkClass} onClick={close}><UploadIcon size={16} className="ico" /> CSV</NavLink>
               {isReviewer && (

@@ -16,12 +16,32 @@ from . import (
     views_tournaments,
 )
 from apps.organizations import views as views_enterprise
-from apps.tests import views_omr, views_placement
+from apps.tests import views_converter, views_mistakes, views_omr, views_placement
 
 app_name = "webapi"
 
 urlpatterns = [
     # -- 5-Minute Placement Quiz & Multi-Subject Switcher ----------------
+    path(
+        "tests/ai-convert-document/",
+        views_converter.AiConvertDocumentView.as_view(),
+        name="webapi-tests-ai-convert",
+    ),
+    path(
+        "tests/ai-save-converted/",
+        views_converter.AiSaveConvertedTestView.as_view(),
+        name="webapi-tests-ai-save",
+    ),
+    path(
+        "tests/attempts/<int:attempt_id>/generate-retest/",
+        views_mistakes.GenerateRetestView.as_view(),
+        name="webapi-tests-generate-retest",
+    ),
+    path(
+        "tests/mistake-vault/",
+        views_mistakes.MistakeVaultView.as_view(),
+        name="webapi-tests-mistake-vault",
+    ),
     path(
         "tests/placement-quiz/",
         views_placement.placement_quiz_view,

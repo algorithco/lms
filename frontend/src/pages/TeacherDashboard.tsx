@@ -182,12 +182,19 @@ export default function TeacherDashboard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>🚀</span> Tezkor Mock Test Yaratish (1-soniyada kalitlar orqali)
+              <span>🚀</span> Tezkor Mock Test & Vision AI Konvertor
             </h2>
             <p className="muted small" style={{ margin: '4px 0 0' }}>
-              Qog‘ozdagi yoki PDF variantdagi test kalitlarini (masalan, <code>1a2b3c...40b</code>) tashlang — tizim avtomatik 40 talik Mock sessiya yaratib, <strong>#MOCK-...</strong> unikal kod beradi!
+              Qog‘ozdagi yoki PDF test kalitlarini kiritishingiz yoki fotosurat/PDF yuklab AI orqali 1-soniyada test yasashingiz mumkin!
             </p>
           </div>
+          <Link
+            to="/teacher/ai-converter"
+            className="btn primary sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+          >
+            <span>✨</span> Qog'oz/PDF dan AI Konvertor
+          </Link>
         </div>
 
         <form onSubmit={createQuickMock} style={{ marginTop: 16 }}>

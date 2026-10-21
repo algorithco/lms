@@ -537,15 +537,39 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Frontend: `npm run build` (`tsc -b && vite build`) — 0 ta xato bilan muvaffaqiyatli yig'ildi.
   * Backend: `ruff check apps/` — 0 ta xato; `pytest tests/test_spa_contract.py` — 20/20 PASSED (100%).
 
+### 2.28. Ustozlar uchun AI Hujjat Konvertori, O'quvchilar uchun Adaptiv Re-Test Engine va CBT/Esse Ergonomikasi
+- [x] Ustozlar Uchun: Qog'oz va PDF Testdan AI Konvertor (`apps/tests/ai_converter.py`, `views_converter.py`, `TeacherAiConverter.tsx`):
+  * Gemini Vision va PDF matn ajratish (`pypdf` + Gemini 1.5 Flash + OpenRouter multimodal fallback) orqali rasmli sahifa yoki PDF testlarni 1 soniyada to'liq tuzilmali savollarga aylantirish.
+  * API: `POST /api/v1/tests/ai-convert-document/` va `POST /api/v1/tests/ai-save-converted/`.
+  * Xavfsizlik: Student roli uchun 403 Forbidden bilan qat'iy RBAC himoyasi.
+  * Avtomatik rasmiy kod: Har bir saqlangan test uchun noyob `#MOCK-XXXXX` rasmiy kodi va mock kursi bilan birikish.
+  * Frontend: Drag-and-drop yuklash, jonli savol/variant tahrirchisi, to'g'ri javobni tanlash va `#MOCK` kodi bilan darhol nashr etish interfeysi (`/teacher/ai-converter`).
+- [x] O'quvchilar Uchun: "Xatolar Ustida Avto-Mashq" (Adaptive Re-Test Engine) (`views_mistakes.py`, `Results.tsx`, `Dashboard.tsx`):
+  * Test urinishidagi xato qilingan savollarni chuqur tahlil qilib, 5–10 talik moslashtirilgan mini-test generatsiya qiluvchi tizim.
+  * API: `POST /api/v1/tests/attempts/<id>/generate-retest/` va `GET /api/v1/tests/mistake-vault/`.
+  * Avtomatik zaif mavzularni aniqlash (`_detect_question_topic`), urinishni darhol ishga tushirib test topshirish sahifasiga (`/tests/take/<attemptId>`) yo'naltirish.
+  * Frontend: Test natijasi (`Results.tsx`) va asosiy boshqaruv panelida (`Dashboard.tsx`) prominent `[ 🔁 Xatolarim ustida ishlash ]` va Mistake Vault vidjeti.
+- [x] CBT Ergonomikasi va Matn Markeri (`TakeTest.tsx`, `ExamQuestions.tsx`):
+  * 🚩 Shubhali savollarni belgilash (Flag for review): Har bir savol sarlavhasida flag tugmasi, xotirada/qoralamada saqlanishi va savollar palitrasida ambar rangli nishon aks etishi.
+  * 🖍️ Matn Markeri (Reading Passage Highlighter): Katta o'qish matnlarida joylarni belgilab qo'yish (yellow highlight) va tozalash imkoniyati, har bir matn uchun alohida keshlanishi.
+  * 🏁 Kengaytirilgan Pre-Submit Review Modali: Test yakunida 3 ustunli tahlil (Javob berilgan, Javobsiz, Shubhali) va to'g'ridan-to'g'ri savolga sakrash tugmalari.
+- [x] Esse Interaktiv Grammatika Tahrirchisi (Grammarly-Style) (`EssayResult.tsx`):
+  * Yozilgan esse matnida aniqlangan imlo va grammatika xatoliklarining tagiga qizil/ambar to'lqinsimon chiziq (wavy underline) tortilishi.
+  * Interaktiv Popover: Xato so'z, to'g'ri tavsiya, qoida/izoh va `[ 🪄 Matnda almashtirish ]` tugmasi orqali so'zni matnda bir zumda almashtirish.
+  * `[ ⚡ Barchasini to'g'rilash ]` tugmasi va to'g'rilangan yakuniy matnni bir bosishda nusxalash (`Clipboard API`).
+- [x] QA Gate va Sinovlar:
+  * `pytest tests/test_ai_converter_retest.py`: 5/5 test 100% PASS (RBAC 403, konvertatsiya, test saqlash, re-test yaratish, xatolar sandig'i).
+  * `python -m ruff check`: 0 ta xato.
+  * `npm run build`: `tsc -b && vite build` 0 ta xato bilan muvaffaqiyatli yig'ildi.
+
 ## 3. Jarayonda
-- Feature branch va Pull Request yaratish, GitHub Actions orqali yangi rasmiy Release e'lon qilish va VPS ga deploy qilish.
+- Ishlarni git ga rasmiy commit qilish, VPS serverga zero-downtime sinxronlash va sog'lomlik tekshiruvini o'tkazish.
 
 ---
 
 ## 4. Keyingi qadamlar
-- `feature/lms-optimization-and-cleanup` tarmog'ini push qilish va PR yaratish.
-- PR tekshiruvlari o'tgach, `main` ga birlashtirish va yangi versiya tegini qo'yish.
-- Jonli Contabo VPS da yangi releaseni tekshirish.
+- Git commit va push (Komiljon Roziyev, Zero AI attribution).
+- VPS Contabo `169.58.58.229` da servislar holatini va `https://grandec.uz/healthz/` 200 OK qaytarishini tekshirish.
 
 
 

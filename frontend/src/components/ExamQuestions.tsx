@@ -54,6 +54,88 @@ export function PassageCard({ passage }: { passage: PassageDef }) {
   const [collapsed, setCollapsed] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
+  const [highlights, setHighlights] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`grandec_passage_highlights_${passage.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [markerActive, setMarkerActive] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+
+  const saveHighlights = (next: string[]) => {
+    setHighlights(next);
+    try {
+      localStorage.setItem(`grandec_passage_highlights_${passage.id}`, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
+  const addHighlight = (textToAdd?: string) => {
+    const txt = (textToAdd || selectedText || '').trim();
+    if (txt && txt.length >= 2 && !highlights.includes(txt)) {
+      const next = [...highlights, txt];
+      saveHighlights(next);
+      setSelectedText('');
+    }
+  };
+
+  const clearHighlights = () => {
+    saveHighlights([]);
+    setSelectedText('');
+  };
+
+  const handleMouseUp = () => {
+    const sel = window.getSelection()?.toString().trim();
+    if (sel && sel.length >= 2 && sel.length <= 400) {
+      setSelectedText(sel);
+      if (markerActive) {
+        addHighlight(sel);
+      }
+    } else {
+      setSelectedText('');
+    }
+  };
+
+  const renderContentWithHighlights = () => {
+    if (!highlights.length) {
+      return passage.content;
+    }
+    try {
+      const sorted = [...highlights].sort((a, b) => b.length - a.length);
+      const escaped = sorted.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = passage.content.split(regex);
+      return parts.map((part, idx) => {
+        const isHit = sorted.some((h) => h.toLowerCase() === part.toLowerCase());
+        if (isHit) {
+          return (
+            <mark
+              key={idx}
+              className="cbt-highlight"
+              style={{
+                background: 'rgba(250, 204, 21, 0.35)',
+                color: 'inherit',
+                padding: '2px 4px',
+                borderRadius: '3px',
+                borderBottom: '2px solid #eab308',
+                fontWeight: 600,
+              }}
+              title="Ajratilgan matn (CBT Highlighter)"
+            >
+              {part}
+            </mark>
+          );
+        }
+        return part;
+      });
+    } catch {
+      return passage.content;
+    }
+  };
 
   return (
     <div className="card passage-card sticky-passage" style={{ marginBottom: 12 }}>
@@ -73,27 +155,85 @@ export function PassageCard({ passage }: { passage: PassageDef }) {
           📖 {t('exam_passage_title') || "Matnni ko'rish (Qismlar bo'yicha)"}
           {passage.title ? ` · ${passage.title}` : ''}
         </p>
-        <button
-          type="button"
-          className="btn sm ghost"
-          onClick={() => setCollapsed(!collapsed)}
-          style={{ fontSize: '0.78rem', padding: '3px 8px' }}
-        >
-          {collapsed ? `📖 ${t('read_full_passage') || 'Matnni ochish'}` : `🔼 ${t('collapse_passage') || 'Yopish'}`}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => setMarkerActive(!markerActive)}
+            style={{
+              fontSize: '0.76rem',
+              padding: '3px 8px',
+              background: markerActive ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+              borderColor: markerActive ? '#f59e0b' : 'var(--border)',
+              color: markerActive ? '#f59e0b' : 'var(--muted)',
+            }}
+            title="Matndan joy tanlab ajratib qo'yish (CBT Marker)"
+          >
+            <span>🖍️</span> {markerActive ? "Marker (Faol)" : "Marker"}
+          </button>
+          {highlights.length > 0 && (
+            <button
+              type="button"
+              className="btn sm ghost"
+              onClick={clearHighlights}
+              style={{ fontSize: '0.76rem', padding: '3px 8px', color: '#f87171' }}
+              title="Barcha ajratilgan belgilarni tozalash"
+            >
+              🧹 Tozalash ({highlights.length})
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn sm ghost"
+            onClick={() => setCollapsed(!collapsed)}
+            style={{ fontSize: '0.78rem', padding: '3px 8px' }}
+          >
+            {collapsed ? `📖 ${t('read_full_passage') || 'Matnni ochish'}` : `🔼 ${t('collapse_passage') || 'Yopish'}`}
+          </button>
+        </div>
       </div>
+
+      {selectedText && !markerActive && (
+        <div
+          style={{
+            marginBottom: 8,
+            padding: '4px 8px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px dashed #f59e0b',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: '0.8rem', color: '#f59e0b' }}>
+            Tanlangan matn: &quot;{selectedText.length > 40 ? selectedText.slice(0, 40) + '…' : selectedText}&quot;
+          </span>
+          <button
+            type="button"
+            className="btn sm primary"
+            onClick={() => addHighlight()}
+            style={{ fontSize: '0.74rem', padding: '2px 8px', background: '#f59e0b', borderColor: '#f59e0b' }}
+          >
+            🖍️ Ajratish
+          </button>
+        </div>
+      )}
 
       {!collapsed ? (
         <div
           className="passage-content-scroll"
+          onMouseUp={handleMouseUp}
           style={{
             whiteSpace: 'pre-line',
             lineHeight: 1.75,
             fontSize: '0.96rem',
             color: 'var(--ink)',
+            userSelect: 'text',
           }}
         >
-          {passage.content}
+          {renderContentWithHighlights()}
         </div>
       ) : (
         <div

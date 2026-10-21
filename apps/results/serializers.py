@@ -24,6 +24,7 @@ class ResultListSerializer(serializers.ModelSerializer):
     Dashboard'da ishlatiladi.
     """
 
+    attempt_id = serializers.IntegerField(source="attempt.id", read_only=True, default=None)
     test_title = serializers.CharField(source="test.title", read_only=True)
     course_title = serializers.CharField(source="course.title", read_only=True)
     student_name = serializers.SerializerMethodField()
@@ -35,6 +36,7 @@ class ResultListSerializer(serializers.ModelSerializer):
         model = Result
         fields = [
             "id",
+            "attempt_id",
             "test",
             "test_title",
             "course",
@@ -80,6 +82,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     Qaysi savollarda xato qilganini ko'rsatadi.
     """
 
+    attempt_id = serializers.IntegerField(source="attempt.id", read_only=True, default=None)
     test_title = serializers.CharField(source="test.title", read_only=True)
     course_title = serializers.CharField(source="course.title", read_only=True)
     student_name = serializers.SerializerMethodField()
@@ -94,6 +97,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
         model = Result
         fields = [
             "id",
+            "attempt_id",
             "test",
             "test_title",
             "course",

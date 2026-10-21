@@ -57,6 +57,7 @@ const ScanOMR = lazyPage(() => import('./pages/ScanOMR'));
 const SpeakingTopics = lazyPage(() => import('./pages/SpeakingTopics'));
 const SpeakingPractice = lazyPage(() => import('./pages/SpeakingPractice'));
 const SpeakingResult = lazyPage(() => import('./pages/SpeakingResult'));
+const TeacherAiConverter = lazyPage(() => import('./pages/TeacherAiConverter'));
 
 import AuthModal from './components/AuthModal';
 
@@ -158,6 +159,8 @@ function AnimatedRoutes() {
             {/* School */}
             <Route element={<TeacherRoute />}>
               <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/ai-converter" element={<TeacherAiConverter />} />
+              <Route path="/panel/ai-converter" element={<Navigate to="/teacher/ai-converter" replace />} />
               {/* Legacy /teacher/dashboard/ */}
               <Route path="/teacher/dashboard" element={<Navigate to="/teacher" replace />} />
               <Route path="/analytics" element={<Analytics />} />

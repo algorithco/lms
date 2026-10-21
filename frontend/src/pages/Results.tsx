@@ -12,6 +12,7 @@ import {
   listResultsPage,
   num,
   type ResultListItem,
+  TestsApi,
 } from '../lib/testing';
 
 export function getBmbBadge(grade?: string, pct?: number, t?: (k: string) => string): {
@@ -319,6 +320,27 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const unverified = detail.certificate_status === 'rules_unverified';
   const bmb = getBmbBadge(detail.bmb_grade, pct, t);
 
+  const [retesting, setRetesting] = useState(false);
+  const [retestErr, setRetestErr] = useState<string | null>(null);
+
+  const handleStartRetest = async () => {
+    const targetId = (detail as any).attempt_id || detail.id;
+    setRetesting(true);
+    setRetestErr(null);
+    try {
+      const res = await TestsApi.generateRetest(targetId);
+      if (res.has_mistakes && res.attempt_id) {
+        window.location.href = `/take/${res.attempt_id}`;
+      } else {
+        alert(res.message || "Barcha savollar to'g'ri yechilgan!");
+      }
+    } catch (e: unknown) {
+      setRetestErr(e instanceof Error ? e.message : "Qayta test yaratishda xatolik yuz berdi.");
+    } finally {
+      setRetesting(false);
+    }
+  };
+
   // 24/7 AI Tutor Diagnostics
   const [showDiag, setShowDiag] = useState(false);
   const [diagLoading, setDiagLoading] = useState(false);
@@ -396,6 +418,52 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
 
   return (
     <div>
+      {/* Adaptive Re-Test Action Banner */}
+      {((detail.wrong_answers && detail.wrong_answers > 0) ||
+        (detail.question_details && detail.question_details.some((q) => q.is_correct === false))) && (
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '16px 20px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div>
+            <strong style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1rem', fontWeight: 800 }}>
+              <span>🔁</span> Xatolar ustida avto-mashq (Adaptive Re-Test)
+            </strong>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              Ushbu testda yo'l qo'yilgan xatolar va zaif mavzular bo'yicha moslashtirilgan maqsadli mini-mashq.
+            </p>
+            {retestErr && <p className="error small" style={{ margin: '4px 0 0' }}>{retestErr}</p>}
+          </div>
+          <button
+            type="button"
+            className="btn primary sm"
+            disabled={retesting}
+            onClick={handleStartRetest}
+            style={{
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              border: 'none',
+              color: '#ffffff',
+              fontWeight: 800,
+              padding: '8px 18px',
+              fontSize: '0.9rem',
+              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)',
+            }}
+          >
+            {retesting ? 'Tayyorlanmoqda…' : `🔁 Xatolarim ustida ishlash (${detail.wrong_answers || 'Xatolar'} ta savol)`}
+          </button>
+        </div>
+      )}
+
       {/* BMB Grade & Result Summary Card */}
       <div
         className="card"

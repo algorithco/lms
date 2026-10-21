@@ -13,7 +13,7 @@ Endpoints:
 
 from django.urls import path
 
-from . import views, views_omr, views_placement
+from . import views, views_converter, views_mistakes, views_omr, views_placement
 
 app_name = "tests"
 
@@ -103,5 +103,26 @@ urlpatterns = [
         "scan-omr/",
         views_omr.ScanOMRView.as_view(),
         name="scan-omr",
+    ),
+    # -- AI Document-to-Test Converter & Adaptive Re-test --------------------
+    path(
+        "ai-convert-document/",
+        views_converter.AiConvertDocumentView.as_view(),
+        name="ai-convert-document",
+    ),
+    path(
+        "ai-save-converted/",
+        views_converter.AiSaveConvertedTestView.as_view(),
+        name="ai-save-converted",
+    ),
+    path(
+        "attempts/<int:attempt_id>/generate-retest/",
+        views_mistakes.GenerateRetestView.as_view(),
+        name="generate-retest",
+    ),
+    path(
+        "mistake-vault/",
+        views_mistakes.MistakeVaultView.as_view(),
+        name="mistake-vault",
     ),
 ]

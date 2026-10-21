@@ -134,6 +134,105 @@ export default function EssayResult() {
   const [pollNonce, setPollNonce] = useState(0);
   const [selectedCritId, setSelectedCritId] = useState<number>(1);
 
+  // Grammarly-style Interactive Inline Reviewer
+  const [workingEssayText, setWorkingEssayText] = useState<string>('');
+  const [activeError, setActiveError] = useState<SpellingError | null>(null);
+  const [fixedErrors, setFixedErrors] = useState<Record<string, string>>({});
+  const [copiedWorkingText, setCopiedWorkingText] = useState(false);
+
+  useEffect(() => {
+    if (res?.essay_text && !workingEssayText) {
+      setWorkingEssayText(res.essay_text);
+    }
+  }, [res?.essay_text, workingEssayText]);
+
+  const handleReplaceError = (errToFix: SpellingError) => {
+    const current = workingEssayText || res?.essay_text || '';
+    if (!current) return;
+    try {
+      const escaped = errToFix.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+      const updated = current.replace(regex, errToFix.correction);
+      setWorkingEssayText(updated);
+      setFixedErrors((prev) => ({ ...prev, [errToFix.word.toLowerCase()]: errToFix.correction }));
+      setActiveError(null);
+    } catch {
+      const updated = current.split(errToFix.word).join(errToFix.correction);
+      setWorkingEssayText(updated);
+      setFixedErrors((prev) => ({ ...prev, [errToFix.word.toLowerCase()]: errToFix.correction }));
+      setActiveError(null);
+    }
+  };
+
+  const handleFixAllErrors = () => {
+    if (!res?.spelling_errors?.length) return;
+    let txt = workingEssayText || res.essay_text || '';
+    if (!txt) return;
+    const nextFixed = { ...fixedErrors };
+    for (const errItem of res.spelling_errors) {
+      try {
+        const escaped = errItem.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+        txt = txt.replace(regex, errItem.correction);
+        nextFixed[errItem.word.toLowerCase()] = errItem.correction;
+      } catch {
+        txt = txt.split(errItem.word).join(errItem.correction);
+        nextFixed[errItem.word.toLowerCase()] = errItem.correction;
+      }
+    }
+    setWorkingEssayText(txt);
+    setFixedErrors(nextFixed);
+    setActiveError(null);
+  };
+
+  const renderInlineGrammarlyText = (text: string, errors: SpellingError[]) => {
+    if (!text) return <span className="muted">(Asl matn topilmadi)</span>;
+    if (!errors || !errors.length) return <span>{text}</span>;
+
+    const activeList = errors.filter((e) => !fixedErrors[e.word.toLowerCase()]);
+    if (!activeList.length) {
+      return <span>{text}</span>;
+    }
+
+    try {
+      const words = activeList.map((e) => e.word.trim()).filter((w) => w.length > 0);
+      const sorted = [...words].sort((a, b) => b.length - a.length);
+      const escaped = sorted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      const parts = text.split(regex);
+
+      return parts.map((part, i) => {
+        const match = activeList.find((e) => e.word.toLowerCase() === part.toLowerCase());
+        if (match) {
+          const isSelected = activeError?.word.toLowerCase() === match.word.toLowerCase();
+          return (
+            <span
+              key={i}
+              onClick={() => setActiveError(match)}
+              style={{
+                textDecoration: 'underline wavy #ef4444',
+                textUnderlineOffset: '4px',
+                fontWeight: 600,
+                color: isSelected ? '#f87171' : '#ef4444',
+                background: isSelected ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.08)',
+                padding: '1px 4px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title={`❌ ${match.word} ➔ ✅ ${match.correction} (${match.explanation}) — Bosib almashtirish`}
+            >
+              {part}
+            </span>
+          );
+        }
+        return part;
+      });
+    } catch {
+      return <span>{text}</span>;
+    }
+  };
+
   const radarItems = useMemo(() => {
     if (!res?.criteria || !res.criteria.length) return [];
     return res.criteria.map((c) => {
@@ -501,6 +600,176 @@ export default function EssayResult() {
             </div>
           )}
 
+          {/* 📝 Yozilgan Esse va Interaktiv Grammatika Tahrirchisi (Grammarly rejimida) */}
+          {(res.essay_text || !!res.spelling_errors?.length) && (
+            <div
+              className="card"
+              style={{
+                marginTop: 20,
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, rgba(16, 185, 129, 0.02) 100%)',
+                borderRadius: 14,
+                padding: 20,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.15rem' }}>
+                    <span>✍️</span> Yozilgan Esse va Interaktiv Grammatika Tahrirchisi
+                  </h3>
+                  <p className="muted small" style={{ margin: '4px 0 0' }}>
+                    Grammarly rejimida to&apos;g&apos;ridan-to&apos;g&apos;ri matn ustida to&apos;lqinsimon qizil chiziqli xatoni bosib tuzatish mumkin
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {!!res.spelling_errors?.length && Object.keys(fixedErrors).length < res.spelling_errors.length && (
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={handleFixAllErrors}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        borderColor: '#10b981',
+                        color: '#10b981',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      title="Barcha aniqlangan xatolarni bir zumda to'g'ri shakliga almashtirish"
+                    >
+                      <span>⚡</span> Barchasini to&apos;g&apos;rilash ({res.spelling_errors.length - Object.keys(fixedErrors).length} ta)
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn sm ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(workingEssayText || res.essay_text || '');
+                      setCopiedWorkingText(true);
+                      setTimeout(() => setCopiedWorkingText(false), 2000);
+                    }}
+                    style={{ fontSize: '0.8rem' }}
+                  >
+                    {copiedWorkingText ? '✓ Nusxalandi' : '📋 Matnni nusxalash'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Interactive Grammarly Error Popover / Inspector */}
+              {activeError && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 14,
+                    borderRadius: 10,
+                    background: 'rgba(24, 24, 27, 0.95)',
+                    border: '1.5px solid #ef4444',
+                    boxShadow: '0 8px 24px rgba(239, 68, 68, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>💡</span> Grammatika &amp; Imlo Tavsiyasi
+                    </span>
+                    <button
+                      type="button"
+                      className="btn sm ghost"
+                      onClick={() => setActiveError(null)}
+                      style={{ padding: '2px 8px', fontSize: '0.78rem' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block' }}>Matndagi xato:</span>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: '#ef4444', textDecoration: 'line-through' }}>
+                        {activeError.word}
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--muted)' }}>➔</span>
+                    <div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block' }}>Tavsiya etilgan to&apos;g&apos;ri shakl:</span>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>
+                        {activeError.correction}
+                      </span>
+                    </div>
+                  </div>
+
+                  {activeError.explanation && (
+                    <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink)', lineHeight: 1.5 }}>
+                      <strong>Izoh:</strong> {activeError.explanation}
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className="btn sm ghost"
+                      onClick={() => setActiveError(null)}
+                      style={{ fontSize: '0.8rem' }}
+                    >
+                      Yopish
+                    </button>
+                    <button
+                      type="button"
+                      className="btn sm primary"
+                      onClick={() => handleReplaceError(activeError)}
+                      style={{
+                        background: '#10b981',
+                        borderColor: '#10b981',
+                        color: '#ffffff',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span>🪄</span> Matnda almashtirish
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* The Essay Text with Wave Underlines */}
+              <div
+                style={{
+                  whiteSpace: 'pre-line',
+                  lineHeight: 1.85,
+                  fontSize: '0.98rem',
+                  color: 'var(--ink)',
+                  background: 'rgba(0, 0, 0, 0.15)',
+                  padding: '16px 18px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                {renderInlineGrammarlyText(workingEssayText || res.essay_text || '', res.spelling_errors || [])}
+              </div>
+
+              {/* Status footer */}
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <span className="muted small">
+                  {res.word_count || countEssayWords(workingEssayText || res.essay_text || '')} ta so&apos;z
+                </span>
+                {Object.keys(fixedErrors).length > 0 && (
+                  <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
+                    ✓ {Object.keys(fixedErrors).length} ta xato muvaffaqiyatli almashtirildi
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Spelling Errors Table/List */}
           {!!res.spelling_errors?.length && (
             <div
@@ -515,26 +784,40 @@ export default function EssayResult() {
                 <span>✍️</span> Aniqlangan imlo va grammatika xatoliklari ({res.spelling_errors.length} ta)
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
-                {res.spelling_errors.map((err, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '10px 14px',
-                      background: 'rgba(239, 68, 68, 0.05)',
-                      borderRadius: 8,
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ textDecoration: 'line-through', color: '#ef4444', fontWeight: 600 }}>{err.word}</span>
-                      <span style={{ color: 'var(--text-muted, #9ca3af)' }}>➔</span>
-                      <span style={{ color: '#10b981', fontWeight: 700 }}>{err.correction}</span>
+                {res.spelling_errors.map((err, idx) => {
+                  const isFixed = Boolean(fixedErrors[err.word.toLowerCase()]);
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => !isFixed && setActiveError(err)}
+                      style={{
+                        padding: '10px 14px',
+                        background: isFixed ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                        borderRadius: 8,
+                        border: isFixed ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.2)',
+                        cursor: isFixed ? 'default' : 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={isFixed ? "To'g'rilandi" : "Bosib matnda almashtirish"}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ textDecoration: 'line-through', color: '#ef4444', fontWeight: 600 }}>{err.word}</span>
+                          <span style={{ color: 'var(--text-muted, #9ca3af)' }}>➔</span>
+                          <span style={{ color: '#10b981', fontWeight: 700 }}>{err.correction}</span>
+                        </div>
+                        {isFixed ? (
+                          <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>✓ To&apos;g&apos;rilandi</span>
+                        ) : (
+                          <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>🪄 Tuzatish</span>
+                        )}
+                      </div>
+                      {err.explanation && (
+                        <p className="muted small" style={{ margin: 0, fontSize: '0.8rem' }}>{err.explanation}</p>
+                      )}
                     </div>
-                    {err.explanation && (
-                      <p className="muted small" style={{ margin: 0, fontSize: '0.8rem' }}>{err.explanation}</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

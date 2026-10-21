@@ -17,7 +17,7 @@ import {
   type TuitionOverview,
   type WeeklyReportRow,
 } from '../lib/api';
-import { num, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
+import { num, TestsApi, type CertListItem, type ResultListItem, type TestListItem } from '../lib/testing';
 import {
   AwardIcon,
   CameraIcon,
@@ -66,6 +66,7 @@ export default function Dashboard() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [streak, setStreak] = useState<StreakInfoResponse | null>(null);
   const [league, setLeague] = useState<LeagueLeaderboardResponse | null>(null);
+  const [vaultStats, setVaultStats] = useState<{ unresolved_count: number; weak_topics: { topic: string; error_count: number }[] } | null>(null);
 
   useEffect(() => {
     const isDone = localStorage.getItem('grandec_onboarding_done') === 'true';
@@ -96,6 +97,9 @@ export default function Dashboard() {
     }).catch(() => {});
     GamificationApi.streak().then((res) => { if (alive) setStreak(res); }).catch(() => {});
     GamificationApi.league().then((res) => { if (alive) setLeague(res); }).catch(() => {});
+    if (isStudent) {
+      TestsApi.getMistakeVault().then((v) => { if (alive) setVaultStats(v); }).catch(() => {});
+    }
     return () => { alive = false; };
   }, [user]);
 
@@ -173,6 +177,42 @@ export default function Dashboard() {
       <h1>
         {t('welcome')}, {user?.full_name}
       </h1>
+
+      {/* Mistakes Workbench Banner */}
+      {isStudent && vaultStats && vaultStats.unresolved_count > 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            padding: '16px 20px',
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+              🎯
+            </div>
+            <div>
+              <strong style={{ color: 'var(--ink)', fontSize: '0.98rem', display: 'block' }}>
+                Xatolar ustida avto-mashq: {vaultStats.unresolved_count} ta zaif nuqta aniqlangan
+              </strong>
+              <span className="muted small">
+                {vaultStats.weak_topics.length > 0 ? `Asosiy mavzular: ${vaultStats.weak_topics.slice(0, 2).map((t: { topic: string }) => t.topic).join(', ')}` : 'Testdagi xatolaringizni mustahkamlang'}
+              </span>
+            </div>
+          </div>
+          <Link to="/results" className="btn sm primary" style={{ background: '#ef4444', border: 'none', fontWeight: 700 }}>
+            🔁 Xatolarni ishlash →
+          </Link>
+        </div>
+      )}
 
       {/* Personalized AI Roadmap Banner */}
       {user?.exam_target && user.exam_target !== 'undecided' && (

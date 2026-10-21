@@ -237,6 +237,7 @@ export default function TakeTest() {
   const [savingAll, setSavingAll] = useState(false);
   const [singleMode, setSingleMode] = useState(true);
   const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [flagged, setFlagged] = useState<Record<number, boolean>>({});
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const submittedRef = useRef(false);
   const [isMobile, setIsMobile] = useState<boolean>(
@@ -302,6 +303,16 @@ export default function TakeTest() {
           }
           return s;
         });
+        setFlagged((prev) => {
+          if (Object.keys(prev).length > 0) return prev;
+          const f: Record<number, boolean> = {};
+          for (const q of a.questions ?? []) {
+            if (draft[q.id]?.flagged) {
+              f[q.id] = true;
+            }
+          }
+          return f;
+        });
         setLoadError(null);
         return; // Success!
       } catch (e) {
@@ -324,7 +335,8 @@ export default function TakeTest() {
   }, [load]);
 
   const persist = useCallback(
-    (next: Answers) => {
+    (next: Answers, currentFlags?: Record<number, boolean>) => {
+      const flags = currentFlags ?? flagged;
       const draft: DraftMap = {};
       for (const [qid, a] of Object.entries(next)) {
         draft[Number(qid)] = {
@@ -333,13 +345,22 @@ export default function TakeTest() {
           gaps: a.gaps,
           matching: a.matching,
           written: a.written,
+          flagged: Boolean(flags[Number(qid)]),
           updatedAt: Date.now(),
         };
       }
       storeDraft(attemptId, draft);
     },
-    [attemptId],
+    [attemptId, flagged],
   );
+
+  const toggleFlag = (qId: number) => {
+    setFlagged((prev) => {
+      const next = { ...prev, [qId]: !prev[qId] };
+      persist(answers, next);
+      return next;
+    });
+  };
 
   // Countdown — backend auto-timeouts on expiry (AttemptDetailView +
   // SaveAnswerService), so at zero we auto-submit once.
@@ -724,6 +745,7 @@ export default function TakeTest() {
     return entryHasContent(q, a);
   }).length;
   const unanswered = attempt.questions.length - answeredCount;
+  const flaggedCount = Object.values(flagged).filter(Boolean).length;
   const failedCount = Object.keys(failed).length;
   const timerClass =
     remaining === null ? '' : remaining <= 60 ? ' low' : '';
@@ -806,6 +828,28 @@ export default function TakeTest() {
               {t('points')} · {qtypeLabel(q.question_type, t)}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => toggleFlag(q.id)}
+                className={`btn sm ${flagged[q.id] ? 'btn-flagged' : 'ghost'}`}
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '3px 8px',
+                  borderColor: flagged[q.id] ? '#f59e0b' : 'var(--border)',
+                  background: flagged[q.id] ? 'rgba(245, 158, 11, 0.18)' : 'transparent',
+                  color: flagged[q.id] ? '#f59e0b' : 'var(--muted)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                title="Qayta tekshirish uchun shubhali deb belgilash (CBT Flag)"
+              >
+                <span>🚩</span>
+                <span>{flagged[q.id] ? (t('flagged_active') || 'Shubhali') : (t('flag_question') || 'Belgilash')}</span>
+              </button>
               {saved[q.id] && !failed[q.id] && hasAnswer && (
                 <span className="badge green" style={{ fontSize: '0.72rem' }}>
                   ✓ {t('essay_js_saved')}
@@ -1234,6 +1278,13 @@ export default function TakeTest() {
             {t('take_answered_stat') || 'ta belgilandi'} ·{' '}
             <span style={{ color: '#fca5a5', fontWeight: 700 }}>{unanswered}</span>{' '}
             {t('take_left_stat') || 'ta qoldi'}
+            {flaggedCount > 0 && (
+              <>
+                {' '}·{' '}
+                <span style={{ color: '#f59e0b', fontWeight: 700 }}>🚩 {flaggedCount}</span>{' '}
+                {t('take_flagged_stat') || 'ta shubhali'}
+              </>
+            )}
           </span>
         </div>
         <div className="q-palette-grid">
@@ -1241,6 +1292,7 @@ export default function TakeTest() {
             const a = answers[q.id];
             const done = Boolean(a && entryHasContent(q, a));
             const isActive = singleMode && safeQIndex === i;
+            const isFlagged = Boolean(flagged[q.id]);
             return (
               <button
                 type="button"
@@ -1252,11 +1304,29 @@ export default function TakeTest() {
                     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }
                 }}
-                className={`q-palette-badge${isActive ? ' active' : ''}${done ? ' done' : ''}${failed[q.id] ? ' rose' : ''}`}
-                title={`Savol ${i + 1}`}
+                className={`q-palette-badge${isActive ? ' active' : ''}${done ? ' done' : ''}${failed[q.id] ? ' rose' : ''}${isFlagged ? ' flagged' : ''}`}
+                title={`Savol ${i + 1}${isFlagged ? ' (Shubhali savol)' : ''}`}
                 aria-current={isActive ? 'true' : undefined}
+                style={{
+                  position: 'relative',
+                  border: isFlagged ? '2px solid #f59e0b' : undefined,
+                  boxShadow: isFlagged ? '0 0 8px rgba(245, 158, 11, 0.4)' : undefined,
+                }}
               >
                 {i + 1}
+                {isFlagged && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -5,
+                      fontSize: '10px',
+                      lineHeight: 1,
+                    }}
+                  >
+                    🚩
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1322,8 +1392,111 @@ export default function TakeTest() {
       )}
 
       {confirmOpen && !result && (
-        <div className="card" role="dialog" aria-modal="true" style={{ marginTop: 16 }}>
-          <h3>{t('take_confirm_title')}</h3>
+        <div
+          className="card"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            marginTop: 16,
+            background: 'var(--card-bg, #18181b)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            borderRadius: 16,
+            padding: 24,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+              🏁 {t('take_confirm_title') || "Testni yakunlashni tasdiqlaysizmi?"}
+            </h3>
+            <button
+              type="button"
+              className="btn sm ghost"
+              onClick={() => setConfirmOpen(false)}
+              style={{ padding: '4px 10px' }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 3-Column Summary Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10b981' }}>{answeredCount}</div>
+              <div style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>Javob berilgan</div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: unanswered === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(239, 68, 68, 0.1)',
+                border: unanswered === 0 ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(239, 68, 68, 0.3)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: unanswered === 0 ? 'var(--muted)' : '#ef4444' }}>
+                {unanswered}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: unanswered === 0 ? 'var(--muted)' : '#ef4444', fontWeight: 600 }}>
+                Javobsiz qolgan
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: flaggedCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                border: flaggedCount > 0 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: flaggedCount > 0 ? '#f59e0b' : 'var(--muted)' }}>
+                {flaggedCount}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: flaggedCount > 0 ? '#f59e0b' : 'var(--muted)', fontWeight: 600 }}>
+                Shubhali (Flagged)
+              </div>
+            </div>
+          </div>
+
+          {flaggedCount > 0 && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#f59e0b',
+                marginBottom: 14,
+                fontSize: '0.88rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span>🚩</span>
+              <span>
+                Sizda <strong>{flaggedCount} ta</strong> qayta tekshirish uchun belgilangan savol bor. Istasangiz, pastdagi raqamni bosib tekshirib olishingiz mumkin.
+              </span>
+            </div>
+          )}
 
           {attempt.questions.some(
             (q) => q.question_type === 'written' && (!answers[q.id]?.written || !answers[q.id].written.trim())
@@ -1335,8 +1508,7 @@ export default function TakeTest() {
                 background: 'rgba(239, 68, 68, 0.12)',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
                 color: '#ef4444',
-                marginTop: 10,
-                marginBottom: 12,
+                marginBottom: 14,
               }}
             >
               <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: 4 }}>
@@ -1348,23 +1520,54 @@ export default function TakeTest() {
             </div>
           )}
 
-          <p className="muted">
-            {unanswered === 0
-              ? t('take_confirm_all')
-              : `${answeredCount}/${attempt.questions.length} · ${t('take_confirm_left')}: ${unanswered}`}
+          <p className="muted small" style={{ marginBottom: 10 }}>
+            Savollar xaritasi (raqamni bosib to&apos;g&apos;ridan-to&apos;g&apos;ri savolga qaytish mumkin):
           </p>
-          <div className="toolbar">
+
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              maxHeight: '220px',
+              overflowY: 'auto',
+              padding: '4px 0',
+            }}
+          >
             {attempt.questions.map((q, i) => {
               const a = answers[q.id];
               const done = Boolean(a && entryHasContent(q, a));
+              const isFlag = Boolean(flagged[q.id]);
               return (
-                <span key={q.id} className={`badge${done ? ' green' : ' rose'}`}>
+                <button
+                  type="button"
+                  key={q.id}
+                  onClick={() => {
+                    setCurrentQIndex(i);
+                    setConfirmOpen(false);
+                    if (!singleMode) {
+                      const el = document.getElementById(`question-${q.id}`);
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className={`badge${done ? ' green' : ' rose'}`}
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    padding: '6px 12px',
+                    fontSize: '0.85rem',
+                    border: isFlag ? '2px solid #f59e0b' : undefined,
+                  }}
+                  title={`Savol ${i + 1} ga o'tish${isFlag ? ' (Shubhali)' : ''}`}
+                >
                   {i + 1}
-                </span>
+                  {isFlag && <span style={{ marginLeft: 3, fontSize: '0.75rem' }}>🚩</span>}
+                </button>
               );
             })}
           </div>
-          <div className="toolbar" style={{ marginTop: 12 }}>
+
+          <div className="toolbar" style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button className="btn ghost" onClick={() => setConfirmOpen(false)}>
               {t('cancel')}
             </button>
@@ -1375,7 +1578,9 @@ export default function TakeTest() {
                 setConfirmOpen(false);
                 doSubmit(false);
               }}
+              style={{ minHeight: 42, background: '#10b981', borderColor: '#10b981', fontWeight: 700 }}
             >
+              <Check size={18} />
               {submitting ? t('loading') : t('confirm')}
             </button>
           </div>
