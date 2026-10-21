@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../auth/AuthContext';
 import { useLang, type AppLang } from '../i18n/LangContext';
 import { useTheme, type Theme } from '../theme/ThemeContext';
-import { isPlatformAdmin } from '../lib/api';
+import { isPlatformAdmin, formatDisplayName } from '../lib/api';
 import {
   ChevronDownIcon,
   GlobeIcon,
@@ -173,7 +173,7 @@ export default function UserNavDropdown() {
             whiteSpace: 'nowrap',
           }}
         >
-          {user.full_name || user.email}
+          {formatDisplayName(user.full_name, user.email)}
         </span>
 
         {/* Animated Chevron Down */}
@@ -268,7 +268,7 @@ export default function UserNavDropdown() {
                     color: isLight ? '#0f172a' : 'var(--ink)',
                   }}
                 >
-                  {user.full_name || 'Foydalanuvchi'}
+                  {formatDisplayName(user.full_name, user.email)}
                 </strong>
                 <span
                   style={{

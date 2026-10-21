@@ -3981,6 +3981,7 @@ def grade_ielts_essay(
             ],
             max_tokens=3000,
             temperature=0.1,
+            response_format={"type": "json_object"},
             max_attempts=1,
         )
         raw_content = response.choices[0].message.content or ""

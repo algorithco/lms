@@ -119,7 +119,7 @@ export default function SpeakingPractice() {
 
       mediaRecorder.start();
       setPhase('recording');
-    } catch (_err: unknown) {
+    } catch {
       setError(
         "Mikrofonga ruxsat berilmadi yoki mikrofon topilmadi. Iltimos, brauzer sozlamalarida mikrofonga ruxsat bering."
       );

@@ -580,17 +580,31 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Contabo VPS (`169.58.58.229`) serverida `git pull origin main` va `docker compose restart web nginx` bajarildi.
   * Jonli salomatlik tekshiruvi: `curl -fsS https://grandec.uz/healthz/` -> `{"status":"ok","db":true,"version":"1.15.0"}` (HTTP 200 OK).
 
+### 2.30. Dual-Track Mini CBT Simulyatori, UI/UX Silliqlash, AI Esse JSON Hardening va CI/CD Deploy Himoyasi
+- [x] Barcha 4 Yo'nalish Uchun Interaktiv 3 Talik Mini CBT Simulyatori (`Landing.tsx`):
+  * Ona tili: Milliy Sertifikat (BMB 2026) va Attestatsiya 2026; Ingliz tili: Cambridge IELTS Academic va CEFR Multi-level yo'nalishlarida 3 tadan haqiqiy formatdagi savollar.
+  * Interaktiv qadam tugmalari (`[ ✓ 1 ] [ ✕ 2 ] [ Savol 3 ]`), bosilganda savolga erkin o'tish, bir zumda tahlil (yashil/qizil feedback), to'g'ri javobda konfetti animatsiyasi va tushuntirish matni.
+  * 3-savoldan so'ng interaktiv ball kartochkasi (`3/3 To'g'ri 100%`), toifa/daraja prognozi, to'liq testga o'tish va `Qayta ishlash ↺` tugmalari.
+- [x] Esse Mezonlari va Kartochka Balandligi Optimallashtirildi (`Landing.tsx`):
+  * 12 ta BMB rasmiy mezonlari to'ri 4 ustunlik qatordan 6x2 ixcham to'rga (`repeat(6, 1fr)`) o'tkazildi, vertikal joy 45px ga tejaldi.
+  * Detail panel minimal balandligi 110px qilib o'rnatildi, `.demo-card` ga `minHeight: 'auto'` va `overflow: 'visible'` berilib pastki qismdagi `#1. Tavsiya...` matni qirqilib qolishi to'liq bartaraf etildi.
+- [x] Foydalanuvchi Ismini Formatlash Helperi (`formatDisplayName`):
+  * `frontend/src/lib/api.ts` da `formatDisplayName(fullName, email)` yaratildi (masalan, "komiljon roziyev" -> "Komiljon Roziyev").
+  * `UserNavDropdown.tsx` (profil nishoni va menyu) hamda `Landing.tsx` (mobil menyu) da to'liq joriy etildi.
+- [x] AI Esse Baholash Qat'iy JSON Formati (`apps/essays/services.py`):
+  * `grade_ielts_essay` funksiyasiga `response_format={"type": "json_object"}` parametri qo'shildi, markdown kod bloklari tufayli parser qulashi bartaraf etildi.
+- [x] Test Taymeri va Dubl-Submit Himoyasi (`TakeTest.tsx`):
+  * Taymer tugaganda (`remaining !== null && remaining <= 0`) avtomatik topshirish faqat test hali topshirilmagan bo'lsa (`!submittedRef.current`) ishga tushishi ta'minlandi.
+- [x] CI/CD Deploy Himoyasi va Jonli Salomatlik Tekshiruvi (`.github/workflows/deploy.yml`):
+  * Deploy workflow'iga `Verify Live Deployment Health (HTTP 200 OK)` qadami qo'shildi — deploydan so'ng `https://grandec.uz/healthz/` 60 soniya davomida tekshirilib, faqat 200 OK qaytganda workflow muvaffaqiyatli yakunlanadi.
+- [x] Sifat Nazorati (QA Gate 100% PASS):
+  * Frontend: `oxlint` 0 ta xato, `tsc -b && vite build` 0 ta xato bilan 2.38 soniyada muvaffaqiyatli yig'ildi.
+  * Backend: `ruff check` 0 xato, `ruff format` 100% toza, `pytest` 31/31 ta test 100% PASS.
+
 ## 3. Jarayonda
-- Barcha CI/CD va Security workflow'lari 100% yashil holatga keltirildi, ishlab chiqarish serveri to'liq yangilandi.
+- Barcha yangilanishlar sinovdan o'tdi, asosiy tarmoqqa yuborish va VPS serverga yangilanishlarni yetkazish tayyor.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Yangi o'quvchi va ustozlar oqimini kuzatish, AI konvertor va adaptiv re-test samaradorligini tahlil qilish.
-
-
-
-
-
-
-
+- Yangi Mini CBT simulyatorining konversiyasini kuzatish va foydalanuvchilar faolligini tahlil qilish.

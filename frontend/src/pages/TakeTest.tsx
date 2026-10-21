@@ -484,7 +484,7 @@ export default function TakeTest() {
   }, [attempt, submitting, result, cheatedModalOpen, attemptId, violationCount, navigate, doSubmit]);
 
   useEffect(() => {
-    if (remaining === 0 && attempt && !result) {
+    if (remaining !== null && remaining <= 0 && attempt && !result && !submittedRef.current) {
       doSubmit(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

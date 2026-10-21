@@ -127,3 +127,19 @@ jobs:
             deploy/nginx/nginx-ssl.conf "$VPS_USER@$VPS_HOST:/opt/lms/deploy/nginx/"
           # shellcheck disable=SC2086
           $SSH 'bash -s' < deploy/remote-deploy.sh
+
+      - name: Verify Live Deployment Health (HTTP 200 OK)
+        run: |
+          echo "Verifying production health check on https://grandec.uz/healthz/ ..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://grandec.uz/healthz/ || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Production health check passed: HTTP 200 OK"
+              curl -fsS https://grandec.uz/healthz/
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS, waiting 5s..."
+            sleep 5
+          done
+          echo "FATAL: Health check failed after 60s"
+          exit 1

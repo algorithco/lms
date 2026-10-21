@@ -219,6 +219,16 @@ export function canReviewEssays(u: AuthUser | null | undefined): boolean {
   return u.role === 'teacher' || isPlatformAdmin(u);
 }
 
+/** Cleanly format and auto-capitalize user display names (e.g. "komiljon roziyev" -> "Komiljon Roziyev"). */
+export function formatDisplayName(name?: string | null, email?: string | null): string {
+  const raw = (name || email?.split('@')[0] || '').trim();
+  if (!raw) return 'Foydalanuvchi';
+  return raw
+    .split(/\s+/)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
+    .join(' ');
+}
+
 /** Parent portal access (mirrors school parent_overview_view). */
 export function canViewParent(u: AuthUser | null | undefined): boolean {
   if (!u) return false;

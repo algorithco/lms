@@ -5,7 +5,7 @@ import { Mic, Headphones, Play, Pause } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { School, landingFor } from '../lib/api';
+import { School, landingFor, formatDisplayName } from '../lib/api';
 import TrendChart, { type TrendPoint } from '../components/TrendChart';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
@@ -319,57 +319,208 @@ const ATTESTATION_CATEGORIES: AttestationCategory[] = [
   },
 ];
 
-const ATTESTATION_QUESTION = {
-  subject: 'Pedagogik mahorat & Metodika (Savol #38)',
-  passage: "O'quvchilarning mustaqil fikrlashi va mas'uliyatini oshirish uchun zamonaviy formativ baholash vositalari qo'llaniladi.",
-  question: "Dars jarayonida formativ baholash (assessment for learning) vositalaridan foydalanishda o'quvchining o'z-o'zini baholash (self-assessment) qobiliyatini rivojlantirish uchun eng samarali usul qaysi?",
-  options: [
-    { key: 'A', text: "Faqat chorak oxirida yakuniy test natijalariga qarab reyting e'lon qilish" },
-    { key: 'B', text: "O'quvchilarga aniq deskriptorli rubrika berib, o'z ishini tekshirish va xatolar ustida refleksiya qilishga undash", correct: true },
-    { key: 'C', text: "O'quvchilar javoblarini faqat o'zaro solishtirib differensial ball qo'yish" },
-    { key: 'D', text: "Barcha mustaqil topshiriqlarni faqat o'qituvchi tomonidan baholab berish" },
-  ],
-  explanation: "To'g'ri javob: B. O'z-o'zini baholash (self-assessment) samarali bo'lishi uchun o'quvchi aniq mezonlar (rubrics) asosida o'z natijasini baholashi va xatolarini mustaqil tahlil qilishi lozim.",
-};
+interface MiniCbtQuestion {
+  id: number;
+  subject: string;
+  badge: string;
+  passage?: string;
+  passageLabel?: string;
+  question: string;
+  options: { key: string; text: string; correct?: boolean }[];
+  explanation: string;
+}
 
-const CBT_QUESTION_UZBEK = {
-  subject: 'Ona tili va adabiyot (Milliy Sertifikat)',
-  passage: "Alisher Navoiy 'Hayrat ul-abror' dostonida insoniylik, odob va nutq madaniyatiga alohida fasllar bag'ishlaydi.",
-  question: "Navoiyning 'Hayrat ul-abror' dostonida keltirilgan 'Sher va durroj' masalining asosiy g'oyaviy xulosasi nimadan iborat?",
-  options: [
-    { key: 'A', text: "Ilm olish va ustozga ehtirom ko'rsatish" },
-    { key: 'B', text: "Tilga ehtiyot bo'lish, noo'rin so'zlash balosidan ogoh bo'lish", correct: true },
-    { key: 'C', text: "Saxovat va saxiylik fazilatining ulug'ligi" },
-    { key: 'D', text: "Davlatni boshqarish va podshohlar adolati" },
-  ],
-  explanation: "To'g'ri javob: B. Masalda durroj qushining noo'rin sayrashi uning ovchi tomonidan ushlanishiga sabab bo'lgani bayon qilinib, tilni tiyish o'rgatiladi.",
-};
+const CBT_QUESTIONS_UZBEK: MiniCbtQuestion[] = [
+  {
+    id: 1,
+    subject: 'Ona tili va adabiyot (Milliy Sertifikat)',
+    badge: 'Rasmiy BMB 2026 • 1/3',
+    passageLabel: 'Badiiy matn tahlili',
+    passage: "Alisher Navoiy 'Hayrat ul-abror' dostonida insoniylik, odob va nutq madaniyatiga alohida fasllar bag'ishlaydi.",
+    question: "Navoiyning 'Hayrat ul-abror' dostonida keltirilgan 'Sher va durroj' masalining asosiy g'oyaviy xulosasi nimadan iborat?",
+    options: [
+      { key: 'A', text: "Ilm olish va ustozga ehtirom ko'rsatish" },
+      { key: 'B', text: "Tilga ehtiyot bo'lish, noo'rin so'zlash balosidan ogoh bo'lish", correct: true },
+      { key: 'C', text: "Saxovat va saxiylik fazilatining ulug'ligi" },
+      { key: 'D', text: "Davlatni boshqarish va podshohlar adolati" },
+    ],
+    explanation: "To'g'ri javob: B. Masalda durroj qushining noo'rin sayrashi uning ovchi tomonidan ushlanishiga sabab bo'lgani bayon qilinib, tilni tiyish o'rgatiladi.",
+  },
+  {
+    id: 2,
+    subject: 'Ona tili va adabiyot (Milliy Sertifikat)',
+    badge: 'Rasmiy BMB 2026 • 2/3',
+    passageLabel: 'Sintaksis & Tinish belgilari',
+    passage: "Qo'shma gaplarda sodda gaplarning o'zaro mazmuniy bog'lanishi va tinish belgilari me'yorlariga qat'iy rioya etilishi talab qilinadi.",
+    question: "Qaysi gapda tinish belgisi qo'llanishi bilan bog'liq xatolikka yo'l qo'yilgan?",
+    options: [
+      { key: 'A', text: "Daraxtlar shoxlari qordan egildi, havo esa borgan sari iliy boshladi." },
+      { key: 'B', text: "U na kitob o'qidi, na darslarini tayyorladi va imtihondan past ball oldi." },
+      { key: 'C', text: "Quyosh ufqqa bosh qo'ydi: qorong'ilik butun vodiyni o'z domiga tortdi." },
+      { key: 'D', text: "Yurtini sevgan inson — har qanday qiyinchilikka chidaydi, chunki unda yuksak mas'uliyat bor.", correct: true },
+    ],
+    explanation: "To'g'ri javob: D. Bu o'rinda ega va kesim orasida chiziqcha qo'yilishi xato, chunki kesim oldida ergashgan sabab ergash gap mavjud emas, bog'lovchi yordamida ajratilgan.",
+  },
+  {
+    id: 3,
+    subject: 'Ona tili va adabiyot (Milliy Sertifikat)',
+    badge: 'Rasmiy BMB 2026 • 3/3',
+    passageLabel: 'Leksikologiya & Uslubiyat',
+    passage: "So'zlarning ma'no nozikliklarini his qilmaslik va kalka birikmalarni qo'llash nutqning ta'sirchanligini pasaytiradi.",
+    question: "Qaysi javobda nutqiy g'alizlik (uslubiy xatolik) kuzatiladi?",
+    options: [
+      { key: 'A', text: "Ushbu muammo bo'yicha yig'ilishda qizg'in bahs-munozara bo'lib o'tdi." },
+      { key: 'B', text: "Yoshlarning ma'naviy dunyoqarashini boyitish — dolzarb vazifa." },
+      { key: 'C', text: "Ushbu qaror viloyat miqyosida o'z aksini topdi va ijroga yo'naltirildi.", correct: true },
+      { key: 'D', text: "Konferensiya qatnashchilari o'z ma'ruzalari bilan faol ishtirok etdilar." },
+    ],
+    explanation: "To'g'ri javob: C. 'O'z aksini topdi' birikmasi ruschadagi 'нашло своё отражение' iborasining kalkasi bo'lib, o'zbek adabiy tilida 'o'z aksini ko'rsatdi' yoki 'aks etdi' deyilishi to'g'riroq.",
+  },
+];
 
-const CBT_QUESTION_IELTS = {
-  subject: 'Cambridge IELTS (Academic Reading)',
-  passage: "Spaced retrieval practice optimizes synaptic consolidation by interrupting memory decay curves at precise neurocognitive intervals.",
-  question: "Why does spaced repetition outperform massed cramming in long-term memory retention?",
-  options: [
-    { key: 'A', text: 'It completely eliminates the necessity for active retrieval cues' },
-    { key: 'B', text: 'It forces neural pathways to reconsolidate memory traces at optimal decay intervals', correct: true },
-    { key: 'C', text: 'It bypasses the prefrontal cortex directly into procedural memory' },
-    { key: 'D', text: 'It reduces neurotransmitter depletion during single 20-minute sessions' },
-  ],
-  explanation: "Correct answer: B. Cognitive retrieval research demonstrates that testing memory at expanding intervals forces synaptic re-encoding.",
-};
+const CBT_QUESTIONS_ATTESTATION: MiniCbtQuestion[] = [
+  {
+    id: 1,
+    subject: 'Pedagogik mahorat & Metodika (Savol #38)',
+    badge: 'Attestatsiya 2026 • 1/3',
+    passageLabel: 'Metodik keys tahlili',
+    passage: "O'quvchilarning mustaqil fikrlashi va mas'uliyatini oshirish uchun zamonaviy formativ baholash vositalari qo'llaniladi.",
+    question: "Dars jarayonida formativ baholash (assessment for learning) vositalaridan foydalanishda o'quvchining o'z-o'zini baholash (self-assessment) qobiliyatini rivojlantirish uchun eng samarali usul qaysi?",
+    options: [
+      { key: 'A', text: "Faqat chorak oxirida yakuniy test natijalariga qarab reyting e'lon qilish" },
+      { key: 'B', text: "O'quvchilarga aniq deskriptorli rubrika berib, o'z ishini tekshirish va xatolar ustida refleksiya qilishga undash", correct: true },
+      { key: 'C', text: "O'quvchilar javoblarini faqat o'zaro solishtirib differensial ball qo'yish" },
+      { key: 'D', text: "Barcha mustaqil topshiriqlarni faqat o'qituvchi tomonidan baholab berish" },
+    ],
+    explanation: "To'g'ri javob: B. O'z-o'zini baholash (self-assessment) samarali bo'lishi uchun o'quvchi aniq mezonlar (rubrics) asosida o'z natijasini baholashi va xatolarini mustaqil tahlil qilishi lozim.",
+  },
+  {
+    id: 2,
+    subject: 'Pedagogik mahorat & Metodika (Savol #42)',
+    badge: 'Attestatsiya 2026 • 2/3',
+    passageLabel: 'Blum taksonomiyasi',
+    passage: "Bilish, tushunish, qo'llash, tahlil, sintez va baholash bosqichlari o'quvchining kognitiv faoliyatini tizimlashtiradi.",
+    question: "Blum taksonomiyasining 'Tahlil' (Analysis) darajasiga mos keluvchi topshiriq turini aniqlang:",
+    options: [
+      { key: 'A', text: "Mavzuga oid asosiy qoidalar va formulalarni yoddan aytib berish" },
+      { key: 'B', text: "O'rganilgan formuladan foydalanib standart matematik masalani yechish" },
+      { key: 'C', text: "Berilgan ikki badiiy asar qahramonlarining xatti-harakatlarini qiyoslab, sabab-oqibat zanjirini tuzish", correct: true },
+      { key: 'D', text: "Muammo yuzasidan yangi muqobil ilmiy loyiha konsepsiyasini ishlab chiqish" },
+    ],
+    explanation: "To'g'ri javob: C. Sabab-oqibatni aniqlash va qiyosiy tahlil qilish 'Tahlil' bosqichiga taalluqli; yangi loyiha yaratish esa 'Sintez/Yaratish' darajasidir.",
+  },
+  {
+    id: 3,
+    subject: 'Pedagogik mahorat & Metodika (Savol #47)',
+    badge: 'Attestatsiya 2026 • 3/3',
+    passageLabel: "Diferensial ta'lim",
+    passage: "Sinfdagi o'quvchilarning o'zlashtirish tezligi va qobiliyatlari turlicha bo'lgan sharoitda yakka tartibdagi yondashuv talab etiladi.",
+    question: "Turli darajadagi o'quvchilar bilan ishlashda eng samarali pedagogik strategiya qaysi?",
+    options: [
+      { key: 'A', text: "Tabaqalashtirilgan topshiriqlar (Tiered assignments) va moslashtirilgan ko'rsatmalar taqdim etish", correct: true },
+      { key: 'B', text: "Faqat a'lochi o'quvchilar sur'atiga moslashgan umumiy dars rejasini olib borish" },
+      { key: 'C', text: "Past o'zlashtiruvchi o'quvchilarga umuman mustaqil vazifa bermaslik" },
+      { key: 'D', text: "Dars davomida faqat eng oson darajadagi savollardan foydalanish" },
+    ],
+    explanation: "To'g'ri javob: A. Tabaqalashtirilgan topshiriqlar har bir o'quvchining o'z zonasida rivojlanishiga (Vigotskiy yaqin rivojlanish zonasi) imkoniyat yaratadi.",
+  },
+];
 
-const CBT_QUESTION_MULTILEVEL = {
-  subject: 'CEFR Multi-level (Reading Part 3)',
-  passage: "Decentralized renewable microgrids allow localized power distribution without sole reliance on the traditional central power grid during peak surge hours.",
-  question: "What is identified as the primary operational advantage of decentralized microgrids during peak demand?",
-  options: [
-    { key: 'A', text: 'They eliminate the necessity of electrical substations entirely' },
-    { key: 'B', text: 'They distribute battery storage dynamically, preventing central grid overloads', correct: true },
-    { key: 'C', text: 'They reduce initial capital expenditures by over eighty percent' },
-    { key: 'D', text: 'They depend exclusively on wind generation without battery storage' },
-  ],
-  explanation: "Correct answer: B. The passage emphasizes that localized distribution with dynamic battery storage buffers peak demand, avoiding grid-wide failure.",
-};
+const CBT_QUESTIONS_IELTS: MiniCbtQuestion[] = [
+  {
+    id: 1,
+    subject: 'Cambridge IELTS (Academic Reading)',
+    badge: 'Cambridge Model • 1/3',
+    passageLabel: 'Cognitive Science Passage',
+    passage: "Spaced retrieval practice optimizes synaptic consolidation by interrupting memory decay curves at precise neurocognitive intervals.",
+    question: "Why does spaced repetition outperform massed cramming in long-term memory retention?",
+    options: [
+      { key: 'A', text: 'It completely eliminates the necessity for active retrieval cues' },
+      { key: 'B', text: 'It forces neural pathways to reconsolidate memory traces at optimal decay intervals', correct: true },
+      { key: 'C', text: 'It bypasses the prefrontal cortex directly into procedural memory' },
+      { key: 'D', text: 'It reduces neurotransmitter depletion during single 20-minute sessions' },
+    ],
+    explanation: "Correct answer: B. Cognitive retrieval research demonstrates that testing memory at expanding intervals forces synaptic re-encoding.",
+  },
+  {
+    id: 2,
+    subject: 'Cambridge IELTS (Academic Reading)',
+    badge: 'Cambridge Model • 2/3',
+    passageLabel: 'Linguistic Analysis',
+    passage: "Academic discourse strictly requires stylistic objectivity, avoiding emotive language in empirical reporting.",
+    question: "Which of the following sentences exhibits appropriate academic register and precision?",
+    options: [
+      { key: 'A', text: 'The results were totally crazy and shocked everyone in the lab.' },
+      { key: 'B', text: 'Researchers got pretty lucky when the reaction miraculously succeeded.' },
+      { key: 'C', text: 'The empirical data substantiates the hypothesis that urban density correlates with transit efficiency.', correct: true },
+      { key: 'D', text: 'It is super obvious that traffic jams cause big problems for city folks.' },
+    ],
+    explanation: "Correct answer: C. 'Substantiates the hypothesis', 'correlates with', and 'transit efficiency' reflect authentic C1/Band 8.0 academic collocations.",
+  },
+  {
+    id: 3,
+    subject: 'Cambridge IELTS (Academic Reading)',
+    badge: 'Cambridge Model • 3/3',
+    passageLabel: 'Inference & Context',
+    passage: "While decentralized microgrids exhibit higher upfront installation expenses, their lifecycle resilience during grid-wide blackouts yields net positive socioeconomic dividends.",
+    question: "What underlying assumption does the author make concerning decentralized energy grids?",
+    options: [
+      { key: 'A', text: 'Their enduring operational resilience outweighs initial capital expenditure over time', correct: true },
+      { key: 'B', text: 'They will render traditional power plants completely obsolete within three years' },
+      { key: 'C', text: 'They require zero maintenance once connected to municipal substations' },
+      { key: 'D', text: 'They are economically viable only in desert and coastal microclimates' },
+    ],
+    explanation: "Correct answer: A. 'Yields net positive socioeconomic dividends' directly supports the long-term cost-benefit superiority of resilient microgrids.",
+  },
+];
+
+const CBT_QUESTIONS_MULTILEVEL: MiniCbtQuestion[] = [
+  {
+    id: 1,
+    subject: 'CEFR Multi-level (Reading Part 3)',
+    badge: 'CEFR C1 • 1/3',
+    passageLabel: 'Applied Technology Text',
+    passage: "Decentralized renewable microgrids allow localized power distribution without sole reliance on the traditional central power grid during peak surge hours.",
+    question: "What is identified as the primary operational advantage of decentralized microgrids during peak demand?",
+    options: [
+      { key: 'A', text: 'They eliminate the necessity of electrical substations entirely' },
+      { key: 'B', text: 'They distribute battery storage dynamically, preventing central grid overloads', correct: true },
+      { key: 'C', text: 'They reduce initial capital expenditures by over eighty percent' },
+      { key: 'D', text: 'They depend exclusively on wind generation without battery storage' },
+    ],
+    explanation: "Correct answer: B. The passage emphasizes that localized distribution with dynamic battery storage buffers peak demand, avoiding grid-wide failure.",
+  },
+  {
+    id: 2,
+    subject: 'CEFR Multi-level (Grammar & Cohesion)',
+    badge: 'CEFR C1 • 2/3',
+    passageLabel: 'Advanced Syntax Test',
+    passage: "Inversion is utilized in formal and academic English to emphasize conditional or restrictive adverbial clauses.",
+    question: "Which sentence accurately utilizes negative inversion for formal emphasis?",
+    options: [
+      { key: 'A', text: 'Seldom students have exhibited such dedication to autonomous linguistic mastery.' },
+      { key: 'B', text: 'Never he had seen such remarkable advances in computational linguistics.' },
+      { key: 'C', text: 'Scarcely had the regulatory framework been ratified when market demand surged exponentially.', correct: true },
+      { key: 'D', text: 'Rarely we encounter such pristine archaeological artifacts in this stratum.' },
+    ],
+    explanation: "Correct answer: C. 'Scarcely had + subject + past participle ... when ...' is the grammatically precise C1 inversion construction.",
+  },
+  {
+    id: 3,
+    subject: 'CEFR Multi-level (Lexical Precision)',
+    badge: 'CEFR C1 • 3/3',
+    passageLabel: 'Idiomatic Register',
+    passage: "Contextual nuance distinguishes proficient communicators from intermediate learners in executive correspondence.",
+    question: "Choose the most appropriate collocation to complete: 'The municipal committee decided to ________ the bureaucratic procedure.'",
+    options: [
+      { key: 'A', text: 'quicken down' },
+      { key: 'B', text: 'smooth run' },
+      { key: 'C', text: 'fast forwardly enact' },
+      { key: 'D', text: 'streamline', correct: true },
+    ],
+    explanation: "Correct answer: D. 'Streamline the procedure/process' is the standard C1 idiomatic collocation for making an organization or process more efficient.",
+  },
+];
 
 const SPEAKING_DEMO = {
   part: 'IELTS Speaking Part 2 (Cue Card)',
@@ -460,11 +611,51 @@ export default function Landing() {
   const [selectedCritIelts, setSelectedCritIelts] = useState<IeltsCriterionData>(IELTS_4_CRITERIA[0]);
   const [selectedCritMultilevel, setSelectedCritMultilevel] = useState<MultilevelCriterionData>(MULTILEVEL_4_CRITERIA[0]);
 
-  // Selected interactive options for questions
-  const [selectedOptionNatCert, setSelectedOptionNatCert] = useState<string | null>(null);
-  const [selectedOptionIelts, setSelectedOptionIelts] = useState<string | null>(null);
-  const [selectedOptionMultilevel, setSelectedOptionMultilevel] = useState<string | null>(null);
-  const [selectedOptionAttestation, setSelectedOptionAttestation] = useState<string | null>(null);
+  // Mini CBT 3-question interactive simulators
+  const [cbtIndexNatCert, setCbtIndexNatCert] = useState(0);
+  const [cbtAnswersNatCert, setCbtAnswersNatCert] = useState<Record<number, string>>({});
+  const [cbtFinishedNatCert, setCbtFinishedNatCert] = useState(false);
+
+  const [cbtIndexAttestation, setCbtIndexAttestation] = useState(0);
+  const [cbtAnswersAttestation, setCbtAnswersAttestation] = useState<Record<number, string>>({});
+  const [cbtFinishedAttestation, setCbtFinishedAttestation] = useState(false);
+
+  const [cbtIndexIelts, setCbtIndexIelts] = useState(0);
+  const [cbtAnswersIelts, setCbtAnswersIelts] = useState<Record<number, string>>({});
+  const [cbtFinishedIelts, setCbtFinishedIelts] = useState(false);
+
+  const [cbtIndexMultilevel, setCbtIndexMultilevel] = useState(0);
+  const [cbtAnswersMultilevel, setCbtAnswersMultilevel] = useState<Record<number, string>>({});
+  const [cbtFinishedMultilevel, setCbtFinishedMultilevel] = useState(false);
+
+  const handleAnswerQuestion = (
+    track: 'nat' | 'attest' | 'ielts' | 'multi',
+    qIndex: number,
+    optKey: string,
+    isCorrect: boolean,
+  ) => {
+    if (track === 'nat') {
+      setCbtAnswersNatCert((prev) => ({ ...prev, [qIndex]: optKey }));
+    } else if (track === 'attest') {
+      setCbtAnswersAttestation((prev) => ({ ...prev, [qIndex]: optKey }));
+    } else if (track === 'ielts') {
+      setCbtAnswersIelts((prev) => ({ ...prev, [qIndex]: optKey }));
+    } else if (track === 'multi') {
+      setCbtAnswersMultilevel((prev) => ({ ...prev, [qIndex]: optKey }));
+    }
+    if (isCorrect) {
+      try {
+        confetti({
+          particleCount: 35,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: ['#10B981', '#34D399', '#6EE7B7'],
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+  };
 
   // Speaking playback state
   const [isSpeakingPlaying, setIsSpeakingPlaying] = useState<boolean>(false);
@@ -511,69 +702,9 @@ export default function Landing() {
   }, [mobileOpen]);
 
   // Option click handlers with celebratory confetti
-  const handleOptionNatCert = (key: string) => {
-    setSelectedOptionNatCert(key);
-    if (key === 'B') {
-      try {
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.65 },
-          colors: ['#10B981', '#34D399', '#F59E0B'],
-        });
-      } catch {
-        /* ignore */
-      }
-    }
-  };
 
-  const handleOptionIelts = (key: string) => {
-    setSelectedOptionIelts(key);
-    if (key === 'B') {
-      try {
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.65 },
-          colors: ['#38BDF8', '#10B981', '#F59E0B'],
-        });
-      } catch {
-        /* ignore */
-      }
-    }
-  };
 
-  const handleOptionMultilevel = (key: string) => {
-    setSelectedOptionMultilevel(key);
-    if (key === 'B') {
-      try {
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.65 },
-          colors: ['#38BDF8', '#6366F1', '#10B981'],
-        });
-      } catch {
-        /* ignore */
-      }
-    }
-  };
 
-  const handleOptionAttestation = (key: string) => {
-    setSelectedOptionAttestation(key);
-    if (key === 'B') {
-      try {
-        confetti({
-          particleCount: 45,
-          spread: 70,
-          origin: { y: 0.65 },
-          colors: ['#F59E0B', '#10B981', '#3B82F6'],
-        });
-      } catch {
-        /* ignore */
-      }
-    }
-  };
 
 
 
@@ -956,7 +1087,7 @@ export default function Landing() {
                     textDecoration: 'none',
                   }}
                 >
-                  {user.full_name} →
+                  {formatDisplayName(user.full_name, user.email)} →
                 </Link>
               ) : (
                 <button
@@ -1382,8 +1513,10 @@ export default function Landing() {
                     className="glass-card lcard-hover demo-card"
                     style={{
                       borderRadius: 24,
-                      padding: 24,
+                      padding: '24px 24px 28px',
                       backdropFilter: 'blur(16px)',
+                      minHeight: 'auto',
+                      overflow: 'visible',
                     }}
                   >
                     {/* TRACK 1: IELTS DEMO WIDGET */}
@@ -1804,129 +1937,375 @@ export default function Landing() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                marginBottom: 12,
+                                marginBottom: 14,
                               }}
                             >
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
-                                {CBT_QUESTION_IELTS.subject}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {[0, 1, 2].map((idx) => {
+                                  const isCurrent = cbtIndexIelts === idx && !cbtFinishedIelts;
+                                  const ans = cbtAnswersIelts[idx];
+                                  const q = CBT_QUESTIONS_IELTS[idx];
+                                  const isCorrect = ans && q.options.find((o) => o.correct)?.key === ans;
+                                  let bg = 'var(--card-2)';
+                                  let border = '1px solid var(--border)';
+                                  let color = 'var(--muted)';
+                                  if (ans) {
+                                    if (isCorrect) {
+                                      bg = 'rgba(16, 185, 129, 0.2)';
+                                      border = '1px solid #10B981';
+                                      color = '#10B981';
+                                    } else {
+                                      bg = 'rgba(239, 68, 68, 0.2)';
+                                      border = '1px solid #EF4444';
+                                      color = '#EF4444';
+                                    }
+                                  } else if (isCurrent) {
+                                    bg = 'rgba(245, 158, 11, 0.2)';
+                                    border = '1px solid #38BDF8';
+                                    color = '#38BDF8';
+                                  }
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setCbtIndexIelts(idx);
+                                        setCbtFinishedIelts(false);
+                                      }}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 8,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        background: bg,
+                                        border,
+                                        color,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {ans ? (isCorrect ? `✓ ${idx + 1}` : `✕ ${idx + 1}`) : `Savol ${idx + 1}`}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <span
                                 style={{
                                   fontSize: 11,
                                   fontWeight: 800,
                                   padding: '3px 8px',
                                   borderRadius: 6,
-                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  background: 'rgba(245, 158, 11, 0.15)',
                                   color: '#38BDF8',
                                 }}
                               >
-                                Cambridge Model
+                                {cbtFinishedIelts ? 'IELTS Reading Natija' : CBT_QUESTIONS_IELTS[cbtIndexIelts].badge}
                               </span>
                             </div>
 
-                            <div
-                              style={{
-                                padding: 12,
-                                borderRadius: 12,
-                                background: 'var(--card-2)',
-                                border: '1px solid var(--border)',
-                                fontSize: 12,
-                                color: 'var(--ink-soft)',
-                                lineHeight: 1.55,
-                                marginBottom: 14,
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, color: '#38BDF8' }}>Passage: </span>
-                              {CBT_QUESTION_IELTS.passage}
-                            </div>
-
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
-                              {CBT_QUESTION_IELTS.question}
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                              {CBT_QUESTION_IELTS.options.map((opt) => {
-                                const isSelected = selectedOptionIelts === opt.key;
-                                const isCorrect = opt.correct;
-                                let bg = 'var(--card-2)';
-                                let border = '1px solid var(--border)';
-                                let textCol = 'var(--ink)';
-
-                                if (isSelected) {
-                                  if (isCorrect) {
-                                    bg = 'rgba(16, 185, 129, 0.18)';
-                                    border = '1px solid #10B981';
-                                    textCol = '#10B981';
-                                  } else {
-                                    bg = 'rgba(239, 68, 68, 0.18)';
-                                    border = '1px solid #EF4444';
-                                    textCol = '#EF4444';
-                                  }
-                                }
-
-                                return (
-                                  <button
-                                    key={opt.key}
-                                    type="button"
-                                    onClick={() => handleOptionIelts(opt.key)}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 10,
-                                      padding: '10px 14px',
-                                      borderRadius: 12,
-                                      background: bg,
-                                      border,
-                                      color: textCol,
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.18s ease',
-                                    }}
-                                  >
-                                    <span
+                            {!cbtFinishedIelts ? (
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={cbtIndexIelts}
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -10 }}
+                                  transition={{ duration: 0.18 }}
+                                >
+                                  {CBT_QUESTIONS_IELTS[cbtIndexIelts].passage && (
+                                    <div
                                       style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: 6,
-                                        background: isSelected ? 'currentColor' : 'var(--border)',
-                                        color: isSelected ? '#090d16' : 'var(--muted)',
-                                        fontWeight: 800,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 11,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: 'var(--card-2)',
+                                        border: '1px solid var(--border)',
+                                        fontSize: 12,
+                                        color: 'var(--ink-soft)',
+                                        lineHeight: 1.55,
+                                        marginBottom: 12,
+                                        maxHeight: 90,
+                                        overflowY: 'auto',
                                       }}
                                     >
-                                      {opt.key}
-                                    </span>
-                                    <span>{opt.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                                      <div
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.05em',
+                                          color: '#38BDF8',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        {CBT_QUESTIONS_IELTS[cbtIndexIelts].passageLabel || 'Matn tahlili'}
+                                      </div>
+                                      {CBT_QUESTIONS_IELTS[cbtIndexIelts].passage}
+                                    </div>
+                                  )}
 
-                            {selectedOptionIelts && (
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                      color: 'var(--ink)',
+                                      lineHeight: 1.5,
+                                      marginBottom: 12,
+                                    }}
+                                  >
+                                    {CBT_QUESTIONS_IELTS[cbtIndexIelts].question}
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {CBT_QUESTIONS_IELTS[cbtIndexIelts].options.map((opt) => {
+                                      const ans = cbtAnswersIelts[cbtIndexIelts];
+                                      const isSelected = ans === opt.key;
+                                      const isCorrect = !!opt.correct;
+
+                                      let bg = 'var(--card-2)';
+                                      let border = '1px solid var(--border)';
+                                      let textCol = 'var(--ink)';
+
+                                      if (isSelected) {
+                                        if (isCorrect) {
+                                          bg = 'rgba(16, 185, 129, 0.18)';
+                                          border = '1px solid #10B981';
+                                          textCol = '#10B981';
+                                        } else {
+                                          bg = 'rgba(239, 68, 68, 0.18)';
+                                          border = '1px solid #EF4444';
+                                          textCol = '#EF4444';
+                                        }
+                                      } else if (ans && isCorrect) {
+                                        bg = 'rgba(16, 185, 129, 0.1)';
+                                        border = '1px solid rgba(16, 185, 129, 0.4)';
+                                        textCol = '#10B981';
+                                      }
+
+                                      return (
+                                        <button
+                                          key={opt.key}
+                                          type="button"
+                                          disabled={Boolean(ans)}
+                                          onClick={() => handleAnswerQuestion('ielts', cbtIndexIelts, opt.key, isCorrect)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '10px 14px',
+                                            borderRadius: 12,
+                                            background: bg,
+                                            border,
+                                            color: textCol,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            textAlign: 'left',
+                                            cursor: ans ? 'default' : 'pointer',
+                                            transition: 'all 0.18s ease',
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              width: 22,
+                                              height: 22,
+                                              borderRadius: 6,
+                                              background: isSelected ? 'currentColor' : 'var(--border)',
+                                              color: isSelected ? '#090d16' : 'var(--muted)',
+                                              fontWeight: 800,
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: 11,
+                                            }}
+                                          >
+                                            {opt.key}
+                                          </span>
+                                          <span>{opt.text}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {cbtAnswersIelts[cbtIndexIelts] && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      style={{
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background:
+                                          CBT_QUESTIONS_IELTS[cbtIndexIelts].options.find(
+                                            (o) => o.key === cbtAnswersIelts[cbtIndexIelts]
+                                          )?.correct
+                                            ? 'rgba(16, 185, 129, 0.1)'
+                                            : 'rgba(239, 68, 68, 0.1)',
+                                        border:
+                                          CBT_QUESTIONS_IELTS[cbtIndexIelts].options.find(
+                                            (o) => o.key === cbtAnswersIelts[cbtIndexIelts]
+                                          )?.correct
+                                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                                            : '1px solid rgba(239, 68, 68, 0.3)',
+                                        fontSize: 12,
+                                        color:
+                                          CBT_QUESTIONS_IELTS[cbtIndexIelts].options.find(
+                                            (o) => o.key === cbtAnswersIelts[cbtIndexIelts]
+                                          )?.correct
+                                            ? '#34D399'
+                                            : '#F87171',
+                                        marginTop: 12,
+                                      }}
+                                    >
+                                      <div style={{ marginBottom: 10 }}>
+                                        {CBT_QUESTIONS_IELTS[cbtIndexIelts].explanation}
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                        {cbtIndexIelts < 2 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtIndexIelts((i) => i + 1)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: '#38BDF8',
+                                              color: '#090d16',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Keyingi savol ({cbtIndexIelts + 2}/3) →
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtFinishedIelts(true)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: 'linear-gradient(135deg, #10B981, #059669)',
+                                              color: '#FFFFFF',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Natijani ko&apos;rish 🏁
+                                          </button>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </motion.div>
+                              </AnimatePresence>
+                            ) : (
                               <motion.div
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.22 }}
                                 style={{
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  background:
-                                    selectedOptionIelts === 'B'
-                                      ? 'rgba(16, 185, 129, 0.1)'
-                                      : 'rgba(239, 68, 68, 0.1)',
-                                  border:
-                                    selectedOptionIelts === 'B'
-                                      ? '1px solid rgba(16, 185, 129, 0.3)'
-                                      : '1px solid rgba(239, 68, 68, 0.3)',
-                                  fontSize: 12,
-                                  color: selectedOptionIelts === 'B' ? '#34D399' : '#F87171',
+                                  padding: '20px 16px',
+                                  borderRadius: 16,
+                                  background: 'var(--card-2)',
+                                  border: '1px solid var(--border)',
+                                  textAlign: 'center',
                                 }}
                               >
-                                {CBT_QUESTION_IELTS.explanation}
+                                {(() => {
+                                  const correctCount = [0, 1, 2].filter((i) => {
+                                    const a = cbtAnswersIelts[i];
+                                    return a && CBT_QUESTIONS_IELTS[i].options.find((o) => o.correct)?.key === a;
+                                  }).length;
+                                  return (
+                                    <>
+                                      <div style={{ fontSize: 32, marginBottom: 8 }}>
+                                        {correctCount === 3 ? '🏆' : correctCount >= 2 ? '🎉' : '📚'}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: 16,
+                                          fontWeight: 800,
+                                          color: 'var(--ink)',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Mini CBT Sinovi Yakunlandi!
+                                      </div>
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 6,
+                                          padding: '4px 14px',
+                                          borderRadius: 999,
+                                          background:
+                                            correctCount === 3
+                                              ? 'rgba(16, 185, 129, 0.2)'
+                                              : 'rgba(245, 158, 11, 0.2)',
+                                          color: correctCount === 3 ? '#10B981' : '#F59E0B',
+                                          fontSize: 13,
+                                          fontWeight: 800,
+                                          marginBottom: 12,
+                                        }}
+                                      >
+                                        Natija: {correctCount} / 3 To&apos;g&apos;ri ({Math.round((correctCount / 3) * 100)}%)
+                                      </div>
+                                      <p
+                                        style={{
+                                          fontSize: 12,
+                                          color: 'var(--ink-soft)',
+                                          lineHeight: 1.5,
+                                          margin: '0 auto 16px',
+                                          maxWidth: 320,
+                                        }}
+                                      >
+                                        {correctCount >= 2
+                                          ? "Impressive score! Your performance aligns with Cambridge IELTS Band 7.5+ (C1 Proficient) mastery."
+                                          : "Yaxshi boshlanish! Mavzular bo'yicha mustahkamlash mashqlarini bajarish tavsiya etiladi."}
+                                      </p>
+                                    </>
+                                  );
+                                })()}
+
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAction('/tests')}
+                                    className="btn-glow"
+                                    style={{
+                                      padding: '10px 18px',
+                                      borderRadius: 12,
+                                      background: 'linear-gradient(135deg, #38BDF8, #FBBF24)',
+                                      color: '#090d16',
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    To&apos;liq testni boshlash (40 questions) →
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCbtIndexIelts(0);
+                                      setCbtAnswersIelts({});
+                                      setCbtFinishedIelts(false);
+                                    }}
+                                    style={{
+                                      padding: '10px 16px',
+                                      borderRadius: 12,
+                                      background: 'var(--card-2)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--ink)',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Qayta ishlash ↺
+                                  </button>
+                                </div>
                               </motion.div>
                             )}
                           </div>
@@ -2183,129 +2562,375 @@ export default function Landing() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                marginBottom: 12,
+                                marginBottom: 14,
                               }}
                             >
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
-                                {CBT_QUESTION_MULTILEVEL.subject}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {[0, 1, 2].map((idx) => {
+                                  const isCurrent = cbtIndexMultilevel === idx && !cbtFinishedMultilevel;
+                                  const ans = cbtAnswersMultilevel[idx];
+                                  const q = CBT_QUESTIONS_MULTILEVEL[idx];
+                                  const isCorrect = ans && q.options.find((o) => o.correct)?.key === ans;
+                                  let bg = 'var(--card-2)';
+                                  let border = '1px solid var(--border)';
+                                  let color = 'var(--muted)';
+                                  if (ans) {
+                                    if (isCorrect) {
+                                      bg = 'rgba(16, 185, 129, 0.2)';
+                                      border = '1px solid #10B981';
+                                      color = '#10B981';
+                                    } else {
+                                      bg = 'rgba(239, 68, 68, 0.2)';
+                                      border = '1px solid #EF4444';
+                                      color = '#EF4444';
+                                    }
+                                  } else if (isCurrent) {
+                                    bg = 'rgba(245, 158, 11, 0.2)';
+                                    border = '1px solid #6366F1';
+                                    color = '#6366F1';
+                                  }
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setCbtIndexMultilevel(idx);
+                                        setCbtFinishedMultilevel(false);
+                                      }}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 8,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        background: bg,
+                                        border,
+                                        color,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {ans ? (isCorrect ? `✓ ${idx + 1}` : `✕ ${idx + 1}`) : `Savol ${idx + 1}`}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <span
                                 style={{
                                   fontSize: 11,
                                   fontWeight: 800,
                                   padding: '3px 8px',
                                   borderRadius: 6,
-                                  background: 'rgba(99, 102, 241, 0.15)',
-                                  color: '#818CF8',
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  color: '#6366F1',
                                 }}
                               >
-                                DTM / BMB Standarti
+                                {cbtFinishedMultilevel ? 'CEFR B2/C1 Natija' : CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].badge}
                               </span>
                             </div>
 
-                            <div
-                              style={{
-                                padding: 12,
-                                borderRadius: 12,
-                                background: 'var(--card-2)',
-                                border: '1px solid var(--border)',
-                                fontSize: 12,
-                                color: 'var(--ink-soft)',
-                                lineHeight: 1.55,
-                                marginBottom: 14,
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, color: '#818CF8' }}>Passage: </span>
-                              {CBT_QUESTION_MULTILEVEL.passage}
-                            </div>
-
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
-                              {CBT_QUESTION_MULTILEVEL.question}
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                              {CBT_QUESTION_MULTILEVEL.options.map((opt) => {
-                                const isSelected = selectedOptionMultilevel === opt.key;
-                                const isCorrect = opt.correct;
-                                let bg = 'var(--card-2)';
-                                let border = '1px solid var(--border)';
-                                let textCol = 'var(--ink)';
-
-                                if (isSelected) {
-                                  if (isCorrect) {
-                                    bg = 'rgba(16, 185, 129, 0.18)';
-                                    border = '1px solid #10B981';
-                                    textCol = '#10B981';
-                                  } else {
-                                    bg = 'rgba(239, 68, 68, 0.18)';
-                                    border = '1px solid #EF4444';
-                                    textCol = '#EF4444';
-                                  }
-                                }
-
-                                return (
-                                  <button
-                                    key={opt.key}
-                                    type="button"
-                                    onClick={() => handleOptionMultilevel(opt.key)}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 10,
-                                      padding: '10px 14px',
-                                      borderRadius: 12,
-                                      background: bg,
-                                      border,
-                                      color: textCol,
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.18s ease',
-                                    }}
-                                  >
-                                    <span
+                            {!cbtFinishedMultilevel ? (
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={cbtIndexMultilevel}
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -10 }}
+                                  transition={{ duration: 0.18 }}
+                                >
+                                  {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].passage && (
+                                    <div
                                       style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: 6,
-                                        background: isSelected ? 'currentColor' : 'var(--border)',
-                                        color: isSelected ? '#090d16' : 'var(--muted)',
-                                        fontWeight: 800,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 11,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: 'var(--card-2)',
+                                        border: '1px solid var(--border)',
+                                        fontSize: 12,
+                                        color: 'var(--ink-soft)',
+                                        lineHeight: 1.55,
+                                        marginBottom: 12,
+                                        maxHeight: 90,
+                                        overflowY: 'auto',
                                       }}
                                     >
-                                      {opt.key}
-                                    </span>
-                                    <span>{opt.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                                      <div
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.05em',
+                                          color: '#6366F1',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].passageLabel || 'Matn tahlili'}
+                                      </div>
+                                      {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].passage}
+                                    </div>
+                                  )}
 
-                            {selectedOptionMultilevel && (
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                      color: 'var(--ink)',
+                                      lineHeight: 1.5,
+                                      marginBottom: 12,
+                                    }}
+                                  >
+                                    {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].question}
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].options.map((opt) => {
+                                      const ans = cbtAnswersMultilevel[cbtIndexMultilevel];
+                                      const isSelected = ans === opt.key;
+                                      const isCorrect = !!opt.correct;
+
+                                      let bg = 'var(--card-2)';
+                                      let border = '1px solid var(--border)';
+                                      let textCol = 'var(--ink)';
+
+                                      if (isSelected) {
+                                        if (isCorrect) {
+                                          bg = 'rgba(16, 185, 129, 0.18)';
+                                          border = '1px solid #10B981';
+                                          textCol = '#10B981';
+                                        } else {
+                                          bg = 'rgba(239, 68, 68, 0.18)';
+                                          border = '1px solid #EF4444';
+                                          textCol = '#EF4444';
+                                        }
+                                      } else if (ans && isCorrect) {
+                                        bg = 'rgba(16, 185, 129, 0.1)';
+                                        border = '1px solid rgba(16, 185, 129, 0.4)';
+                                        textCol = '#10B981';
+                                      }
+
+                                      return (
+                                        <button
+                                          key={opt.key}
+                                          type="button"
+                                          disabled={Boolean(ans)}
+                                          onClick={() => handleAnswerQuestion('multi', cbtIndexMultilevel, opt.key, isCorrect)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '10px 14px',
+                                            borderRadius: 12,
+                                            background: bg,
+                                            border,
+                                            color: textCol,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            textAlign: 'left',
+                                            cursor: ans ? 'default' : 'pointer',
+                                            transition: 'all 0.18s ease',
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              width: 22,
+                                              height: 22,
+                                              borderRadius: 6,
+                                              background: isSelected ? 'currentColor' : 'var(--border)',
+                                              color: isSelected ? '#090d16' : 'var(--muted)',
+                                              fontWeight: 800,
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: 11,
+                                            }}
+                                          >
+                                            {opt.key}
+                                          </span>
+                                          <span>{opt.text}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {cbtAnswersMultilevel[cbtIndexMultilevel] && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      style={{
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background:
+                                          CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].options.find(
+                                            (o) => o.key === cbtAnswersMultilevel[cbtIndexMultilevel]
+                                          )?.correct
+                                            ? 'rgba(16, 185, 129, 0.1)'
+                                            : 'rgba(239, 68, 68, 0.1)',
+                                        border:
+                                          CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].options.find(
+                                            (o) => o.key === cbtAnswersMultilevel[cbtIndexMultilevel]
+                                          )?.correct
+                                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                                            : '1px solid rgba(239, 68, 68, 0.3)',
+                                        fontSize: 12,
+                                        color:
+                                          CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].options.find(
+                                            (o) => o.key === cbtAnswersMultilevel[cbtIndexMultilevel]
+                                          )?.correct
+                                            ? '#34D399'
+                                            : '#F87171',
+                                        marginTop: 12,
+                                      }}
+                                    >
+                                      <div style={{ marginBottom: 10 }}>
+                                        {CBT_QUESTIONS_MULTILEVEL[cbtIndexMultilevel].explanation}
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                        {cbtIndexMultilevel < 2 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtIndexMultilevel((i) => i + 1)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: '#6366F1',
+                                              color: '#090d16',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Keyingi savol ({cbtIndexMultilevel + 2}/3) →
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtFinishedMultilevel(true)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: 'linear-gradient(135deg, #10B981, #059669)',
+                                              color: '#FFFFFF',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Natijani ko&apos;rish 🏁
+                                          </button>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </motion.div>
+                              </AnimatePresence>
+                            ) : (
                               <motion.div
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.22 }}
                                 style={{
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  background:
-                                    selectedOptionMultilevel === 'B'
-                                      ? 'rgba(16, 185, 129, 0.1)'
-                                      : 'rgba(239, 68, 68, 0.1)',
-                                  border:
-                                    selectedOptionMultilevel === 'B'
-                                      ? '1px solid rgba(16, 185, 129, 0.3)'
-                                      : '1px solid rgba(239, 68, 68, 0.3)',
-                                  fontSize: 12,
-                                  color: selectedOptionMultilevel === 'B' ? '#34D399' : '#F87171',
+                                  padding: '20px 16px',
+                                  borderRadius: 16,
+                                  background: 'var(--card-2)',
+                                  border: '1px solid var(--border)',
+                                  textAlign: 'center',
                                 }}
                               >
-                                {CBT_QUESTION_MULTILEVEL.explanation}
+                                {(() => {
+                                  const correctCount = [0, 1, 2].filter((i) => {
+                                    const a = cbtAnswersMultilevel[i];
+                                    return a && CBT_QUESTIONS_MULTILEVEL[i].options.find((o) => o.correct)?.key === a;
+                                  }).length;
+                                  return (
+                                    <>
+                                      <div style={{ fontSize: 32, marginBottom: 8 }}>
+                                        {correctCount === 3 ? '🏆' : correctCount >= 2 ? '🎉' : '📚'}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: 16,
+                                          fontWeight: 800,
+                                          color: 'var(--ink)',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Mini CBT Sinovi Yakunlandi!
+                                      </div>
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 6,
+                                          padding: '4px 14px',
+                                          borderRadius: 999,
+                                          background:
+                                            correctCount === 3
+                                              ? 'rgba(16, 185, 129, 0.2)'
+                                              : 'rgba(245, 158, 11, 0.2)',
+                                          color: correctCount === 3 ? '#10B981' : '#F59E0B',
+                                          fontSize: 13,
+                                          fontWeight: 800,
+                                          marginBottom: 12,
+                                        }}
+                                      >
+                                        Natija: {correctCount} / 3 To&apos;g&apos;ri ({Math.round((correctCount / 3) * 100)}%)
+                                      </div>
+                                      <p
+                                        style={{
+                                          fontSize: 12,
+                                          color: 'var(--ink-soft)',
+                                          lineHeight: 1.5,
+                                          margin: '0 auto 16px',
+                                          maxWidth: 320,
+                                        }}
+                                      >
+                                        {correctCount >= 2
+                                          ? "Ajoyib natija! DTM/BMB CEFR Multi-level imtihoni bo'yicha C1 sertifikati olish darajasiga munosib natija."
+                                          : "Yaxshi boshlanish! Mavzular bo'yicha mustahkamlash mashqlarini bajarish tavsiya etiladi."}
+                                      </p>
+                                    </>
+                                  );
+                                })()}
+
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAction('/tests')}
+                                    className="btn-glow"
+                                    style={{
+                                      padding: '10px 18px',
+                                      borderRadius: 12,
+                                      background: 'linear-gradient(135deg, #6366F1, #FBBF24)',
+                                      color: '#090d16',
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    To&apos;liq testni boshlash (35 ta savol) →
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCbtIndexMultilevel(0);
+                                      setCbtAnswersMultilevel({});
+                                      setCbtFinishedMultilevel(false);
+                                    }}
+                                    style={{
+                                      padding: '10px 16px',
+                                      borderRadius: 12,
+                                      background: 'var(--card-2)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--ink)',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Qayta ishlash ↺
+                                  </button>
+                                </div>
                               </motion.div>
                             )}
                           </div>
@@ -2414,11 +3039,12 @@ export default function Landing() {
                             </span>
 
                             <div
+                              className="cbt-crit-grid"
                               style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(4, 1fr)',
-                                gap: 6,
-                                marginBottom: 16,
+                                gridTemplateColumns: 'repeat(6, 1fr)',
+                                gap: 5,
+                                marginBottom: 12,
                               }}
                             >
                               {ESSAY_12_CRITERIA.map((crit) => {
@@ -2466,7 +3092,8 @@ export default function Landing() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.18 }}
                               style={{
-                                padding: 14,
+                                padding: '12px 14px',
+                                minHeight: 110,
                                 borderRadius: 14,
                                 background: 'rgba(245, 158, 11, 0.08)',
                                 border: '1px solid rgba(245, 158, 11, 0.25)',
@@ -2523,12 +3150,58 @@ export default function Landing() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                marginBottom: 12,
+                                marginBottom: 14,
                               }}
                             >
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
-                                {CBT_QUESTION_UZBEK.subject}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {[0, 1, 2].map((idx) => {
+                                  const isCurrent = cbtIndexNatCert === idx && !cbtFinishedNatCert;
+                                  const ans = cbtAnswersNatCert[idx];
+                                  const q = CBT_QUESTIONS_UZBEK[idx];
+                                  const isCorrect = ans && q.options.find((o) => o.correct)?.key === ans;
+                                  let bg = 'var(--card-2)';
+                                  let border = '1px solid var(--border)';
+                                  let color = 'var(--muted)';
+                                  if (ans) {
+                                    if (isCorrect) {
+                                      bg = 'rgba(16, 185, 129, 0.2)';
+                                      border = '1px solid #10B981';
+                                      color = '#10B981';
+                                    } else {
+                                      bg = 'rgba(239, 68, 68, 0.2)';
+                                      border = '1px solid #EF4444';
+                                      color = '#EF4444';
+                                    }
+                                  } else if (isCurrent) {
+                                    bg = 'rgba(245, 158, 11, 0.2)';
+                                    border = '1px solid #F59E0B';
+                                    color = '#F59E0B';
+                                  }
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setCbtIndexNatCert(idx);
+                                        setCbtFinishedNatCert(false);
+                                      }}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 8,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        background: bg,
+                                        border,
+                                        color,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {ans ? (isCorrect ? `✓ ${idx + 1}` : `✕ ${idx + 1}`) : `Savol ${idx + 1}`}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <span
                                 style={{
                                   fontSize: 11,
@@ -2539,113 +3212,313 @@ export default function Landing() {
                                   color: '#F59E0B',
                                 }}
                               >
-                                Rasmiy BMB 2026
+                                {cbtFinishedNatCert ? 'BMB 2026 Natija' : CBT_QUESTIONS_UZBEK[cbtIndexNatCert].badge}
                               </span>
                             </div>
 
-                            <div
-                              style={{
-                                padding: 12,
-                                borderRadius: 12,
-                                background: 'var(--card-2)',
-                                border: '1px solid var(--border)',
-                                fontSize: 12,
-                                color: 'var(--ink-soft)',
-                                lineHeight: 1.55,
-                                marginBottom: 14,
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, color: '#F59E0B' }}>Matn: </span>
-                              {CBT_QUESTION_UZBEK.passage}
-                            </div>
-
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
-                              {CBT_QUESTION_UZBEK.question}
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                              {CBT_QUESTION_UZBEK.options.map((opt) => {
-                                const isSelected = selectedOptionNatCert === opt.key;
-                                const isCorrect = opt.correct;
-                                let bg = 'var(--card-2)';
-                                let border = '1px solid var(--border)';
-                                let textCol = 'var(--ink)';
-
-                                if (isSelected) {
-                                  if (isCorrect) {
-                                    bg = 'rgba(16, 185, 129, 0.18)';
-                                    border = '1px solid #10B981';
-                                    textCol = '#10B981';
-                                  } else {
-                                    bg = 'rgba(239, 68, 68, 0.18)';
-                                    border = '1px solid #EF4444';
-                                    textCol = '#EF4444';
-                                  }
-                                }
-
-                                return (
-                                  <button
-                                    key={opt.key}
-                                    type="button"
-                                    onClick={() => handleOptionNatCert(opt.key)}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 10,
-                                      padding: '10px 14px',
-                                      borderRadius: 12,
-                                      background: bg,
-                                      border,
-                                      color: textCol,
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.18s ease',
-                                    }}
-                                  >
-                                    <span
+                            {!cbtFinishedNatCert ? (
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={cbtIndexNatCert}
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -10 }}
+                                  transition={{ duration: 0.18 }}
+                                >
+                                  {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].passage && (
+                                    <div
                                       style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: 6,
-                                        background: isSelected ? 'currentColor' : 'var(--border)',
-                                        color: isSelected ? '#090d16' : 'var(--muted)',
-                                        fontWeight: 800,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 11,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: 'var(--card-2)',
+                                        border: '1px solid var(--border)',
+                                        fontSize: 12,
+                                        color: 'var(--ink-soft)',
+                                        lineHeight: 1.55,
+                                        marginBottom: 12,
+                                        maxHeight: 90,
+                                        overflowY: 'auto',
                                       }}
                                     >
-                                      {opt.key}
-                                    </span>
-                                    <span>{opt.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                                      <div
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.05em',
+                                          color: '#F59E0B',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].passageLabel || 'Matn tahlili'}
+                                      </div>
+                                      {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].passage}
+                                    </div>
+                                  )}
 
-                            {selectedOptionNatCert && (
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                      color: 'var(--ink)',
+                                      lineHeight: 1.5,
+                                      marginBottom: 12,
+                                    }}
+                                  >
+                                    {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].question}
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].options.map((opt) => {
+                                      const ans = cbtAnswersNatCert[cbtIndexNatCert];
+                                      const isSelected = ans === opt.key;
+                                      const isCorrect = !!opt.correct;
+
+                                      let bg = 'var(--card-2)';
+                                      let border = '1px solid var(--border)';
+                                      let textCol = 'var(--ink)';
+
+                                      if (isSelected) {
+                                        if (isCorrect) {
+                                          bg = 'rgba(16, 185, 129, 0.18)';
+                                          border = '1px solid #10B981';
+                                          textCol = '#10B981';
+                                        } else {
+                                          bg = 'rgba(239, 68, 68, 0.18)';
+                                          border = '1px solid #EF4444';
+                                          textCol = '#EF4444';
+                                        }
+                                      } else if (ans && isCorrect) {
+                                        bg = 'rgba(16, 185, 129, 0.1)';
+                                        border = '1px solid rgba(16, 185, 129, 0.4)';
+                                        textCol = '#10B981';
+                                      }
+
+                                      return (
+                                        <button
+                                          key={opt.key}
+                                          type="button"
+                                          disabled={Boolean(ans)}
+                                          onClick={() => handleAnswerQuestion('nat', cbtIndexNatCert, opt.key, isCorrect)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '10px 14px',
+                                            borderRadius: 12,
+                                            background: bg,
+                                            border,
+                                            color: textCol,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            textAlign: 'left',
+                                            cursor: ans ? 'default' : 'pointer',
+                                            transition: 'all 0.18s ease',
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              width: 22,
+                                              height: 22,
+                                              borderRadius: 6,
+                                              background: isSelected ? 'currentColor' : 'var(--border)',
+                                              color: isSelected ? '#090d16' : 'var(--muted)',
+                                              fontWeight: 800,
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: 11,
+                                            }}
+                                          >
+                                            {opt.key}
+                                          </span>
+                                          <span>{opt.text}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {cbtAnswersNatCert[cbtIndexNatCert] && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      style={{
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background:
+                                          CBT_QUESTIONS_UZBEK[cbtIndexNatCert].options.find(
+                                            (o) => o.key === cbtAnswersNatCert[cbtIndexNatCert]
+                                          )?.correct
+                                            ? 'rgba(16, 185, 129, 0.1)'
+                                            : 'rgba(239, 68, 68, 0.1)',
+                                        border:
+                                          CBT_QUESTIONS_UZBEK[cbtIndexNatCert].options.find(
+                                            (o) => o.key === cbtAnswersNatCert[cbtIndexNatCert]
+                                          )?.correct
+                                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                                            : '1px solid rgba(239, 68, 68, 0.3)',
+                                        fontSize: 12,
+                                        color:
+                                          CBT_QUESTIONS_UZBEK[cbtIndexNatCert].options.find(
+                                            (o) => o.key === cbtAnswersNatCert[cbtIndexNatCert]
+                                          )?.correct
+                                            ? '#34D399'
+                                            : '#F87171',
+                                        marginTop: 12,
+                                      }}
+                                    >
+                                      <div style={{ marginBottom: 10 }}>
+                                        {CBT_QUESTIONS_UZBEK[cbtIndexNatCert].explanation}
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                        {cbtIndexNatCert < 2 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtIndexNatCert((i) => i + 1)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: '#F59E0B',
+                                              color: '#090d16',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Keyingi savol ({cbtIndexNatCert + 2}/3) →
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtFinishedNatCert(true)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: 'linear-gradient(135deg, #10B981, #059669)',
+                                              color: '#FFFFFF',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Natijani ko&apos;rish 🏁
+                                          </button>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </motion.div>
+                              </AnimatePresence>
+                            ) : (
                               <motion.div
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.22 }}
                                 style={{
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  background:
-                                    selectedOptionNatCert === 'B'
-                                      ? 'rgba(16, 185, 129, 0.1)'
-                                      : 'rgba(239, 68, 68, 0.1)',
-                                  border:
-                                    selectedOptionNatCert === 'B'
-                                      ? '1px solid rgba(16, 185, 129, 0.3)'
-                                      : '1px solid rgba(239, 68, 68, 0.3)',
-                                  fontSize: 12,
-                                  color: selectedOptionNatCert === 'B' ? '#34D399' : '#F87171',
+                                  padding: '20px 16px',
+                                  borderRadius: 16,
+                                  background: 'var(--card-2)',
+                                  border: '1px solid var(--border)',
+                                  textAlign: 'center',
                                 }}
                               >
-                                {CBT_QUESTION_UZBEK.explanation}
+                                {(() => {
+                                  const correctCount = [0, 1, 2].filter((i) => {
+                                    const a = cbtAnswersNatCert[i];
+                                    return a && CBT_QUESTIONS_UZBEK[i].options.find((o) => o.correct)?.key === a;
+                                  }).length;
+                                  return (
+                                    <>
+                                      <div style={{ fontSize: 32, marginBottom: 8 }}>
+                                        {correctCount === 3 ? '🏆' : correctCount >= 2 ? '🎉' : '📚'}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: 16,
+                                          fontWeight: 800,
+                                          color: 'var(--ink)',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Mini CBT Sinovi Yakunlandi!
+                                      </div>
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 6,
+                                          padding: '4px 14px',
+                                          borderRadius: 999,
+                                          background:
+                                            correctCount === 3
+                                              ? 'rgba(16, 185, 129, 0.2)'
+                                              : 'rgba(245, 158, 11, 0.2)',
+                                          color: correctCount === 3 ? '#10B981' : '#F59E0B',
+                                          fontSize: 13,
+                                          fontWeight: 800,
+                                          marginBottom: 12,
+                                        }}
+                                      >
+                                        Natija: {correctCount} / 3 To&apos;g&apos;ri ({Math.round((correctCount / 3) * 100)}%)
+                                      </div>
+                                      <p
+                                        style={{
+                                          fontSize: 12,
+                                          color: 'var(--ink-soft)',
+                                          lineHeight: 1.5,
+                                          margin: '0 auto 16px',
+                                          maxWidth: 320,
+                                        }}
+                                      >
+                                        {correctCount >= 2
+                                          ? "Ajoyib natija! Sizda BMB Milliy Sertifikatining A/A+ darajasini qo'lga kiritish salohiyati juda yuqori."
+                                          : "Yaxshi boshlanish! Mavzular bo'yicha mustahkamlash mashqlarini bajarish tavsiya etiladi."}
+                                      </p>
+                                    </>
+                                  );
+                                })()}
+
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAction('/tests')}
+                                    className="btn-glow"
+                                    style={{
+                                      padding: '10px 18px',
+                                      borderRadius: 12,
+                                      background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                                      color: '#090d16',
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    To&apos;liq testni boshlash (45 ta savol) →
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCbtIndexNatCert(0);
+                                      setCbtAnswersNatCert({});
+                                      setCbtFinishedNatCert(false);
+                                    }}
+                                    style={{
+                                      padding: '10px 16px',
+                                      borderRadius: 12,
+                                      background: 'var(--card-2)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--ink)',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Qayta ishlash ↺
+                                  </button>
+                                </div>
                               </motion.div>
                             )}
                           </div>
@@ -2714,12 +3587,58 @@ export default function Landing() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                marginBottom: 12,
+                                marginBottom: 14,
                               }}
                             >
-                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
-                                {ATTESTATION_QUESTION.subject}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {[0, 1, 2].map((idx) => {
+                                  const isCurrent = cbtIndexAttestation === idx && !cbtFinishedAttestation;
+                                  const ans = cbtAnswersAttestation[idx];
+                                  const q = CBT_QUESTIONS_ATTESTATION[idx];
+                                  const isCorrect = ans && q.options.find((o) => o.correct)?.key === ans;
+                                  let bg = 'var(--card-2)';
+                                  let border = '1px solid var(--border)';
+                                  let color = 'var(--muted)';
+                                  if (ans) {
+                                    if (isCorrect) {
+                                      bg = 'rgba(16, 185, 129, 0.2)';
+                                      border = '1px solid #10B981';
+                                      color = '#10B981';
+                                    } else {
+                                      bg = 'rgba(239, 68, 68, 0.2)';
+                                      border = '1px solid #EF4444';
+                                      color = '#EF4444';
+                                    }
+                                  } else if (isCurrent) {
+                                    bg = 'rgba(245, 158, 11, 0.2)';
+                                    border = '1px solid #F59E0B';
+                                    color = '#F59E0B';
+                                  }
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setCbtIndexAttestation(idx);
+                                        setCbtFinishedAttestation(false);
+                                      }}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 8,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        background: bg,
+                                        border,
+                                        color,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {ans ? (isCorrect ? `✓ ${idx + 1}` : `✕ ${idx + 1}`) : `Savol ${idx + 1}`}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <span
                                 style={{
                                   fontSize: 11,
@@ -2730,113 +3649,313 @@ export default function Landing() {
                                   color: '#F59E0B',
                                 }}
                               >
-                                Rasmiy Attestatsiya 2026
+                                {cbtFinishedAttestation ? 'Attestatsiya 2026 Natija' : CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].badge}
                               </span>
                             </div>
 
-                            <div
-                              style={{
-                                padding: 12,
-                                borderRadius: 12,
-                                background: 'var(--card-2)',
-                                border: '1px solid var(--border)',
-                                fontSize: 12,
-                                color: 'var(--ink-soft)',
-                                lineHeight: 1.55,
-                                marginBottom: 14,
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, color: '#F59E0B' }}>Metodik Tavsif: </span>
-                              {ATTESTATION_QUESTION.passage}
-                            </div>
-
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 12px' }}>
-                              {ATTESTATION_QUESTION.question}
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                              {ATTESTATION_QUESTION.options.map((opt) => {
-                                const isSelected = selectedOptionAttestation === opt.key;
-                                const isCorrect = opt.correct;
-                                let bg = 'var(--card-2)';
-                                let border = '1px solid var(--border)';
-                                let textCol = 'var(--ink)';
-
-                                if (isSelected) {
-                                  if (isCorrect) {
-                                    bg = 'rgba(16, 185, 129, 0.18)';
-                                    border = '1px solid #10B981';
-                                    textCol = '#10B981';
-                                  } else {
-                                    bg = 'rgba(239, 68, 68, 0.18)';
-                                    border = '1px solid #EF4444';
-                                    textCol = '#EF4444';
-                                  }
-                                }
-
-                                return (
-                                  <button
-                                    key={opt.key}
-                                    type="button"
-                                    onClick={() => handleOptionAttestation(opt.key)}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 10,
-                                      padding: '10px 14px',
-                                      borderRadius: 12,
-                                      background: bg,
-                                      border,
-                                      color: textCol,
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.18s ease',
-                                    }}
-                                  >
-                                    <span
+                            {!cbtFinishedAttestation ? (
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={cbtIndexAttestation}
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -10 }}
+                                  transition={{ duration: 0.18 }}
+                                >
+                                  {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].passage && (
+                                    <div
                                       style={{
-                                        width: 22,
-                                        height: 22,
-                                        borderRadius: 6,
-                                        background: isSelected ? 'currentColor' : 'var(--border)',
-                                        color: isSelected ? '#090d16' : 'var(--muted)',
-                                        fontWeight: 800,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 11,
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background: 'var(--card-2)',
+                                        border: '1px solid var(--border)',
+                                        fontSize: 12,
+                                        color: 'var(--ink-soft)',
+                                        lineHeight: 1.55,
+                                        marginBottom: 12,
+                                        maxHeight: 90,
+                                        overflowY: 'auto',
                                       }}
                                     >
-                                      {opt.key}
-                                    </span>
-                                    <span>{opt.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                                      <div
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: 800,
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.05em',
+                                          color: '#F59E0B',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].passageLabel || 'Matn tahlili'}
+                                      </div>
+                                      {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].passage}
+                                    </div>
+                                  )}
 
-                            {selectedOptionAttestation && (
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 700,
+                                      color: 'var(--ink)',
+                                      lineHeight: 1.5,
+                                      marginBottom: 12,
+                                    }}
+                                  >
+                                    {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].question}
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].options.map((opt) => {
+                                      const ans = cbtAnswersAttestation[cbtIndexAttestation];
+                                      const isSelected = ans === opt.key;
+                                      const isCorrect = !!opt.correct;
+
+                                      let bg = 'var(--card-2)';
+                                      let border = '1px solid var(--border)';
+                                      let textCol = 'var(--ink)';
+
+                                      if (isSelected) {
+                                        if (isCorrect) {
+                                          bg = 'rgba(16, 185, 129, 0.18)';
+                                          border = '1px solid #10B981';
+                                          textCol = '#10B981';
+                                        } else {
+                                          bg = 'rgba(239, 68, 68, 0.18)';
+                                          border = '1px solid #EF4444';
+                                          textCol = '#EF4444';
+                                        }
+                                      } else if (ans && isCorrect) {
+                                        bg = 'rgba(16, 185, 129, 0.1)';
+                                        border = '1px solid rgba(16, 185, 129, 0.4)';
+                                        textCol = '#10B981';
+                                      }
+
+                                      return (
+                                        <button
+                                          key={opt.key}
+                                          type="button"
+                                          disabled={Boolean(ans)}
+                                          onClick={() => handleAnswerQuestion('attest', cbtIndexAttestation, opt.key, isCorrect)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '10px 14px',
+                                            borderRadius: 12,
+                                            background: bg,
+                                            border,
+                                            color: textCol,
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            textAlign: 'left',
+                                            cursor: ans ? 'default' : 'pointer',
+                                            transition: 'all 0.18s ease',
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              width: 22,
+                                              height: 22,
+                                              borderRadius: 6,
+                                              background: isSelected ? 'currentColor' : 'var(--border)',
+                                              color: isSelected ? '#090d16' : 'var(--muted)',
+                                              fontWeight: 800,
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: 11,
+                                            }}
+                                          >
+                                            {opt.key}
+                                          </span>
+                                          <span>{opt.text}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {cbtAnswersAttestation[cbtIndexAttestation] && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      style={{
+                                        padding: 12,
+                                        borderRadius: 12,
+                                        background:
+                                          CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].options.find(
+                                            (o) => o.key === cbtAnswersAttestation[cbtIndexAttestation]
+                                          )?.correct
+                                            ? 'rgba(16, 185, 129, 0.1)'
+                                            : 'rgba(239, 68, 68, 0.1)',
+                                        border:
+                                          CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].options.find(
+                                            (o) => o.key === cbtAnswersAttestation[cbtIndexAttestation]
+                                          )?.correct
+                                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                                            : '1px solid rgba(239, 68, 68, 0.3)',
+                                        fontSize: 12,
+                                        color:
+                                          CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].options.find(
+                                            (o) => o.key === cbtAnswersAttestation[cbtIndexAttestation]
+                                          )?.correct
+                                            ? '#34D399'
+                                            : '#F87171',
+                                        marginTop: 12,
+                                      }}
+                                    >
+                                      <div style={{ marginBottom: 10 }}>
+                                        {CBT_QUESTIONS_ATTESTATION[cbtIndexAttestation].explanation}
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                        {cbtIndexAttestation < 2 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtIndexAttestation((i) => i + 1)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: '#F59E0B',
+                                              color: '#090d16',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Keyingi savol ({cbtIndexAttestation + 2}/3) →
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => setCbtFinishedAttestation(true)}
+                                            style={{
+                                              padding: '6px 14px',
+                                              borderRadius: 8,
+                                              background: 'linear-gradient(135deg, #10B981, #059669)',
+                                              color: '#FFFFFF',
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              border: 'none',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            Natijani ko&apos;rish 🏁
+                                          </button>
+                                        )}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </motion.div>
+                              </AnimatePresence>
+                            ) : (
                               <motion.div
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.22 }}
                                 style={{
-                                  padding: 12,
-                                  borderRadius: 12,
-                                  background:
-                                    selectedOptionAttestation === 'B'
-                                      ? 'rgba(16, 185, 129, 0.1)'
-                                      : 'rgba(239, 68, 68, 0.1)',
-                                  border:
-                                    selectedOptionAttestation === 'B'
-                                      ? '1px solid rgba(16, 185, 129, 0.3)'
-                                      : '1px solid rgba(239, 68, 68, 0.3)',
-                                  fontSize: 12,
-                                  color: selectedOptionAttestation === 'B' ? '#34D399' : '#F87171',
+                                  padding: '20px 16px',
+                                  borderRadius: 16,
+                                  background: 'var(--card-2)',
+                                  border: '1px solid var(--border)',
+                                  textAlign: 'center',
                                 }}
                               >
-                                {ATTESTATION_QUESTION.explanation}
+                                {(() => {
+                                  const correctCount = [0, 1, 2].filter((i) => {
+                                    const a = cbtAnswersAttestation[i];
+                                    return a && CBT_QUESTIONS_ATTESTATION[i].options.find((o) => o.correct)?.key === a;
+                                  }).length;
+                                  return (
+                                    <>
+                                      <div style={{ fontSize: 32, marginBottom: 8 }}>
+                                        {correctCount === 3 ? '🏆' : correctCount >= 2 ? '🎉' : '📚'}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: 16,
+                                          fontWeight: 800,
+                                          color: 'var(--ink)',
+                                          marginBottom: 4,
+                                        }}
+                                      >
+                                        Mini CBT Sinovi Yakunlandi!
+                                      </div>
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 6,
+                                          padding: '4px 14px',
+                                          borderRadius: 999,
+                                          background:
+                                            correctCount === 3
+                                              ? 'rgba(16, 185, 129, 0.2)'
+                                              : 'rgba(245, 158, 11, 0.2)',
+                                          color: correctCount === 3 ? '#10B981' : '#F59E0B',
+                                          fontSize: 13,
+                                          fontWeight: 800,
+                                          marginBottom: 12,
+                                        }}
+                                      >
+                                        Natija: {correctCount} / 3 To&apos;g&apos;ri ({Math.round((correctCount / 3) * 100)}%)
+                                      </div>
+                                      <p
+                                        style={{
+                                          fontSize: 12,
+                                          color: 'var(--ink-soft)',
+                                          lineHeight: 1.5,
+                                          margin: '0 auto 16px',
+                                          maxWidth: 320,
+                                        }}
+                                      >
+                                        {correctCount >= 2
+                                          ? "Muvaffaqiyatli sinov! Davlat attestatsiyasida Oliy toifa va 70% oylik ustama olish ehtimolingiz yuqori."
+                                          : "Yaxshi boshlanish! Mavzular bo'yicha mustahkamlash mashqlarini bajarish tavsiya etiladi."}
+                                      </p>
+                                    </>
+                                  );
+                                })()}
+
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAction('/tests')}
+                                    className="btn-glow"
+                                    style={{
+                                      padding: '10px 18px',
+                                      borderRadius: 12,
+                                      background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+                                      color: '#090d16',
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    To&apos;liq testni boshlash (50 ta savol) →
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCbtIndexAttestation(0);
+                                      setCbtAnswersAttestation({});
+                                      setCbtFinishedAttestation(false);
+                                    }}
+                                    style={{
+                                      padding: '10px 16px',
+                                      borderRadius: 12,
+                                      background: 'var(--card-2)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--ink)',
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Qayta ishlash ↺
+                                  </button>
+                                </div>
                               </motion.div>
                             )}
                           </div>
