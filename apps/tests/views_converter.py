@@ -18,9 +18,8 @@ logger = logging.getLogger(__name__)
 
 def _is_teacher_or_admin(user) -> bool:
     """Tekshiruv: faqat ustoz yoki adminlar test yarata oladi."""
-    return (
-        user.is_authenticated
-        and (getattr(user, "role", None) in ("teacher", "admin") or user.is_staff)
+    return user.is_authenticated and (
+        getattr(user, "role", None) in ("teacher", "admin") or user.is_staff
     )
 
 
@@ -51,7 +50,9 @@ class AiConvertDocumentView(APIView):
 
         subject = request.data.get("subject", "uzbek")
         file_bytes = upload_file.read()
-        content_type = getattr(upload_file, "content_type", "") or "application/octet-stream"
+        content_type = (
+            getattr(upload_file, "content_type", "") or "application/octet-stream"
+        )
         filename = getattr(upload_file, "name", "test_doc")
 
         try:
@@ -61,7 +62,9 @@ class AiConvertDocumentView(APIView):
                 content_type=content_type,
                 subject=subject,
             )
-            return Response({"success": True, "data": parsed_data}, status=status.HTTP_200_OK)
+            return Response(
+                {"success": True, "data": parsed_data}, status=status.HTTP_200_OK
+            )
         except Exception as e:
             logger.exception("AI convert failed: %s", e)
             return Response(

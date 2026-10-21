@@ -42,24 +42,35 @@ class GenerateRetestView(APIView):
         attempt = TestAttempt.objects.filter(pk=attempt_id).first()
         if not attempt:
             from apps.results.models import Result
+
             res_obj = Result.objects.filter(pk=attempt_id).first()
             if res_obj:
                 attempt = res_obj.attempt
 
         if not attempt:
-            return Response({"error": "Urinish topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Urinish topilmadi."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Xavfsizlik: faqat o'quvchining o'zi yoki admin
-        if attempt.student_id != request.user.id and not request.user.is_staff and getattr(request.user, "role", None) != "admin":
+        if (
+            attempt.student_id != request.user.id
+            and not request.user.is_staff
+            and getattr(request.user, "role", None) != "admin"
+        ):
             return Response(
-                {"error": "Siz faqat o'z urinishlaringiz bo'yicha qayta test generatsiya qila olasiz."},
+                {
+                    "error": "Siz faqat o'z urinishlaringiz bo'yicha qayta test generatsiya qila olasiz."
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         # Xato javoblarni qidirish
-        wrong_answers = StudentAnswer.objects.filter(
-            attempt=attempt, is_correct=False
-        ).select_related("question").prefetch_related("question__choices")
+        wrong_answers = (
+            StudentAnswer.objects.filter(attempt=attempt, is_correct=False)
+            .select_related("question")
+            .prefetch_related("question__choices")
+        )
 
         wrong_questions = [a.question for a in wrong_answers if a.question]
 
@@ -117,7 +128,8 @@ class GenerateRetestView(APIView):
                 passage=src_q.passage,
                 question_type=src_q.question_type,
                 points=src_q.points or 1,
-                explanation=src_q.explanation or "Ushbu savol o'tgan testdagi xato bo'yicha mustahkamlash uchun berildi.",
+                explanation=src_q.explanation
+                or "Ushbu savol o'tgan testdagi xato bo'yicha mustahkamlash uchun berildi.",
                 position=pos,
             )
             for c in src_q.choices.all():
@@ -185,8 +197,12 @@ class MistakeVaultView(APIView):
                         "question_id": a.question.id,
                         "question_text": a.question.text,
                         "topic": topic,
-                        "test_title": a.attempt.test.title if a.attempt and a.attempt.test else "Test",
-                        "correct_answer": correct_choice.text if correct_choice else "Kalit",
+                        "test_title": a.attempt.test.title
+                        if a.attempt and a.attempt.test
+                        else "Test",
+                        "correct_answer": correct_choice.text
+                        if correct_choice
+                        else "Kalit",
                         "explanation": a.question.explanation,
                         "date": a.answered_at,
                     }
@@ -202,7 +218,9 @@ class MistakeVaultView(APIView):
 
         weak_topics_list = [
             {"topic": k, "error_count": v}
-            for k, v in sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)
+            for k, v in sorted(
+                topic_counts.items(), key=lambda item: item[1], reverse=True
+            )
         ]
 
         return Response(
