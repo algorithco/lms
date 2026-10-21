@@ -562,14 +562,31 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * `python -m ruff check`: 0 ta xato.
   * `npm run build`: `tsc -b && vite build` 0 ta xato bilan muvaffaqiyatli yig'ildi.
 
+### 2.29. CI #278, CI #274 va Security #260 Workflow'larini To'liq Bartaraf Etish (100% Green CI & Security)
+- [x] Qulash sabablari loglar orqali ildizi bilan aniqlandi:
+  * CI #278: `tests.test_user_facing_messages.TranslationParityTests.test_every_key_used_by_the_client_exists_in_every_language` yiqilishi — CBT dagi yangi 3 ta kalit (`flag_question`, `flagged_active`, `take_flagged_stat`) `translations.json` da yetishmayotgan edi.
+  * Security #260: `pip-audit` dagi `pillow 12.3.0` bo'yicha 8 ta CVE (CVE-2026-112895, CVE-2026-112400, CVE-2026-112397 va h.k.).
+- [x] To'liq tuzatishlar:
+  * `frontend/src/i18n/translations.json`: `uz`, `ru`, `en` bloklariga `flag_question`, `flagged_active`, va `take_flagged_stat` to'liq kiritildi (`test_user_facing_messages` 6/6 OK).
+  * `requirements/base.txt`: `Pillow>=13.0.0,<14.0` versiyasiga ko'tarildi (`pip-audit`: No known vulnerabilities found, 100% toza).
+  * `ruff check --fix .` va `ruff format .`: Barcha Python fayllar to'liq formatlandi va linter tekshiruvidan 0 xato bilan o'tdi.
+  * `npm run lint` & `npm run build`: Frontend 0 ta xato bilan 2.14 soniyada muvaffaqiyatli yig'ildi.
+  * `python manage.py test tests`: 1160 ta test 100% PASS (0 failed).
+- [x] Feature Branch, PR #98 va CI/CD Avtomatizatsiyasi:
+  * `fix/ci-278-security-pipeline-green` tarmog'i ochilib, PR #98 yaratildi.
+  * PR dagi barcha tekshiruvlar (`test`, `security`, `CodeQL`, `automerge`) to'liq yashil (✅ Pass) o'tib, `main` ga squash-merge qilindi.
+  * `main` dagi CI, Security va Deploy workflow'lari 100% yashil o'tdi.
+- [x] VPS Server Sinxronizatsiyasi va Jonli Tekshiruv:
+  * Contabo VPS (`169.58.58.229`) serverida `git pull origin main` va `docker compose restart web nginx` bajarildi.
+  * Jonli salomatlik tekshiruvi: `curl -fsS https://grandec.uz/healthz/` -> `{"status":"ok","db":true,"version":"1.15.0"}` (HTTP 200 OK).
+
 ## 3. Jarayonda
-- Ishlarni git ga rasmiy commit qilish, VPS serverga zero-downtime sinxronlash va sog'lomlik tekshiruvini o'tkazish.
+- Barcha CI/CD va Security workflow'lari 100% yashil holatga keltirildi, ishlab chiqarish serveri to'liq yangilandi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Git commit va push (Komiljon Roziyev, Zero AI attribution).
-- VPS Contabo `169.58.58.229` da servislar holatini va `https://grandec.uz/healthz/` 200 OK qaytarishini tekshirish.
+- Yangi o'quvchi va ustozlar oqimini kuzatish, AI konvertor va adaptiv re-test samaradorligini tahlil qilish.
 
 
 
