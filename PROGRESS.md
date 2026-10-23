@@ -55,6 +55,30 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Backend: 
 uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
+### 2.28. Server Kiberxavfsizlik Auditi, Ochiq Ro'yxatdan O'tish RBAC Himoyasi, DeepSeek AI Esse Grader va 4 Talik Tariflar Tizimi
+- [x] Server Kiberxavfsizlik Auditi (Contabo VPS 169.58.58.229):
+  * **Strict Isolation Rule:** `bestway` (bestwayec.uz) loyihasi barcha konteynerlari (`education-web-prod`, `education-backend-prod`, `education-postgres-prod`, `education-redis-prod`), ma'lumotlar bazasi va portlari (`127.0.0.1:3005`) daxlsiz saqlandi, 0 ta to'xtalish, 200 OK.
+  * Server jarayonlari, portlar (`ss -tulpn`) va cronlar tekshirildi: 0 ta begona miner, botnet yoki orqa eshik aniqlandi.
+- [x] Ochiq Ro'yxatdan O'tishdagi Xavfsizlik Teshigini Yopish:
+  * Frontend: `Register.tsx` va `AuthModal.tsx` dagi "Platformadagi rolingiz" ("O'quvchiman" / "O'qituvchiman") tanlovi to'liq olib tashlandi.
+  * Backend: `RegisterSerializer` da rol qat'iy `User.Role.STUDENT` ga majburlab mixlandi (mijoz yuborgan har qanday 'role' qiymati e'tiborsiz qoldiriladi).
+  * Administrator boshqaruvi: Yangi o'qituvchilarni yaratish uchun maxsus admin-only endpoint yaratildi: `POST /api/v1/panel/teachers/create/` va `POST /api/v1/admin/teachers/create/` (`IsPanelAdmin` ruxsatnomasi bilan).
+- [x] DeepSeek AI Esse Baholash Tizimi Integratsiyasi:
+  * `config/settings/base.py`: `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL` va `ESSAY_GRADER_MODEL` integratsiyasi o'rnatildi.
+  * `apps/essays/deepseek_grader.py` va `apps/essays/services.py`:
+    - Rasmiy 12 mezonli BMB Ona tili esselarini (`grade_bmb_essay_deepseek`) DeepSeek orqali baholash.
+    - Rasmiy 4 mezonli Cambridge IELTS esselarini (`grade_ielts_essay_deepseek`) Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range bo'yicha Band 1.0–9.0 baholash.
+    - Avtomatik model zanjiri va xatoliklarda muammosiz fallback.
+- [x] 4 Talik Zamonaviy Tariflar Matritsasi:
+  * Bepul (0 so'm), Starter (5 000 so'm/test to'plami), PRO (49 000 so'm/oy), PREMIUM (89 000 so'm/oy).
+  * Frontend UI (`Landing.tsx`, `Subscribe.tsx`, `Plans.tsx`) 4 ta responsiv kartochka formatiga yangilandi.
+  * Tarjimalar bazasi `translations.json` ga barcha `plan_starter_*` kalitlari UZ, RU, EN tillarida qo'shildi.
+- [x] Sifat Nazorati (QA Gate 100% PASS):
+  * Unit testlar: `tests/test_teacher_auth_deepseek.py` 9/9 test 100% PASS (ro'yxatdan o'tish himoyasi, admin o'qituvchi yaratishi, jonli DeepSeek BMB va IELTS baholash).
+  * Frontend: `oxlint` 0 xato, `tsc -b && vite build` 0 xato bilan 3.07 soniyada muvaffaqiyatli yig'ildi.
+  * Backend: `python -m ruff check apps/ tests/` 0 xato.
+  * Deploy: Contabo VPS (`169.58.58.229`) ga muvaffaqiyatli sync qilindi, `https://grandec.uz/healthz/` va `https://grandec.uz/` 200 OK qaytardi, `bestway` daxlsiz saqlandi (200 OK).
+
 ### 2.27. To'liq Tizim Auditi (/audit), Xavfsizlik & RBAC Himoyasi, Aktivlar Tozalanishi va Zero-Downtime Deploy
 - [x] 1-bosqich: Fayllar va bog'liqliklar auditi (apps/, frontend/src/, config/):
   * Barcha 20 ta Django ilovasi, 46 ta React sahifasi va 24 ta komponent to'liq tahlil qilindi.
