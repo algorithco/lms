@@ -147,8 +147,13 @@ class TestDeepSeekGraderIntegration:
     def test_deepseek_r1_model_name(self):
         model = DeepSeekGrader.get_model()
         assert model == "deepseek/deepseek-r1-0528"
-        assert getattr(settings, "AI_EVALUATION_MODEL", "") == "deepseek/deepseek-r1-0528"
-        assert getattr(settings, "AUDIO_STREAM_MODEL", "") == "fish-audio/s2.1-pro-free:free"
+        assert (
+            getattr(settings, "AI_EVALUATION_MODEL", "") == "deepseek/deepseek-r1-0528"
+        )
+        assert (
+            getattr(settings, "AUDIO_STREAM_MODEL", "")
+            == "fish-audio/s2.1-pro-free:free"
+        )
 
     def test_bmb_essay_grading_fallback(self):
         result = grade_bmb_essay_deepseek(
@@ -182,7 +187,11 @@ class TestSpeakingModelIntegration:
             title="Describe an influential teacher",
             part=SpeakingTopic.PartChoice.PART2,
             prompt="Talk about a teacher who influenced your life.",
-            bullet_points=["Who they were", "What subject they taught", "Why they influenced you"],
+            bullet_points=[
+                "Who they were",
+                "What subject they taught",
+                "Why they influenced you",
+            ],
         )
         eval_res = _fallback_speaking_evaluation(topic, duration_seconds=60)
         assert "fluency_score" in eval_res
@@ -202,7 +211,9 @@ class TestSpeakingModelIntegration:
             part=SpeakingTopic.PartChoice.PART1,
             prompt="Tell me about your hometown.",
         )
-        dummy_audio = SimpleUploadedFile("response.wav", b"RIFF....WAVEfmt ...data...", content_type="audio/wav")
+        dummy_audio = SimpleUploadedFile(
+            "response.wav", b"RIFF....WAVEfmt ...data...", content_type="audio/wav"
+        )
 
         submission = evaluate_speaking_submission(
             audio_file=dummy_audio,
@@ -213,3 +224,27 @@ class TestSpeakingModelIntegration:
         assert submission.pk is not None
         assert submission.overall_band >= 1.0
         assert submission.user == user
+
+
+class TestStrictModelBinding:
+    """The whole evaluation chain must resolve to exactly one model."""
+
+    def test_candidate_chain_is_single_deepseek_r1(self):
+        from apps.essays.services import _model_candidates
+
+        assert _model_candidates() == ["deepseek/deepseek-r1-0528"]
+
+    def test_all_openrouter_model_settings_point_to_r1(self):
+        r1 = "deepseek/deepseek-r1-0528"
+        assert settings.AI_EVALUATION_MODEL == r1
+        assert settings.ESSAY_AI_MODEL == r1
+        assert settings.OPENROUTER_AI_MODEL == r1
+        assert settings.ESSAY_GRADER_MODEL == r1
+        assert settings.OPENROUTER_FALLBACK_MODELS == [r1]
+
+    def test_prompts_use_deduction_method(self):
+        from apps.essays.prompts import ESSAY_GRADING_SYSTEM_PROMPT
+        from apps.essays.services import IELTS_SYSTEM_PROMPT
+
+        assert "DEDUKSIYA" in ESSAY_GRADING_SYSTEM_PROMPT
+        assert "DEDUCTION" in IELTS_SYSTEM_PROMPT

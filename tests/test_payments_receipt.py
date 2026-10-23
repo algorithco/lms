@@ -321,7 +321,7 @@ def test_ai_daily_quota_and_rate_limiting():
         in msg2
     )
 
-    # Starter user: 20 requests per day
+    # Starter user: 10 requests per day
     starter_user = User.objects.create_user(
         email="starter_student@grandec.uz", password="ValidPassword123!"
     )
@@ -329,11 +329,11 @@ def test_ai_daily_quota_and_rate_limiting():
     starter_user.profile.save()
     assert get_user_plan_tier(starter_user) == "starter"
 
-    for i in range(20):
+    for i in range(10):
         ok, _ = check_and_consume_ai_quota(starter_user)
         assert ok is True, f"Failed at iteration {i}"
 
-    # 21st request rejected
+    # 11th request rejected
     ok21, err21 = check_and_consume_ai_quota(starter_user)
     assert ok21 is False
     assert "Sizning bugungi Starter AI limitingiz tugadi" in err21
