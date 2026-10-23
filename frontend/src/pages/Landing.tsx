@@ -4777,7 +4777,7 @@ export default function Landing() {
             position: 'relative',
           }}
         >
-          <div style={{ margin: '0 auto', maxWidth: 1040 }}>
+          <div style={{ margin: '0 auto', maxWidth: 1240 }}>
             <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
               <span
                 style={{
@@ -4807,34 +4807,37 @@ export default function Landing() {
             </div>
 
             <div
+              className="pricing-4col-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: 24,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: 20,
                 alignItems: 'stretch',
               }}
             >
-              {/* Free Plan */}
+              {/* 1. Free Plan */}
               <div
                 className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
-                  padding: 30,
+                  padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
                   {t('plan_free_name')}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
                   {t('plan_free_desc')}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
                   <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--ink)' }}>0</span>
-                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / umrbod</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('plan_free_period', "so'm / umrbod")}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
                   {[
                     t('plan_free_f1'),
                     t('plan_free_f2'),
@@ -4842,7 +4845,7 @@ export default function Landing() {
                     t('plan_free_f4'),
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckIcon size={16} style={{ color: '#10B981' }} />
+                      <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
                       <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
                     </div>
                   ))}
@@ -4858,25 +4861,104 @@ export default function Landing() {
                     border: '1px solid var(--border)',
                     color: 'var(--ink)',
                     fontWeight: 700,
-                    fontSize: 14,
+                    fontSize: 13.5,
                     cursor: 'pointer',
+                    transition: 'all 0.18s ease',
                   }}
                 >
                   {t('plan_free_cta')}
                 </button>
               </div>
 
-              {/* Pro Plan (Popular) */}
+              {/* 2. Starter Plan (New) */}
               <div
                 className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
-                  padding: 30,
+                  padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  border: '2px solid rgba(245, 158, 11, 0.45)',
-                  boxShadow: '0 8px 32px rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.45)',
+                  boxShadow: '0 8px 30px rgba(16, 185, 129, 0.12)',
+                  background: 'var(--card)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -11,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    padding: '3px 12px',
+                    borderRadius: 999,
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#10B981',
+                    fontSize: 10.5,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  ⚡ {t('plan_starter_badge', 'Yangi')}
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  ⚡ {t('plan_starter_name', 'Starter')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
+                  {t('plan_starter_desc', "Tezkor sinov va 5 ta to'liq test yechish imkoniyati")}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: '#10B981' }}>5 000</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('plan_starter_period', "so'm / to'plam")}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
+                  {[
+                    t('plan_starter_f1', "5 ta to'liq rasmiy Mock test"),
+                    t('plan_starter_f2', '3 ta rasmiy mezonli esse tahlili'),
+                    t('plan_starter_f3', 'Kuniga 10 ta AI repetitor izohi'),
+                    t('plan_starter_f4', 'Xatolar va zaif mavzular tahlili'),
+                  ].map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
+                      <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAction('/subscribe?plan=starter')}
+                  className="btn-glow"
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  {t('plan_starter_cta', 'Starter paketini olish')}
+                </button>
+              </div>
+
+              {/* 3. Pro Plan (Popular) */}
+              <div
+                className="glass-card lcard-hover"
+                style={{
+                  borderRadius: 22,
+                  padding: '28px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  border: '2px solid rgba(245, 158, 11, 0.6)',
+                  boxShadow: '0 12px 36px rgba(245, 158, 11, 0.22)',
+                  background: 'var(--card)',
                 }}
               >
                 <div
@@ -4895,19 +4977,19 @@ export default function Landing() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Eng Ommabop
+                  🔥 {t('plan_pro_badge', 'Eng Ommabop')}
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
-                  {t('plan_pro_name')}
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  🔥 {t('plan_pro_name')}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
                   {t('plan_pro_desc')}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
                   <span style={{ fontSize: 32, fontWeight: 900, color: '#F59E0B' }}>49 000</span>
-                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / oy</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('plan_pro_period', "so'm / oy")}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
                   {[
                     t('plan_pro_f1'),
                     t('plan_pro_f2'),
@@ -4916,14 +4998,14 @@ export default function Landing() {
                     t('plan_pro_f5'),
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckIcon size={16} style={{ color: '#F59E0B' }} />
+                      <CheckIcon size={15} style={{ color: '#F59E0B', flexShrink: 0 }} />
                       <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleAction('/subscribe')}
+                  onClick={() => handleAction('/subscribe?plan=pro')}
                   className="btn-glow"
                   style={{
                     width: '100%',
@@ -4932,36 +5014,60 @@ export default function Landing() {
                     background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
                     border: 'none',
                     color: '#090d16',
-                    fontWeight: 800,
-                    fontSize: 14,
+                    fontWeight: 900,
+                    fontSize: 13.5,
                     cursor: 'pointer',
+                    transition: 'all 0.18s ease',
                   }}
                 >
                   {t('plan_pro_cta')}
                 </button>
               </div>
 
-              {/* Master Plan */}
+              {/* 4. Premium Plan (VIP) */}
               <div
                 className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
-                  padding: 30,
+                  padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
+                  position: 'relative',
+                  border: '1px solid rgba(139, 92, 246, 0.5)',
+                  boxShadow: '0 8px 32px rgba(139, 92, 246, 0.16)',
+                  background: 'var(--card)',
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
-                  {t('plan_master_name')}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -11,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    padding: '3px 12px',
+                    borderRadius: 999,
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#A78BFA',
+                    fontSize: 10.5,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  👑 {t('plan_premium_badge', 'VIP / Cheksiz')}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
+                  👑 {t('plan_master_name')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
                   {t('plan_master_desc')}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
-                  <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--ink)' }}>89 000</span>
-                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>soʻm / oy</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: '#A78BFA' }}>89 000</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('plan_master_period', "so'm / oy")}</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1, fontSize: 13 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
                   {[
                     t('plan_master_f1'),
                     t('plan_master_f2'),
@@ -4970,24 +5076,26 @@ export default function Landing() {
                     t('plan_master_f5'),
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
+                      <CheckIcon size={15} style={{ color: '#8B5CF6', flexShrink: 0 }} />
                       <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleAction('/subscribe')}
+                  onClick={() => handleAction('/subscribe?plan=premium')}
+                  className="btn-glow"
                   style={{
                     width: '100%',
                     padding: 12,
                     borderRadius: 12,
-                    background: 'var(--card-2)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--ink)',
-                    fontWeight: 700,
-                    fontSize: 14,
+                    background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: 13.5,
                     cursor: 'pointer',
+                    transition: 'all 0.18s ease',
                   }}
                 >
                   {t('plan_master_cta')}

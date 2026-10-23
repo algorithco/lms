@@ -7,9 +7,9 @@ import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
 // Strictly 3 commercial subscription plans: START / STARTER (15 000), PRO (49 000 - recommended), PREMIUM (60 000)
 export const PLAN_PRICES = {
-  starter: 15000,
+  starter: 5000,
   pro: 49000,
-  premium: 60000,
+  premium: 89000,
 } as const;
 
 const plans: {
@@ -29,7 +29,7 @@ const plans: {
     id: 'starter',
     name: 'START / STARTER',
     priceKey: 'starter_price',
-    defaultPrice: 15000,
+    defaultPrice: 5000,
     emoji: '⚡',
     badgeUz: null,
     badgeRu: null,
@@ -91,7 +91,7 @@ const plans: {
     id: 'premium',
     name: 'PREMIUM',
     priceKey: 'premium_price',
-    defaultPrice: 60000,
+    defaultPrice: 89000,
     emoji: '👑',
     badgeUz: null,
     badgeRu: null,

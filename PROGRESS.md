@@ -601,10 +601,32 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Frontend: `oxlint` 0 ta xato, `tsc -b && vite build` 0 ta xato bilan 2.38 soniyada muvaffaqiyatli yig'ildi.
   * Backend: `ruff check` 0 xato, `ruff format` 100% toza, `pytest` 31/31 ta test 100% PASS.
 
+### 2.31. Server Kiberxavfsizlik Auditi, 5 000 so'mlik Starter Tarifi va 4 Talik Zamonaviy Pricing Grid
+- [x] VPS Server Kiberxavfsizlik Auditi (Integrity & Security Inspection):
+  * Docker konteynerlar tekshiruvi: Serverda FAQAT `grandec` (`lms-platform-prod-*`) va `bestway` (`education-*`, `bestway-prod-*`) konteynerlari ishlayotgani tasdiqlandi. Begona yoki noma'lum konteynerlar mutlaqo mavjud emas.
+  * Tarmoq va ochiq portlar tekshiruvi: Tashqi dunyoga faqat 22 (SSH), 80/443 (Nginx) ochiq. Postgres (5432, 5433) va Redis (6379) faqat localhost yoki docker ichki tarmog'ida cheklangan. Begona shubhali portlar (3389, 8080, 9999, miner portlar) aniqlanmadi.
+  * Jarayonlar va yuklama auditi: CPU bo'yicha hech qanday miner (`xmrig`, `kdevtmpfsi`) yoki ruxsatsiz skriptlar yo'q.
+  * Doimiylik (Persistence & Cron) tekshiruvi: Ruxsatsiz crontab topshiriqlari yo'q, `/tmp` va `/var/tmp` kataloglari xavfsiz.
+  * SSH kalitlari: Faqat `deploy@other-device` va `deploy@169.58.58.229` tasdiqlangan kalitlari mavjud.
+  * Qat'iy izolyatsiya: `bestway` loyihasining barcha resurslari, portlari va konteynerlariga mutlaqo teginilmadi.
+- [x] 4 Talik Yangi Tariflar Tizimi (`Starter`, `Bepul`, `PRO`, `PREMIUM`):
+  * `Starter` (5 000 so'm / to'plam): 5 ta to'liq rasmiy Mock test, 3 ta rasmiy mezonli esse tahlili, kuniga 10 ta AI repetitor izohi, xatolar va zaif mavzular tahlili (`DAILY_QUOTA_MAP['starter'] = 10`).
+  * `Bepul` (0 so'm / umrbod): Kuniga 1 ta matnli esse, 1 ta bepul rasmiy Mock test, kuniga 1 ta AI repetitor izohi, 1v1 Arena.
+  * `PRO` (49 000 so'm / oy): Haftasiga 15 ta esse, kuniga 1 ta rasmiy Mock test, kunlik 50 ta AI repetitor so'rovi, barcha CBT testlar, qisqa kutish vaqti.
+  * `PREMIUM` (89 000 so'm / oy): Cheksiz rasmli va matnli esse baholash, cheksiz barcha CBT va Mock testlar, 24/7 cheksiz AI repetitor, rasmiy PDF Sertifikat & Ustoz tekshiruvi, AI Speaking va OMR skaner.
+- [x] Zamonaviy 4 Talik Responsive Pricing Grid (`Landing.tsx`, `Subscribe.tsx`, `Plans.tsx`):
+  * `Landing.tsx` da 1240px kenglikdagi zamonaviy 4 ta kartochkali responsive to'r yaratildi.
+  * Har bir kartochka o'ziga xos vizual identifikatsiyaga ega bo'ldi: Bepul (qat'iy obsidian shisha fon), Starter (zumrad yorug'lik va "⚡ YANGI" nishoni), PRO (oltin jilo va "🔥 ENG OMMABOP" nishoni), PREMIUM (binafsha-oltin VIP nur va nishon).
+- [x] 3 Tilda To'liq Tarjimalar (`translations.json`):
+  * `plan_starter_name`, `plan_starter_price`, `plan_starter_period`, `plan_starter_desc`, `plan_starter_f1` ... `plan_starter_f4`, `plan_starter_cta`, `plan_starter_badge` UZ, RU, EN tillarida 100% to'liq kiritildi.
+- [x] Sifat Nazorati (QA Gate):
+  * Frontend: `oxlint` 0 ta xato, `tsc -b && vite build` 0 ta xato bilan 4.30 soniyada muvaffaqiyatli yig'ildi.
+  * Backend: `ruff check` 0 ta xato, `pytest` 26/26 ta test 100% PASS.
+
 ## 3. Jarayonda
-- Barcha yangilanishlar sinovdan o'tdi, asosiy tarmoqqa yuborish va VPS serverga yangilanishlarni yetkazish tayyor.
+- Yangilanishlarni Git orqali yuborish va VPS serverda faqat `grandec` (lms) xizmatlarini qayta yuklash.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Yangi Mini CBT simulyatorining konversiyasini kuzatish va foydalanuvchilar faolligini tahlil qilish.
+- Yangi 5 000 so'mlik Starter tarifining konversiyasini kuzatish.

@@ -27,7 +27,7 @@ const PUBLIC_PLANS: {
   {
     plan_type: 'starter',
     name: 'START / STARTER',
-    defaultPrice: 15000,
+    defaultPrice: 5000,
     emoji: '⚡',
     badgeUz: null,
     badgeRu: null,
@@ -87,7 +87,7 @@ const PUBLIC_PLANS: {
   {
     plan_type: 'premium',
     name: 'PREMIUM',
-    defaultPrice: 60000,
+    defaultPrice: 89000,
     emoji: '👑',
     badgeUz: null,
     badgeRu: null,

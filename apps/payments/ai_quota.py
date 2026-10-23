@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 DAILY_QUOTA_MAP = {
     "free": 1,
-    "starter": 20,
+    "starter": 10,
     "pro": 50,
     "premium": None,  # Unlimited
 }

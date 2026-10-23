@@ -59,8 +59,8 @@ class Command(BaseCommand):
                 "name": "Pro",
                 "plan_type": "pro",
                 "description": "Faol o'quvchilar uchun — cheklovli test va cheksiz esse",
-                "price_monthly": Decimal("20000"),
-                "price_yearly": Decimal("200000"),
+                "price_monthly": Decimal("89000"),
+                "price_yearly": Decimal("890000"),
                 "max_tests_per_day": 10,
                 "max_essays_per_week": 0,  # unlimited essays
                 "max_ai_grading": True,
@@ -75,8 +75,8 @@ class Command(BaseCommand):
                 "name": "Premium",
                 "plan_type": "premium",
                 "description": "To'liq imkoniyatlar — cheksiz test va esse, PDF sertifikat",
-                "price_monthly": Decimal("49000"),
-                "price_yearly": Decimal("490000"),
+                "price_monthly": Decimal("89000"),
+                "price_yearly": Decimal("890000"),
                 "max_tests_per_day": 0,  # unlimited
                 "max_essays_per_week": 0,  # unlimited
                 "max_ai_grading": True,
