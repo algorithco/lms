@@ -563,6 +563,68 @@ def user_block_view(request, user_id: int):
     return Response(UserAdminSerializer(target).data)
 
 
+@api_view(["POST"])
+@permission_classes([IsPanelAdmin])
+def admin_teacher_create_view(request):
+    """POST /api/v1/panel/teachers/create/ or /api/v1/admin/teachers/create/
+
+    Administrator tomonidan yangi o'qituvchi akkauntini xavfsiz yaratish.
+    Ochiq ro'yxatdan o'tishda o'qituvchi roli tanlash taqiqlangan; o'qituvchilar
+    faqat admin tomonidan shu endpoint orqali yaratiladi.
+    """
+    data = request.data or {}
+    email = str(data.get("email") or "").strip().lower()
+    password = str(data.get("password") or "").strip()
+    first_name = str(data.get("first_name") or "").strip()
+    last_name = str(data.get("last_name") or "").strip()
+    phone = str(data.get("phone") or "").strip()
+    can_create_test = bool(data.get("can_create_test", True))
+    can_create_essay_topic = bool(data.get("can_create_essay_topic", True))
+
+    if not email:
+        return Response({"error": "Email kiritilishi shart."}, status=400)
+    if not password or len(password) < 8:
+        return Response(
+            {"error": "Parol kamida 8 ta belgidan iborat bo'lishi kerak."}, status=400
+        )
+
+    if User.objects.filter(email__iexact=email).exists():
+        return Response(
+            {"error": "Bu email bilan foydalanuvchi allaqachon mavjud."}, status=400
+        )
+
+    teacher = User.objects.create_user(
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        role=User.Role.TEACHER,
+        can_create_test=can_create_test,
+        can_create_essay_topic=can_create_essay_topic,
+        is_active=True,
+    )
+
+    if phone:
+        profile, _ = Profile.objects.get_or_create(user=teacher)
+        profile.phone = phone
+        profile.save(update_fields=["phone"])
+
+    return Response(
+        {
+            "id": teacher.id,
+            "email": teacher.email,
+            "first_name": teacher.first_name,
+            "last_name": teacher.last_name,
+            "role": teacher.role,
+            "can_create_test": teacher.can_create_test,
+            "can_create_essay_topic": teacher.can_create_essay_topic,
+            "message": "O'qituvchi muvaffaqiyatli yaratildi.",
+        },
+        status=201,
+    )
+
+
+
 # ---------------------------------------------------------------------------
 # Panel: Groups & Teacher Assignment
 # ---------------------------------------------------------------------------

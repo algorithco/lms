@@ -120,22 +120,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Parollar mos ekanligini va rolni tekshirish."""
-        requested_role = (
-            (self.initial_data.get("role") or attrs.get("role") or "").strip().lower()
-        )
-        if requested_role:
-            if requested_role in ("teacher", User.Role.TEACHER):
-                attrs["role"] = User.Role.TEACHER
-            elif requested_role in ("student", User.Role.STUDENT):
-                attrs["role"] = User.Role.STUDENT
-            else:
-                raise serializers.ValidationError(
-                    {
-                        "role": "Imtiyozli rollarni faqat administrator tayinlaydi.",
-                    }
-                )
-        else:
-            attrs["role"] = User.Role.STUDENT
+        # Xavfsizlik: ochiq ro\'yxatdan o\'tishda rol har doim STUDENT
+        attrs["role"] = User.Role.STUDENT
 
         password = attrs.get("password")
         password_confirm = attrs.get("password_confirm")
@@ -163,19 +149,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> Any:
-        """Yangi User yaratish (o'quvchi yoki o'qituvchi)."""
-        # password_confirm ni olib tashlash (User modelda yo'q)
         validated_data.pop("password_confirm", None)
         password = validated_data.pop("password")
-        role = validated_data.pop("role", User.Role.STUDENT)
-
-        if role not in (User.Role.STUDENT, User.Role.TEACHER):
-            role = User.Role.STUDENT
-
-        user = User(role=role, **validated_data)
-        if role == User.Role.TEACHER:
-            user.can_create_test = True
-            user.can_create_essay_topic = True
+        validated_data.pop("role", None)
+        # Ochiq ro\'yxatdan o\'tishda har doim faqat STUDENT yaratiladi
+        user = User(role=User.Role.STUDENT, **validated_data)
 
         user.set_password(password)
         user.save()

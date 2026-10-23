@@ -150,6 +150,16 @@ urlpatterns = [
     path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
     path("panel/teachers/", views_panel.panel_teachers_view, name="panel-teachers"),
     path(
+        "panel/teachers/create/",
+        views_panel.admin_teacher_create_view,
+        name="panel-teacher-create",
+    ),
+    path(
+        "admin/teachers/create/",
+        views_panel.admin_teacher_create_view,
+        name="admin-teacher-create",
+    ),
+    path(
         "panel/attendance/",
         views_panel.panel_attendance_overview_view,
         name="panel-attendance",

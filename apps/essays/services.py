@@ -284,13 +284,20 @@ def _get_fallback_models() -> list[str]:
 
 
 def _model_candidates() -> list[str]:
-    """Primary model first, then the fallback chain — deduplicated."""
+    """Primary model (DeepSeek/configured) first, then fallback chain — deduplicated."""
+    models: list[str] = []
+    grader_model = (getattr(settings, "ESSAY_GRADER_MODEL", "") or "").strip()
+    if grader_model:
+        models.append(grader_model)
     try:
         primary = _get_ai_model()
+        if primary:
+            models.append(primary)
     except ImproperlyConfigured:
-        primary = ""
+        pass
     fallbacks = _get_fallback_models()
-    return [m for m in dict.fromkeys([primary, *fallbacks]) if m]
+    models.extend(fallbacks)
+    return [m for m in dict.fromkeys(models) if m]
 
 
 def _is_transient_ai_error(e: Exception) -> bool:
@@ -4007,3 +4014,13 @@ def grade_ielts_essay(
             task_type=task_type,
             min_words=min_words,
         )
+
+
+# ---------------------------------------------------------------------------
+# DeepSeek AI Grader Exports
+# ---------------------------------------------------------------------------
+from .deepseek_grader import (  # noqa: E402
+    DeepSeekGrader,
+    grade_bmb_essay_deepseek,
+    grade_ielts_essay_deepseek,
+)

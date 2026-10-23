@@ -572,10 +572,34 @@ ESSAY_OFF_TOPIC_SCORE = env("ESSAY_OFF_TOPIC_SCORE", default=35, cast=int)
 # 401 "Missing Authentication header" — that confusion is prevented here.
 ESSAY_AI_PROVIDER = env("ESSAY_AI_PROVIDER", default="auto")
 
+# DeepSeek AI Grader Configuration (Official 12-criteria BMB & 4-criteria IELTS)
+DEEPSEEK_API_KEY = env(
+    "DEEPSEEK_API_KEY",
+    default="",
+)
+DEEPSEEK_BASE_URL = env(
+    "DEEPSEEK_BASE_URL",
+    default=(
+        "https://openrouter.ai/api/v1"
+        if str(DEEPSEEK_API_KEY).startswith("sk-or-")
+        else "https://api.deepseek.com/v1"
+    ),
+)
+ESSAY_GRADER_MODEL = env(
+    "ESSAY_GRADER_MODEL",
+    default=(
+        "deepseek/deepseek-chat"
+        if str(DEEPSEEK_API_KEY).startswith("sk-or-")
+        else "deepseek-chat"
+    ),
+)
+
 # API keys — each provider reads its own env var only.
 # Generic aliases AI_API_KEY / AI_BASE_URL / AI_MODEL are also accepted for
 # simple .env setups; the explicit OPENROUTER_* / ESSAY_AI_MODEL names win.
-OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default=env("AI_API_KEY", default=""))
+OPENROUTER_API_KEY = env(
+    "OPENROUTER_API_KEY", default=env("AI_API_KEY", default=DEEPSEEK_API_KEY)
+)
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GEMINI_API_KEY = env("GEMINI_API_KEY", default=env("GOOGLE_API_KEY", default=""))
 

@@ -139,50 +139,7 @@ export default function Register() {
         </div>
 
         <form onSubmit={onSubmit} className="form">
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, marginBottom: 8, color: '#94a3b8', fontWeight: 600 }}>
-              Platformadagi rolingiz:
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, role: 'student' }))}
-                className="btn"
-                style={{
-                  background: form.role === 'student' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                  borderColor: form.role === 'student' ? '#6366f1' : 'rgba(255, 255, 255, 0.1)',
-                  color: form.role === 'student' ? '#818cf8' : '#cbd5e1',
-                  fontWeight: form.role === 'student' ? 700 : 500,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  fontSize: 14,
-                }}
-              >
-                🎓 O‘quvchiman
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, role: 'teacher' }))}
-                className="btn"
-                style={{
-                  background: form.role === 'teacher' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                  borderColor: form.role === 'teacher' ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                  color: form.role === 'teacher' ? '#34d399' : '#cbd5e1',
-                  fontWeight: form.role === 'teacher' ? 700 : 500,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  fontSize: 14,
-                }}
-              >
-                👨‍🏫 O‘qituvchiman
-              </button>
-            </div>
-            {form.role === 'teacher' && (
-              <p className="muted small" style={{ marginTop: 6, color: '#34d399', fontSize: 12 }}>
-                ✓ Guruhlar yaratish, unikal kod (#GR-XXX) berish va o‘quvchilarga avtomatik PRO ulashish imkoniyati.
-              </p>
-            )}
-          </div>
+          
 
           <div className="floating">
             <input id="reg-email" type="email" required placeholder={t('email')} value={form.email} onChange={set('email')} />
