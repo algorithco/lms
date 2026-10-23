@@ -284,20 +284,13 @@ def _get_fallback_models() -> list[str]:
 
 
 def _model_candidates() -> list[str]:
-    """Primary model (DeepSeek/configured) first, then fallback chain — deduplicated."""
-    models: list[str] = []
-    grader_model = (getattr(settings, "ESSAY_GRADER_MODEL", "") or "").strip()
-    if grader_model:
-        models.append(grader_model)
-    try:
-        primary = _get_ai_model()
-        if primary:
-            models.append(primary)
-    except ImproperlyConfigured:
-        pass
-    fallbacks = _get_fallback_models()
-    models.extend(fallbacks)
-    return [m for m in dict.fromkeys(models) if m]
+    """Primary evaluation model (deepseek/deepseek-r1-0528) strictly enforced."""
+    model = (
+        getattr(settings, "AI_EVALUATION_MODEL", "")
+        or getattr(settings, "ESSAY_GRADER_MODEL", "")
+        or "deepseek/deepseek-r1-0528"
+    ).strip()
+    return [model]
 
 
 def _is_transient_ai_error(e: Exception) -> bool:
@@ -3668,7 +3661,9 @@ def generate_essay_result_pdf(submission: Any) -> Any:
 # IELTS / Multi-level 4-Criteria AI Grader (Band 1.0 - 9.0)
 # ---------------------------------------------------------------------------
 
-IELTS_SYSTEM_PROMPT = """You are an certified Senior IELTS Writing Examiner.
+IELTS_SYSTEM_PROMPT = """You are a certified Senior IELTS Writing Examiner utilizing DeepSeek-R1 evaluation engine.
+DEDUCTION SCORING METHOD:
+Begin evaluation from the maximum Band 9.0 for each criterion. Do NOT apply artificial score caps. Deduct points proportionally for specific tangible errors (e.g., informal register, cohesion breakdowns, vocabulary repetition, spelling/article mistakes) and detail the exact reason and deducted evidence for each criterion in 'reason' and 'errors'.
 Evaluate the candidate's English writing strictly according to the 4 official IELTS Writing assessment criteria on a Band scale from 1.0 to 9.0 (in 0.5 increments):
 1. Task Achievement / Task Response (id: 1)
 2. Coherence and Cohesion (id: 2)

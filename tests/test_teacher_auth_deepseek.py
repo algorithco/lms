@@ -1,5 +1,7 @@
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
 from apps.accounts.serializers import RegisterSerializer
@@ -8,6 +10,11 @@ from apps.essays.deepseek_grader import (
     get_deepseek_client,
     grade_bmb_essay_deepseek,
     grade_ielts_essay_deepseek,
+)
+from apps.speaking.models import SpeakingTopic
+from apps.speaking.services import (
+    _fallback_speaking_evaluation,
+    evaluate_speaking_submission,
 )
 
 User = get_user_model()
@@ -137,9 +144,11 @@ class TestDeepSeekGraderIntegration:
         assert client is not None
         assert client.api_key.startswith("sk-")
 
-    def test_deepseek_model_name(self):
+    def test_deepseek_r1_model_name(self):
         model = DeepSeekGrader.get_model()
-        assert "deepseek" in model.lower()
+        assert model == "deepseek/deepseek-r1-0528"
+        assert getattr(settings, "AI_EVALUATION_MODEL", "") == "deepseek/deepseek-r1-0528"
+        assert getattr(settings, "AUDIO_STREAM_MODEL", "") == "fish-audio/s2.1-pro-free:free"
 
     def test_bmb_essay_grading_fallback(self):
         result = grade_bmb_essay_deepseek(
@@ -162,3 +171,45 @@ class TestDeepSeekGraderIntegration:
         assert "criteria" in result
         assert len(result["criteria"]) == 4
         assert "overall_band" in result
+
+
+@pytest.mark.django_db
+class TestSpeakingModelIntegration:
+    """Ensure speaking evaluation with fish-audio and deepseek-r1 works properly."""
+
+    def test_speaking_fallback_evaluation(self):
+        topic = SpeakingTopic.objects.create(
+            title="Describe an influential teacher",
+            part=SpeakingTopic.PartChoice.PART2,
+            prompt="Talk about a teacher who influenced your life.",
+            bullet_points=["Who they were", "What subject they taught", "Why they influenced you"],
+        )
+        eval_res = _fallback_speaking_evaluation(topic, duration_seconds=60)
+        assert "fluency_score" in eval_res
+        assert "lexical_score" in eval_res
+        assert "grammar_score" in eval_res
+        assert "pronunciation_score" in eval_res
+        assert eval_res["overall_band"] >= 1.0
+
+    def test_evaluate_speaking_submission(self):
+        user = User.objects.create_user(
+            email="speaking_student@grandec.uz",
+            password="SecurePassword123!",
+            role=User.Role.STUDENT,
+        )
+        topic = SpeakingTopic.objects.create(
+            title="Hometown",
+            part=SpeakingTopic.PartChoice.PART1,
+            prompt="Tell me about your hometown.",
+        )
+        dummy_audio = SimpleUploadedFile("response.wav", b"RIFF....WAVEfmt ...data...", content_type="audio/wav")
+
+        submission = evaluate_speaking_submission(
+            audio_file=dummy_audio,
+            topic_id=topic.pk,
+            user=user,
+            duration_seconds=45,
+        )
+        assert submission.pk is not None
+        assert submission.overall_band >= 1.0
+        assert submission.user == user

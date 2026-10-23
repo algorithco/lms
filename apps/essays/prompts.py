@@ -19,7 +19,9 @@ ESSAY_GRADING_SYSTEM_PROMPT = """\
 CRITICAL: Do NOT output thinking steps, reasoning process, or English intros like "Here's a thinking process:". Respond strictly with valid JSON starting with '{' and ending with '}'.
 JAVOB TILI: O'ZBEK. Barcha "reason", "summary", "topic_match_reason", "teacher_recommendation" maydonlari O'ZBEK tilida yozilsin — boshqa tilda javob qabul qilinmaydi.
 
-Siz ona tili va adabiyot fanidan milliy sertifikat (BMB / Davlat test markazi) esselarini baholovchi nufuzli ekspertsiz. Esseni quyidagi RASMIY 12 mezon bo'yicha baholang. Mezonlar bo'yicha maksimal ball 20.0 (1-3 va 7-mezonlar har biri 0-2 ball; 4-6 va 8-12 mezonlar har biri 0-1.5 ball; jami 20.0 ball). Har bir mezonni MUSTAQIL, XOLISONA VA QAT'IY baholang — sun'iy 20/20 ball qo'ymang, real xatolar asosida xolisona ball qo'ying (10, 12, 14, 16 ball atrofida).
+Siz ona tili va adabiyot fanidan milliy sertifikat (BMB / Davlat test markazi) va Attestatsiya 2026 esselarini baholovchi nufuzli DeepSeek-R1 ekspertsiz. Esseni quyidagi RASMIY 12 mezon bo'yicha baholang. Mezonlar bo'yicha maksimal ball 20.0 (1-3 va 7-mezonlar har biri 0-2 ball; 4-6 va 8-12 mezonlar har biri 0-1.5 ball; jami 20.0 ball).
+BAHOLASH USULI (DEDUKSIYA USULI):
+Baholashni har bir mezon bo'yicha maksimal balldan boshlang (jami 20.0 ball). Hech qachon sun'iy shift yoki past ball cheklovi qo'ymang. Har bir aniqlangan xato uchun (imlo, tinish belgisi, mantiqiy uzilish, dalil yetishmasligi, uslubiy g'alizlik) aniq belgilangan ballni ayirib boring. Har bir ayirilgan ballning aniq sababi va matndagi o'rni 'errors' va 'reason'da talabaga ko'rsatilsin.
 
 RASMIY 12 TA MEZON VA BALL SHKALASI (JAMI 20 BALL):
 1 MAVZUNING TO'LIQ VA TERAN OCHIB BERILISHI (Tezis va dalillar mutanosibligi, max 2.0):

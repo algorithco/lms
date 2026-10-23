@@ -572,6 +572,11 @@ ESSAY_OFF_TOPIC_SCORE = env("ESSAY_OFF_TOPIC_SCORE", default=35, cast=int)
 # 401 "Missing Authentication header" — that confusion is prevented here.
 ESSAY_AI_PROVIDER = env("ESSAY_AI_PROVIDER", default="auto")
 
+# Qat'iy Yagona Baholovchi Model — deepseek/deepseek-r1-0528
+AI_EVALUATION_MODEL = env("AI_EVALUATION_MODEL", default="deepseek/deepseek-r1-0528")
+# Audio oqimi va talaffuz modeli — fish-audio/s2.1-pro-free:free
+AUDIO_STREAM_MODEL = env("AUDIO_STREAM_MODEL", default="fish-audio/s2.1-pro-free:free")
+
 # DeepSeek AI Grader Configuration (Official 12-criteria BMB & 4-criteria IELTS)
 DEEPSEEK_API_KEY = env(
     "DEEPSEEK_API_KEY",
@@ -587,58 +592,26 @@ DEEPSEEK_BASE_URL = env(
 )
 ESSAY_GRADER_MODEL = env(
     "ESSAY_GRADER_MODEL",
-    default=(
-        "deepseek/deepseek-chat"
-        if str(DEEPSEEK_API_KEY).startswith("sk-or-")
-        else "deepseek-chat"
-    ),
+    default=AI_EVALUATION_MODEL,
 )
 
 # API keys — each provider reads its own env var only.
-# Generic aliases AI_API_KEY / AI_BASE_URL / AI_MODEL are also accepted for
-# simple .env setups; the explicit OPENROUTER_* / ESSAY_AI_MODEL names win.
 OPENROUTER_API_KEY = env(
     "OPENROUTER_API_KEY", default=env("AI_API_KEY", default=DEEPSEEK_API_KEY)
 )
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GEMINI_API_KEY = env("GEMINI_API_KEY", default=env("GOOGLE_API_KEY", default=""))
 
-# Model selection. Set ESSAY_AI_MODEL to force a model on either provider;
-# otherwise each provider falls back to its own default below.
-#
-# Model zanjiri (OpenRouter, DTM/BMB Milliy sertifikat esselari):
-#   1) nvidia/nemotron-3.5-lightning:free  — asosiy (eng tez)
-#   2) liquid/lfm-2.5-2.6b:free            — fallback 1
-#   3) nvidia/nemotron-3-super-120b-a12b:free — fallback 2
-# Eski "nvidia/nemotron-3-super:free" (va ":free"siz varianti) OpenRouter
-# katalogida YO'Q — 400 "is not a valid model ID" berardi. Katalogdagi to'g'ri
-# nemotron-3-super ID'si: nvidia/nemotron-3-super-120b-a12b:free
-# (2026-09 tekshirildi: ai_smoke_test --validate-models).
-# Bu bepul modellar ba'zan fikrlash matni yozadi / JSON'ni yarmida kesadi —
-# buni services.py tomonda hal qilamiz: qat'iy JSON rejimi
-# (response_format=json_object), ixcham prompt (1-2 jumla reason),
-# max_tokens=3000, temperature=0.1 va parse_llm_json'ning mustahkam
-# extraction/tuzatish mantiqi. Zanjir bo'ylab fallback + soddalashtirilgan
-# prompt bilan retry bepul modellarni barqaror qiladi.
-ESSAY_AI_MODEL = env("ESSAY_AI_MODEL", default=env("AI_MODEL", default=""))
-OPENROUTER_AI_MODEL = env(
-    "OPENROUTER_AI_MODEL", default="deepseek/deepseek-v4-flash-0731"
-)
-GROQ_AI_MODEL = env("GROQ_AI_MODEL", default="llama-3.3-70b-versatile")
+# Qat'iy yagona baholash modeli bog'lanishi:
+ESSAY_AI_MODEL = env("ESSAY_AI_MODEL", default=AI_EVALUATION_MODEL)
+OPENROUTER_AI_MODEL = env("OPENROUTER_AI_MODEL", default=AI_EVALUATION_MODEL)
+GROQ_AI_MODEL = env("GROQ_AI_MODEL", default=AI_EVALUATION_MODEL)
 
-# Fallback chain: tried in order when the primary model hits a rate limit /
-# server error / model-unavailable (404) / empty reply. Comma-separated.
-# The legacy single OPENROUTER_FALLBACK_MODEL var (if set) is appended for
-# backward compatibility. Empty string disables all fallbacks.
-_OPENROUTER_FALLBACK_DEFAULT = (
-    "google/gemini-2.0-flash-001,"
-    "liquid/lfm-2.5-2.6b:free,"
-    "nvidia/nemotron-3-super-120b-a12b:free"
-)
+# Fallback zanjiri: faqat qat'iy yagona baholash modeli deepseek/deepseek-r1-0528
 OPENROUTER_FALLBACK_MODELS = [
     m.strip()
     for m in env(
-        "OPENROUTER_FALLBACK_MODELS", default=_OPENROUTER_FALLBACK_DEFAULT
+        "OPENROUTER_FALLBACK_MODELS", default=AI_EVALUATION_MODEL
     ).split(",")
     if m.strip()
 ]

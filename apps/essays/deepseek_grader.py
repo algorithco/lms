@@ -67,13 +67,11 @@ class DeepSeekGrader:
 
     @staticmethod
     def get_model() -> str:
-        api_key = getattr(settings, "DEEPSEEK_API_KEY", "")
-        default_model = (
-            "deepseek/deepseek-chat"
-            if str(api_key).startswith("sk-or-")
-            else "deepseek-chat"
-        )
-        return (getattr(settings, "ESSAY_GRADER_MODEL", "") or default_model).strip()
+        return (
+            getattr(settings, "AI_EVALUATION_MODEL", "")
+            or getattr(settings, "ESSAY_GRADER_MODEL", "")
+            or "deepseek/deepseek-r1-0528"
+        ).strip()
 
     @classmethod
     def grade_bmb(cls, essay_text: str, topic_title: str = "") -> dict[str, Any]:
@@ -133,7 +131,17 @@ class DeepSeekGrader:
                 "DeepSeek BMB grading failed (%s), falling back to main grading pipeline",
                 exc,
             )
-            return grade_essay(cleaned, topic_title)
+            try:
+                return grade_essay(cleaned, topic_title)
+            except Exception:
+                from .services import _mock_12_criteria_response
+
+                res = _mock_12_criteria_response(cleaned, topic_title)
+                res.setdefault("topic_match", True)
+                res.setdefault("topic_match_reason", "")
+                res["_from_cache"] = False
+                res["_mock_mode"] = True
+                return res
 
     @classmethod
     def grade_ielts(
