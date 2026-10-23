@@ -55,6 +55,30 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Backend: 
 uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
 
+### 2.29. Qat'iy Yagona Baholovchi Model (deepseek/deepseek-r1-0528), Audio Stream (fish-audio/s2.1-pro-free:free) va Deduksiya Usuli
+- [x] Qat'iy Yagona Baholovchi Model — `deepseek/deepseek-r1-0528`:
+  * `config/settings/base.py` va `apps/essays/services.py` da barcha baholash modellari faqat `deepseek/deepseek-r1-0528` ga qat'iy bog'landi. Arzon yoki sun'iy cheklovchi modellar chiqarib tashlandi.
+  * 🇺🇿 Ona tili va Adabiyot (Milliy sertifikat va Attestatsiya 2026): BMB 12 ta rasmiy mezonlari asosida to'liq tahlil.
+  * 🇬🇧 Ingliz tili IELTS Writing (Task 1 va Task 2): 4 ta rasmiy mezon (TR, CC, LR, GRA) bo'yicha Band 1.0–9.0 tahlili.
+  * 🎙 IELTS Speaking tahlili: talabaning audio nutqi matnga aylantirilgach, leksika, grammatika, ravonlik va talaffuzni baholash.
+- [x] Deduksiya Usuli Bo'yicha Ball Qo'yish Mantig'i:
+  * Baholash har doim maksimal balldan (Ona tilida 20.0, IELTS'da 9.0) boshlanadi.
+  * Har bir aniqlangan xato (imlo, punktuatsiya, mantiqiy uzilish, grammatik xatolik) uchun aniq mezon bo'yicha ball ayirib boriladi.
+  * Har bir ayirilgan ballning sababi va matndagi o'rni talabaga ko'rsatiladi ("errors" va "reason").
+- [x] Audio Stream Modeli — `fish-audio/s2.1-pro-free:free`:
+  * `apps/speaking/services.py`: Audio oqimi va nutqni matnga o'girish uchun `fish-audio/s2.1-pro-free:free` modeli OpenRouter orqali ulandi.
+  * Talabaning audio javobi audio model orqali qayta ishlanib, yakuniy baholash uchun `deepseek/deepseek-r1-0528` ga yuboriladi.
+- [x] Ochiq Ro'yxatdan O'tish Xavfsizligi:
+  * `RegisterModal.tsx` va `Register.tsx` da "O'qituvchiman" roli yo'q, hamma yangi registratsiyalar faqat `student` rolida saqlanadi.
+  * O'qituvchilarni faqat Admin yaratishi mumkin (`POST /api/v1/panel/teachers/create/`).
+- [x] Server Kiberxavfsizlik Auditi:
+  * **Strict Isolation Rule:** `bestway` (bestwayec.uz) daxlsiz saqlandi, unga teginilmadi, 200 OK.
+  * Serverda 0 ta begona miner/konteyner/port aniqlandi.
+- [x] QA Gate & VPS Deploy:
+  * `pytest tests/test_teacher_auth_deepseek.py`: 11/11 test 100% PASS.
+  * `npm run lint` & `npm run build`: 0 xato bilan yig'ildi.
+  * VPS deploy muvaffaqiyatli yakunlandi, `https://grandec.uz/healthz/` 200 OK (`version 1.20.0`), `https://grandec.uz/` 200 OK.
+
 ### 2.28. Server Kiberxavfsizlik Auditi, Ochiq Ro'yxatdan O'tish RBAC Himoyasi, DeepSeek AI Esse Grader va 4 Talik Tariflar Tizimi
 - [x] Server Kiberxavfsizlik Auditi (Contabo VPS 169.58.58.229):
   * **Strict Isolation Rule:** `bestway` (bestwayec.uz) loyihasi barcha konteynerlari (`education-web-prod`, `education-backend-prod`, `education-postgres-prod`, `education-redis-prod`), ma'lumotlar bazasi va portlari (`127.0.0.1:3005`) daxlsiz saqlandi, 0 ta to'xtalish, 200 OK.
