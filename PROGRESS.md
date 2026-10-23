@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.30. Rasmiy Versiya v1.24.0: 100% Yashil CI (1219/1219 Test PASS), PR #99 Merge va Zero-Downtime VPS Deploy
+- [x] Qat'iy Yagona Model Bog'lanishi va Deduksiya Usuli:
+  * `config/settings/base.py`: Barcha baholash o'zgaruvchilari (`ESSAY_GRADER_MODEL`, `ESSAY_AI_MODEL`, `OPENROUTER_AI_MODEL`, `OPENROUTER_FALLBACK_MODELS`) qat'iy `AI_EVALUATION_MODEL = "deepseek/deepseek-r1-0528"` ga mixlandi.
+  * Speaking audio oqimi `apps/speaking/services.py` orqali `fish-audio/s2.1-pro-free:free` modeliga, tahlil esa `deepseek/deepseek-r1-0528` ga ulandi.
+  * Deduksiya bo'yicha baholash mexanizmi (maksimal balldan kamayib borish) to'liq tasdiqlandi.
+- [x] Ochiq Ro'yxatdan O'tish RBAC Himoyasi:
+  * Ro'yxatdan o'tishda `role=teacher` butunlay bekor qilinib, doimiy `student` qilib saqlanadi.
+  * O'qituvchilar faqat admin tomonidan `POST /api/v1/panel/teachers/create/` orqali yaratiladi va ularga avtomatik test/esse huquqlari hamda PRO kirish beriladi.
+- [x] Tariflar va UI Yangilanishi:
+  * 4 talik responsiv kartochka tartibi (`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6`) to'liq moslashtirildi.
+  * Starter tarifi (5 000 so'm) UZ, RU, EN tillarida integratsiya qilindi.
+- [x] To'liq Sifat Nazorati (QA Gate 100% PASS):
+  * `ruff check .` va `ruff format --check .`: 0 xatolik, 435 fayl toza formatlangan.
+  * Frontend: `oxlint` (0 xato), `tsc -b && vite build` (3.73 soniyada 0 xato bilan yig'ildi).
+  * Backend: Mahalliy barcha 1219 ta test 100% muvaffaqiyatli o'tdi (1219 passed, 0 failed, 80 subtests passed).
+- [x] GitHub Actions CI & PR #99:
+  * Branch `feat/starter-tier-and-platform-stabilization` ochildi va push qilindi.
+  * PR #99 ochildi va barcha 7 ta GitHub Actions tekshiruvlari (CodeQL, Analyze actions, Analyze js/ts, Analyze python, automerge, security, test) 100% Yashil (Green CI) natija bilan o'tdi.
+  * PR #99 squash merge qilindi va yangi rasmiy `v1.24.0` relizi chop etildi.
+- [x] Xavfsiz Zero-Downtime VPS Deploy:
+  * **Strict Isolation Rule:** `bestway` (bestwayec.uz) loyihasi barcha konteynerlari va ma'lumotlar bazasi mutlaqo daxlsiz saqlandi, 200 OK.
+  * `grandec.uz` VPS da konteynerlar (`web`, `nginx`, `celery`, `bot`) yangilandi.
+  * Ommaviy tekshiruv: `curl -fsS https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP/2 200), `http://127.0.0.1:3005/` (HTTP 200 OK).
+
+
 ### 2.23. Dual-Track Dynamic Hero & Demo, Features Switcher va Onboarding Integratsiyasi (Landing 2.0)
 - [x] Dual-Track Fan Tanlash Pill Switcheri (Hero & Navbar):
   * Bosh sahifa (Landing) yuqori qismida zamonaviy pill switcher: [ 🇺🇿 Ona tili va Adabiyot ] va [ 🇬🇧 English (IELTS & Multi-level) ].
