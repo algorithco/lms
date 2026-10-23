@@ -63,7 +63,11 @@ class AuthJWTTests(LMSBaseTestCase):
         self.assertTrue(hasattr(user, "profile"))
 
     def test_register_rejects_admin_role(self):
-        """Admin rolini register orqali olish mumkin emas."""
+        """Admin rolini register orqali olish mumkin emas.
+
+        Mijoz yuborgan `role` qiymati e'tiborga olinmaydi: ochiq ro'yxatdan
+        o'tish har doim `student` akkaunt yaratadi.
+        """
         response = self.client.post(
             "/api/auth/register/",
             {
@@ -76,7 +80,12 @@ class AuthJWTTests(LMSBaseTestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["user"]["role"], "student")
+        created = User.objects.get(email="hacker@test.com")
+        self.assertEqual(created.role, User.Role.STUDENT)
+        self.assertFalse(created.is_staff)
+        self.assertFalse(created.is_superuser)
 
     def test_register_password_mismatch(self):
         """Parollar mos kelmasligi."""

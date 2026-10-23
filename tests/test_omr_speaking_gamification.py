@@ -231,8 +231,15 @@ def test_speaking_submission_evaluation(student_user):
         },
     }
 
-    with patch(
-        "apps.speaking.services._gemini_evaluate_audio", return_value=mock_payload
+    with (
+        patch(
+            "apps.speaking.services._process_audio_stream_fish_audio",
+            return_value=mock_payload["transcript"],
+        ),
+        patch(
+            "apps.speaking.services._evaluate_speech_deepseek_r1",
+            return_value=mock_payload,
+        ),
     ):
         evaluated_sub = evaluate_speaking_submission(
             audio_file=dummy_audio,

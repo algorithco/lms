@@ -590,10 +590,8 @@ DEEPSEEK_BASE_URL = env(
         else "https://api.deepseek.com/v1"
     ),
 )
-ESSAY_GRADER_MODEL = env(
-    "ESSAY_GRADER_MODEL",
-    default=AI_EVALUATION_MODEL,
-)
+# Qat'iy bog'lanish: baholash modeli faqat AI_EVALUATION_MODEL orqali boshqariladi.
+ESSAY_GRADER_MODEL = AI_EVALUATION_MODEL
 
 # API keys — each provider reads its own env var only.
 OPENROUTER_API_KEY = env(
@@ -602,25 +600,17 @@ OPENROUTER_API_KEY = env(
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GEMINI_API_KEY = env("GEMINI_API_KEY", default=env("GOOGLE_API_KEY", default=""))
 
-# Qat'iy yagona baholash modeli bog'lanishi:
-ESSAY_AI_MODEL = env("ESSAY_AI_MODEL", default=AI_EVALUATION_MODEL)
-OPENROUTER_AI_MODEL = env("OPENROUTER_AI_MODEL", default=AI_EVALUATION_MODEL)
-GROQ_AI_MODEL = env("GROQ_AI_MODEL", default=AI_EVALUATION_MODEL)
+# Qat'iy yagona baholash modeli bog'lanishi (deepseek/deepseek-r1-0528).
+# Eski ESSAY_AI_MODEL / OPENROUTER_AI_MODEL / OPENROUTER_FALLBACK_MODEL(S) env
+# o'zgaruvchilari ataylab O'QILMAYDI: eskirgan .env qiymatlari baholash
+# zanjiriga boshqa model aralashtirib yubormasligi kerak. Yagona boshqaruv
+# nuqtasi — AI_EVALUATION_MODEL.
+ESSAY_AI_MODEL = AI_EVALUATION_MODEL
+OPENROUTER_AI_MODEL = AI_EVALUATION_MODEL
+GROQ_AI_MODEL = env("GROQ_AI_MODEL", default="llama-3.3-70b-versatile")
 
-# Fallback zanjiri: faqat qat'iy yagona baholash modeli deepseek/deepseek-r1-0528
-OPENROUTER_FALLBACK_MODELS = [
-    m.strip()
-    for m in env(
-        "OPENROUTER_FALLBACK_MODELS", default=AI_EVALUATION_MODEL
-    ).split(",")
-    if m.strip()
-]
-_legacy_single_fallback = env("OPENROUTER_FALLBACK_MODEL", default="").strip()
-if (
-    _legacy_single_fallback
-    and _legacy_single_fallback not in OPENROUTER_FALLBACK_MODELS
-):
-    OPENROUTER_FALLBACK_MODELS.append(_legacy_single_fallback)
+# Fallback zanjiri: faqat yagona baholash modelining o'zi.
+OPENROUTER_FALLBACK_MODELS = [AI_EVALUATION_MODEL]
 GROQ_FALLBACK_MODEL = env("GROQ_FALLBACK_MODEL", default="")
 
 # Provider endpoints (OpenAI-compatible)

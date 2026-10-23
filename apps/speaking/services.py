@@ -57,16 +57,12 @@ def _get_openrouter_client(timeout: float = 60.0) -> OpenAI:
             "HTTP-Referer": getattr(
                 settings, "OPENROUTER_SITE_URL", "https://grandec.uz"
             ),
-            "X-Title": getattr(
-                settings, "OPENROUTER_APP_NAME", "Grand Education LMS"
-            ),
+            "X-Title": getattr(settings, "OPENROUTER_APP_NAME", "Grand Education LMS"),
         },
     )
 
 
-def _process_audio_stream_fish_audio(
-    audio_file, topic: SpeakingTopic
-) -> str | None:
+def _process_audio_stream_fish_audio(audio_file, topic: SpeakingTopic) -> str | None:
     """
     Process candidate speech audio stream using fish-audio/s2.1-pro-free:free.
     Extracts high-fidelity speech transcription for IELTS examiner evaluation.
@@ -143,9 +139,7 @@ def _process_audio_stream_fish_audio(
             res = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[
-                    genai.types.Part.from_bytes(
-                        data=audio_bytes, mime_type=mime_type
-                    ),
+                    genai.types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
                     "Transcribe this candidate speech recording verbatim. Return only the transcript text.",
                 ],
             )
@@ -164,9 +158,7 @@ def _evaluate_speech_deepseek_r1(
     Evaluate candidate's speech transcript using deepseek/deepseek-r1-0528.
     Applies official 4 IELTS Speaking criteria with deduction method starting from Band 9.0.
     """
-    eval_model = getattr(
-        settings, "AI_EVALUATION_MODEL", "deepseek/deepseek-r1-0528"
-    )
+    eval_model = getattr(settings, "AI_EVALUATION_MODEL", "deepseek/deepseek-r1-0528")
     api_key = (
         getattr(settings, "DEEPSEEK_API_KEY", "")
         or getattr(settings, "OPENROUTER_API_KEY", "")
@@ -331,9 +323,7 @@ def evaluate_speaking_submission(
     eval_result: Dict[str, Any] | None = None
     if transcript:
         # 2. Evaluate with deepseek/deepseek-r1-0528
-        eval_result = _evaluate_speech_deepseek_r1(
-            transcript, topic, duration_seconds
-        )
+        eval_result = _evaluate_speech_deepseek_r1(transcript, topic, duration_seconds)
 
     # 3. Fall back to heuristic engine if offline/unconfigured
     if not eval_result:

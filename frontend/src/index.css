@@ -522,6 +522,10 @@ h2 { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
 .gap-6 { gap: 1.5rem; }
 @media (min-width: 768px) {
   .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (min-width: 1024px) {
+  .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
 }
 
 .border-amber-500\/80 {

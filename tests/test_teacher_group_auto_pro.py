@@ -15,7 +15,11 @@ User = get_user_model()
 
 @pytest.mark.django_db
 def test_teacher_registration_permissions():
-    """Ustoz ro'yxatdan o'tganda avtomatik guruh va test yaratish huquqlari beriladi."""
+    """Ochiq ro'yxatdan o'tishda `role=teacher` e'tiborga olinmaydi (faqat student).
+
+    O'qituvchini faqat administrator yaratadi; admin yaratgan ustozga test va
+    esse mavzusi yaratish huquqlari hamda PRO kirish beriladi.
+    """
     data = {
         "email": "teacher_test@grandec.uz",
         "first_name": "Alisher",
@@ -26,12 +30,23 @@ def test_teacher_registration_permissions():
     }
     serializer = RegisterSerializer(data=data)
     assert serializer.is_valid(), serializer.errors
-    user = serializer.save()
+    public_user = serializer.save()
 
-    assert user.role == User.Role.TEACHER
-    assert user.can_create_test is True
-    assert user.can_create_essay_topic is True
-    assert user.has_pro_access is True
+    assert public_user.role == User.Role.STUDENT
+    assert public_user.can_create_test is False
+    assert public_user.can_create_essay_topic is False
+
+    admin_created = User.objects.create_user(
+        email="admin_made_teacher@grandec.uz",
+        password="StrongPassword123!",
+        role=User.Role.TEACHER,
+        can_create_test=True,
+        can_create_essay_topic=True,
+    )
+    assert admin_created.role == User.Role.TEACHER
+    assert admin_created.can_create_test is True
+    assert admin_created.can_create_essay_topic is True
+    assert admin_created.has_pro_access is True
 
 
 @pytest.mark.django_db

@@ -4807,11 +4807,9 @@ export default function Landing() {
             </div>
 
             <div
-              className="pricing-4col-grid"
+              className="pricing-4col-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: 20,
                 alignItems: 'stretch',
               }}
             >

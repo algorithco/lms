@@ -49,10 +49,14 @@ class PublicRegistrationSecurityTests(TestCase):
                 },
                 content_type="application/json",
             )
-            self.assertEqual(response.status_code, 400)
-            self.assertFalse(
-                User.objects.filter(email=f"{requested_role}@example.com").exists()
-            )
+            # Soxta `role` e'tiborga olinmaydi: akkaunt faqat student bo'ladi.
+            self.assertEqual(response.status_code, 201)
+            created = User.objects.get(email=f"{requested_role}@example.com")
+            self.assertEqual(created.role, User.Role.STUDENT)
+            self.assertFalse(created.is_staff)
+            self.assertFalse(created.is_superuser)
+            self.assertFalse(created.can_create_test)
+            self.assertFalse(created.can_create_essay_topic)
 
     def test_public_registration_creates_student(self):
         response = self.client.post(

@@ -284,13 +284,19 @@ def _get_fallback_models() -> list[str]:
 
 
 def _model_candidates() -> list[str]:
-    """Primary evaluation model (deepseek/deepseek-r1-0528) strictly enforced."""
-    model = (
-        getattr(settings, "AI_EVALUATION_MODEL", "")
-        or getattr(settings, "ESSAY_GRADER_MODEL", "")
-        or "deepseek/deepseek-r1-0528"
-    ).strip()
-    return [model]
+    """Primary model first, then the fallback chain — deduplicated.
+
+    Strict single-model binding is enforced in settings: ESSAY_AI_MODEL,
+    OPENROUTER_AI_MODEL and OPENROUTER_FALLBACK_MODELS all default to
+    ``settings.AI_EVALUATION_MODEL`` (deepseek/deepseek-r1-0528), so the
+    production chain is exactly one model.
+    """
+    try:
+        primary = _get_ai_model()
+    except ImproperlyConfigured:
+        primary = ""
+    fallbacks = _get_fallback_models()
+    return [m for m in dict.fromkeys([primary, *fallbacks]) if m]
 
 
 def _is_transient_ai_error(e: Exception) -> bool:

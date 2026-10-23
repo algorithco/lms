@@ -3,7 +3,7 @@ AI Quota and Rate Limiting Service.
 
 Quotas:
   - Free users: 1 request / day
-  - Starter subscribers: 20 requests / day
+  - Starter subscribers: 10 requests / day
   - Premium subscribers: unlimited
 """
 
