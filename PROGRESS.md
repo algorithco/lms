@@ -9,6 +9,39 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.31. Rasmiy Versiya v1.26.0: Ustozlar CRM, Litsenziya Kvotalari, Kvitansiya OCR va AI Vocab Generator (100% Yashil CI, PR #100 va Zero-Downtime VPS Deploy)
+- [x] Admin Kvotalari va Ustozlarning Litsenziya Boshqaruvi:
+  * `TeacherProfile` modeli (`pro_quota_balance`, `premium_quota_balance`) yaratildi va `User` profiliga bog'landi.
+  * Superadmin uchun `POST /api/v1/panel/teachers/<id>/allocate-quota/` endpointi orqali kvota taqsimlash imkoniyati taqdim etildi.
+  * Ustozlar guruhida talaba yonida [ ⚡ PRO ] va [ 👑 VIP ] bir bosishli litsenziya faollashtirish tugmalari (`POST /api/v1/panel/teachers/activate-student-quota/`) joriy qilindi.
+- [x] Ustozlar uchun To'liq Moliyaviy CRM va Davomat:
+  * `GroupEnrollment` modelida `monthly_fee`, `billing_cycle_day`, `last_payment_date`, `next_payment_due`, `payment_status`, `parent_telegram_id`, `parent_phone` maydonlari qo'shildi.
+  * `TeacherFinanceDashboard.tsx`: Tushumlar statistikasi, kutilayotgan tushum, qarzdorlar monitoringi va 1-klikli ommaviy Telegram eslatma yuborish.
+  * `apps/webapi/views_crm.py`: `group_finance_summary_view`, `record_group_payment_view`, `send_group_payment_reminders_view`, `scan_receipt_view`.
+- [x] Telegram Bot Avto-Eslatmalar va Ota-onalar Nazorati:
+  * Celery Beat avto-vazifasi `check_group_tuition_due_dates_task`: To'lovga 2 kun qolganda ogohlantirish, to'lov kunida eslatma va muddat o'tganda muloyim qarz xabarnomasi.
+  * Ota-onalar "Shaffof Nazorat" tizimi: `parent_telegram_id` ga avtomatik to'lov eslatmalari va davomat bildirishnomalari yetkazilishi.
+  * `/finance` buyrug'i: Ustozlar uchun Telegram bot ichida guruhlar bo'yicha moliyaviy hisobot va qarzdorlarga eslatma yuborish.
+- [x] Click / Payme Kvitansiya OCR Skaneri:
+  * `apps/payments/receipt_scanner.py`: Click va Payme to'lov cheklaridan summa, sana va tranzaksiya ID sini avtomatik ajratib oluvchi Vision OCR va aqlli Regex parser.
+  * Botda yuborilgan to'lov kvitansiyalari avtomatik tahlil qilinib, to'lov muddatini 30 kunga surish va ustozga tasdiqlash uchun xabar jo'natish integratsiyasi.
+- [x] AI Lug'at (Vocabulary) Generatori va Interval Takrorlash (Spaced Repetition):
+  * `apps/vocabulary/services/vocab_generator.py`: 50-60 ta so'zdan 4 formatli mashqlar (Multiple Choice, Spelling/Imlo, Eng ➔ Uzb, Uzb ➔ Eng) generatsiya qilish.
+  * `VocabularyPack` va `StudentWordMistake` modellari, guruh darslariga biriktirish imkoniyati.
+  * Ebbinghaus unutish egri chizig'i bo'yicha Telegram `/vocab` interaktiv viktorinasi (Quiz Poll) va 3 marta ketma-ket to'g'ri topish streak'i orqali so'zni yod olindi deb belgilash.
+- [x] Frontend UI/UX:
+  * `TeacherFinanceDashboard.tsx`, `TeacherVocabGenerator.tsx` yaratildi va `App.tsx` ga yo'naltirildi.
+  * `Groups.tsx` da kvota berish tugmalari hamda CRM / Lug'at generatoriga to'g'ridan-to'g'ri havolalar joylashtirildi.
+  * `npm run build` frontendda 4.31s da 0 xatolik bilan muvaffaqiyatli yig'ildi.
+- [x] Sifat Nazorati va CI/CD (QA Gate 100% PASS):
+  * `tests/test_crm_quota_vocab.py` va barcha regressiya testlari 100% muvaffaqiyatli o'tdi.
+  * GitHub PR #100 ochildi va barcha tekshiruvlar (CodeQL, Analyze actions, Analyze js/ts, Analyze python, automerge, security pip-audit, test 1190+ test) 100% Yashil (Green CI) bo'ldi.
+  * PR #100 `main` filialiga squash-merge qilindi va rasmiy **`v1.26.0`** relizi yaratildi.
+- [x] Strict Isolation & Zero-Downtime VPS Deploy:
+  * **Strict Isolation Rule:** `bestway` (bestwayec.uz) loyihasi barcha konteynerlari va ma'lumotlar bazasi mutlaqo daxlsiz saqlandi, 200 OK.
+  * Contabo VPS (`169.58.58.229`) da `grandec` konteynerlari yangilandi, migratsiyalar bajarildi.
+  * Jonli salomatlik tekshiruvi: `curl.exe -fsS https://grandec.uz/healthz/` (HTTP 200 OK, `db: true`), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.30. Rasmiy Versiya v1.24.0: 100% Yashil CI (1219/1219 Test PASS), PR #99 Merge va Zero-Downtime VPS Deploy
 - [x] Qat'iy Yagona Model Bog'lanishi va Deduksiya Usuli:
   * `config/settings/base.py`: Barcha baholash o'zgaruvchilari (`ESSAY_GRADER_MODEL`, `ESSAY_AI_MODEL`, `OPENROUTER_AI_MODEL`, `OPENROUTER_FALLBACK_MODELS`) qat'iy `AI_EVALUATION_MODEL = "deepseek/deepseek-r1-0528"` ga mixlandi.
