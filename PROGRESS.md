@@ -9,6 +9,37 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.35. Rasmiy Versiya v1.33.0: Cambridge Computer-Delivered IELTS (CD-IELTS) & BMB CBT Split-Screen Imtihon Interfeysi
+- [x] 1-Bosqich: Distraction-Free Kiosk Rejimi (100vw x 100vh):
+  * `frontend/src/App.tsx` da `/english-exam/:attemptId` marshruti standart `Layout` (chapdagi LMS sidebar menyusi, Boshqaruv paneli, Turnirlar va yuqoridagi 0 XP Navbar) tashqarisiga chiqarildi.
+  * To'liq 100vw x 100vh ekran maydoni faqat imtihon o'tkazish uchun ajratildi.
+- [x] 2-Bosqich: Rasmiy Kembrij Top-Header (56px balandlikda):
+  * Chap tomonda: CD-IELTS nishoni, imtihon nomi, qaysi Passage'daligi haqida toza indikator (`Passage 1 of 3`) hamda rejim nishoni (`🛑 Strict Exam` / `💡 Practice`).
+  * O'rtada: Tiniq va xalaqit bermaydigan taymer (`⏱ 58:45 remaining`), oxirgi 5 daqiqada qizil rangda miltillovchi vizual ogohlantirish.
+  * O'ng tomonda:
+    - Matn shriftini kattalashtirish vositasi: `Standard` (15px) va `Large` (18px) o'rtasida 1-klikli almashtirish.
+    - Highlighter asboblari: `[ 🖍️ Highlight ]` va bo'yoqlarni tozalash `[ Clear ]`.
+    - Review nishonchasi: `[ 🚩 Review ]` holati.
+    - Listening audio uchun minimalist ovoz sozlagichi (`Volume slider`) va mute boshqaruvi.
+    - To'liq ekran (Fullscreen) tugmasi.
+- [x] 3-Bosqich: 50/50 Split-Screen Arxitekturasi:
+  * Chap Panel (Reading Passage): Mustaqil vertikal skroll, Georgia / serif tipografiyasi, paragraflar boshida Cambridge uslubidagi `[ A ]`, `[ B ]`, `[ C ]` drop cap nishonlari.
+  * Matn tanlanganda avtomatik kichik floating popover paydo bo'lib, tanlangan matnni bir bosishda `[ 🖍 Highlight ]` qilish imkoniyati.
+  * O'ng Panel (Savollar maydoni): Mustaqil skroll, katta va aniq `Question 1` sarlavhasi, kursiv yo'riqnoma (`Choose the correct letter, A, B, C or D`), Kembrij radio kartalari (`TRUE`, `FALSE`, `NOT GIVEN` va variantlar) tanlanganda zangori/ko'k fon va hoshiya bilan ajralib turishi.
+  * Practice Mode uchun `[ 💡 AI Dalilli Tushuntirish (DeepSeek-R1 Evidence) ]` tugmasi, Strict Exam rejimida esa AI tugmasi mutlaqo ko'rinmaydi.
+  * Mobile Responsive: Kichik ekranlarda (<1024px) yuqori qismda `[ 📖 Reading Passage ]` va `[ ❓ Questions (Q1/40) ]` tablari orqali 1-bosishda silliq almashish.
+- [x] 4-Bosqich: Kembrij Savollar Palitrasi (Question Palette Footer):
+  * Ekran tubida qat'iy yopishgan (fixed bottom bar) to'liq kenglikdagi panel.
+  * 1 dan 40 gacha barcha savol katakchalari: Javob berilmagan (yengil hoshiya), javob berilgan (to'lgan fon va indikator), belgilangan (sariq bayroqcha bilan) va joriy ochiq savol (qalin ko'k ramka).
+  * O'ng tomonda navigatsiya tugmalari: `[ 🚩 Review ]`, `[ ← Back ]`, `[ Next → ]` va `[ Finish Test / Yakunlash ]`.
+  * Yakunlash modali: "Siz 40 ta savoldan X tasiga javob berdingiz. Y ta savol javobsiz qoldi. Rostdan ham testni yakunlaysizmi?" ko'rinishidagi batafsil tasdiqlash darchasi.
+- [x] 5-Bosqich: QA, CI va VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 1.07s ichida muvaffaqiyatli yig'ildi.
+  * Backend testlari (`pytest tests/test_english_exam_evidence_converter.py -v`): 13/13 test 100% PASS.
+  * GitHub PR #105 barcha CI tekshiruvlaridan muvaffaqiyatli o'tib, `main` ga squash-merge qilindi.
+  * VPS (`169.58.58.229`) ga uzilishsiz deploy qilindi. `bestway` loyihasiga mutlaqo tegilmadi va uning xizmatlari uzluksiz ishlamoqda.
+  * Jonli tekshiruv: `curl.exe -fsS https://grandec.uz/healthz/` ➔ `{"status": "ok", "db": true, "version": "1.33.0"}` (HTTP 200 OK).
+
 ### 2.34. Rasmiy Versiya v1.30.0: To'liq Tizim Auditi, Xavfsizlik Mustahkamlanishi, AI Vision OCR Anti-Fraud Dvigateli va Barqarorlashtirish (/audit)
 - [x] 1-Bosqich: Fayllar Inventarizatsiyasi va Eskirgan Kodlarni Tozalash:
   * Ochiq ro'yxatdan o'tishda `role` maydoni serializers darajasida `read_only_fields` ga kiritildi va qat'iy Student sifatida cheklandi.
