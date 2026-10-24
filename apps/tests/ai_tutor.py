@@ -320,17 +320,67 @@ def explain_question_mistake(
     )
 
     # Agar o'quvchi javobi attempt orqali olinayotgan bo'lsa
-    if not selected_choice and attempt_id:
+    ans = None
+    if attempt_id:
         from apps.tests.models import StudentAnswer
 
         ans = StudentAnswer.objects.filter(
             attempt_id=attempt_id, question_id=question_id
         ).first()
-        if ans:
+        if not selected_choice and ans:
             selected_choice = ans.selected_choices.first()
 
     correct_text = correct_choice.text if correct_choice else "Kalit variant"
     selected_text = selected_choice.text if selected_choice else "Javob belgilanmagan"
+
+    # 0. English exam or passage evidence extraction
+    passage_text = ""
+    if getattr(question, "reading_passage", None):
+        passage_text = question.reading_passage.content
+    elif getattr(question, "passage", None):
+        passage_text = question.passage
+
+    test_obj = getattr(question, "test", None)
+    is_english = (
+        getattr(test_obj, "subject", "") == "english"
+        or getattr(test_obj, "exam_type", "") in ["ielts_academic", "ielts_general", "cefr_multilevel"]
+        or bool(passage_text)
+    )
+
+    if is_english:
+        from apps.tests.evidence_feedback import generate_reading_listening_evidence
+
+        evidence = generate_reading_listening_evidence(
+            question_text=question.text,
+            selected_answer=selected_text,
+            correct_answer=correct_text,
+            passage_text=passage_text,
+            question_explanation=question.explanation or "",
+        )
+        explanation_data = {
+            "question_id": question.id,
+            "topic": "English Examination",
+            "question_text": question.text,
+            "selected_answer": selected_text,
+            "correct_answer": correct_text,
+            "direct_quote": evidence.get("direct_quote", ""),
+            "why_wrong": evidence.get("why_wrong", ""),
+            "synonym_matching": evidence.get("synonym_matching", ""),
+            "correct_rule": evidence.get("correct_rule", ""),
+            "memory_tip": evidence.get("correct_rule", ""),
+            "full_explanation": (
+                f"📌 Dalil (Direct Quote):\n{evidence.get('direct_quote', '')}\n\n"
+                f"💡 Nega noto'g'ri (Why Wrong):\n{evidence.get('why_wrong', '')}\n\n"
+                f"🎯 Kalit so'zlar / Sinonimlar:\n{evidence.get('synonym_matching', '')}\n\n"
+                f"✅ Asos: {evidence.get('correct_rule', '')}"
+            ),
+            "source": evidence.get("source", "evidence_engine"),
+        }
+        if ans:
+            ans.ai_feedback = explanation_data
+            ans.save(update_fields=["ai_feedback"])
+        cache.set(cache_key, explanation_data, timeout=3600 * 24 * 7)
+        return explanation_data
 
     # Mavzuni aniqlash
     topic = _detect_question_topic(question.text, question.explanation)

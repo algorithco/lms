@@ -21,6 +21,8 @@ interface Detail {
   shuffle_questions?: boolean;
   shuffle_choices?: boolean;
   show_results_immediately?: boolean;
+  subject?: string;
+  exam_type?: string;
   questions?: { id: number; text: string; points: number }[];
 }
 
@@ -32,6 +34,7 @@ export default function TestDetail() {
   const [myAttempts, setMyAttempts] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [modeModalOpen, setModeModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,19 +64,27 @@ export default function TestDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const start = async () => {
+  const startWithMode = async (mode: 'strict' | 'practice') => {
     setStarting(true);
     setErr(null);
+    setModeModalOpen(false);
     try {
-      const res = await TestsApi.start(id);
+      const res = await TestsApi.start(id, mode);
       const attemptId =
         'id' in res && typeof res.id === 'number'
           ? res.id
           : (res as { attempt_id: number }).attempt_id;
-      navigate(`/take/${attemptId}`);
+      
+      const isEnglish = detail?.subject === 'english' ||
+        detail?.exam_type?.includes('ielts') ||
+        detail?.exam_type?.includes('cefr');
+
+      if (isEnglish) {
+        navigate(`/english-exam/${attemptId}`);
+      } else {
+        navigate(`/take/${attemptId}`);
+      }
     } catch (e) {
-      // Backend StartAttemptService 400 cases: active attempt in progress
-      // (resume it) or max_attempts exhausted. Surface the message verbatim.
       setErr(e instanceof Error ? e.message : t('err_retry_js'));
       setStarting(false);
     }
@@ -125,7 +136,7 @@ export default function TestDetail() {
           <div className="toolbar" style={{ marginTop: 12 }}>
             <button
               className="btn primary"
-              onClick={start}
+              onClick={() => setModeModalOpen(true)}
               disabled={starting || attemptsLeft === 0}
             >
               {starting ? t('loading') : t('start_test')}
@@ -135,6 +146,75 @@ export default function TestDetail() {
             </Link>
           </div>
         </>
+      )}
+      {/* Mode Selection Modal */}
+      {modeModalOpen && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div className="card" style={{ maxWidth: 560, width: '100%', padding: 24, borderRadius: 16 }}>
+            <h3 style={{ marginTop: 0, fontSize: 20 }}>Format va Rejimni Tanlang</h3>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>
+              Testni qanday formatda topshirmoqchisiz? Rasmiy imtihon qatʼiy nazorat ostida o'tkaziladi.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+              {/* Option 1: Strict Exam Mode */}
+              <button
+                onClick={() => startWithMode('strict')}
+                style={{
+                  textAlign: 'left',
+                  padding: 16,
+                  borderRadius: 12,
+                  border: '2px solid rgba(239, 68, 68, 0.4)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold', color: '#ef4444' }}>
+                  <span>🛑 Strict Exam Mode (Rasmiy Imtihon)</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: 'inherit', opacity: 0.85 }}>
+                  To'liq ekran (F11), 3 marta boshqa oynaga o'tishda avto-yakunlash (Anti-Cheat), audioni bir marta eshitish (Audio Lock), yordamsiz qat'iy sinov.
+                </p>
+              </button>
+
+              {/* Option 2: Practice / Study Mode */}
+              <button
+                onClick={() => startWithMode('practice')}
+                style={{
+                  textAlign: 'left',
+                  padding: 16,
+                  borderRadius: 12,
+                  border: '2px solid rgba(16, 185, 129, 0.4)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold', color: '#10b981' }}>
+                  <span>💡 Practice / Study Mode (O'rganish)</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: 'inherit', opacity: 0.85 }}>
+                  Cheklovlarsiz erkin format: audio qayta eshitilishi, savollar o'rtasida erkin o'tish va har bir savol ostida [ 💡 AI Tushuntirish ] tugmasi.
+                </p>
+              </button>
+            </div>
+
+            <div style={{ marginTop: 20, textAlign: 'right' }}>
+              <button
+                className="btn ghost"
+                onClick={() => setModeModalOpen(false)}
+                style={{ fontSize: 13 }}
+              >
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

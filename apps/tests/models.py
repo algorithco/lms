@@ -54,6 +54,20 @@ class Test(models.Model):
         PUBLISHED = "published", _("E'lon qilingan")
         ARCHIVED = "archived", _("Arxivlangan")
 
+    class ExamType(models.TextChoices):
+        GENERAL = "general", _("Umumiy test")
+        IELTS_ACADEMIC = "ielts_academic", _("IELTS Academic")
+        IELTS_GENERAL = "ielts_general", _("IELTS General")
+        CEFR_MULTILEVEL = "cefr_multilevel", _("CEFR Multi-level (BMB)")
+        NATIONAL_CERT = "national_cert", _("Milliy sertifikat (Ona tili)")
+
+    exam_type = models.CharField(
+        _("imtihon turi"),
+        max_length=30,
+        choices=ExamType.choices,
+        default=ExamType.GENERAL,
+        db_index=True,
+    )
     subject = models.CharField(
         _("fan / yo'nalish"),
         max_length=20,
@@ -573,6 +587,40 @@ class TestAttempt(models.Model):
         blank=True,
     )
 
+    class Mode(models.TextChoices):
+        STRICT = "strict", _("Strict Exam Mode (Rasmiy Imtihon)")
+        PRACTICE = "practice", _("Practice / Study Mode (O'rganish)")
+
+    mode = models.CharField(
+        _("rejim"),
+        max_length=20,
+        choices=Mode.choices,
+        default=Mode.STRICT,
+        db_index=True,
+    )
+    raw_score = models.PositiveIntegerField(
+        _("xom ball (to'g'ri javoblar soni)"),
+        default=0,
+    )
+    band_score = models.DecimalField(
+        _("overall band"),
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+    )
+    cefr_level = models.CharField(
+        _("CEFR darajasi"),
+        max_length=10,
+        blank=True,
+        default="",
+    )
+    section_scores = models.JSONField(
+        _("bo'limlar ballari"),
+        default=dict,
+        blank=True,
+    )
+
     class Meta:
         verbose_name = _("Test urinishi")
         verbose_name_plural = _("Test urinishlari")
@@ -685,6 +733,11 @@ class StudentAnswer(models.Model):
         null=True,
         blank=True,
         help_text=_("Tekshirilgandan keyin o'rnatiladi."),
+    )
+    ai_feedback = models.JSONField(
+        _("AI dalilli xulosasi"),
+        default=dict,
+        blank=True,
     )
     answered_at = models.DateTimeField(_("javob berilgan"), auto_now=True)
 

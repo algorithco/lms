@@ -521,9 +521,10 @@ export const Tests = {
     return api<Paginated<TestSummary>>(`/api/tests/${query}`);
   },
   detail: (id: string) => api<Record<string, unknown>>(`/api/tests/${id}/`),
-  start: (id: string) =>
+  start: (id: string, mode: 'strict' | 'practice' = 'strict') =>
     api<Attempt | { attempt_id: number }>(`/api/tests/${id}/start/`, {
       method: 'POST',
+      body: JSON.stringify({ mode }),
     }),
   attempt: (id: string) => api<Attempt>(`/api/tests/attempts/${id}/`),
   saveAnswer: (
@@ -566,6 +567,21 @@ export const Tests = {
       method: 'POST',
       body: JSON.stringify({ type }),
     }),
+  explainMistake: (questionId: number, selectedChoiceId?: number, attemptId?: number) =>
+    api<Record<string, unknown>>(`/api/tests/questions/${questionId}/explain-mistake/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        selected_choice_id: selectedChoiceId,
+        attempt_id: attemptId,
+      }),
+    }),
+  evaluateWriting: (payload: { essay_text: string; topic_title?: string; exam_type?: string; task_type?: string }) =>
+    api<Record<string, unknown>>(`/api/tests/writing/evaluate/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  certificateCard: (attemptId: string | number) =>
+    api<Record<string, unknown>>(`/api/tests/attempts/${attemptId}/certificate-card/`),
 };
 
 export const Results = {

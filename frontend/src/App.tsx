@@ -60,6 +60,7 @@ const SpeakingResult = lazyPage(() => import('./pages/SpeakingResult'));
 const TeacherAiConverter = lazyPage(() => import('./pages/TeacherAiConverter'));
 const TeacherFinanceDashboard = lazyPage(() => import('./pages/TeacherFinanceDashboard'));
 const TeacherVocabGenerator = lazyPage(() => import('./pages/TeacherVocabGenerator'));
+const EnglishExamInterface = lazyPage(() => import('./pages/tests/EnglishExamInterface'));
 
 import AuthModal from './components/AuthModal';
 
@@ -113,6 +114,7 @@ function AnimatedRoutes() {
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/take/:attemptId" element={<TakeTest />} />
+            <Route path="/english-exam/:attemptId" element={<EnglishExamInterface />} />
             <Route path="/tests/scan-omr" element={<ScanOMR />} />
             <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />
             <Route path="/results" element={<Results />} />

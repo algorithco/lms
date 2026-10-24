@@ -125,4 +125,15 @@ urlpatterns = [
         views_mistakes.MistakeVaultView.as_view(),
         name="mistake-vault",
     ),
+    # -- English IELTS & CEFR Evidence & Writing Evaluator --------------------
+    path(
+        "writing/evaluate/",
+        views.EvaluateWritingView.as_view(),
+        name="evaluate-writing",
+    ),
+    path(
+        "attempts/<int:attempt_id>/certificate-card/",
+        views.CertificateCardView.as_view(),
+        name="certificate-card",
+    ),
 ]
