@@ -8,6 +8,7 @@ import {
   Maximize2Icon,
   Minimize2Icon,
   Volume2Icon,
+  VolumeXIcon,
   HelpCircleIcon,
   AlertTriangleIcon,
   BookOpenIcon,
@@ -128,6 +129,15 @@ export default function EnglishExamInterface() {
   const [certificateData, setCertificateData] = useState<any | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Kiosk font size toggle (Standard | Large)
+  const [fontSize, setFontSize] = useState<'standard' | 'large'>('standard');
+
+  // Mobile tab toggle (passage vs questions)
+  const [mobileTab, setMobileTab] = useState<'passage' | 'questions'>('passage');
+
+  // Finish confirmation modal
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+
   // Anti-cheat state
   const [violationCount, setViolationCount] = useState<number>(0);
   const [warningModalOpen, setWarningModalOpen] = useState(false);
@@ -137,6 +147,8 @@ export default function EnglishExamInterface() {
 
   // Audio Lock State
   const [, setAudioPlayed] = useState(false);
+  const [volume, setVolume] = useState<number>(0.8);
+  const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Practice mode AI evidence state
@@ -144,11 +156,35 @@ export default function EnglishExamInterface() {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
 
-  // Text highlighter state
+  // Text highlighter & selection popover
   const passageContainerRef = useRef<HTMLDivElement | null>(null);
   const [highlights, setHighlights] = useState<string[]>([]);
+  const [floatingPill, setFloatingPill] = useState<{ x: number; y: number } | null>(null);
 
-  // 1. Fetch Attempt Data
+  // 1. Submit Exam Callback (defined first for effect dependencies)
+  const handleSubmit = useCallback(async (_auto = false) => {
+    if (submittedRef.current || submitting) return;
+    submittedRef.current = true;
+    setSubmitting(true);
+    try {
+      const res = (await TestsApi.submit(attemptId)) as any;
+      setResultData(res.result || res);
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+
+      // Fetch digital certificate
+      try {
+        const cert = await TestsApi.certificateCard(attemptId);
+        setCertificateData(cert);
+      } catch {}
+    } catch (e: any) {
+      setErr(e.message || 'Javoblarni topshirishda xatolik yuz berdi.');
+      submittedRef.current = false;
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attemptId, submitting]);
+
+  // 2. Fetch Attempt Data
   const fetchAttempt = useCallback(async () => {
     try {
       setLoading(true);
@@ -187,26 +223,26 @@ export default function EnglishExamInterface() {
   }, [attemptId]);
 
   useEffect(() => {
-    fetchAttempt();
+    void fetchAttempt();
   }, [fetchAttempt]);
 
-  // 2. Timer Countdown
+  // 3. Timer Countdown
   useEffect(() => {
     if (remaining === null || remaining <= 0 || resultData) return;
     const interval = setInterval(() => {
       setRemaining((prev) => {
         if (prev !== null && prev <= 1) {
           clearInterval(interval);
-          handleSubmit(true);
+          void handleSubmit(true);
           return 0;
         }
         return prev !== null ? prev - 1 : prev;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [remaining, resultData]);
+  }, [remaining, resultData, handleSubmit]);
 
-  // 3. Strict Mode Fullscreen & Anti-Cheat Guards
+  // 4. Strict Mode Fullscreen & Anti-Cheat Guards
   const isStrict = attempt?.mode !== 'practice' && (attempt?.is_strict_mode || attempt?.mode === 'strict');
 
   const toggleFullscreen = () => {
@@ -244,7 +280,7 @@ export default function EnglishExamInterface() {
         setViolationCount(count);
         if (rep.cheating_detected || count >= 3) {
           setCheatedModalOpen(true);
-          handleSubmit(true);
+          void handleSubmit(true);
         } else {
           setWarningModalOpen(true);
         }
@@ -253,7 +289,7 @@ export default function EnglishExamInterface() {
         setViolationCount(next);
         if (next >= 3) {
           setCheatedModalOpen(true);
-          handleSubmit(true);
+          void handleSubmit(true);
         } else {
           setWarningModalOpen(true);
         }
@@ -290,9 +326,9 @@ export default function EnglishExamInterface() {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isStrict, resultData, submitting, cheatedModalOpen, attemptId, violationCount]);
+  }, [isStrict, resultData, submitting, cheatedModalOpen, attemptId, violationCount, handleSubmit]);
 
-  // 4. Answer Updates & Auto-Save
+  // 5. Answer Updates & Auto-Save
   const updateAnswer = (qId: number, field: string, val: any) => {
     const updated = {
       ...answers,
@@ -315,30 +351,7 @@ export default function EnglishExamInterface() {
     }
   };
 
-  // 5. Submit Exam
-  const handleSubmit = async (_auto = false) => {
-    if (submittedRef.current || submitting) return;
-    submittedRef.current = true;
-    setSubmitting(true);
-    try {
-      const res = (await TestsApi.submit(attemptId)) as any;
-      setResultData(res.result || res);
-      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-
-      // Fetch digital certificate
-      try {
-        const cert = await TestsApi.certificateCard(attemptId);
-        setCertificateData(cert);
-      } catch {}
-    } catch (e: any) {
-      setErr(e.message || 'Javoblarni topshirishda xatolik yuz berdi.');
-      submittedRef.current = false;
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // 6. Highlighter Tool
+  // 6. Highlighter Tool & Selection Popover
   const handleHighlightSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
@@ -348,13 +361,14 @@ export default function EnglishExamInterface() {
     if (selectedText.length < 2) return;
 
     const span = document.createElement('mark');
-    span.className = 'bg-amber-200 dark:bg-amber-800 text-amber-950 dark:text-amber-100 px-1 rounded';
+    span.className = 'bg-amber-300 text-slate-950 px-1 rounded font-medium shadow-sm';
     try {
       range.surroundContents(span);
       setHighlights((prev) => [...prev, selectedText]);
       selection.removeAllRanges();
+      setFloatingPill(null);
     } catch {
-      // ignore if cross-node selection
+      // ignore if selection crosses complex nested node boundaries
     }
   };
 
@@ -367,6 +381,34 @@ export default function EnglishExamInterface() {
         parent?.removeChild(m);
       });
       setHighlights([]);
+      setFloatingPill(null);
+    }
+  };
+
+  const handleMouseUpPassage = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      setFloatingPill(null);
+      return;
+    }
+    const selectedText = selection.toString().trim();
+    if (selectedText.length < 2) {
+      setFloatingPill(null);
+      return;
+    }
+    try {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        setFloatingPill(null);
+        return;
+      }
+      setFloatingPill({
+        x: Math.max(20, rect.left + rect.width / 2),
+        y: Math.max(20, rect.top - 10),
+      });
+    } catch {
+      setFloatingPill(null);
     }
   };
 
@@ -401,13 +443,25 @@ export default function EnglishExamInterface() {
     }
   };
 
+  // Helper: check if a question is answered
+  const isQuestionAnswered = (qId: number) => {
+    const a = answers[qId];
+    if (!a) return false;
+    if (Array.isArray(a.choices) && a.choices.length > 0) return true;
+    if (typeof a.text === 'string' && a.text.trim().length > 0) return true;
+    if (typeof a.written === 'string' && a.written.trim().length > 0) return true;
+    if (a.gaps && Object.values(a.gaps).some((v) => typeof v === 'string' && v.trim().length > 0)) return true;
+    if (a.matching && Object.values(a.matching).some((v) => v !== null && v !== undefined)) return true;
+    return false;
+  };
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-900 text-white">
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
-          <RefreshCwIcon className="h-10 w-10 animate-spin text-emerald-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold">English Exam Interface yuklanmoqda...</h2>
-          <p className="text-slate-400 text-sm mt-1">Kembrij split-screen ekrani sozlanmoqda</p>
+          <RefreshCwIcon className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold">Cambridge CD-IELTS / BMB CBT muhiti yuklanmoqda...</h2>
+          <p className="text-slate-400 text-sm mt-1">Split-screen interfeysi va test savollari sozlanmoqda</p>
         </div>
       </div>
     );
@@ -415,12 +469,12 @@ export default function EnglishExamInterface() {
 
   if (err && !attempt) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-900 text-white p-6">
-        <div className="max-w-md bg-slate-800 p-8 rounded-2xl border border-red-500/30 text-center">
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white p-6">
+        <div className="max-w-md bg-slate-900 p-8 rounded-2xl border border-red-500/30 text-center">
           <AlertTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-red-200">Xatolik</h2>
           <p className="text-slate-300 mt-2 mb-6">{err}</p>
-          <Link to="/tests" className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium">
+          <Link to="/tests" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium">
             Testlar ro'yxatiga qaytish
           </Link>
         </div>
@@ -431,7 +485,8 @@ export default function EnglishExamInterface() {
   const questions = attempt?.questions || [];
   const currentQ = questions[currentQIndex];
   const passages = attempt?.passages || [];
-  const currentPassage = passages.find((p) => p.id === activePassageId) || passages[0] || currentQ?.passage;
+  const currentPassageIndex = passages.findIndex((p) => p.id === activePassageId);
+  const currentPassage = passages[currentPassageIndex] || passages[0] || currentQ?.passage;
 
   // Format countdown
   const formatTime = (secs: number | null) => {
@@ -441,14 +496,19 @@ export default function EnglishExamInterface() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Stats for bottom bar & confirm modal
+  const answeredCount = questions.filter((q) => isQuestionAnswered(q.id)).length;
+  const unansweredCount = questions.length - answeredCount;
+  const flaggedCount = questions.filter((q) => flagged[q.id]).length;
+
   // POST-EXAM RESULTS VIEW
   if (resultData) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
+      <div className="min-h-screen w-screen bg-slate-950 text-slate-100 p-4 md:p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header Summary */}
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 via-amber-500 to-indigo-500" />
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 via-blue-500 to-indigo-500" />
             <AwardIcon className="h-16 w-16 text-amber-400 mx-auto mb-3" />
             <h1 className="text-3xl font-extrabold text-white">{attempt?.test_title || 'English Examination'}</h1>
             <p className="text-slate-400 text-sm mt-1">Imtihon natijalari va xalqaro baholash xulosasi</p>
@@ -457,7 +517,7 @@ export default function EnglishExamInterface() {
               <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
                 <span className="text-xs text-slate-400 uppercase tracking-wider block">To'g'ri javoblar</span>
                 <span className="text-2xl font-bold text-emerald-400 mt-1 block">
-                  {resultData.correct_answers ?? attempt?.raw_score ?? 0} / {attempt?.total_questions ?? 40}
+                  {resultData.correct_answers ?? attempt?.raw_score ?? 0} / {attempt?.total_questions ?? questions.length}
                 </span>
               </div>
               <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
@@ -481,7 +541,7 @@ export default function EnglishExamInterface() {
             </div>
           </div>
 
-          {/* Digital Certificate Card (A4 Canvas Representation) */}
+          {/* Digital Certificate Card */}
           {certificateData && (
             <div className="bg-gradient-to-b from-white to-amber-50 text-slate-900 rounded-3xl p-8 border-4 border-amber-400/80 shadow-2xl relative print:p-0">
               <div className="flex justify-between items-center border-b border-amber-200 pb-4 mb-6">
@@ -554,7 +614,7 @@ export default function EnglishExamInterface() {
             <Link to="/results" className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold">
               Barcha natijalarim
             </Link>
-            <Link to="/tests" className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold">
+            <Link to="/tests" className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold">
               Boshqa imtihonlar
             </Link>
           </div>
@@ -563,69 +623,287 @@ export default function EnglishExamInterface() {
     );
   }
 
+  // Render passage paragraphs with Cambridge Drop Cap badges (A, B, C...)
+  const renderPassageBody = () => {
+    if (!currentPassage) {
+      return (
+        <div className="flex h-full items-center justify-center text-slate-500 text-sm">
+          Ushbu savollar bo'limi uchun matn biriktirilmagan.
+        </div>
+      );
+    }
+
+    const content = currentPassage.content || '';
+    const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
+
+    if (hasHtml) {
+      return (
+        <div
+          className={`whitespace-pre-wrap ${
+            fontSize === 'large' ? 'text-[18px] leading-[1.85]' : 'text-[15px] leading-relaxed'
+          } text-slate-200 select-text`}
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      );
+    }
+
+    const paragraphs = content
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (paragraphs.length <= 1) {
+      return (
+        <div
+          className={`whitespace-pre-wrap ${
+            fontSize === 'large' ? 'text-[18px] leading-[1.85]' : 'text-[15px] leading-relaxed'
+          } text-slate-200 select-text`}
+        >
+          {content}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`space-y-6 ${
+          fontSize === 'large' ? 'text-[18px] leading-[1.85]' : 'text-[15px] leading-relaxed'
+        } text-slate-200 select-text`}
+      >
+        {paragraphs.map((p, idx) => {
+          const match = p.match(/^(?:Paragraph\s+([A-Z])[\:\.\s]|([A-Z])[\.\:\s])\s*(.*)/i);
+          const letter = match ? (match[1] || match[2]).toUpperCase() : String.fromCharCode(65 + idx);
+          const text = match ? match[3] : p;
+
+          return (
+            <div key={idx} className="relative group">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/80 text-xs font-bold text-amber-400 shrink-0 mt-0.5 select-none shadow-sm">
+                  {letter}
+                </span>
+                <p className="flex-1 leading-relaxed">{text}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-100 select-none">
-      {/* 1. TOP HEADER (CAMBRIDGE / CEFR BAR) */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 select-none font-sans">
+      {/* 1. TOP HEADER (CAMBRIDGE / BMB CD-IELTS 56px BAR) */}
+      <header className="h-14 border-b border-slate-800 bg-slate-900/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
+        {/* Left: Title + Passage of Total + Mode */}
         <div className="flex items-center gap-3">
-          <BookOpenIcon className="h-5 w-5 text-emerald-400" />
-          <h1 className="font-bold text-sm sm:text-base text-white truncate max-w-[200px] sm:max-w-md">
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-blue-600/20 text-blue-400 border border-blue-500/30 font-black text-xs uppercase tracking-wider">
+              CD-IELTS
+            </span>
+          </div>
+
+          <h1 className="font-bold text-sm sm:text-base text-white truncate max-w-[160px] sm:max-w-xs md:max-w-md">
             {attempt?.test_title || 'IELTS & CEFR Multi-level Exam'}
           </h1>
+
+          {/* Passage Indicator */}
+          {passages.length > 0 && (
+            <span className="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300">
+              Passage {currentPassageIndex >= 0 ? currentPassageIndex + 1 : 1} of {passages.length}
+            </span>
+          )}
+
+          {/* Mode Pill */}
           <span
-            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold shrink-0 ${
               isStrict
-                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
             }`}
           >
-            {isStrict ? '🛑 Strict Exam Mode' : '💡 Practice / Study Mode'}
+            {isStrict ? '🛑 Strict Exam' : '💡 Practice'}
           </span>
         </div>
 
-        {/* Center / Right controls */}
-        <div className="flex items-center gap-3">
-          {/* Anti-cheat badge */}
+        {/* Center: Countdown Timer */}
+        <div className="flex items-center justify-center">
+          <div
+            className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-xl border font-mono text-sm sm:text-base font-bold tracking-wide transition-all ${
+              remaining !== null && remaining < 300
+                ? 'bg-rose-950/80 border-rose-500 text-rose-300 animate-pulse'
+                : 'bg-slate-800/90 border-slate-700 text-amber-300 shadow-sm'
+            }`}
+          >
+            <ClockIcon className={`h-4 w-4 ${remaining !== null && remaining < 300 ? 'text-rose-400' : 'text-amber-400'}`} />
+            <span>⏱ {formatTime(remaining)} remaining</span>
+          </div>
+        </div>
+
+        {/* Right: Tools & Audio */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Font Size Toggle */}
+          <div className="hidden md:flex items-center bg-slate-800/80 rounded-xl p-0.5 border border-slate-700 text-xs">
+            <button
+              type="button"
+              onClick={() => setFontSize('standard')}
+              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                fontSize === 'standard'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => setFontSize('large')}
+              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                fontSize === 'large'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Large
+            </button>
+          </div>
+
+          {/* Highlighter Tools */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleHighlightSelection}
+              className="px-2.5 py-1 text-xs font-semibold bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 rounded-xl border border-amber-500/30 flex items-center gap-1 transition-all"
+              title="Belgilangan matnni nur bilan ajratish"
+            >
+              <span>🖍️ Highlight</span>
+            </button>
+            {highlights.length > 0 && (
+              <button
+                type="button"
+                onClick={clearHighlights}
+                className="px-2 py-1 text-xs text-slate-400 hover:text-white transition-colors"
+                title="Bo'yoqlarni tozalash"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Audio Volume Minimalist Slider */}
+          {attempt?.audio_url && (
+            <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!audioRef.current) return;
+                  audioRef.current.muted = !isMuted;
+                  setIsMuted(!isMuted);
+                }}
+                className="text-slate-300 hover:text-white"
+                title={isMuted ? 'Ovozni yoqish' : 'Ovozni o\'chirish'}
+              >
+                {isMuted ? (
+                  <VolumeXIcon className="h-3.5 w-3.5 text-rose-400" />
+                ) : (
+                  <Volume2Icon className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVolume(val);
+                  setIsMuted(false);
+                  if (audioRef.current) {
+                    audioRef.current.volume = val;
+                    audioRef.current.muted = false;
+                  }
+                }}
+                className="w-16 h-1 accent-emerald-500 cursor-pointer"
+                title="Audio ovozi"
+              />
+              <audio
+                ref={audioRef}
+                src={attempt.audio_url}
+                autoPlay={isStrict}
+                controls={false}
+                onPlay={() => setAudioPlayed(true)}
+              />
+            </div>
+          )}
+
+          {/* Anti-cheat status in strict mode */}
           {isStrict && (
-            <div className="hidden sm:flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+            <div className="hidden lg:flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
               <AlertTriangleIcon className="h-3.5 w-3.5" />
               <span>Nazorat: {violationCount}/3</span>
             </div>
           )}
 
-          {/* Timer */}
-          <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 font-mono text-sm font-bold text-amber-300">
-            <ClockIcon className="h-4 w-4 text-amber-400" />
-            <span>{formatTime(remaining)}</span>
-          </div>
-
           {/* Fullscreen Button */}
           <button
+            type="button"
             onClick={toggleFullscreen}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
-            title="Full Screen"
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+            title="To'liq ekran"
           >
             {isFullscreen ? <Minimize2Icon className="h-4 w-4" /> : <Maximize2Icon className="h-4 w-4" />}
           </button>
         </div>
       </header>
 
+      {/* MOBILE TAB SWITCHER (< lg) */}
+      <div className="lg:hidden flex border-b border-slate-800 bg-slate-900 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileTab('passage')}
+          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
+            mobileTab === 'passage'
+              ? 'border-blue-500 text-white bg-slate-800/40'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <BookOpenIcon className="h-3.5 w-3.5" />
+          <span>Reading Passage</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('questions')}
+          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
+            mobileTab === 'questions'
+              ? 'border-blue-500 text-white bg-slate-800/40'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <HelpCircleIcon className="h-3.5 w-3.5" />
+          <span>Questions ({currentQIndex + 1}/{questions.length})</span>
+        </button>
+      </div>
+
       {/* 2. MAIN 50/50 SPLIT-SCREEN WORKSPACE */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
-        {/* LEFT COLUMN: PASSAGE / AUDIO CONTEXT (50%) */}
-        <section className="flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/50 h-full overflow-hidden">
-          {/* Passage Toolbar */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden relative">
+        {/* LEFT COLUMN: READING PASSAGE (50%) */}
+        <section
+          className={`flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40 h-full overflow-hidden ${
+            mobileTab === 'passage' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
+          {/* Passage Switcher Tabs Bar */}
           <div className="p-3 border-b border-slate-800 bg-slate-900 flex items-center justify-between shrink-0">
-            {/* Passage tabs */}
             <div className="flex items-center gap-2 overflow-x-auto">
               {passages.length > 0 ? (
                 passages.map((p, idx) => (
                   <button
                     key={p.id}
+                    type="button"
                     onClick={() => setActivePassageId(p.id)}
                     className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
                       (activePassageId || passages[0]?.id) === p.id
-                        ? 'bg-emerald-600 text-white shadow-sm'
+                        ? 'bg-blue-600 text-white shadow-sm'
                         : 'bg-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
@@ -637,117 +915,96 @@ export default function EnglishExamInterface() {
               )}
             </div>
 
-            {/* Highlighter Controls */}
-            <div className="flex items-center gap-2">
+            {/* Mobile Highlighter Trigger */}
+            <div className="flex sm:hidden items-center gap-1.5">
               <button
+                type="button"
                 onClick={handleHighlightSelection}
-                className="px-2.5 py-1 text-xs font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-md border border-amber-500/30 flex items-center gap-1"
-                title="Belgilangan matnni sariq nur bilan ajratish"
+                className="px-2 py-1 text-xs font-semibold bg-amber-500/20 text-amber-300 rounded-lg border border-amber-500/30"
               >
-                <span>🖍️ Highlight</span>
+                🖍️ Highlight
               </button>
-              {highlights.length > 0 && (
-                <button
-                  onClick={clearHighlights}
-                  className="px-2 py-1 text-xs text-slate-400 hover:text-white"
-                  title="Bo'yoqlarni tozalash"
-                >
-                  Tozalash
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Listening Audio player bar if present */}
-          {attempt?.audio_url && (
-            <div className="bg-slate-800/90 px-4 py-2.5 border-b border-slate-700 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2 text-xs text-slate-300">
-                <Volume2Icon className="h-4 w-4 text-emerald-400 animate-pulse" />
-                <span>
-                  {isStrict ? 'Audio Lock: Bir martalik yangrash rejimi' : 'Listening Audio'}
-                </span>
-              </div>
-              <audio
-                ref={audioRef}
-                src={attempt.audio_url}
-                controls={!isStrict}
-                autoPlay={isStrict}
-                onPlay={() => setAudioPlayed(true)}
-                controlsList={isStrict ? 'nodownload noplaybackrate' : undefined}
-                className="h-7 max-w-[200px]"
-              />
-            </div>
-          )}
-
-          {/* Passage Scrollable Content */}
+          {/* Scrollable Reading Content */}
           <div
             ref={passageContainerRef}
-            className="flex-1 overflow-y-auto p-6 text-slate-300 leading-relaxed font-serif text-base select-text"
+            onMouseUp={handleMouseUpPassage}
+            className="flex-1 overflow-y-auto p-6 lg:p-8 font-serif leading-relaxed select-text"
           >
-            {currentPassage ? (
-              <div className="max-w-2xl mx-auto space-y-4">
-                {currentPassage.title && (
-                  <h2 className="text-xl font-bold font-sans text-white border-b border-slate-800 pb-2">
-                    {currentPassage.title}
-                  </h2>
-                )}
-                <div
-                  className="whitespace-pre-wrap leading-8 text-[15px]"
-                  dangerouslySetInnerHTML={{ __html: currentPassage.content }}
-                />
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center text-slate-500 text-sm">
-                Ushbu savollar bo'limi uchun matn biriktirilmagan.
-              </div>
-            )}
+            <div className="max-w-2xl mx-auto space-y-4">
+              {currentPassage?.title && (
+                <h2 className="text-xl sm:text-2xl font-bold font-sans text-white border-b border-slate-800 pb-3">
+                  {currentPassage.title}
+                </h2>
+              )}
+              {renderPassageBody()}
+            </div>
           </div>
         </section>
 
-        {/* RIGHT COLUMN: QUESTIONS & PRACTICE AI FEEDBACK (50%) */}
-        <section className="flex flex-col h-full bg-slate-950 overflow-hidden">
+        {/* RIGHT COLUMN: QUESTIONS & AI EVIDENCE (50%) */}
+        <section
+          className={`flex flex-col h-full bg-slate-950 overflow-hidden ${
+            mobileTab === 'questions' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           {/* Question Viewport */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 lg:p-8">
             {currentQ ? (
               <div className="max-w-2xl mx-auto space-y-6">
-                {/* Question Header */}
+                {/* Top Badge & Points */}
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg text-emerald-400">
-                      Savol {currentQ.position || currentQIndex + 1}
+                    <span className="font-extrabold text-xl text-blue-400">
+                      Question {currentQ.position || currentQIndex + 1}
                     </span>
-                    <span className="text-xs text-slate-400 uppercase tracking-wider">
-                      ({currentQ.question_type})
+                    <span className="text-xs text-slate-400 uppercase tracking-wider bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
+                      {currentQ.question_type}
                     </span>
                   </div>
-                  <button
-                    onClick={() =>
-                      setFlagged((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
-                    }
-                    className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors ${
-                      flagged[currentQ.id]
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <FlagIcon className="h-3.5 w-3.5" />
-                    <span>{flagged[currentQ.id] ? 'Belgilangan' : 'Belgilash'}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 font-medium">
+                      {currentQ.points || 1} point
+                    </span>
+                  </div>
+                </div>
+
+                {/* Instruction banner in italics */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 italic">
+                  {currentQ.question_type === 'single'
+                    ? 'Choose the correct letter, A, B, C or D.'
+                    : currentQ.question_type === 'multiple'
+                    ? 'Choose ALL correct options that apply.'
+                    : currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill'
+                    ? 'Write NO MORE THAN TWO WORDS from the passage for each answer.'
+                    : currentQ.question_type === 'written'
+                    ? 'Write your response in the box below. Check your grammar and paragraph structure.'
+                    : 'Answer the question carefully.'}
                 </div>
 
                 {/* Question Text */}
-                <div className="text-base font-medium text-white leading-relaxed">
+                <div
+                  className={`font-medium text-white leading-relaxed ${
+                    fontSize === 'large' ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
+                  }`}
+                >
                   {currentQ.text}
                 </div>
 
-                {/* 1. SINGLE / MULTIPLE CHOICE */}
+                {/* 1. SINGLE / MULTIPLE CHOICE CARDS */}
                 {(currentQ.question_type === 'single' || currentQ.question_type === 'multiple') && (
-                  <div className="space-y-3">
-                    {(currentQ.choices || []).map((c) => {
-                      const selected = (answers[currentQ.id]?.choices || []).includes(c.id);
+                  <div className="space-y-3 pt-2">
+                    {(currentQ.choices || []).map((c, cIdx) => {
+                      const isSelected = (answers[currentQ.id]?.choices || []).includes(c.id);
+                      const letter = String.fromCharCode(65 + cIdx);
+                      const isTFNG = /^(true|false|not given|yes|no)$/i.test(c.text.trim());
+
                       return (
                         <button
                           key={c.id}
+                          type="button"
                           onClick={() => {
                             if (currentQ.question_type === 'single') {
                               updateAnswer(currentQ.id, 'choices', [c.id]);
@@ -759,150 +1016,279 @@ export default function EnglishExamInterface() {
                               updateAnswer(currentQ.id, 'choices', next);
                             }
                           }}
-                          className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-3 ${
-                            selected
-                              ? 'bg-emerald-600/20 border-emerald-500 text-white shadow-sm'
-                              : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          className={`w-full text-left p-4 rounded-xl border transition-all flex items-center gap-3.5 group cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-600/15 border-blue-500 text-white ring-1 ring-blue-500/50 shadow-md shadow-blue-950/40'
+                              : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700 hover:text-white'
                           }`}
                         >
                           <span
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
-                              selected ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'bg-slate-800 border border-slate-700 text-slate-400 group-hover:text-slate-200 group-hover:border-slate-600'
                             }`}
                           >
-                            {selected ? '✓' : ''}
+                            {isTFNG ? (isSelected ? '✓' : letter) : letter}
                           </span>
-                          <span className="text-sm leading-relaxed">{c.text}</span>
+                          <span
+                            className={`flex-1 font-medium ${
+                              isTFNG ? 'uppercase tracking-wider font-bold' : ''
+                            } ${fontSize === 'large' ? 'text-base' : 'text-sm'}`}
+                          >
+                            {c.text}
+                          </span>
+                          {isSelected && <span className="text-blue-400 font-bold text-sm shrink-0">●</span>}
                         </button>
                       );
                     })}
                   </div>
                 )}
 
-                {/* 2. FILL-IN-THE-BLANKS / TEXT */}
+                {/* 2. FILL-IN-THE-BLANKS / TEXT INPUT */}
                 {(currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill') && (
-                  <div className="space-y-4">
-                    <label className="text-xs text-slate-400 uppercase tracking-wider block">
-                      Javobingizni kiriting:
+                  <div className="space-y-4 pt-2">
+                    <label className="text-xs text-slate-400 uppercase tracking-wider block font-semibold">
+                      Your Answer:
                     </label>
                     <input
                       type="text"
                       value={answers[currentQ.id]?.text || ''}
                       onChange={(e) => updateAnswer(currentQ.id, 'text', e.target.value)}
-                      placeholder="Javobni bu yerga yozing..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500"
+                      placeholder="Type your answer here..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3.5 text-white text-base focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                 )}
 
-                {/* 3. WRITTEN ESSAY (IELTS Task 1 / 2) */}
+                {/* 3. WRITTEN ESSAY (IELTS Task 1 / Task 2) */}
                 {currentQ.question_type === 'written' && (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pt-2">
                     <div className="flex justify-between items-center text-xs text-slate-400">
-                      <span>Yozma javob (kamida 150-250 so'z):</span>
-                      <span>
-                        So'zlar soni:{' '}
+                      <span>Written response:</span>
+                      <span className="font-mono bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                        Words:{' '}
                         {(answers[currentQ.id]?.written || '').trim().split(/\s+/).filter(Boolean).length}
                       </span>
                     </div>
                     <textarea
-                      rows={10}
+                      rows={12}
                       value={answers[currentQ.id]?.written || ''}
                       onChange={(e) => updateAnswer(currentQ.id, 'written', e.target.value)}
-                      placeholder="Esseni bu yerga yozing..."
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"
+                      placeholder="Write your essay or response here..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-blue-500 font-mono leading-relaxed"
                     />
                   </div>
                 )}
 
-                {/* PRACTICE MODE: AI TUSHUNTIRISH BUTTON */}
+                {/* PRACTICE MODE ONLY: AI EVIDENCE BUTTON (STRICT EXAM HIDES THIS COMPLETELY) */}
                 {!isStrict && (
-                  <div className="pt-4 border-t border-slate-800">
+                  <div className="pt-6 border-t border-slate-800">
                     <button
+                      type="button"
                       onClick={() => handleOpenAiEvidence(currentQ)}
-                      className="w-full py-2.5 px-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-3 px-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
                     >
                       <HelpCircleIcon className="h-4 w-4 text-indigo-400" />
-                      <span>💡 AI Dalilli Tushuntirish (Evidence-Based R1)</span>
+                      <span>💡 AI Dalilli Tushuntirish (DeepSeek-R1 Evidence)</span>
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center text-slate-500">
+              <div className="flex h-full items-center justify-center text-slate-500 text-sm">
                 Savol tanlanmagan
               </div>
             )}
           </div>
-
-          {/* Bottom Bar: Navigator Palette & Actions */}
-          <footer className="h-20 border-t border-slate-800 bg-slate-900/90 px-4 py-2 flex flex-col justify-between shrink-0">
-            {/* Scrollable Questions Palette Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {questions.map((q, idx) => {
-                const a = answers[q.id];
-                const isAnswered =
-                  (a?.choices && a.choices.length > 0) ||
-                  Boolean(a?.text) ||
-                  Boolean(a?.written);
-                const isCurrent = idx === currentQIndex;
-                const isFlag = flagged[q.id];
-
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => setCurrentQIndex(idx)}
-                    className={`w-7 h-7 rounded-lg text-xs font-bold shrink-0 transition-all ${
-                      isCurrent
-                        ? 'ring-2 ring-emerald-400 bg-emerald-600 text-white'
-                        : isFlag
-                        ? 'bg-amber-500/30 text-amber-300 border border-amber-500/40'
-                        : isAnswered
-                        ? 'bg-slate-800 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-slate-800/50 text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Prev / Next & Submit */}
-            <div className="flex items-center justify-between pt-1">
-              <button
-                onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
-                disabled={currentQIndex === 0}
-                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-medium rounded-lg text-slate-300 flex items-center gap-1"
-              >
-                <ChevronLeftIcon className="h-3.5 w-3.5" />
-                <span>Oldingi</span>
-              </button>
-
-              <button
-                onClick={() => handleSubmit(false)}
-                disabled={submitting}
-                className="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-900/30 transition-all"
-              >
-                {submitting ? 'Topshirilmoqda...' : 'Imtihonni Yakunlash'}
-              </button>
-
-              <button
-                onClick={() => setCurrentQIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                disabled={currentQIndex === questions.length - 1}
-                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-medium rounded-lg text-slate-300 flex items-center gap-1"
-              >
-                <span>Keyingi</span>
-                <ChevronRightIcon className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </footer>
         </section>
+
+        {/* FLOATING HIGHLIGHT POPOVER */}
+        {floatingPill && (
+          <div
+            style={{ left: `${floatingPill.x}px`, top: `${floatingPill.y}px` }}
+            className="fixed -translate-x-1/2 -translate-y-full z-40 animate-fade-in pointer-events-auto"
+          >
+            <button
+              type="button"
+              onClick={handleHighlightSelection}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg shadow-xl border border-amber-300 flex items-center gap-1 cursor-pointer transition-transform hover:scale-105"
+            >
+              <span>🖍️ Highlight</span>
+            </button>
+          </div>
+        )}
       </main>
 
-      {/* 3. MODALS */}
+      {/* 3. CAMBRIDGE QUESTION PALETTE FOOTER (FULL-WIDTH FIXED BAR) */}
+      <footer className="h-16 border-t border-slate-800 bg-slate-900/95 backdrop-blur px-4 sm:px-6 flex items-center justify-between shrink-0 z-20 gap-3">
+        {/* Left: Scrollable Questions Palette Track */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-[55vw] sm:max-w-[65vw]">
+          {questions.map((q, idx) => {
+            const answered = isQuestionAnswered(q.id);
+            const isCurrent = idx === currentQIndex;
+            const isFlag = Boolean(flagged[q.id]);
 
-      {/* A. Practice Mode Evidence Modal */}
+            return (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => {
+                  setCurrentQIndex(idx);
+                  setMobileTab('questions');
+                }}
+                className={`relative min-w-[32px] w-8 h-8 rounded-lg text-xs font-bold shrink-0 transition-all flex items-center justify-center ${
+                  isCurrent
+                    ? 'ring-2 ring-blue-400 bg-blue-600 text-white font-black shadow-md scale-105'
+                    : isFlag
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/60'
+                    : answered
+                    ? 'bg-slate-800 text-sky-400 border border-sky-500/40 font-semibold'
+                    : 'bg-slate-800/40 text-slate-500 border border-slate-700/60 hover:text-slate-300 hover:border-slate-500'
+                }`}
+                title={`Question ${idx + 1}${answered ? ' (Answered)' : ''}${isFlag ? ' (Flagged)' : ''}`}
+              >
+                {idx + 1}
+                {isFlag && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full ring-2 ring-slate-900" />
+                )}
+                {answered && !isCurrent && (
+                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-sky-400 rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() =>
+              currentQ && setFlagged((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
+            }
+            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              currentQ && flagged[currentQ.id]
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+            }`}
+          >
+            <FlagIcon className="h-3.5 w-3.5" />
+            <span>{currentQ && flagged[currentQ.id] ? 'Flagged' : 'Review'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCurrentQIndex((prev) => Math.max(0, prev - 1));
+              setMobileTab('questions');
+            }}
+            disabled={currentQIndex === 0}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-xs font-semibold rounded-xl text-slate-300 flex items-center gap-1 border border-slate-700/80 transition-colors"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCurrentQIndex((prev) => Math.min(questions.length - 1, prev + 1));
+              setMobileTab('questions');
+            }}
+            disabled={currentQIndex === questions.length - 1}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-xs font-semibold rounded-xl text-slate-300 flex items-center gap-1 border border-slate-700/80 transition-colors"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setConfirmSubmitOpen(true)}
+            disabled={submitting}
+            className="px-4 sm:px-5 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-red-950/50 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Finish Test</span>
+          </button>
+        </div>
+      </footer>
+
+      {/* 4. MODALS */}
+
+      {/* A. Finish Confirmation Modal */}
+      {confirmSubmitOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+              <AlertTriangleIcon className="h-6 w-6" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-white">Imtihonni yakunlaysizmi?</h3>
+              <p className="text-slate-400 text-xs mt-1">
+                Topshirishdan oldin javoblaringizni tekshirib oling.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+              <div className="text-center">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Javob berildi</span>
+                <span className="text-lg font-bold text-emerald-400">{answeredCount}</span>
+              </div>
+              <div className="text-center border-x border-slate-800">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Javobsiz</span>
+                <span className={`text-lg font-bold ${unansweredCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                  {unansweredCount}
+                </span>
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Belgilangan</span>
+                <span className="text-lg font-bold text-amber-400">{flaggedCount}</span>
+              </div>
+            </div>
+
+            {unansweredCount > 0 && (
+              <div className="bg-rose-950/30 border border-rose-500/30 rounded-xl p-3 text-left flex items-start gap-2.5">
+                <AlertTriangleIcon className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-rose-300">
+                  Siz <strong>{unansweredCount} ta</strong> savolga hali javob bermadingiz. Yakunlangach, javob berilmagan savollarga 0 ball hisoblanadi.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmSubmitOpen(false)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition-colors cursor-pointer"
+              >
+                Testga qaytish
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmSubmitOpen(false);
+                  void handleSubmit(false);
+                }}
+                disabled={submitting}
+                className="flex-1 py-2.5 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCwIcon className="h-3.5 w-3.5 animate-spin" />
+                    <span>Topshirilmoqda...</span>
+                  </>
+                ) : (
+                  <span>Ha, yakunlash</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* B. Practice Mode Evidence Modal */}
       {evidenceModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
@@ -912,6 +1298,7 @@ export default function EnglishExamInterface() {
                 <h3 className="font-bold text-white text-base">Dalillarga Asoslangan AI Tahlili (R1)</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setEvidenceModalOpen(false)}
                 className="text-slate-400 hover:text-white text-lg font-bold"
               >
@@ -958,6 +1345,7 @@ export default function EnglishExamInterface() {
 
             <div className="pt-2 text-right">
               <button
+                type="button"
                 onClick={() => setEvidenceModalOpen(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold"
               >
@@ -968,7 +1356,7 @@ export default function EnglishExamInterface() {
         </div>
       )}
 
-      {/* B. Anti-Cheat Warning Modal (1/3 or 2/3) */}
+      {/* C. Anti-Cheat Warning Modal (1/3 or 2/3) */}
       {warningModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-amber-500 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl">
@@ -985,13 +1373,14 @@ export default function EnglishExamInterface() {
               3-qoidabuzarlikdan so'ng test avtomatik yakunlanadi va "ko'chirish" belgisi qo'yiladi!
             </p>
             <button
+              type="button"
               onClick={() => {
                 setWarningModalOpen(false);
                 if (!document.fullscreenElement) {
                   document.documentElement.requestFullscreen().catch(() => {});
                 }
               }}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm"
+              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm cursor-pointer"
             >
               Imtihonga qaytish
             </button>
@@ -999,7 +1388,7 @@ export default function EnglishExamInterface() {
         </div>
       )}
 
-      {/* C. Anti-Cheat Disqualified Modal (3/3) */}
+      {/* D. Anti-Cheat Disqualified Modal (3/3) */}
       {cheatedModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-red-500 rounded-3xl max-w-md w-full p-8 text-center space-y-4 shadow-2xl">
@@ -1013,8 +1402,9 @@ export default function EnglishExamInterface() {
             </p>
             <p className="text-xs text-slate-500">Natijalar saqlandi va ustoz paneliga qayd etildi.</p>
             <button
+              type="button"
               onClick={() => navigate('/results')}
-              className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm mt-4"
+              className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm mt-4 cursor-pointer"
             >
               Natijalarni ko'rish
             </button>
