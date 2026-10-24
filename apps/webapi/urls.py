@@ -53,6 +53,11 @@ urlpatterns = [
         views_crm.scan_receipt_view,
         name="payments-scan-receipt",
     ),
+    path(
+        "subscriptions/verify-receipt/",
+        views_billing.verify_receipt_view,
+        name="subscriptions-verify-receipt",
+    ),
     # -- AI Vocabulary Generator & Spaced Repetition (4-Modul) -----------
     path("vocabulary/", include("apps.vocabulary.urls")),
 

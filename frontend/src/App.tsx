@@ -40,6 +40,7 @@ const PasswordReset = lazyPage(() => import('./pages/PasswordReset'));
 const PasswordResetConfirm = lazyPage(() => import('./pages/PasswordResetConfirm'));
 const MyCertificates = lazyPage(() => import('./pages/MyCertificates'));
 const Plans = lazyPage(() => import('./pages/Plans'));
+const Pricing = lazyPage(() => import('./pages/Pricing'));
 const Profile = lazyPage(() => import('./pages/Profile'));
 const Register = lazyPage(() => import('./pages/Register'));
 const Results = lazyPage(() => import('./pages/Results'));
@@ -149,6 +150,7 @@ function AnimatedRoutes() {
             <Route path="/games/lugat-match" element={<Navigate to="/games/lugat_match" replace />} />
             <Route path="/games/:slug" element={<PlayGame />} />
             {/* Billing (legacy /subscribe/* shapes) */}
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/plans" element={<Plans />} />
             <Route path="/premium" element={<Plans />} />
             <Route path="/subscribe" element={<Plans />} />

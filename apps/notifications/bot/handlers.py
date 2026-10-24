@@ -369,7 +369,7 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
                 ],
                 [
                     KeyboardButton("👤 Natijalar / Profil"),
-                    KeyboardButton("💳 Tariflar / Obuna"),
+                    KeyboardButton("💳 Obunani yangilash / To'lov qilish"),
                 ],
             ],
             resize_keyboard=True,
@@ -989,12 +989,15 @@ async def auth_conversation_handler(
         await certificates_handler(update, context)
         return
     elif raw_text in (
+        "💳 Obunani yangilash / To'lov qilish",
         "💳 Tariflar / Obuna",
         "💳 Tariflar",
         "💳 Obuna",
         "💳 Mening tarifim",
         "💳 To'lov",
         "💳 Tarif",
+        "/tolov",
+        "/pay",
     ):
         await plans_and_payment_handler(update, context)
         return
@@ -3041,9 +3044,11 @@ async def plans_and_payment_handler(
 
     card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 15000
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 5000
     pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 49000
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 60000
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 89000
+
+    context.user_data["payment_state"] = "awaiting_screenshot"
 
     text = (
         f"💎 *GRAND EDUCATION TARIF VA OBUNA REJALARI*\n\n"
@@ -5033,6 +5038,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     data = query.data if query else ""
 
+    user = await _get_or_create_user_async(update)
+    if user and getattr(user, "is_banned", False):
+        if query:
+            try:
+                await query.answer(
+                    "🚫 Hisobingiz bloklangan! Savollar bo'yicha: @grandec_admin",
+                    show_alert=True,
+                )
+            except Exception:
+                pass
+        return
+
     try:
         if data == "menu_main":
             user = await _get_or_create_user_async(update)
@@ -5934,6 +5951,14 @@ async def payment_screenshot_handler(
     if not user:
         return
 
+    if getattr(user, "is_banned", False):
+        await update.message.reply_text(
+            "🚫 <b>Hisobingiz bloklandi!</b> Siz tomonidan qalbaki to'lov kvitansiyasi aniqlandi. "
+            "Tizimdan foydalanish huquqingiz cheklandi. Savollar bo'yicha: @grandec_admin",
+            parse_mode="HTML",
+        )
+        return
+
     photo = update.message.photo[-1] if update.message.photo else None
     if not photo:
         await update.message.reply_text("Rasm topilmadi. Qaytadan yuboring.")
@@ -5972,6 +5997,27 @@ async def payment_screenshot_handler(
     if not file_bytes:
         await update.message.reply_text("Rasm yuklanmadi. Qaytadan yuboring.")
         return
+
+    # -- Automated Vision AI OCR & Anti-Fraud Verification (Modules 2, 3, 4) --
+    from apps.subscriptions.services.receipt_verifier import ReceiptVerifier
+
+    verifier_res = await _run_db(
+        ReceiptVerifier.verify_receipt,
+        user,
+        bytes(file_bytes),
+        selected_slug or "starter",
+    )
+
+    context.user_data.pop("payment_state", None)
+    context.user_data.pop("selected_plan_slug", None)
+
+    if verifier_res.get("is_banned") or not verifier_res.get("success"):
+        await update.message.reply_text(verifier_res["message"], parse_mode="HTML")
+        return
+
+    # Success: plan activated immediately!
+    await update.message.reply_text(verifier_res["message"], parse_mode="HTML")
+    return
 
     from apps.payments.services import (
         validate_and_hash_receipt_image,

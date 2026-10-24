@@ -1333,6 +1333,22 @@ export const PaymentsApi = {
     });
   },
   myReceipts: () => api<{ results: PaymentReceiptItem[] }>('/api/v1/payments/my-receipts/'),
+  verifyReceipt: (plan: 'starter' | 'pro' | 'premium', file: File) => {
+    const fd = new FormData();
+    fd.append('plan_type', plan);
+    fd.append('receipt_image', file);
+    return api<{
+      success: boolean;
+      message: string;
+      is_banned?: boolean;
+      plan_type?: string;
+      amount?: number;
+      transaction_id?: string;
+    }>('/api/v1/subscriptions/verify-receipt/', {
+      method: 'POST',
+      body: fd,
+    });
+  },
 };
 
 /**

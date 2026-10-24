@@ -155,6 +155,29 @@ class User(AbstractUser):
         ),
     )
 
+    # -- Anti-fraud & Security ------------------------------------------------
+    fraud_strikes = models.PositiveIntegerField(
+        _("fraud strikes"),
+        default=0,
+        help_text=_("Qalbaki chek yuklashlar soni."),
+    )
+    is_banned = models.BooleanField(
+        _("bloklangan"),
+        default=False,
+        help_text=_("Firibgarlik yoki qoidabuzarlik sababli bloklanganlik holati."),
+    )
+    ban_reason = models.TextField(
+        _("bloklash sababi"),
+        blank=True,
+        default="",
+        help_text=_("Foydalanuvchi bloklangan bo'lsa, sababi."),
+    )
+    banned_at = models.DateTimeField(
+        _("bloklangan vaqt"),
+        null=True,
+        blank=True,
+    )
+
     # -- Timestamps -----------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)

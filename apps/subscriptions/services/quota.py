@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
 from apps.payments.models import SubscriptionUsage
-from apps.payments.ai_quota import get_user_plan_tier, check_and_consume_ai_quota
+from apps.payments.ai_quota import get_user_plan_tier
 
 logger = logging.getLogger(__name__)
 
