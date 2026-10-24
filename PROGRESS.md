@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.33. Rasmiy Versiya v1.29.0: Telegram Bot & Veb-Platforma 100% Pariteti, Yagona Akkaunt (Unified User), Qat'iy Kvota Nazorati (Free 1-Esse Limiti) va Ustozlar CRM (/davomat, /tolovlar, Chek Tasdiqlash)
+- [x] Akkauntlarni Bog'lash va Yagona Identifikatsiya (Unified User):
+  * `User.telegram_id` va `User.telegram_username` (migratsiya `0017_user_telegram_username`) PostgreSQL User bazasiga qat'iy bog'landi.
+  * Saytda yoki botda `/start link_<token>` orqali 1-klikli bog'lanish va sinxronizatsiya.
+  * Muvaffaqiyatli bog'langanda to'liq profil, rol, tarif va sinxronlashgan kvotalar bilan tasdiqlash.
+- [x] Sayt Bilan Bir Xil Kvota va Cheklov Nazorati (Quota Enforcement):
+  * `apps/subscriptions/services.py` dagi `QuotaService`:
+    - Bepul foydalanuvchi uchun kunlik qat'iy 1 ta esse limiti. Bugun foydalanilgan bo'lsa, tekshirish bloklanadi va maxsus ogohlantirish beriladi:
+      "⚠️ Kvotangiz tugadi! Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz. Cheklovlarsiz ishlash uchun 5 000 so'mlik Starter yoki PRO tarifiga o'ting!"
+    - Tugmalar: `[ ⚡ Starter (5 000 so'm) ]`, `[ 🔥 PRO tarifiga o'tish ]`, `[ 🌐 Saytga o'tish ]`.
+    - Starter foydalanuvchilar (3 ta esse / 5 ta test) va PRO/PREMIUM foydalanuvchilar to'siqsiz xizmat ko'rsatilishi.
+- [x] Botda Ustozlar CRM (Davomat va To'lovlar Nazorati):
+  * `/davomat` komandasi:
+    - Guruhdagi o'quvchilar ro'yxati 1 soniyada bosiladigan interaktiv `🟢 Keldi` / `🔴 Kelmadi` inline tugmalari bilan chiqariladi.
+    - `[ 💾 Saqlash ]` bosilganda bazadagi `AttendanceSession` va `AttendanceRecord` ga yoziladi hamda darsga kelmagan o'quvchilarning ota-onalariga (`parent_telegram_id`) avtomatik Telegram bildirishnomasi jo'natiladi.
+  * `/tolovlar` komandasi:
+    - Guruh bo'yicha moliyaviy xulosa: Jami o'quvchilar, To'laganlar (summasi bilan), Qarzdorlar (summasi bilan).
+    - `[ 📢 Qarzdorlarga eslatma yuborish ]` 1-klik tugmasi orqali to'lov muddati kelgan barcha o'quvchilarga va ularning ota-onalariga xushmuomala eslatma yuborish.
+  * To'lov Cheklarini Bot Orqali Tasdiqlash:
+    - O'quvchi botga to'lov cheki yuborganda Vision OCR orqali summa va tranzaksiya ID o'qiladi.
+    - Ustozning botiga tasdiqlash xabari keladi: "📥 {Ism} {Summa} so'mlik chek yukladi. Tasdiqlaysizmi?" `[ ✅ Tasdiqlash ]` | `[ ❌ Rad etish ]`.
+    - Ustoz tasdiqlashi bilan o'quvchining to'lov muddati avtomatik 30 kunga uzaytiriladi va o'quvchiga tasdiq xabari yetkaziladi.
+- [x] Sifat Nazorati va QA Gate (100% PASS):
+  * `pytest tests/test_bot_unified_quota_crm.py`: 12/12 test 100% muvaffaqiyatli o'tdi.
+  * `ruff check apps/ tests/ config/`: 0 xatolik.
+  * Frontend: `npm run build` 2.88 soniyada 0 xato bilan yig'ildi.
+- [x] Strict Isolation & Zero-Downtime VPS Sync:
+  * `bestway` mustaqil ekotizimi mutlaqo daxlsiz saqlanadi.
+  * VPS deploy faqat `grandec` (lms) konteynerlariga (`web`, `bot`, `celery-worker`, `nginx`) yo'naltiriladi va `curl.exe -fsS https://grandec.uz/healthz/` (HTTP 200 OK) orqali tekshiriladi.
+
 ### 2.32. Rasmiy Versiya v1.27.0: Ingliz Tili Imtihonlari (IELTS & CEFR Multi-level), Cambridge Split-Screen UI, Strict vs Practice Rejimlari, DeepSeek R1 Evidence-Based AI Feedback va Ball Konvertori
 - [x] Ikki Xil Ishlash Formati (Strict Exam Mode vs Practice Mode):
   * Test boshlanishidan oldin rejim tanlash modali: [ 🛑 Strict Exam Mode ] va [ 💡 Practice / Study Mode ].

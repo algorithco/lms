@@ -533,13 +533,50 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         from apps.accounts.services.telegram_link import confirm_link_challenge
 
         tg_user = update.effective_user
+        tg_username = getattr(tg_user, "username", "") or ""
         state = (
             await _run_db(
-                confirm_link_challenge, args[0].removeprefix("link_"), tg_user.id
+                confirm_link_challenge,
+                args[0].removeprefix("link_"),
+                tg_user.id,
+                telegram_username=tg_username,
             )
             if tg_user
             else "invalid"
         )
+        if state == "confirmed" and tg_user:
+            from apps.accounts.models import User
+
+            user = await _run_db(
+                lambda: User.objects.filter(telegram_chat_id=tg_user.id).first()
+            )
+            if user:
+                role_label = (
+                    "O'qituvchi / Ustoz"
+                    if user.is_teacher
+                    else ("Admin" if user.is_staff or user.is_superuser else "O'quvchi")
+                )
+                plan_label = (
+                    "PRO"
+                    if user.has_pro_access
+                    else (
+                        "Starter"
+                        if getattr(getattr(user, "profile", None), "plan", "") == "starter"
+                        else "Free (Bepul)"
+                    )
+                )
+                conf_msg = (
+                    f"🎉 <b>Muvaffaqiyatli bog'landi!</b>\n\n"
+                    f"👤 Profil: <b>{user.get_full_name() or user.email}</b>\n"
+                    f"📧 Email: <code>{user.email}</code>\n"
+                    f"🎭 Rol: <b>{role_label}</b>\n"
+                    f"💎 Tarif: <b>{plan_label}</b>\n\n"
+                    f"Endi saytdagi barcha natijalaringiz, hisob balansingiz va kvotalaringiz ushbu bot bilan 100% sinxronlashdi!"
+                )
+                keyboard = _persistent_menu_keyboard(user.role.lower()) if hasattr(user, "role") else None
+                await update.message.reply_text(conf_msg, parse_mode="HTML", reply_markup=keyboard)
+                return
+
         messages = {
             "confirmed": "✅ Telegram hisobingiz veb profilingizga bog'landi.",
             "conflict": "❌ Bu Telegram ID boshqa hisobga bog'langan. Administratorga murojaat qiling.",
@@ -2428,6 +2465,15 @@ async def _submit_essay_with_quota(
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return
 
+    # -- QuotaService check (Module 2): Free 1 essay/day limit & Starter/PRO checks --
+    from apps.bot.quota import check_bot_essay_quota, record_bot_essay_consumption
+
+    allowed, quota_msg, quota_kb = check_bot_essay_quota(user, _site_url())
+    if not allowed:
+        _clear_essay_state(context)
+        await send_reply(update, quota_msg, parse_mode="HTML", reply_markup=quota_kb)
+        return
+
     # -- Atomic allowance reservation, before anything is persisted ---------
     # The key is derived from the Telegram update identity: Telegram delivers
     # updates at least once with a stable update_id, so a redelivered update
@@ -2517,6 +2563,10 @@ async def _submit_essay_with_quota(
     # The grading job was accepted: the allowance is consumed exactly once,
     # even though the AI evaluation itself is still running asynchronously.
     await _run_db(commit_usage, reservation)
+    try:
+        record_bot_essay_consumption(user, kind=kind, idempotency_key=key)
+    except Exception:
+        pass
 
     await send_reply(
         update,
@@ -2587,16 +2637,8 @@ def _result_keyboard(submission_id: int) -> InlineKeyboardMarkup:
 
 
 def _essay_denied_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("💎 Tariflar", callback_data="cb_plans")],
-            [
-                InlineKeyboardButton(
-                    "🌐 Obuna sahifasi", url=f"{_site_url()}/subscribe/"
-                )
-            ],
-        ]
-    )
+    from apps.bot.quota import get_essay_denied_keyboard
+    return get_essay_denied_keyboard(_site_url())
 
 
 def _pages_keyboard() -> InlineKeyboardMarkup:
@@ -5142,8 +5184,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await _dispatch_handler(update, context, premium_handler)
         elif data == "cb_plans":
             await _dispatch_handler(update, context, plans_and_payment_handler)
-        elif data in ("pay_plan_starter", "pay_plan_pro", "pay_plan_premium"):
-            if data == "pay_plan_starter":
+        elif data in ("cb_plan_starter", "cb_plan_pro", "pay_plan_starter", "pay_plan_pro", "pay_plan_premium"):
+            if data in ("cb_plan_starter", "pay_plan_starter"):
                 selected_slug = "starter"
                 plan_name = "Starter"
             elif data == "pay_plan_pro":
@@ -5233,6 +5275,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await _dispatch_handler(
                     update, context, lambda u, c: _show_student_detail(u, c, student_id)
                 )
+        # -- Module 3: Teacher CRM (Davomat, Tolovlar, Cheklarni tasdiqlash) ---
+        elif data.startswith(("dav_", "crm_remind_", "rcpt_appr_", "rcpt_rej_")):
+            from apps.bot.crm import handle_crm_callback
+            await handle_crm_callback(update, context, data)
         # -- Teacher groups, attendance and group reports ------------------------
         elif data == "tgrplist":
             await _dispatch_handler(update, context, groups_handler)
@@ -5944,16 +5990,24 @@ async def payment_screenshot_handler(
                     f"Rahmat, darslaringizda omad tilaymiz!",
                     parse_mode="HTML",
                 )
-                # Ustoziga xabarnoma
+                # Ustoziga interaktiv tasdiqlash xabarnomasi (Module 3)
                 if enrollment.group.teacher and enrollment.group.teacher.telegram_chat_id:
-                    t_msg = (
-                        f"✅ <b>O'quvchi to'lov qildi! (OCR Chek)</b>\n\n"
-                        f"👤 O'quvchi: <b>{user.get_full_name()}</b>\n"
-                        f"👥 Guruh: <b>{enrollment.group.name}</b>\n"
-                        f"💰 Summa: <b>{amt_str}</b>\n"
-                        f"🔢 Trans ID: <b>{ocr_res.get('transaction_id', '')}</b>"
+                    from apps.bot.crm import build_receipt_approval_prompt
+                    t_msg, t_kb = build_receipt_approval_prompt(
+                        student_name=user.get_full_name() or user.email,
+                        group_name=enrollment.group.name,
+                        amount=ocr_res.get("amount", 0),
+                        enrollment_id=enrollment.id,
                     )
-                    send_telegram_message_safe(enrollment.group.teacher.telegram_chat_id, t_msg)
+                    try:
+                        await context.bot.send_message(
+                            chat_id=enrollment.group.teacher.telegram_chat_id,
+                            text=t_msg,
+                            parse_mode="HTML",
+                            reply_markup=t_kb,
+                        )
+                    except Exception as te:
+                        logger.warning("Teacher receipt prompt delivery warning: %s", te)
     except Exception as e:
         logger.warning("OCR auto-apply tuition error: %s", e)
 
@@ -9148,7 +9202,10 @@ def setup_handlers(app) -> None:
     from apps.notifications.bot.quiz import quiz_handler, quiz_callback_handler
 
     app.add_handler(CommandHandler("quiz", quiz_handler))
+    from apps.bot.crm import davomat_handler, tolovlar_handler
     app.add_handler(CommandHandler("finance", finance_handler))
+    app.add_handler(CommandHandler("tolovlar", tolovlar_handler))
+    app.add_handler(CommandHandler("davomat", davomat_handler))
     app.add_handler(CommandHandler("vocab", vocab_handler))
     app.add_handler(CallbackQueryHandler(quiz_callback_handler, pattern=r"^quiz_"))
 
