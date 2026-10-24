@@ -1674,7 +1674,16 @@
     "plan_premium_badge": "VIP / Cheksiz",
     "plan_free_period": "so'm / umrbod",
     "plan_pro_period": "so'm / oy",
-    "plan_master_period": "so'm / oy"
+    "plan_master_period": "so'm / oy",
+    "exam_mode_strict": "Qat'iy Imtihon Rejimi",
+    "exam_mode_practice": "O'rganish va Mashq Rejimi",
+    "anticheat_warning": "Imtihon maydonidan chiqish taqiqlanadi!",
+    "evidence_title": "Matndagi Dalil va Asos",
+    "word_upgrade": "So'zlarni boyitish (C1 taklifi)",
+    "start_strict_exam": "Rasmiy Imtihonni Boshlash",
+    "start_practice_mode": "Mashq Rejimida Boshlash",
+    "audio_lock_notice": "Audio faqat bir marta yangraydi (to'xtatish yoki qaytarish mumkin emas)",
+    "ai_explanation": "AI Tushuntirish"
   },
   "ru": {
     "main": "Главное",
@@ -3351,7 +3360,16 @@
     "plan_premium_badge": "VIP / Безлимит",
     "plan_free_period": "сум / навсегда",
     "plan_pro_period": "сум / месяц",
-    "plan_master_period": "сум / месяц"
+    "plan_master_period": "сум / месяц",
+    "exam_mode_strict": "Строгий Режим Экзамена",
+    "exam_mode_practice": "Режим Практики",
+    "anticheat_warning": "Запрещено покидать окно экзамена!",
+    "evidence_title": "Доказательство в тексте",
+    "word_upgrade": "Улучшение словарного запаса",
+    "start_strict_exam": "Начать Официальный Экзамен",
+    "start_practice_mode": "Начать в Режиме Практики",
+    "audio_lock_notice": "Аудио проигрывается один раз (без паузы и перемотки)",
+    "ai_explanation": "Объяснение ИИ"
   },
   "en": {
     "main": "Main",
@@ -5028,6 +5046,15 @@
     "plan_premium_badge": "VIP / Unlimited",
     "plan_free_period": "UZS / lifetime",
     "plan_pro_period": "UZS / month",
-    "plan_master_period": "UZS / month"
+    "plan_master_period": "UZS / month",
+    "exam_mode_strict": "Strict Exam Mode",
+    "exam_mode_practice": "Practice / Study Mode",
+    "anticheat_warning": "Leaving the exam window is prohibited!",
+    "evidence_title": "Text Evidence",
+    "word_upgrade": "Vocabulary Upgrade",
+    "start_strict_exam": "Start Official Exam",
+    "start_practice_mode": "Start in Practice Mode",
+    "audio_lock_notice": "Audio plays only once (pause and seek disabled)",
+    "ai_explanation": "AI Explanation"
   }
 }

@@ -215,10 +215,12 @@ class StartAttemptView(APIView):
         self, request: Request, test_id: int, *args: Any, **kwargs: Any
     ) -> Response:
         """Yangi attempt yaratish."""
+        mode = request.data.get("mode", "strict")
         try:
             attempt = StartAttemptService.execute(
                 test_id=test_id,
                 student=request.user,
+                mode=mode,
             )
         except ValueError as e:
             logger.warning(
@@ -1002,3 +1004,103 @@ class ReportViolationView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+class EvaluateWritingView(APIView):
+    """
+    POST /api/tests/writing/evaluate/
+
+    Evaluates IELTS Writing (Task 1 / 2) or CEFR Multi-level Writing.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        from apps.payments.ai_quota import check_and_consume_ai_quota
+        from apps.tests.evidence_feedback import (
+            grade_ielts_writing_deductive,
+            grade_multilevel_writing_bmb,
+        )
+
+        allowed, quota_err = check_and_consume_ai_quota(request.user)
+        if not allowed:
+            return Response(
+                {
+                    "error": quota_err,
+                    "code": "quota_exceeded",
+                    "redirect_url": "/pricing/",
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        text = request.data.get("essay_text", "")
+        topic_title = request.data.get("topic_title", "")
+        exam_type = request.data.get("exam_type", "ielts")
+        task_type = request.data.get("task_type", "task2")
+
+        if not text or len(text.strip()) < 10:
+            return Response(
+                {"error": "Yozma ish matni kiritilishi shart."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if exam_type == "multilevel":
+            result = grade_multilevel_writing_bmb(
+                essay_text=text,
+                topic_title=topic_title,
+                task_type=task_type,
+            )
+        else:
+            result = grade_ielts_writing_deductive(
+                essay_text=text,
+                topic_title=topic_title,
+                task_type=task_type,
+            )
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class CertificateCardView(APIView):
+    """
+    GET /api/tests/attempts/<int:attempt_id>/certificate-card/
+
+    Generates the digital result card / certificate payload for IELTS or CEFR tests.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, attempt_id: int) -> Response:
+        from apps.tests.score_converter import (
+            convert_test_score_to_english_band,
+            generate_digital_certificate_payload,
+        )
+
+        attempt = (
+            TestAttempt.objects.select_related("test", "student")
+            .filter(id=attempt_id)
+            .first()
+        )
+        if not attempt:
+            return Response(
+                {"error": "Attempt topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if attempt.student_id != request.user.id and request.user.role not in ["admin", "teacher"]:
+            return Response(
+                {"error": "Ruxsat berilmagan."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        score_info = convert_test_score_to_english_band(attempt)
+        student_name = attempt.student.get_full_name() or attempt.student.username or attempt.student.email
+        exam_type_str = getattr(attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR")()
+
+        payload = generate_digital_certificate_payload(
+            student_name=student_name,
+            exam_title=attempt.test.title,
+            exam_type=exam_type_str,
+            score_info=score_info,
+            completion_date=(attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
+        )
+        return Response(payload, status=status.HTTP_200_OK)
+

@@ -29,6 +29,9 @@ from typing import Any
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
+import sys
+from apps.tests import score_converter
+sys.modules['apps.tests.services.score_converter'] = score_converter
 
 from apps.results.models import Result
 from apps.tests.models import (
@@ -122,7 +125,7 @@ class StartAttemptService:
 
     @staticmethod
     @transaction.atomic
-    def execute(test_id: int, student: Any) -> TestAttempt:
+    def execute(test_id: int, student: Any, mode: str = "strict") -> TestAttempt:
         """Yangi attempt yaratish."""
         # -- Test mavjudligini tekshirish ---------------------------------
         try:
@@ -190,10 +193,12 @@ class StartAttemptService:
         from django.db import IntegrityError
 
         try:
+            selected_mode = mode if mode in ["strict", "practice"] else "strict"
             attempt = TestAttempt.objects.create(
                 test=test,
                 student=student,
                 status=TestAttempt.Status.IN_PROGRESS,
+                mode=selected_mode,
             )
         except IntegrityError:
             raise ValueError(
@@ -1150,12 +1155,19 @@ class SubmitAttemptService:
                 if is_timeout
                 else TestAttempt.Status.COMPLETED
             )
+        from apps.tests.score_converter import raw_to_ielts_band, raw_to_cefr_multilevel
+        band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
+        cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
+
         TestAttempt.objects.filter(id=attempt.id).update(
             status=new_status,
             completed_at=now,
             score=total_score,
             percentage=percentage,
             is_passed=is_passed and grading_status == "graded",
+            raw_score=correct_count,
+            band_score=band_val,
+            cefr_level=cefr_val,
         )
 
         # -- Result modeliga saqlash (denormalized, race-safe) --------------

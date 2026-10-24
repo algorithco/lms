@@ -289,6 +289,7 @@ class TestListSerializer(serializers.ModelSerializer):
         source="course.category.name", read_only=True, default=""
     )
     subject = serializers.SerializerMethodField()
+    exam_type = serializers.CharField(read_only=True)
     audio_url = serializers.SerializerMethodField()
     is_strict_mode = serializers.SerializerMethodField()
 
@@ -306,6 +307,7 @@ class TestListSerializer(serializers.ModelSerializer):
             "mock_code",
             "audio_url",
             "is_strict_mode",
+            "exam_type",
             "difficulty",
             "time_limit_minutes",
             "max_attempts",
@@ -456,6 +458,11 @@ class AttemptSerializer(serializers.ModelSerializer):
             "subject",
             "audio_url",
             "is_strict_mode",
+            "mode",
+            "raw_score",
+            "band_score",
+            "cefr_level",
+            "section_scores",
             "status",
             "started_at",
             "completed_at",
@@ -484,6 +491,10 @@ class AttemptSerializer(serializers.ModelSerializer):
         return getattr(test, "audio_url", "") or "" if test else ""
 
     def get_is_strict_mode(self, obj: TestAttempt) -> bool:
+        if getattr(obj, "mode", None) == "practice":
+            return False
+        if getattr(obj, "mode", None) == "strict":
+            return True
         test = getattr(obj, "test", None)
         return bool(getattr(test, "is_strict_mode", False)) if test else False
 

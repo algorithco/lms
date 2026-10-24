@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.32. Rasmiy Versiya v1.27.0: Ingliz Tili Imtihonlari (IELTS & CEFR Multi-level), Cambridge Split-Screen UI, Strict vs Practice Rejimlari, DeepSeek R1 Evidence-Based AI Feedback va Ball Konvertori
+- [x] Ikki Xil Ishlash Formati (Strict Exam Mode vs Practice Mode):
+  * Test boshlanishidan oldin rejim tanlash modali: [ 🛑 Strict Exam Mode ] va [ 💡 Practice / Study Mode ].
+  * Strict Exam Mode: Fullscreen Enforcement (to'liq ekran), Tab/Window switch detection (window.onblur / visibilitychange) bilan 3 ta ogohlantirishdan keyin testni avtomatik yakunlash, nusxa olish (Ctrl+C, Ctrl+V) va kontekst menyuni bloklash, bir martalik Listening audio lock va server bilan sinxron taymer.
+  * Practice Mode: Cheklovlarsiz erkin format, audioni qayta eshitish, savollar o'rtasida erkin harakatlanish va har bir savol tagida [ 💡 AI Tushuntirish ] tugmasi.
+- [x] Kembrij 50/50 Split-Screen Dizayni (frontend/src/pages/tests/EnglishExamInterface.tsx):
+  * Chap tomonda Reading matnlari (Passage tablari), o'ng tomonda savollar palitrasi.
+  * Interaktiv sariq matn bo'yagich (Text Highlighter tool: <mark> elementi bilan ajratish).
+  * Single choice, Multiple choice, Fill-in-the-blanks, Matching va Written savol turlari.
+- [x] Evidence-Based AI Feedback Dvigateli (`deepseek/deepseek-r1-0528`):
+  * `apps/tests/evidence_feedback.py`:
+    - Reading/Listening Evidence Extraction: Direct Quote (matndagi aniq jumla), Why Wrong (o'quvchi nega xato qilgani va chalg'ituvchi tahlili), Synonym Matching (savol va matn sinonimlari tahlili).
+    - Multi-level Writing BMB: 4 ta mezon (Task Achievement, Coherence, Lexical Resource, Grammar), 75 ballik shkala, C1 Word Upgrades (B1/B2 so'zlarni C1 darajadagi leksikaga almashtirish).
+    - IELTS Writing: 4 ta mezon (TR, CC, LR, GRA), deduktiv baholash (Band 9.0 dan pasayish), Band 8.0+ Model Paragraph qayta yozilishi.
+- [x] Ball Konvertori va Raqamli Sertifikat:
+  * `apps/tests/score_converter.py` & `apps/tests/services/score_converter.py`:
+    - IELTS Band (1.0-9.0) va CEFR Multi-level (A2, B1, B2, C1) shkalalariga avtomatik o'tkazish.
+    - Kembrij yarim ballik yaxlitlash qoidasi (.25 -> .5, .75 -> 1.0).
+    - Raqamli sertifikat kartasi API (`GET /api/tests/attempts/<id>/certificate-card/`).
+- [x] 3 Tildagi Lokalizatsiya va API Integratsiyasi:
+  * `frontend/src/i18n/translations.json` (UZ, RU, EN) yangi kalitlar bilan to'ldirildi.
+  * `frontend/src/pages/TestDetail.tsx` da rejim tanlash modali ulandi va `/english-exam/:attemptId` yo'nalishiga o'tish amalga oshirildi.
+- [x] Sifat Nazorati (QA Gate 100% PASS):
+  * `pytest tests/test_english_exam_evidence_converter.py`: 13/13 test 100% muvaffaqiyatli o'tdi.
+  * `ruff check apps/ tests/ config/`: 0 xatolik.
+  * Frontend: `npm run build` 2.25 soniyada 0 xato bilan yig'ildi. `oxlint` 0 xato.
+- [x] Strict Isolation & Zero-Downtime VPS Deploy:
+  * `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlanadi.
+  * Contabo VPS (`169.58.58.229`) da yangilanishlar bajariladi va `https://grandec.uz/healthz/` (HTTP 200 OK) orqali tekshiriladi.
+
 ### 2.31. Rasmiy Versiya v1.26.0: Ustozlar CRM, Litsenziya Kvotalari, Kvitansiya OCR va AI Vocab Generator (100% Yashil CI, PR #100 va Zero-Downtime VPS Deploy)
 - [x] Admin Kvotalari va Ustozlarning Litsenziya Boshqaruvi:
   * `TeacherProfile` modeli (`pro_quota_balance`, `premium_quota_balance`) yaratildi va `User` profiliga bog'landi.
