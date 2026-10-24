@@ -77,60 +77,75 @@ def build_fallback_exercises(words: List[str]) -> Dict[str, Any]:
         "o'zgaruvchan holat",
     ]
 
-
     for idx, word in enumerate(words):
         w_low = word.lower()
         uz_meaning = DICT_UZ.get(w_low, f"'{word}' so'zining o'zbekcha tarjimasi")
 
         # Distractor options
         other_words = [w for w in words if w.lower() != w_low]
-        distractors = random.sample(other_words, min(3, len(other_words))) if len(other_words) >= 3 else ["option_b", "option_c", "option_d"]
+        distractors = (
+            random.sample(other_words, min(3, len(other_words)))
+            if len(other_words) >= 3
+            else ["option_b", "option_c", "option_d"]
+        )
 
         # 1. Multiple Choice Quiz
         quiz_options = [word] + distractors[:3]
         random.shuffle(quiz_options)
-        format_1_quiz.append({
-            "id": idx + 1,
-            "word": word,
-            "question": f"Which word best matches the meaning: '{uz_meaning}'?",
-            "options": quiz_options,
-            "correct_answer": word,
-            "explanation": f"'{word}' means {uz_meaning}.",
-        })
+        format_1_quiz.append(
+            {
+                "id": idx + 1,
+                "word": word,
+                "question": f"Which word best matches the meaning: '{uz_meaning}'?",
+                "options": quiz_options,
+                "correct_answer": word,
+                "explanation": f"'{word}' means {uz_meaning}.",
+            }
+        )
 
         # 2. Spelling / Imlo
         letters = list(w_low)
         random.shuffle(letters)
-        hint_pattern = w_low[0] + " " + " ".join(["_"] * (len(w_low) - 2)) + " " + w_low[-1] if len(w_low) > 3 else w_low[0] + " _ _"
-        format_2_spelling.append({
-            "id": idx + 1,
-            "word": word,
-            "prompt": f"O'zbekcha ma'nosi: {uz_meaning}",
-            "hint_pattern": hint_pattern,
-            "scrambled_letters": letters,
-            "correct_word": word,
-        })
+        hint_pattern = (
+            w_low[0] + " " + " ".join(["_"] * (len(w_low) - 2)) + " " + w_low[-1]
+            if len(w_low) > 3
+            else w_low[0] + " _ _"
+        )
+        format_2_spelling.append(
+            {
+                "id": idx + 1,
+                "word": word,
+                "prompt": f"O'zbekcha ma'nosi: {uz_meaning}",
+                "hint_pattern": hint_pattern,
+                "scrambled_letters": letters,
+                "correct_word": word,
+            }
+        )
 
         # 3. Eng -> Uzb
         uz_dist = random.sample(dummy_distractors_uz, min(3, len(dummy_distractors_uz)))
         uz_opts = [uz_meaning] + uz_dist
         random.shuffle(uz_opts)
-        format_3_eng_uzb.append({
-            "id": idx + 1,
-            "word": word,
-            "options": uz_opts,
-            "correct_answer": uz_meaning,
-        })
+        format_3_eng_uzb.append(
+            {
+                "id": idx + 1,
+                "word": word,
+                "options": uz_opts,
+                "correct_answer": uz_meaning,
+            }
+        )
 
         # 4. Uzb -> Eng
         en_opts = [word] + distractors[:3]
         random.shuffle(en_opts)
-        format_4_uzb_eng.append({
-            "id": idx + 1,
-            "uzbek_word": uz_meaning,
-            "options": en_opts,
-            "correct_answer": word,
-        })
+        format_4_uzb_eng.append(
+            {
+                "id": idx + 1,
+                "uzbek_word": uz_meaning,
+                "options": en_opts,
+                "correct_answer": word,
+            }
+        )
 
     return {
         "format_1_quiz": format_1_quiz,
@@ -152,12 +167,14 @@ def generate_exercises_with_ai(words: List[str]) -> Dict[str, Any]:
     )
 
     if not api_key:
-        logger.info("No AI API key found; using high-quality deterministic fallback exercises.")
+        logger.info(
+            "No AI API key found; using high-quality deterministic fallback exercises."
+        )
         return build_fallback_exercises(words)
 
     prompt = f"""You are an elite English language curriculum architect.
 Given this list of {len(words)} English vocabulary words:
-{', '.join(words)}
+{", ".join(words)}
 
 Generate 4 interactive exercise formats for these words:
 1. "format_1_quiz": Array of objects: {{"id": int, "word": str, "question": str, "options": [4 strings], "correct_answer": str, "explanation": str}}
@@ -191,10 +208,20 @@ Output strictly valid JSON with top-level keys:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
             parsed = json.loads(content)
-            if all(k in parsed for k in ["format_1_quiz", "format_2_spelling", "format_3_eng_uzb", "format_4_uzb_eng"]):
+            if all(
+                k in parsed
+                for k in [
+                    "format_1_quiz",
+                    "format_2_spelling",
+                    "format_3_eng_uzb",
+                    "format_4_uzb_eng",
+                ]
+            ):
                 return parsed
     except Exception as e:
-        logger.warning("AI vocabulary generation call encountered: %s. Falling back.", e)
+        logger.warning(
+            "AI vocabulary generation call encountered: %s. Falling back.", e
+        )
 
     return build_fallback_exercises(words)
 

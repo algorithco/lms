@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { apiFetch } from '../lib/api';
@@ -50,6 +50,11 @@ export default function TeacherFinanceDashboard() {
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  }, []);
+
   // Load Teacher Groups
   useEffect(() => {
     async function fetchGroups() {
@@ -93,10 +98,7 @@ export default function TeacherFinanceDashboard() {
     fetchFinance();
   }, [selectedGroupId]);
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
-  };
+
 
   // 1-Click Reminder to all debtors
   const handleSendReminders = async () => {

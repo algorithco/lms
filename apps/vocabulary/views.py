@@ -11,7 +11,11 @@ from rest_framework.response import Response
 from apps.courses.models import StudentGroup, Homework
 from .models import VocabularyPack, StudentWordMistake
 from .serializers import VocabularyPackSerializer, StudentWordMistakeSerializer
-from .services.vocab_generator import clean_word_list, generate_exercises_with_ai, create_vocabulary_pack
+from .services.vocab_generator import (
+    clean_word_list,
+    generate_exercises_with_ai,
+    create_vocabulary_pack,
+)
 
 
 @api_view(["POST"])
@@ -43,14 +47,18 @@ def generate_vocabulary_view(request):
             teacher=request.user,
             group=group,
         )
-        return Response(VocabularyPackSerializer(pack).data, status=status.HTTP_201_CREATED)
+        return Response(
+            VocabularyPackSerializer(pack).data, status=status.HTTP_201_CREATED
+        )
     else:
         exercises = generate_exercises_with_ai(words)
-        return Response({
-            "title": title,
-            "word_count": len(words),
-            "exercises_data": exercises,
-        })
+        return Response(
+            {
+                "title": title,
+                "word_count": len(words),
+                "exercises_data": exercises,
+            }
+        )
 
 
 @api_view(["GET"])
@@ -64,7 +72,7 @@ def vocabulary_packs_list_view(request):
         # Student: uning guruhlaridagi to'plamlar
         user_groups = user.student_groups.all()
         qs = VocabularyPack.objects.filter(group__in=user_groups)
-    
+
     serializer = VocabularyPackSerializer(qs[:50], many=True)
     return Response(serializer.data)
 
@@ -81,7 +89,9 @@ def assign_vocabulary_homework_view(request):
     group = get_object_or_404(StudentGroup, id=group_id)
 
     if group.teacher != request.user and not request.user.is_staff:
-        return Response({"error": "Faqat guruh ustozi vazifa biriktira oladi."}, status=403)
+        return Response(
+            {"error": "Faqat guruh ustozi vazifa biriktira oladi."}, status=403
+        )
 
     deadline = timezone.now() + timezone.timedelta(days=due_days)
 
@@ -95,12 +105,14 @@ def assign_vocabulary_homework_view(request):
     pack.group = group
     pack.save(update_fields=["group"])
 
-    return Response({
-        "status": "success",
-        "message": f"Lug'at to'plami '{group.name}' guruhiga muvaffaqiyatli biriktirildi.",
-        "homework_id": homework.id,
-        "due_date": deadline.strftime("%Y-%m-%d %H:%M"),
-    })
+    return Response(
+        {
+            "status": "success",
+            "message": f"Lug'at to'plami '{group.name}' guruhiga muvaffaqiyatli biriktirildi.",
+            "homework_id": homework.id,
+            "due_date": deadline.strftime("%Y-%m-%d %H:%M"),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -111,8 +123,9 @@ def spaced_repetition_quiz_view(request):
     """
     student = request.user
     mistakes = list(
-        StudentWordMistake.objects.filter(student=student, is_mastered=False)
-        .order_by("-mistake_count", "next_review_at")[:10]
+        StudentWordMistake.objects.filter(student=student, is_mastered=False).order_by(
+            "-mistake_count", "next_review_at"
+        )[:10]
     )
 
     if not mistakes:
@@ -129,42 +142,55 @@ def spaced_repetition_quiz_view(request):
             distractors = ["dangasa", "qo'pol", "shoshqaloq", "noto'g'ri fikr"]
             opts = [m] + random.sample(distractors, 3)
             random.shuffle(opts)
-            questions.append({
-                "id": idx + 1,
-                "word": w,
-                "question": f"'{w}' so'zining to'g'ri o'zbekcha tarjimasi qaysi?",
-                "options": opts,
-                "correct_answer": m,
-                "streak": 0,
-            })
-        return Response({
-            "status": "sample",
-            "message": "Hozircha xatolar yo'q. Mashg'ulot uchun namunaviy viktorina:",
-            "questions": questions,
-        })
+            questions.append(
+                {
+                    "id": idx + 1,
+                    "word": w,
+                    "question": f"'{w}' so'zining to'g'ri o'zbekcha tarjimasi qaysi?",
+                    "options": opts,
+                    "correct_answer": m,
+                    "streak": 0,
+                }
+            )
+        return Response(
+            {
+                "status": "sample",
+                "message": "Hozircha xatolar yo'q. Mashg'ulot uchun namunaviy viktorina:",
+                "questions": questions,
+            }
+        )
 
     selected = random.sample(mistakes, min(5, len(mistakes)))
     questions = []
     for item in selected:
         meaning = item.translation_uz or item.definition or "To'g'ri tarjima"
-        distractors = ["tezkor qaror", "qoniqarsiz natija", "noma'lum xulosa", "qarama-qarshi holat"]
+        distractors = [
+            "tezkor qaror",
+            "qoniqarsiz natija",
+            "noma'lum xulosa",
+            "qarama-qarshi holat",
+        ]
         opts = [meaning] + random.sample(distractors, 3)
         random.shuffle(opts)
-        questions.append({
-            "id": item.id,
-            "word": item.word,
-            "question": f"'{item.word}' so'zining ma'nosi qaysi?",
-            "options": opts,
-            "correct_answer": meaning,
-            "streak": item.consecutive_correct_streak,
-            "mistake_count": item.mistake_count,
-        })
+        questions.append(
+            {
+                "id": item.id,
+                "word": item.word,
+                "question": f"'{item.word}' so'zining ma'nosi qaysi?",
+                "options": opts,
+                "correct_answer": meaning,
+                "streak": item.consecutive_correct_streak,
+                "mistake_count": item.mistake_count,
+            }
+        )
 
-    return Response({
-        "status": "active",
-        "total_active_mistakes": len(mistakes),
-        "questions": questions,
-    })
+    return Response(
+        {
+            "status": "active",
+            "total_active_mistakes": len(mistakes),
+            "questions": questions,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -194,16 +220,18 @@ def spaced_repetition_submit_view(request):
 
     newly_mastered = mistake.record_attempt(is_correct)
 
-    return Response({
-        "status": "success",
-        "word": mistake.word,
-        "is_correct": is_correct,
-        "streak": mistake.consecutive_correct_streak,
-        "is_mastered": mistake.is_mastered,
-        "newly_mastered": newly_mastered,
-        "message": (
-            "🎉 Tabriklaymiz! Siz ushbu so'zni to'liq yod oldingiz!"
-            if newly_mastered
-            else f"Natija qayd etildi. Joriy to'g'ri seriya: {mistake.consecutive_correct_streak}/3"
-        ),
-    })
+    return Response(
+        {
+            "status": "success",
+            "word": mistake.word,
+            "is_correct": is_correct,
+            "streak": mistake.consecutive_correct_streak,
+            "is_mastered": mistake.is_mastered,
+            "newly_mastered": newly_mastered,
+            "message": (
+                "🎉 Tabriklaymiz! Siz ushbu so'zni to'liq yod oldingiz!"
+                if newly_mastered
+                else f"Natija qayd etildi. Joriy to'g'ri seriya: {mistake.consecutive_correct_streak}/3"
+            ),
+        }
+    )

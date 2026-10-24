@@ -208,8 +208,9 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIn(f"essay_improve:{submission.id}", callbacks)
         self.assertIn(f"essay_review:{submission.id}", callbacks)
 
+    @patch("apps.payments.ai_quota.check_and_consume_ai_quota", return_value=(True, ""))
     @patch("apps.essays.services.generate_improved_essay")
-    def test_essay_improve_callback(self, mock_improve):
+    def test_essay_improve_callback(self, mock_improve, mock_quota):
         mock_improve.return_value = (
             "Bu AI tomonidan takomillashtirilgan yangi mukammal esse varianti."
         )
@@ -440,7 +441,10 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertEqual(buttons[0], ["✍️ Esse yozish", "📚 Test ishlash"])
         self.assertEqual(buttons[1], ["📝 Mock Test (#kod)", "⚔️ Arena (1v1)"])
         self.assertEqual(buttons[2][0], "👤 Natijalar / Profil")
-        self.assertIn(buttons[2][1], ["💳 Tariflar / Obuna", "💳 Obunani yangilash / To'lov qilish"])
+        self.assertIn(
+            buttons[2][1],
+            ["💳 Tariflar / Obuna", "💳 Obunani yangilash / To'lov qilish"],
+        )
 
     # 11. Quiz mistake AI explainer
     def test_quiz_explain_callback_returns_explanation(self):

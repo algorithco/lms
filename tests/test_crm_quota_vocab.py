@@ -17,7 +17,10 @@ from apps.courses.models import Course, StudentGroup, GroupEnrollment, Category
 from apps.payments.models import SubscriptionPlan, UserSubscription
 from apps.payments.receipt_scanner import parse_receipt_text
 from apps.vocabulary.models import VocabularyPack, StudentWordMistake
-from apps.vocabulary.services.vocab_generator import clean_word_list, build_fallback_exercises
+from apps.vocabulary.services.vocab_generator import (
+    clean_word_list,
+    build_fallback_exercises,
+)
 
 User = get_user_model()
 
@@ -41,7 +44,9 @@ def teacher(db):
         last_name="Qodirov",
         role=User.Role.TEACHER,
     )
-    TeacherProfile.objects.create(teacher=user, pro_quota_balance=5, premium_quota_balance=2)
+    TeacherProfile.objects.create(
+        teacher=user, pro_quota_balance=5, premium_quota_balance=2
+    )
     return user
 
 
@@ -70,6 +75,7 @@ def student_group(db, teacher, student):
 # ===========================================================================
 # 1. QUOTA ALLOCATION & ACTIVATION TESTS
 # ===========================================================================
+
 
 @pytest.mark.django_db
 def test_admin_quota_allocation(client, superadmin, teacher):
@@ -130,6 +136,7 @@ def test_teacher_quota_insufficient(client, teacher, student, student_group):
 # 2. GROUP ENROLLMENT & TEACHER CRM TESTS
 # ===========================================================================
 
+
 @pytest.mark.django_db
 def test_group_enrollment_lifecycle(student_group, student):
     """Verifies GroupEnrollment status updates and payment recording."""
@@ -176,6 +183,7 @@ def test_group_finance_summary_api(client, teacher, student_group):
 # 3. CLICK / PAYME RECEIPT OCR PARSER TESTS
 # ===========================================================================
 
+
 def test_parse_receipt_click_sample():
     """Verifies parsing of a standard Click receipt snippet."""
     sample_text = """
@@ -212,6 +220,7 @@ def test_parse_receipt_payme_sample():
 # ===========================================================================
 # 4. VOCABULARY GENERATOR & SPACED REPETITION TESTS
 # ===========================================================================
+
 
 def test_clean_word_list():
     raw = "1. resilient\n2. persistent, 3. ubiquitous\nmeticulous\nresilient"

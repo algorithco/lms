@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -15,43 +14,174 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='FraudLog',
+            name="FraudLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('receipt_hash', models.CharField(blank=True, db_index=True, default='', max_length=64, verbose_name='rasm xeshi')),
-                ('transaction_id', models.CharField(blank=True, db_index=True, default='', max_length=128, verbose_name='tranzaksiya ID')),
-                ('reason', models.TextField(verbose_name='firibgarlik sababi')),
-                ('strike_count', models.PositiveIntegerField(default=1, verbose_name='strike soni')),
-                ('banned', models.BooleanField(default=False, verbose_name='bloklandimi')),
-                ('metadata', models.JSONField(blank=True, default=dict, verbose_name="qo'shimcha ma'lumotlar")),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='aniqlangan vaqt')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='fraud_logs', to=settings.AUTH_USER_MODEL, verbose_name='foydalanuvchi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "receipt_hash",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        default="",
+                        max_length=64,
+                        verbose_name="rasm xeshi",
+                    ),
+                ),
+                (
+                    "transaction_id",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        default="",
+                        max_length=128,
+                        verbose_name="tranzaksiya ID",
+                    ),
+                ),
+                ("reason", models.TextField(verbose_name="firibgarlik sababi")),
+                (
+                    "strike_count",
+                    models.PositiveIntegerField(default=1, verbose_name="strike soni"),
+                ),
+                (
+                    "banned",
+                    models.BooleanField(default=False, verbose_name="bloklandimi"),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True, default=dict, verbose_name="qo'shimcha ma'lumotlar"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="aniqlangan vaqt"
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="fraud_logs",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="foydalanuvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Firibgarlik jurnali',
-                'verbose_name_plural': 'Firibgarlik jurnallari',
-                'ordering': ['-created_at'],
+                "verbose_name": "Firibgarlik jurnali",
+                "verbose_name_plural": "Firibgarlik jurnallari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='PaymentReceipt',
+            name="PaymentReceipt",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('plan_type', models.CharField(choices=[('starter', 'Starter'), ('pro', 'Pro'), ('premium', 'Premium')], db_index=True, max_length=20, verbose_name='tarif turi')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12, verbose_name='summa')),
-                ('payment_system', models.CharField(choices=[('click', 'Click'), ('payme', 'Payme'), ('uzum', 'Uzum'), ('bank_card', 'Bank kartasi'), ('unknown', "Noma'lum")], db_index=True, default='unknown', max_length=20, verbose_name="to'lov tizimi")),
-                ('transaction_id', models.CharField(db_index=True, max_length=128, unique=True, verbose_name='tranzaksiya ID')),
-                ('receipt_image', models.ImageField(upload_to='receipts/%Y/%m/', verbose_name='chek rasmi')),
-                ('receipt_hash', models.CharField(db_index=True, max_length=64, verbose_name='rasm xeshi (SHA-256)')),
-                ('is_verified', models.BooleanField(db_index=True, default=False, verbose_name='tasdiqlangan')),
-                ('admin_note', models.TextField(blank=True, default='', verbose_name='admin izohi')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='verified_payment_receipts', to=settings.AUTH_USER_MODEL, verbose_name='foydalanuvchi')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "plan_type",
+                    models.CharField(
+                        choices=[
+                            ("starter", "Starter"),
+                            ("pro", "Pro"),
+                            ("premium", "Premium"),
+                        ],
+                        db_index=True,
+                        max_length=20,
+                        verbose_name="tarif turi",
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=12, verbose_name="summa"
+                    ),
+                ),
+                (
+                    "payment_system",
+                    models.CharField(
+                        choices=[
+                            ("click", "Click"),
+                            ("payme", "Payme"),
+                            ("uzum", "Uzum"),
+                            ("bank_card", "Bank kartasi"),
+                            ("unknown", "Noma'lum"),
+                        ],
+                        db_index=True,
+                        default="unknown",
+                        max_length=20,
+                        verbose_name="to'lov tizimi",
+                    ),
+                ),
+                (
+                    "transaction_id",
+                    models.CharField(
+                        db_index=True,
+                        max_length=128,
+                        unique=True,
+                        verbose_name="tranzaksiya ID",
+                    ),
+                ),
+                (
+                    "receipt_image",
+                    models.ImageField(
+                        upload_to="receipts/%Y/%m/", verbose_name="chek rasmi"
+                    ),
+                ),
+                (
+                    "receipt_hash",
+                    models.CharField(
+                        db_index=True,
+                        max_length=64,
+                        verbose_name="rasm xeshi (SHA-256)",
+                    ),
+                ),
+                (
+                    "is_verified",
+                    models.BooleanField(
+                        db_index=True, default=False, verbose_name="tasdiqlangan"
+                    ),
+                ),
+                (
+                    "admin_note",
+                    models.TextField(
+                        blank=True, default="", verbose_name="admin izohi"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="verified_payment_receipts",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="foydalanuvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "To'lov cheki",
-                'verbose_name_plural': "To'lov cheklari",
-                'ordering': ['-created_at'],
+                "verbose_name": "To'lov cheki",
+                "verbose_name_plural": "To'lov cheklari",
+                "ordering": ["-created_at"],
             },
         ),
     ]

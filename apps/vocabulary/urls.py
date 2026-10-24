@@ -14,5 +14,7 @@ urlpatterns = [
     path("packs/", vocabulary_packs_list_view, name="packs_list"),
     path("assign-homework/", assign_vocabulary_homework_view, name="assign_homework"),
     path("spaced-repetition/quiz/", spaced_repetition_quiz_view, name="spaced_quiz"),
-    path("spaced-repetition/submit/", spaced_repetition_submit_view, name="spaced_submit"),
+    path(
+        "spaced-repetition/submit/", spaced_repetition_submit_view, name="spaced_submit"
+    ),
 ]

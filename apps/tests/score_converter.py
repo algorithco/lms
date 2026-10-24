@@ -15,7 +15,9 @@ from decimal import Decimal
 from typing import Any
 
 
-def raw_to_ielts_band(raw_score: int | float | Decimal, total_questions: int = 40) -> Decimal:
+def raw_to_ielts_band(
+    raw_score: int | float | Decimal, total_questions: int = 40
+) -> Decimal:
     """
     Convert raw score to official IELTS Band (1.0 - 9.0).
 
@@ -246,7 +248,9 @@ def generate_digital_certificate_payload(
     from django.utils import timezone
 
     date_str = completion_date or timezone.now().strftime("%d.%m.%Y")
-    cert_no = certificate_number or f"GR-EN-{int(timezone.now().timestamp()) % 1000000:06d}"
+    cert_no = (
+        certificate_number or f"GR-EN-{int(timezone.now().timestamp()) % 1000000:06d}"
+    )
 
     overall_band = score_info.get("ielts_band", 6.5)
     overall_cefr = score_info.get("cefr_level", "B2")

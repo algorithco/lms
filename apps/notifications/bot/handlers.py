@@ -561,7 +561,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     if user.has_pro_access
                     else (
                         "Starter"
-                        if getattr(getattr(user, "profile", None), "plan", "") == "starter"
+                        if getattr(getattr(user, "profile", None), "plan", "")
+                        == "starter"
                         else "Free (Bepul)"
                     )
                 )
@@ -573,8 +574,14 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     f"💎 Tarif: <b>{plan_label}</b>\n\n"
                     f"Endi saytdagi barcha natijalaringiz, hisob balansingiz va kvotalaringiz ushbu bot bilan 100% sinxronlashdi!"
                 )
-                keyboard = _persistent_menu_keyboard(user.role.lower()) if hasattr(user, "role") else None
-                await update.message.reply_text(conf_msg, parse_mode="HTML", reply_markup=keyboard)
+                keyboard = (
+                    _persistent_menu_keyboard(user.role.lower())
+                    if hasattr(user, "role")
+                    else None
+                )
+                await update.message.reply_text(
+                    conf_msg, parse_mode="HTML", reply_markup=keyboard
+                )
                 return
 
         messages = {
@@ -2686,6 +2693,7 @@ def _result_keyboard(submission_id: int) -> InlineKeyboardMarkup:
 
 def _essay_denied_keyboard() -> InlineKeyboardMarkup:
     from apps.bot.quota import get_essay_denied_keyboard
+
     return get_essay_denied_keyboard(_site_url())
 
 
@@ -5246,7 +5254,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await _dispatch_handler(update, context, premium_handler)
         elif data == "cb_plans":
             await _dispatch_handler(update, context, plans_and_payment_handler)
-        elif data in ("cb_plan_starter", "cb_plan_pro", "pay_plan_starter", "pay_plan_pro", "pay_plan_premium"):
+        elif data in (
+            "cb_plan_starter",
+            "cb_plan_pro",
+            "pay_plan_starter",
+            "pay_plan_pro",
+            "pay_plan_premium",
+        ):
             if data in ("cb_plan_starter", "pay_plan_starter"):
                 selected_slug = "starter"
                 plan_name = "Starter"
@@ -5340,6 +5354,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # -- Module 3: Teacher CRM (Davomat, Tolovlar, Cheklarni tasdiqlash) ---
         elif data.startswith(("dav_", "crm_remind_", "rcpt_appr_", "rcpt_rej_")):
             from apps.bot.crm import handle_crm_callback
+
             await handle_crm_callback(update, context, data)
         # -- Teacher groups, attendance and group reports ------------------------
         elif data == "tgrplist":
@@ -6061,8 +6076,11 @@ async def payment_screenshot_handler(
 
         ocr_res = scan_receipt_image(bytes(file_bytes))
         if ocr_res.get("is_valid") and ocr_res.get("amount", 0) >= 10000:
+
             def _apply_tuition_payment():
-                enrollment = GroupEnrollment.objects.filter(student=user, is_active=True).first()
+                enrollment = GroupEnrollment.objects.filter(
+                    student=user, is_active=True
+                ).first()
                 if enrollment:
                     enrollment.record_payment(amount=ocr_res["amount"])
                     return enrollment
@@ -6082,8 +6100,12 @@ async def payment_screenshot_handler(
                     parse_mode="HTML",
                 )
                 # Ustoziga interaktiv tasdiqlash xabarnomasi (Module 3)
-                if enrollment.group.teacher and enrollment.group.teacher.telegram_chat_id:
+                if (
+                    enrollment.group.teacher
+                    and enrollment.group.teacher.telegram_chat_id
+                ):
                     from apps.bot.crm import build_receipt_approval_prompt
+
                     t_msg, t_kb = build_receipt_approval_prompt(
                         student_name=user.get_full_name() or user.email,
                         group_name=enrollment.group.name,
@@ -6098,7 +6120,9 @@ async def payment_screenshot_handler(
                             reply_markup=t_kb,
                         )
                     except Exception as te:
-                        logger.warning("Teacher receipt prompt delivery warning: %s", te)
+                        logger.warning(
+                            "Teacher receipt prompt delivery warning: %s", te
+                        )
     except Exception as e:
         logger.warning("OCR auto-apply tuition error: %s", e)
 
@@ -9294,6 +9318,7 @@ def setup_handlers(app) -> None:
 
     app.add_handler(CommandHandler("quiz", quiz_handler))
     from apps.bot.crm import davomat_handler, tolovlar_handler
+
     app.add_handler(CommandHandler("finance", finance_handler))
     app.add_handler(CommandHandler("tolovlar", tolovlar_handler))
     app.add_handler(CommandHandler("davomat", davomat_handler))
@@ -9408,10 +9433,10 @@ async def post_init(app) -> None:
     logger.info("Bot commands menu set.")
 
 
-
 # ===========================================================================
 # 2 & 3-MODUL: Ustozlar Moliya CRM (/finance) va 4-MODUL: Lug'at (/vocab)
 # ===========================================================================
+
 
 async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -9448,6 +9473,7 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     def get_finance_data():
         from django.utils import timezone
+
         groups = StudentGroup.objects.filter(teacher=user)
         total_students = 0
         total_collected = 0
@@ -9457,7 +9483,9 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         for g in groups:
             sync_group_students(g)
-            enrollments = g.group_enrollments.filter(is_active=True).select_related("student")
+            enrollments = g.group_enrollments.filter(is_active=True).select_related(
+                "student"
+            )
             for e in enrollments:
                 total_students += 1
                 e.update_status(today)
@@ -9465,13 +9493,19 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     total_collected += float(e.monthly_fee)
                 else:
                     total_pending += float(e.monthly_fee)
-                    debtors.append({
-                        "name": e.student.get_full_name(),
-                        "group": g.name,
-                        "due": e.next_payment_due.strftime("%d.%m.%Y") if e.next_payment_due else "Muddatsiz",
-                        "fee": float(e.monthly_fee),
-                        "status": "Muddati o'tgan" if e.payment_status == GroupEnrollment.PaymentStatus.OVERDUE else "To'lov yaqin",
-                    })
+                    debtors.append(
+                        {
+                            "name": e.student.get_full_name(),
+                            "group": g.name,
+                            "due": e.next_payment_due.strftime("%d.%m.%Y")
+                            if e.next_payment_due
+                            else "Muddatsiz",
+                            "fee": float(e.monthly_fee),
+                            "status": "Muddati o'tgan"
+                            if e.payment_status == GroupEnrollment.PaymentStatus.OVERDUE
+                            else "To'lov yaqin",
+                        }
+                    )
         return {
             "groups_count": groups.count(),
             "total_students": total_students,
@@ -9502,7 +9536,9 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         lines.append(f"⚠️ <b>Qarzdor o'quvchilar ({len(debtors_list)} nafar):</b>")
         for idx, d in enumerate(debtors_list[:10], 1):
             fee_d = f"{d['fee']:,.0f} so'm".replace(",", " ")
-            lines.append(f"{idx}. <b>{d['name']}</b> ({d['group']}) — {fee_d} [{d['status']}]")
+            lines.append(
+                f"{idx}. <b>{d['name']}</b> ({d['group']}) — {fee_d} [{d['status']}]"
+            )
         if len(debtors_list) > 10:
             lines.append(f"<i>...va yana {len(debtors_list) - 10} nafar o'quvchi</i>")
     else:
@@ -9510,12 +9546,14 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     keyboard = []
     if debtors_list:
-        keyboard.append([
-            InlineKeyboardButton(
-                "📢 Barcha qarzdorlarga eslatma yuborish",
-                callback_data="crm_remind_all_debtors",
-            )
-        ])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    "📢 Barcha qarzdorlarga eslatma yuborish",
+                    callback_data="crm_remind_all_debtors",
+                )
+            ]
+        )
 
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     await update.message.reply_text(
@@ -9550,8 +9588,9 @@ async def vocab_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     def get_vocab_word():
         mistakes = list(
-            StudentWordMistake.objects.filter(student=user, is_mastered=False)
-            .order_by("-mistake_count", "next_review_at")[:10]
+            StudentWordMistake.objects.filter(student=user, is_mastered=False).order_by(
+                "-mistake_count", "next_review_at"
+            )[:10]
         )
         if mistakes:
             chosen = random.choice(mistakes)
@@ -9573,7 +9612,12 @@ async def vocab_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             streak = 0
             mistake_id = 0
 
-        distractors = ["tezkor qaror", "qoniqarsiz natija", "noma'lum xulosa", "qarama-qarshi holat"]
+        distractors = [
+            "tezkor qaror",
+            "qoniqarsiz natija",
+            "noma'lum xulosa",
+            "qarama-qarshi holat",
+        ]
         opts = [meaning] + random.sample(distractors, 3)
         random.shuffle(opts)
         return {

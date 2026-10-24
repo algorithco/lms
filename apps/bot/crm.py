@@ -60,13 +60,19 @@ def build_davomat_keyboard(
         keyboard.append(row)
 
     # Action buttons
-    keyboard.append([
-        InlineKeyboardButton("✅ Barchasi keldi", callback_data=f"dav_all_{group_id}"),
-        InlineKeyboardButton("💾 Saqlash", callback_data=f"dav_save_{group_id}"),
-    ])
-    keyboard.append([
-        InlineKeyboardButton("🔙 Guruhlar", callback_data="dav_groups"),
-    ])
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                "✅ Barchasi keldi", callback_data=f"dav_all_{group_id}"
+            ),
+            InlineKeyboardButton("💾 Saqlash", callback_data=f"dav_save_{group_id}"),
+        ]
+    )
+    keyboard.append(
+        [
+            InlineKeyboardButton("🔙 Guruhlar", callback_data="dav_groups"),
+        ]
+    )
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -94,7 +100,9 @@ def build_tolovlar_text(summary: dict[str, Any]) -> str:
         lines.append("⚠️ <b>Qarzdorlar ro'yxati:</b>")
         for idx, d in enumerate(debtors[:15], 1):
             fee_str = f"{d['fee']:,.0f} so'm".replace(",", " ")
-            lines.append(f"{idx}. <b>{d['student_name']}</b> — {fee_str} ({d['next_due']})")
+            lines.append(
+                f"{idx}. <b>{d['student_name']}</b> — {fee_str} ({d['next_due']})"
+            )
     else:
         lines.append("🎉 Ushbu guruhda barcha to'lovlar 100% to'langan!")
 
@@ -104,10 +112,20 @@ def build_tolovlar_text(summary: dict[str, Any]) -> str:
 def build_tolovlar_keyboard(group_id: int | None = None) -> InlineKeyboardMarkup:
     """Action buttons for tuition overview."""
     cb = f"crm_remind_grp_{group_id}" if group_id else "crm_remind_all_debtors"
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📢 Qarzdorlarga eslatma yuborish", callback_data=cb)],
-        [InlineKeyboardButton("🔄 Yangilash", callback_data=f"crm_refresh_tolov_{group_id or 0}")],
-    ])
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "📢 Qarzdorlarga eslatma yuborish", callback_data=cb
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔄 Yangilash", callback_data=f"crm_refresh_tolov_{group_id or 0}"
+                )
+            ],
+        ]
+    )
 
 
 def build_receipt_approval_prompt(
@@ -122,18 +140,26 @@ def build_receipt_approval_prompt(
         f"💰 Aniqlangan summa: <b>{amt_str}</b>\n\n"
         "Ushbu to'lovni tasdiqlaysizmi?"
     )
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"rcpt_appr_{enrollment_id}_{int(amount)}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"rcpt_rej_{enrollment_id}"),
+            [
+                InlineKeyboardButton(
+                    "✅ Tasdiqlash",
+                    callback_data=f"rcpt_appr_{enrollment_id}_{int(amount)}",
+                ),
+                InlineKeyboardButton(
+                    "❌ Rad etish", callback_data=f"rcpt_rej_{enrollment_id}"
+                ),
+            ]
         ]
-    ])
+    )
     return text, keyboard
 
 
 # ---------------------------------------------------------------------------
 # Telegram Handlers
 # ---------------------------------------------------------------------------
+
 
 async def davomat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -154,7 +180,11 @@ async def davomat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    if user.role not in (User.Role.TEACHER, User.Role.ADMIN) and not user.is_staff and not user.is_superuser:
+    if (
+        user.role not in (User.Role.TEACHER, User.Role.ADMIN)
+        and not user.is_staff
+        and not user.is_superuser
+    ):
         await update.message.reply_text(
             "ℹ️ <b>/davomat</b> buyrug'i faqat o'qituvchilar va markaz ma'murlari uchun mo'ljallangan.",
             parse_mode="HTML",
@@ -172,7 +202,11 @@ async def davomat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if len(groups) == 1:
         target_group = groups[0]
         students = await sync_to_async(
-            lambda: list(target_group.students.filter(is_active=True).order_by("first_name", "last_name"))
+            lambda: list(
+                target_group.students.filter(is_active=True).order_by(
+                    "first_name", "last_name"
+                )
+            )
         )()
         if not students:
             await update.message.reply_text(
@@ -230,7 +264,11 @@ async def tolovlar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
-    if user.role not in (User.Role.TEACHER, User.Role.ADMIN) and not user.is_staff and not user.is_superuser:
+    if (
+        user.role not in (User.Role.TEACHER, User.Role.ADMIN)
+        and not user.is_staff
+        and not user.is_superuser
+    ):
         await update.message.reply_text(
             "ℹ️ <b>/tolovlar</b> buyrug'i faqat ustozlar uchun mo'ljallangan.",
             parse_mode="HTML",
@@ -282,12 +320,16 @@ async def tolovlar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         lines.append("⚠️ <b>Qarzdorlar ro'yxati:</b>")
         for idx, d in enumerate(all_debtors[:12], 1):
             fee_s = f"{d['fee']:,.0f} so'm".replace(",", " ")
-            lines.append(f"{idx}. <b>{d['student_name']}</b> ({d.get('group_name','')}) — {fee_s}")
+            lines.append(
+                f"{idx}. <b>{d['student_name']}</b> ({d.get('group_name', '')}) — {fee_s}"
+            )
     else:
         lines.append("🎉 Barcha guruhlarda to'lovlar 100% qilingan!")
 
     kb = build_tolovlar_keyboard(None)
-    await update.message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=kb)
+    await update.message.reply_text(
+        "\n".join(lines), parse_mode="HTML", reply_markup=kb
+    )
 
 
 async def handle_crm_callback(
@@ -303,7 +345,9 @@ async def handle_crm_callback(
     # 1. dav_groups — Guruhlar ro'yxatini ko'rsatish
     if data == "dav_groups":
         user = await sync_to_async(
-            lambda: User.objects.filter(telegram_chat_id=update.effective_user.id).first()
+            lambda: User.objects.filter(
+                telegram_chat_id=update.effective_user.id
+            ).first()
         )()
         groups = await sync_to_async(get_teacher_groups)(user) if user else []
         buttons = [
@@ -328,7 +372,11 @@ async def handle_crm_callback(
         )()
         if target_group:
             students = await sync_to_async(
-                lambda: list(target_group.students.filter(is_active=True).order_by("first_name", "last_name"))
+                lambda: list(
+                    target_group.students.filter(is_active=True).order_by(
+                        "first_name", "last_name"
+                    )
+                )
             )()
             statuses_key = f"dav_statuses_{target_group.id}"
             statuses = context.user_data.get(statuses_key, {})
@@ -350,7 +398,7 @@ async def handle_crm_callback(
 
     # 3. dav_tog_<group_id>_<student_id> — 1-klikli toggle (🟢 <-> 🔴)
     if data.startswith("dav_tog_"):
-        parts = data[len("dav_tog_"):].split("_")
+        parts = data[len("dav_tog_") :].split("_")
         try:
             group_id, student_id = int(parts[0]), int(parts[1])
             target_group = await sync_to_async(
@@ -358,7 +406,11 @@ async def handle_crm_callback(
             )()
             if target_group:
                 students = await sync_to_async(
-                    lambda: list(target_group.students.filter(is_active=True).order_by("first_name", "last_name"))
+                    lambda: list(
+                        target_group.students.filter(is_active=True).order_by(
+                            "first_name", "last_name"
+                        )
+                    )
                 )()
                 statuses_key = f"dav_statuses_{group_id}"
                 statuses = context.user_data.get(statuses_key, {})
@@ -390,7 +442,11 @@ async def handle_crm_callback(
         )()
         if target_group:
             students = await sync_to_async(
-                lambda: list(target_group.students.filter(is_active=True).order_by("first_name", "last_name"))
+                lambda: list(
+                    target_group.students.filter(is_active=True).order_by(
+                        "first_name", "last_name"
+                    )
+                )
             )()
             statuses_key = f"dav_statuses_{group_id}"
             statuses = {st.id: "present" for st in students}
@@ -414,7 +470,9 @@ async def handle_crm_callback(
         except (IndexError, ValueError):
             return
         user = await sync_to_async(
-            lambda: User.objects.filter(telegram_chat_id=update.effective_user.id).first()
+            lambda: User.objects.filter(
+                telegram_chat_id=update.effective_user.id
+            ).first()
         )()
         target_group = await sync_to_async(
             lambda: StudentGroup.objects.filter(id=group_id).first()
@@ -434,9 +492,15 @@ async def handle_crm_callback(
                 f"🔴 Kelmadi: <b>{stats['absent']} nafar</b>\n\n"
                 "<i>Kelmagan o'quvchilarning ota-onalariga Telegram orqali avtomatik xabarnoma yuborildi.</i>",
                 parse_mode="HTML",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Boshqa guruh", callback_data="dav_groups")]
-                ]),
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "🔙 Boshqa guruh", callback_data="dav_groups"
+                            )
+                        ]
+                    ]
+                ),
             )
         return
 
@@ -450,7 +514,9 @@ async def handle_crm_callback(
                 grp_id = None
 
         user = await sync_to_async(
-            lambda: User.objects.filter(telegram_chat_id=update.effective_user.id).first()
+            lambda: User.objects.filter(
+                telegram_chat_id=update.effective_user.id
+            ).first()
         )()
         if user:
             res = await sync_to_async(send_debtor_payment_reminders)(user, grp_id)
@@ -465,11 +531,15 @@ async def handle_crm_callback(
 
     # 7. rcpt_appr_<enrollment_id>_<amount> — Ustoz to'lov chekini tasdiqlashi
     if data.startswith("rcpt_appr_"):
-        parts = data[len("rcpt_appr_"):].split("_")
+        parts = data[len("rcpt_appr_") :].split("_")
         try:
             enrollment_id, amount = int(parts[0]), int(parts[1])
             enrollment = await sync_to_async(
-                lambda: GroupEnrollment.objects.select_related("student", "group").filter(id=enrollment_id).first()
+                lambda: (
+                    GroupEnrollment.objects.select_related("student", "group")
+                    .filter(id=enrollment_id)
+                    .first()
+                )
             )()
             if enrollment:
                 await sync_to_async(record_tuition_payment)(enrollment, amount)
@@ -490,7 +560,9 @@ async def handle_crm_callback(
                         f"📅 Keyingi to'lov sanangiz: <b>{due_str}</b> gacha uzaytirildi.\n\n"
                         "Rahmat, darslaringizda omad tilaymiz!"
                     )
-                    await sync_to_async(send_telegram_safe)(enrollment.student.telegram_chat_id, st_msg)
+                    await sync_to_async(send_telegram_safe)(
+                        enrollment.student.telegram_chat_id, st_msg
+                    )
         except Exception as e:
             logger.warning("rcpt_appr error: %s", e)
         return
@@ -500,7 +572,11 @@ async def handle_crm_callback(
         try:
             enrollment_id = int(data.split("_")[2])
             enrollment = await sync_to_async(
-                lambda: GroupEnrollment.objects.select_related("student", "group").filter(id=enrollment_id).first()
+                lambda: (
+                    GroupEnrollment.objects.select_related("student", "group")
+                    .filter(id=enrollment_id)
+                    .first()
+                )
             )()
             if enrollment:
                 await query.edit_message_text(
@@ -515,7 +591,9 @@ async def handle_crm_callback(
                         f"👥 Guruh: <b>{enrollment.group.name}</b>\n\n"
                         "Iltimos, to'lov chekini qayta tekshirib yuboring yoki ustozingiz bilan bog'laning."
                     )
-                    await sync_to_async(send_telegram_safe)(enrollment.student.telegram_chat_id, rej_msg)
+                    await sync_to_async(send_telegram_safe)(
+                        enrollment.student.telegram_chat_id, rej_msg
+                    )
         except Exception as e:
             logger.warning("rcpt_rej error: %s", e)
         return

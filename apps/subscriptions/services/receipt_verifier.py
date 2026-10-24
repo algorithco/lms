@@ -61,9 +61,19 @@ def parse_receipt_text_heuristics(text: str) -> Dict[str, Any]:
             pass
 
     if not amount:
-        gen_match = re.search(r"([0-9]{1,3}(?:[\s.,][0-9]{3})+)\s*(?:so['`]?m|uzs|sum)", clean_text, re.IGNORECASE)
+        gen_match = re.search(
+            r"([0-9]{1,3}(?:[\s.,][0-9]{3})+)\s*(?:so['`]?m|uzs|sum)",
+            clean_text,
+            re.IGNORECASE,
+        )
         if gen_match:
-            raw_amt = gen_match.group(1).replace(" ", "").replace(",", "").replace(".", "").strip()
+            raw_amt = (
+                gen_match.group(1)
+                .replace(" ", "")
+                .replace(",", "")
+                .replace(".", "")
+                .strip()
+            )
             try:
                 amount = float(raw_amt)
             except Exception:
@@ -71,7 +81,9 @@ def parse_receipt_text_heuristics(text: str) -> Dict[str, Any]:
 
     # 2. Transaction ID
     trans_id = ""
-    mpo_match = re.search(r"(?:^|[\s:#№])([A-Z]{2,6}[0-9]{6,18})(?:$|[\s\.,])", clean_text, re.IGNORECASE)
+    mpo_match = re.search(
+        r"(?:^|[\s:#№])([A-Z]{2,6}[0-9]{6,18})(?:$|[\s\.,])", clean_text, re.IGNORECASE
+    )
     if mpo_match:
         trans_id = mpo_match.group(1).strip()
     else:
@@ -113,7 +125,9 @@ def parse_receipt_text_heuristics(text: str) -> Dict[str, Any]:
 
     # 5. Date
     date_str = ""
-    date_match = re.search(r"\b(\d{2}[./-]\d{2}[./-]\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)\b", clean_text)
+    date_match = re.search(
+        r"\b(\d{2}[./-]\d{2}[./-]\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)\b", clean_text
+    )
     if date_match:
         date_str = date_match.group(1)
 
@@ -161,10 +175,10 @@ def scan_receipt_vision(image_bytes: bytes) -> Dict[str, Any]:
                 "You are an expert Uzbek payment receipt OCR engine. "
                 "Analyze this payment receipt screenshot (Click, Payme, Uzum, Bank). "
                 "Extract and output strictly valid JSON with these fields: "
-                "{\"amount\": <number in UZS>, \"transaction_id\": \"<string>\", "
-                "\"payment_system\": \"click|payme|uzum|bank_card|unknown\", "
-                "\"date_str\": \"<YYYY-MM-DD HH:MM:SS or string>\", "
-                "\"recipient\": \"<string>\", \"is_success\": true|false, \"is_valid\": true|false}. "
+                '{"amount": <number in UZS>, "transaction_id": "<string>", '
+                '"payment_system": "click|payme|uzum|bank_card|unknown", '
+                '"date_str": "<YYYY-MM-DD HH:MM:SS or string>", '
+                '"recipient": "<string>", "is_success": true|false, "is_valid": true|false}. '
                 "If not an authentic payment receipt or image is blurry/unreadable, set is_valid: false."
             )
 
@@ -183,7 +197,9 @@ def scan_receipt_vision(image_bytes: bytes) -> Dict[str, Any]:
                                 {"type": "text", "text": prompt},
                                 {
                                     "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"},
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{b64_img}"
+                                    },
                                 },
                             ],
                         }
@@ -207,7 +223,9 @@ def scan_receipt_vision(image_bytes: bytes) -> Dict[str, Any]:
                     ps = PaymentReceipt.PaymentSystem.UNKNOWN
 
                 return {
-                    "is_valid": bool(parsed.get("is_valid", True) and parsed.get("amount")),
+                    "is_valid": bool(
+                        parsed.get("is_valid", True) and parsed.get("amount")
+                    ),
                     "amount": float(parsed.get("amount", 0)),
                     "transaction_id": str(parsed.get("transaction_id", "")).strip(),
                     "payment_system": ps,
@@ -217,7 +235,9 @@ def scan_receipt_vision(image_bytes: bytes) -> Dict[str, Any]:
                     "method": "vision_ai",
                 }
         except Exception as e:
-            logger.warning("Vision AI receipt scan failed: %s; falling back to heuristic OCR.", e)
+            logger.warning(
+                "Vision AI receipt scan failed: %s; falling back to heuristic OCR.", e
+            )
 
     # OCR Fallback via pytesseract or text parser
     try:
@@ -322,7 +342,11 @@ def apply_fraud_strike(
 def notify_admin_fraud(user: Any, reason: str, transaction_id: str = ""):
     """Send fraud alert to admin channel/telegram."""
     tg_id = getattr(user, "telegram_chat_id", None) or "Noma'lum"
-    username = getattr(user, "telegram_username", None) or getattr(user, "username", "") or "Mavjud emas"
+    username = (
+        getattr(user, "telegram_username", None)
+        or getattr(user, "username", "")
+        or "Mavjud emas"
+    )
     full_name = f"{user.first_name} {user.last_name}".strip() or str(user.email)
     msg = (
         "🚨 <b>FIRIBGARLIK ANIQLANDI VA BLOKLANDI!</b>\n\n"
@@ -384,7 +408,9 @@ class ReceiptVerifier:
 
         # 1. SHA-256 Hash Check (Image integrity)
         receipt_hash = compute_receipt_hash(image_bytes)
-        duplicate_hash_receipt = PaymentReceipt.objects.filter(receipt_hash=receipt_hash).first()
+        duplicate_hash_receipt = PaymentReceipt.objects.filter(
+            receipt_hash=receipt_hash
+        ).first()
         if duplicate_hash_receipt:
             # Reusing same receipt image = deliberate fraud!
             strikes, banned = apply_fraud_strike(
@@ -418,7 +444,9 @@ class ReceiptVerifier:
 
         amount = Decimal(str(scan_res.get("amount", 0)))
         transaction_id = str(scan_res.get("transaction_id", "")).strip()
-        payment_system = scan_res.get("payment_system", PaymentReceipt.PaymentSystem.UNKNOWN)
+        payment_system = scan_res.get(
+            "payment_system", PaymentReceipt.PaymentSystem.UNKNOWN
+        )
         date_str = scan_res.get("date_str", "")
 
         # Fallback transaction id if legitimate receipt had no text trans_id
@@ -426,7 +454,9 @@ class ReceiptVerifier:
             transaction_id = f"TX-{receipt_hash[:12].upper()}"
 
         # 3. Transaction ID Uniqueness Check
-        duplicate_tx = PaymentReceipt.objects.filter(transaction_id=transaction_id).first()
+        duplicate_tx = PaymentReceipt.objects.filter(
+            transaction_id=transaction_id
+        ).first()
         if duplicate_tx:
             # Reusing someone else's or previous transaction ID = deliberate fraud & auto-ban!
             strikes, banned = apply_fraud_strike(
@@ -477,7 +507,9 @@ class ReceiptVerifier:
             }
 
         # 6. Success Flow — Save verified PaymentReceipt & Activate Subscription
-        content_file = ContentFile(image_bytes, name=f"receipt_{user.id}_{transaction_id}.jpg")
+        content_file = ContentFile(
+            image_bytes, name=f"receipt_{user.id}_{transaction_id}.jpg"
+        )
         receipt = PaymentReceipt.objects.create(
             user=user,
             plan_type=clean_plan,
@@ -509,7 +541,9 @@ class ReceiptVerifier:
         }
 
     @classmethod
-    def _activate_user_plan(cls, user: Any, plan_type: str, receipt: PaymentReceipt) -> None:
+    def _activate_user_plan(
+        cls, user: Any, plan_type: str, receipt: PaymentReceipt
+    ) -> None:
         """Activates Starter, PRO, or PREMIUM plan for user."""
         try:
             from apps.payments.services import _get_or_create_plan_for_receipt
@@ -527,7 +561,9 @@ class ReceiptVerifier:
                 days=30,
             )
         except Exception as e:
-            logger.error("Failed to grant subscription for receipt #%s: %s", receipt.id, e)
+            logger.error(
+                "Failed to grant subscription for receipt #%s: %s", receipt.id, e
+            )
 
         # Update profile plan field
         try:

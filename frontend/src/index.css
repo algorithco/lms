@@ -453,6 +453,12 @@ img.brand-badge {
   flex: 1;
 }
 
+@media (max-width: 768px) {
+  .content {
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .route-loading {
   min-height: 12rem;
   display: grid;

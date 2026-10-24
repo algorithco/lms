@@ -109,7 +109,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "role"]
 
     def validate_email(self, value: str) -> str:
         """Case-insensitive uniqueness check — friendly 400 before DB constraint."""

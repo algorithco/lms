@@ -343,7 +343,8 @@ def explain_question_mistake(
     test_obj = getattr(question, "test", None)
     is_english = (
         getattr(test_obj, "subject", "") == "english"
-        or getattr(test_obj, "exam_type", "") in ["ielts_academic", "ielts_general", "cefr_multilevel"]
+        or getattr(test_obj, "exam_type", "")
+        in ["ielts_academic", "ielts_general", "cefr_multilevel"]
         or bool(passage_text)
     )
 

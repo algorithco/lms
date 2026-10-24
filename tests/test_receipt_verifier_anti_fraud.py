@@ -148,11 +148,15 @@ class ReceiptVerifierAntiFraudTests(TestCase):
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_banned)
-        self.assertEqual(self.user.ban_reason, "Qalbaki to'lov cheki yuklash orqali firibgarlik")
+        self.assertEqual(
+            self.user.ban_reason, "Qalbaki to'lov cheki yuklash orqali firibgarlik"
+        )
         self.assertIsNotNone(self.user.banned_at)
 
         # Verify logged into FraudLog
-        log = FraudLog.objects.filter(user=self.user, transaction_id="CLICK-DUPLICATE-TX-100").first()
+        log = FraudLog.objects.filter(
+            user=self.user, transaction_id="CLICK-DUPLICATE-TX-100"
+        ).first()
         self.assertIsNotNone(log)
         self.assertTrue(log.banned)
 
@@ -212,7 +216,9 @@ class ReceiptVerifierAntiFraudTests(TestCase):
         self.assertEqual(self.user.fraud_strikes, 0)
 
     @patch("apps.subscriptions.services.receipt_verifier.scan_receipt_vision")
-    def test_unreadable_blurry_image_returns_level1_error_without_strike(self, mock_scan):
+    def test_unreadable_blurry_image_returns_level1_error_without_strike(
+        self, mock_scan
+    ):
         """Unreadable or non-receipt image returns retry guidance without strike."""
         fake_bytes = b"blurry_unreadable_bytes"
         mock_scan.return_value = {
@@ -264,7 +270,9 @@ class ReceiptVerifierAntiFraudTests(TestCase):
         }
 
         file_content = b"fake_image_file_bytes_for_api_test"
-        uploaded = SimpleUploadedFile("receipt.jpg", file_content, content_type="image/jpeg")
+        uploaded = SimpleUploadedFile(
+            "receipt.jpg", file_content, content_type="image/jpeg"
+        )
 
         response = self.client.post(
             "/api/v1/subscriptions/verify-receipt/",

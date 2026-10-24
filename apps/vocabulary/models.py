@@ -74,9 +74,7 @@ class StudentWordMistake(models.Model):
     consecutive_correct_streak = models.PositiveIntegerField(
         _("ketma-ket to'g'ri topishlar soni"), default=0
     )
-    is_mastered = models.BooleanField(
-        _("yod olinganmi"), default=False, db_index=True
-    )
+    is_mastered = models.BooleanField(_("yod olinganmi"), default=False, db_index=True)
     last_reviewed_at = models.DateTimeField(
         _("oxirgi takrorlangan vaqt"), null=True, blank=True
     )
@@ -93,7 +91,11 @@ class StudentWordMistake(models.Model):
         ordering = ["is_mastered", "-mistake_count", "next_review_at"]
 
     def __str__(self) -> str:
-        status = "Mastered" if self.is_mastered else f"Streak {self.consecutive_correct_streak}/3"
+        status = (
+            "Mastered"
+            if self.is_mastered
+            else f"Streak {self.consecutive_correct_streak}/3"
+        )
         return f"{self.student.get_full_name()}: {self.word} ({status})"
 
     def record_attempt(self, is_correct: bool) -> bool:

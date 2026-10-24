@@ -576,7 +576,6 @@ class ParentStudentRelation(models.Model):
         return f"{self.student.get_full_name()} ↔ {self.parent_phone} ({status})"
 
 
-
 class TeacherProfile(models.Model):
     """
     O'qituvchi profili va litsenziya kvotalari (Admin kvotalari boshqaruvi).

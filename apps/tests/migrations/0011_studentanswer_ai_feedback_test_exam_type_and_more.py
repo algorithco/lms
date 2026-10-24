@@ -4,45 +4,79 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tests', '0010_examsection_audio_url_readingpassage_audio_url_and_more'),
+        ("tests", "0010_examsection_audio_url_readingpassage_audio_url_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='studentanswer',
-            name='ai_feedback',
-            field=models.JSONField(blank=True, default=dict, verbose_name='AI dalilli xulosasi'),
+            model_name="studentanswer",
+            name="ai_feedback",
+            field=models.JSONField(
+                blank=True, default=dict, verbose_name="AI dalilli xulosasi"
+            ),
         ),
         migrations.AddField(
-            model_name='test',
-            name='exam_type',
-            field=models.CharField(choices=[('general', 'Umumiy test'), ('ielts_academic', 'IELTS Academic'), ('ielts_general', 'IELTS General'), ('cefr_multilevel', 'CEFR Multi-level (BMB)'), ('national_cert', 'Milliy sertifikat (Ona tili)')], db_index=True, default='general', max_length=30, verbose_name='imtihon turi'),
+            model_name="test",
+            name="exam_type",
+            field=models.CharField(
+                choices=[
+                    ("general", "Umumiy test"),
+                    ("ielts_academic", "IELTS Academic"),
+                    ("ielts_general", "IELTS General"),
+                    ("cefr_multilevel", "CEFR Multi-level (BMB)"),
+                    ("national_cert", "Milliy sertifikat (Ona tili)"),
+                ],
+                db_index=True,
+                default="general",
+                max_length=30,
+                verbose_name="imtihon turi",
+            ),
         ),
         migrations.AddField(
-            model_name='testattempt',
-            name='band_score',
-            field=models.DecimalField(blank=True, decimal_places=1, max_digits=4, null=True, verbose_name='overall band'),
+            model_name="testattempt",
+            name="band_score",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=1,
+                max_digits=4,
+                null=True,
+                verbose_name="overall band",
+            ),
         ),
         migrations.AddField(
-            model_name='testattempt',
-            name='cefr_level',
-            field=models.CharField(blank=True, default='', max_length=10, verbose_name='CEFR darajasi'),
+            model_name="testattempt",
+            name="cefr_level",
+            field=models.CharField(
+                blank=True, default="", max_length=10, verbose_name="CEFR darajasi"
+            ),
         ),
         migrations.AddField(
-            model_name='testattempt',
-            name='mode',
-            field=models.CharField(choices=[('strict', 'Strict Exam Mode (Rasmiy Imtihon)'), ('practice', "Practice / Study Mode (O'rganish)")], db_index=True, default='strict', max_length=20, verbose_name='rejim'),
+            model_name="testattempt",
+            name="mode",
+            field=models.CharField(
+                choices=[
+                    ("strict", "Strict Exam Mode (Rasmiy Imtihon)"),
+                    ("practice", "Practice / Study Mode (O'rganish)"),
+                ],
+                db_index=True,
+                default="strict",
+                max_length=20,
+                verbose_name="rejim",
+            ),
         ),
         migrations.AddField(
-            model_name='testattempt',
-            name='raw_score',
-            field=models.PositiveIntegerField(default=0, verbose_name="xom ball (to'g'ri javoblar soni)"),
+            model_name="testattempt",
+            name="raw_score",
+            field=models.PositiveIntegerField(
+                default=0, verbose_name="xom ball (to'g'ri javoblar soni)"
+            ),
         ),
         migrations.AddField(
-            model_name='testattempt',
-            name='section_scores',
-            field=models.JSONField(blank=True, default=dict, verbose_name="bo'limlar ballari"),
+            model_name="testattempt",
+            name="section_scores",
+            field=models.JSONField(
+                blank=True, default=dict, verbose_name="bo'limlar ballari"
+            ),
         ),
     ]

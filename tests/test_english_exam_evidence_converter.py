@@ -239,7 +239,10 @@ class EnglishExamIntegrationTests(APITestCase):
             question=self.q1, text="Radiant light and heat", is_correct=True, position=1
         )
         self.c2 = Choice.objects.create(
-            question=self.q1, text="Nuclear fission energy", is_correct=False, position=2
+            question=self.q1,
+            text="Nuclear fission energy",
+            is_correct=False,
+            position=2,
         )
 
     def test_start_attempt_strict_and_practice_modes(self):

@@ -89,5 +89,10 @@ admin.site.unregister(Group)
 
 @admin.register(TeacherProfile)
 class TeacherProfileAdmin(admin.ModelAdmin):
-    list_display = ("teacher", "pro_quota_balance", "premium_quota_balance", "created_at")
+    list_display = (
+        "teacher",
+        "pro_quota_balance",
+        "premium_quota_balance",
+        "created_at",
+    )
     search_fields = ("teacher__email", "teacher__first_name", "teacher__last_name")

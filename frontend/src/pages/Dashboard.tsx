@@ -71,6 +71,7 @@ export default function Dashboard() {
   useEffect(() => {
     const isDone = localStorage.getItem('grandec_onboarding_done') === 'true';
     if (isDone || user?.onboarding_completed === true) {
+      setOnboardingOpen(false);
       return;
     }
     if (user && user.onboarding_completed === false) {
@@ -822,8 +823,14 @@ export default function Dashboard() {
 
       <OnboardingModal
         isOpen={onboardingOpen}
-        onClose={() => setOnboardingOpen(false)}
-        onSuccess={() => setTick((x) => x + 1)}
+        onClose={() => {
+          localStorage.setItem('grandec_onboarding_done', 'true');
+          setOnboardingOpen(false);
+        }}
+        onSuccess={() => {
+          localStorage.setItem('grandec_onboarding_done', 'true');
+          setTick((x) => x + 1);
+        }}
       />
     </div>
   );

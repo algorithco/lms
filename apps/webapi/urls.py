@@ -60,7 +60,6 @@ urlpatterns = [
     ),
     # -- AI Vocabulary Generator & Spaced Repetition (4-Modul) -----------
     path("vocabulary/", include("apps.vocabulary.urls")),
-
     # -- 5-Minute Placement Quiz & Multi-Subject Switcher ----------------
     path(
         "tests/ai-convert-document/",

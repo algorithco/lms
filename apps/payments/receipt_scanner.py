@@ -38,9 +38,19 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
             pass
 
     if not amount:
-        gen_match = re.search(r"([0-9]{1,3}(?:[\s.,][0-9]{3})+)\s*(?:so['`]?m|uzs|sum)", clean_text, re.IGNORECASE)
+        gen_match = re.search(
+            r"([0-9]{1,3}(?:[\s.,][0-9]{3})+)\s*(?:so['`]?m|uzs|sum)",
+            clean_text,
+            re.IGNORECASE,
+        )
         if gen_match:
-            raw_amt = gen_match.group(1).replace(" ", "").replace(",", "").replace(".", "").strip()
+            raw_amt = (
+                gen_match.group(1)
+                .replace(" ", "")
+                .replace(",", "")
+                .replace(".", "")
+                .strip()
+            )
             try:
                 amount = float(raw_amt)
             except Exception:
@@ -49,7 +59,9 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
     # 2. Extract Transaction ID (MPO..., Trans ID, Chek raqami, Tranzaksiya)
     trans_id = ""
     # Check prefixed transaction formats first (e.g. MPO109847291, PAYME88921102)
-    mpo_match = re.search(r"(?:^|[\s:#№])([A-Z]{2,6}[0-9]{6,18})(?:$|[\s\.,])", clean_text, re.IGNORECASE)
+    mpo_match = re.search(
+        r"(?:^|[\s:#№])([A-Z]{2,6}[0-9]{6,18})(?:$|[\s\.,])", clean_text, re.IGNORECASE
+    )
     if mpo_match:
         trans_id = mpo_match.group(1).strip()
     else:
@@ -75,7 +87,9 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
 
     # 4. Date extraction
     date_str = ""
-    date_match = re.search(r"\b(\d{2}[./-]\d{2}[./-]\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)\b", clean_text)
+    date_match = re.search(
+        r"\b(\d{2}[./-]\d{2}[./-]\d{4}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)\b", clean_text
+    )
     if date_match:
         date_str = date_match.group(1)
 
@@ -89,7 +103,9 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
     }
 
 
-def scan_receipt_image(image_bytes: bytes, filename: str = "receipt.jpg") -> Dict[str, Any]:
+def scan_receipt_image(
+    image_bytes: bytes, filename: str = "receipt.jpg"
+) -> Dict[str, Any]:
     """
     Scans a receipt image using Gemini Vision / OCR or fallback heuristic.
     """
@@ -113,7 +129,7 @@ def scan_receipt_image(image_bytes: bytes, filename: str = "receipt.jpg") -> Dic
                 "You are an expert Uzbek payment receipt OCR engine. "
                 "Analyze this payment receipt screenshot (Click, Payme, Uzum, Bank). "
                 "Extract and output strictly valid JSON with these fields: "
-                "{\"amount\": <number in UZS>, \"transaction_id\": \"<string>\", \"provider\": \"click|payme|uzum|other\", \"date\": \"<string>\", \"is_valid\": true|false}. "
+                '{"amount": <number in UZS>, "transaction_id": "<string>", "provider": "click|payme|uzum|other", "date": "<string>", "is_valid": true|false}. '
                 "If not a payment receipt, set is_valid: false."
             )
 
@@ -132,7 +148,9 @@ def scan_receipt_image(image_bytes: bytes, filename: str = "receipt.jpg") -> Dic
                                 {"type": "text", "text": prompt},
                                 {
                                     "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"},
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{b64_img}"
+                                    },
                                 },
                             ],
                         }
@@ -144,11 +162,14 @@ def scan_receipt_image(image_bytes: bytes, filename: str = "receipt.jpg") -> Dic
             )
             if response.status_code == 200:
                 import json
+
                 res_json = response.json()
                 content = res_json["choices"][0]["message"]["content"]
                 parsed = json.loads(content)
                 return {
-                    "is_valid": bool(parsed.get("is_valid", True) and parsed.get("amount")),
+                    "is_valid": bool(
+                        parsed.get("is_valid", True) and parsed.get("amount")
+                    ),
                     "amount": float(parsed.get("amount", 0)),
                     "transaction_id": str(parsed.get("transaction_id", "")),
                     "provider": parsed.get("provider", "other"),
@@ -156,7 +177,9 @@ def scan_receipt_image(image_bytes: bytes, filename: str = "receipt.jpg") -> Dic
                     "method": "vision_ai",
                 }
         except Exception as e:
-            logger.warning("Vision AI receipt scan failed: %s; falling back to heuristic OCR.", e)
+            logger.warning(
+                "Vision AI receipt scan failed: %s; falling back to heuristic OCR.", e
+            )
 
     try:
         import pytesseract
