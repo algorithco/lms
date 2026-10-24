@@ -9,6 +9,35 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.34. Rasmiy Versiya v1.30.0: To'liq Tizim Auditi, Xavfsizlik Mustahkamlanishi, AI Vision OCR Anti-Fraud Dvigateli va Barqarorlashtirish (/audit)
+- [x] 1-Bosqich: Fayllar Inventarizatsiyasi va Eskirgan Kodlarni Tozalash:
+  * Ochiq ro'yxatdan o'tishda `role` maydoni serializers darajasida `read_only_fields` ga kiritildi va qat'iy Student sifatida cheklandi.
+  * Frontend paketlar auditi (`npm audit fix`): `source-map-js` va `vite` paketlaridagi zaifliklar bartaraf etildi (0 vulnerabilities).
+  * 3 tillik (UZ, RU, EN) tarjimalar to'liq tahlil qilindi: 1,684 ta kalit 100% paritetga ega (0 ta yetishmayotgan kalit).
+- [x] 2-Bosqich: Chuqur Mantiqiy va Funksional Xatolarni Tuzatish:
+  * Autentifikatsiya va RBAC: O'qituvchilarni faqat Admin yaratishi (`/api/v1/panel/teachers/create/`), kvotalar faqat Admin tomonidan biriktirilishi kafolatlandi.
+  * Ustoz o'z kvotasi hisobidan o'quvchiga PRO/PREMIUM berganda race-condition bo'lmasligi uchun `transaction.atomic()` va `select_for_update()` tranzaksiya blokirovkasi o'rnatildi.
+  * Guruhlar ochish, davomat olish va panel API larida `IsTeacherOrAdmin` va `IsPanelAdmin` ruxsatnomalari tekshirildi (oddiy studentlar uchun 403 Forbidden).
+  * Onboarding Modali: `/dashboard` sahifasida modal yopilganda va saqlanganda holat `localStorage` va bazada mustahkamlandi, re-trigger xatoligi butunlay bartaraf etildi.
+  * Lifecycle deklaratsiya tartibi `Login.tsx` va `TeacherFinanceDashboard.tsx` da to'g'rilandi.
+  * AI Baholash: Yagona rasmiy model `deepseek/deepseek-r1-0528` saqlandi, xatoliklarni deduksiya usulida tahlil qilish va uzilishlarda avtomatik retry/fallback barqarorlashtirildi.
+  * Anti-Fraud va Chek OCR: Takroriy SHA-256 xesh yoki takroriy tranzaksiya ID si bo'yicha firibgarlikni aniqlash va avtomatik ban (`is_banned=True`) mexanizmi sinovdan o'tkazildi.
+  * Ingliz tili imtihonlari (IELTS/CEFR): Cambridge 50/50 split-screen, Strict anti-cheat rejimi va xom ballarni Band/CEFR ga o'tkazuvchi konvertor matematik jihatdan to'liq ishchi holatda.
+- [x] 3-Bosqich: Frontend va UI/UX Auditi:
+  * Mobil ergonomika: Kichik ekranlarda (<768px) sticky elementlar va sensorli tugmalarni to'sib qo'ymasligi uchun `.content` ga `pb-30` (7.5rem) xavfsiz bo'sh joy qo'shildi.
+  * Oxlint va TypeScript tahlili: 0 ta xatolik, frontend assets `npm run build` orqali 2.04 soniyada yig'ildi.
+- [x] 4-Bosqich: Ma'lumotlar Bazasi va ORM Optimizatsiyasi:
+  * `makemigrations --check --dry-run` orqali migratsiyalar 100% to'liq va sinxron ekani tasdiqlandi (`No changes detected`).
+  * `telegram_chat_id`, `transaction_id`, `receipt_hash`, `role` maydonlarining indekslanishi va unikal cheklovlari tekshirildi.
+- [x] 5-Bosqich: Zero-Error QA Darvozasi va GitHub CI:
+  * `python -m ruff check --fix .` va `python -m ruff format .` (0 ogohlantirish, 0 xatolik).
+  * Regressiya va xususiyat testlari: `pytest` 54/54 test 100% PASS.
+  * GitHub PR #104 ochildi va barcha CI tekshiruvlari (CodeQL, security, automerge, test) yashil o'tgach, `main` ga squash-merge qilindi.
+- [x] 6-Bosqich: Jonli VPS Deploy va Healthcheck (Zero-Downtime):
+  * `bestway` ekotizimi mutlaqo mustaqil va daxlsiz saqlanib, birorta fayli yoki konteyneriga tegilmadi.
+  * VPS'dagi `grandec` (lms) xizmatlari yangilandi va qayta ishga tushirildi.
+  * Jonli tekshiruv: `curl.exe -fsS https://grandec.uz/healthz/` ➔ `{"status": "ok", "db": true, "version": "1.30.0"}` (HTTP 200 OK).
+
 ### 2.33. Rasmiy Versiya v1.29.0: Telegram Bot & Veb-Platforma 100% Pariteti, Yagona Akkaunt (Unified User), Qat'iy Kvota Nazorati (Free 1-Esse Limiti) va Ustozlar CRM (/davomat, /tolovlar, Chek Tasdiqlash)
 - [x] Akkauntlarni Bog'lash va Yagona Identifikatsiya (Unified User):
   * `User.telegram_id` va `User.telegram_username` (migratsiya `0017_user_telegram_username`) PostgreSQL User bazasiga qat'iy bog'landi.
