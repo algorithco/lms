@@ -171,6 +171,9 @@ class QuotaService:
             from apps.payments.models import SubscriptionUsage
             from apps.payments.entitlements import quota_period_start
 
+            if idempotency_key and SubscriptionUsage.objects.filter(idempotency_key=idempotency_key).exists():
+                return True
+
             SubscriptionUsage.objects.create(
                 user=user,
                 kind=kind,

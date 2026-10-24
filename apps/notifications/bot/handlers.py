@@ -2465,10 +2465,50 @@ async def _submit_essay_with_quota(
         await send_reply(update, "Hisobni aniqlab bo'lmadi. /start ni bosing.")
         return
 
+    topic_id = context.user_data.get("bot_essay_topic_id")
+
+    def _check_existing():
+        topic = None
+        if topic_id:
+            from apps.essays.models import EssayTopic
+
+            topic = EssayTopic.objects.filter(id=topic_id).first()
+        return (
+            EssaySubmission.objects.filter(
+                student=user,
+                topic=topic,
+                essay_text=essay_text,
+                status__in=(
+                    EssaySubmission.Status.PENDING,
+                    EssaySubmission.Status.GRADED,
+                ),
+            )
+            .order_by("-id")
+            .first()
+        )
+
+    existing = await _run_db(_check_existing)
+    if existing:
+        _clear_essay_state(context)
+        label = (
+            "allaqachon qabul qilingan"
+            if existing.status == EssaySubmission.Status.PENDING
+            else f"allaqachon baholangan: {existing.total_score}/{existing.max_score}"
+        )
+        await send_reply(
+            update,
+            f"Bu bir xil {kind_label} esse {label}. Yangi matnni tahrir "
+            f"qilsangizgina yangi baho olinadi.",
+            reply_markup=_result_keyboard(existing.id),
+        )
+        return
+
     # -- QuotaService check (Module 2): Free 1 essay/day limit & Starter/PRO checks --
     from apps.bot.quota import check_bot_essay_quota, record_bot_essay_consumption
 
-    allowed, quota_msg, quota_kb = check_bot_essay_quota(user, _site_url())
+    allowed, quota_msg, quota_kb = await _run_db(
+        check_bot_essay_quota, user, _site_url()
+    )
     if not allowed:
         _clear_essay_state(context)
         await send_reply(update, quota_msg, parse_mode="HTML", reply_markup=quota_kb)
@@ -2564,7 +2604,12 @@ async def _submit_essay_with_quota(
     # even though the AI evaluation itself is still running asynchronously.
     await _run_db(commit_usage, reservation)
     try:
-        record_bot_essay_consumption(user, kind=kind, idempotency_key=key)
+        await _run_db(
+            record_bot_essay_consumption,
+            user,
+            kind,
+            key,
+        )
     except Exception:
         pass
 
