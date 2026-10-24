@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -242,3 +243,45 @@ def my_payment_receipts_view(request):
     """GET /api/v1/payments/my-receipts/ — User's uploaded payment receipts."""
     receipts = PaymentReceipt.objects.filter(user=request.user).order_by("-created_at")
     return Response({"results": PaymentReceiptSerializer(receipts, many=True).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_receipt_view(request):
+    """
+    POST /api/v1/subscriptions/verify-receipt/
+    Uploads payment receipt for automated Vision AI verification, fraud detection, and instant activation.
+    """
+    receipt_image = request.FILES.get("receipt_image")
+    if not receipt_image:
+        return Response(
+            {"detail": "Iltimos, to'lov cheki rasmini yuklang."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    plan_type = request.data.get("plan_type") or request.data.get("plan") or "starter"
+
+    try:
+        image_bytes = receipt_image.read()
+    except Exception as e:
+        return Response(
+            {"detail": f"Faylni o'qishda xatolik: {e}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    from apps.subscriptions.services.receipt_verifier import ReceiptVerifier
+
+    result = ReceiptVerifier.verify_receipt(
+        user=request.user,
+        image_bytes=image_bytes,
+        plan_type=plan_type,
+        filename=getattr(receipt_image, "name", "receipt.jpg"),
+    )
+
+    if result.get("is_banned"):
+        return Response(result, status=status.HTTP_403_FORBIDDEN)
+
+    if not result.get("success"):
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result, status=status.HTTP_200_OK)

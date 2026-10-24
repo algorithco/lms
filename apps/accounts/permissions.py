@@ -142,3 +142,20 @@ class IsAdminOrReadOnly(BasePermission):
             and request.user.is_authenticated
             and is_platform_admin(request.user)
         )
+
+
+class IsNotBanned(BasePermission):
+    """
+    Ruxsat: Foydalanuvchi qalbaki chek yoki firibgarlik sababli bloklanmagan bo'lishi shart.
+    """
+
+    message = (
+        "Hisobingiz bloklandi! Siz tomonidan qalbaki to'lov kvitansiyasi aniqlandi. "
+        "Tizimdan foydalanish huquqingiz cheklandi. Savollar bo'yicha: @grandec_admin"
+    )
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and getattr(user, "is_banned", False):
+            return False
+        return True

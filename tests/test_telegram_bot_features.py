@@ -439,7 +439,8 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertEqual(len(buttons), 3)
         self.assertEqual(buttons[0], ["✍️ Esse yozish", "📚 Test ishlash"])
         self.assertEqual(buttons[1], ["📝 Mock Test (#kod)", "⚔️ Arena (1v1)"])
-        self.assertEqual(buttons[2], ["👤 Natijalar / Profil", "💳 Tariflar / Obuna"])
+        self.assertEqual(buttons[2][0], "👤 Natijalar / Profil")
+        self.assertIn(buttons[2][1], ["💳 Tariflar / Obuna", "💳 Obunani yangilash / To'lov qilish"])
 
     # 11. Quiz mistake AI explainer
     def test_quiz_explain_callback_returns_explanation(self):
@@ -519,7 +520,16 @@ class TelegramBotFeaturesTests(TestCase):
         self.assertIsNotNone(markup)
 
     # 14. Payment receipt screenshot upload
-    def test_payment_screenshot_handler_creates_receipt(self):
+    # 14. Payment receipt screenshot upload & automated verification
+    @patch("apps.subscriptions.services.receipt_verifier.scan_receipt_vision")
+    def test_payment_screenshot_handler_creates_receipt(self, mock_scan):
+        mock_scan.return_value = {
+            "is_valid": True,
+            "amount": 5000.0,
+            "transaction_id": "CLICK-TEST-STARTER-BOT-01",
+            "payment_system": "click",
+            "date_str": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
         self.context.user_data["selected_plan_slug"] = "starter"
         self.context.user_data["payment_state"] = "awaiting_screenshot"
         valid_mock_jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
@@ -535,17 +545,18 @@ class TelegramBotFeaturesTests(TestCase):
         self.message.caption = "Starter to'lov cheki"
         async_to_sync(payment_screenshot_handler)(self.update, self.context)
 
+        from apps.subscriptions.models import PaymentReceipt as SubPaymentReceipt
+
         receipt = (
-            PaymentReceipt.objects.filter(user=self.user, plan="starter")
+            SubPaymentReceipt.objects.filter(user=self.user, plan_type="starter")
             .order_by("-id")
             .first()
         )
         self.assertIsNotNone(receipt)
-        self.assertEqual(receipt.source, PaymentReceipt.Source.BOT)
-        self.assertEqual(receipt.status, PaymentReceipt.Status.PENDING)
+        self.assertTrue(receipt.is_verified)
         self.assertTrue(self.message.reply_text.called)
         reply_text = self.message.reply_text.await_args.args[0]
-        self.assertIn("Chekingiz qabul qilindi", reply_text)
+        self.assertIn("To'lovingiz qabul qilindi!", reply_text)
 
     # 15. Telegram Login Widget (1-Click Auth)
     @override_settings(TELEGRAM_BOT_TOKEN="test_bot_token_12345")

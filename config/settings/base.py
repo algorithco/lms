@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.telegram_app",  # Telegram Mini App
     "apps.arena",  # WebSocket Quiz Arena
     "apps.payments",  # Subscriptions & Payments (platform plans)
+    "apps.subscriptions",  # Automated Receipt Verification & Anti-Fraud Engine
     "apps.tuition",  # Course tuition billing (separate from subscriptions)
     "apps.weekly_reports",  # Automated weekly academic reports
     "apps.organizations",  # B2B SaaS Enterprise Hub
@@ -85,6 +86,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.middleware.BannedUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -227,6 +229,7 @@ REST_FRAMEWORK = {
     # Permissions
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "apps.accounts.permissions.IsNotBanned",
     ],
     # Pagination
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -332,7 +335,7 @@ SIMPLE_JWT = {
     "TOKEN_REFRESH_SERIALIZER": "apps.accounts.serializers.CustomTokenRefreshSerializer",
     # Explicit inactive-user blocking (defense-in-depth, default is True)
     "CHECK_USER_IS_ACTIVE": True,
-    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "USER_AUTHENTICATION_RULE": "apps.accounts.services.auth_rules.user_authentication_rule",
 }
 
 # ---------------------------------------------------------------------------
@@ -489,9 +492,9 @@ PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="9860 **** **** ****")
 PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="")
 PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="KOMILJON R")
 PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="")
-PLAN_STARTER_PRICE = env.int("PLAN_STARTER_PRICE", default=15000)
+PLAN_STARTER_PRICE = env.int("PLAN_STARTER_PRICE", default=5000)
 PLAN_PRO_PRICE = env.int("PLAN_PRO_PRICE", default=49000)
-PLAN_PREMIUM_PRICE = env.int("PLAN_PREMIUM_PRICE", default=60000)
+PLAN_PREMIUM_PRICE = env.int("PLAN_PREMIUM_PRICE", default=89000)
 
 # ---------------------------------------------------------------------------
 # Commercial subscription quotas (canonical service: apps.payments.entitlements)
