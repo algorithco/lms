@@ -123,7 +123,6 @@ def check_group_tuition_due_dates_task(self: Any) -> dict[str, Any]:
     sent_parents = 0
 
     for e in enrollments:
-        old_status = e.payment_status
         e.update_status(today)
 
         if not e.next_payment_due:

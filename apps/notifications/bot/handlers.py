@@ -5942,7 +5942,7 @@ async def payment_screenshot_handler(
                     f"🔢 Trans ID: <b>{ocr_res.get('transaction_id', 'UNKNOWN')}</b>\n"
                     f"📅 Keyingi to'lov sanangiz: <b>{due_str}</b> gacha uzaytirildi!\n\n"
                     f"Rahmat, darslaringizda omad tilaymiz!",
-                    parse_mode=ParseMode.HTML,
+                    parse_mode="HTML",
                 )
                 # Ustoziga xabarnoma
                 if enrollment.group.teacher and enrollment.group.teacher.telegram_chat_id:
@@ -9294,11 +9294,12 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text(
             "ℹ️ <b>/finance</b> buyrug'i faqat ustozlar va markaz ma'murlari uchun mo'ljallangan.\n\n"
             "O'quvchi sifatida to'lovingizni tekshirish uchun: <b>/mytuition</b> buyrug'idan foydalaning.",
-            parse_mode=ParseMode.HTML,
+            parse_mode="HTML",
         )
         return
 
     def get_finance_data():
+        from django.utils import timezone
         groups = StudentGroup.objects.filter(teacher=user)
         total_students = 0
         total_collected = 0
@@ -9371,7 +9372,7 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     await update.message.reply_text(
         "\n".join(lines),
-        parse_mode=ParseMode.HTML,
+        parse_mode="HTML",
         reply_markup=reply_markup,
     )
 

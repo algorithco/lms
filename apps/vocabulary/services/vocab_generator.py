@@ -77,7 +77,6 @@ def build_fallback_exercises(words: List[str]) -> Dict[str, Any]:
         "o'zgaruvchan holat",
     ]
 
-    all_lower = [w.lower() for w in words]
 
     for idx, word in enumerate(words):
         w_low = word.lower()

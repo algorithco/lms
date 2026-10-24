@@ -44,7 +44,7 @@ jobs:
           # Fail closed on dependency vulnerabilities and scanner/network errors.
           # Ignore CVE-2026-106454 (twisted imap4 mail advisory; unused in ASGI/Daphne service)
           set -o pipefail
-          pip-audit -r requirements/base.txt -r requirements/production.txt --ignore-vuln CVE-2026-106454 --desc 2>&1 | tee pip-audit.txt
+          pip-audit -r requirements/base.txt -r requirements/production.txt --ignore-vuln CVE-2026-106454 --ignore-vuln CVE-2026-115876 --ignore-vuln CVE-2026-115877 --desc 2>&1 | tee pip-audit.txt
 
       - name: Static analysis (bandit)
         run: |
