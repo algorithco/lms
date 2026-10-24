@@ -1,0 +1,1 @@
+"""Groups compatibility package."""

@@ -696,6 +696,36 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Frontend: `oxlint` 0 ta xato, `tsc -b && vite build` 0 ta xato bilan 4.30 soniyada muvaffaqiyatli yig'ildi.
   * Backend: `ruff check` 0 ta xato, `pytest` 26/26 ta test 100% PASS.
 
+
+### 2.19. Ustozlar CRM, Admin Kvotalari, Ota-Onani Shaffof Nazorati, Click/Payme Chek OCR va AI Lug'at Generatori (Spaced Repetition)
+- [x] 1-Modul: Admin Kvotalari va Ustoz Litsenziya Boshqaruvi:
+  * `apps/accounts/models.py`: `TeacherProfile` modeli yaratildi (`pro_quota_balance`, `premium_quota_balance`). `User` modelida helper propertylar (`pro_quota_balance`, `premium_quota_balance`, `teacher_profile_obj`) kiritildi.
+  * `POST /api/v1/panel/teachers/<id>/allocate-quota/`: Faqat Superadmin ustoz hisobiga PRO yoki PREMIUM kvotalarini biriktiradi.
+  * `POST /api/v1/courses/groups/<group_id>/students/<student_id>/activate-quota/`: Ustoz o'z guruhidagi o'quvchiga 30 kunlik to'liq PRO yoki PREMIUM litsenziya biriktiradi; ustoz kvotasidan 1 ta kamayadi; kvota yetarli bo'lmasa 400 xatolik qaytariladi.
+- [x] 2-Modul: Ustozlar Moliya CRM — Davomat, Kurs To'lovlari va Xulosa:
+  * `apps/courses/models.py` & `apps/groups/models.py`: `GroupEnrollment` modeli (`monthly_fee`, `billing_cycle_day`, `last_payment_date`, `next_payment_due`, `payment_status` ['paid', 'due_soon', 'overdue', 'grace_period'], `parent_phone`, `parent_telegram_id`).
+  * `record_payment(amount, extend_days=30)` va `update_status(today)` metodlari orqali to'lovlar sanasi va qarzdorliklar avtomatik boshqariladi.
+  * `GET /api/v1/courses/groups/<group_id>/finance-summary/`: Guruhdagi umumiy o'quvchilar, yig'ilgan tushum, qarzdorlik, o'quvchilar to'lov ro'yxati va ustoz kvotalari.
+  * `POST /api/v1/courses/groups/<group_id>/send-payment-reminders/`: [ 📢 Barcha qarzdorlarga eslatma yuborish ] 1-klikli tugma orqali Telegram xabarnomalari.
+- [x] 3-Modul: Telegram Bot Integratsiyasi — Avto-Eslatmalar, Ota-Ona Nazorati va Chek OCR:
+  * `apps/tuition/tasks.py`: `check_group_tuition_due_dates_task` Celery Beat taski — har kuni soat 10:00 da to'lov muddatiga 2 kun qolganda, to'lov kunida va muddat o'tganda talaba va uning ota-onasiga rasmiy eslatma yuboradi.
+  * Ota-onalar "Shaffof Nazorat" tizimi: `ParentStudentRelation` va `GroupEnrollment.parent_telegram_id` ga to'lov va davomat xabarlari yetkaziladi.
+  * `apps/payments/receipt_scanner.py`: Click va Payme to'lov cheki skrinshotlarini avtomatik OCR va Vision AI orqali tekshirish, summani va Trans ID ni aniqlash, o'quvchi to'lovini 30 kunga uzaytirish va ustozga bildirishnoma yuborish.
+- [x] 4-Modul: AI Lug'at Generatori va Interval Takrorlash (Spaced Repetition):
+  * `apps/vocabulary/`: `VocabularyPack` va `StudentWordMistake` modellari.
+  * `apps/vocabulary/services/vocab_generator.py`: 50–60 ta inglizcha so'zdan 4 formatli mashq generatsiyasi (Multiple Choice, Spelling/Imlo, Eng ➔ Uzb, Uzb ➔ Eng).
+  * Ebbinghaus "Unutish egri chizig'i" bo'yicha bot viktorinasi (`/vocab`): Talaba adashgan so'zlar bo'yicha Quiz-Poll yuboriladi; ketma-ket 3 marta to'g'ri topilsa `is_mastered = True` maqomiga o'tadi.
+- [x] 5-Modul: Frontend UI/UX va Bot Menyulari:
+  * `TeacherFinanceDashboard.tsx`: Moliyaviy KPI kartalari, qarzdorlar jadvali, 1-klikli ommaviy eslatma tugmasi, to'lovni tasdiqlash va litsenziya berish.
+  * `TeacherVocabGenerator.tsx`: 50-60 ta so'z kiritish textarea, 4 xil formatdagi jonli preview tablari va guruhga vazifa qilib biriktirish.
+  * `Groups.tsx`: Guruh a'zolari ro'yxatida har bir talaba yonida `[ ⚡ PRO ]` va `[ 👑 VIP ]` kvota tugmalari.
+  * Bot buyruqlari: `/finance` (ustoz uchun CRM) va `/vocab` (o'quvchi uchun Spaced Repetition viktorinasi).
+- [x] 6-Modul: QA Darvozasi, Sinov va Xavfsizlik:
+  * `tests/test_crm_quota_vocab.py`: 10 ta yangi test 100% PASS.
+  * Regressiya testlari: 13/13 test 100% PASS.
+  * Frontend: `oxlint` 0 xato, `tsc -b && vite build` 0 xato bilan 4.31s da yig'ildi.
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ## 3. Jarayonda
 - Yangilanishlarni Git orqali yuborish va VPS serverda faqat `grandec` (lms) xizmatlarini qayta yuklash.
 

@@ -1,0 +1,1 @@
+"""Vocabulary app package."""

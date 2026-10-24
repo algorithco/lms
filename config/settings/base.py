@@ -72,7 +72,8 @@ INSTALLED_APPS = [
     "apps.organizations",  # B2B SaaS Enterprise Hub
     "apps.speaking",  # IELTS & Multi-level AI Speaking Simulator
     "apps.panel",  # In-app admin panel (/control-panel/)
-    "apps.webapi",  # JSON API for the React SPA (/api/v1/)
+    "apps.webapi",
+    "apps.vocabulary",  # JSON API for the React SPA (/api/v1/)
 ]
 
 MIDDLEWARE = [

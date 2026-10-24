@@ -223,6 +223,24 @@ class User(AbstractUser):
             return True
         return False
 
+    @property
+    def teacher_profile_obj(self):
+        """TeacherProfile accessor; auto-creates if missing for teacher or admin users."""
+        if not (self.is_teacher or self.is_platform_admin or self.is_superuser):
+            return None
+        profile, _ = TeacherProfile.objects.get_or_create(teacher=self)
+        return profile
+
+    @property
+    def pro_quota_balance(self) -> int:
+        prof = getattr(self, "teacher_profile", None)
+        return prof.pro_quota_balance if prof else 0
+
+    @property
+    def premium_quota_balance(self) -> int:
+        prof = getattr(self, "teacher_profile", None)
+        return prof.premium_quota_balance if prof else 0
+
 
 class Profile(models.Model):
     """
@@ -518,3 +536,38 @@ class ParentStudentRelation(models.Model):
     def __str__(self) -> str:
         status = "tasdiqlangan" if self.is_verified else "kutilmoqda"
         return f"{self.student.get_full_name()} ↔ {self.parent_phone} ({status})"
+
+
+
+class TeacherProfile(models.Model):
+    """
+    O'qituvchi profili va litsenziya kvotalari (Admin kvotalari boshqaruvi).
+    Ustoz o'z guruhidagi o'quvchilarga PRO yoki PREMIUM litsenziyalarni tarqata oladi.
+    """
+
+    teacher = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="teacher_profile",
+        verbose_name=_("o'qituvchi"),
+        limit_choices_to={"role": "teacher"},
+    )
+    pro_quota_balance = models.PositiveIntegerField(
+        _("PRO kvota balansi"),
+        default=0,
+        help_text=_("Ustoz o'quvchilarga ulasha oladigan PRO litsenziyalar soni."),
+    )
+    premium_quota_balance = models.PositiveIntegerField(
+        _("PREMIUM kvota balansi"),
+        default=0,
+        help_text=_("Ustoz o'quvchilarga ulasha oladigan PREMIUM litsenziyalar soni."),
+    )
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("O'qituvchi profili")
+        verbose_name_plural = _("O'qituvchilar profillari")
+
+    def __str__(self) -> str:
+        return f"TeacherProfile: {self.teacher.get_full_name()} (PRO: {self.pro_quota_balance}, PREMIUM: {self.premium_quota_balance})"
