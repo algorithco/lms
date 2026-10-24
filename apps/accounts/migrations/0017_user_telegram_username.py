@@ -4,15 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0016_teacherprofile'),
+        ("accounts", "0016_teacherprofile"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='telegram_username',
-            field=models.CharField(blank=True, help_text="Foydalanuvchining Telegram username'i (@username).", max_length=64, null=True, verbose_name='Telegram Username'),
+            model_name="user",
+            name="telegram_username",
+            field=models.CharField(
+                blank=True,
+                help_text="Foydalanuvchining Telegram username'i (@username).",
+                max_length=64,
+                null=True,
+                verbose_name="Telegram Username",
+            ),
         ),
     ]

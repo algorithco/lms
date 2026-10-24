@@ -62,7 +62,7 @@ def generate_reading_listening_evidence(
                 "Keys required: 'direct_quote', 'why_wrong', 'synonym_matching', 'correct_rule'."
             )
             user_prompt = f"""Analyze this English exam question and candidate error:
-Passage/Transcript: {passage_text[:1200] if passage_text else '(Short context question)'}
+Passage/Transcript: {passage_text[:1200] if passage_text else "(Short context question)"}
 Question: {question_text}
 Candidate Selected WRONG Answer: {selected_answer}
 CORRECT Answer: {correct_answer}
@@ -86,14 +86,18 @@ Return JSON with:
             raw = (resp.choices[0].message.content or "").strip()
             # Clean possible markdown json wrapper
             if "```" in raw:
-                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
+                raw = re.sub(
+                    r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE
+                ).strip()
             data = json.loads(raw)
             if isinstance(data, dict) and "direct_quote" in data:
                 data["source"] = "deepseek-r1-0528"
                 cache.set(cache_key, data, timeout=3600 * 24 * 7)
                 return data
     except Exception as e:
-        logger.warning("Evidence extraction via LLM failed (%s), using rule-based fallback", e)
+        logger.warning(
+            "Evidence extraction via LLM failed (%s), using rule-based fallback", e
+        )
 
     # Deterministic rule-based fallback
     direct_quote = ""
@@ -101,7 +105,9 @@ Return JSON with:
         # Search for first sentence mentioning correct answer or keywords
         sentences = re.split(r"(?<=[.!?])\s+", passage_text)
         for s in sentences:
-            if any(w.lower() in s.lower() for w in correct_answer.split() if len(w) > 3):
+            if any(
+                w.lower() in s.lower() for w in correct_answer.split() if len(w) > 3
+            ):
                 direct_quote = s.strip()
                 break
         if not direct_quote and sentences:
@@ -121,7 +127,10 @@ Return JSON with:
         ),
         "correct_rule": (
             f"To'g'ri javob — '{correct_answer}'. "
-            + (question_explanation or "Savol kalit so'zlarini matndagi parafraza bilan solishtiring.")
+            + (
+                question_explanation
+                or "Savol kalit so'zlarini matndagi parafraza bilan solishtiring."
+            )
         ),
         "source": "rule_engine",
     }
@@ -169,7 +178,7 @@ def grade_multilevel_writing_bmb(
                 "Output strictly valid JSON."
             )
             user_prompt = f"""Evaluate this {task_type.upper()} Multi-level response:
-Topic/Prompt: {topic_title or 'Multi-level Writing Prompt'}
+Topic/Prompt: {topic_title or "Multi-level Writing Prompt"}
 Word count: {word_count}
 Essay Text:
 {text}
@@ -205,13 +214,17 @@ Return JSON with:
             )
             raw = (resp.choices[0].message.content or "").strip()
             if "```" in raw:
-                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
+                raw = re.sub(
+                    r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE
+                ).strip()
             data = json.loads(raw)
             if "total_score" in data:
                 data["source"] = "deepseek-r1-0528"
                 return data
     except Exception as e:
-        logger.warning("BMB Multi-level grading LLM failed (%s), using rule-based scoring", e)
+        logger.warning(
+            "BMB Multi-level grading LLM failed (%s), using rule-based scoring", e
+        )
 
     # Deterministic fallback scoring (scaled to 75 points)
     if word_count < 50:
@@ -242,9 +255,21 @@ Return JSON with:
         "total_score": total,
         "cefr_level": level,
         "word_upgrades": [
-            {"original": "important", "suggested": "paramount / indispensable", "context": "Crucial priority"},
-            {"original": "good", "suggested": "beneficial / advantageous", "context": "Positive impact"},
-            {"original": "show", "suggested": "demonstrate / exemplify", "context": "Supporting evidence"},
+            {
+                "original": "important",
+                "suggested": "paramount / indispensable",
+                "context": "Crucial priority",
+            },
+            {
+                "original": "good",
+                "suggested": "beneficial / advantageous",
+                "context": "Positive impact",
+            },
+            {
+                "original": "show",
+                "suggested": "demonstrate / exemplify",
+                "context": "Supporting evidence",
+            },
         ],
         "model_paragraph": (
             "Furthermore, it is widely acknowledged that continuous exposure to high-level academic texts "
@@ -286,7 +311,7 @@ def grade_ielts_writing_deductive(
                 "Output strictly valid JSON with no markdown formatting."
             )
             user_prompt = f"""IELTS Writing Evaluation ({task_type.upper()}):
-Prompt: {topic_title or 'IELTS General Prompt'}
+Prompt: {topic_title or "IELTS General Prompt"}
 Word count: {word_count}
 Essay:
 {text}
@@ -313,7 +338,9 @@ Return JSON:
             )
             raw = (resp.choices[0].message.content or "").strip()
             if "```" in raw:
-                raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
+                raw = re.sub(
+                    r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE
+                ).strip()
             data = json.loads(raw)
             if "overall_band" in data:
                 data["source"] = "deepseek-r1-0528"
@@ -337,22 +364,30 @@ Return JSON:
     return {
         "task_response": {
             "band": float(base),
-            "deductions": [f"Words: {word_count}/{min_words}"] if word_count < min_words else [],
+            "deductions": [f"Words: {word_count}/{min_words}"]
+            if word_count < min_words
+            else [],
             "feedback": f"Fikrlar asoslangan, talab qilingan so'zlar soni: {word_count}.",
         },
         "coherence_cohesion": {
             "band": float(base),
-            "deductions": ["-0.5: Xatboshilar orasida ko'proq tabiiy bog'lovchilar talab etiladi."],
+            "deductions": [
+                "-0.5: Xatboshilar orasida ko'proq tabiiy bog'lovchilar talab etiladi."
+            ],
             "feedback": "Mantiqiy ketma-ketlik va xatboshilarga bo'linish yaxshi.",
         },
         "lexical_resource": {
             "band": float(base),
-            "deductions": ["-0.5: So'z takrorlanishi kuzatildi, kamyob akademik sinonimlar kerak."],
+            "deductions": [
+                "-0.5: So'z takrorlanishi kuzatildi, kamyob akademik sinonimlar kerak."
+            ],
             "feedback": "Asosiy mavzuga oid so'z boyligi mavjud.",
         },
         "grammatical_accuracy": {
             "band": float(base),
-            "deductions": ["-0.5: Qo'shma gaplarda zamonlar moslashuvi bo'yicha kamchiliklar."],
+            "deductions": [
+                "-0.5: Qo'shma gaplarda zamonlar moslashuvi bo'yicha kamchiliklar."
+            ],
             "feedback": "Gap konstruksiyalari tushunarli.",
         },
         "overall_band": float(overall),

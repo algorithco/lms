@@ -15,7 +15,13 @@ class PaymentReceiptAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("plan_type", "payment_system", "is_verified", "created_at")
-    search_fields = ("user__email", "user__first_name", "user__last_name", "transaction_id", "receipt_hash")
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "transaction_id",
+        "receipt_hash",
+    )
     readonly_fields = ("created_at",)
 
 
@@ -31,5 +37,12 @@ class FraudLogAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("banned", "strike_count", "created_at")
-    search_fields = ("user__email", "user__first_name", "user__last_name", "transaction_id", "receipt_hash", "reason")
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "transaction_id",
+        "receipt_hash",
+        "reason",
+    )
     readonly_fields = ("created_at",)

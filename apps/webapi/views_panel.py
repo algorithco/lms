@@ -933,7 +933,6 @@ def panel_attendance_export_view(request):
     return response
 
 
-
 @api_view(["POST"])
 @permission_classes([IsPanelAdmin])
 def allocate_teacher_quota_view(request, teacher_id):
@@ -942,6 +941,7 @@ def allocate_teacher_quota_view(request, teacher_id):
     POST /api/v1/panel/teachers/<id>/allocate-quota/
     """
     from apps.accounts.models import TeacherProfile
+
     teacher = get_object_or_404(User, id=teacher_id)
     profile, _ = TeacherProfile.objects.get_or_create(teacher=teacher)
 
@@ -961,14 +961,16 @@ def allocate_teacher_quota_view(request, teacher_id):
         profile.premium_quota_balance += premium_quota
 
     profile.save()
-    return Response({
-        "status": "success",
-        "message": f"Ustoz {teacher.get_full_name()} hisobiga kvota muvaffaqiyatli biriktirildi.",
-        "teacher_id": teacher.id,
-        "teacher_name": teacher.get_full_name(),
-        "pro_quota_balance": profile.pro_quota_balance,
-        "premium_quota_balance": profile.premium_quota_balance,
-    })
+    return Response(
+        {
+            "status": "success",
+            "message": f"Ustoz {teacher.get_full_name()} hisobiga kvota muvaffaqiyatli biriktirildi.",
+            "teacher_id": teacher.id,
+            "teacher_name": teacher.get_full_name(),
+            "pro_quota_balance": profile.pro_quota_balance,
+            "premium_quota_balance": profile.premium_quota_balance,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -979,7 +981,11 @@ def activate_student_quota_view(request, group_id=None, student_id=None):
     POST /api/v1/courses/groups/<group_id>/students/<student_id>/activate-quota/
     """
     from apps.courses.models import StudentGroup
-    from apps.payments.models import SubscriptionPlan, UserSubscription, TeacherSponsorship
+    from apps.payments.models import (
+        SubscriptionPlan,
+        UserSubscription,
+        TeacherSponsorship,
+    )
     from apps.accounts.models import TeacherProfile
 
     g_id = group_id or request.data.get("group_id")
@@ -990,67 +996,86 @@ def activate_student_quota_view(request, group_id=None, student_id=None):
     student = get_object_or_404(User, id=s_id)
 
     # Ruxsat tekshiruvi: faqat guruh egasi (ustoz) yoki admin
-    if group.teacher != request.user and not request.user.is_staff and not request.user.is_superuser:
-        return Response({"error": "Faqat guruh ustozi talabaga kvota biriktira oladi."}, status=403)
+    if (
+        group.teacher != request.user
+        and not request.user.is_staff
+        and not request.user.is_superuser
+    ):
+        return Response(
+            {"error": "Faqat guruh ustozi talabaga kvota biriktira oladi."}, status=403
+        )
 
-    teacher_prof, _ = TeacherProfile.objects.get_or_create(teacher=group.teacher)
-
-    if plan_type == "premium":
-        if teacher_prof.premium_quota_balance <= 0:
-            return Response(
-                {"error": "Sizda PREMIUM kvota qolmagan. Iltimos, administratorga murojaat qiling."},
-                status=400,
-            )
-        teacher_prof.premium_quota_balance -= 1
-    else:
-        plan_type = "pro"
-        if teacher_prof.pro_quota_balance <= 0:
-            return Response(
-                {"error": "Sizda PRO kvota qolmagan. Iltimos, administratorga murojaat qiling."},
-                status=400,
-            )
-        teacher_prof.pro_quota_balance -= 1
-
-    teacher_prof.save()
+    from django.db import transaction
 
     now = timezone.now()
     expires_at = now + timezone.timedelta(days=30)
-    plan_obj = SubscriptionPlan.objects.filter(plan_type=plan_type).first()
 
-    # UserSubscription aktivlashtirish
-    UserSubscription.objects.update_or_create(
-        user=student,
-        defaults={
-            "plan": plan_obj,
-            "status": UserSubscription.Status.ACTIVE,
-            "started_at": now,
-            "expires_at": expires_at,
-            "grant_source": "teacher_quota",
-        },
+    with transaction.atomic():
+        # Race-condition oldini olish: select_for_update() bilan qulflash
+        teacher_prof, _ = TeacherProfile.objects.select_for_update().get_or_create(
+            teacher=group.teacher
+        )
+
+        if plan_type == "premium":
+            if teacher_prof.premium_quota_balance <= 0:
+                return Response(
+                    {
+                        "error": "Sizda PREMIUM kvota qolmagan. Iltimos, administratorga murojaat qiling."
+                    },
+                    status=400,
+                )
+            teacher_prof.premium_quota_balance -= 1
+        else:
+            plan_type = "pro"
+            if teacher_prof.pro_quota_balance <= 0:
+                return Response(
+                    {
+                        "error": "Sizda PRO kvota qolmagan. Iltimos, administratorga murojaat qiling."
+                    },
+                    status=400,
+                )
+            teacher_prof.pro_quota_balance -= 1
+
+        teacher_prof.save(update_fields=["pro_quota_balance", "premium_quota_balance"])
+
+        plan_obj = SubscriptionPlan.objects.filter(plan_type=plan_type).first()
+
+        # UserSubscription aktivlashtirish
+        UserSubscription.objects.update_or_create(
+            user=student,
+            defaults={
+                "plan": plan_obj,
+                "status": UserSubscription.Status.ACTIVE,
+                "started_at": now,
+                "expires_at": expires_at,
+                "grant_source": "teacher_quota",
+            },
+        )
+
+        # Profil tarifini yangilash
+        if hasattr(student, "profile"):
+            student.profile.plan = plan_type
+            student.profile.save(update_fields=["plan"])
+
+        # Ustoz homiyligi
+        TeacherSponsorship.objects.update_or_create(
+            student=student,
+            group=group,
+            defaults={
+                "is_active": True,
+                "approved_by": group.teacher,
+                "expires_at": expires_at,
+            },
+        )
+
+    return Response(
+        {
+            "status": "success",
+            "message": f"{student.get_full_name()} uchun 30 kunlik {plan_type.upper()} obuna muvaffaqiyatli faollashtirildi.",
+            "student_id": student.id,
+            "plan": plan_type,
+            "expires_at": expires_at.strftime("%Y-%m-%d"),
+            "pro_quota_balance": teacher_prof.pro_quota_balance,
+            "premium_quota_balance": teacher_prof.premium_quota_balance,
+        }
     )
-
-    # Profil tarifini yangilash
-    if hasattr(student, "profile"):
-        student.profile.plan = plan_type
-        student.profile.save(update_fields=["plan"])
-
-    # Ustoz homiyligi
-    TeacherSponsorship.objects.update_or_create(
-        student=student,
-        group=group,
-        defaults={
-            "is_active": True,
-            "approved_by": group.teacher,
-            "expires_at": expires_at,
-        },
-    )
-
-    return Response({
-        "status": "success",
-        "message": f"{student.get_full_name()} uchun 30 kunlik {plan_type.upper()} obuna muvaffaqiyatli faollashtirildi.",
-        "student_id": student.id,
-        "plan": plan_type,
-        "expires_at": expires_at.strftime("%Y-%m-%d"),
-        "pro_quota_balance": teacher_prof.pro_quota_balance,
-        "premium_quota_balance": teacher_prof.premium_quota_balance,
-    })

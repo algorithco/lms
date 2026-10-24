@@ -42,19 +42,33 @@ class QuotaService:
                 "⚠️ <b>Kvotangiz tugadi!</b> Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz.\n\n"
                 "Cheklovlarsiz ishlash uchun 5 000 so'mlik <b>Starter</b> yoki <b>PRO</b> tarifiga o'ting!"
             )
-            return False, msg, {"tier": "free", "limit": 1, "used": 1, "remaining": 0, "allowed": False}
+            return (
+                False,
+                msg,
+                {
+                    "tier": "free",
+                    "limit": 1,
+                    "used": 1,
+                    "remaining": 0,
+                    "allowed": False,
+                },
+            )
 
         tier = cls.get_user_tier(user)
 
         # Teachers, Admins, Superusers, PRO and Premium have full access
         if tier in ("premium", "pro"):
-            return True, "", {
-                "tier": tier,
-                "limit": None,
-                "used": 0,
-                "remaining": 999,
-                "allowed": True,
-            }
+            return (
+                True,
+                "",
+                {
+                    "tier": tier,
+                    "limit": None,
+                    "used": 0,
+                    "remaining": 999,
+                    "allowed": True,
+                },
+            )
 
         today = timezone.localdate()
         date_str = today.strftime("%Y-%m-%d")
@@ -73,7 +87,10 @@ class QuotaService:
             usage_count = SubscriptionUsage.objects.filter(
                 user=user,
                 created_at__date=today,
-                kind__in=[SubscriptionUsage.Kind.TEXT_ESSAY, SubscriptionUsage.Kind.IMAGE_ESSAY],
+                kind__in=[
+                    SubscriptionUsage.Kind.TEXT_ESSAY,
+                    SubscriptionUsage.Kind.IMAGE_ESSAY,
+                ],
             ).count()
 
             # Check cache usage
@@ -87,21 +104,29 @@ class QuotaService:
                     "⚠️ <b>Kvotangiz tugadi!</b> Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz.\n\n"
                     "Cheklovlarsiz ishlash uchun 5 000 so'mlik <b>Starter</b> yoki <b>PRO</b> tarifiga o'ting!"
                 )
-                return False, msg, {
+                return (
+                    False,
+                    msg,
+                    {
+                        "tier": "free",
+                        "limit": cls.FREE_DAILY_ESSAY_LIMIT,
+                        "used": used,
+                        "remaining": 0,
+                        "allowed": False,
+                    },
+                )
+
+            return (
+                True,
+                "",
+                {
                     "tier": "free",
                     "limit": cls.FREE_DAILY_ESSAY_LIMIT,
                     "used": used,
-                    "remaining": 0,
-                    "allowed": False,
-                }
-
-            return True, "", {
-                "tier": "free",
-                "limit": cls.FREE_DAILY_ESSAY_LIMIT,
-                "used": used,
-                "remaining": cls.FREE_DAILY_ESSAY_LIMIT - used,
-                "allowed": True,
-            }
+                    "remaining": cls.FREE_DAILY_ESSAY_LIMIT - used,
+                    "allowed": True,
+                },
+            )
 
         # 2. Starter tarifi: 3 ta esse
         if tier == "starter":
@@ -124,23 +149,35 @@ class QuotaService:
                     f"Sizga ajratilgan {cls.STARTER_ESSAY_LIMIT} ta esse tekshiruvidan foydalandingiz.\n\n"
                     "Cheksiz tekshiruvlar uchun <b>PRO</b> tarifiga o'ting!"
                 )
-                return False, msg, {
+                return (
+                    False,
+                    msg,
+                    {
+                        "tier": "starter",
+                        "limit": cls.STARTER_ESSAY_LIMIT,
+                        "used": period_used,
+                        "remaining": 0,
+                        "allowed": False,
+                    },
+                )
+
+            return (
+                True,
+                "",
+                {
                     "tier": "starter",
                     "limit": cls.STARTER_ESSAY_LIMIT,
                     "used": period_used,
-                    "remaining": 0,
-                    "allowed": False,
-                }
+                    "remaining": cls.STARTER_ESSAY_LIMIT - period_used,
+                    "allowed": True,
+                },
+            )
 
-            return True, "", {
-                "tier": "starter",
-                "limit": cls.STARTER_ESSAY_LIMIT,
-                "used": period_used,
-                "remaining": cls.STARTER_ESSAY_LIMIT - period_used,
-                "allowed": True,
-            }
-
-        return True, "", {"tier": tier, "limit": None, "used": 0, "remaining": 999, "allowed": True}
+        return (
+            True,
+            "",
+            {"tier": tier, "limit": None, "used": 0, "remaining": 999, "allowed": True},
+        )
 
     @classmethod
     def consume_essay_quota(
@@ -170,7 +207,12 @@ class QuotaService:
             from apps.payments.models import SubscriptionUsage
             from apps.payments.entitlements import quota_period_start
 
-            if idempotency_key and SubscriptionUsage.objects.filter(idempotency_key=idempotency_key).exists():
+            if (
+                idempotency_key
+                and SubscriptionUsage.objects.filter(
+                    idempotency_key=idempotency_key
+                ).exists()
+            ):
                 return True
 
             SubscriptionUsage.objects.create(
@@ -178,7 +220,8 @@ class QuotaService:
                 kind=kind,
                 status=SubscriptionUsage.Status.COMMITTED,
                 period_start=quota_period_start(),
-                idempotency_key=idempotency_key or f"quota:{user.id}:{kind}:{timezone.now().timestamp()}",
+                idempotency_key=idempotency_key
+                or f"quota:{user.id}:{kind}:{timezone.now().timestamp()}",
             )
             return True
         except Exception as e:
@@ -201,19 +244,27 @@ class QuotaService:
                 started_at__date__gte=today - timezone.timedelta(days=30),
             ).count()
             if used_tests >= cls.STARTER_TEST_LIMIT:
-                return False, f"Starter tarifi bo'yicha {cls.STARTER_TEST_LIMIT} ta test limitingiz tugadi.", {
+                return (
+                    False,
+                    f"Starter tarifi bo'yicha {cls.STARTER_TEST_LIMIT} ta test limitingiz tugadi.",
+                    {
+                        "tier": "starter",
+                        "limit": cls.STARTER_TEST_LIMIT,
+                        "used": used_tests,
+                        "remaining": 0,
+                        "allowed": False,
+                    },
+                )
+            return (
+                True,
+                "",
+                {
                     "tier": "starter",
                     "limit": cls.STARTER_TEST_LIMIT,
                     "used": used_tests,
-                    "remaining": 0,
-                    "allowed": False,
-                }
-            return True, "", {
-                "tier": "starter",
-                "limit": cls.STARTER_TEST_LIMIT,
-                "used": used_tests,
-                "remaining": cls.STARTER_TEST_LIMIT - used_tests,
-                "allowed": True,
-            }
+                    "remaining": cls.STARTER_TEST_LIMIT - used_tests,
+                    "allowed": True,
+                },
+            )
 
         return True, "", {"tier": "free", "allowed": True, "remaining": 1}

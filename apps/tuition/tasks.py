@@ -100,7 +100,6 @@ def send_payment_reminders(self: Any, as_of: str | None = None) -> dict[str, Any
         raise self.retry(exc=exc)
 
 
-
 @shared_task(
     bind=True,
     name="tuition.check_group_tuition_due_dates_task",
@@ -117,7 +116,9 @@ def check_group_tuition_due_dates_task(self: Any) -> dict[str, Any]:
     from apps.webapi.views_crm import send_telegram_message_safe
 
     today = timezone.localdate()
-    enrollments = GroupEnrollment.objects.select_related("group", "student").filter(is_active=True)
+    enrollments = GroupEnrollment.objects.select_related("group", "student").filter(
+        is_active=True
+    )
 
     sent_students = 0
     sent_parents = 0
@@ -187,11 +188,17 @@ def check_group_tuition_due_dates_task(self: Any) -> dict[str, Any]:
             if e.parent_telegram_id and e.parent_telegram_id.isdigit():
                 parent_chat_id = int(e.parent_telegram_id)
             else:
-                rel = ParentStudentRelation.objects.filter(student=st, is_verified=True).first()
+                rel = ParentStudentRelation.objects.filter(
+                    student=st, is_verified=True
+                ).first()
                 if rel and rel.parent_telegram_id:
                     parent_chat_id = rel.parent_telegram_id
             if parent_chat_id:
                 if send_telegram_message_safe(parent_chat_id, parent_msg):
                     sent_parents += 1
 
-    return {"status": "success", "sent_students": sent_students, "sent_parents": sent_parents}
+    return {
+        "status": "success",
+        "sent_students": sent_students,
+        "sent_parents": sent_parents,
+    }

@@ -6,56 +6,175 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('courses', '0008_groupenrollment'),
+        ("courses", "0008_groupenrollment"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='VocabularyPack',
+            name="VocabularyPack",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=250, verbose_name="to'plam nomi")),
-                ('subject', models.CharField(default='english', max_length=50, verbose_name='fan')),
-                ('raw_words_text', models.TextField(help_text="Ustoz kiritgan xom so'zlar matni.", verbose_name="kiritilgan so'zlar ro'yxati")),
-                ('word_count', models.PositiveIntegerField(default=0, verbose_name="so'zlar soni")),
-                ('exercises_data', models.JSONField(blank=True, default=dict, help_text='format_1_quiz, format_2_spelling, format_3_eng_uzb, format_4_uzb_eng', verbose_name='4 xil mashqlar JSON formati')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('group', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vocabulary_packs', to='courses.studentgroup', verbose_name='biriktirilgan guruh')),
-                ('teacher', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='vocabulary_packs', to=settings.AUTH_USER_MODEL, verbose_name="o'qituvchi")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=250, verbose_name="to'plam nomi"),
+                ),
+                (
+                    "subject",
+                    models.CharField(
+                        default="english", max_length=50, verbose_name="fan"
+                    ),
+                ),
+                (
+                    "raw_words_text",
+                    models.TextField(
+                        help_text="Ustoz kiritgan xom so'zlar matni.",
+                        verbose_name="kiritilgan so'zlar ro'yxati",
+                    ),
+                ),
+                (
+                    "word_count",
+                    models.PositiveIntegerField(default=0, verbose_name="so'zlar soni"),
+                ),
+                (
+                    "exercises_data",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="format_1_quiz, format_2_spelling, format_3_eng_uzb, format_4_uzb_eng",
+                        verbose_name="4 xil mashqlar JSON formati",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="vocabulary_packs",
+                        to="courses.studentgroup",
+                        verbose_name="biriktirilgan guruh",
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="vocabulary_packs",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'qituvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "Lug'at to'plami",
-                'verbose_name_plural': "Lug'at to'plamlari",
-                'ordering': ['-created_at'],
+                "verbose_name": "Lug'at to'plami",
+                "verbose_name_plural": "Lug'at to'plamlari",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='StudentWordMistake',
+            name="StudentWordMistake",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('word', models.CharField(db_index=True, max_length=120, verbose_name="inglizcha so'z")),
-                ('definition', models.TextField(blank=True, verbose_name="ta'rifi / ma'nosi")),
-                ('translation_uz', models.CharField(blank=True, max_length=255, verbose_name="o'zbekcha tarjimasi")),
-                ('mistake_count', models.PositiveIntegerField(default=1, verbose_name='xatolar soni')),
-                ('consecutive_correct_streak', models.PositiveIntegerField(default=0, verbose_name="ketma-ket to'g'ri topishlar soni")),
-                ('is_mastered', models.BooleanField(db_index=True, default=False, verbose_name='yod olinganmi')),
-                ('last_reviewed_at', models.DateTimeField(blank=True, null=True, verbose_name='oxirgi takrorlangan vaqt')),
-                ('next_review_at', models.DateTimeField(blank=True, db_index=True, null=True, verbose_name='keyingi takrorlash vaqti')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='yaratilgan')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='yangilangan')),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='word_mistakes', to=settings.AUTH_USER_MODEL, verbose_name="o'quvchi")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "word",
+                    models.CharField(
+                        db_index=True, max_length=120, verbose_name="inglizcha so'z"
+                    ),
+                ),
+                (
+                    "definition",
+                    models.TextField(blank=True, verbose_name="ta'rifi / ma'nosi"),
+                ),
+                (
+                    "translation_uz",
+                    models.CharField(
+                        blank=True, max_length=255, verbose_name="o'zbekcha tarjimasi"
+                    ),
+                ),
+                (
+                    "mistake_count",
+                    models.PositiveIntegerField(default=1, verbose_name="xatolar soni"),
+                ),
+                (
+                    "consecutive_correct_streak",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="ketma-ket to'g'ri topishlar soni"
+                    ),
+                ),
+                (
+                    "is_mastered",
+                    models.BooleanField(
+                        db_index=True, default=False, verbose_name="yod olinganmi"
+                    ),
+                ),
+                (
+                    "last_reviewed_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="oxirgi takrorlangan vaqt"
+                    ),
+                ),
+                (
+                    "next_review_at",
+                    models.DateTimeField(
+                        blank=True,
+                        db_index=True,
+                        null=True,
+                        verbose_name="keyingi takrorlash vaqti",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="yaratilgan"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="yangilangan"),
+                ),
+                (
+                    "student",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="word_mistakes",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="o'quvchi",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "O'quvchi xato qilgan so'zi",
-                'verbose_name_plural': "O'quvchi xato qilgan so'zlari",
-                'ordering': ['is_mastered', '-mistake_count', 'next_review_at'],
-                'unique_together': {('student', 'word')},
+                "verbose_name": "O'quvchi xato qilgan so'zi",
+                "verbose_name_plural": "O'quvchi xato qilgan so'zlari",
+                "ordering": ["is_mastered", "-mistake_count", "next_review_at"],
+                "unique_together": {("student", "word")},
             },
         ),
     ]

@@ -25,6 +25,7 @@ def send_telegram_safe(chat_id: int | str, text: str, reply_markup=None) -> bool
         return False
     try:
         from apps.notifications.services.telegram_service import TelegramService
+
         TelegramService.send_message(chat_id=int(chat_id), text=text)
         return True
     except Exception as exc:
@@ -34,7 +35,10 @@ def send_telegram_safe(chat_id: int | str, text: str, reply_markup=None) -> bool
 
 def get_teacher_groups(teacher: User) -> list[StudentGroup]:
     """Return all active groups belonging to teacher (or all if admin)."""
-    if getattr(teacher, "is_superuser", False) or getattr(teacher, "role", "") == "admin":
+    if (
+        getattr(teacher, "is_superuser", False)
+        or getattr(teacher, "role", "") == "admin"
+    ):
         return list(StudentGroup.objects.all().order_by("name"))
     return list(StudentGroup.objects.filter(teacher=teacher).order_by("name"))
 
@@ -47,9 +51,15 @@ def sync_group_roster(group: StudentGroup) -> None:
 
     for st in all_students:
         if st.id not in existing_ids:
-            parent_rel = ParentStudentRelation.objects.filter(student=st, is_verified=True).first()
+            parent_rel = ParentStudentRelation.objects.filter(
+                student=st, is_verified=True
+            ).first()
             p_phone = parent_rel.parent_phone if parent_rel else ""
-            p_tg = str(parent_rel.parent_telegram_id) if parent_rel and parent_rel.parent_telegram_id else ""
+            p_tg = (
+                str(parent_rel.parent_telegram_id)
+                if parent_rel and parent_rel.parent_telegram_id
+                else ""
+            )
 
             GroupEnrollment.objects.create(
                 group=group,
@@ -67,30 +77,42 @@ def sync_group_roster(group: StudentGroup) -> None:
 def get_group_finance_summary(group: StudentGroup) -> dict[str, Any]:
     """Calculate collected tuition, pending debt, and debtors list for a group."""
     sync_group_roster(group)
-    enrollments = group.group_enrollments.select_related("student", "student__profile").filter(is_active=True)
+    enrollments = group.group_enrollments.select_related(
+        "student", "student__profile"
+    ).filter(is_active=True)
     today = timezone.localdate()
 
     for e in enrollments:
         e.update_status(today)
 
     total_students = enrollments.count()
-    paid_enrollments = [e for e in enrollments if e.payment_status == GroupEnrollment.PaymentStatus.PAID]
-    debtor_enrollments = [e for e in enrollments if e.payment_status != GroupEnrollment.PaymentStatus.PAID]
+    paid_enrollments = [
+        e for e in enrollments if e.payment_status == GroupEnrollment.PaymentStatus.PAID
+    ]
+    debtor_enrollments = [
+        e for e in enrollments if e.payment_status != GroupEnrollment.PaymentStatus.PAID
+    ]
 
     collected_amount = sum(float(e.monthly_fee) for e in paid_enrollments)
     pending_amount = sum(float(e.monthly_fee) for e in debtor_enrollments)
 
     debtors_data = []
     for e in debtor_enrollments:
-        debtors_data.append({
-            "enrollment_id": e.id,
-            "student_id": e.student.id,
-            "student_name": e.student.get_full_name() or e.student.email,
-            "fee": float(e.monthly_fee),
-            "next_due": e.next_payment_due.strftime("%d.%m.%Y") if e.next_payment_due else "Muddatsiz",
-            "status": "Muddati o'tgan" if e.payment_status == GroupEnrollment.PaymentStatus.OVERDUE else "To'lov yaqin",
-            "parent_telegram_id": e.parent_telegram_id,
-        })
+        debtors_data.append(
+            {
+                "enrollment_id": e.id,
+                "student_id": e.student.id,
+                "student_name": e.student.get_full_name() or e.student.email,
+                "fee": float(e.monthly_fee),
+                "next_due": e.next_payment_due.strftime("%d.%m.%Y")
+                if e.next_payment_due
+                else "Muddatsiz",
+                "status": "Muddati o'tgan"
+                if e.payment_status == GroupEnrollment.PaymentStatus.OVERDUE
+                else "To'lov yaqin",
+                "parent_telegram_id": e.parent_telegram_id,
+            }
+        )
 
     return {
         "group_id": group.id,
@@ -104,7 +126,9 @@ def get_group_finance_summary(group: StudentGroup) -> dict[str, Any]:
     }
 
 
-def record_tuition_payment(enrollment: GroupEnrollment, amount: float | Decimal) -> GroupEnrollment:
+def record_tuition_payment(
+    enrollment: GroupEnrollment, amount: float | Decimal
+) -> GroupEnrollment:
     """Extend enrollment payment due date by 30 days and mark as PAID."""
     enrollment.record_payment(amount=amount)
     return enrollment
@@ -139,7 +163,11 @@ def send_debtor_payment_reminders(
         for e in debtors:
             st = e.student
             fee_str = f"{float(e.monthly_fee):,.0f} so'm".replace(",", " ")
-            due_str = e.next_payment_due.strftime("%d.%m.%Y") if e.next_payment_due else "belgilangan muddat"
+            due_str = (
+                e.next_payment_due.strftime("%d.%m.%Y")
+                if e.next_payment_due
+                else "belgilangan muddat"
+            )
 
             # 1. Student reminder (if telegram_chat_id exists)
             st_chat = getattr(st, "telegram_chat_id", None)
@@ -208,7 +236,11 @@ def save_interactive_attendance(
         absent_cnt = 0
 
         for st_id, st_status in statuses.items():
-            status_val = AttendanceRecord.Status.PRESENT if st_status == "present" else AttendanceRecord.Status.ABSENT
+            status_val = (
+                AttendanceRecord.Status.PRESENT
+                if st_status == "present"
+                else AttendanceRecord.Status.ABSENT
+            )
             AttendanceRecord.objects.update_or_create(
                 session=session,
                 student_id=st_id,
@@ -219,8 +251,14 @@ def save_interactive_attendance(
             else:
                 absent_cnt += 1
                 # Alert parent if parent_telegram_id exists
-                enrollment = GroupEnrollment.objects.filter(group=group, student_id=st_id).first()
-                if enrollment and enrollment.parent_telegram_id and enrollment.parent_telegram_id.isdigit():
+                enrollment = GroupEnrollment.objects.filter(
+                    group=group, student_id=st_id
+                ).first()
+                if (
+                    enrollment
+                    and enrollment.parent_telegram_id
+                    and enrollment.parent_telegram_id.isdigit()
+                ):
                     student = User.objects.filter(id=st_id).first()
                     st_name = student.get_full_name() if student else "Farzandingiz"
                     alert_text = (
@@ -230,4 +268,8 @@ def save_interactive_attendance(
                     )
                     send_telegram_safe(int(enrollment.parent_telegram_id), alert_text)
 
-    return session, {"present": present_cnt, "absent": absent_cnt, "total": present_cnt + absent_cnt}
+    return session, {
+        "present": present_cnt,
+        "absent": absent_cnt,
+        "total": present_cnt + absent_cnt,
+    }

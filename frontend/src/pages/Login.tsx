@@ -108,6 +108,13 @@ export default function Login() {
     }
   };
 
+  const adoptTelegramLogin = (tokens: { access: string; refresh: string }, user: Record<string, unknown>) => {
+    stopPolling();
+    setTgPhase('done');
+    const adopted = loginWithTelegram(tokens, user);
+    navigate(landingFor(adopted));
+  };
+
   useEffect(() => {
     // 1-Click Auto-login if inside Telegram Mini App (TMA)
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } } })?.Telegram;
@@ -132,12 +139,7 @@ export default function Login() {
     return stopPolling;
   }, []);
 
-  const adoptTelegramLogin = (tokens: { access: string; refresh: string }, user: Record<string, unknown>) => {
-    stopPolling();
-    setTgPhase('done');
-    const adopted = loginWithTelegram(tokens, user);
-    navigate(landingFor(adopted));
-  };
+
 
   const pollStatus = async (token: string) => {
     try {

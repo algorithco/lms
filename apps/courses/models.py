@@ -486,7 +486,6 @@ class HomeworkSubmission(models.Model):
         return f"{self.student_id} — {self.homework_id} ({status})"
 
 
-
 # ---------------------------------------------------------------------------
 # GroupEnrollment (Guruh a'zoligi, kurs to'lovlari grafigi & CRM)
 # ---------------------------------------------------------------------------
@@ -574,15 +573,24 @@ class GroupEnrollment(models.Model):
     def record_payment(self, amount=None, payment_date=None, extend_days=30):
         from datetime import timedelta
         from django.utils import timezone
+
         p_date = payment_date or timezone.localdate()
         self.last_payment_date = p_date
         base_date = max(p_date, self.next_payment_due or p_date)
         self.next_payment_due = base_date + timedelta(days=extend_days)
         self.payment_status = self.PaymentStatus.PAID
-        self.save(update_fields=["last_payment_date", "next_payment_due", "payment_status", "updated_at"])
+        self.save(
+            update_fields=[
+                "last_payment_date",
+                "next_payment_due",
+                "payment_status",
+                "updated_at",
+            ]
+        )
 
     def update_status(self, today=None):
         from django.utils import timezone
+
         today = today or timezone.localdate()
         if not self.next_payment_due:
             return self.payment_status

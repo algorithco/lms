@@ -4,30 +4,44 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0017_user_telegram_username'),
+        ("accounts", "0017_user_telegram_username"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='ban_reason',
-            field=models.TextField(blank=True, default='', help_text="Foydalanuvchi bloklangan bo'lsa, sababi.", verbose_name='bloklash sababi'),
+            model_name="user",
+            name="ban_reason",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Foydalanuvchi bloklangan bo'lsa, sababi.",
+                verbose_name="bloklash sababi",
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='banned_at',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='bloklangan vaqt'),
+            model_name="user",
+            name="banned_at",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="bloklangan vaqt"
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='fraud_strikes',
-            field=models.PositiveIntegerField(default=0, help_text='Qalbaki chek yuklashlar soni.', verbose_name='fraud strikes'),
+            model_name="user",
+            name="fraud_strikes",
+            field=models.PositiveIntegerField(
+                default=0,
+                help_text="Qalbaki chek yuklashlar soni.",
+                verbose_name="fraud strikes",
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='is_banned',
-            field=models.BooleanField(default=False, help_text='Firibgarlik yoki qoidabuzarlik sababli bloklanganlik holati.', verbose_name='bloklangan'),
+            model_name="user",
+            name="is_banned",
+            field=models.BooleanField(
+                default=False,
+                help_text="Firibgarlik yoki qoidabuzarlik sababli bloklanganlik holati.",
+                verbose_name="bloklangan",
+            ),
         ),
     ]

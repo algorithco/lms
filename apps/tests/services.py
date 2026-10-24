@@ -31,7 +31,8 @@ from django.db.models import F
 from django.utils import timezone
 import sys
 from apps.tests import score_converter
-sys.modules['apps.tests.services.score_converter'] = score_converter
+
+sys.modules["apps.tests.services.score_converter"] = score_converter
 
 from apps.results.models import Result
 from apps.tests.models import (
@@ -1156,6 +1157,7 @@ class SubmitAttemptService:
                 else TestAttempt.Status.COMPLETED
             )
         from apps.tests.score_converter import raw_to_ielts_band, raw_to_cefr_multilevel
+
         band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
         cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
 

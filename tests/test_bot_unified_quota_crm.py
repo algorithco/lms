@@ -13,7 +13,10 @@ from django.core.cache import cache
 from apps.accounts.models import User, Profile
 from apps.courses.models import StudentGroup, GroupEnrollment
 from apps.attendance.models import AttendanceSession, AttendanceRecord
-from apps.accounts.services.telegram_link import create_link_challenge, confirm_link_challenge
+from apps.accounts.services.telegram_link import (
+    create_link_challenge,
+    confirm_link_challenge,
+)
 from apps.subscriptions.services import QuotaService
 from apps.groups.services import (
     get_teacher_groups,
@@ -50,7 +53,9 @@ class BotUnifiedAccountTests(TestCase):
         # Confirm via Telegram numeric id and username
         tg_id = 987654321
         tg_username = "aziz_karimov"
-        state = confirm_link_challenge(token, telegram_id=tg_id, telegram_username=tg_username)
+        state = confirm_link_challenge(
+            token, telegram_id=tg_id, telegram_username=tg_username
+        )
 
         self.assertEqual(state, "confirmed")
         self.user.refresh_from_db()
@@ -210,7 +215,9 @@ class TeacherBotCrmTests(TestCase):
         self.assertEqual(summary["pending_amount"], 500000.00)
 
         # Test reminder sending (mocking telegram)
-        with patch("apps.groups.services.send_telegram_safe", return_value=True) as mock_send:
+        with patch(
+            "apps.groups.services.send_telegram_safe", return_value=True
+        ) as mock_send:
             res = send_debtor_payment_reminders(self.teacher, self.group.id)
             self.assertTrue(res["success"])
             self.assertGreaterEqual(res["total_notified"], 1)
@@ -227,8 +234,12 @@ class TeacherBotCrmTests(TestCase):
             parent_telegram_id="777666555",
         )
 
-        with patch("apps.groups.services.send_telegram_safe", return_value=True) as mock_alert:
-            session, stats = save_interactive_attendance(self.group, self.teacher, statuses)
+        with patch(
+            "apps.groups.services.send_telegram_safe", return_value=True
+        ) as mock_alert:
+            session, stats = save_interactive_attendance(
+                self.group, self.teacher, statuses
+            )
             self.assertEqual(session.status, AttendanceSession.Status.FINALIZED)
             self.assertEqual(stats["present"], 1)
             self.assertEqual(stats["absent"], 1)
@@ -272,20 +283,24 @@ class TeacherBotCrmTests(TestCase):
         self.assertTrue(any("Saqlash" in t for t in btn_texts))
 
         # Tolovlar text
-        text = build_tolovlar_text({
-            "group_name": "Test Group",
-            "total_students": 10,
-            "paid_count": 8,
-            "debtor_count": 2,
-            "collected_amount": 4000000,
-            "pending_amount": 1000000,
-            "debtors": [],
-        })
+        text = build_tolovlar_text(
+            {
+                "group_name": "Test Group",
+                "total_students": 10,
+                "paid_count": 8,
+                "debtor_count": 2,
+                "collected_amount": 4000000,
+                "pending_amount": 1000000,
+                "debtors": [],
+            }
+        )
         self.assertIn("KURS TO'LOVLARI HISOBOTI", text)
         self.assertIn("10 ta", text)
 
         # Receipt prompt
-        p_text, p_kb = build_receipt_approval_prompt("Alisher V.", "IELTS Group", 500000, 1)
+        p_text, p_kb = build_receipt_approval_prompt(
+            "Alisher V.", "IELTS Group", 500000, 1
+        )
         self.assertIn("Alisher V.", p_text)
         self.assertIn("500 000 so'm", p_text)
         self.assertEqual(p_kb.inline_keyboard[0][0].text, "✅ Tasdiqlash")
@@ -347,7 +362,9 @@ class BotHandlersEndToEndTests(TestCase):
         query_update = MagicMock()
         query_update.effective_user.id = self.teacher.telegram_chat_id
         query_update.callback_query.edit_message_text = AsyncMock()
-        context.user_data[f"dav_statuses_{self.group.id}"] = {self.student.id: "present"}
+        context.user_data[f"dav_statuses_{self.group.id}"] = {
+            self.student.id: "present"
+        }
 
         await handle_crm_callback(query_update, context, f"dav_save_{self.group.id}")
         self.assertTrue(query_update.callback_query.edit_message_text.called)

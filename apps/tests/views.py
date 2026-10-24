@@ -1005,6 +1005,7 @@ class ReportViolationView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class EvaluateWritingView(APIView):
     """
     POST /api/tests/writing/evaluate/
@@ -1085,22 +1086,32 @@ class CertificateCardView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if attempt.student_id != request.user.id and request.user.role not in ["admin", "teacher"]:
+        if attempt.student_id != request.user.id and request.user.role not in [
+            "admin",
+            "teacher",
+        ]:
             return Response(
                 {"error": "Ruxsat berilmagan."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         score_info = convert_test_score_to_english_band(attempt)
-        student_name = attempt.student.get_full_name() or attempt.student.username or attempt.student.email
-        exam_type_str = getattr(attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR")()
+        student_name = (
+            attempt.student.get_full_name()
+            or attempt.student.username
+            or attempt.student.email
+        )
+        exam_type_str = getattr(
+            attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR"
+        )()
 
         payload = generate_digital_certificate_payload(
             student_name=student_name,
             exam_title=attempt.test.title,
             exam_type=exam_type_str,
             score_info=score_info,
-            completion_date=(attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
+            completion_date=(attempt.completed_at or attempt.started_at).strftime(
+                "%d.%m.%Y"
+            ),
         )
         return Response(payload, status=status.HTTP_200_OK)
-
