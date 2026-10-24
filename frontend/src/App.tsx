@@ -103,6 +103,8 @@ function AnimatedRoutes() {
           <Route path="/certificates/verify/:number" element={<VerifyCertificate />} />
 
         <Route element={<ProtectedRoute />}>
+          {/* Authentic Cambridge CD-IELTS / BMB CBT Kiosk Mode (distraction-free 100vw x 100vh) */}
+          <Route path="/english-exam/:attemptId" element={<EnglishExamInterface />} />
           <Route element={<Layout />}>
             {/* Ratings live inside the app shell so the sidebar/topbar
                 (and the way back) never disappear. The API already
@@ -115,7 +117,6 @@ function AnimatedRoutes() {
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/take/:attemptId" element={<TakeTest />} />
-            <Route path="/english-exam/:attemptId" element={<EnglishExamInterface />} />
             <Route path="/tests/scan-omr" element={<ScanOMR />} />
             <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />
             <Route path="/results" element={<Results />} />
