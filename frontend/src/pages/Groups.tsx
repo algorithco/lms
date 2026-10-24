@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLang } from '../i18n/LangContext';
-import { School, WhiteLabelApi } from '../lib/api';
+import { School, WhiteLabelApi, api } from '../lib/api';
 import { FolderOpenIcon, SettingsIcon, UsersIcon, XIcon } from '../components/icons';
 import type { GroupMember, SchoolGroup } from '../lib/school';
 import { errMessage, getGroupDetail } from '../lib/school';
 
 export default function Groups() {
+  const activateQuota = async (groupId: number, studentId: number, planType: 'pro' | 'premium') => {
+    try {
+      const res = await api<{ status: string; message: string }>(
+        `/api/v1/courses/groups/${groupId}/students/${studentId}/activate-quota/`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ plan_type: planType }),
+        }
+      );
+      alert(res.message || 'Litsenziya muvaffaqiyatli faollashtirildi!');
+    } catch (err: any) {
+      alert(err.message || 'Kvota yetarli emas. Iltimos, administratorga murojaat qiling.');
+    }
+  };
+
   const { t } = useLang();
   const [groups, setGroups] = useState<SchoolGroup[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -622,16 +637,39 @@ export default function Groups() {
                         </h4>
                         <ul className="muted small">
                           {students.map((s) => (
-                            <li key={s.id}>
-                              {s.full_name} ({s.email})
-                              <button
-                                className="btn sm ghost"
-                                style={{ marginLeft: 8 }}
-                                onClick={() => removeMember(g.id, s.id)}
-                                aria-label={`${t('delete')} ${s.full_name}`}
-                              >
-                                <XIcon size={13} />
-                              </button>
+                            <li key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div>
+                                <span style={{ fontWeight: 600, color: '#f8fafc' }}>{s.full_name}</span>{' '}
+                                <span style={{ opacity: 0.6, fontSize: '0.8rem' }}>({s.email})</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                  type="button"
+                                  className="btn sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.75rem', borderColor: '#f59e0b', color: '#f59e0b' }}
+                                  onClick={() => activateQuota(g.id, s.id, 'pro')}
+                                  title="Ustoz kvotasidan 30 kunlik PRO berish"
+                                >
+                                  ⚡ PRO
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.75rem', borderColor: '#a855f7', color: '#a855f7' }}
+                                  onClick={() => activateQuota(g.id, s.id, 'premium')}
+                                  title="Ustoz kvotasidan 30 kunlik PREMIUM berish"
+                                >
+                                  👑 VIP
+                                </button>
+                                <button
+                                  className="btn sm ghost"
+                                  style={{ marginLeft: 4 }}
+                                  onClick={() => removeMember(g.id, s.id)}
+                                  aria-label={`${t('delete')} ${s.full_name}`}
+                                >
+                                  <XIcon size={13} />
+                                </button>
+                              </div>
                             </li>
                           ))}
                           {students.length === 0 && <li>{t('gf_no_students')}</li>}

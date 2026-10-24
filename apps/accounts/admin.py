@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 
-from .models import Profile, User
+from .models import Profile, TeacherProfile, User
 
 
 @admin.register(User)
@@ -85,3 +85,9 @@ class ProfileAdmin(admin.ModelAdmin):
 
 # Unregister Group — we don't use Django's default groups
 admin.site.unregister(Group)
+
+
+@admin.register(TeacherProfile)
+class TeacherProfileAdmin(admin.ModelAdmin):
+    list_display = ("teacher", "pro_quota_balance", "premium_quota_balance", "created_at")
+    search_fields = ("teacher__email", "teacher__first_name", "teacher__last_name")

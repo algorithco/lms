@@ -4,6 +4,7 @@ from apps.accounts import google_auth as google_auth_views
 from apps.accounts import views as views_accounts
 from apps.accounts import views_gamification
 from . import (
+    views_crm,
     views_attendance,
     views_billing,
     views_reports,
@@ -21,6 +22,40 @@ from apps.tests import views_converter, views_mistakes, views_omr, views_placeme
 app_name = "webapi"
 
 urlpatterns = [
+    # -- Teacher CRM, Quotas & Financial Overview (1-3 Modullar) --------
+    path(
+        "panel/teachers/<int:teacher_id>/allocate-quota/",
+        views_panel.allocate_teacher_quota_view,
+        name="panel-teacher-allocate-quota",
+    ),
+    path(
+        "courses/groups/<int:group_id>/students/<int:student_id>/activate-quota/",
+        views_panel.activate_student_quota_view,
+        name="activate-student-quota",
+    ),
+    path(
+        "courses/groups/<int:group_id>/finance-summary/",
+        views_crm.group_finance_summary_view,
+        name="group-finance-summary",
+    ),
+    path(
+        "courses/groups/<int:group_id>/record-payment/",
+        views_crm.record_group_payment_view,
+        name="group-record-payment",
+    ),
+    path(
+        "courses/groups/<int:group_id>/send-payment-reminders/",
+        views_crm.send_group_payment_reminders_view,
+        name="group-send-payment-reminders",
+    ),
+    path(
+        "payments/scan-receipt/",
+        views_crm.scan_receipt_view,
+        name="payments-scan-receipt",
+    ),
+    # -- AI Vocabulary Generator & Spaced Repetition (4-Modul) -----------
+    path("vocabulary/", include("apps.vocabulary.urls")),
+
     # -- 5-Minute Placement Quiz & Multi-Subject Switcher ----------------
     path(
         "tests/ai-convert-document/",

@@ -2280,3 +2280,5 @@ export const WhiteLabelApi = {
   monthlyReportPdfUrl: (groupId: number | string) =>
     `${API_BASE}/api/v1/school/groups/${groupId}/export/monthly-report-pdf/`,
 };
+
+export const apiFetch = api;

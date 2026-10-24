@@ -5916,6 +5916,47 @@ async def payment_screenshot_handler(
 
     receipt = await _run_db(_create_receipt)
 
+    # 4-MODUL & 3-MODUL: OCR tekshiruvi va guruh to'lovini avtomatik uzaytirish
+    try:
+        from apps.payments.receipt_scanner import scan_receipt_image
+        from apps.courses.models import GroupEnrollment
+        from apps.webapi.views_crm import send_telegram_message_safe
+
+        ocr_res = scan_receipt_image(bytes(file_bytes))
+        if ocr_res.get("is_valid") and ocr_res.get("amount", 0) >= 10000:
+            def _apply_tuition_payment():
+                enrollment = GroupEnrollment.objects.filter(student=user, is_active=True).first()
+                if enrollment:
+                    enrollment.record_payment(amount=ocr_res["amount"])
+                    return enrollment
+                return None
+
+            enrollment = await _run_db(_apply_tuition_payment)
+            if enrollment:
+                amt_str = f"{ocr_res['amount']:,.0f} so'm".replace(",", " ")
+                due_str = enrollment.next_payment_due.strftime("%d.%m.%Y")
+                await update.message.reply_text(
+                    f"✅ <b>To'lov chekingiz avtomatik OCR orqali tasdiqlandi!</b>\n\n"
+                    f"👥 Guruh: <b>{enrollment.group.name}</b>\n"
+                    f"💰 Qabul qilingan summa: <b>{amt_str}</b>\n"
+                    f"🔢 Trans ID: <b>{ocr_res.get('transaction_id', 'UNKNOWN')}</b>\n"
+                    f"📅 Keyingi to'lov sanangiz: <b>{due_str}</b> gacha uzaytirildi!\n\n"
+                    f"Rahmat, darslaringizda omad tilaymiz!",
+                    parse_mode=ParseMode.HTML,
+                )
+                # Ustoziga xabarnoma
+                if enrollment.group.teacher and enrollment.group.teacher.telegram_chat_id:
+                    t_msg = (
+                        f"✅ <b>O'quvchi to'lov qildi! (OCR Chek)</b>\n\n"
+                        f"👤 O'quvchi: <b>{user.get_full_name()}</b>\n"
+                        f"👥 Guruh: <b>{enrollment.group.name}</b>\n"
+                        f"💰 Summa: <b>{amt_str}</b>\n"
+                        f"🔢 Trans ID: <b>{ocr_res.get('transaction_id', '')}</b>"
+                    )
+                    send_telegram_message_safe(enrollment.group.teacher.telegram_chat_id, t_msg)
+    except Exception as e:
+        logger.warning("OCR auto-apply tuition error: %s", e)
+
     try:
         await _run_db(notify_admin_new_receipt, receipt)
     except Exception as exc:
@@ -9107,6 +9148,8 @@ def setup_handlers(app) -> None:
     from apps.notifications.bot.quiz import quiz_handler, quiz_callback_handler
 
     app.add_handler(CommandHandler("quiz", quiz_handler))
+    app.add_handler(CommandHandler("finance", finance_handler))
+    app.add_handler(CommandHandler("vocab", vocab_handler))
     app.add_handler(CallbackQueryHandler(quiz_callback_handler, pattern=r"^quiz_"))
 
     # Auth conversation handler — catches text/contact during auth flow
@@ -9215,3 +9258,195 @@ async def post_init(app) -> None:
         ]
     )
     logger.info("Bot commands menu set.")
+
+
+
+# ===========================================================================
+# 2 & 3-MODUL: Ustozlar Moliya CRM (/finance) va 4-MODUL: Lug'at (/vocab)
+# ===========================================================================
+
+async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Ustozlar uchun oylik moliyaviy hisobot va qarzdorlar boshqaruvi.
+    /finance
+    """
+    if not update.effective_user or not update.message:
+        return
+
+    from apps.accounts.models import User
+    from apps.courses.models import StudentGroup, GroupEnrollment
+    from apps.webapi.views_crm import sync_group_students
+    from asgiref.sync import sync_to_async
+
+    user = await sync_to_async(
+        lambda: User.objects.filter(telegram_chat_id=update.effective_user.id).first()
+    )()
+
+    if not user:
+        await update.message.reply_text(
+            "⚠️ Sizning Telegram hisobingiz platformaga ulanmagan.\n"
+            "Avval saytga kirib yoki /start bosib profilingizni bog'lang."
+        )
+        return
+
+    # Ustoz yoki admin bo'lishi kerak
+    if user.role not in (User.Role.TEACHER, User.Role.ADMIN) and not user.is_staff:
+        await update.message.reply_text(
+            "ℹ️ <b>/finance</b> buyrug'i faqat ustozlar va markaz ma'murlari uchun mo'ljallangan.\n\n"
+            "O'quvchi sifatida to'lovingizni tekshirish uchun: <b>/mytuition</b> buyrug'idan foydalaning.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    def get_finance_data():
+        groups = StudentGroup.objects.filter(teacher=user)
+        total_students = 0
+        total_collected = 0
+        total_pending = 0
+        debtors = []
+        today = timezone.localdate()
+
+        for g in groups:
+            sync_group_students(g)
+            enrollments = g.group_enrollments.filter(is_active=True).select_related("student")
+            for e in enrollments:
+                total_students += 1
+                e.update_status(today)
+                if e.payment_status == GroupEnrollment.PaymentStatus.PAID:
+                    total_collected += float(e.monthly_fee)
+                else:
+                    total_pending += float(e.monthly_fee)
+                    debtors.append({
+                        "name": e.student.get_full_name(),
+                        "group": g.name,
+                        "due": e.next_payment_due.strftime("%d.%m.%Y") if e.next_payment_due else "Muddatsiz",
+                        "fee": float(e.monthly_fee),
+                        "status": "Muddati o'tgan" if e.payment_status == GroupEnrollment.PaymentStatus.OVERDUE else "To'lov yaqin",
+                    })
+        return {
+            "groups_count": groups.count(),
+            "total_students": total_students,
+            "total_collected": total_collected,
+            "total_pending": total_pending,
+            "debtors": debtors,
+        }
+
+    data = await sync_to_async(get_finance_data)()
+
+    groups_cnt = data["groups_count"]
+    tot_st = data["total_students"]
+    coll_str = f"{data['total_collected']:,.0f} so'm".replace(",", " ")
+    pend_str = f"{data['total_pending']:,.0f} so'm".replace(",", " ")
+    debtors_list = data["debtors"]
+
+    lines = [
+        f"📊 <b>USTOZ MOLIYAVIY XULOSASI (CRM)</b>",
+        f"━━━━━━━━━━━━━━━━━━",
+        f"👥 Guruhlar soni: <b>{groups_cnt} ta</b>",
+        f"🎓 Umumiy o'quvchilar: <b>{tot_st} nafar</b>",
+        f"🟢 Yig'ilgan tushum: <b>{coll_str}</b>",
+        f"🔴 Kutilayotgan qarzdorlik: <b>{pend_str}</b>",
+        f"━━━━━━━━━━━━━━━━━━",
+    ]
+
+    if debtors_list:
+        lines.append(f"⚠️ <b>Qarzdor o'quvchilar ({len(debtors_list)} nafar):</b>")
+        for idx, d in enumerate(debtors_list[:10], 1):
+            fee_d = f"{d['fee']:,.0f} so'm".replace(",", " ")
+            lines.append(f"{idx}. <b>{d['name']}</b> ({d['group']}) — {fee_d} [{d['status']}]")
+        if len(debtors_list) > 10:
+            lines.append(f"<i>...va yana {len(debtors_list) - 10} nafar o'quvchi</i>")
+    else:
+        lines.append("🎉 Barcha o'quvchilar to'lovlarni o'z vaqtida amalga oshirgan!")
+
+    keyboard = []
+    if debtors_list:
+        keyboard.append([
+            InlineKeyboardButton(
+                "📢 Barcha qarzdorlarga eslatma yuborish",
+                callback_data="crm_remind_all_debtors",
+            )
+        ])
+
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    await update.message.reply_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=reply_markup,
+    )
+
+
+async def vocab_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    O'quvchilar uchun Ebbinghaus interval takrorlash viktorinasi (/vocab).
+    Bugungi adashgan 5 ta eng qiyin so'z.
+    """
+    if not update.effective_user or not update.message:
+        return
+
+    from apps.accounts.models import User
+    from apps.vocabulary.models import StudentWordMistake
+    from asgiref.sync import sync_to_async
+    import random
+
+    user = await sync_to_async(
+        lambda: User.objects.filter(telegram_chat_id=update.effective_user.id).first()
+    )()
+
+    if not user:
+        await update.message.reply_text(
+            "⚠️ So'zlar viktorinasini boshlash uchun Telegram hisobingizni saytga bog'lang (/start)."
+        )
+        return
+
+    def get_vocab_word():
+        mistakes = list(
+            StudentWordMistake.objects.filter(student=user, is_mastered=False)
+            .order_by("-mistake_count", "next_review_at")[:10]
+        )
+        if mistakes:
+            chosen = random.choice(mistakes)
+            word = chosen.word
+            meaning = chosen.translation_uz or chosen.definition or "To'g'ri tarjima"
+            streak = chosen.consecutive_correct_streak
+            mistake_id = chosen.id
+        else:
+            samples = [
+                ("resilient", "bardoshli, chidamli"),
+                ("persistent", "qat'iyatli, sobitqadam"),
+                ("meticulous", "o'ta ehtiyotkor"),
+                ("ubiquitous", "hamma joyda uchraydigan"),
+                ("lucid", "aniq, tushunarli"),
+            ]
+            chosen_s = random.choice(samples)
+            word = chosen_s[0]
+            meaning = chosen_s[1]
+            streak = 0
+            mistake_id = 0
+
+        distractors = ["tezkor qaror", "qoniqarsiz natija", "noma'lum xulosa", "qarama-qarshi holat"]
+        opts = [meaning] + random.sample(distractors, 3)
+        random.shuffle(opts)
+        return {
+            "id": mistake_id,
+            "word": word,
+            "correct": meaning,
+            "options": opts,
+            "streak": streak,
+        }
+
+    vocab_data = await sync_to_async(get_vocab_word)()
+
+    # Send as Telegram Poll (Quiz)
+    correct_idx = vocab_data["options"].index(vocab_data["correct"])
+    poll_question = f"🧠 '{vocab_data['word']}' so'zining to'g'ri tarjimasi qaysi? (Streak: {vocab_data['streak']}/3)"
+
+    await context.bot.send_poll(
+        chat_id=update.effective_chat.id,
+        question=poll_question,
+        options=vocab_data["options"],
+        type="quiz",
+        correct_option_id=correct_idx,
+        is_anonymous=False,
+        explanation=f"'{vocab_data['word']}' = {vocab_data['correct']}. Ketma-ket 3 marta to'g'ri topsangiz, to'liq yod olinadi!",
+    )

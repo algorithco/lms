@@ -484,3 +484,113 @@ class HomeworkSubmission(models.Model):
     def __str__(self) -> str:
         status = "Bajarildi" if self.is_completed else "Bajarilmadi"
         return f"{self.student_id} — {self.homework_id} ({status})"
+
+
+
+# ---------------------------------------------------------------------------
+# GroupEnrollment (Guruh a'zoligi, kurs to'lovlari grafigi & CRM)
+# ---------------------------------------------------------------------------
+class GroupEnrollment(models.Model):
+    """
+    Guruh a'zoligi va kurs to'lovlari grafigi (Ustozlar Mini CRM).
+    O'quvchining oylik kurs to'lovi, to'lov kuni va ota-onasi bilan bog'lanish.
+    """
+
+    class PaymentStatus(models.TextChoices):
+        PAID = "paid", _("To'langan")
+        DUE_SOON = "due_soon", _("To'lov yaqin")
+        OVERDUE = "overdue", _("Muddati o'tgan")
+        GRACE_PERIOD = "grace_period", _("Imtiyozli davr")
+
+    group = models.ForeignKey(
+        StudentGroup,
+        on_delete=models.CASCADE,
+        related_name="group_enrollments",
+        verbose_name=_("guruh"),
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="student_group_enrollments",
+        verbose_name=_("o'quvchi"),
+    )
+    monthly_fee = models.DecimalField(
+        _("oylik to'lov (so'm)"),
+        max_digits=12,
+        decimal_places=2,
+        default=400000.00,
+        help_text=_("O'quvchi uchun kelishilgan oylik to'lov summasi."),
+    )
+    billing_cycle_day = models.PositiveSmallIntegerField(
+        _("oylik to'lov kuni"),
+        default=10,
+        help_text=_("Har oyning to'lov kuni (1–31)."),
+    )
+    last_payment_date = models.DateField(
+        _("oxirgi to'lov sanasi"),
+        null=True,
+        blank=True,
+    )
+    next_payment_due = models.DateField(
+        _("keyingi to'lov muddati"),
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    payment_status = models.CharField(
+        _("to'lov holati"),
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PAID,
+        db_index=True,
+    )
+    parent_telegram_id = models.CharField(
+        _("ota-ona Telegram ID"),
+        max_length=64,
+        blank=True,
+        default="",
+        help_text=_("Ota-onaning Telegram hisob identifikatori."),
+    )
+    parent_phone = models.CharField(
+        _("ota-ona telefoni"),
+        max_length=32,
+        blank=True,
+        default="",
+        help_text=_("Ota-onaning aloqa telefoni."),
+    )
+    is_active = models.BooleanField(_("faolmi"), default=True)
+    joined_at = models.DateTimeField(_("qo'shilgan vaqti"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Guruh a'zoligi va to'lov grafigi")
+        verbose_name_plural = _("Guruh a'zoliklari va to'lov grafiki")
+        unique_together = ("group", "student")
+        ordering = ["-joined_at"]
+
+    def __str__(self) -> str:
+        return f"{self.student.get_full_name()} @ {self.group.name} ({self.payment_status})"
+
+    def record_payment(self, amount=None, payment_date=None, extend_days=30):
+        from datetime import timedelta
+        from django.utils import timezone
+        p_date = payment_date or timezone.localdate()
+        self.last_payment_date = p_date
+        base_date = max(p_date, self.next_payment_due or p_date)
+        self.next_payment_due = base_date + timedelta(days=extend_days)
+        self.payment_status = self.PaymentStatus.PAID
+        self.save(update_fields=["last_payment_date", "next_payment_due", "payment_status", "updated_at"])
+
+    def update_status(self, today=None):
+        from django.utils import timezone
+        today = today or timezone.localdate()
+        if not self.next_payment_due:
+            return self.payment_status
+        if self.next_payment_due < today:
+            self.payment_status = self.PaymentStatus.OVERDUE
+        elif (self.next_payment_due - today).days <= 3:
+            self.payment_status = self.PaymentStatus.DUE_SOON
+        else:
+            self.payment_status = self.PaymentStatus.PAID
+        self.save(update_fields=["payment_status", "updated_at"])
+        return self.payment_status
