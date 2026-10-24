@@ -92,6 +92,13 @@ class User(AbstractUser):
         unique=True,
         help_text=_("Foydalanuvchi Telegram bot bilan bog'laganda o'rnatiladi."),
     )
+    telegram_username = models.CharField(
+        _("Telegram Username"),
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text=_("Foydalanuvchining Telegram username'i (@username)."),
+    )
     telegram_identity_verified_at = models.DateTimeField(
         _("Telegram identifikatori tasdiqlangan vaqt"),
         null=True,
@@ -180,6 +187,14 @@ class User(AbstractUser):
         return f"{self.get_full_name()} <{self.email}>"
 
     # -- Convenience helpers --------------------------------------------------
+    @property
+    def telegram_id(self) -> int | None:
+        return self.telegram_chat_id
+
+    @telegram_id.setter
+    def telegram_id(self, val: int | None) -> None:
+        self.telegram_chat_id = val
+
     @property
     def is_student(self) -> bool:
         return self.role == self.Role.STUDENT

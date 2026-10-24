@@ -34,7 +34,9 @@ def create_link_challenge(user) -> str:
     return token
 
 
-def confirm_link_challenge(token: str, telegram_id: int) -> str:
+def confirm_link_challenge(
+    token: str, telegram_id: int, telegram_username: str = ""
+) -> str:
     """Consume one challenge using the numeric sender ID from a Telegram update."""
     try:
         numeric_id = _numeric_telegram_id(telegram_id)
@@ -42,14 +44,18 @@ def confirm_link_challenge(token: str, telegram_id: int) -> str:
         return "invalid"
     User = get_user_model()
     try:
-        return _confirm_link_challenge_atomic(token, numeric_id, User)
+        return _confirm_link_challenge_atomic(
+            token, numeric_id, User, telegram_username=telegram_username
+        )
     except IntegrityError:
         # Another confirmation may have claimed the unique Telegram ID.
         return "conflict"
 
 
 @transaction.atomic
-def _confirm_link_challenge_atomic(token: str, numeric_id: int, User) -> str:
+def _confirm_link_challenge_atomic(
+    token: str, numeric_id: int, User, telegram_username: str = ""
+) -> str:
     challenge = (
         TelegramLinkChallenge.objects.select_for_update()
         .select_related("user")
@@ -67,12 +73,14 @@ def _confirm_link_challenge_atomic(token: str, numeric_id: int, User) -> str:
         return "conflict"
     user.telegram_chat_id = numeric_id
     user.telegram_identity_verified_at = timezone.now()
-    user.save(
-        update_fields=[
-            "telegram_chat_id",
-            "telegram_identity_verified_at",
-        ]
-    )
+    update_fields = [
+        "telegram_chat_id",
+        "telegram_identity_verified_at",
+    ]
+    if telegram_username and hasattr(user, "telegram_username"):
+        user.telegram_username = telegram_username.lstrip("@")[:64]
+        update_fields.append("telegram_username")
+    user.save(update_fields=update_fields)
     challenge.telegram_id = numeric_id
     challenge.confirmed_at = timezone.now()
     challenge.save(update_fields=["telegram_id", "confirmed_at"])
