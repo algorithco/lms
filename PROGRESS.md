@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.39. Rasmiy Versiya v1.40.0: Passwordless 2-Tab Auth, 1v1 Arena WebSocket Reconnect & Grace Period, AI Token Bleeding Pre-Validation va SPA Dynamic SEO Sitemap
+- [x] 1-Bosqich: Auth UI Tozalash (Passwordless & 2-Tab Unified Login):
+  * `frontend/src/pages/Login.tsx`: Talabalar uchun 1-klikli tizim joriy etildi. Asosiy Hero CTA sifatida `[ 📱 Telegram orqali 1-klikda kirish ]` (ko'k `#229ED9`, oq matn, shadow) va `[ 🌐 Google orqali kirish ]` tugmalari joylashtirildi. Talabalar uchun parol maydonlari butunlay yashirildi (0 ta parol maydoni).
+  * 2 talik toza tab tizimi: `[ ⚡ O'quvchilar (1-klikda) ]` (standart faol) hamda `[ 🔑 Ustozlar va Admin ]`.
+  * Ustozlar va Admin tabida Email + Parol kiritish maydoni saqlandi, "Parolni unutdingizmi?" (`/password-reset`) havolasi qat'iy ushbu xodimlar tabi ichiga olindi.
+- [x] 2-Bosqich: 1v1 Arena WebSocket Barqarorligi (Network Resilience):
+  * `apps/arena/consumers.py` & `frontend/src/pages/DuelRoom.tsx`: Har 15 soniyada `{"type": "ping"}` yuboruvchi va serverdan `{"type": "pong"}` oluvchi Heartbeat mexanizmi joriy etildi. 2 marta ketma-ket javob kelmasa (30 soniya uzilish), klient avtomatik qayta ulanadi.
+  * Silent Reconnection & Backoff: Mobil internet uzilib qayta ulanganda, o'yin UI muzlamasdan fonda avtomatik `ReconnectingWebSocket` (exponential backoff: 1s, 2s, 5s) bilan qayta ulanadi.
+  * 30 Soniyalik Grace Period: O'yinchi uzilib qolsa, o'yin darhol bekor qilinmaydi. Raqib ekranida `"⚠️ Raqib interneti qayta ulanmoqda... (qolgan vaqt: 25s)"` orqaga hisoblash paneli ko'rsatiladi. 30 soniya ichida qayta ulansa, o'yin davom etadi (`opponent_reconnected`). Agar 30 soniyada ulanmasa, server `forfeit_duel` orqali qolgan o'yinchiga texnik g'alaba yozadi va ELO reytingi yangilanadi.
+- [x] 3-Bosqich: AI Pre-Validation Filter (Token Bleeding Stopper):
+  * `apps/essays/pre_validation.py`: 3 bosqichli 0.01 soniyalik tezkor filtr:
+    1) Minimal so'zlar soni (kamida 60 ta so'z yoki mavzu bo'yicha maxsus chegara): `"⚠️ Esse juda qisqa (kamida {min} ta so'z bo'lishi shart). Hozirgi so'zlar soni: {count} ta."`
+    2) Safsata va Simvollar takrorlanishi (Gibberish / Anti-Spam): ketma-ket harflar (`aaaaaa`, `asdasdasd`), 35 dan ortiq belgili so'zlar, takrorlanuvchi bitta so'z spam (>35%): `"⛔ Matn tushunarsiz yoki safsata deb topildi. Iltimos, haqiqiy esse matnini kiriting."`
+    3) Til va Lug'at tekshiruvi: O'zbek yoki ingliz tilidagi lug'aviy so'zlarning ulushi kamida 60% bo'lishi shart.
+  * Integratsiya: `frontend/src/pages/EssayWrite.tsx` da jo'natishdan oldin klient tekshiruvi, `apps/essays/views.py` va `apps/telegram_app/views.py` da kvota sarflanishi va Celery ga navbatga qo'yilishidan oldingi server tekshiruvi hamda `apps/essays/services.py` va `deepseek_grader.py` himoyasi.
+- [x] 4-Bosqich: SPA Dynamic Metadata & SEO:
+  * `apps/core/views_seo.py` & `config/urls.py`: Dinamik `https://grandec.uz/sitemap.xml` (barcha statik ochiq sahifalar, nashr qilingan faol testlar va kurslar) hamda `https://grandec.uz/robots.txt` generatori.
+  * `frontend/src/pages/TestDetail.tsx`: Dinamik OpenGraph (Title, Description, canonical URL) meta-teglari.
+- [x] 5-Bosqich: QA, CI/CD va VPS Zero-Downtime Deploy:
+  * Yangi testlar: `tests/test_essay_prevalidation.py` (11/11 test PASS), `tests/test_arena_ws_reconnect.py` (3/3 test PASS), `tests/test_seo_sitemap.py` (3/3 test PASS).
+  * Butun testlar to'plami: 1295 ta test 100% PASS (0 ta xatolik).
+  * Frontend TypeScript kompilyatsiyasi: `npm run build --prefix frontend` (2.43s ichida xatosiz yig'ildi).
+  * PR #109 squash-merge qilindi, v1.40.0 chiqarildi, Contabo VPS (`169.58.58.229`) ga uzilishsiz deploy qilindi.
+  * `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlandi.
+  * Jonli tekshiruv: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.40.0), `https://grandec.uz/sitemap.xml` (HTTP 200 OK), `https://grandec.uz/robots.txt` (HTTP 200 OK), `https://grandec.uz/login` (HTTP 200 OK).
+
 ### 2.38. Rasmiy Versiya v1.38.0: AI Esse Baholashda Mavzuga Moslik (Topic Relevance & Prompt Adherence) Qoidalari
 - [x] 1-Bosqich: Prompt Muhandisligi va Mavzuga Moslik 0-Bosqich Darvozasi:
   * `apps/essays/prompts.py` (`ESSAY_GRADING_SYSTEM_PROMPT` va `ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE`): Step 0 (Mavzuga moslik va adherence gate) joriy etildi. Model majburiy tarzda `topic_status` (`completely_off_topic`, `partially_off_topic`, `on_topic`), `is_completely_off_topic` va `topic_match` maydonlarini qaytaradi.
