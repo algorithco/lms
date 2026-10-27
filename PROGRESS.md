@@ -9,6 +9,33 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.38. Rasmiy Versiya v1.38.0: AI Esse Baholashda Mavzuga Moslik (Topic Relevance & Prompt Adherence) Qoidalari
+- [x] 1-Bosqich: Prompt Muhandisligi va Mavzuga Moslik 0-Bosqich Darvozasi:
+  * `apps/essays/prompts.py` (`ESSAY_GRADING_SYSTEM_PROMPT` va `ESSAY_GRADING_SYSTEM_PROMPT_SIMPLE`): Step 0 (Mavzuga moslik va adherence gate) joriy etildi. Model majburiy tarzda `topic_status` (`completely_off_topic`, `partially_off_topic`, `on_topic`), `is_completely_off_topic` va `topic_match` maydonlarini qaytaradi.
+  * `IELTS_SYSTEM_PROMPT` (`apps/essays/services.py`): Step 0 Topic Relevance gate o'rnatildi.
+- [x] 2-Bosqich: Mutlaqo Mavzudan Chetda (Completely Off-topic) — Qat'iy 0 Ball:
+  * BMB 12 mezon va IELTS 4 mezon bo'yicha barcha mezon ballari va umumiy ball qat'iy 0.0 ga tenglashtiriladi (`total_score = 0.0`, `overall_band = 0.0`).
+  * Talabaga qat'iy ogohlantirish matni taqdim etiladi:
+    `"⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi."`
+  * `EssaySubmission.converted_score` xususiyati mutlaqo 0 ball qaytaradi.
+- [x] 3-Bosqich: Qisman Mavzudan Chetda (Partially Off-topic / Tangential) — 2 dan 35 Ballgacha Cheklov:
+  * BMB Ona tili: 1-mezon ("Mavzuning to'liq va teran ochib berilishi") maksimal 1.0 balldan oshmasligi ta'minlandi. 20 ballik rubrikadagi umumiy xom ball maksimal 7.0 ball (35%) bilan cheklandi.
+  * IELTS Writing / Multi-level: Criterion 1 (Task Achievement / Task Response) maksimal Band 3.0 bilan, `overall_band` esa maksimal Band 3.5 bilan cheklandi.
+  * `EssaySubmission.converted_score` 2 dan 35 ball oralig'iga qat'iy qisqartirildi (`max(2, min(raw_converted, 35))`).
+  * Talabaga ogohlantirish matni taqdim etiladi:
+    `"⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi."`
+- [x] 4-Bosqich: Backend Qat'iy Himoya Qatlamlari (Hard Guardrails) va Model Maydonlari:
+  * `ALLOWED_TOP_KEYS` schema validatoriga `topic_status`, `is_completely_off_topic`, `is_off_topic` qo'shildi.
+  * `_validate_result` va `_validate_ielts_result` funksiyalarida sun'iy intellekt gallyutsinatsiyasi natijasini dasturiy darajada qirquvchi qat'iy guardraillar joylashtirildi.
+  * `EssaySubmission` modeliga `topic_status` va `is_completely_off_topic` maydonlari qo'shildi (`0021_essaysubmission_is_completely_off_topic_and_more.py` migratsiyasi).
+  * Frontend `EssayResult.tsx` da qizil (0 ball) va sariq (2-35 ball) vizual ogohlantirish kartalari o'rnatildi.
+- [x] 5-Bosqich: QA Darvozasi, CI/CD va VPS Deploy:
+  * Yangi test paketi: `tests/test_essay_off_topic.py` (7/7 test 100% PASS).
+  * Butun esse testlar to'plami: `pytest tests/ -k essay -q` (352 passed, 0 failed, 100% PASS).
+  * Frontend TypeScript kompilyatsiyasi: `npm run build --prefix frontend` (4.45s ichida xatosiz yig'ildi).
+  * GitHub PR #108 squash-merge qilindi, Docker image `ghcr.io/algorithco/lms:sha-bba6997` avtomatik yig'ildi va Contabo VPS-ga muvaffaqiyatli deploy qilindi.
+  * VPS endpointlari tekshirildi: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK). Bestway mustaqil tizimi mutlaqo daxlsiz saqlandi.
+
 ### 2.37. Rasmiy Versiya v1.36.0: Obsidian Dark UI Hotfix, Pro Card Overlay Tozalash, Idempotent Seeder va Bazadagi Dublikat Testlar Deduplikatsiyasi
 - [x] 1-Bosqich: CSS Hotfix va Elegant Obsidian Dark UI:
   * Tariflar panelida PRO karta ustiga chiqib, matn va tugmalarni to'sib turgan xunuk aylanuvchi to'rtburchak/gradient qatlam (`pro-card-glow` / `@keyframes rotateBorderSpin`) `frontend/src/theme.css` va `Landing.tsx` dan butunlay olib tashlandi.
