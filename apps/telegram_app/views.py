@@ -806,9 +806,15 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
     # Instant Pre-validation Filter (word count >= 60, anti-gibberish, lexical check)
     from apps.essays.pre_validation import PreValidationError, pre_validate_essay
 
+    topic_min = submission.topic.word_limit_min if submission.topic else 60
+    effective_min = min(60, topic_min) if (topic_min and topic_min > 0) else 60
     try:
         topic_title = submission.topic.title if submission.topic else ""
-        pre_validate_essay(essay_text, topic_title=topic_title)
+        pre_validate_essay(
+            essay_text,
+            topic_title=topic_title,
+            min_words=effective_min,
+        )
     except PreValidationError as e:
         return Response({"error": str(e)}, status=400)
 

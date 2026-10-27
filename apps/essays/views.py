@@ -533,9 +533,15 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         # --- Instant Pre-validation Filter --------------------------------------
     from .pre_validation import PreValidationError, pre_validate_essay
 
+    topic_min = submission.topic.word_limit_min if submission.topic else 60
+    min_words = min(60, topic_min) if (topic_min and topic_min > 0) else 60
     try:
         topic_title = submission.topic.title if submission.topic else ""
-        pre_validate_essay(submission.essay_text, topic_title=topic_title)
+        pre_validate_essay(
+            submission.essay_text,
+            topic_title=topic_title,
+            min_words=min_words,
+        )
     except PreValidationError as e:
         return _safe_render_partial(
             request,

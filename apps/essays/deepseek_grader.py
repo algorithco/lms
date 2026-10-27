@@ -87,9 +87,10 @@ class DeepSeekGrader:
         if not cleaned:
             raise ValueError("Esse matni bo'sh")
 
-        from .pre_validation import pre_validate_essay
+        if not _is_mock_mode():
+            from .pre_validation import pre_validate_essay
 
-        pre_validate_essay(cleaned, topic_title=topic_title)
+            pre_validate_essay(cleaned, topic_title=topic_title)
 
         if _is_mock_mode():
             return grade_essay(cleaned, topic_title)
@@ -169,9 +170,11 @@ class DeepSeekGrader:
         if not cleaned:
             raise ValueError("Essay text cannot be empty.")
 
-        from .pre_validation import pre_validate_essay
+        if not _is_mock_mode():
+            from .pre_validation import pre_validate_essay
 
-        pre_validate_essay(cleaned, topic_title=topic_title)
+            effective_min = min_words or 150
+            pre_validate_essay(cleaned, topic_title=topic_title, min_words=effective_min)
 
         if min_words is None:
             min_words = 150 if task_type == "ielts_task1" else 250

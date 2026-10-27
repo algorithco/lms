@@ -10,10 +10,10 @@ Validates the 3-stage instant filter:
 import pytest
 from apps.essays.pre_validation import PreValidationError, count_essay_words, pre_validate_essay
 from apps.essays.services import grade_essay, grade_ielts_essay
+from django.test import TestCase, override_settings
 
 
-@pytest.mark.django_db
-class TestEssayPreValidation:
+class TestEssayPreValidation(TestCase):
     """Test instant pre-validation edge cases and integration with grading pipelines."""
 
     def test_empty_or_whitespace_text(self):
@@ -92,10 +92,12 @@ class TestEssayPreValidation:
         assert res["valid"] is True
         assert res["word_count"] >= 60
 
+    @override_settings(ESSAY_AI_MOCK_MODE=False)
     def test_grade_essay_rejects_gibberish_without_llm_call(self):
         with pytest.raises(PreValidationError):
             grade_essay("qisqa esse matni", topic_title="Mavzu")
 
+    @override_settings(ESSAY_AI_MOCK_MODE=False)
     def test_grade_ielts_essay_rejects_short_without_llm_call(self):
         with pytest.raises(PreValidationError):
             grade_ielts_essay("This is a short text for testing.", topic_title="Topic")

@@ -390,19 +390,20 @@ def count_essay_words(text: str) -> int:
     return len(WORD_RE.findall(text))
 
 
-def pre_validate_essay(text: str, topic_title: str = "") -> dict:
+def pre_validate_essay(text: str, topic_title: str = "", min_words: int = 60) -> dict:
     """
     Execute a 3-stage instant pre-validation filter on the submitted essay text.
 
     Args:
         text: The essay text submitted by the user.
         topic_title: Optional topic title for context.
+        min_words: Minimum required words (defaults to 60).
 
     Returns:
         dict: {"valid": True, "word_count": int}
 
     Raises:
-        PreValidationError: When the essay is too short (< 60 words),
+        PreValidationError: When the essay is too short (< min_words),
             contains gibberish / repetition, or fails language/lexical validity.
     """
     cleaned_text = (text or "").strip()
@@ -413,11 +414,12 @@ def pre_validate_essay(text: str, topic_title: str = "") -> dict:
     word_count = len(words)
 
     # ------------------------------------------------------------------
-    # Stage 1: Word Count Check (>= 60 words)
+    # Stage 1: Word Count Check
     # ------------------------------------------------------------------
-    if word_count < 60:
+    effective_min = max(1, min_words)
+    if word_count < effective_min:
         raise PreValidationError(
-            f"⚠️ Esse juda qisqa (kamida 60 ta so'z bo'lishi shart). "
+            f"⚠️ Esse juda qisqa (kamida {effective_min} ta so'z bo'lishi shart). "
             f"Hozirgi so'zlar soni: {word_count} ta."
         )
 
