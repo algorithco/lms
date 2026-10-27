@@ -1226,3 +1226,111 @@ def _has_night_owl_win(user) -> bool:
         if 0 <= local.hour <= 5:
             return True
     return False
+
+
+def is_player_connected(room_code: str, user_id: int) -> bool:
+    """Check if the given player is currently connected to the room."""
+    from .models import ArenaPlayer, ArenaRoom
+
+    try:
+        room = ArenaRoom.objects.get(room_code=room_code)
+        if room.status != ArenaRoom.Status.STARTED:
+            return True
+        player = ArenaPlayer.objects.filter(room=room, player_id=user_id).first()
+        return bool(player and player.is_connected)
+    except ArenaRoom.DoesNotExist:
+        return False
+
+
+def forfeit_duel(room_code: str, forfeit_user_id: int) -> dict[str, Any] | None:
+    """
+    Forfeit the duel on behalf of the player who disconnected and timed out.
+    The remaining opponent is awarded the win.
+    """
+    from .models import ArenaPlayer, ArenaRoom
+
+    try:
+        room = ArenaRoom.objects.get(room_code=room_code)
+    except ArenaRoom.DoesNotExist:
+        return None
+
+    if room.status == ArenaRoom.Status.FINISHED:
+        return _duel_summary(room)
+
+    with transaction.atomic():
+        room = ArenaRoom.objects.select_for_update().get(pk=room.pk)
+        if room.status == ArenaRoom.Status.FINISHED:
+            return _duel_summary(room)
+
+        players = list(
+            ArenaPlayer.objects.filter(room=room)
+            .select_related("player")
+            .order_by("id")
+        )
+        if len(players) < 1:
+            room.status = ArenaRoom.Status.FINISHED
+            room.finished_at = timezone.now()
+            room.save(update_fields=["status", "finished_at"])
+            return None
+
+        remaining_players = [p for p in players if p.player_id != forfeit_user_id]
+        winner = remaining_players[0] if remaining_players else players[0]
+
+        room.winner = winner.player
+        room.status = ArenaRoom.Status.FINISHED
+        room.finished_at = timezone.now()
+
+        for p in players:
+            profile = get_or_create_profile(p.player)
+            p.rating_before = profile.rating
+
+            if winner.pk == p.pk:
+                outcome, xp, coins = 1.0, REWARD_WIN[0], REWARD_WIN[1]
+            else:
+                outcome, xp, coins = 0.0, REWARD_LOSS[0], REWARD_LOSS[1]
+
+            if p.best_streak >= 5:
+                xp += PERFORMANCE_BONUS[0]
+                coins += PERFORMANCE_BONUS[1]
+
+            opponent = (
+                players[0]
+                if p.pk != players[0].pk
+                else (players[1] if len(players) > 1 else None)
+            )
+            opp_rating = (
+                get_or_create_profile(opponent.player).rating
+                if opponent
+                else profile.rating
+            )
+            new_rating = compute_elo(profile.rating, opp_rating, outcome)
+            p.rating_change = new_rating - profile.rating
+            p.xp_earned = xp
+            p.coins_earned = coins
+            p.save(
+                update_fields=[
+                    "rating_before",
+                    "rating_change",
+                    "xp_earned",
+                    "coins_earned",
+                ]
+            )
+
+            profile.rating = new_rating
+            profile.duels_played += 1
+            if outcome == 1.0:
+                profile.wins += 1
+                profile.current_win_streak += 1
+                profile.best_win_streak = max(
+                    profile.best_win_streak, profile.current_win_streak
+                )
+            elif outcome == 0.0:
+                profile.losses += 1
+                profile.current_win_streak = 0
+            else:
+                profile.draws += 1
+            profile.rating = new_rating
+            profile.save()
+
+        room.save(update_fields=["winner", "status", "finished_at"])
+        return _duel_summary(room)

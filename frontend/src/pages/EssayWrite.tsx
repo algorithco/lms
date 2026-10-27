@@ -211,12 +211,12 @@ export default function EssayWrite() {
   };
 
   const doSubmit = useCallback(
-    async (sid: number, value: string, autoSubmit = false): Promise<boolean> => {
+    async (sid: number, value: string, autoSubmit = false): Promise<{ ok: boolean; error?: string }> => {
       try {
         await Essays.submit(sid, value, autoSubmit);
-        return true;
-      } catch {
-        return false;
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : undefined };
       }
     },
     [],
@@ -224,7 +224,21 @@ export default function EssayWrite() {
 
   const submit = async () => {
     if (submissionId === null || busy || timeUp) return;
+    if (words < 60) {
+      setErr(`⚠️ Esse juda qisqa (kamida 60 ta so'z bo'lishi shart). Hozirgi so'zlar soni: ${words} ta.`);
+      return;
+    }
     if (words < minWords) return;
+
+    // Instant client pre-validation check
+    const hasCharRepeat = /([a-zA-Zа-яА-ЯёЁ0-9])\1{4,}/.test(text);
+    const hasLongWord = text.split(/\s+/).some((w) => w.replace(/['\-]/g, '').length > 35);
+    const hasSmash = /(?:asdf|qwer|zxcv|asdasd|jkl;|ghjk|qwerty|tyui|dfgh|12345){2,}/i.test(text);
+    if (hasCharRepeat || hasLongWord || hasSmash) {
+      setErr('⛔ Matn tushunarsiz yoki safsata deb topildi. Iltimos, haqiqiy esse matnini kiriting.');
+      return;
+    }
+
     if (!window.confirm(t('essay_js_confirm_ai'))) return;
     setBusy(true);
     setErr(null);
@@ -232,12 +246,12 @@ export default function EssayWrite() {
       // Flush the draft first (legacy saves, then submits).
       saveLocalDraft(id, text);
       await autosaveEssay(submissionId, text);
-      const ok = await doSubmit(submissionId, text);
-      if (ok) {
+      const res = await doSubmit(submissionId, text);
+      if (res.ok) {
         clearLocalDraft(id);
         navigate(`/essays/result/${submissionId}`);
       } else {
-        setErr(t('essay_js_error'));
+        setErr(res.error || t('essay_js_error'));
         setBusy(false);
       }
     } catch (e) {

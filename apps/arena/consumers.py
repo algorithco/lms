@@ -41,6 +41,8 @@ from . import services
 
 logger = logging.getLogger(__name__)
 
+_DISCONNECT_GRACE_TASKS: dict[str, asyncio.Task] = {}
+
 
 def _countdown_seconds() -> float:
     return services._countdown_seconds()
@@ -93,6 +95,62 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
 
         if self.room_code:
             await self._set_player_connected(self.room_code, self.user.id, False)
+            if self.user and self.user.is_authenticated and self.room_group:
+                room = await self._get_room(self.room_code)
+                if room and room.status == "started":
+                    await self.channel_layer.group_send(
+                        self.room_group,
+                        {
+                            "type": "opponent_disconnected",
+                            "user_id": self.user.id,
+                            "grace_period": 30,
+                        },
+                    )
+                    g_key = f"{self.room_code}_{self.user.id}"
+                    old_t = _DISCONNECT_GRACE_TASKS.pop(g_key, None)
+                    if old_t and not old_t.done():
+                        old_t.cancel()
+
+                    async def _grace_timeout(
+                        room_code: str,
+                        user_id: int,
+                        layer,
+                        group: str,
+                    ):
+                        try:
+                            await asyncio.sleep(30)
+                            is_conn = await database_sync_to_async(
+                                services.is_player_connected
+                            )(room_code, user_id)
+                            if not is_conn:
+                                summary = await database_sync_to_async(
+                                    services.forfeit_duel
+                                )(room_code, user_id)
+                                if summary:
+                                    await layer.group_send(
+                                        group,
+                                        {
+                                            "type": "game_over",
+                                            "winner": summary["winner"],
+                                            "winner_id": summary["winner_id"],
+                                            "scores": summary["scores"],
+                                            "mode": summary["mode"],
+                                            "message": "Raqib 30 soniya ichida qayta ulanmadi. Texnik g'alaba!",
+                                        },
+                                    )
+                        except asyncio.CancelledError:
+                            pass
+                        finally:
+                            _DISCONNECT_GRACE_TASKS.pop(g_key, None)
+
+                    _DISCONNECT_GRACE_TASKS[g_key] = asyncio.create_task(
+                        _grace_timeout(
+                            self.room_code,
+                            self.user.id,
+                            self.channel_layer,
+                            self.room_group,
+                        )
+                    )
 
         logger.info("Player disconnected: user=%s, code=%s", self.user, self.room_code)
 
@@ -111,7 +169,17 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
             event_type = data.get("type", "")
 
-            if event_type == "join_queue":
+            if event_type == "ping":
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "pong",
+                            "timestamp": data.get("timestamp"),
+                        }
+                    )
+                )
+                return
+            elif event_type == "join_queue":
                 await self._join_queue(data)
             elif event_type == "join_room":
                 await self._join_room(data)
@@ -279,6 +347,17 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group, self.channel_name)
         await self._save_player_channel(room_code, self.user.id, self.channel_name)
         await self._set_player_connected(room_code, self.user.id, True)
+        g_key = f"{room_code}_{self.user.id}"
+        old_g = _DISCONNECT_GRACE_TASKS.pop(g_key, None)
+        if old_g and not old_g.done():
+            old_g.cancel()
+        await self.channel_layer.group_send(
+            self.room_group,
+            {
+                "type": "opponent_reconnected",
+                "user_id": self.user.id,
+            },
+        )
 
         # Pull the other participant's channel in so the broadcast below
         # reaches them too (custom-room creator on the lobby, for example).
@@ -625,6 +704,29 @@ class QuizArenaConsumer(AsyncWebsocketConsumer):
                     "type": "live_score_update",
                     "scores": event["scores"],
                     "answered_by": event["answered_by"],
+                }
+            )
+        )
+
+    async def opponent_disconnected(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "opponent_disconnected",
+                    "user_id": event["user_id"],
+                    "grace_period": event.get("grace_period", 30),
+                    "message": "Raqib interneti uzildi. Qayta ulanish kutilmoqda...",
+                }
+            )
+        )
+
+    async def opponent_reconnected(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "opponent_reconnected",
+                    "user_id": event["user_id"],
+                    "message": "Raqib qayta ulandi!",
                 }
             )
         )

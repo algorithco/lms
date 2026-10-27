@@ -5,6 +5,7 @@ import { Tests as TestsApi } from '../lib/api';
 import { Results as ResultsApi } from '../lib/api';
 import { num } from '../lib/testing';
 import { CheckIcon, ClockIcon, HashIcon, StarIcon } from '../components/icons';
+import SEO from '../components/SEO';
 
 interface Detail {
   id: number;
@@ -98,6 +99,12 @@ export default function TestDetail() {
 
   return (
     <div>
+      <SEO
+        title={detail ? `${detail.title} — Online Test | GRANDEC` : `Test #${id} | GRANDEC`}
+        description={detail?.description || `GRANDEC platformasida ${detail?.title || 'test'} bo'yicha online imtihon topshiring.`}
+        canonical={`/tests/${id}`}
+        type="article"
+      />
       <p className="muted small">
         <Link to="/tests">← {t('tests')}</Link>
       </p>

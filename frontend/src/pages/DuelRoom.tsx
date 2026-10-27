@@ -63,7 +63,7 @@ interface Question {
 
 const OPTS = ['a', 'b', 'c', 'd'] as const;
 const COUNTDOWN_FROM = 3;
-const RECONNECT_DELAY_MS = 3000;
+const BACKOFF_DELAYS = [1000, 2000, 5000];
 const MAX_RECONNECTS = 8;
 
 export default function DuelRoom() {
@@ -94,6 +94,9 @@ export default function DuelRoom() {
   const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
   const [result, setResult] = useState<'win' | 'lose' | 'draw' | ''>('');
   const [rewards, setRewards] = useState({ xp: 0, coins: 0, elo: 0 });
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [opponentGraceSeconds, setOpponentGraceSeconds] = useState(30);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const ws = useRef<WebSocket | null>(null);
   const stateRef = useRef<State>('session');
@@ -102,11 +105,14 @@ export default function DuelRoom() {
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const attempts = useRef(0);
   const left = useRef(false);
+  const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const missedPongs = useRef(0);
   stateRef.current = state;
 
   const clearTimers = () => {
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     if (countdownTimer.current) clearInterval(countdownTimer.current);
+    if (pingTimer.current) clearInterval(pingTimer.current);
     reconnectTimer.current = null;
     countdownTimer.current = null;
   };
@@ -136,6 +142,16 @@ export default function DuelRoom() {
         case 'connected':
           setMyId(Number(msg.user_id));
           myIdRef.current = Number(msg.user_id);
+          break;
+        case 'pong':
+          missedPongs.current = 0;
+          break;
+        case 'opponent_disconnected':
+          setOpponentDisconnected(true);
+          setOpponentGraceSeconds(Number(msg.grace_period || 30));
+          break;
+        case 'opponent_reconnected':
+          setOpponentDisconnected(false);
           break;
         case 'room_joined':
           applyPlayers(
@@ -235,6 +251,7 @@ export default function DuelRoom() {
             setResult('lose');
           }
           if (countdownTimer.current) clearInterval(countdownTimer.current);
+          setOpponentDisconnected(false);
           setState('gameover');
           break;
         }
@@ -260,7 +277,11 @@ export default function DuelRoom() {
     ws.current = sock;
     sock.onopen = () => {
       attempts.current = 0;
-      setState('waiting');
+      setIsReconnecting(false);
+      missedPongs.current = 0;
+      if (stateRef.current !== 'playing') {
+        setState('waiting');
+      }
       setNotice(t('arena_wait_hint'));
       sock.send(JSON.stringify({ type: 'join_room', room_code: code }));
     };
@@ -285,14 +306,17 @@ export default function DuelRoom() {
       if (attempts.current >= MAX_RECONNECTS) {
         setState('error');
         setNotice(t('arena_ws_error'));
+        setIsReconnecting(false);
         return;
       }
+      const delay = BACKOFF_DELAYS[Math.min(attempts.current, BACKOFF_DELAYS.length - 1)];
       attempts.current += 1;
+      setIsReconnecting(true);
       setNotice(t('arena_reconnecting'));
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
         if (!left.current && stateRef.current !== 'gameover') connect();
-      }, RECONNECT_DELAY_MS);
+      }, delay);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, handleMessage, t]);
@@ -307,6 +331,25 @@ export default function DuelRoom() {
     }
     left.current = false;
     connect();
+    if (pingTimer.current) clearInterval(pingTimer.current);
+    pingTimer.current = setInterval(() => {
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        missedPongs.current += 1;
+        if (missedPongs.current >= 2) {
+          try {
+            ws.current.close();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+        try {
+          ws.current.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 15000);
     return () => {
       left.current = true;
       clearTimers();
@@ -323,6 +366,21 @@ export default function DuelRoom() {
       ws.current = null;
     };
   }, [code, user, authLoading, connect, t]);
+
+  // Opponent disconnected grace period countdown
+  useEffect(() => {
+    if (!opponentDisconnected) return;
+    const timer = setInterval(() => {
+      setOpponentGraceSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [opponentDisconnected]);
 
   // Local countdown mirror (server is authoritative).
   useEffect(() => {
@@ -397,6 +455,46 @@ export default function DuelRoom() {
           {t('arena_leave')}
         </button>
       </p>
+      {opponentDisconnected && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            color: '#f87171',
+            borderRadius: 12,
+            padding: '12px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ fontSize: 22 }}>⚠️</span>
+          <div>
+            <div>Raqib interneti qayta ulanmoqda... (qolgan vaqt: {opponentGraceSeconds}s)</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>
+              Agar 30 soniya ichida qayta ulanmasa, g‘alaba avtomatik sizga taqdim etiladi.
+            </div>
+          </div>
+        </div>
+      )}
+      {isReconnecting && (
+        <div
+          style={{
+            background: 'rgba(234, 179, 8, 0.15)',
+            border: '1px solid rgba(234, 179, 8, 0.4)',
+            color: '#fde047',
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 12,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          ⚡ Tarmoq uzildi. Qayta ulanmoqda...
+        </div>
+      )}
       {notice && <p className="muted">{notice}</p>}
 
       {(state === 'session' || state === 'connecting') && (

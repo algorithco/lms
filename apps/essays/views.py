@@ -530,6 +530,22 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
         # non-empty text (already enforced by essay text saving).
         pass
 
+        # --- Instant Pre-validation Filter --------------------------------------
+    from .pre_validation import PreValidationError, pre_validate_essay
+
+    try:
+        topic_title = submission.topic.title if submission.topic else ""
+        pre_validate_essay(submission.essay_text, topic_title=topic_title)
+    except PreValidationError as e:
+        return _safe_render_partial(
+            request,
+            "essays/submit_result_partial.html",
+            {
+                "success": False,
+                "error": str(e),
+            },
+        )
+
     # --- Daily AI Quota Check -----------------------------------------------
     from apps.payments.ai_quota import check_and_consume_ai_quota
 

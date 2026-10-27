@@ -2175,6 +2175,10 @@ def _deduplicate_cached_grading(func):
         if not essay_text or not essay_text.strip():
             return func(essay_text, topic_title, *args, **kwargs)
 
+        from .pre_validation import pre_validate_essay
+
+        pre_validate_essay(essay_text, topic_title=topic_title)
+
         context = kwargs.get("cache_context")
         identity = grading_cache_identity(essay_text, topic_title, context=context)
         if not identity["cacheable"]:
@@ -2507,6 +2511,10 @@ def grade_essay(
 
     if not essay_text or not essay_text.strip():
         raise ValueError("Esse matni bo'sh")
+
+    from .pre_validation import pre_validate_essay
+
+    pre_validate_essay(essay_text, topic_title=topic_title)
 
     model = _get_ai_model()
     mock_mode = _is_mock_mode()
@@ -4364,6 +4372,10 @@ def grade_ielts_essay(
     cleaned_text = (essay_text or "").strip()
     if not cleaned_text:
         raise ValueError("Essay text cannot be empty.")
+
+    from .pre_validation import pre_validate_essay
+
+    pre_validate_essay(cleaned_text, topic_title=topic_title)
 
     if _is_mock_mode():
         return _mock_ielts_response(

@@ -11,6 +11,7 @@ from drf_spectacular.views import (
 )
 
 from apps.core.spa import serve_spa_shell
+from apps.core.views_seo import robots_txt_view, sitemap_xml_view
 from apps.web.views import set_language_view
 
 urlpatterns = [
@@ -53,6 +54,9 @@ urlpatterns = [
     path("set-language/<str:lang>/", set_language_view, name="set-language"),
     # In-app admin panel (staff / role='admin' only) — serves SPA shell
     path("control-panel/", include("apps.panel.urls")),
+    # SEO sitemap & robots
+    path("sitemap.xml", sitemap_xml_view, name="sitemap-xml"),
+    path("robots.txt", robots_txt_view, name="robots-txt"),
     # SPA fallback — catches all remaining routes and serves React SPA shell
     # This must be LAST so it doesn't intercept API/admin/static/media paths
     path("", serve_spa_shell, name="spa-shell"),

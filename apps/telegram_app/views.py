@@ -803,6 +803,15 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
             status=400,
         )
 
+    # Instant Pre-validation Filter (word count >= 60, anti-gibberish, lexical check)
+    from apps.essays.pre_validation import PreValidationError, pre_validate_essay
+
+    try:
+        topic_title = submission.topic.title if submission.topic else ""
+        pre_validate_essay(essay_text, topic_title=topic_title)
+    except PreValidationError as e:
+        return Response({"error": str(e)}, status=400)
+
     submission.save(update_fields=["essay_text", "word_count", "updated_at"])
 
     # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
