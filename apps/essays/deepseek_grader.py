@@ -173,8 +173,7 @@ class DeepSeekGrader:
         if not _is_mock_mode():
             from .pre_validation import pre_validate_essay
 
-            effective_min = min_words or 150
-            pre_validate_essay(cleaned, topic_title=topic_title, min_words=effective_min)
+            pre_validate_essay(cleaned, topic_title=topic_title, min_words=0)
 
         if min_words is None:
             min_words = 150 if task_type == "ielts_task1" else 250

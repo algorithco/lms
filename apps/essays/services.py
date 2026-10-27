@@ -4380,8 +4380,7 @@ def grade_ielts_essay(
     if not _is_mock_mode():
         from .pre_validation import pre_validate_essay
 
-        effective_min = min_words or 150
-        pre_validate_essay(cleaned_text, topic_title=topic_title, min_words=effective_min)
+        pre_validate_essay(cleaned_text, topic_title=topic_title, min_words=0)
 
     if _is_mock_mode():
         return _mock_ielts_response(
