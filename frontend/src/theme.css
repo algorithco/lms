@@ -517,3 +517,114 @@ html.light .admin-action {
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
+
+
+/* -------------------------------------------------------------------------
+ * Next-Gen EdTech Glassmorphism & Micro-animations
+ * ------------------------------------------------------------------------- */
+@keyframes fireFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+  }
+  25% {
+    transform: scale(1.1, 0.94) rotate(2deg);
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.95));
+  }
+  50% {
+    transform: scale(0.94, 1.06) rotate(-2deg);
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.85));
+  }
+  75% {
+    transform: scale(1.06, 0.97) rotate(1deg);
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.95));
+  }
+}
+
+.fire-flicker {
+  animation: fireFlicker 1.8s infinite ease-in-out;
+  display: inline-block;
+  will-change: transform, filter;
+}
+
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translateX(-100%);
+  animation: shimmerSweep 3.2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes rotateBorderSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pro-card-glow {
+  position: relative;
+  z-index: 1;
+}
+
+.pro-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 24px;
+  background: conic-gradient(from 0deg, #F59E0B, #10B981, #6366F1, #F59E0B);
+  z-index: -1;
+  animation: rotateBorderSpin 6s linear infinite;
+  opacity: 0.8;
+}
+
+.vip-aura {
+  box-shadow: 0 0 35px -5px rgba(139, 92, 246, 0.4), inset 0 0 20px rgba(139, 92, 246, 0.15) !important;
+}
+
+.starter-glow {
+  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.35) !important;
+}
+
+.badge-metal-shine {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(0, 0, 0, 0.2) 100%);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.badge-metal-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 58%
+  );
+  transform: rotate(25deg);
+  animation: shineSweep 4.5s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes shineSweep {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(100%) rotate(25deg); }
+}

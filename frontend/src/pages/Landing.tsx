@@ -547,6 +547,26 @@ const sectionNav: [string, string][] = [
   ['nav_faq', '#faq'],
 ];
 
+function HeroCountUp({ target = 54.5, duration = 1200 }: { target?: number; duration?: number }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    let start: number | null = null;
+    let frameId: number;
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      setVal(Number((easeOut * target).toFixed(1)));
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step);
+      }
+    };
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [target, duration]);
+  return <span>{val} / 60 ball</span>;
+}
+
 export default function Landing() {
   const { t } = useLang();
   const { user, openAuthModal } = useAuth();
@@ -769,22 +789,51 @@ export default function Landing() {
         jsonLd={jsonLdData}
       />
 
-      {/* Global Background Glow */}
+      {/* Global Background Glow & Ambient Mesh Glow */}
       <div
         style={{
           position: 'absolute',
           top: 0,
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'min(1200px, 100vw)',
-          height: 600,
+          width: '100vw',
+          height: 750,
           background:
             landingSubject === 'english'
-              ? 'radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.08) 40%, transparent 70%)'
-              : 'radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.15), rgba(139, 92, 246, 0.08) 40%, transparent 70%)',
+              ? 'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(56, 189, 248, 0.18), rgba(255, 255, 255, 0))'
+              : 'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(245, 158, 11, 0.18), rgba(255, 255, 255, 0))',
           pointerEvents: 'none',
           zIndex: 0,
           transition: 'background 0.4s ease',
+        }}
+      />
+      {/* Ambient Emerald & Violet Glow Spheres */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 100,
+          left: '10%',
+          width: 380,
+          height: 380,
+          borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 140,
+          right: '8%',
+          width: 440,
+          height: 440,
+          borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
+          filter: 'blur(70px)',
+          pointerEvents: 'none',
+          zIndex: 0,
         }}
       />
 
@@ -937,7 +986,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => openAuthModal('login')}
-                  className="btn-glow"
+                  className="btn-glow btn-shimmer"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1365,7 +1414,7 @@ export default function Landing() {
                             : '/essays',
                         )
                       }
-                      className="btn-glow"
+                      className="btn-glow btn-shimmer"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -2271,7 +2320,7 @@ export default function Landing() {
                                   <button
                                     type="button"
                                     onClick={() => handleAction('/tests')}
-                                    className="btn-glow"
+                                    className="btn-glow btn-shimmer"
                                     style={{
                                       padding: '10px 18px',
                                       borderRadius: 12,
@@ -2896,7 +2945,7 @@ export default function Landing() {
                                   <button
                                     type="button"
                                     onClick={() => handleAction('/tests')}
-                                    className="btn-glow"
+                                    className="btn-glow btn-shimmer"
                                     style={{
                                       padding: '10px 18px',
                                       borderRadius: 12,
@@ -3019,7 +3068,7 @@ export default function Landing() {
                                   fontSize: 13,
                                 }}
                               >
-                                <span>54.5 / 60 ball</span>
+                                <HeroCountUp target={54.5} />
                                 <span style={{ fontSize: 11, opacity: 0.8 }}>(A daraja - 90.8%)</span>
                               </div>
                             </div>
@@ -3484,7 +3533,7 @@ export default function Landing() {
                                   <button
                                     type="button"
                                     onClick={() => handleAction('/tests')}
-                                    className="btn-glow"
+                                    className="btn-glow btn-shimmer"
                                     style={{
                                       padding: '10px 18px',
                                       borderRadius: 12,
@@ -3921,7 +3970,7 @@ export default function Landing() {
                                   <button
                                     type="button"
                                     onClick={() => handleAction('/tests')}
-                                    className="btn-glow"
+                                    className="btn-glow btn-shimmer"
                                     style={{
                                       padding: '10px 18px',
                                       borderRadius: 12,
@@ -4870,7 +4919,7 @@ export default function Landing() {
 
               {/* 2. Starter Plan (New) */}
               <div
-                className="glass-card lcard-hover"
+                className="glass-card lcard-hover starter-glow"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
@@ -4927,7 +4976,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => handleAction('/subscribe?plan=starter')}
-                  className="btn-glow"
+                  className="btn-glow btn-shimmer"
                   style={{
                     width: '100%',
                     padding: 12,
@@ -4947,7 +4996,7 @@ export default function Landing() {
 
               {/* 3. Pro Plan (Popular) */}
               <div
-                className="glass-card lcard-hover"
+                className="glass-card lcard-hover pro-card-glow"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
@@ -5004,7 +5053,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => handleAction('/subscribe?plan=pro')}
-                  className="btn-glow"
+                  className="btn-glow btn-shimmer"
                   style={{
                     width: '100%',
                     padding: 12,
@@ -5024,7 +5073,7 @@ export default function Landing() {
 
               {/* 4. Premium Plan (VIP) */}
               <div
-                className="glass-card lcard-hover"
+                className="glass-card lcard-hover vip-aura"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
@@ -5082,7 +5131,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => handleAction('/subscribe?plan=premium')}
-                  className="btn-glow"
+                  className="btn-glow btn-shimmer"
                   style={{
                     width: '100%',
                     padding: 12,
@@ -5242,7 +5291,7 @@ export default function Landing() {
               <button
                 type="button"
                 onClick={() => handleAction('/register')}
-                className="btn-glow"
+                className="btn-glow btn-shimmer"
                 style={{
                   padding: '14px 32px',
                   borderRadius: 14,

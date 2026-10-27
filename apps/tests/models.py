@@ -221,6 +221,11 @@ class Test(models.Model):
     def has_time_limit(self) -> bool:
         return self.time_limit_minutes > 0
 
+    @property
+    def access_code(self) -> str:
+        """Alias for mock_code to maintain API parity with OMR sheet readers."""
+        return self.mock_code or ""
+
     def save(self, *args, **kwargs) -> None:
         """Keep legacy `is_active` in sync with the three-state `status`.
 

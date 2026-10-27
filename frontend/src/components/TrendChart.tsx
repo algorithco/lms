@@ -40,6 +40,15 @@ const SERIES_CONFIG: {
   { key: 'essays', name: 'AI Esselar', color: '#F43F5E', gradientId: 'gradEssays' },
 ];
 
+const BENCHMARK_SAMPLE_TREND: TrendPoint[] = [
+  { date: '2025-11-01', attempts: 180, avg: 54, certs: 18, students: 120, essays: 65 },
+  { date: '2025-12-01', attempts: 320, avg: 61, certs: 34, students: 210, essays: 140 },
+  { date: '2026-01-01', attempts: 540, avg: 69, certs: 58, students: 380, essays: 260 },
+  { date: '2026-02-01', attempts: 820, avg: 76, certs: 89, students: 560, essays: 420 },
+  { date: '2026-03-01', attempts: 1150, avg: 83, certs: 135, students: 780, essays: 610 },
+  { date: '2026-04-01', attempts: 1580, avg: 91, certs: 195, students: 1040, essays: 890 },
+];
+
 function ModernTooltip({
   active,
   payload,
@@ -148,7 +157,6 @@ function ModernTooltip({
 export default function TrendChart({
   data,
   labels,
-  emptyText,
 }: {
   data: TrendPoint[];
   labels?: TrendLabels;
@@ -167,13 +175,14 @@ export default function TrendChart({
     [labels],
   );
 
+  const isBenchmark = !data || data.length === 0;
   const filteredData = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    const source = isBenchmark ? BENCHMARK_SAMPLE_TREND : data;
     if (selectedRange === '6m') {
-      return data.slice(-6);
+      return source.slice(-6);
     }
-    return data;
-  }, [data, selectedRange]);
+    return source;
+  }, [data, isBenchmark, selectedRange]);
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef(0);
@@ -220,9 +229,7 @@ export default function TrendChart({
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
-  if (!data || data.length === 0) {
-    return <p className="land-muted" style={{ textAlign: 'center', padding: '2rem' }}>{emptyText ?? 'Maʼlumot mavjud emas'}</p>;
-  }
+// Benchmark fallback is used when live data is empty
 
   const effectiveFocus = activeMetric || hoveredMetric;
 
@@ -292,6 +299,13 @@ export default function TrendChart({
           color: #F59E0B;
         }
       `}</style>
+
+      {/* Benchmark Notice if demo data is shown */}
+      {isBenchmark && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', color: '#F59E0B', fontSize: 11, fontWeight: 800, marginBottom: 12 }}>
+          <span>📈 O'sish dinamikasi simulyatsiyasi (B1 ➔ C1 / Milliy Sertifikat A daraja)</span>
+        </div>
+      )}
 
       {/* Header controls: Metric selector & Time range */}
       <div
