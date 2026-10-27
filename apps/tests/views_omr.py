@@ -35,10 +35,7 @@ class ScanOMRView(APIView):
         """Return active tests available for OMR answer sheet grading."""
         from apps.tests.models import Test
 
-        tests = (
-            Test.objects.filter(is_active=True)
-            .order_by("-id")
-        )
+        tests = Test.objects.filter(is_active=True).order_by("-id")
         data = [
             {
                 "id": t.id,
@@ -52,7 +49,9 @@ class ScanOMRView(APIView):
             }
             for t in tests
         ]
-        return Response({"ok": True, "count": len(data), "tests": data}, status=status.HTTP_200_OK)
+        return Response(
+            {"ok": True, "count": len(data), "tests": data}, status=status.HTTP_200_OK
+        )
 
     def post(self, request: Request) -> Response:
         image_file = request.FILES.get("image")
