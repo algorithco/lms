@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.36. Rasmiy Versiya v1.35.0: Titul (OMR) Baza Integratsiyasi va Next-Gen Glassmorphism & UI/UX Dizayni
+- [x] 1-Bosqich: Titul (OMR) Baza Integratsiyasi & Seeding:
+  * `seed_official_omr_tests` buyrug'i va `official_omr_tests.json` fixturasi orqali bazaga 6 ta rasmiy test kalitlari bilan kiritildi:
+    - 3 ta BMB Milliy Sertifikat (Ona tili va adabiyot: `BMB-101`, `BMB-102`, `BMB-103` — 45 talik format).
+    - 2 ta Cambridge Official CD-IELTS Mock (`IELTS-201`, `IELTS-202` — Academic Reading 40 talik format).
+    - 1 ta CEFR Multi-Level English Mock (`CEFR-301` — 35 talik format).
+  * `GET /api/v1/tests/scan-omr/` API yakuniy nuqtasi yaratildi: Faol testlar ro'yxatini (`id`, `mock_code`, `access_code`, `title`, `total_questions`, `time_limit_minutes`) qaytaradi.
+  * Vision OCR test kodi bazada topilmasa: `code_not_found: true` signali va "⚠️ Tituldan o'qilgan '{KOD}' kodi bo'yicha test bazada topilmadi. Iltimos, pastdagi ro'yxatdan qaysi testga javob berganingizni tanlang" ogohlantirishini beradi.
+  * Frontend OMR skaneri (`ScanOMR.tsx` va yangi `/titul-scanner` marshruti):
+    - Rejim A: "Bazamizdagi testni tanlang" — qidiruvli va toifali qulay Dropdown/Grid interfeysi.
+    - Rejim B: "Tituldan avtomatik aniqlash (Vision OCR)".
+- [x] 2-Bosqich: Next-Gen EdTech Dark Glassmorphism & Hero Animatsiyasi:
+  * Bosh sahifa (Landing) foniga Ambient Mesh Glow markaziy ellips va zumrad hamda binafsharang suzuvchi neon sharlar o'rnatildi.
+  * Interactive Hero Demo Card: `HeroCountUp` orqali 0 dan 54.5 gacha silliq hisoblagich, 12 ta rasmiy BMB mezonlari bosilganda tavsiyalar silliq o'zgarishi.
+  * 3 ta asosiy xususiyat kartalari: Chuqur glassmorphism (`bg-slate-900/60 backdrop-blur-xl hover:border-amber-500/40 hover:-translate-y-1.5`) va piktogrammalarga hover-pulse berildi.
+  * Trend Chart: Recharts spline egri chiziqlari zangori-oltin gradiyent bilan to'ldirildi; jonli ma'lumotlar bo'lmaganda avtomatik ravishda "O'sish dinamikasi simulyatsiyasi (B1 ➔ C1)" ga o'tishi ta'minlandi.
+  * 4 ustunli Tariflar paneli: Starter (5 000 UZS) zumrad aura, PRO (49 000 UZS) aylanuvchi kamalak ramka (`pro-card-glow`), PREMIUM (89 000 UZS) binafsharang VIP aura (`vip-aura`) va tugmalarga `btn-shimmer` sweep nuri ulandi.
+- [x] 3-Bosqich: Dashboard Skeleton Yuklagichlar va Metal Shine:
+  * Eski `'…'` yuklash belgilari o'rniga zamonaviy `animate-pulse` skeletlari o'rnatildi.
+  * Streak olovi uchun haqiqiy olov miltillash animatsiyasi (`fire-flicker`) joriy qilindi.
+  * XP va Liga kartalariga 3D metall jilosi (`badge-metal-shine`) berildi.
+- [x] 4-Bosqich: QA, CI/CD va VPS Zero-Downtime Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik, Vite production bundle 3.25s da yig'ildi.
+  * Yangi OMR integratsiya testlari (`pytest tests/test_omr_db_integration.py`): 3/3 test 100% PASS.
+  * Regressiya testlari (`pytest tests/test_omr_speaking_gamification.py`, `test_strategic_features.py`): 100% PASS.
+  * GitHub PR #106 barcha CI tekshiruvlaridan (CodeQL, security, automerge, test) to'liq o'tib, `main` ga squash-merge qilindi.
+  * Komiljon Roziyev <kruziyev0@gmail.com> (Zero AI attribution) muallifligi qat'iy saqlandi.
+  * VPS (`169.58.58.229`) ga uzilishsiz deploy qilindi. `bestway` mustaqil tizimi mutlaqo daxlsiz saqlandi.
+  * Jonli tekshiruv: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.35.0), `https://grandec.uz/api/v1/tests/scan-omr/` (HTTP 200 OK, 9 ta faol test).
+
 ### 2.35. Rasmiy Versiya v1.33.0: Cambridge Computer-Delivered IELTS (CD-IELTS) & BMB CBT Split-Screen Imtihon Interfeysi
 - [x] 1-Bosqich: Distraction-Free Kiosk Rejimi (100vw x 100vh):
   * `frontend/src/App.tsx` da `/english-exam/:attemptId` marshruti standart `Layout` (chapdagi LMS sidebar menyusi, Boshqaruv paneli, Turnirlar va yuqoridagi 0 XP Navbar) tashqarisiga chiqarildi.
