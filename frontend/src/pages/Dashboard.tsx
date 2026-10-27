@@ -556,7 +556,7 @@ export default function Dashboard() {
                   boxShadow: streak.is_active_today ? '0 4px 14px rgba(234, 88, 12, 0.4)' : 'none',
                 }}
               >
-                <FlameIcon size={28} />
+                <FlameIcon size={28} className={streak.is_active_today ? 'fire-flicker' : ''} />
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -579,14 +579,14 @@ export default function Dashboard() {
 
             {/* Daily Goal & XP */}
             <div
+              className="badge-metal-shine"
               style={{
-                background: 'rgba(0, 0, 0, 0.2)',
                 padding: '10px 14px',
                 borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                boxShadow: '0 4px 16px rgba(251, 191, 36, 0.1)',
               }}
             >
               <div>
@@ -613,14 +613,14 @@ export default function Dashboard() {
 
             {/* League Badge */}
             <div
+              className="badge-metal-shine"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'rgba(0, 0, 0, 0.2)',
                 padding: '10px 14px',
                 borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                boxShadow: '0 4px 16px rgba(139, 92, 246, 0.1)',
               }}
             >
               <div>
@@ -654,7 +654,7 @@ export default function Dashboard() {
               <FileTextIcon size={13} className="ico" /> {t('stat_tests_taken')}
             </span>
             <span className="stat-value">
-              {stats ? num(stats.total_tests_taken, 0) : '…'}
+              {stats ? num(stats.total_tests_taken, 0) : <span className="inline-block w-12 h-6 rounded bg-white/10 animate-pulse align-middle" />}
             </span>
             <span className="muted small">{t('stat_sub_total_hint')}</span>
             <Link to="/tests">{t('tests')} →</Link>
@@ -666,7 +666,7 @@ export default function Dashboard() {
               <TrophyIcon size={13} className="ico" /> {t('stat_tests_passed')}
             </span>
             <span className="stat-value">
-              {stats ? num(stats.total_passed, 0) : '…'}
+              {stats ? num(stats.total_passed, 0) : <span className="inline-block w-12 h-6 rounded bg-white/10 animate-pulse align-middle" />}
             </span>
             <span className="muted small">
               {stats
@@ -681,7 +681,7 @@ export default function Dashboard() {
             <span className="stat-label">
               <TrophyIcon size={13} className="ico" /> {t('average_score')}
             </span>
-            <span className="stat-value">{avg === null ? '…' : `${avg}%`}</span>
+            <span className="stat-value">{avg === null ? <span className="inline-block w-12 h-6 rounded bg-white/10 animate-pulse align-middle" /> : `${avg}%`}</span>
             <span className="muted small">
               {avg === null
                 ? ''
@@ -700,7 +700,7 @@ export default function Dashboard() {
               <span className="stat-label">
                 <AwardIcon size={13} className="ico" /> {t('certificates')}
               </span>
-              <span className="stat-value">{certCount ?? '…'}</span>
+              <span className="stat-value">{certCount !== null && certCount !== undefined ? certCount : <span className="inline-block w-12 h-6 rounded bg-white/10 animate-pulse align-middle" />}</span>
               <span className="muted small">
                 {t('count_certificates')} · {t('download_pdf_hint')}
               </span>

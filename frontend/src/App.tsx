@@ -55,6 +55,7 @@ const TournamentLive = lazyPage(() => import('./pages/TournamentLive'));
 const EnterpriseDashboard = lazyPage(() => import('./pages/EnterpriseDashboard'));
 const VerifyCertificate = lazyPage(() => import('./pages/VerifyCertificate'));
 const ScanOMR = lazyPage(() => import('./pages/ScanOMR'));
+const TitulScanner = lazyPage(() => import('./pages/TitulScanner'));
 const SpeakingTopics = lazyPage(() => import('./pages/SpeakingTopics'));
 const SpeakingPractice = lazyPage(() => import('./pages/SpeakingPractice'));
 const SpeakingResult = lazyPage(() => import('./pages/SpeakingResult'));
@@ -119,6 +120,7 @@ function AnimatedRoutes() {
             <Route path="/take/:attemptId" element={<TakeTest />} />
             <Route path="/tests/scan-omr" element={<ScanOMR />} />
             <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />
+            <Route path="/titul-scanner" element={<TitulScanner />} />
             <Route path="/results" element={<Results />} />
             {/* Legacy /results/<id>/ deep link */}
             <Route path="/results/:id" element={<Results />} />

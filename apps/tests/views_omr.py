@@ -31,6 +31,29 @@ class ScanOMRView(APIView):
     permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 
+    def get(self, request: Request) -> Response:
+        """Return active tests available for OMR answer sheet grading."""
+        from apps.tests.models import Test
+
+        tests = (
+            Test.objects.filter(is_active=True)
+            .order_by("-id")
+        )
+        data = [
+            {
+                "id": t.id,
+                "title": t.title,
+                "mock_code": t.mock_code or "",
+                "access_code": t.access_code,
+                "exam_type": t.exam_type,
+                "subject": getattr(t, "subject", "uzbek"),
+                "total_questions": t.questions.count(),
+                "time_limit_minutes": t.time_limit_minutes,
+            }
+            for t in tests
+        ]
+        return Response({"ok": True, "count": len(data), "tests": data}, status=status.HTTP_200_OK)
+
     def post(self, request: Request) -> Response:
         image_file = request.FILES.get("image")
         if not image_file:

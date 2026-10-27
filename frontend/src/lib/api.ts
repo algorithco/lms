@@ -2167,29 +2167,44 @@ export interface OmrScanBreakdown {
   max_points: number;
 }
 
-export interface OmrScanResponse {
-  ok: boolean;
-  test_id: number;
-  test_title: string;
+export interface OmrAvailableTest {
+  id: number;
+  title: string;
   mock_code: string;
+  access_code: string;
+  exam_type: string;
   subject: string;
   total_questions: number;
-  correct_count: number;
-  incorrect_count: number;
-  blank_count: number;
-  total_score: number;
-  max_score: number;
-  percentage: number;
-  grade: string;
-  is_passed: boolean;
-  pass_percentage: number;
+  time_limit_minutes: number;
+}
+
+export interface OmrScanResponse {
+  ok: boolean;
+  code_not_found?: boolean;
+  detected_code?: string;
+  test_id?: number;
+  test_title?: string;
+  mock_code?: string;
+  subject?: string;
+  total_questions?: number;
+  correct_count?: number;
+  incorrect_count?: number;
+  blank_count?: number;
+  total_score?: number;
+  max_score?: number;
+  percentage?: number;
+  grade?: string;
+  is_passed?: boolean;
+  pass_percentage?: number;
   attempt_id?: number | null;
   xp_earned?: number;
-  breakdown: OmrScanBreakdown[];
+  breakdown?: OmrScanBreakdown[];
   error?: string;
 }
 
 export const OmrApi = {
+  getAvailableTests: () =>
+    api<{ ok: boolean; count: number; tests: OmrAvailableTest[] }>('/api/v1/tests/scan-omr/'),
   scan: (formData: FormData) =>
     api<OmrScanResponse>('/api/v1/tests/scan-omr/', {
       method: 'POST',

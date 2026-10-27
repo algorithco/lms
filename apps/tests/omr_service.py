@@ -155,15 +155,23 @@ def grade_omr_sheet(
             clean_digits = re.sub(r"\D", "", detected_code)
             if clean_digits:
                 test = Test.objects.filter(pk=int(clean_digits)).first()
-
-    # If still not found, take the latest published test
-    if not test:
-        test = Test.objects.filter(status=Test.Status.PUBLISHED).order_by("-id").first()
         if not test:
-            test = Test.objects.order_by("-id").first()
+            # Code was detected but not found in DB -> signal frontend to let user select
+            return {
+                "ok": False,
+                "code_not_found": True,
+                "detected_code": detected_code,
+                "error": f"⚠️ Tituldan o'qilgan '{detected_code}' kodi bo'yicha test bazada topilmadi. Iltimos, pastdagi ro'yxatdan qaysi testga javob berganingizni tanlang.",
+            }
 
+    # If neither test_id nor mock_code provided and no code detected:
     if not test:
-        raise ValueError("Tizimda baholash uchun faol test topilmadi.")
+        return {
+            "ok": False,
+            "code_not_found": True,
+            "detected_code": "",
+            "error": "Tituldan test kodi aniqlanmadi yoki bazada mos test topilmadi. Iltimos, ro'yxatdan kerakli testni tanlang.",
+        }
 
     questions = list(
         test.questions.prefetch_related("choices").order_by("position", "id")

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera,
@@ -9,15 +9,24 @@ import {
   ArrowRight,
   RefreshCw,
   AlertCircle,
+  BookOpen,
+  Search,
+  Check,
+  FileText,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { OmrApi, type OmrScanResponse } from '../lib/api';
+import { OmrApi, type OmrScanResponse, type OmrAvailableTest } from '../lib/api';
 
 export default function ScanOMR() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<'select' | 'auto'>('select');
+  const [availableTests, setAvailableTests] = useState<OmrAvailableTest[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
+  const [searchTestQuery, setSearchTestQuery] = useState<string>('');
   const [mockCode, setMockCode] = useState<string>('');
+  const [codeNotFoundAlert, setCodeNotFoundAlert] = useState<{ detected: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<OmrScanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,12 +34,29 @@ export default function ScanOMR() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    OmrApi.getAvailableTests()
+      .then((data) => {
+        if (data.ok && Array.isArray(data.tests)) {
+          setAvailableTests(data.tests);
+          if (data.tests.length > 0) {
+            setSelectedTestId(data.tests[0].id);
+            setMockCode(data.tests[0].mock_code || '');
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Available tests fetch failed:', err);
+      });
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
       setFile(selected);
       setPreviewUrl(URL.createObjectURL(selected));
       setError(null);
+      setCodeNotFoundAlert(null);
       setResult(null);
     }
   };
@@ -42,9 +68,30 @@ export default function ScanOMR() {
       setFile(selected);
       setPreviewUrl(URL.createObjectURL(selected));
       setError(null);
+      setCodeNotFoundAlert(null);
       setResult(null);
     }
   };
+
+  const handleSelectTest = (id: number) => {
+    setSelectedTestId(id);
+    const found = availableTests.find((t) => t.id === id);
+    if (found) {
+      setMockCode(found.mock_code || '');
+    }
+    setCodeNotFoundAlert(null);
+  };
+
+  const filteredTests = useMemo(() => {
+    const q = searchTestQuery.trim().toLowerCase();
+    if (!q) return availableTests;
+    return availableTests.filter((t) =>
+      t.title.toLowerCase().includes(q) ||
+      (t.mock_code && t.mock_code.toLowerCase().includes(q)) ||
+      (t.access_code && t.access_code.toLowerCase().includes(q)) ||
+      (t.subject && t.subject.toLowerCase().includes(q))
+    );
+  }, [availableTests, searchTestQuery]);
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,17 +102,29 @@ export default function ScanOMR() {
 
     setLoading(true);
     setError(null);
+    setCodeNotFoundAlert(null);
     setResult(null);
 
     const fd = new FormData();
     fd.append('image', file);
-    if (mockCode.trim()) {
-      fd.append('mock_code', mockCode.trim());
+
+    if (selectionMode === 'select' && selectedTestId) {
+      fd.append('test_id', String(selectedTestId));
+      if (mockCode.trim()) {
+        fd.append('mock_code', mockCode.trim());
+      }
+    } else {
+      if (mockCode.trim()) {
+        fd.append('mock_code', mockCode.trim());
+      }
     }
 
     try {
       const res = await OmrApi.scan(fd);
-      if (res.ok) {
+      if (res.code_not_found) {
+        setCodeNotFoundAlert({ detected: res.detected_code || '' });
+        setSelectionMode('select');
+      } else if (res.ok) {
         setResult(res);
         if (res.is_passed) {
           try {
@@ -193,26 +252,160 @@ export default function ScanOMR() {
             )}
           </div>
 
-          {/* Optional Mock Code */}
+          {/* Test Selection Switch */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: 6 }}>
-              Test yoki Mock kodi (Ixtiyoriy, tituldan avtomatik ham o'qiladi):
+            <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, marginBottom: 8 }}>
+              2. Testni aniqlash usuli:
             </label>
-            <input
-              type="text"
-              placeholder="Masalan: MOCK-101 yoki #2026"
-              value={mockCode}
-              onChange={(e) => setMockCode(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                background: 'rgba(0,0,0,0.25)',
-                color: 'var(--ink)',
-                fontSize: '0.9rem',
-              }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setSelectionMode('select')}
+                className={`btn sm ${selectionMode === 'select' ? 'primary' : 'ghost'}`}
+                style={{
+                  fontSize: '0.82rem',
+                  padding: '8px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  borderRadius: 10,
+                }}
+              >
+                <BookOpen size={14} />
+                <span>Bazamizdagi test</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectionMode('auto')}
+                className={`btn sm ${selectionMode === 'auto' ? 'primary' : 'ghost'}`}
+                style={{
+                  fontSize: '0.82rem',
+                  padding: '8px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  borderRadius: 10,
+                }}
+              >
+                <Zap size={14} />
+                <span>Tituldan aniqlash</span>
+              </button>
+            </div>
+
+            {/* Warning if Vision OCR detected unknown code */}
+            {codeNotFoundAlert && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid #F59E0B',
+                  color: '#FDE68A',
+                  fontSize: '0.85rem',
+                  marginBottom: 14,
+                  lineHeight: 1.45,
+                }}
+              >
+                ⚠️ Tituldan o'qilgan <b>'{codeNotFoundAlert.detected || "Noma'lum"}'</b> kodi bo'yicha test bazada topilmadi.
+                Iltimos, pastdagi ro'yxatdan qaysi testga javob berganingizni tanlang.
+              </div>
+            )}
+
+            {selectionMode === 'select' ? (
+              <div>
+                {/* Search Box for Tests */}
+                {availableTests.length > 5 && (
+                  <div style={{ position: 'relative', marginBottom: 8 }}>
+                    <Search size={14} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--muted)' }} />
+                    <input
+                      type="text"
+                      placeholder="Test nomi yoki kodini qidirish..."
+                      value={searchTestQuery}
+                      onChange={(e) => setSearchTestQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px 8px 34px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        background: 'rgba(0,0,0,0.2)',
+                        color: 'var(--ink)',
+                        fontSize: '0.82rem',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Dropdown / Select List */}
+                <select
+                  value={selectedTestId || ''}
+                  onChange={(e) => handleSelectTest(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(255, 255, 255, 0.16)',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    color: 'var(--ink)',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {filteredTests.map((t) => (
+                    <option key={t.id} value={t.id} style={{ background: '#0F172A', color: '#F8FAFC' }}>
+                      #{t.mock_code || t.access_code}: {t.title} ({t.total_questions} talik)
+                    </option>
+                  ))}
+                </select>
+
+                {/* Selected Test Badge */}
+                {selectedTestId && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: '0.8rem',
+                      color: '#6EE7B7',
+                    }}
+                  >
+                    <Check size={14} />
+                    <span>
+                      Tanlangan: <b>#{mockCode}</b> · {filteredTests.find((t) => t.id === selectedTestId)?.total_questions || 40} ta savolli kalit bilan tekshiriladi
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Ixtiyoriy test kodi (masalan: BMB-101 yoki IELTS-201)"
+                  value={mockCode}
+                  onChange={(e) => setMockCode(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    background: 'rgba(0,0,0,0.25)',
+                    color: 'var(--ink)',
+                    fontSize: '0.88rem',
+                  }}
+                />
+                <span className="muted small" style={{ display: 'block', marginTop: 4, fontSize: '0.76rem' }}>
+                  Bo'sh qoldirsangiz, sun'iy intellekt titul varaqasining o'zidan kodni o'qiydi.
+                </span>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -295,6 +488,18 @@ export default function ScanOMR() {
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(245, 158, 11, 0.2)', color: '#FBBF24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0 }}>
                   3
+                </div>
+                <div>
+                  <strong style={{ fontSize: '0.9rem', display: 'block' }}>BMB va IELTS rasmiy kalitlari</strong>
+                  <span className="muted small">
+                    Bazadagi rasmiy #BMB-101, #IELTS-201 yoki #CEFR-301 testlarini tanlab, o'z natijangizni 2 soniyada tekshiring.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(168, 85, 247, 0.2)', color: '#C084FC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0 }}>
+                  <FileText size={15} />
                 </div>
                 <div>
                   <strong style={{ fontSize: '0.9rem', display: 'block' }}>Telegram bot orqali tekshirish</strong>
@@ -405,7 +610,7 @@ export default function ScanOMR() {
                     onClick={() => setFilterMode('all')}
                     className={`btn sm ${filterMode === 'all' ? 'primary' : 'ghost'}`}
                   >
-                    Barchasi ({result.breakdown.length})
+                    Barchasi ({(result.breakdown || []).length})
                   </button>
                   <button
                     type="button"
@@ -421,7 +626,7 @@ export default function ScanOMR() {
                     className={`btn sm ${filterMode === 'wrong' ? 'primary' : 'ghost'}`}
                     style={{ color: filterMode === 'wrong' ? '#fff' : '#F87171' }}
                   >
-                    Xatolar ({result.incorrect_count + result.blank_count})
+                    Xatolar ({((result.incorrect_count || 0) + (result.blank_count || 0))})
                   </button>
                 </div>
               </div>
