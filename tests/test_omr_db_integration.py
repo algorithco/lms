@@ -10,6 +10,7 @@ from apps.tests.models import Test, Question, Choice
 
 User = get_user_model()
 
+
 @pytest.fixture
 def auth_client(db):
     user = User.objects.create_user(
@@ -22,6 +23,7 @@ def auth_client(db):
     client = APIClient()
     client.force_authenticate(user=user)
     return client, user
+
 
 @pytest.fixture
 def test_with_choices(db):
@@ -62,6 +64,7 @@ def test_with_choices(db):
             )
     return test
 
+
 def _create_dummy_image():
     file = io.BytesIO()
     image = Image.new("RGB", (400, 600), color="white")
@@ -69,6 +72,7 @@ def _create_dummy_image():
     file.seek(0)
     file.name = "titul_test.jpg"
     return file
+
 
 @pytest.mark.django_db
 def test_scan_omr_get_available_tests(auth_client, test_with_choices):
@@ -79,6 +83,7 @@ def test_scan_omr_get_available_tests(auth_client, test_with_choices):
     assert response.data["count"] >= 1
     codes = [t["mock_code"] for t in response.data["tests"]]
     assert "BMB-101" in codes
+
 
 @pytest.mark.django_db
 def test_scan_omr_unknown_code_fallback(auth_client):
@@ -93,6 +98,7 @@ def test_scan_omr_unknown_code_fallback(auth_client):
     assert response.data["ok"] is False
     assert response.data["code_not_found"] is True
     assert "topilmadi" in response.data["error"]
+
 
 @pytest.mark.django_db
 def test_scan_omr_grade_success(auth_client, test_with_choices):

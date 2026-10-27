@@ -4870,8 +4870,11 @@ export default function Landing() {
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
+                  background: 'rgba(11, 15, 25, 0.9)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
@@ -4904,12 +4907,13 @@ export default function Landing() {
                     width: '100%',
                     padding: 12,
                     borderRadius: 12,
-                    background: 'var(--card-2)',
-                    border: '1px solid var(--border)',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: 'var(--ink)',
                     fontWeight: 700,
                     fontSize: 13.5,
                     cursor: 'pointer',
+                    marginTop: 'auto',
                     transition: 'all 0.18s ease',
                   }}
                 >
@@ -4919,16 +4923,19 @@ export default function Landing() {
 
               {/* 2. Starter Plan (New) */}
               <div
-                className="glass-card lcard-hover starter-glow"
+                className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  border: '1px solid rgba(16, 185, 129, 0.45)',
-                  boxShadow: '0 8px 30px rgba(16, 185, 129, 0.12)',
-                  background: 'var(--card)',
+                  background: 'rgba(11, 15, 25, 0.9)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  boxShadow: '0 0 25px -5px rgba(16, 185, 129, 0.2)',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div
@@ -4939,11 +4946,11 @@ export default function Landing() {
                     transform: 'translateX(-50%)',
                     padding: '3px 12px',
                     borderRadius: 999,
-                    background: 'rgba(16, 185, 129, 0.2)',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                    color: '#10B981',
+                    background: 'rgba(16, 185, 129, 0.18)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    color: '#34D399',
                     fontSize: 10.5,
-                    fontWeight: 900,
+                    fontWeight: 800,
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                   }}
@@ -4987,6 +4994,7 @@ export default function Landing() {
                     fontWeight: 800,
                     fontSize: 13.5,
                     cursor: 'pointer',
+                    marginTop: 'auto',
                     transition: 'all 0.18s ease',
                   }}
                 >
@@ -4996,16 +5004,19 @@ export default function Landing() {
 
               {/* 3. Pro Plan (Popular) */}
               <div
-                className="glass-card lcard-hover pro-card-glow"
+                className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  border: '2px solid rgba(245, 158, 11, 0.6)',
-                  boxShadow: '0 12px 36px rgba(245, 158, 11, 0.22)',
-                  background: 'var(--card)',
+                  background: 'rgba(11, 15, 25, 0.9)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '2px solid rgba(245, 158, 11, 0.7)',
+                  boxShadow: '0 0 30px -5px rgba(245, 158, 11, 0.25)',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div
@@ -5014,13 +5025,14 @@ export default function Landing() {
                     top: -12,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    padding: '4px 14px',
+                    padding: '3px 12px',
                     borderRadius: 999,
-                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                    color: '#090d16',
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    color: '#FBBF24',
                     fontSize: 11,
-                    fontWeight: 900,
-                    letterSpacing: '0.08em',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                   }}
                 >
@@ -5045,7 +5057,7 @@ export default function Landing() {
                     t('plan_pro_f5'),
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckIcon size={15} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                      <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
                       <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
                     </div>
                   ))}
@@ -5064,6 +5076,7 @@ export default function Landing() {
                     fontWeight: 900,
                     fontSize: 13.5,
                     cursor: 'pointer',
+                    marginTop: 'auto',
                     transition: 'all 0.18s ease',
                   }}
                 >
@@ -5073,16 +5086,19 @@ export default function Landing() {
 
               {/* 4. Premium Plan (VIP) */}
               <div
-                className="glass-card lcard-hover vip-aura"
+                className="glass-card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
+                  background: 'rgba(11, 15, 25, 0.9)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
                   border: '1px solid rgba(139, 92, 246, 0.5)',
-                  boxShadow: '0 8px 32px rgba(139, 92, 246, 0.16)',
-                  background: 'var(--card)',
+                  boxShadow: '0 0 30px -5px rgba(139, 92, 246, 0.2)',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 <div
@@ -5097,7 +5113,7 @@ export default function Landing() {
                     border: '1px solid rgba(139, 92, 246, 0.4)',
                     color: '#A78BFA',
                     fontSize: 10.5,
-                    fontWeight: 900,
+                    fontWeight: 800,
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                   }}
@@ -5123,7 +5139,7 @@ export default function Landing() {
                     t('plan_master_f5'),
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckIcon size={15} style={{ color: '#8B5CF6', flexShrink: 0 }} />
+                      <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
                       <span style={{ color: 'var(--ink-soft)' }}>{f}</span>
                     </div>
                   ))}
@@ -5142,6 +5158,7 @@ export default function Landing() {
                     fontWeight: 800,
                     fontSize: 13.5,
                     cursor: 'pointer',
+                    marginTop: 'auto',
                     transition: 'all 0.18s ease',
                   }}
                 >
@@ -5243,7 +5260,6 @@ export default function Landing() {
               padding: '48px 32px',
               textAlign: 'center',
               position: 'relative',
-              overflow: 'hidden',
               background:
                 landingSubject === 'english'
                   ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(99, 102, 241, 0.12))'
@@ -5258,7 +5274,11 @@ export default function Landing() {
               style={{
                 fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
                 fontWeight: 900,
-                color: 'var(--ink)',
+                lineHeight: 1.25,
+                padding: '4px 0',
+                background: 'linear-gradient(135deg, #FFFFFF 30%, #F59E0B 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
                 margin: '0 0 16px',
               }}
             >

@@ -570,26 +570,6 @@ html.light .admin-action {
   pointer-events: none;
 }
 
-@keyframes rotateBorderSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.pro-card-glow {
-  position: relative;
-  z-index: 1;
-}
-
-.pro-card-glow::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 24px;
-  background: conic-gradient(from 0deg, #F59E0B, #10B981, #6366F1, #F59E0B);
-  z-index: -1;
-  animation: rotateBorderSpin 6s linear infinite;
-  opacity: 0.8;
-}
 
 .vip-aura {
   box-shadow: 0 0 35px -5px rgba(139, 92, 246, 0.4), inset 0 0 20px rgba(139, 92, 246, 0.15) !important;

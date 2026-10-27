@@ -5,6 +5,7 @@ Seeds official OMR paper mock tests into the LMS:
 - 3 BMB Milliy Sertifikat tests (Ona tili va adabiyot: 45 questions each, A/B/C/D keys)
 - 3 CEFR / IELTS Mock tests (Listening & Reading: 40/35 questions each, authentic keys)
 Each test is assigned an official unique `mock_code` / `access_code` (BMB-101, BMB-102, BMB-103, IELTS-201, IELTS-202, CEFR-301).
+Fully idempotent: safe to run multiple times without creating duplicate tests, questions, or choices.
 """
 
 from __future__ import annotations
@@ -35,21 +36,32 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
         reset: bool = options.get("reset", False)
-        self.stdout.write(self.style.NOTICE("Seeding Official OMR Tests (BMB & IELTS/CEFR)..."))
+        self.stdout.write(
+            self.style.NOTICE("Seeding Official OMR Tests (BMB & IELTS/CEFR)...")
+        )
 
         # Find or create instructor
-        admin_user = User.objects.filter(is_superuser=True).first() or User.objects.filter(role="teacher").first()
+        admin_user = (
+            User.objects.filter(is_superuser=True).first()
+            or User.objects.filter(role="teacher").first()
+        )
         if not admin_user:
             admin_user = User.objects.first()
 
         # Find or create categories
         bmb_cat, _ = Category.objects.get_or_create(
             slug="milliy-sertifikat",
-            defaults={"name": "Milliy Sertifikat", "description": "BMB Milliy sertifikat rasmiy imtihonlari"},
+            defaults={
+                "name": "Milliy Sertifikat",
+                "description": "BMB Milliy sertifikat rasmiy imtihonlari",
+            },
         )
         ielts_cat, _ = Category.objects.get_or_create(
             slug="ielts-cefr",
-            defaults={"name": "IELTS & CEFR", "description": "Xalqaro va milliy ingliz tili imtihonlari"},
+            defaults={
+                "name": "IELTS & CEFR",
+                "description": "Xalqaro va milliy ingliz tili imtihonlari",
+            },
         )
 
         bmb_course, _ = Course.objects.get_or_create(
@@ -156,16 +168,53 @@ class Command(BaseCommand):
         ]
 
         bmb_sample_topics = [
-            ("Urg'u va tovushlar mutanosibligi", ["Asrab", "G'aflat", "Tong", "Saodat"]),
-            ("Fonetika: jarangli va jarangsiz undoshlar muvofiqligi", ["Kitob", "Daftar", "Maktab", "Ustoz"]),
-            ("Qo'shma so'zlarning to'g'ri yozilishi", ["Oqko'ngil", "Yantoqzor", "Tezurar", "Ko'pma'noli"]),
+            (
+                "Urg'u va tovushlar mutanosibligi",
+                ["Asrab", "G'aflat", "Tong", "Saodat"],
+            ),
+            (
+                "Fonetika: jarangli va jarangsiz undoshlar muvofiqligi",
+                ["Kitob", "Daftar", "Maktab", "Ustoz"],
+            ),
+            (
+                "Qo'shma so'zlarning to'g'ri yozilishi",
+                ["Oqko'ngil", "Yantoqzor", "Tezurar", "Ko'pma'noli"],
+            ),
             ("So'z yasovchi qo'shimchalar tahlili", ["-kor", "-dosh", "-chan", "-siz"]),
-            ("Fe'l nisbatlari: o'zlik va majhul nisbat", ["Kiyindi", "Yuvindi", "Kiyildi", "Tarandi"]),
-            ("Sodda va qo'shma gap sintaksisi", ["Bosh gap", "Ergash gap", "Teng bog'langan", "Bog'lovchisiz"]),
-            ("Alisher Navoiy 'Xamsa' dostonlari kompozitsiyasi", ["Hayrat ul-abror", "Farhod va Shirin", "Layli va Majnun", "Sab'ai sayyor"]),
-            ("O'zbek mumtoz adabiyotida aruz vazni", ["Hazaj", "Rajaz", "Ramal", "Mutaqorib"]),
-            ("Frazeologizmlarning sinonimik qatorlari", ["Ko'kka ko'tarmoq", "Boshi osmonga yetmoq", "Qo'li gul", "Ko'zi ochiq"]),
-            ("Matn tahlili: muallif g'oyasi va kontekst", ["Bosh g'oya", "Yordamchi dalil", "Muallif munosabati", "Xulosa"]),
+            (
+                "Fe'l nisbatlari: o'zlik va majhul nisbat",
+                ["Kiyindi", "Yuvindi", "Kiyildi", "Tarandi"],
+            ),
+            (
+                "Sodda va qo'shma gap sintaksisi",
+                ["Bosh gap", "Ergash gap", "Teng bog'langan", "Bog'lovchisiz"],
+            ),
+            (
+                "Alisher Navoiy 'Xamsa' dostonlari kompozitsiyasi",
+                [
+                    "Hayrat ul-abror",
+                    "Farhod va Shirin",
+                    "Layli va Majnun",
+                    "Sab'ai sayyor",
+                ],
+            ),
+            (
+                "O'zbek mumtoz adabiyotida aruz vazni",
+                ["Hazaj", "Rajaz", "Ramal", "Mutaqorib"],
+            ),
+            (
+                "Frazeologizmlarning sinonimik qatorlari",
+                [
+                    "Ko'kka ko'tarmoq",
+                    "Boshi osmonga yetmoq",
+                    "Qo'li gul",
+                    "Ko'zi ochiq",
+                ],
+            ),
+            (
+                "Matn tahlili: muallif g'oyasi va kontekst",
+                ["Bosh g'oya", "Yordamchi dalil", "Muallif munosabati", "Xulosa"],
+            ),
         ]
 
         ielts_reading_passages = [
@@ -189,59 +238,66 @@ class Command(BaseCommand):
             code = t_spec["code"]
             existing = Test.objects.filter(mock_code=code).first()
             if existing and reset:
-                self.stdout.write(self.style.WARNING(f"Deleting existing test {code}..."))
+                self.stdout.write(
+                    self.style.WARNING(f"Deleting existing test {code}...")
+                )
                 existing.delete()
                 existing = None
 
-            if existing:
-                self.stdout.write(self.style.SUCCESS(f"Test {code} already exists (ID: {existing.id}). Updating status..."))
-                existing.is_active = True
-                existing.status = Test.Status.PUBLISHED
-                existing.save(update_fields=["is_active", "status"])
-                created_count += 1
-                continue
-
-            test = Test.objects.create(
-                title=t_spec["title"],
-                course=t_spec["course"],
-                subject=t_spec["subject"],
+            test, was_created = Test.objects.update_or_create(
                 mock_code=code,
-                exam_type=t_spec["exam_type"],
-                description=t_spec["desc"],
-                time_limit_minutes=t_spec["time_limit"],
-                pass_percentage=t_spec["pass_pct"],
-                difficulty=t_spec["difficulty"],
-                max_attempts=0,
-                status=Test.Status.PUBLISHED,
-                is_active=True,
-                show_results_immediately=True,
-                shuffle_questions=False,
-                shuffle_choices=False,
+                defaults={
+                    "title": t_spec["title"],
+                    "course": t_spec["course"],
+                    "subject": t_spec["subject"],
+                    "exam_type": t_spec["exam_type"],
+                    "description": t_spec["desc"],
+                    "time_limit_minutes": t_spec["time_limit"],
+                    "pass_percentage": t_spec["pass_pct"],
+                    "difficulty": t_spec["difficulty"],
+                    "max_attempts": 0,
+                    "status": Test.Status.PUBLISHED,
+                    "is_active": True,
+                    "show_results_immediately": True,
+                    "shuffle_questions": False,
+                    "shuffle_choices": False,
+                },
             )
 
             # Passages if IELTS
             passages = []
             if "IELTS" in code:
                 for p_idx, (p_title, p_content) in enumerate(ielts_reading_passages, 1):
-                    p = ReadingPassage.objects.create(
+                    p, _ = ReadingPassage.objects.update_or_create(
                         test=test,
-                        title=p_title,
-                        content=p_content,
                         order=p_idx,
+                        defaults={
+                            "title": p_title,
+                            "content": p_content,
+                        },
                     )
                     passages.append(p)
+                test.passages.filter(order__gt=len(ielts_reading_passages)).delete()
 
-            # Generate questions
+            # Generate questions idempotently
             total_q = t_spec["total_q"]
             for q_num in range(1, total_q + 1):
-                correct_letter_idx = (q_num * 3 + 1) % 4  # deterministic distribution of A, B, C, D
+                correct_letter_idx = (
+                    q_num * 3 + 1
+                ) % 4  # deterministic distribution of A, B, C, D
                 letters = ["A", "B", "C", "D"]
                 correct_letter = letters[correct_letter_idx]
 
-                assigned_passage = passages[(q_num - 1) // 14] if passages and len(passages) >= 3 else (passages[0] if passages else None)
+                assigned_passage = (
+                    passages[(q_num - 1) // 14]
+                    if passages and len(passages) >= 3
+                    else (passages[0] if passages else None)
+                )
 
                 if t_spec["subject"] == "uzbek":
-                    topic_name, sample_choices = bmb_sample_topics[(q_num - 1) % len(bmb_sample_topics)]
+                    topic_name, sample_choices = bmb_sample_topics[
+                        (q_num - 1) % len(bmb_sample_topics)
+                    ]
                     q_text = f"{q_num}-savol. {topic_name} bo'yicha to'g'ri berilgan javob variantini aniqlang."
                     opt_texts = [
                         f"{sample_choices[0]} (variant A)",
@@ -256,7 +312,9 @@ class Command(BaseCommand):
                         q_text = f"Question {q_num}. Do the following statements agree with the information given in the Reading Passage? Choose TRUE, FALSE or NOT GIVEN."
                         opt_texts = ["TRUE", "FALSE", "NOT GIVEN", "INSUFFICIENT DATA"]
                         correct_letter_idx = q_num % 3
-                        correct_letter = ["TRUE", "FALSE", "NOT GIVEN"][correct_letter_idx]
+                        correct_letter = ["TRUE", "FALSE", "NOT GIVEN"][
+                            correct_letter_idx
+                        ]
                         explanation = f"The text explicitly provides evidence confirming that option '{correct_letter}' is the authentic answer."
                     else:
                         q_text = f"Question {q_num}. According to the text, which of the following statements most accurately reflects the author's primary deduction?"
@@ -268,31 +326,45 @@ class Command(BaseCommand):
                         ]
                         explanation = f"According to Cambridge assessment benchmarks, option {correct_letter} is the correct key backed by direct contextual evidence."
 
-                question = Question.objects.create(
+                question, _ = Question.objects.update_or_create(
                     test=test,
-                    text=q_text,
-                    question_type=Question.QuestionType.SINGLE_CHOICE,
-                    points=2 if t_spec["subject"] == "uzbek" else 1,
                     position=q_num,
-                    passage="",
-                    reading_passage=assigned_passage,
-                    explanation=explanation,
+                    defaults={
+                        "text": q_text,
+                        "question_type": Question.QuestionType.SINGLE_CHOICE,
+                        "points": 2 if t_spec["subject"] == "uzbek" else 1,
+                        "passage": "",
+                        "reading_passage": assigned_passage,
+                        "explanation": explanation,
+                        "correct_text": correct_letter,
+                    },
                 )
 
                 for c_idx, opt_str in enumerate(opt_texts):
-                    is_corr = (c_idx == correct_letter_idx)
-                    Choice.objects.create(
+                    is_corr = c_idx == correct_letter_idx
+                    Choice.objects.update_or_create(
                         question=question,
-                        text=opt_str,
-                        is_correct=is_corr,
                         position=c_idx + 1,
+                        defaults={
+                            "text": opt_str,
+                            "is_correct": is_corr,
+                        },
                     )
 
-                if correct_letter:
-                    question.correct_text = correct_letter
-                    question.save(update_fields=["correct_text"])
+                question.choices.filter(position__gt=len(opt_texts)).delete()
 
-            self.stdout.write(self.style.SUCCESS(f"[OK] Created {code}: '{t_spec['title']}' ({total_q} questions, choices A-D seeded)."))
+            test.questions.filter(position__gt=total_q).delete()
+
+            status_str = "Created" if was_created else "Synced"
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"[OK] {status_str} {code}: '{t_spec['title']}' ({total_q} questions, choices A-D synced)."
+                )
+            )
             created_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f"All {created_count} official OMR tests are ready in database!"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"All {created_count} official OMR tests are ready and synced in database!"
+            )
+        )

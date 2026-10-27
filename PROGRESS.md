@@ -9,6 +9,28 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.37. Rasmiy Versiya v1.36.0: Obsidian Dark UI Hotfix, Pro Card Overlay Tozalash, Idempotent Seeder va Bazadagi Dublikat Testlar Deduplikatsiyasi
+- [x] 1-Bosqich: CSS Hotfix va Elegant Obsidian Dark UI:
+  * Tariflar panelida PRO karta ustiga chiqib, matn va tugmalarni to'sib turgan xunuk aylanuvchi to'rtburchak/gradient qatlam (`pro-card-glow` / `@keyframes rotateBorderSpin`) `frontend/src/theme.css` va `Landing.tsx` dan butunlay olib tashlandi.
+  * Barcha 4 ta tarif kartalari (Bepul, Starter 5 000, PRO 49 000, PREMIUM 89 000) Obsidian Dark UI (`background: rgba(11, 15, 25, 0.9)`, `backdropFilter: blur(12px)`, `border: 1px solid rgba(255, 255, 255, 0.1)`, `transition: all 0.3s ease`) estetikasiga o'tkazildi.
+  * PRO karta: `border: 2px solid rgba(245, 158, 11, 0.7)`, `boxShadow: 0 0 30px -5px rgba(245, 158, 11, 0.25)`, nishon: `background: rgba(245, 158, 11, 0.2)`, `border: 1px solid rgba(245, 158, 11, 0.3)`, `color: #FBBF24`.
+  * Afzalliklar ro'yxatidagi barcha checkmarklar tiniq zumrad yashil (`#10B981`) rangga keltirildi, barcha CTA tugmalari pastga tekislandi (`marginTop: 'auto'`).
+  * "tayyormisiz?" sarlavhasi: `overflow: hidden` kesilishi olib tashlandi, sarlavha balandligi `lineHeight: 1.25`, `padding: 4px 0` va tiniq oq-oltin gradient (`linear-gradient(135deg, #FFFFFF 30%, #F59E0B 100%)`, `WebkitBackgroundClip: text`) bilan jilolandi.
+- [x] 2-Bosqich: Bazadagi Dublikat Testlar Deduplikatsiyasi (`deduplicate_tests`):
+  * `apps/tests/management/commands/deduplicate_tests.py` buyrug'i ishlab chiqildi.
+  * Titul, fan, savollar soni va savollar ketma-ketligi mazmunining SHA-256 xeshi 100% bir xil bo'lgan klon testlar aniqlanadi.
+  * Farqli testlar (Variant 1, Variant 2, Variant 3, Attestatsiya 2026, IELTS Mock 1, IELTS Mock 2) mutlaqo daxlsiz qolishi kafolatlangan.
+  * Eng ko'p urinishga ega (yoki eng kichik ID li) test kanonik asosiy test sifatida saqlanib, barcha `TestAttempt`, `Result`, `Certificate`, `Tournament`, `Homework` yozuvlari xavfsiz kanonik testga ko'chirildi (`update(test=primary)`).
+  * `--dry-run` bayrog'i qo'llab-quvvatlandi va atomik tranzaksiya ichida klonlar tozalandi.
+- [x] 3-Bosqich: Seeder Qulfi va Idempotentlik (`seed_official_omr_tests`):
+  * `apps/tests/management/commands/seed_official_omr_tests.py` to'liq `update_or_create` mantiqiga o'tkazildi.
+  * ReadingPassage, Question va Choice yozuvlari pozitsiya va test bo'yicha idempotent sinxronlanadi. Buyruq qayta-qayta ishga tushirilganda ham 0 ta dublikat yaratadi.
+- [x] 4-Bosqich: QA Darvozasi va To'liq Sinovlar:
+  * Yangi unit testlar: `tests/test_deduplicate_tests.py` (4/4 test 100% PASS).
+  * OMR testlari: `tests/test_omr_db_integration.py` (3/3 test 100% PASS).
+  * `ruff check --fix .` va `ruff format .`: 0 ta xatolik.
+  * `npm run lint --prefix frontend`: 0 ta xatolik, `npm run build`: 2.49s ichida muvaffaqiyatli yig'ildi.
+
 ### 2.36. Rasmiy Versiya v1.35.0: Titul (OMR) Baza Integratsiyasi va Next-Gen Glassmorphism & UI/UX Dizayni
 - [x] 1-Bosqich: Titul (OMR) Baza Integratsiyasi & Seeding:
   * `seed_official_omr_tests` buyrug'i va `official_omr_tests.json` fixturasi orqali bazaga 6 ta rasmiy test kalitlari bilan kiritildi:
