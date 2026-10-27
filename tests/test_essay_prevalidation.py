@@ -94,8 +94,13 @@ class TestEssayPreValidation(TestCase):
 
     @override_settings(ESSAY_AI_MOCK_MODE=False)
     def test_grade_essay_rejects_gibberish_without_llm_call(self):
-        with pytest.raises(PreValidationError):
-            grade_essay("qisqa esse matni", topic_title="Mavzu")
+        with pytest.raises(PreValidationError, match="safsata deb topildi"):
+            grade_essay("aaaaaaa " * 20, topic_title="Mavzu")
+
+    @override_settings(ESSAY_AI_MOCK_MODE=False)
+    def test_grade_essay_rejects_short_when_min_words_specified(self):
+        with pytest.raises(PreValidationError, match="Esse juda qisqa"):
+            grade_essay("Bu juda qisqa insho matni.", topic_title="Mavzu", min_words=60)
 
     @override_settings(ESSAY_AI_MOCK_MODE=False)
     def test_grade_ielts_essay_rejects_short_without_llm_call(self):

@@ -416,10 +416,9 @@ def pre_validate_essay(text: str, topic_title: str = "", min_words: int = 60) ->
     # ------------------------------------------------------------------
     # Stage 1: Word Count Check
     # ------------------------------------------------------------------
-    effective_min = max(1, min_words)
-    if word_count < effective_min:
+    if min_words > 0 and word_count < min_words:
         raise PreValidationError(
-            f"⚠️ Esse juda qisqa (kamida {effective_min} ta so'z bo'lishi shart). "
+            f"⚠️ Esse juda qisqa (kamida {min_words} ta so'z bo'lishi shart). "
             f"Hozirgi so'zlar soni: {word_count} ta."
         )
 

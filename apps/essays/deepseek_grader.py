@@ -74,7 +74,7 @@ class DeepSeekGrader:
         ).strip()
 
     @classmethod
-    def grade_bmb(cls, essay_text: str, topic_title: str = "") -> dict[str, Any]:
+    def grade_bmb(cls, essay_text: str, topic_title: str = "", min_words: int = 0) -> dict[str, Any]:
         """Grade BMB 12-criteria Uzbek essay using DeepSeek LLM."""
         from .services import (
             _is_mock_mode,
@@ -90,7 +90,7 @@ class DeepSeekGrader:
         if not _is_mock_mode():
             from .pre_validation import pre_validate_essay
 
-            pre_validate_essay(cleaned, topic_title=topic_title)
+            pre_validate_essay(cleaned, topic_title=topic_title, min_words=min_words)
 
         if _is_mock_mode():
             return grade_essay(cleaned, topic_title)
@@ -247,8 +247,8 @@ class DeepSeekGrader:
 
 
 # Functional convenience wrappers
-def grade_bmb_essay_deepseek(essay_text: str, topic_title: str = "") -> dict[str, Any]:
-    return DeepSeekGrader.grade_bmb(essay_text, topic_title)
+def grade_bmb_essay_deepseek(essay_text: str, topic_title: str = "", min_words: int = 0) -> dict[str, Any]:
+    return DeepSeekGrader.grade_bmb(essay_text, topic_title, min_words=min_words)
 
 
 def grade_ielts_essay_deepseek(
