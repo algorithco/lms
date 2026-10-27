@@ -2175,6 +2175,12 @@ def _deduplicate_cached_grading(func):
         if not essay_text or not essay_text.strip():
             return func(essay_text, topic_title, *args, **kwargs)
 
+        if not _is_mock_mode():
+            from .pre_validation import pre_validate_essay
+
+            min_w = kwargs.get("min_words", 0)
+            pre_validate_essay(essay_text, topic_title=topic_title, min_words=min_w)
+
         context = kwargs.get("cache_context")
         identity = grading_cache_identity(essay_text, topic_title, context=context)
         if not identity["cacheable"]:
@@ -2478,6 +2484,7 @@ def grade_essay(
     topic_title: str = "",
     *,
     cache_context: dict | None = None,
+    min_words: int = 0,
 ) -> dict:
     """
     Grade an essay using OpenRouter LLM with the 12-mezon rubric.
@@ -2507,6 +2514,11 @@ def grade_essay(
 
     if not essay_text or not essay_text.strip():
         raise ValueError("Esse matni bo'sh")
+
+    if not _is_mock_mode():
+        from .pre_validation import pre_validate_essay
+
+        pre_validate_essay(essay_text, topic_title=topic_title, min_words=min_words)
 
     model = _get_ai_model()
     mock_mode = _is_mock_mode()
@@ -4364,6 +4376,11 @@ def grade_ielts_essay(
     cleaned_text = (essay_text or "").strip()
     if not cleaned_text:
         raise ValueError("Essay text cannot be empty.")
+
+    if not _is_mock_mode():
+        from .pre_validation import pre_validate_essay
+
+        pre_validate_essay(cleaned_text, topic_title=topic_title, min_words=0)
 
     if _is_mock_mode():
         return _mock_ielts_response(
