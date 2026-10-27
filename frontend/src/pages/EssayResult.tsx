@@ -53,6 +53,9 @@ interface Result {
   summary: string;
   word_count: number;
   is_off_topic: boolean;
+  is_completely_off_topic?: boolean;
+  topic_status?: 'on_topic' | 'partially_off_topic' | 'completely_off_topic' | string;
+  topic_match_reason?: string;
   topic_title: string;
   topic_id?: number | null;
   essay_text?: string;
@@ -430,7 +433,43 @@ export default function EssayResult() {
 
       {done && (
         <>
-          {res.is_off_topic && <p className="error">{t('off_topic')}</p>}
+          {(res.is_completely_off_topic || res.topic_status === 'completely_off_topic') ? (
+            <div
+              className="card error-card"
+              style={{
+                marginBottom: 20,
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                padding: '16px 20px',
+                borderRadius: '12px',
+              }}
+            >
+              <h4 style={{ color: '#ef4444', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⛔</span> DIQQAT: Mavzuga mutlaqo mos emas (0 ball)
+              </h4>
+              <p style={{ margin: 0, color: 'var(--text-color, #e2e8f0)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). Mavzudan butunlay chetlashilganligi sababli barcha mezonlar bo'yicha 0 ball qo'yildi.
+              </p>
+            </div>
+          ) : (res.is_off_topic || res.topic_status === 'partially_off_topic') ? (
+            <div
+              className="card warning-card"
+              style={{
+                marginBottom: 20,
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                background: 'rgba(245, 158, 11, 0.08)',
+                padding: '16px 20px',
+                borderRadius: '12px',
+              }}
+            >
+              <h4 style={{ color: '#f59e0b', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⚠️</span> OGOHLANTIRISH: Mavzudan jiddiy chetlanish
+              </h4>
+              <p style={{ margin: 0, color: 'var(--text-color, #e2e8f0)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                Esseda mavzudan jiddiy chetlanish kuzatildi. Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi.
+              </p>
+            </div>
+          ) : null}
           <h2>{t('essay_grading_graded')}</h2>
           {res.cached && (
             <p className="muted small">{t('essay_grading_cached')}</p>

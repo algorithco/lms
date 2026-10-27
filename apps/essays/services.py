@@ -583,6 +583,100 @@ def _mock_12_criteria_response(
 ) -> dict[str, Any]:
     """Generate a mock 12-criteria response for frontend testing (BMB 20-point rubric)."""
     word_count = WordCounter.count(essay_text)
+    lower_text = (essay_text or "").lower()
+
+    # Detect test markers for off-topic simulation in mock mode
+    is_completely_off = (
+        "completely off-topic" in lower_text
+        or "completely off topic" in lower_text
+        or "butunlay boshqa mavzu" in lower_text
+        or "[completely_off_topic]" in lower_text
+    )
+    is_partially_off = not is_completely_off and (
+        "partially off-topic" in lower_text
+        or "partially off topic" in lower_text
+        or "qisman chetlash" in lower_text
+        or "[partially_off_topic]" in lower_text
+    )
+
+    if is_completely_off:
+        criteria = [
+            {
+                "id": i,
+                "name": EssayCriterionScore.CRITERION_NAMES[i],
+                "score": 0.0,
+                "max_score": 2.0 if i in (1, 2, 3, 7) else 1.5,
+                "reason": "Mavzuga mutlaqo mos emas (0 ball).",
+                "errors": [],
+            }
+            for i in range(1, 13)
+        ]
+        return {
+            "criteria": criteria,
+            "total_score": 0.0,
+            "max_score": ESSAY_RUBRIC_MAX_SCORE,
+            "word_count": word_count,
+            "summary": "⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi.",
+            "topic_match": False,
+            "topic_status": "completely_off_topic",
+            "is_completely_off_topic": True,
+            "is_off_topic": True,
+            "topic_match_reason": "Esse berilgan mavzuga mutlaqo aloqador emas.",
+            "spelling_errors": [],
+            "strengths": [],
+            "weaknesses": ["Mavzuga mutlaqo mos emas"],
+            "teacher_recommendation": "Berilgan mavzuni diqqat bilan o'qib, faqat shu mavzu doirasida fikr yuriting.",
+            "improved_text": essay_text,
+        }
+
+    if is_partially_off:
+        criteria = [
+            {
+                "id": 1,
+                "name": EssayCriterionScore.CRITERION_NAMES[1],
+                "score": 1.0,
+                "max_score": 2.0,
+                "reason": "Mavzudan qisman chetlanilgan (maksimal 1.0 ball).",
+                "errors": [],
+            },
+            {
+                "id": 2,
+                "name": EssayCriterionScore.CRITERION_NAMES[2],
+                "score": 0.5,
+                "max_score": 2.0,
+                "reason": "Mavzudan chetlanish tufayli kompozitsiya zaiflashgan.",
+                "errors": [],
+            },
+            *(
+                {
+                    "id": i,
+                    "name": EssayCriterionScore.CRITERION_NAMES[i],
+                    "score": 0.5,
+                    "max_score": 2.0 if i in (3, 7) else 1.5,
+                    "reason": "Mock baholash",
+                    "errors": [],
+                }
+                for i in range(3, 13)
+            ),
+        ]
+        total = float(sum(Decimal(str(c["score"])) for c in criteria))
+        return {
+            "criteria": criteria,
+            "total_score": total,
+            "max_score": ESSAY_RUBRIC_MAX_SCORE,
+            "word_count": word_count,
+            "summary": "⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi.",
+            "topic_match": False,
+            "topic_status": "partially_off_topic",
+            "is_completely_off_topic": False,
+            "is_off_topic": True,
+            "topic_match_reason": "Esseda mavzudan qisman chetlanish kuzatildi.",
+            "spelling_errors": [],
+            "strengths": ["Yaxshi fikrlar mavjud"],
+            "weaknesses": ["Mavzudan chetlanish kuzatildi"],
+            "teacher_recommendation": "Mavzu savoliga to'g'ridan-to'g'ri va izchil javob berishni mashq qiling.",
+            "improved_text": essay_text,
+        }
     base_2 = min(
         Decimal("2.0"),
         max(Decimal("0.5"), Decimal(str(min(2, max(0, word_count // 100))))),
@@ -711,6 +805,9 @@ def _mock_12_criteria_response(
         "word_count": word_count,
         "summary": f"[SINOV REJIMI] {word_count} so'zlik esse.{summary_warning} Haqiqiy AI bahosi uchun OPENROUTER_API_KEY ni sozlang.",
         "topic_match": True,
+        "topic_status": "on_topic",
+        "is_completely_off_topic": False,
+        "is_off_topic": False,
         "topic_match_reason": "[SINOV REJIMI] Mock tekshiruv",
         "spelling_errors": [],
         "strengths": ["Mavzuni tushunish", "Mustaqil fikrlash"],
@@ -1047,6 +1144,9 @@ ALLOWED_TOP_KEYS = {
     "summary",
     "topic_match",
     "topic_match_reason",
+    "topic_status",
+    "is_completely_off_topic",
+    "is_off_topic",
     "word_count",
     "spelling_errors",
     "strengths",
@@ -1182,10 +1282,114 @@ def _validate_result(result: dict, essay_text: str = "") -> None:
                 result["summary"] = (result["summary"].strip() + warn_msg).strip()
 
     # Model-provided totals are never authoritative.
-    result["total_score"] = float(sum(Decimal(str(c["score"])) for c in criteria))
-    result["max_score"] = ESSAY_RUBRIC_MAX_SCORE
     if not isinstance(result.get("summary"), str) or len(result["summary"]) > 8000:
         raise ValueError("'summary' must be text of at most 8000 characters")
+
+    # Enforce strict topic relevance guardrails (Hard Guardrails)
+    topic_status_raw = str(result.get("topic_status") or "").strip().lower()
+    is_completely_flag = bool(result.get("is_completely_off_topic", False))
+    if is_completely_flag or topic_status_raw == "completely_off_topic":
+        topic_status = "completely_off_topic"
+    elif (
+        topic_status_raw == "partially_off_topic" or result.get("topic_match") is False
+    ):
+        topic_status = "partially_off_topic"
+    else:
+        topic_status = "on_topic"
+
+    OFF_TOPIC_ZERO_ALERT = (
+        "⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). "
+        "Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi."
+    )
+    PARTIAL_OFF_TOPIC_ALERT = (
+        "⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. "
+        "Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi."
+    )
+
+    if topic_status == "completely_off_topic":
+        result["topic_status"] = "completely_off_topic"
+        result["is_completely_off_topic"] = True
+        result["topic_match"] = False
+        result["is_off_topic"] = True
+        for c in criteria:
+            c["score"] = 0.0
+            if not c.get("reason"):
+                c["reason"] = "Mavzuga mutlaqo mos kelmaydi (0 ball)."
+        result["total_score"] = 0.0
+        cur_summary = str(result.get("summary") or "")
+        if OFF_TOPIC_ZERO_ALERT not in cur_summary:
+            result["summary"] = f"{OFF_TOPIC_ZERO_ALERT}\n\n{cur_summary}".strip()
+    elif topic_status == "partially_off_topic":
+        result["topic_status"] = "partially_off_topic"
+        result["is_completely_off_topic"] = False
+        result["topic_match"] = False
+        result["is_off_topic"] = True
+        # Criterion 1 (Mavzuning ochilishi) capped at 1.0 max
+        for c in criteria:
+            if c["id"] == 1:
+                c["score"] = min(float(c["score"]), 1.0)
+        # Total score capped at 7.0 (which is 35% of 20.0 max)
+        MAX_PARTIAL_CAP = Decimal("7.0")
+        current_sum = sum(Decimal(str(c["score"])) for c in criteria)
+        if current_sum > MAX_PARTIAL_CAP:
+            crit1_val = next(
+                (Decimal(str(c["score"])) for c in criteria if c["id"] == 1),
+                Decimal("1.0"),
+            )
+            budget = MAX_PARTIAL_CAP - crit1_val
+            other_sum = current_sum - crit1_val
+            if other_sum > Decimal("0"):
+                ratio = budget / other_sum
+                for c in criteria:
+                    if c["id"] != 1:
+                        s = Decimal(str(c["score"])) * ratio
+                        rounded = (s * Decimal("2")).quantize(
+                            Decimal("1"), rounding="ROUND_HALF_UP"
+                        ) / Decimal("2")
+                        c["score"] = float(rounded)
+            # Guarantee sum <= 7.0
+            while sum(Decimal(str(c["score"])) for c in criteria) > MAX_PARTIAL_CAP:
+                max_item = max(
+                    (
+                        c
+                        for c in criteria
+                        if c["id"] != 1 and Decimal(str(c["score"])) > 0
+                    ),
+                    key=lambda x: x["score"],
+                    default=None,
+                )
+                if not max_item:
+                    break
+                max_item["score"] = float(
+                    Decimal(str(max_item["score"])) - Decimal("0.5")
+                )
+
+        # Guarantee minimum total >= 2.0 (if not 0)
+        cur_sum = sum(Decimal(str(c["score"])) for c in criteria)
+        if Decimal("0") < cur_sum < Decimal("2.0"):
+            needed = Decimal("2.0") - cur_sum
+            for c in criteria:
+                if needed <= 0:
+                    break
+                max_c = Decimal(str(c["max_score"]))
+                cur_c = Decimal(str(c["score"]))
+                add_c = min(needed, max_c - cur_c)
+                if add_c > 0:
+                    c["score"] = float(cur_c + add_c)
+                    needed -= add_c
+
+        result["total_score"] = float(sum(Decimal(str(c["score"])) for c in criteria))
+        cur_summary = str(result.get("summary") or "")
+        if PARTIAL_OFF_TOPIC_ALERT not in cur_summary:
+            result["summary"] = f"{PARTIAL_OFF_TOPIC_ALERT}\n\n{cur_summary}".strip()
+    else:
+        result["topic_status"] = "on_topic"
+        result["is_completely_off_topic"] = False
+        result["topic_match"] = True
+        result["is_off_topic"] = False
+        result["total_score"] = float(sum(Decimal(str(c["score"])) for c in criteria))
+
+    result["max_score"] = ESSAY_RUBRIC_MAX_SCORE
 
     # Normalize spelling_errors: [{"word": str, "correction": str, "explanation": str}]
     raw_spelling = result.get("spelling_errors", [])
@@ -2823,7 +3027,23 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
             )
             return
 
-        locked.is_off_topic = not clean_result.get("topic_match", True)
+        topic_status = clean_result.get("topic_status")
+        is_completely = bool(clean_result.get("is_completely_off_topic", False))
+        if topic_status == "completely_off_topic" or is_completely:
+            locked.topic_status = EssaySubmission.TopicStatus.COMPLETELY_OFF_TOPIC
+            locked.is_completely_off_topic = True
+            locked.is_off_topic = True
+        elif topic_status == "partially_off_topic" or not clean_result.get(
+            "topic_match", True
+        ):
+            locked.topic_status = EssaySubmission.TopicStatus.PARTIALLY_OFF_TOPIC
+            locked.is_completely_off_topic = False
+            locked.is_off_topic = True
+        else:
+            locked.topic_status = EssaySubmission.TopicStatus.ON_TOPIC
+            locked.is_completely_off_topic = False
+            locked.is_off_topic = False
+
         locked.topic_match_reason = clean_result.get("topic_match_reason", "")
         locked.raw_result = clean_result
         locked.total_score = Decimal(str(clean_result["total_score"]))
@@ -2862,6 +3082,8 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
             "graded_at",
             "updated_at",
             "is_off_topic",
+            "is_completely_off_topic",
+            "topic_status",
             "topic_match_reason",
             "error_message",
             "grading_source",
@@ -2895,6 +3117,8 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
         submission.status = locked.status
         submission.graded_at = locked.graded_at
         submission.is_off_topic = locked.is_off_topic
+        submission.is_completely_off_topic = locked.is_completely_off_topic
+        submission.topic_status = locked.topic_status
         submission.topic_match_reason = locked.topic_match_reason
         submission.error_message = locked.error_message
         submission.grading_source = locked.grading_source
@@ -3668,8 +3892,17 @@ def generate_essay_result_pdf(submission: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 IELTS_SYSTEM_PROMPT = """You are a certified Senior IELTS Writing Examiner utilizing DeepSeek-R1 evaluation engine.
+STEP 0: TOPIC RELEVANCE & PROMPT ADHERENCE GATE (CRITICAL RULE):
+First determine the topic status of the candidate's response:
+1) "completely_off_topic" — The essay is completely unrelated to the given prompt / task.
+   STRICT RULE: All 4 criteria scores must be 0.0, overall_band must be 0.0. "summary" must begin with: "⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi." Set "topic_match": false, "is_completely_off_topic": true, "topic_status": "completely_off_topic".
+2) "partially_off_topic" — The essay partially addresses the topic or deviates tangentially from the core question.
+   STRICT RULE: Criterion 1 (Task Achievement / Task Response) must be capped at Band 2.0 – 3.0. Overall Band must be capped strictly at Band 3.0 – 3.5. "summary" must begin with: "⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi." Set "topic_match": false, "is_completely_off_topic": false, "topic_status": "partially_off_topic".
+3) "on_topic" — The essay addresses the prompt accurately.
+   Set "topic_match": true, "is_completely_off_topic": false, "topic_status": "on_topic".
+
 DEDUCTION SCORING METHOD:
-Begin evaluation from the maximum Band 9.0 for each criterion. Do NOT apply artificial score caps. Deduct points proportionally for specific tangible errors (e.g., informal register, cohesion breakdowns, vocabulary repetition, spelling/article mistakes) and detail the exact reason and deducted evidence for each criterion in 'reason' and 'errors'.
+For on-topic essays, begin evaluation from the maximum Band 9.0 for each criterion. Do NOT apply artificial score caps. Deduct points proportionally for specific tangible errors (e.g., informal register, cohesion breakdowns, vocabulary repetition, spelling/article mistakes) and detail the exact reason and deducted evidence for each criterion in 'reason' and 'errors'.
 Evaluate the candidate's English writing strictly according to the 4 official IELTS Writing assessment criteria on a Band scale from 1.0 to 9.0 (in 0.5 increments):
 1. Task Achievement / Task Response (id: 1)
 2. Coherence and Cohesion (id: 2)
@@ -3678,6 +3911,8 @@ Evaluate the candidate's English writing strictly according to the 4 official IE
 
 Return ONLY a valid JSON object with the following structure:
 {
+  "topic_status": "on_topic",
+  "is_completely_off_topic": false,
   "topic_match": true,
   "topic_match_reason": "Brief explanation of how well the essay addresses the prompt.",
   "criteria": [
@@ -3701,13 +3936,17 @@ Return ONLY a valid JSON object with the following structure:
 
 
 def _round_ielts_band(value: float) -> float:
-    """Round a raw average to the nearest 0.5 IELTS Band score in [1.0, 9.0]."""
+    """Round a raw average to the nearest 0.5 IELTS Band score in [1.0, 9.0] or 0.0 if off-topic."""
+    if float(value) <= 0.0:
+        return 0.0
     clamped = max(1.0, min(9.0, float(value)))
     return round(clamped * 2.0) / 2.0
 
 
 def _band_to_cefr(band: float) -> str:
     """Map IELTS Band score to CEFR level."""
+    if band <= 0.0:
+        return "Ungraded"
     if band >= 8.5:
         return "C2"
     if band >= 7.0:
@@ -3785,10 +4024,57 @@ def _validate_ielts_result(
             }
         )
 
-    overall_band = _round_ielts_band(sum(c["score"] for c in normalized_criteria) / 4.0)
-    cefr = _band_to_cefr(overall_band)
+    # Enforce topic relevance guardrails for IELTS
+    topic_status_raw = str(result.get("topic_status") or "").strip().lower()
+    is_completely_flag = bool(result.get("is_completely_off_topic", False))
+    if is_completely_flag or topic_status_raw == "completely_off_topic":
+        topic_status = "completely_off_topic"
+    elif (
+        topic_status_raw == "partially_off_topic" or result.get("topic_match") is False
+    ):
+        topic_status = "partially_off_topic"
+    else:
+        topic_status = "on_topic"
+
+    OFF_TOPIC_ZERO_ALERT = (
+        "⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). "
+        "Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi."
+    )
+    PARTIAL_OFF_TOPIC_ALERT = (
+        "⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. "
+        "Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi."
+    )
 
     summary = str(result.get("summary") or "").strip()
+
+    if topic_status == "completely_off_topic":
+        for c in normalized_criteria:
+            c["score"] = 0.0
+            c["reason"] = "The response is completely off-topic (0 Band)."
+        overall_band = 0.0
+        cefr = "Ungraded"
+        if OFF_TOPIC_ZERO_ALERT not in summary:
+            summary = f"{OFF_TOPIC_ZERO_ALERT}\n\n{summary}".strip()
+    elif topic_status == "partially_off_topic":
+        for c in normalized_criteria:
+            if c["id"] == 1:
+                c["score"] = min(float(c["score"]), 3.0)
+                if "partially off-topic" not in c["reason"].lower():
+                    c["reason"] = (
+                        c["reason"]
+                        + " [Task Response is capped at Band 3.0 due to partial off-topic deviation.]"
+                    ).strip()
+        raw_band = sum(c["score"] for c in normalized_criteria) / 4.0
+        overall_band = _round_ielts_band(min(raw_band, 3.5))
+        cefr = _band_to_cefr(overall_band)
+        if PARTIAL_OFF_TOPIC_ALERT not in summary:
+            summary = f"{PARTIAL_OFF_TOPIC_ALERT}\n\n{summary}".strip()
+    else:
+        overall_band = _round_ielts_band(
+            sum(c["score"] for c in normalized_criteria) / 4.0
+        )
+        cefr = _band_to_cefr(overall_band)
+
     if not summary:
         summary = (
             f"Overall IELTS Band Score: {overall_band} ({cefr}). "
@@ -3831,10 +4117,17 @@ def _validate_ielts_result(
         "rubric_type": task_type
         if task_type in ("ielts_task1", "ielts_task2")
         else "ielts_task2",
-        "topic_match": bool(result.get("topic_match", True)),
+        "topic_status": topic_status,
+        "is_completely_off_topic": topic_status == "completely_off_topic",
+        "is_off_topic": topic_status in ("completely_off_topic", "partially_off_topic"),
+        "topic_match": topic_status == "on_topic",
         "topic_match_reason": str(
             result.get("topic_match_reason")
-            or "The response addresses the given prompt."
+            or (
+                "The response is off-topic."
+                if topic_status != "on_topic"
+                else "The response addresses the given prompt."
+            )
         )[:1000],
         "criteria": normalized_criteria,
         "overall_band": overall_band,
@@ -3866,6 +4159,122 @@ def _mock_ielts_response(
     unique_ratio = len({w.lower() for w in words}) / max(len(words), 1)
     paragraphs = [p.strip() for p in (essay_text or "").split("\n") if p.strip()]
     para_count = len(paragraphs)
+    lower_text = (essay_text or "").lower()
+
+    is_completely_off = (
+        "completely off-topic" in lower_text
+        or "completely off topic" in lower_text
+        or "butunlay boshqa mavzu" in lower_text
+        or "[completely_off_topic]" in lower_text
+    )
+    is_partially_off = not is_completely_off and (
+        "partially off-topic" in lower_text
+        or "partially off topic" in lower_text
+        or "qisman chetlash" in lower_text
+        or "[partially_off_topic]" in lower_text
+    )
+
+    if is_completely_off:
+        return _validate_ielts_result(
+            {
+                "topic_status": "completely_off_topic",
+                "is_completely_off_topic": True,
+                "topic_match": False,
+                "topic_match_reason": "The response is completely off-topic.",
+                "criteria": [
+                    {
+                        "id": 1,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[1],
+                        "score": 0.0,
+                        "reason": "Completely off-topic (0 Band).",
+                        "errors": [],
+                    },
+                    {
+                        "id": 2,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[2],
+                        "score": 0.0,
+                        "reason": "Completely off-topic (0 Band).",
+                        "errors": [],
+                    },
+                    {
+                        "id": 3,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[3],
+                        "score": 0.0,
+                        "reason": "Completely off-topic (0 Band).",
+                        "errors": [],
+                    },
+                    {
+                        "id": 4,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[4],
+                        "score": 0.0,
+                        "reason": "Completely off-topic (0 Band).",
+                        "errors": [],
+                    },
+                ],
+                "overall_band": 0.0,
+                "cefr_level": "Ungraded",
+                "summary": "⛔ DIQQAT: Taqdim etilgan esse berilgan mavzuga mutlaqo mos kelmaydi (Off-topic). Mavzudan butunlay chetlashilganligi sababli ishga 0 ball qo'yildi.",
+                "strengths": [],
+                "weaknesses": ["Response is completely off-topic."],
+                "spelling_errors": [],
+                "teacher_recommendation": "Carefully read the prompt and respond directly to the assigned question.",
+                "improved_text": essay_text,
+            },
+            essay_text=essay_text,
+            task_type=task_type,
+            min_words=min_words,
+        )
+
+    if is_partially_off:
+        return _validate_ielts_result(
+            {
+                "topic_status": "partially_off_topic",
+                "is_completely_off_topic": False,
+                "topic_match": False,
+                "topic_match_reason": "The response partially deviates from the prompt.",
+                "criteria": [
+                    {
+                        "id": 1,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[1],
+                        "score": 3.0,
+                        "reason": "Partially off-topic response.",
+                        "errors": [],
+                    },
+                    {
+                        "id": 2,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[2],
+                        "score": 4.0,
+                        "reason": "Limited coherence due to tangential focus.",
+                        "errors": [],
+                    },
+                    {
+                        "id": 3,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[3],
+                        "score": 4.0,
+                        "reason": "Adequate vocabulary.",
+                        "errors": [],
+                    },
+                    {
+                        "id": 4,
+                        "name": EssayCriterionScore.IELTS_CRITERION_NAMES[4],
+                        "score": 4.0,
+                        "reason": "Basic grammar structures.",
+                        "errors": [],
+                    },
+                ],
+                "overall_band": 3.5,
+                "cefr_level": "A2",
+                "summary": "⚠️ OGOHLANTIRISH: Esseda mavzudan jiddiy chetlanish kuzatildi. Asosiy savolga to'liq javob berilmaganligi sababli baho 2 – 35 ball oralig'iga keskin tushirildi.",
+                "strengths": ["Basic grammatical structures are present."],
+                "weaknesses": ["Significant deviation from the main topic."],
+                "spelling_errors": [],
+                "teacher_recommendation": "Focus on answering all parts of the question directly.",
+                "improved_text": essay_text,
+            },
+            essay_text=essay_text,
+            task_type=task_type,
+            min_words=min_words,
+        )
 
     # Heuristic baseline band (5.5 - 8.0)
     if wc >= min_words and para_count >= 3 and unique_ratio >= 0.45:

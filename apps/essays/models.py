@@ -377,6 +377,28 @@ class EssaySubmission(models.Model):
         default=False,
         help_text=_("Essa berilgan mavzuga mos yozilmaganmi."),
     )
+    is_completely_off_topic = models.BooleanField(
+        _("butunlay mavzudan chetda"),
+        default=False,
+        db_index=True,
+        help_text=_("Esse berilgan mavzuga mutlaqo aloqasi bo'lmaganda True (0 ball)."),
+    )
+
+    class TopicStatus(models.TextChoices):
+        ON_TOPIC = "on_topic", _("Mavzuga mos")
+        PARTIALLY_OFF_TOPIC = "partially_off_topic", _("Qisman chetlashgan")
+        COMPLETELY_OFF_TOPIC = "completely_off_topic", _("Butunlay chetlashgan")
+
+    topic_status = models.CharField(
+        _("mavzuga moslik holati"),
+        max_length=32,
+        choices=TopicStatus.choices,
+        default=TopicStatus.ON_TOPIC,
+        db_index=True,
+        help_text=_(
+            "Esse mavzuga qanchalik mosligi: on_topic, partially_off_topic, completely_off_topic."
+        ),
+    )
     topic_match_reason = models.TextField(
         _("mavzu moslik sababi"),
         blank=True,
@@ -655,10 +677,27 @@ class EssaySubmission(models.Model):
                 return None
             target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
             return round(float(self.final_score) / self.max_score * target)
-        # 2. Off-topic override
-        if self.is_off_topic:
-            return getattr(settings, "ESSAY_OFF_TOPIC_SCORE", 35)
-        # 3. Standard AI score
+        # 2. Completely off-topic override -> strictly 0
+        if (
+            getattr(self, "is_completely_off_topic", False)
+            or getattr(self, "topic_status", "")
+            == self.TopicStatus.COMPLETELY_OFF_TOPIC
+            or (self.total_score is not None and self.total_score == 0)
+        ):
+            return 0
+        # 3. Partially off-topic override -> strictly capped between 2 and 35
+        if (
+            self.is_off_topic
+            or getattr(self, "topic_status", "") == self.TopicStatus.PARTIALLY_OFF_TOPIC
+        ):
+            if self.total_score is None or not self.max_score:
+                return getattr(settings, "ESSAY_OFF_TOPIC_SCORE", 35)
+            target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
+            raw_converted = round(float(self.total_score) / self.max_score * target)
+            return max(
+                2, min(raw_converted, getattr(settings, "ESSAY_OFF_TOPIC_SCORE", 35))
+            )
+        # 4. Standard AI score
         if self.total_score is None or not self.max_score:
             return None
         target = getattr(settings, "ESSAY_TARGET_SCALE", 75)
