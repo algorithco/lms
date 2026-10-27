@@ -598,6 +598,8 @@ def tma_essay_submissions_view(request: Request) -> Response:
                     "word_count": s.word_count,
                     "graded_at": s.graded_at.isoformat() if s.graded_at else None,
                     "is_off_topic": s.is_off_topic,
+                    "is_completely_off_topic": getattr(s, "is_completely_off_topic", False),
+                    "topic_status": getattr(s, "topic_status", "on_topic"),
                 }
                 for s in submissions
             ],
@@ -961,6 +963,9 @@ def tma_essay_result_view(request: Request, submission_id: int) -> Response:
         "essay_text": submission.essay_text,
         "word_count": submission.word_count,
         "is_off_topic": submission.is_off_topic,
+        "is_completely_off_topic": getattr(submission, "is_completely_off_topic", False),
+        "topic_status": getattr(submission, "topic_status", "on_topic"),
+        "topic_match_reason": submission.topic_match_reason,
         "spelling_errors": spelling_errors,
         "strengths": strengths,
         "weaknesses": weaknesses,
