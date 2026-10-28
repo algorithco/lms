@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.41. Rasmiy Versiya v1.43.0: Unconfigured Google OAuth Button Yashirish va Telegram 1-Klik Autentifikatsiya
+- [x] 1-Bosqich: Sozlanmagan Google OAuth Tugmasini Yashirish:
+  * `frontend/src/pages/Login.tsx`, `frontend/src/components/AuthModal.tsx` va `frontend/src/pages/Register.tsx`: Sozlanmagan Google tugmasi yashirildi (`const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);` orqali shartli render qilindi).
+  * `google_not_configured` xato kodi uchun ortiqcha "Google orqali kirish hali sozlanmagan" xabari ko'rinmaydigan qilindi (`return null`).
+  * `AuthModal.tsx` da `errorMsg` ichida Google sozlanmaganlik xatolari foydalanuvchiga ko'rsatilmasligi ta'minlandi.
+- [x] 2-Bosqich: Talabalar uchun Yagona 1-Klikli Telegram Kirish:
+  * `frontend/src/pages/Login.tsx` va `frontend/src/components/AuthModal.tsx`: Asosiy va yagona 1-klikli tizim sifatida `[ 📱 Telegram orqali 1-klikda kirish ]` (ko'k `#229ED9`, oq matn, shadow) markazga joylashtirildi.
+  * O'quvchilar uchun parolsiz 1 soniyada tizimga kirish ta'minlandi.
+  * `frontend/src/pages/Register.tsx`: Talabalarni to'g'ridan-to'g'ri 1-klikli Telegram ro'yxatdan o'tishga yo'naltiruvchi `[ 📱 Telegram orqali 1-klikda kirish / ro‘yxatdan o‘tish ]` tugmasi joylashtirildi.
+- [x] 3-Bosqich: Ustozlar va Admin uchun Alohida Tab:
+  * `frontend/src/pages/Login.tsx`: 2 ta qat'iy ajratilgan toza tab saqlandi:
+    * `[ ⚡ O‘quvchilar (Telegram 1-klik) ]` (standart faol)
+    * `[ 🔑 O‘qituvchilar va Admin ]` (Email va Parol kiritish formasi, xodimlar uchun parolni tiklash).
+- [x] 4-Bosqich: QA, CI/CD va VPS Zero-Downtime Deploy:
+  * `npm run lint`: 0 ta xato.
+  * `npm run build`: 2.90s ichida muvaffaqiyatli yig'ildi.
+  * Pytest sinovlari: 100% PASS.
+  * Commit muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>`.
+  * VPS (`bestway-vps` / `169.58.58.229`) ga uzilishsiz deploy qilindi. `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.43.0).
+
 ### 2.40. Rasmiy Versiya v1.42.0: Savollar Mazmuni Bo'yicha Testlar Deduplikatsiyasi (Question Content Fingerprint Deduplication & Authentic Seeders)
 - [x] 1-Bosqich: Savollar Mazmuni Bo'yicha Deduplikatsiya Mantiqi (`apps/tests/management/commands/deduplicate_by_questions.py`):
   * Test nomiga (title) mutlaqo qaramasdan, faqat savollar matnini normalizatsiya qilish (raqamlar, bo'shliqlar va tinish belgilarini tozalash) orqali SHA-256 xeshlar ketma-ketligi va savollar prefiksi (dastlabki 5 ta savol) barmoq izi (fingerprint) asosida klonlarni aniqlash mexanizmi ishlab chiqildi.

@@ -42,6 +42,7 @@ export default function AuthModal() {
 
   // Google 1-click state
   const [googleBusy, setGoogleBusy] = useState(false);
+  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   // Telegram auth state
   const [tgPhase, setTgPhase] = useState<TgPhase>('idle');
@@ -441,7 +442,7 @@ export default function AuthModal() {
         </div>
 
         {/* Error Alert Box */}
-        {(errorMsg || tgError) && (
+        {((errorMsg && !errorMsg.includes('Google') && !errorMsg.includes('google_not_configured')) || tgError) && (
           <div
             style={{
               padding: '10px 14px',
@@ -454,71 +455,13 @@ export default function AuthModal() {
               marginBottom: 16,
             }}
           >
-            {errorMsg || tgError}
+            {tgError || errorMsg}
           </div>
         )}
 
         {/* 1-CLICK AUTH PROVIDERS SECTION */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-          {/* 1. GOOGLE BUTTON */}
-          <button
-            type="button"
-            className="auth-1click-btn"
-            onClick={handleGoogleClick}
-            disabled={googleBusy}
-            style={{
-              background: 'var(--card-2)',
-              border: '1px solid var(--border)',
-              color: 'var(--ink)',
-              opacity: googleBusy ? 0.7 : 1,
-              cursor: googleBusy ? 'wait' : 'pointer',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {/* Google Official 4-Color SVG Icon */}
-              <svg width="22" height="22" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
-                  {googleBusy ? 'Google hisobiga ulanmoqda...' : 'Google orqali davom etish'}
-                </span>
-                <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--muted)' }}>
-                  {googleBusy ? 'Iltimos, kuting...' : '1 soniyada xavfsiz kirish'}
-                </span>
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                padding: '3px 8px',
-                borderRadius: 999,
-                background: 'rgba(66, 133, 244, 0.15)',
-                color: '#60a5fa',
-                border: '1px solid rgba(66, 133, 244, 0.3)',
-              }}
-            >
-              1-klik
-            </span>
-          </button>
-
-          {/* 2. TELEGRAM BUTTON */}
+          {/* PRIMARY: TELEGRAM 1-CLICK BUTTON */}
           {tgPhase === 'idle' && (
             <button
               type="button"
@@ -526,34 +469,35 @@ export default function AuthModal() {
               onClick={startTelegramAuth}
               disabled={tgBusy}
               style={{
-                background: 'linear-gradient(135deg, rgba(34, 158, 217, 0.15), rgba(42, 171, 238, 0.08))',
-                border: '1px solid rgba(42, 171, 238, 0.35)',
-                color: 'var(--ink)',
+                background: 'linear-gradient(135deg, #229ED9 0%, #0284c7 100%)',
+                border: 'none',
+                color: '#ffffff',
+                boxShadow: '0 4px 16px rgba(34, 158, 217, 0.35)',
+                cursor: tgBusy ? 'wait' : 'pointer',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
+                    width: 34,
+                    height: 34,
                     borderRadius: 10,
-                    background: '#2AABEE',
+                    background: 'rgba(255, 255, 255, 0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#ffffff',
                     flexShrink: 0,
-                    boxShadow: '0 0 12px rgba(42, 171, 238, 0.4)',
                   }}
                 >
-                  <SendIcon size={16} />
+                  <SendIcon size={18} />
                 </div>
                 <div style={{ textAlign: 'left' }}>
-                  <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
-                    Telegram orqali kirish
+                  <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: '#ffffff' }}>
+                    {tgBusy ? 'Telegram ochilmoqda...' : '📱 Telegram orqali 1-klikda kirish'}
                   </span>
-                  <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--muted)' }}>
-                    @uz_essaygrader_bot orqali tasdiqlash
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)' }}>
+                    Parolsiz 1 soniyada xavfsiz tasdiqlash
                   </span>
                 </div>
               </div>
@@ -563,12 +507,71 @@ export default function AuthModal() {
                   fontWeight: 800,
                   padding: '3px 8px',
                   borderRadius: 999,
-                  background: 'rgba(42, 171, 238, 0.2)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(42, 171, 238, 0.4)',
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
                 }}
               >
-                Tezkor
+                1-klik
+              </span>
+            </button>
+          )}
+
+          {/* SECONDARY: GOOGLE BUTTON (Only shown if VITE_GOOGLE_CLIENT_ID is configured) */}
+          {hasGoogle && (
+            <button
+              type="button"
+              className="auth-1click-btn"
+              onClick={handleGoogleClick}
+              disabled={googleBusy}
+              style={{
+                background: 'var(--card-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--ink)',
+                opacity: googleBusy ? 0.7 : 1,
+                cursor: googleBusy ? 'wait' : 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* Google Official 4-Color SVG Icon */}
+                <svg width="22" height="22" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <div style={{ textAlign: 'left' }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>
+                    {googleBusy ? 'Google hisobiga ulanmoqda...' : 'Google orqali davom etish'}
+                  </span>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--muted)' }}>
+                    {googleBusy ? 'Iltimos, kuting...' : '1 soniyada xavfsiz kirish'}
+                  </span>
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(66, 133, 244, 0.15)',
+                  color: '#60a5fa',
+                  border: '1px solid rgba(66, 133, 244, 0.3)',
+                }}
+              >
+                1-klik
               </span>
             </button>
           )}
