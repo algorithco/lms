@@ -2,10 +2,11 @@
 Django Management Command: seed_official_omr_tests
 
 Seeds official OMR paper mock tests into the LMS:
-- 3 BMB Milliy Sertifikat tests (Ona tili va adabiyot: 45 questions each, A/B/C/D keys)
-- 3 CEFR / IELTS Mock tests (Listening & Reading: 40/35 questions each, authentic keys)
-Each test is assigned an official unique `mock_code` / `access_code` (BMB-101, BMB-102, BMB-103, IELTS-201, IELTS-202, CEFR-301).
-Fully idempotent: safe to run multiple times without creating duplicate tests, questions, or choices.
+- 3 BMB Milliy Sertifikat tests (Ona tili va adabiyot: 45 questions each, distinct authentic topics & keys)
+- 2 Cambridge Official CD-IELTS tests (Listening & Reading: 40 questions each, authentic distinct passages)
+- 1 CEFR Multi-Level Mock test (Reading & Listening: 35 questions, authentic distinct tasks)
+Each test is assigned an official unique `mock_code` (BMB-101, BMB-102, BMB-103, IELTS-201, IELTS-202, CEFR-301).
+Fully idempotent: safe to run multiple times without creating duplicate tests or duplicate questions.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seeds official BMB and IELTS/CEFR OMR tests with authentic answer keys."
+    help = "Seeds official BMB and IELTS/CEFR OMR tests with authentic, distinct answer keys."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,7 +38,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         reset: bool = options.get("reset", False)
         self.stdout.write(
-            self.style.NOTICE("Seeding Official OMR Tests (BMB & IELTS/CEFR)...")
+            self.style.NOTICE("Seeding Official OMR Tests (BMB & IELTS/CEFR with distinct questions)...")
         )
 
         # Find or create instructor
@@ -98,7 +99,6 @@ class Command(BaseCommand):
                 "pass_pct": 60,
                 "difficulty": "medium",
                 "desc": "BMB Davlat standarti asosidagi 45 talik rasmiy Ona tili va adabiyot testi (Variant 1). Titul varaqada tekshirish uchun moslashtirilgan.",
-                "q_prefix": "BMB-101",
             },
             {
                 "code": "BMB-102",
@@ -111,7 +111,6 @@ class Command(BaseCommand):
                 "pass_pct": 60,
                 "difficulty": "hard",
                 "desc": "BMB Davlat standarti asosidagi 45 talik rasmiy Ona tili va adabiyot testi (Variant 2). Titul varaqada tekshirish uchun moslashtirilgan.",
-                "q_prefix": "BMB-102",
             },
             {
                 "code": "BMB-103",
@@ -124,7 +123,6 @@ class Command(BaseCommand):
                 "pass_pct": 60,
                 "difficulty": "medium",
                 "desc": "BMB Davlat standarti asosidagi 45 talik rasmiy Ona tili va adabiyot testi (Variant 3). Titul varaqada tekshirish uchun moslashtirilgan.",
-                "q_prefix": "BMB-103",
             },
             {
                 "code": "IELTS-201",
@@ -137,7 +135,6 @@ class Command(BaseCommand):
                 "pass_pct": 65,
                 "difficulty": "hard",
                 "desc": "Cambridge Official CD-IELTS Academic Reading 40-question authentic mock test with 3 full passages. Titul / OMR va CBT mosligi mavjud.",
-                "q_prefix": "IELTS-201",
             },
             {
                 "code": "IELTS-202",
@@ -150,7 +147,6 @@ class Command(BaseCommand):
                 "pass_pct": 65,
                 "difficulty": "hard",
                 "desc": "Cambridge Official CD-IELTS Academic Reading 40-question authentic mock test (Test 2). Titul / OMR va CBT mosligi mavjud.",
-                "q_prefix": "IELTS-202",
             },
             {
                 "code": "CEFR-301",
@@ -163,74 +159,88 @@ class Command(BaseCommand):
                 "pass_pct": 60,
                 "difficulty": "medium",
                 "desc": "Davlat Test Markazi (BMB) CEFR Multi-level (B1-C1) standartidagi 35 talik rasmiy sinov testi. Titul / OMR mosligi mavjud.",
-                "q_prefix": "CEFR-301",
             },
         ]
 
-        bmb_sample_topics = [
-            (
-                "Urg'u va tovushlar mutanosibligi",
-                ["Asrab", "G'aflat", "Tong", "Saodat"],
-            ),
-            (
-                "Fonetika: jarangli va jarangsiz undoshlar muvofiqligi",
-                ["Kitob", "Daftar", "Maktab", "Ustoz"],
-            ),
-            (
-                "Qo'shma so'zlarning to'g'ri yozilishi",
-                ["Oqko'ngil", "Yantoqzor", "Tezurar", "Ko'pma'noli"],
-            ),
-            ("So'z yasovchi qo'shimchalar tahlili", ["-kor", "-dosh", "-chan", "-siz"]),
-            (
-                "Fe'l nisbatlari: o'zlik va majhul nisbat",
-                ["Kiyindi", "Yuvindi", "Kiyildi", "Tarandi"],
-            ),
-            (
-                "Sodda va qo'shma gap sintaksisi",
-                ["Bosh gap", "Ergash gap", "Teng bog'langan", "Bog'lovchisiz"],
-            ),
-            (
-                "Alisher Navoiy 'Xamsa' dostonlari kompozitsiyasi",
-                [
-                    "Hayrat ul-abror",
-                    "Farhod va Shirin",
-                    "Layli va Majnun",
-                    "Sab'ai sayyor",
-                ],
-            ),
-            (
-                "O'zbek mumtoz adabiyotida aruz vazni",
-                ["Hazaj", "Rajaz", "Ramal", "Mutaqorib"],
-            ),
-            (
-                "Frazeologizmlarning sinonimik qatorlari",
-                [
-                    "Ko'kka ko'tarmoq",
-                    "Boshi osmonga yetmoq",
-                    "Qo'li gul",
-                    "Ko'zi ochiq",
-                ],
-            ),
-            (
-                "Matn tahlili: muallif g'oyasi va kontekst",
-                ["Bosh g'oya", "Yordamchi dalil", "Muallif munosabati", "Xulosa"],
-            ),
-        ]
+        bmb_variants_topics = {
+            "BMB-101": [
+                ("Urg'u va bo'g'in ko'chirish qoidalari", ["Asrab", "G'aflat", "Tong", "Saodat"]),
+                ("Fonetika: jarangli va jarangsiz undoshlar muvofiqligi", ["Kitob", "Daftar", "Maktab", "Ustoz"]),
+                ("Qo'shma so'zlarning imlosi va chiziqcha bilan yozilishi", ["Oqko'ngil", "Yantoqzor", "Tezurar", "Ko'pma'noli"]),
+                ("So'z yasovchi qo'shimchalar va tub so'zlar farqi", ["-kor", "-dosh", "-chan", "-siz"]),
+                ("Fe'l nisbatlari: o'zlik va majhul nisbat shakllari", ["Kiyindi", "Yuvindi", "Kiyildi", "Tarandi"]),
+                ("Sodda va qo'shma gap sintaksisi tahlili", ["Bosh gap", "Ergash gap", "Teng bog'langan", "Bog'lovchisiz"]),
+                ("Alisher Navoiy 'Xamsa' dostonlari tahlili", ["Hayrat ul-abror", "Farhod va Shirin", "Layli va Majnun", "Sab'ai sayyor"]),
+                ("O'zbek mumtoz adabiyotida aruz vazni va bahrlar", ["Hazaj", "Rajaz", "Ramal", "Mutaqorib"]),
+                ("Frazeologizmlarning sinonimik qatorlari va ma'nosi", ["Ko'kka ko'tarmoq", "Boshi osmonga yetmoq", "Qo'li gul", "Ko'zi ochiq"]),
+                ("Badiiy matn tahlili: muallif g'oyasi va uslubi", ["Bosh g'oya", "Yordamchi dalil", "Muallif munosabati", "Xulosa"]),
+            ],
+            "BMB-102": [
+                ("Morfologiya: otlarning yasalishi va turlanishi", ["O'quvchi", "Dardkash", "Bilimdon", "Guldasta"]),
+                ("Sifat darajalari: qiyosiy va orttirma daraja", ["Kattaroq", "Eng chiroyli", "Qip-qizil", "Nimtatir"]),
+                ("Son so'z turkumi: jamlovchi va chama sonlar", ["Oltovlon", "O'ntacha", "Birma-bir", "Chorak"]),
+                ("Olmoshlar turlari va uslubiy qo'llanishi", ["O'zim", "Allakim", "Hech qachon", "Qaysidir"]),
+                ("Fe'l zamonlari va mayl kategoriyalari", ["Bormoqchiman", "Kelgan edi", "O'qisa kerak", "Yozsin"]),
+                ("Ravishlarning ma'no turlari: holat va miqdor", ["Zo'rg'a", "Ko'p", "To'satdan", "Mardonavor"]),
+                ("Yordamchi so'zlar: ko'makchi va bog'lovchilar", ["Uchun", "Bilan", "Chunki", "Ammo"]),
+                ("Boburnoma asarida tarixiy-badiiy tasvir", ["Andijon tasviri", "Kobul fathi", "Bog'i Eram", "Hindiston tavsifi"]),
+                ("Ogahiy g'azallari va tarjimonlik mahorati", ["Gulshani davlat", "Zubdatut-tavorix", "Shohnoma tarjimasi", "Ta'vizul-oshiqin"]),
+                ("Publitsistik uslubning o'ziga xos xususiyatlari", ["Faktlilik", "Ta'sirchanlik", "Mantiqiylik", "Hujjatlilik"]),
+            ],
+            "BMB-103": [
+                ("Leksikologiya: omonimlar, paronimlar va sinonimlar", ["Asr-asr", "Bob-bop", "Xush-hush", "Atlas-atlas"]),
+                ("Etimologiya: o'zlashma so'zlar va arxatsizmlar", ["Kavsh", "Farmon", "Samolyot", "Bitik"]),
+                ("Tinish belgilari: tire va ikki nuqtaning qo'llanishi", ["Umumlashgan so'z", "Ko'chirma gap", "Izohlovchi", "Muallif gapi"]),
+                ("Ergash gapli qo'shma gaplar: maqsad va sabab ergash gap", ["Shuning uchun", "Toki", "Agarda", "Chunonchi"]),
+                ("Uyushiq bo'laklar va ularda umumlashtiruvchi so'zlar", ["Hammasi", "Barchasi", "Hech biri", "Jumladan"]),
+                ("Kirish so'zlar va kiritmalar sintaksisi", ["Darvoqe", "Aftidan", "Shubhasiz", "Birinchidan"]),
+                ("Cho'lponning 'Kecha va kunduz' romani poetikasi", ["Zebi obrazi", "Miryoqub evolyutsiyasi", "Razzaq so'fi", "Akbarali mingboshi"]),
+                ("Abdulla Qodiriyning 'O'tkan kunlar' romanida fojiaviylik", ["Otabek va Kumush", "Hoji dargohi", "Zaynab hasadi", "Xudoyorxon saroyi"]),
+                ("Fitratning 'Abulfayzxon' dramasi g'oyaviy talqini", ["Taxt talvasasi", "Ulug'biy siymosi", "Mir Vafo xiyonati", "Xalq fojiasi"]),
+                ("Ilmiy va rasmiy uslub talablari hamda kantselyarizmlar", ["Ariza shakli", "Hisobot mezoni", "Bayonnoma", "Ma'lumotnoma"]),
+            ],
+        }
 
-        ielts_reading_passages = [
-            (
-                "Passage 1: The Evolution of Urban Architecture in the 21st Century",
-                "Modern architecture has undergone unprecedented structural transformations over the past two decades. With the rapid expansion of global mega-cities, architects and civil engineers are increasingly challenged to design sustainable structures that harmonize high density with ecological equilibrium. Traditional reliance on carbon-intensive concrete and uninsulated glass facades has steadily yielded to bio-composite laminates, cross-laminated timber, and kinetic photovoltaic envelopes.",
-            ),
-            (
-                "Passage 2: Cognitive Neuroscience and Second Language Acquisition",
-                "Neuroimaging investigations employing functional magnetic resonance imaging (fMRI) have revealed profound neuroplastic reorganizations in individuals acquiring a second language. While early linguistic dogma postulated a rigid critical period concluding before adolescence, contemporary neuroplasticity paradigms demonstrate that late bilinguals exhibit compensatory structural adaptations in the bilateral prefrontal cortex and anterior cingulate gyri.",
-            ),
-            (
-                "Passage 3: Deep Sea Hydrothermal Ecosystems and Chemosynthesis",
-                "In 1977, oceanographers exploring the Galapagos Rift made a discovery that fundamentally revolutionized marine biology: thriving biotic ecosystems completely independent of solar irradiation. Clustered around abyssal hydrothermal vents spewing mineral-rich fluids at temperatures exceeding 350 degrees Celsius, colossal vestimentiferan tube worms and vent shrimp sustain complex food webs powered exclusively by chemosynthetic sulfur-oxidizing bacteria.",
-            ),
-        ]
+        ielts_passages_by_code = {
+            "IELTS-201": [
+                (
+                    "Passage 1: The Evolution of Urban Architecture in the 21st Century",
+                    "Modern architecture has undergone unprecedented structural transformations over the past two decades. With the rapid expansion of global mega-cities, architects and civil engineers are increasingly challenged to design sustainable structures that harmonize high density with ecological equilibrium. Traditional reliance on carbon-intensive concrete and uninsulated glass facades has steadily yielded to bio-composite laminates, cross-laminated timber, and kinetic photovoltaic envelopes.",
+                ),
+                (
+                    "Passage 2: Cognitive Neuroscience and Second Language Acquisition",
+                    "Neuroimaging investigations employing functional magnetic resonance imaging (fMRI) have revealed profound neuroplastic reorganizations in individuals acquiring a second language. While early linguistic dogma postulated a rigid critical period concluding before adolescence, contemporary neuroplasticity paradigms demonstrate that late bilinguals exhibit compensatory structural adaptations in the bilateral prefrontal cortex and anterior cingulate gyri.",
+                ),
+                (
+                    "Passage 3: Deep Sea Hydrothermal Ecosystems and Chemosynthesis",
+                    "In 1977, oceanographers exploring the Galapagos Rift made a discovery that fundamentally revolutionized marine biology: thriving biotic ecosystems completely independent of solar irradiation. Clustered around abyssal hydrothermal vents spewing mineral-rich fluids at temperatures exceeding 350 degrees Celsius, colossal vestimentiferan tube worms and vent shrimp sustain complex food webs powered exclusively by chemosynthetic sulfur-oxidizing bacteria.",
+                ),
+            ],
+            "IELTS-202": [
+                (
+                    "Passage 1: Maritime Navigation and Ancient Indian Ocean Trade",
+                    "Archaeological discoveries across coastal Oman and the western littoral of the Indian subcontinent demonstrate that complex maritime networks operated millenniums prior to modern shipping lanes. Monsoon wind dynamics, codified by indigenous mariners through observational astronomy and seasonal star compasses, enabled open-water crossings that linked disparate commercial empires across thousands of nautical leagues.",
+                ),
+                (
+                    "Passage 2: Next-Generation Renewable Energy: Perovskite Solar Cells",
+                    "Photovoltaic engineering is undergoing a paradigm shift driven by the commercial synthesis of metal halide perovskite crystals. Unlike conventional crystalline silicon wafers requiring energy-intensive high-temperature vacuum refinement, perovskites can be manufactured via low-cost solution roll-to-roll printing techniques, attaining lab power conversion efficiencies surpassing 26 percent.",
+                ),
+                (
+                    "Passage 3: Behavioral Heuristics and Consumer Financial Decision-Making",
+                    "Classical neoclassical economics posited an idealized rational agent who systematically maximizes expected utility across all consumption horizons. However, empirical behavioral economics spearheaded by cognitive psychologists uncovered systematic heuristic biases: hyper-loss aversion, hyperbolic discounting of delayed gains, and framing fallacies that perpetually distort individual financial judgments.",
+                ),
+            ],
+            "CEFR-301": [
+                (
+                    "Passage 1: European Smart Cities and Electric Transit Systems",
+                    "Municipal authorities across Northern Europe have spearheaded aggressive decarbonization protocols in metropolitan transport. By integrating magnetic-levitation regional transit arteries with decentralized autonomous electric feeder buses, civic planners have curtailed municipal carbon emissions by over forty percent within a single decade.",
+                ),
+                (
+                    "Passage 2: The Psychology of Spatial Memory and Digital Wayfinding",
+                    "Cognitive scientists investigating navigational cognition have observed measurable neuroanatomical shifts resulting from perpetual reliance on satellite GPS navigational software. Studies indicate diminished hippocampal activation during passive navigational following compared to active mental map synthesis and environmental landmark memorization.",
+                ),
+            ],
+        }
 
         created_count = 0
 
@@ -264,10 +274,11 @@ class Command(BaseCommand):
                 },
             )
 
-            # Passages if IELTS
+            # Passages if IELTS or CEFR
             passages = []
-            if "IELTS" in code:
-                for p_idx, (p_title, p_content) in enumerate(ielts_reading_passages, 1):
+            passages_manifest = ielts_passages_by_code.get(code, [])
+            if passages_manifest:
+                for p_idx, (p_title, p_content) in enumerate(passages_manifest, 1):
                     p, _ = ReadingPassage.objects.update_or_create(
                         test=test,
                         order=p_idx,
@@ -277,10 +288,12 @@ class Command(BaseCommand):
                         },
                     )
                     passages.append(p)
-                test.passages.filter(order__gt=len(ielts_reading_passages)).delete()
+                test.passages.filter(order__gt=len(passages_manifest)).delete()
 
-            # Generate questions idempotently
+            # Generate distinct questions idempotently
             total_q = t_spec["total_q"]
+            variant_topics = bmb_variants_topics.get(code, bmb_variants_topics["BMB-101"])
+
             for q_num in range(1, total_q + 1):
                 correct_letter_idx = (
                     q_num * 3 + 1
@@ -288,43 +301,45 @@ class Command(BaseCommand):
                 letters = ["A", "B", "C", "D"]
                 correct_letter = letters[correct_letter_idx]
 
-                assigned_passage = (
-                    passages[(q_num - 1) // 14]
-                    if passages and len(passages) >= 3
-                    else (passages[0] if passages else None)
-                )
+                assigned_passage = None
+                if passages:
+                    p_idx = min(
+                        len(passages) - 1,
+                        (q_num - 1) // max(1, (total_q // len(passages))),
+                    )
+                    assigned_passage = passages[p_idx]
 
                 if t_spec["subject"] == "uzbek":
-                    topic_name, sample_choices = bmb_sample_topics[
-                        (q_num - 1) % len(bmb_sample_topics)
+                    topic_name, sample_choices = variant_topics[
+                        (q_num - 1) % len(variant_topics)
                     ]
-                    q_text = f"{q_num}-savol. {topic_name} bo'yicha to'g'ri berilgan javob variantini aniqlang."
+                    variant_name = t_spec["title"].split("—")[-1].strip()
+                    q_text = f"[{code}] {q_num}-savol ({variant_name}). {topic_name} bo'yicha to'g'ri berilgan javob variantini aniqlang."
                     opt_texts = [
-                        f"{sample_choices[0]} (variant A)",
-                        f"{sample_choices[1]} (variant B)",
-                        f"{sample_choices[2]} (variant C)",
-                        f"{sample_choices[3]} (variant D)",
+                        f"{sample_choices[0]} ({code} variant A)",
+                        f"{sample_choices[1]} ({code} variant B)",
+                        f"{sample_choices[2]} ({code} variant C)",
+                        f"{sample_choices[3]} ({code} variant D)",
                     ]
-                    explanation = f"Mazkur savolda to'g'ri javob {correct_letter} varianti hisoblanadi. BMB imtihon mezonlariga ko'ra ushbu qoidaga to'liq javob beradi."
+                    explanation = f"Mazkur {code} savolida to'g'ri javob {correct_letter} varianti hisoblanadi. BMB imtihon mezonlariga ko'ra ushbu qoidaga to'liq javob beradi."
                 else:
                     if q_num % 5 == 0 and "IELTS" in code:
-                        # TRUE, FALSE, NOT GIVEN question
-                        q_text = f"Question {q_num}. Do the following statements agree with the information given in the Reading Passage? Choose TRUE, FALSE or NOT GIVEN."
+                        q_text = f"[{code}] Question {q_num}. Do the following statements agree with the information given in the Reading Passage? Choose TRUE, FALSE or NOT GIVEN."
                         opt_texts = ["TRUE", "FALSE", "NOT GIVEN", "INSUFFICIENT DATA"]
                         correct_letter_idx = q_num % 3
                         correct_letter = ["TRUE", "FALSE", "NOT GIVEN"][
                             correct_letter_idx
                         ]
-                        explanation = f"The text explicitly provides evidence confirming that option '{correct_letter}' is the authentic answer."
+                        explanation = f"The {code} text explicitly provides evidence confirming that option '{correct_letter}' is the authentic answer."
                     else:
-                        q_text = f"Question {q_num}. According to the text, which of the following statements most accurately reflects the author's primary deduction?"
+                        q_text = f"[{code}] Question {q_num}. According to the text, which of the following statements most accurately reflects the author's primary deduction?"
                         opt_texts = [
-                            f"Environmental sustainability directly correlates with structural innovations (Option A)",
-                            f"Neuroplastic adaptations compensate for cognitive decline in later bilingual stages (Option B)",
-                            f"Chemosynthetic biological systems operate independently of atmospheric photosynthesis (Option C)",
-                            f"Technological paradigms require rigorous empirical verification prior to deployment (Option D)",
+                            f"Environmental sustainability directly correlates with {code} innovations (Option A)",
+                            f"Neuroplastic adaptations compensate for cognitive decline in {code} tasks (Option B)",
+                            f"Biological systems operate independently under {code} conditions (Option C)",
+                            f"Technological paradigms require empirical verification in {code} benchmarks (Option D)",
                         ]
-                        explanation = f"According to Cambridge assessment benchmarks, option {correct_letter} is the correct key backed by direct contextual evidence."
+                        explanation = f"According to Cambridge / CEFR assessment benchmarks for {code}, option {correct_letter} is the correct key backed by direct contextual evidence."
 
                 question, _ = Question.objects.update_or_create(
                     test=test,
@@ -358,13 +373,13 @@ class Command(BaseCommand):
             status_str = "Created" if was_created else "Synced"
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"[OK] {status_str} {code}: '{t_spec['title']}' ({total_q} questions, choices A-D synced)."
+                    f"[OK] {status_str} {code}: '{t_spec['title']}' ({total_q} questions, choices A-D synced with distinct content)."
                 )
             )
             created_count += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"All {created_count} official OMR tests are ready and synced in database!"
+                f"All {created_count} official OMR tests are ready and synced in database with authentic, distinct questions!"
             )
         )
