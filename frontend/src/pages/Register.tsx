@@ -13,7 +13,7 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== "");
   const [form, setForm] = useState({
     email: '',
     password: '',
