@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.40. Rasmiy Versiya v1.42.0: Savollar Mazmuni Bo'yicha Testlar Deduplikatsiyasi (Question Content Fingerprint Deduplication & Authentic Seeders)
+- [x] 1-Bosqich: Savollar Mazmuni Bo'yicha Deduplikatsiya Mantiqi (`apps/tests/management/commands/deduplicate_by_questions.py`):
+  * Test nomiga (title) mutlaqo qaramasdan, faqat savollar matnini normalizatsiya qilish (raqamlar, bo'shliqlar va tinish belgilarini tozalash) orqali SHA-256 xeshlar ketma-ketligi va savollar prefiksi (dastlabki 5 ta savol) barmoq izi (fingerprint) asosida klonlarni aniqlash mexanizmi ishlab chiqildi.
+  * Disjoint-Set / Union-Find algoritmi orqali bir xil savollar to'plamiga ega bo'lgan barcha testlar klasterlarga ajratildi.
+  * Kanonik asosiy testni tanlash: Eng ko'p o'quvchi urinishiga ega (`TestAttempt` soni bo'yicha) yoki teng bo'lganda eng kichik ID ga ega bo'lgan birlamchi test saqlanib qoladi.
+  * Barcha bog'liq yozuvlarni xavfsiz ko'chirish: `TestAttempt`, `StudentAnswer`, `Result`, `Certificate`, `Tournament`, `Homework` yozuvlari kanonik testga va uning mos savol/variantlariga xatosiz qayta ulandi.
+  * `--dry-run` rejimi va `transaction.atomic()` himoyasi: Xatolik yuz berganda avtomatik rollback qilish kafolatlandi.
+- [x] 2-Bosqich: Seeder va Fixturalarni Haqiqiy Savollar Bilan Qayta Yozish:
+  * `apps/tests/management/commands/seed_official_omr_tests.py`: Sinov variantlari (BMB-101, BMB-102, BMB-103, IELTS-201, IELTS-202, CEFR-301) endi bir-birini takrorlamaydigan, to'liq o'ziga xos haqiqiy savollar va javob variantlarini yaratadigan qilib qayta ishlandi.
+  * `apps/tests/fixtures/official_omr_tests.json`: Barcha variantlar uchun savol matnlari unikal, haqiqiy akademik kontent bilan yangilandi.
+- [x] 3-Bosqich: QA Darvozasi va Unit Testlar:
+  * `tests/test_deduplicate_by_questions.py`: 4 ta kompleks unit test yozildi:
+    1) Nomlari butunlay har xil, ammo savollari bir xil bo'lgan klon testlarni aniqlash va birlashtirish;
+    2) Haqiqiy har xil savollarga ega testlarga aslo tegmaslik kafolati;
+    3) `--dry-run` rejimida hech qanday test o'chirilmasligini tekshirish;
+    4) O'quvchi urinishlari (`TestAttempt`) va javoblarini birlamchi testga to'liq ko'chirish tekshiruvi.
+  * Barcha testlar 100% muvaffaqiyatli o'tdi (`4 passed in 22.51s`).
+- [x] 4-Bosqich: Contabo VPS Deploy, Klondan Tozalash va Jonli Verifikatsiya:
+  * `bestway` loyihasi mutlaqo daxlsiz saqlandi (hech qanday aralashuvsiz).
+  * VPS dagi `/opt/lms` kodi `v1.42.0` ga yangilandi, Docker konteynerlari qayta yig'ildi (`web` va `nginx`).
+  * `python manage.py deduplicate_by_questions` buyrug'i serverda bajarildi:
+    - Guruh 1 (IELTS Academic): Klon ID 10 asosiy ID 9 ga birlashtirildi va o'chirildi.
+    - Guruh 2 (BMB Milliy Sertifikat): Klon ID 7 va ID 8 asosiy ID 6 ga birlashtirildi, 1 ta o'quvchi urinishi saqlab qolindi va klonlar o'chirildi.
+  * Jonli tekshiruv: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.42.0), `https://grandec.uz/api/tests/` (jami faol 6 ta unikal test, dublikatlar 0 ta).
+
 ### 2.39. Rasmiy Versiya v1.40.0: Passwordless 2-Tab Auth, 1v1 Arena WebSocket Reconnect & Grace Period, AI Token Bleeding Pre-Validation va SPA Dynamic SEO Sitemap
 - [x] 1-Bosqich: Auth UI Tozalash (Passwordless & 2-Tab Unified Login):
   * `frontend/src/pages/Login.tsx`: Talabalar uchun 1-klikli tizim joriy etildi. Asosiy Hero CTA sifatida `[ 📱 Telegram orqali 1-klikda kirish ]` (ko'k `#229ED9`, oq matn, shadow) va `[ 🌐 Google orqali kirish ]` tugmalari joylashtirildi. Talabalar uchun parol maydonlari butunlay yashirildi (0 ta parol maydoni).
