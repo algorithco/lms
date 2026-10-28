@@ -23,9 +23,16 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== "");
 
   // Friendly error message for URL error code
+    // Silently clean up ?error=google_not_configured from address bar
+  useEffect(() => {
+    if (urlError === 'google_not_configured') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [urlError]);
+
   const getUrlErrorMessage = (code: string | null): string | null => {
     if (!code) return null;
     switch (code) {
@@ -44,7 +51,15 @@ export default function Login() {
     }
   };
 
-  const activeError = getUrlErrorMessage(urlError) || googleError || error;
+  const isGoogleUnconfigured =
+    urlError === 'google_not_configured' ||
+    (typeof error === 'string' &&
+      (error.includes('google_not_configured') ||
+        error.includes('Google orqali kirish hali sozlanmagan') ||
+        error.includes('Google kirish hali sozlanmagan')));
+  const activeError = isGoogleUnconfigured
+    ? null
+    : (getUrlErrorMessage(urlError) || googleError || error);
 
   const handleGoogleClick = async () => {
     setGoogleBusy(true);
@@ -380,7 +395,9 @@ export default function Login() {
                 ⚡ Parol eslab qolish shart emas!
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
-                Telegram hisobingiz orqali bir marta bosishda xavfsiz kiring.
+                {hasGoogle
+                  ? 'Telegram yoki Google hisobingiz orqali bir marta bosishda xavfsiz kiring.'
+                  : 'Telegram hisobingiz orqali bir marta bosishda xavfsiz kiring.'}
               </div>
             </div>
 

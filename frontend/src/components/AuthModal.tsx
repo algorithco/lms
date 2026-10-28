@@ -42,7 +42,7 @@ export default function AuthModal() {
 
   // Google 1-click state
   const [googleBusy, setGoogleBusy] = useState(false);
-  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== "");
 
   // Telegram auth state
   const [tgPhase, setTgPhase] = useState<TgPhase>('idle');

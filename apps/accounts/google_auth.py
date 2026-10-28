@@ -57,10 +57,7 @@ def google_auth_config(request: HttpRequest) -> JsonResponse:
 def google_auth_start(request: HttpRequest) -> HttpResponseRedirect:
     config = _get_google_config()
     if not config:
-        messages.error(
-            request, "Google kirish hali sozlanmagan. Admin bilan bog'laning."
-        )
-        return redirect("/login?error=google_not_configured")
+        return redirect("/login")
 
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)

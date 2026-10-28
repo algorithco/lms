@@ -9,6 +9,23 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.42. Rasmiy Versiya v1.45.0: Google OAuth Elementlarini Qat'iy Yashirish, URL Xatolarini Tozalash va Backend Xavfsiz Redirect
+- [x] 1-Bosqich: Frontenddan Google Elementlarini Qat'iy Yashirish va Banner Tozalash:
+  * `frontend/src/pages/Login.tsx`, `Register.tsx` va `AuthModal.tsx`: `const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== "");` orqali to'liq qat'iy tekshiruv o'rnatildi.
+  * `hasGoogle === false` bo'lganda `[ 🌐 Google orqali kirish ]` tugmasi DOM da umuman render qilinmaydi.
+  * Banner matni tozalandi: "⚡ Parol eslab qolish shart emas! Telegram hisobingiz orqali bir marta bosishda xavfsiz kiring."
+- [x] 2-Bosqich: `?error=google_not_configured` URL Xatolarini Jimgina Tozalash:
+  * `Login.tsx`: Brauzer manzilida `error=google_not_configured` bo'lsa, hech qanday qizil xatolik oynasi chizilmaydi va `window.history.replaceState({}, document.title, window.location.pathname)` orqali URL jimgina tozalanadi.
+  * `isGoogleUnconfigured` himoyasi orqali har qanday eskirgan yoki session xatolari filtrlandi.
+- [x] 3-Bosqich: Backend Redirect Xavfsizligi:
+  * `apps/accounts/google_auth.py`: `google_auth_start` funksiyasida Google OAuth sozlanmagan bo'lsa, xatolik parametrlarisiz to'g'ridan-to'g'ri `/login` sahifasiga redirect qilish ta'minlandi (`return redirect("/login")`).
+- [x] 4-Bosqich: QA, CI/CD va VPS Zero-Downtime Deploy:
+  * `tests/test_google_auth_redirect.py`: 2 ta yangi unit test yozildi va 100% PASS qildi.
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.40s).
+  * Commit muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>`.
+  * Xabar: `fix(auth): strictly hide Google OAuth button, sanitize banner text, and purge unconfigured error box`.
+  * PR ochildi, barcha CI tekshiruvlari yashil bo'lgach `main` ga squash-merge qilindi va VPS ga uzilishsiz deploy qilindi.
+
 ### 2.41. Rasmiy Versiya v1.43.0: Unconfigured Google OAuth Button Yashirish va Telegram 1-Klik Autentifikatsiya
 - [x] 1-Bosqich: Sozlanmagan Google OAuth Tugmasini Yashirish:
   * `frontend/src/pages/Login.tsx`, `frontend/src/components/AuthModal.tsx` va `frontend/src/pages/Register.tsx`: Sozlanmagan Google tugmasi yashirildi (`const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);` orqali shartli render qilindi).
