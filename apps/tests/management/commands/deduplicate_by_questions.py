@@ -83,7 +83,6 @@ def compute_question_fingerprints(test: Test) -> dict[str, Any]:
             "sorted_clean_fp": "",
         }
 
-    raw_texts = [normalize_text(text) for _, text, _, _ in qs]
     clean_texts = [clean_question_text(text) for _, text, _, _ in qs]
 
     # 1. Full sequential fingerprint
@@ -235,7 +234,6 @@ class Command(BaseCommand):
         test_ids = [t.id for t in all_tests]
         uf = UnionFind(test_ids)
 
-        test_by_id = {t.id: t for t in all_tests}
         n = len(all_tests)
 
         for i in range(n):
