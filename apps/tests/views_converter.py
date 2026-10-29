@@ -17,10 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 def _is_teacher_or_admin(user) -> bool:
-    """Tekshiruv: faqat ustoz yoki adminlar test yarata oladi."""
-    return user.is_authenticated and (
-        getattr(user, "role", None) in ("teacher", "admin") or user.is_staff
-    )
+    """Tekshiruv: tizimda ro'yxatdan o'tgan foydalanuvchilar test yarata oladi."""
+    return bool(user and user.is_authenticated)
 
 
 class AiConvertDocumentView(APIView):

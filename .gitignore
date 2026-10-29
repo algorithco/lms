@@ -79,3 +79,6 @@ id_rsa*
 
 # Host fail2ban log tail (mounted from nginx). Directory stays tracked.
 deploy/logs/*.log
+
+# Raw design assets
+thumbanial/

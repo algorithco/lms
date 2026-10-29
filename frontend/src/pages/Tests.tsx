@@ -231,10 +231,32 @@ export default function Tests() {
 
   return (
     <div>
-      <h1>
-        {t('tests')} ({count})
-      </h1>
-      <p className="muted">{t('available_tests_hint')}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>
+            {t('tests')} ({count})
+          </h1>
+          <p className="muted" style={{ margin: '4px 0 0' }}>{t('available_tests_hint')}</p>
+        </div>
+        <Link
+          to="/tests/create"
+          style={{
+            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+            color: '#FFFFFF',
+            fontWeight: 800,
+            fontSize: 13.5,
+            padding: '10px 18px',
+            borderRadius: 12,
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
+          }}
+        >
+          <span>✍️</span> + Yangi test yaratish (Smart Paste)
+        </Link>
+      </div>
 
       {/* 🎯 Mock Testga Kod Bilan Qo'shilish */}
       {activeSub === 'english' ? (

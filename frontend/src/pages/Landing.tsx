@@ -223,48 +223,38 @@ export default function Landing() {
             }}
           >
             <img
-              src="/grandec.png"
-              alt="GRAND EDUCATION"
+              src="/logo-mark.png"
+              alt="GRANDEC"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                objectFit: 'cover',
-                boxShadow:
-                  landingSubject === 'english'
-                    ? '0 0 16px rgba(56, 189, 248, 0.35)'
-                    : '0 0 16px rgba(245, 158, 11, 0.35)',
+                height: 40,
+                width: 'auto',
+                objectFit: 'contain',
               }}
             />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span
-                className="text-slate-900 font-extrabold"
+                className="text-slate-900 font-black tracking-tight"
                 style={{
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: 900,
                   letterSpacing: '-0.02em',
                   color: '#0F172A',
                   lineHeight: 1.1,
                 }}
               >
-                GRAND EDUCATION
+                GRANDEC
               </span>
               <span
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.12em',
-                  color: landingSubject === 'english' ? '#38BDF8' : '#F59E0B',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.14em',
+                  color: '#D97706',
                   textTransform: 'uppercase',
+                  marginTop: 2,
                 }}
               >
-                {selectedTrack === 'ielts'
-                  ? 'IELTS Band 7.5+ AI'
-                  : selectedTrack === 'multilevel'
-                  ? 'CEFR Multi-level (B2/C1)'
-                  : selectedTrack === 'attestation'
-                  ? 'Attestatsiya 2026'
-                  : 'Milliy Sertifikat'}
+                ACADEMIC EDTECH
               </span>
             </div>
           </Link>
@@ -1814,8 +1804,11 @@ export default function Landing() {
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <img src="/grandec.png" alt="GRANDEC" style={{ width: 32, height: 32, borderRadius: 8 }} />
-                <span style={{ fontWeight: 900, fontSize: 16, color: '#0F172A' }}>GRAND EDUCATION</span>
+                <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 900, fontSize: 16, color: '#0F172A', lineHeight: 1.1 }}>GRANDEC</span>
+                  <span style={{ fontSize: 8.5, fontWeight: 800, color: '#D97706', letterSpacing: '0.12em', textTransform: 'uppercase' }}>ACADEMIC EDTECH</span>
+                </div>
               </div>
               <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
                 {t('foot_desc')}

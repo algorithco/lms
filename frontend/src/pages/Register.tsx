@@ -97,7 +97,7 @@ export default function Register() {
         canonical="/register"
       />
       <div className="auth-card">
-        <img src="/grandec.png" alt="GRANDEC" className="auth-logo" />
+        <img src="/logo-mark.png" alt="GRANDEC" className="auth-logo" />
         <h1>{t('register')}</h1>
         <p className="muted">{t('register_subtitle')}</p>
 

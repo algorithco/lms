@@ -218,59 +218,108 @@ def _call_text_llm(text_content: str, subject: str) -> str:
 
 def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, Any]:
     """
-    LLM mavjud bo'lmaganda yoki mock rejimda matndan savollarni
-    aniq regex andozalari asosida ajratib oluvchi aqlli deterministik parser.
+    Matndan test savollari, variantlari va to'g'ri kalitlarini
+    avtomatik aniqlovchi yuqori aniqlikdagi Smart Paste parser.
+    Formatlar:
+      - Savollar: 1., 1), 1 -, 1-savol:, Savol 1:, №1
+      - Variantlar: A), B), C), D) yoki a., b., c., d.
+      - Kalitlar: *A), +B), A) *matn, yoki oxirida 'Javob: B', 'Kalitlar: 1.A 2.B'
     """
-    lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
-    if not lines:
+    raw_clean = (raw_text or "").strip()
+    if not raw_clean:
         return _fallback_dummy_template(subject)
+
+    lines = raw_clean.splitlines()
+
+    global_keys: dict[int, str] = {}
+    body_lines: list[str] = []
+    for line in lines:
+        if re.search(r"(?:javoblar|kalitlar|keys|answers)\s*:", line, re.I):
+            for m in re.finditer(r"(\d+)\s*[:.\-)?\s]?\s*([a-eA-E])", line):
+                global_keys[int(m.group(1))] = m.group(2).upper()
+        else:
+            body_lines.append(line)
+
+    q_start_re = re.compile(
+        r"^(?:(?:savol\s*|№\s*)?(\d+)[\.\)\-:\s]+|(\d+)\s*[-–—]?\s*savol[\.\):]?\s*)(.*)$",
+        re.I,
+    )
+    inline_choice_re = re.compile(
+        r"(?:^|\s+)([\*\+]?)\s*([A-Ea-e])[\.\)\-]\s*(.*?)(?=(?:\s+[\*\+]?\s*[A-Ea-e][\.\)\-])|$)",
+        re.I,
+    )
 
     questions: list[dict[str, Any]] = []
     current_q: dict[str, Any] | None = None
     reading_passage = ""
 
-    # Matn ichida savol raqamini qidirish: "1.", "1)", "1 - savol", "№1"
-    q_pattern = re.compile(r"^(?:№\s*|\b)?(\d+)[\.\)\-\s]\s*(.*)$")
-    choice_pattern = re.compile(r"^([A-Ea-e])[\.\)\-\s]\s*(.*)$")
+    for line in body_lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
 
-    for line in lines:
-        qm = q_pattern.match(line)
-        if qm and len(line) > 5 and not choice_pattern.match(line):
-            q_num = int(qm.group(1))
-            q_text = qm.group(2).strip() or line
+        ans_m = re.match(
+            r"^(?:to['ʼ`]?g['ʼ`]?ri\s+)?(?:javob|kalit|key)\s*[:=\-]\s*([A-Ea-e])",
+            line_clean,
+            re.I,
+        )
+        if ans_m and current_q:
+            current_q["correct_answer"] = ans_m.group(1).upper()
+            current_q["_has_explicit_answer"] = True
+            continue
+
+        is_choice_start = re.match(r"^[\*\+]?\s*[A-Ea-e][\.\)\-]", line_clean)
+        q_m = q_start_re.match(line_clean)
+        if q_m and not is_choice_start:
+            q_num = int(q_m.group(1) or q_m.group(2))
+            rest = (q_m.group(3) or "").strip()
+            rest = re.sub(r"^(?:savol|question)[\.\):\-]?\s*", "", rest, flags=re.I).strip()
             current_q = {
-                "order": q_num,
-                "text": q_text,
+                "order": len(questions) + 1,
+                "q_num": q_num,
+                "text": rest if rest else f"{q_num}-savol",
                 "choices": [],
                 "correct_answer": "A",
-                "explanation": "Qoida asosida to'g'ri javob.",
+                "_has_explicit_answer": False,
+                "explanation": "",
                 "question_type": "single_choice",
             }
             questions.append(current_q)
             continue
 
-        cm = choice_pattern.match(line)
-        if cm and current_q:
-            c_code = cm.group(1).upper()
-            c_text = cm.group(2).strip()
-            current_q["choices"].append({"code": c_code, "text": c_text})
+        inline_matches = list(inline_choice_re.finditer(line_clean))
+        if inline_matches and current_q:
+            for im in inline_matches:
+                star = im.group(1)
+                code = im.group(2).upper()
+                c_text = im.group(3).strip()
+                if c_text.endswith("*") or c_text.endswith("(+)") or c_text.endswith("+"):
+                    c_text = re.sub(r"[\*\+\(\)]+$", "", c_text).strip()
+                    current_q["correct_answer"] = code
+                    current_q["_has_explicit_answer"] = True
+                elif star in ("*", "+"):
+                    current_q["correct_answer"] = code
+                    current_q["_has_explicit_answer"] = True
+
+                current_q["choices"].append({"code": code, "text": c_text})
             continue
 
-        # Agar savol ichida davom etayotgan matn bo'lsa
         if current_q and not current_q["choices"]:
-            current_q["text"] += " " + line
-        elif not current_q and len(line) > 40:
-            reading_passage += (" " if reading_passage else "") + line
+            current_q["text"] += " " + line_clean
+        elif not current_q and len(line_clean) > 40:
+            reading_passage += (" " if reading_passage else "") + line_clean
 
-    # Variantlari to'liq bo'lmagan savollarga standart variantlar to'ldirish
-    for idx, q in enumerate(questions, start=1):
-        q["order"] = idx
+    for q in questions:
+        if not q.get("_has_explicit_answer") and q.get("q_num") in global_keys:
+            q["correct_answer"] = global_keys[q["q_num"]]
+            q["_has_explicit_answer"] = True
+
         if not q["choices"]:
             q["choices"] = [
-                {"code": "A", "text": "To'g'ri variant"},
-                {"code": "B", "text": "Noto'g'ri variant"},
-                {"code": "C", "text": "Chalg'ituvchi variant"},
-                {"code": "D", "text": "Qo'shimcha variant"},
+                {"code": "A", "text": "A varianti"},
+                {"code": "B", "text": "B varianti"},
+                {"code": "C", "text": "C varianti"},
+                {"code": "D", "text": "D varianti"},
             ]
         elif len(q["choices"]) < 4:
             existing = {c["code"] for c in q["choices"]}
@@ -286,7 +335,7 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
         "Ona tili va adabiyot" if subject == "uzbek" else "Ingliz tili (CBT)"
     )
     return {
-        "test_title": f"{subject_label} — AI bilan konvertatsiya qilingan test",
+        "test_title": f"{subject_label} — Smart Paste testi ({len(questions)} ta savol)",
         "reading_passage": reading_passage.strip(),
         "questions": questions,
     }
@@ -479,24 +528,56 @@ def save_converted_test(
     Ustoz tomonidan tahrirlangan va tasdiqlangan savollarni bazada Test, Question va Choice
     obyektlari sifatida saqlaydi hamda unikal #MOCK-... kodi bilan nashr etadi.
     """
-    title = str(payload.get("test_title") or "").strip() or "AI Mock Test"
-    subject = str(payload.get("subject") or "uzbek").strip()
-    time_limit = int(payload.get("time_limit_minutes") or 60)
+    title = str(payload.get("test_title") or payload.get("title") or "").strip() or "Yangi Test"
+    raw_subject = str(payload.get("subject") or "uzbek").strip().lower()
+    norm_subject = "english" if raw_subject in ("english", "ielts", "cefr") else "uzbek"
+    
+    try:
+        time_limit = int(payload.get("time_limit_minutes", 60) or 0)
+    except (ValueError, TypeError):
+        time_limit = 60
+
+    is_strict_mode = bool(payload.get("is_strict_mode", False))
+    try:
+        pass_percentage = int(payload.get("pass_percentage", 60) or 60)
+    except (ValueError, TypeError):
+        pass_percentage = 60
+
     reading_passage_text = str(payload.get("reading_passage") or "").strip()
     questions_data = payload.get("questions") or []
+
+    # Agar savollar massivi berilmagan bo'lsa, xom matn orqali parse qilish
+    if not questions_data and payload.get("raw_text"):
+        parsed = _parse_raw_text_regex(str(payload.get("raw_text")), subject=norm_subject)
+        questions_data = parsed.get("questions") or []
+        if not reading_passage_text:
+            reading_passage_text = parsed.get("reading_passage") or ""
 
     if not questions_data:
         raise ValueError("Saqlash uchun kamida 1 ta savol bo'lishi kerak.")
 
-    mock_code = generate_unique_mock_code()
+    custom_code = payload.get("custom_code")
+    if custom_code and str(custom_code).strip():
+        norm_code = str(custom_code).strip()
+        if not norm_code.startswith("#"):
+            norm_code = f"#{norm_code}"
+        norm_code = norm_code.upper()
+        if Test.objects.filter(mock_code=norm_code).exists():
+            raise ValueError(f"'{norm_code}' kodi allaqachon mavjud. Boshqa kod tanlang.")
+        mock_code = norm_code
+    else:
+        mock_code = generate_unique_mock_code()
+
     course = _get_or_create_mock_course(teacher)
 
     test = Test.objects.create(
         course=course,
-        subject=subject,
+        subject=norm_subject,
         title=title,
-        description="Qog'oz / PDF hujjatdan AI Konvertor orqali yaratilgan rasmiy test.",
+        description=f"Smart Paste orqali yaratilgan {len(questions_data)} ta savolli test. Kod: {mock_code}",
         time_limit_minutes=time_limit,
+        pass_percentage=pass_percentage,
+        is_strict_mode=is_strict_mode,
         status=Test.Status.PUBLISHED,
         is_active=True,
         mock_code=mock_code,
@@ -546,6 +627,8 @@ def save_converted_test(
         "test_id": test.id,
         "mock_code": mock_code,
         "title": test.title,
+        "subject": test.subject,
         "questions_count": len(questions_data),
+        "share_url": f"/tests/{test.id}",
         "message": f"Test muvaffaqiyatli saqlandi! Unikal ulanish kodi: {mock_code}",
     }

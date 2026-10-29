@@ -36,7 +36,7 @@ export default function PasswordResetConfirm() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <img src="/grandec.png" alt="GRANDEC" className="auth-logo" />
+        <img src="/logo-mark.png" alt="GRANDEC" className="auth-logo" />
         <h1>{t('pr_title')}</h1>
         {done ? (
           <>

@@ -116,6 +116,11 @@ urlpatterns = [
         name="ai-save-converted",
     ),
     path(
+        "smart-create/",
+        views_converter.AiSaveConvertedTestView.as_view(),
+        name="smart-create-test",
+    ),
+    path(
         "attempts/<int:attempt_id>/generate-retest/",
         views_mistakes.GenerateRetestView.as_view(),
         name="generate-retest",

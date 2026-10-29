@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.48. Rasmiy Versiya v1.52.0: Rasmiy Humo Logotipi Integratsiyasi, Moslashuvchan Testlar va Smart Paste Test Parser
+- [x] 1-Bosqich: Yangi Rasmiy Humo Qanotli Logotip Integratsiyasi:
+  * Rasmiy Humo qanoti va oltin-zumrad rangdagi "GRANDEC ACADEMIC EDTECH" logotipi xom rasmdan toza vektor/shaffof PNG (`logo.png`, `logo-mark.png`, `logo-horizontal.png`) va favicon formatlariga keltirildi.
+  * `frontend/index.html`: Favicon (`favicon.png`, `favicon.ico`) va app ikonkasi yangilandi.
+  * `frontend/src/index.css`: `.brand-badge` va `.auth-logo` foni qoradan shaffofga o'tkazildi (`background: transparent; object-fit: contain`).
+  * `Navbar.tsx`, `Landing.tsx`, `Layout.tsx` (Sidebar va mobil Topbar) hamda Auth modallarida rasmiy Humo logotipi va oltinrang "ACADEMIC EDTECH" podzagolovogi joylashtirildi.
+- [x] 2-Bosqich: Moslashuvchan Test Dvigateli (Dynamic Test Engine):
+  * Savollar sonidagi cheklovlar bekor qilindi: 10 ta, 15 ta, 20 ta, 30 ta, yoki 45-50 talik testlarni erkin yaratish imkoniyati ochildi.
+  * Moslashuvchan sozlamalar: Test nomi, fani (Ona tili / Ingliz tili), vaqt limiti (15m, 20m, 30m, 45m, 60m, 180m, yoki cheksiz) va Anti-Cheat (Strict Exam Mode).
+- [x] 3-Bosqich: Smart Paste Test Parser va Interaktiv Live Preview:
+  * `frontend/src/lib/testParser.ts` va `apps/tests/ai_converter.py`: Word, PDF yoki Telegram'dan nusxalangan xom matndan savollar, variantlar (`A)`, `B)`, `C)`, `D)`) va to'g'ri kalitlarni (`*A)`, `+B)`, `Javob: B`, global kalitlar jadvali) 100% aniqlik bilan ajratuvchi aqlli parser yaratildi.
+  * `frontend/src/pages/SmartTestCreate.tsx`: `/tests/create` manzilida Warm Academic Luxury uslubidagi zamonaviy ishchi oyna yaratildi.
+  * Jonli interaktiv ko'rib chiqish: Har bir savol kartochkasida to'g'ri javobni sichqoncha bilan 1-klikda tanlash/o'zgartirish, savol o'chirish va holat indikatorlari.
+  * 1-klikda saqlash va kod yaratish: Bazaga to'liq saqlanib, unikal `#MOCK-XXX` kodi va o'quvchilarga ulashish havolasi generatsiya qilinadi.
+  * `/tests` sahifasi va `/dashboard` sahifasiga `[+ Yangi test yaratish (Smart Paste)]` tugmalari joylashtirildi.
+- [x] 4-Bosqich: QA, CI/CD va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (2.19s).
+  * `python manage.py check`: 0 ta muammo.
+  * Git muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS deploy: Faqat `/opt/lms` loyihasidagi `web` va `nginx` konteynerlari uzilishsiz yangilandi. `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlandi.
+
 ### 2.47. Rasmiy Versiya v1.51.0: Emergency Contrast & Hybrid UI Fix (100% Unified Warm Academic Luxury Light Aesthetic)
 - [x] 1-Bosqich: Qora/Oq Gibridlik va Ko'rinmas Matnlar (Zero Invisible Text) Muammosini To'liq Hal Qilish:
   * `frontend/index.html`: `<html lang="uz" class="light">` qilindi, `theme-color` `#F8FAFC`, inline scriptda legacy qora mavzu tekshiruvi xavfsiz holatga keltirildi va standart mavzu `light` ga o'tkazildi.

@@ -93,10 +93,10 @@ export default function Layout() {
     <div className="app">
       <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Yon boshqaruv menyusi">
         <Link to="/" className="side-brand" onClick={close} aria-label="GRANDEC LMS Bosh sahifasi">
-          <img src="/grandec.png" alt="GRANDEC" className="brand-badge" />
+          <img src="/logo-mark.png" alt="GRANDEC" className="brand-badge" style={{ height: 38, width: 'auto', background: 'transparent' }} />
           <span>
             <span className="side-brand-name">GRANDEC</span>
-            <span className="side-brand-sub">LMS Platform</span>
+            <span className="side-brand-sub" style={{ color: '#D97706', fontWeight: 700, fontSize: '9px', letterSpacing: '0.12em' }}>ACADEMIC EDTECH</span>
           </span>
         </Link>
         <nav className="side-nav" aria-label="Ilova bo'limlari">
@@ -190,9 +190,12 @@ export default function Layout() {
               >
                 {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
               </button>
-              <Link to="/dashboard" className="topbar-mobile-brand">
-                <img src="/grandec.png" alt="GRANDEC" />
-                <span>GRANDEC</span>
+              <Link to="/dashboard" className="topbar-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: '#0F172A' }}>GRANDEC</span>
+                  <span style={{ fontSize: 8, fontWeight: 800, color: '#D97706', letterSpacing: '0.1em' }}>ACADEMIC EDTECH</span>
+                </div>
               </Link>
             </div>
             <div className="spacer" />

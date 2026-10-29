@@ -217,11 +217,11 @@ body {
 }
 
 img.brand-badge {
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   padding: 0;
-  object-fit: cover;
-  background: #000;
+  object-fit: contain;
+  background: transparent;
 }
 
 .brand-text {
@@ -754,9 +754,10 @@ table.data tr:last-child td { border-bottom: none; }
 }
 
 img.auth-logo {
-  object-fit: cover;
+  object-fit: contain;
   padding: 0;
-  background: #000;
+  background: transparent;
+  border-radius: 0;
 }
 
 .floating { position: relative; }

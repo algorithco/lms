@@ -49,6 +49,7 @@ const TakeTest = lazyPage(() => import('./pages/TakeTest'));
 const TeacherDashboard = lazyPage(() => import('./pages/TeacherDashboard'));
 const TestDetail = lazyPage(() => import('./pages/TestDetail'));
 const Tests = lazyPage(() => import('./pages/Tests'));
+const SmartTestCreate = lazyPage(() => import('./pages/SmartTestCreate'));
 const Tma = lazyPage(() => import('./pages/Tma'));
 const Tournaments = lazyPage(() => import('./pages/Tournaments'));
 const TournamentLive = lazyPage(() => import('./pages/TournamentLive'));
@@ -114,6 +115,8 @@ function AnimatedRoutes() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/tests" element={<Tests />} />
+            <Route path="/tests/create" element={<SmartTestCreate />} />
+            <Route path="/tests/run/:id" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/tests/:id" element={<TestDetail />} />
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
@@ -215,6 +218,7 @@ function AnimatedRoutes() {
               <Route path="/control-panel/tuition" element={<Navigate to="/panel/tuition" replace />} />
               <Route path="/panel/tests" element={<PanelTests />} />
               <Route path="/panel/tests/new" element={<PanelTestForm />} />
+              <Route path="/panel/tests/smart-create" element={<SmartTestCreate />} />
               <Route path="/panel/tests/:id/edit" element={<PanelTestForm />} />
               <Route path="/panel/tests/:id/questions" element={<PanelQuestions />} />
               <Route path="/panel/topics" element={<PanelTopics />} />

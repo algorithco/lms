@@ -311,7 +311,7 @@ export default function Login() {
         <Link to="/" className="muted small" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', marginBottom: 12 }}>
           <ArrowLeftIcon size={14} className="ico" /> {t('back_home')}
         </Link>
-        <img src="/grandec.png" alt="GRANDEC" className="auth-logo" />
+        <img src="/logo-mark.png" alt="GRANDEC" className="auth-logo" />
         <h1>{t('login')}</h1>
         <p className="muted">{t('login_subtitle')}</p>
 

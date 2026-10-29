@@ -399,6 +399,27 @@ export default function Dashboard() {
                 <PenLineIcon size={14} />
                 <span>AI Esse tekshirish</span>
               </Link>
+              <Link
+                to="/tests/create"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '11px 18px',
+                  borderRadius: 12,
+                  background: 'rgba(245, 158, 11, 0.16)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#F59E0B',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  textDecoration: 'none',
+                  backdropFilter: 'blur(10px)',
+                  minHeight: 46,
+                }}
+              >
+                <span>✍️</span>
+                <span>+ Yangi test (Smart Paste)</span>
+              </Link>
             </div>
           </div>
 
@@ -636,17 +657,37 @@ export default function Dashboard() {
                 Mening Testlarim
               </h3>
             </div>
-            <Link
-              to="/tests"
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#0284c7',
-                textDecoration: 'none',
-              }}
-            >
-              Barchasi →
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Link
+                to="/tests/create"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: '#D97706',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: 8,
+                  padding: '4px 10px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span>✍️</span> + Test qo‘shish
+              </Link>
+              <Link
+                to="/tests"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#0284c7',
+                  textDecoration: 'none',
+                }}
+              >
+                Barchasi →
+              </Link>
+            </div>
           </div>
 
           <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--muted)' }}>

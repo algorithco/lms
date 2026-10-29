@@ -427,9 +427,9 @@ export default function AuthModal() {
             }}
           >
             <img
-              src="/grandec.png"
+              src="/logo-mark.png"
               alt="GRANDEC"
-              style={{ width: 34, height: 34, objectFit: 'cover' }}
+              style={{ width: 40, height: 40, objectFit: 'contain' }}
             />
           </div>
 
