@@ -31,6 +31,7 @@ html.light {
   --dropdown-border: rgba(226, 232, 240, 0.9);
   --dropdown-hover: #f1f5f9;
   --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  --header-bg: rgba(255, 255, 255, 0.88);
   color-scheme: light;
 }
 
@@ -65,6 +66,7 @@ html.dark {
   --dropdown-border: rgba(255, 255, 255, 0.12);
   --dropdown-hover: rgba(255, 255, 255, 0.06);
   --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --header-bg: rgba(19, 25, 38, 0.88);
   color-scheme: dark;
 }
 
@@ -1603,4 +1605,9 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
     width: 100% !important;
     margin-top: 6px;
   }
+}
+
+.landing {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }

@@ -462,14 +462,14 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="hero-carousel-card"
+      className="hero-carousel-card bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6"
       style={{
         position: 'relative',
         borderRadius: 24,
         padding: '28px 24px 22px',
         background: '#FFFFFF',
-        border: '1px solid rgba(226, 232, 240, 0.95)',
-        boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.07), 0 0 25px -5px rgba(217, 119, 6, 0.08)',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 20px 45px -10px rgba(148, 163, 184, 0.25), 0 0 25px -5px rgba(217, 119, 6, 0.08)',
         minHeight: 460,
         display: 'flex',
         flexDirection: 'column',

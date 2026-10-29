@@ -10,10 +10,14 @@ interface ThemeState {
   setTheme: (theme: Theme) => void;
 }
 
-const THEME_KEY = 'theme';
+const THEME_KEY = 'theme_v2';
 
 function getStoredTheme(): Theme {
   try {
+    // Purge legacy dark preference so users transition to the unified Warm Academic Luxury light aesthetic
+    if (localStorage.getItem('theme') === 'dark') {
+      localStorage.removeItem('theme');
+    }
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'dark') {
       return 'dark';

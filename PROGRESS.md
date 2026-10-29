@@ -9,6 +9,25 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.47. Rasmiy Versiya v1.51.0: Emergency Contrast & Hybrid UI Fix (100% Unified Warm Academic Luxury Light Aesthetic)
+- [x] 1-Bosqich: Qora/Oq Gibridlik va Ko'rinmas Matnlar (Zero Invisible Text) Muammosini To'liq Hal Qilish:
+  * `frontend/index.html`: `<html lang="uz" class="light">` qilindi, `theme-color` `#F8FAFC`, inline scriptda legacy qora mavzu tekshiruvi xavfsiz holatga keltirildi va standart mavzu `light` ga o'tkazildi.
+  * `frontend/src/theme/ThemeContext.tsx`: Foydalanuvchilar brauzeridagi eski qora keshni tozalash uchun kalit `theme_v2` ga yangilandi, eski `localStorage.removeItem('theme')` tozalab tashlandi.
+  * `frontend/src/index.css`: `.landing` sinfiga qat'iy `background-color: #f8fafc !important; color: #0f172a !important;` qoidasi kiritildi.
+- [x] 2-Bosqich: Bosh Sahifa (Landing Page) Butun Elementlarini Uyg'unlashtirish:
+  * Navbar: `bg-white/80 dark:bg-white/80 backdrop-blur-md border-b border-slate-200/80`, sarlavha va havolalar to'q slate `#0F172A` va tilla `#D97706` hover rangiga o'tkazildi.
+  * Bosh sarlavha `<h1>`: `text-slate-900 font-black` (`#0F172A`) va "sun'iy intellekt bilan" jilosi (`from-amber-600 via-amber-500 to-yellow-600 font-extrabold`) 100% o'qilishi mukammal kontrastga keltirildi.
+  * Mayda sarlavha: `text-slate-600 font-medium` (`#475569`).
+  * Nishon (Badge): `bg-amber-100/80 border border-amber-300 text-amber-900 font-semibold px-4 py-1.5 rounded-full inline-block`.
+  * Asosiy harakat tugmalari: `[⚡️ Bepul boshlash →]` tilla gradientda, `[1-klikda kirish]` oq fonda slate hoshiya bilan.
+  * `HeroCarousel.tsx`: Karusel idishi `bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6` bilan qora fonsiz yagona yorug' estetika bilan uyg'unlashtirildi.
+  * Pastki bo'limlar: HowItWorks, Comparison, Pricing, FAQ va Footer to'liq oq/yorug' kartochkalar va to'q slate matnlarga o'tkazildi.
+- [x] 3-Bosqich: QA, CI/CD va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (2.13s).
+  * Git muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS deploy: Faqat `/opt/lms` loyihasidagi `web` va `nginx` konteynerlari uzilishsiz yangilandi. `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.46. Rasmiy Versiya v1.50.0: Qorong'i "AI Slop"dan Voz Kechish, Yorug' Akademik Luxury Dizayn va Testlar Sahifasi Refaktoringi
 - [x] 1-Bosqich: Dizayn Tizimi va Palitrani Tubdan Yangilash (Warm Academic Luxury):
   * `frontend/src/theme/ThemeContext.tsx`: Standart mavzu `light` qilib belgilandi (`getStoredTheme() -> 'light'`), tizim foydalanuvchiga birinchi marta kirganda iliq oq akademik dizaynni taqdim etadi.

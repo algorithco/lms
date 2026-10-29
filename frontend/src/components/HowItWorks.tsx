@@ -24,7 +24,7 @@ export default function HowItWorks() {
       id="how"
       style={{
         padding: '70px 20px',
-        background: isDark ? '#090d16' : '#f8fafc',
+        background: '#f8fafc',
         borderTop: '1px solid var(--border)',
         borderBottom: '1px solid var(--border)',
         position: 'relative',
@@ -46,7 +46,7 @@ export default function HowItWorks() {
           >
             {t('how_eyebrow')}
           </span>
-          <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: 'var(--ink)', margin: '4px 0' }}>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: '#0f172a', margin: '4px 0' }}>
             {t('how_title_1')} <span className="hero-title-gradient">{t('how_title_2')}</span>
           </h2>
         </div>
@@ -64,8 +64,8 @@ export default function HowItWorks() {
               key={i}
               className="step-card"
               style={{
-                background: isDark ? 'rgba(13, 19, 34, 0.75)' : '#ffffff',
-                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
                 borderRadius: 20,
                 padding: '36px 28px',
                 textAlign: 'center',
@@ -115,10 +115,10 @@ export default function HowItWorks() {
               >
                 {st.num}
               </div>
-              <h3 style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)', margin: '0 0 12px', letterSpacing: '-0.3px' }}>
+              <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', margin: '0 0 12px', letterSpacing: '-0.3px' }}>
                 {st.title}
               </h3>
-              <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: 0 }}>
+              <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.65, margin: 0 }}>
                 {st.desc}
               </p>
             </div>
