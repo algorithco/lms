@@ -5,11 +5,11 @@ import { useLang } from '../i18n/LangContext';
 import { Billing, PaymentsApi, type PaymentReceiptItem } from '../lib/api';
 import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
-// Strictly 3 commercial subscription plans: START / STARTER (15 000), PRO (49 000 - recommended), PREMIUM (60 000)
+// Strictly 3 commercial subscription plans: START / STARTER (7 000), PRO (15 000 - recommended), PREMIUM (27 000)
 export const PLAN_PRICES = {
-  starter: 5000,
-  pro: 49000,
-  premium: 89000,
+  starter: 7000,
+  pro: 15000,
+  premium: 27000,
 } as const;
 
 const plans: {
@@ -29,17 +29,16 @@ const plans: {
     id: 'starter',
     name: 'START / STARTER',
     priceKey: 'starter_price',
-    defaultPrice: 5000,
+    defaultPrice: 7000,
     emoji: '⚡',
     badgeUz: null,
     badgeRu: null,
     badgeEn: null,
     featuresUz: [
-      'Kuniga 5 ta test',
-      'Haftasiga 8 ta esse',
-      '5 Rasmli esse/hafta',
-      '3 Matnli esse/hafta',
-      'Matnli esselar orasida 5 soat',
+      "5 ta to'liq test",
+      'Haftasiga 3 ta esse tekshirish',
+      'Xatolar tahlili',
+      'Kuniga 10 ta AI repetitor izohi',
     ],
     featuresRu: [
       '5 тестов в день',
@@ -60,17 +59,16 @@ const plans: {
     id: 'pro',
     name: 'PRO',
     priceKey: 'pro_price',
-    defaultPrice: 49000,
+    defaultPrice: 15000,
     emoji: '🚀',
     badgeUz: '⭐ Eng ommabop / Tavsiya etiladi',
     badgeRu: '⭐ Самый популярный / Рекомендуется',
     badgeEn: '⭐ Most Popular / Recommended',
     featuresUz: [
-      'Kuniga 1 ta rasmiy Mock test',
-      'Haftasiga 15 ta esse baholash',
-      'Barcha CBT va Mock testlar',
-      "Kunlik 50 ta AI repetitor so'rovi & Tahlil",
-      'Qisqa kutish vaqti (cooldownsiz)',
+      'Haftasiga 15 ta esse',
+      'Kunlik rasmiy Mock testlar',
+      'AI repetitor izohlari',
+      'Barcha CBT testlar va tahlil',
     ],
     featuresRu: [
       '1 официальный Mock тест в день',
@@ -91,17 +89,17 @@ const plans: {
     id: 'premium',
     name: 'PREMIUM',
     priceKey: 'premium_price',
-    defaultPrice: 89000,
+    defaultPrice: 27000,
     emoji: '👑',
     badgeUz: null,
     badgeRu: null,
     badgeEn: null,
     featuresUz: [
-      'Cheksiz rasmli va matnli esse baholash (12 mezon)',
-      'Cheksiz barcha CBT, Mock testlar va 1v1 Arena',
-      '24/7 Cheksiz AI repetitor ("Nega bu xato?")',
-      'Rasmiy PDF Sertifikat & Ustoz tekshiruvi',
-      "Hech qanday cheklov va cooldown yo'q",
+      'Cheksiz rasmli va matnli esse',
+      'Barcha CBT testlar',
+      '1v1 Arena',
+      'Ustoz tekshiruvi',
+      'Rasmiy PDF sertifikat',
     ],
     featuresRu: [
       'Безлимитная оценка фото и текстовых эссе (12 критериев)',
@@ -233,7 +231,7 @@ export default function Subscribe() {
     }
   };
 
-  const currentPrice = PLAN_PRICES[selectedPlan] ?? 49000;
+  const currentPrice = PLAN_PRICES[selectedPlan] ?? 15000;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

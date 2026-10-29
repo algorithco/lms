@@ -1,11 +1,11 @@
 /* LMS React — Modern Linear / Raycast Style Slate, Amber & Emerald Palette. */
 :root,
 html.dark {
-  --bg: #090d16;
-  --bg-gradient: radial-gradient(circle at 50% 0%, #0f172a 0%, #090d16 100%);
-  --card: #111827;
-  --card-surface: rgba(17, 24, 39, 0.7);
-  --card-2: #1e293b;
+  --bg: #0f141c;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #161e2e 0%, #0f141c 100%);
+  --card: #131926;
+  --card-surface: rgba(19, 25, 38, 0.78);
+  --card-2: #1b2334;
   --border: rgba(255, 255, 255, 0.08);
   --border-focus: #f59e0b;
   --ink: #f8fafc;
@@ -17,7 +17,7 @@ html.dark {
   --emerald: #10b981;
   --emerald-light: #34d399;
   --danger: #f43f5e;
-  --sidebar-bg: linear-gradient(180deg, #090d16, #0b1120);
+  --sidebar-bg: linear-gradient(180deg, #0f141c, #131926);
   --sidebar-ink: #f8fafc;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-link: #94a3b8;
@@ -26,8 +26,8 @@ html.dark {
   --sidebar-link-bg-active: linear-gradient(135deg, rgba(250, 204, 21, 0.2), rgba(250, 204, 21, 0.08));
   --radius: 0.875rem;
   --font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
-  --topbar-bg: rgba(9, 13, 22, 0.85);
-  --dropdown-bg: #0f172a;
+  --topbar-bg: rgba(15, 20, 28, 0.88);
+  --dropdown-bg: #131926;
   --dropdown-border: rgba(255, 255, 255, 0.12);
   --dropdown-hover: rgba(255, 255, 255, 0.06);
   --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);

@@ -27,17 +27,16 @@ const PUBLIC_PLANS: {
   {
     plan_type: 'starter',
     name: 'START / STARTER',
-    defaultPrice: 5000,
+    defaultPrice: 7000,
     emoji: '⚡',
     badgeUz: null,
     badgeRu: null,
     badgeEn: null,
     featuresUz: [
-      'Kuniga 5 ta test',
-      'Haftasiga 8 ta esse',
-      '5 Rasmli esse/hafta',
-      '3 Matnli esse/hafta',
-      'Matnli esselar orasida 5 soat',
+      "5 ta to'liq test",
+      'Haftasiga 3 ta esse tekshirish',
+      'Xatolar tahlili',
+      'Kuniga 10 ta AI repetitor izohi',
     ],
     featuresRu: [
       '5 тестов в день',
@@ -57,17 +56,16 @@ const PUBLIC_PLANS: {
   {
     plan_type: 'pro',
     name: 'PRO',
-    defaultPrice: 49000,
+    defaultPrice: 15000,
     emoji: '🚀',
     badgeUz: '⭐ Eng ommabop / Tavsiya etiladi',
     badgeRu: '⭐ Самый популярный / Рекомендуется',
     badgeEn: '⭐ Most Popular / Recommended',
     featuresUz: [
-      'Kuniga 1 ta rasmiy Mock test',
-      'Haftasiga 15 ta esse baholash',
-      'Barcha CBT va Mock testlar',
-      "Kunlik 50 ta AI repetitor so'rovi & Tahlil",
-      'Qisqa kutish vaqti (cooldownsiz)',
+      'Haftasiga 15 ta esse',
+      'Kunlik rasmiy Mock testlar',
+      'AI repetitor izohlari',
+      'Barcha CBT testlar va tahlil',
     ],
     featuresRu: [
       '1 официальный Mock тест в день',
@@ -87,17 +85,17 @@ const PUBLIC_PLANS: {
   {
     plan_type: 'premium',
     name: 'PREMIUM',
-    defaultPrice: 89000,
+    defaultPrice: 27000,
     emoji: '👑',
     badgeUz: null,
     badgeRu: null,
     badgeEn: null,
     featuresUz: [
-      'Cheksiz rasmli va matnli esse baholash (12 mezon)',
-      'Cheksiz barcha CBT, Mock testlar va 1v1 Arena',
-      '24/7 Cheksiz AI repetitor ("Nega bu xato?")',
-      'Rasmiy PDF Sertifikat & Ustoz tekshiruvi',
-      "Hech qanday cheklov va cooldown yo'q",
+      'Cheksiz rasmli va matnli esse',
+      'Barcha CBT testlar',
+      '1v1 Arena',
+      'Ustoz tekshiruvi',
+      'Rasmiy PDF sertifikat',
     ],
     featuresRu: [
       'Безлимитная оценка фото и текстовых эссе (12 критериев)',
@@ -178,7 +176,7 @@ export default function Plans() {
             💳 Karta orqali tezkor to'lov va chek yuklash
           </strong>
           <span className="muted small">
-            Starter (15 000 so'm), Pro (49 000 so'm) yoki Premium (60 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
+            Starter (7 000 so'm), Pro (15 000 so'm) yoki Premium (27 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
           </span>
         </div>
         <Link to="/checkout" className="btn primary sm btn-glow" style={{ textDecoration: 'none', fontWeight: 700 }}>
@@ -218,7 +216,7 @@ export default function Plans() {
       >
         {PUBLIC_PLANS.map((p) => {
           const apiPlan = plans.find((ap) => ap.plan_type === p.plan_type);
-          const priceMonthly = p.plan_type === 'pro' ? 49000 : (p.plan_type === 'starter' ? 15000 : 60000);
+          const priceMonthly = p.plan_type === 'pro' ? 15000 : (p.plan_type === 'starter' ? 7000 : 27000);
           const mine = myActive && (myPlanType === p.plan_type || (apiPlan && myPlanId === apiPlan.id));
           const isPro = p.plan_type === 'pro';
           const isPremium = p.plan_type === 'premium';

@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.45. Rasmiy Versiya v1.49.0: Landing Page & Pricing Modernization (Interactive Hero Carousel, Luxury Gold Palette, Updated Pricing Tiers)
+- [x] 1-Bosqich: Ko'zni Toliqtirmaydigan Iliq, Chuqur Akademik-Oltin Palitra:
+  * rontend/src/index.css: O'ta sovuq fonlar o'rniga iliq chuqur akademik fon (--bg: #0f141c, --card: #131926, --card-2: #1b2334, --border: rgba(245, 158, 11, 0.16)) kiritildi.
+  * Kartochkalarga yumshoq 
+ounded-2xl, ko'zga yoqimli tilla hoshiyalar va yumshoq soyalar berildi.
+- [x] 2-Bosqich: Hero Section va 4 Slaydli Zamonaviy Interaktiv Carousel:
+  * rontend/src/components/HeroCarousel.tsx: O'ng tarafdagi 12 ta mezonli tiqilinch jadval butunlay olib tashlandi va har 5 soniyada mayin almashinuvchi 4 slaydli interaktiv karusel joriy qilindi:
+    1) ✍️ AI Esse Baholash (12 Mezon): 15 soniyada rasmiy BMB mezonlari, 54.5/60 A+ baho va AI tavsiyalari;
+    2) 📝 CBT Milliy Sertifikat Test Simulyatori: 45 talik format, kompensatsiyalangan taymer va tezkor tahlil;
+    3) ⚔️ Jonli 1v1 Arena: 60 soniyalik real-vaqt bilim jangi, ELO reytingi va Oltin liga sovrini;
+    4) 📷 Titul (OMR) Skaneri: Qog'ozdagi test javoblarini kamerada 1 soniyada tekshirish va xatolar hisoboti.
+  * Karuselga oldinga/orqaga surish tugmalari (‹ / ›) va pastki qulay indikator nuqtalari (dots) ulandi.
+  * Chap tarafdagi CTA tugmalari yorqin oltinrang uslubda [Bepul boshlash →] va [⚡ 1-klikda kirish] ga yangilandi.
+- [x] 3-Bosqich: Yangi Hamyonbop Tariflar Integratsiyasi (Bosh sahifa, /pricing, /subscribe, /plans):
+  * STARTER: 7 000 so'm / oy (5 ta to'liq test, haftasiga 3 ta esse tekshirish, xatolar tahlili, kuniga 10 ta AI izohi);
+  * PRO (Tavsiya etiladi): 15 000 so'm / oy (Haftasiga 15 ta esse, kunlik rasmiy Mock testlar, barcha CBT testlar, AI repetitor izohlari);
+  * PREMIUM: 27 000 so'm / oy (Cheksiz rasmli va matnli esse, barcha CBT testlar va 1v1 Arena, ustoz tekshiruvi, rasmiy PDF sertifikat).
+- [x] 4-Bosqich: Ortiqcha Bloklarni Tozalash:
+  * O'rtadagi nolga teng bo'sh TrendChart statistik grafigi butunlay olib tashlandi.
+  * 3 qadamli boshlash bloki (HowItWorks) ravon va yengil ko'rinishga keltirildi.
+  * Landing sahifasi kodi 3,291 qatordan tozalanib, yuklanish hajmi qariyb 2 barobarga (158 kB dan 88 kB ga) yengillashdi.
+- [x] 5-Bosqich: QA, CI/CD va Zero-Downtime VPS Deploy:
+  * 
+pm run lint: 0 ta xato; 
+pm run build: 0 ta xato (2.36s).
+  * Git muallifi: Komiljon Roziyev <kruziyev0@gmail.com>.
+  * VPS deploy: Faqat /opt/lms konteynerlari uzilishsiz yangilandi (web, 
+ginx). estway mutlaqo daxlsiz saqlandi.
+  * Jonli verifikatsiya: https://grandec.uz/healthz/ (HTTP 200 OK), https://grandec.uz/ (HTTP 200 OK).
+
 ### 2.44. Rasmiy Versiya v1.48.0: Mobil Qurilmalar Uchun "App-Like" Mobile-First Interfeys (Sticky Bottom Navigation, 2x2 Stats Grid & Touch Ergonomics)
 - [x] 1-Bosqich: Mobil Pastki Menyu (Sticky Bottom Navigation Bar):
   * `frontend/src/components/Layout.tsx` va `frontend/src/index.css`: Kichik ekranlarda (`< 768px`) chap tomondagi desktop sidebar butunlay yashirildi (`sidebar hidden md:flex`).

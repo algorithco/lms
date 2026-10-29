@@ -6,9 +6,9 @@ import { PaymentsApi } from '../lib/api';
 import { CreditCardIcon, CheckIcon, CopyIcon } from '../components/icons';
 
 export const PLAN_PRICES = {
-  starter: 5000,
-  pro: 49000,
-  premium: 89000,
+  starter: 7000,
+  pro: 15000,
+  premium: 27000,
 } as const;
 
 export default function Pricing() {
@@ -161,12 +161,12 @@ export default function Pricing() {
           </div>
           <strong style={{ fontSize: 20 }}>STARTER</strong>
           <p style={{ fontSize: 24, fontWeight: 700, margin: '8px 0 16px', color: 'var(--ink)' }}>
-            5 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
+            7 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
           </p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: '0 0 16px' }}>
-            <li>Kuniga 5 ta test</li>
+            <li>5 ta to'liq test</li>
             <li>Haftasiga 3 ta esse tekshirish</li>
-            <li>AI tahlil va xatolar hisoboti</li>
+            <li>Xatolar tahlili</li>
           </ul>
         </div>
 
@@ -192,13 +192,12 @@ export default function Pricing() {
           </div>
           <strong style={{ fontSize: 20 }}>PRO</strong>
           <p style={{ fontSize: 24, fontWeight: 700, margin: '8px 0 16px', color: 'var(--ink)' }}>
-            49 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
+            15 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
           </p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: '0 0 16px' }}>
-            <li>30 kun cheksiz testlar va Mock testlar</li>
-            <li>Haftasiga 15 ta chuqur esse baholash</li>
-            <li>Kunlik 50 ta AI repetitor so'rovi</li>
-            <li>IELTS & CEFR simulyatsiyasi</li>
+            <li>Haftasiga 15 ta esse</li>
+            <li>Kunlik rasmiy Mock testlar</li>
+            <li>AI repetitor izohlari</li>
           </ul>
         </div>
 
@@ -220,13 +219,13 @@ export default function Pricing() {
           </div>
           <strong style={{ fontSize: 20 }}>PREMIUM</strong>
           <p style={{ fontSize: 24, fontWeight: 700, margin: '8px 0 16px', color: 'var(--ink)' }}>
-            89 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
+            27 000 <span style={{ fontSize: 14, color: 'var(--muted)' }}>so'm / oy</span>
           </p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: '0 0 16px' }}>
-            <li>Cheksiz esse baholash (12 mezon)</li>
-            <li>Barcha Mock testlar va Speaking simulyator</li>
-            <li>24/7 Shaxsiy AI ustoz</li>
-            <li>Rasmiy PDF sertifikatlar</li>
+            <li>Cheksiz rasmli va matnli esse</li>
+            <li>Barcha CBT testlar va 1v1 Arena</li>
+            <li>Ustoz tekshiruvi</li>
+            <li>Rasmiy PDF sertifikat</li>
           </ul>
         </div>
       </div>
