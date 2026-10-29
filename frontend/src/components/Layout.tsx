@@ -24,6 +24,7 @@ import {
   SwordsIcon,
   TrophyIcon,
   UploadIcon,
+  UserIcon,
   UserPlusIcon,
   UsersIcon,
   ZapIcon,
@@ -180,14 +181,20 @@ export default function Layout() {
       <div className="main">
         <header className="topbar app-topbar" aria-label="Yuqori panel">
           <div className="topbar-inner">
-            <button
-              className="hamburger always"
-              aria-label={open ? "Menyuni yopish" : "Menyuni ochish"}
-              aria-expanded={open}
-              onClick={() => setOpen((v) => !v)}
-            >
-              {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                className="hamburger always"
+                aria-label={open ? "Menyuni yopish" : "Menyuni ochish"}
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+              >
+                {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
+              </button>
+              <Link to="/dashboard" className="topbar-mobile-brand">
+                <img src="/grandec.png" alt="GRANDEC" />
+                <span>GRANDEC</span>
+              </Link>
+            </div>
             <div className="spacer" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {streakData && (
@@ -246,6 +253,60 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* STICKY BOTTOM NAVIGATION BAR FOR MOBILE (iOS Safe Area, 48px Touch Target, Glassmorphism) */}
+      <nav className="mobile-bottom-nav" aria-label="Mobil pastki navigatsiya">
+        <NavLink
+          to="/dashboard"
+          end
+          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <div className="mobile-nav-icon-wrap">
+            <HomeIcon size={20} />
+          </div>
+          <span className="mobile-nav-label">Asosiy</span>
+        </NavLink>
+
+        <NavLink
+          to="/tests"
+          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <div className="mobile-nav-icon-wrap">
+            <FileTextIcon size={20} />
+          </div>
+          <span className="mobile-nav-label">Testlar</span>
+        </NavLink>
+
+        <NavLink
+          to="/essays"
+          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <div className="mobile-nav-icon-wrap">
+            <PenLineIcon size={20} />
+          </div>
+          <span className="mobile-nav-label">Esse</span>
+        </NavLink>
+
+        <NavLink
+          to="/arena"
+          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <div className="mobile-nav-icon-wrap">
+            <SwordsIcon size={20} />
+          </div>
+          <span className="mobile-nav-label">Arena</span>
+        </NavLink>
+
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <div className="mobile-nav-icon-wrap">
+            <UserIcon size={20} />
+          </div>
+          <span className="mobile-nav-label">Profil</span>
+        </NavLink>
+      </nav>
     </div>
   );
 }

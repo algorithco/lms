@@ -128,12 +128,12 @@ export default function Dashboard() {
     : 88;
   const testsTakenVal = stats?.total_tests_taken || 24;
   const streakDaysVal = streak?.current_streak || 7;
-  const essaysCountVal = 16; // Reference count for BMB criteria essays
+  const essaysCountVal = 16;
 
   const userDisplayName = user?.full_name || 'Hurmatli O‘quvchi';
 
   return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', paddingBottom: 60 }}>
+    <div className="dash-container" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
       {/* 1. YUQORI SARLAVHA (HEADER) */}
       <header
         style={{
@@ -141,19 +141,19 @@ export default function Dashboard() {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 16,
-          padding: '8px 0 24px',
+          gap: 12,
+          padding: '4px 0 20px',
           borderBottom: '1px solid var(--border)',
-          marginBottom: 24,
+          marginBottom: 20,
         }}
       >
         <div>
           <h1
             style={{
-              fontSize: 'clamp(1.5rem, 2.4vw, 1.95rem)',
+              fontSize: 'clamp(1.3rem, 4vw, 1.95rem)',
               fontWeight: 800,
               color: 'var(--ink)',
-              margin: '0 0 6px',
+              margin: '0 0 4px',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
@@ -161,21 +161,21 @@ export default function Dashboard() {
             }}
           >
             <span>Xush kelibsiz, {userDisplayName}!</span>
-            <span style={{ fontSize: '1.4rem' }}>✨</span>
+            <span style={{ fontSize: '1.25rem' }}>✨</span>
           </h1>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>
             Bilimingizni charxlang va Milliy Sertifikatga ishonch bilan tayyorlaning.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Joriy tarif ko'rsatkichi */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '6px 14px',
+              padding: '6px 12px',
               borderRadius: 999,
               background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
               border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -244,7 +244,7 @@ export default function Dashboard() {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 12,
-            padding: '14px 18px',
+            padding: '12px 16px',
             borderRadius: 16,
             flexWrap: 'wrap',
           }}
@@ -252,9 +252,9 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>⏳</span>
             <div>
-              <strong style={{ color: '#fbbf24', fontSize: 14 }}>To‘lov kvitansiyasi tekshirilmoqda</strong>
-              <p style={{ margin: 0, fontSize: 12, color: '#fde68a' }}>
-                {pendingReceipt.plan.toUpperCase()} tarifi uchun to‘lov tasdiqlanishi kutilmoqda.
+              <strong style={{ color: '#fbbf24', fontSize: 13 }}>To‘lov kvitansiyasi tekshirilmoqda</strong>
+              <p style={{ margin: 0, fontSize: 11, color: '#fde68a' }}>
+                {pendingReceipt.plan.toUpperCase()} tarifi tasdiqlanishi kutilmoqda.
               </p>
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function Dashboard() {
               background: '#f59e0b',
               color: '#090d16',
               fontWeight: 700,
-              padding: '6px 14px',
+              padding: '6px 12px',
               borderRadius: 8,
               textDecoration: 'none',
             }}
@@ -277,11 +277,12 @@ export default function Dashboard() {
 
       {/* 2. ILHOMLANTIRUVCHI BOSH BANNER (MOTIVATION & QUICK ACTION) */}
       <section
+        className="dash-hero-banner"
         style={{
           position: 'relative',
           borderRadius: 20,
-          padding: '28px 32px',
-          marginBottom: 28,
+          padding: '26px 28px',
+          marginBottom: 24,
           background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.3)',
@@ -310,31 +311,31 @@ export default function Dashboard() {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 20,
+            gap: 18,
           }}
         >
-          <div style={{ maxWidth: 660 }}>
+          <div style={{ maxWidth: 660, width: '100%' }}>
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '4px 12px',
+                padding: '4px 10px',
                 borderRadius: 999,
                 background: 'rgba(245, 158, 11, 0.15)',
                 border: '1px solid rgba(245, 158, 11, 0.3)',
                 color: '#fbbf24',
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
-                marginBottom: 12,
+                marginBottom: 10,
               }}
             >
-              <SparklesIcon size={13} />
+              <SparklesIcon size={12} />
               <span>KUN HIKMATI VA MOTIVATSIYA</span>
             </div>
             <h2
               style={{
-                fontSize: 'clamp(1.2rem, 1.8vw, 1.45rem)',
+                fontSize: 'clamp(1.15rem, 3.5vw, 1.45rem)',
                 fontWeight: 800,
                 color: '#ffffff',
                 margin: '0 0 8px',
@@ -353,7 +354,7 @@ export default function Dashboard() {
             >
               BMB Milliy Sertifikat 2026 standarti bo‘yicha yangilangan rasmiy mock test va 12 mezonli AI esse topshirig‘i sizni kutmoqda.
             </p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="dash-hero-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => navigate(available.length > 0 ? `/tests/${available[0].id}` : '/tests')}
@@ -362,7 +363,7 @@ export default function Dashboard() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '12px 24px',
+                  padding: '12px 22px',
                   borderRadius: 12,
                   background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                   border: 'none',
@@ -371,6 +372,7 @@ export default function Dashboard() {
                   fontSize: 14,
                   cursor: 'pointer',
                   boxShadow: '0 4px 16px rgba(245, 158, 11, 0.35)',
+                  minHeight: 46,
                 }}
               >
                 <span>O‘qishni davom ettirish</span>
@@ -382,7 +384,7 @@ export default function Dashboard() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '11px 20px',
+                  padding: '11px 18px',
                   borderRadius: 12,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: '1px solid rgba(255, 255, 255, 0.18)',
@@ -391,6 +393,7 @@ export default function Dashboard() {
                   fontSize: 13,
                   textDecoration: 'none',
                   backdropFilter: 'blur(10px)',
+                  minHeight: 46,
                 }}
               >
                 <PenLineIcon size={14} />
@@ -401,35 +404,37 @@ export default function Dashboard() {
 
           {/* Academic badge visual */}
           <div
+            className="dash-hero-badge-wrap"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 16,
+              gap: 14,
               background: 'rgba(255, 255, 255, 0.05)',
-              padding: '16px 20px',
+              padding: '14px 18px',
               borderRadius: 16,
               border: '1px solid rgba(255, 255, 255, 0.1)',
             }}
           >
             <div
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
+                width: 44,
+                height: 44,
+                borderRadius: 12,
                 background: 'rgba(245, 158, 11, 0.2)',
                 color: '#fbbf24',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
-              <AwardIcon size={26} />
+              <AwardIcon size={24} />
             </div>
             <div>
               <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.6)', fontWeight: 700, letterSpacing: '0.05em' }}>
                 Keyingi Marra
               </div>
-              <div style={{ fontSize: 17, fontWeight: 900, color: '#ffffff' }}>
+              <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
                 A+ Sertifikat (65+ Ball)
               </div>
               <div style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>
@@ -440,35 +445,28 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 3. ASOSIY METRIKALAR KARTALARI (4 TA STAT CARDS) */}
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
+      {/* 3. ASOSIY METRIKALAR KARTALARI (2x2 Grid on Mobile, 4-col on Desktop) */}
+      <section className="dash-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {/* Stat 1: Yechilgan testlar */}
         <div
+          className="dash-stat-card"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '20px 22px',
+            padding: '18px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
               Yechilgan testlar
             </span>
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                borderRadius: 9,
                 background: 'rgba(56, 189, 248, 0.12)',
                 color: '#0284c7',
                 display: 'flex',
@@ -476,38 +474,38 @@ export default function Dashboard() {
                 justifyContent: 'center',
               }}
             >
-              <FileTextIcon size={18} />
+              <FileTextIcon size={16} />
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 6 }}>
+          <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
             {testsTakenVal} ta
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#10b981', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, flexWrap: 'wrap' }}>
             <span>+12% bu oy</span>
-            <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} ta muvaffaqiyatli</span>
+            <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} ta o‘tgan</span>
           </div>
         </div>
 
         {/* Stat 2: Yozilgan esselar */}
         <div
+          className="dash-stat-card"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '20px 22px',
+            padding: '18px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
               Yozilgan esselar
             </span>
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                borderRadius: 9,
                 background: 'rgba(168, 85, 247, 0.12)',
                 color: '#9333ea',
                 display: 'flex',
@@ -515,38 +513,38 @@ export default function Dashboard() {
                 justifyContent: 'center',
               }}
             >
-              <PenLineIcon size={18} />
+              <PenLineIcon size={16} />
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 6 }}>
+          <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
             {essaysCountVal} ta
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9333ea', fontWeight: 600 }}>
-            <span>BMB 12 mezon tahlili</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#9333ea', fontWeight: 600, flexWrap: 'wrap' }}>
+            <span>BMB 12 mezon</span>
             <span style={{ color: 'var(--muted)' }}>· A+ daraja</span>
           </div>
         </div>
 
         {/* Stat 3: O'rtacha natija */}
         <div
+          className="dash-stat-card"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '20px 22px',
+            padding: '18px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
               O‘rtacha natija
             </span>
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                borderRadius: 9,
                 background: 'rgba(245, 158, 11, 0.12)',
                 color: '#f59e0b',
                 display: 'flex',
@@ -554,38 +552,38 @@ export default function Dashboard() {
                 justifyContent: 'center',
               }}
             >
-              <TrophyIcon size={18} />
+              <TrophyIcon size={16} />
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 6 }}>
+          <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
             {avgVal}%
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap' }}>
             <span>B+ / A daraja</span>
-            <span style={{ color: 'var(--muted)' }}>· A’lo ko‘rsatkich</span>
+            <span style={{ color: 'var(--muted)' }}>· A’lo</span>
           </div>
         </div>
 
         {/* Stat 4: Kundalik faollik (Streak) */}
         <div
+          className="dash-stat-card"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '20px 22px',
+            padding: '18px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
               Kundalik faollik
             </span>
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
+                width: 32,
+                height: 32,
+                borderRadius: 9,
                 background: 'rgba(239, 68, 68, 0.12)',
                 color: '#ef4444',
                 display: 'flex',
@@ -593,45 +591,38 @@ export default function Dashboard() {
                 justifyContent: 'center',
               }}
             >
-              <FlameIcon size={18} />
+              <FlameIcon size={16} />
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 6 }}>
+          <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
             {streakDaysVal} kun
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#ef4444', fontWeight: 600 }}>
-            <span>Ketma-ket faol 🔥</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#ef4444', fontWeight: 600, flexWrap: 'wrap' }}>
+            <span>Ketma-ket 🔥</span>
             <span style={{ color: 'var(--muted)' }}>· {streak?.xp_points || 340} XP</span>
           </div>
         </div>
       </section>
 
-      {/* 4. ASOSIY ISHCHI OYNA (2 USTUNLI GRID) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: 24,
-          marginBottom: 28,
-        }}
-      >
+      {/* 4. ASOSIY ISHCHI OYNA (1-col on Mobile, 2-col on Desktop) */}
+      <div className="dash-main-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
         {/* CHAP USTUN — MENING TESTLARIM (UPCOMING / ACTIVE TESTS) */}
         <div
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 20,
-            padding: '24px',
+            padding: '22px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 9,
                   background: 'rgba(2, 132, 199, 0.12)',
                   color: '#0284c7',
                   display: 'flex',
@@ -639,9 +630,9 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <FileTextIcon size={16} />
+                <FileTextIcon size={15} />
               </div>
-              <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
                 Mening Testlarim
               </h3>
             </div>
@@ -654,15 +645,15 @@ export default function Dashboard() {
                 textDecoration: 'none',
               }}
             >
-              Barcha testlar →
+              Barchasi →
             </Link>
           </div>
 
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>
+          <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--muted)' }}>
             Ona tili va adabiyotidan faol topshiriqlar va rasmiy mock sinovlar:
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {available.length > 0 ? (
               available.map((test, index) => {
                 const progressPct = index === 0 ? 75 : index === 1 ? 40 : 0;
@@ -673,25 +664,25 @@ export default function Dashboard() {
                       background: 'var(--card-2)',
                       border: '1px solid var(--border)',
                       borderRadius: 14,
-                      padding: '16px',
+                      padding: '14px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 10,
+                      gap: 8,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                      <div>
-                        <strong style={{ fontSize: 14, color: 'var(--ink)', display: 'block', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block', marginBottom: 3 }}>
                           {test.title}
                         </strong>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                          <span>Fan: Ona tili va Adabiyot</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', flexWrap: 'wrap' }}>
+                          <span>Ona tili va Adabiyot</span>
                           <span>•</span>
                           <span>{num(test.total_questions, 0)} ta savol</span>
                           {test.time_limit_minutes && (
                             <>
                               <span>•</span>
-                              <span><ClockIcon size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> {test.time_limit_minutes} daqiqa</span>
+                              <span><ClockIcon size={11} style={{ display: 'inline', verticalAlign: 'middle' }} /> {test.time_limit_minutes} daqiqa</span>
                             </>
                           )}
                         </div>
@@ -701,11 +692,15 @@ export default function Dashboard() {
                         className="btn sm primary"
                         style={{
                           whiteSpace: 'nowrap',
-                          padding: '7px 14px',
-                          borderRadius: 8,
+                          padding: '8px 16px',
+                          borderRadius: 9,
                           fontWeight: 700,
                           fontSize: 12,
                           textDecoration: 'none',
+                          minHeight: 38,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
                         {progressPct > 0 ? 'Davom ettirish' : 'Boshlash'}
@@ -714,11 +709,11 @@ export default function Dashboard() {
 
                     {/* Progress Bar */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginBottom: 3 }}>
                         <span>O‘zlashtirish</span>
                         <span>{progressPct}%</span>
                       </div>
-                      <div style={{ width: '100%', height: 6, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: 5, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
                         <div
                           style={{
                             width: `${progressPct}%`,
@@ -733,7 +728,6 @@ export default function Dashboard() {
                 );
               })
             ) : (
-              /* Fallback aesthetic preview cards */
               [
                 { id: 'mock-1', title: 'BMB Milliy Sertifikat 2026 — Variant #1', q: '35 ta savol', progress: 80 },
                 { id: 'mock-2', title: 'Morfologiya va Fonetika Chuqur Diagnostikasi', q: '25 ta savol', progress: 45 },
@@ -745,19 +739,19 @@ export default function Dashboard() {
                     background: 'var(--card-2)',
                     border: '1px solid var(--border)',
                     borderRadius: 14,
-                    padding: '16px',
+                    padding: '14px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 10,
+                    gap: 8,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                    <div>
-                      <strong style={{ fontSize: 14, color: 'var(--ink)', display: 'block', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                      <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block', marginBottom: 3 }}>
                         {item.title}
                       </strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-                        <span>Fan: Ona tili va Adabiyot</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
+                        <span>Ona tili va Adabiyot</span>
                         <span>•</span>
                         <span>{item.q}</span>
                       </div>
@@ -767,22 +761,26 @@ export default function Dashboard() {
                       className="btn sm primary"
                       style={{
                         whiteSpace: 'nowrap',
-                        padding: '7px 14px',
-                        borderRadius: 8,
+                        padding: '8px 16px',
+                        borderRadius: 9,
                         fontWeight: 700,
                         fontSize: 12,
                         textDecoration: 'none',
+                        minHeight: 38,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       {item.progress > 0 ? 'Davom ettirish' : 'Boshlash'}
                     </Link>
                   </div>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginBottom: 3 }}>
                       <span>O‘zlashtirish</span>
                       <span>{item.progress}%</span>
                     </div>
-                    <div style={{ width: '100%', height: 6, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: '100%', height: 5, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
                       <div
                         style={{
                           width: `${item.progress}%`,
@@ -805,17 +803,17 @@ export default function Dashboard() {
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 20,
-            padding: '24px',
+            padding: '22px 20px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 9,
                   background: 'rgba(147, 51, 234, 0.12)',
                   color: '#9333ea',
                   display: 'flex',
@@ -823,9 +821,9 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <PenLineIcon size={16} />
+                <PenLineIcon size={15} />
               </div>
-              <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
                 AI Esse Studiyasi
               </h3>
             </div>
@@ -838,28 +836,28 @@ export default function Dashboard() {
                 textDecoration: 'none',
               }}
             >
-              Barcha esselar →
+              Barchasi →
             </Link>
           </div>
 
           {/* Bugungi kun tavsiya etilgan mavzusi */}
           <div
             style={{
-              padding: '16px',
+              padding: '14px 16px',
               borderRadius: 16,
               background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)',
               border: '1px solid rgba(147, 51, 234, 0.25)',
-              marginBottom: 16,
+              marginBottom: 14,
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Bugungi tavsiya etilgan mavzu
             </span>
-            <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', margin: '6px 0 12px', lineHeight: 1.4 }}>
+            <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '4px 0 10px', lineHeight: 1.4 }}>
               &ldquo;Alisher Navoiy &lsquo;Xamsa&rsquo; dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin&rdquo;
             </h4>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>
                 BMB 12 mezon · 50 ball
               </span>
               <Link
@@ -870,10 +868,13 @@ export default function Dashboard() {
                   color: '#ffffff',
                   fontWeight: 700,
                   fontSize: 12,
-                  padding: '7px 16px',
-                  borderRadius: 8,
+                  padding: '8px 16px',
+                  borderRadius: 9,
                   textDecoration: 'none',
                   border: 'none',
+                  minHeight: 38,
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 + Yangi Esse yozish / Yuklash
@@ -882,11 +883,11 @@ export default function Dashboard() {
           </div>
 
           {/* So'nggi baholangan esselar tarixi */}
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 10px' }}>
+          <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
             So‘nggi baholangan esselar
           </h4>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
               {
                 title: "Abdulla Qodiriyning 'O‘tkan kunlar' romanida milliy xarakter",
@@ -904,7 +905,7 @@ export default function Dashboard() {
               <div
                 key={i}
                 style={{
-                  padding: '12px 14px',
+                  padding: '10px 12px',
                   borderRadius: 12,
                   background: 'var(--card-2)',
                   border: '1px solid var(--border)',
@@ -915,7 +916,7 @@ export default function Dashboard() {
                 }}
               >
                 <div>
-                  <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block', marginBottom: 2 }}>
+                  <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block', marginBottom: 2 }}>
                     {eItem.title}
                   </strong>
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>
@@ -926,7 +927,7 @@ export default function Dashboard() {
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#10b981' }}>
                     {eItem.score}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b' }}>
                     {eItem.grade}
                   </span>
                 </div>
@@ -942,7 +943,7 @@ export default function Dashboard() {
           background: 'var(--card)',
           border: '1px solid var(--border)',
           borderRadius: 20,
-          padding: '24px 28px',
+          padding: '22px 20px',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
         }}
       >
@@ -952,27 +953,27 @@ export default function Dashboard() {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 16,
+            gap: 10,
+            marginBottom: 14,
           }}
         >
           <div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 4px', color: 'var(--ink)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 3px', color: 'var(--ink)' }}>
               Milliy Sertifikat Maqsadiga Erishish (Path to Excellence)
             </h3>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
-              Sizning umumiy tayyorgarlik darajangiz va navbatdagi maqsadga erishish bosqichlari.
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>
+              Umumiy tayyorgarlik darajangiz va navbatdagi maqsadga erishish bosqichlari.
             </p>
           </div>
           <div
             style={{
-              padding: '6px 14px',
-              borderRadius: 10,
+              padding: '5px 12px',
+              borderRadius: 8,
               background: 'rgba(16, 185, 129, 0.12)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               color: '#10b981',
               fontWeight: 800,
-              fontSize: 13,
+              fontSize: 12,
             }}
           >
             Maqsad: A+ Sertifikat (70 ball)
@@ -980,15 +981,15 @@ export default function Dashboard() {
         </div>
 
         {/* Big Progress Bar */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 5 }}>
             <span style={{ color: 'var(--ink)' }}>Joriy tayyorgarlik ko‘rsatkichi</span>
             <span style={{ color: '#10b981' }}>72%</span>
           </div>
           <div
             style={{
               width: '100%',
-              height: 10,
+              height: 8,
               background: 'var(--card-2)',
               borderRadius: 999,
               border: '1px solid var(--border)',
@@ -1007,27 +1008,21 @@ export default function Dashboard() {
         </div>
 
         {/* 3 Step Milestones */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-          }}
-        >
+        <div className="dash-milestones-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
-              padding: '12px 14px',
+              gap: 10,
+              padding: '12px',
               borderRadius: 12,
               background: 'rgba(16, 185, 129, 0.08)',
               border: '1px solid rgba(16, 185, 129, 0.25)',
             }}
           >
-            <div style={{ color: '#10b981' }}><CheckCircle2 size={20} /></div>
+            <div style={{ color: '#10b981', flexShrink: 0 }}><CheckCircle2 size={18} /></div>
             <div>
-              <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block' }}>1. Boshlang‘ich Diagnostika</strong>
+              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>1. Boshlang‘ich Diagnostika</strong>
               <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Topshirildi (88% natija)</span>
             </div>
           </div>
@@ -1036,16 +1031,16 @@ export default function Dashboard() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
-              padding: '12px 14px',
+              gap: 10,
+              padding: '12px',
               borderRadius: 12,
               background: 'rgba(245, 158, 11, 0.08)',
               border: '1px solid rgba(245, 158, 11, 0.25)',
             }}
           >
-            <div style={{ color: '#f59e0b' }}><ZapIcon size={20} /></div>
+            <div style={{ color: '#f59e0b', flexShrink: 0 }}><ZapIcon size={18} /></div>
             <div>
-              <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block' }}>2. 12 Mezonli Esse & Mashq</strong>
+              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>2. 12 Mezonli Esse & Mashq</strong>
               <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>Faol jarayonda (72%)</span>
             </div>
           </div>
@@ -1054,16 +1049,16 @@ export default function Dashboard() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
-              padding: '12px 14px',
+              gap: 10,
+              padding: '12px',
               borderRadius: 12,
               background: 'var(--card-2)',
               border: '1px solid var(--border)',
             }}
           >
-            <div style={{ color: 'var(--muted)' }}><BookOpenIcon size={20} /></div>
+            <div style={{ color: 'var(--muted)', flexShrink: 0 }}><BookOpenIcon size={18} /></div>
             <div>
-              <strong style={{ fontSize: 13, color: 'var(--muted)', display: 'block' }}>3. Rasmiy BMB Mock Imtihon</strong>
+              <strong style={{ fontSize: 12, color: 'var(--muted)', display: 'block' }}>3. Rasmiy BMB Mock Imtihon</strong>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>Kutilmoqda (Navbatdagi sinov)</span>
             </div>
           </div>
