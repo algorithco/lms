@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.44. Rasmiy Versiya v1.48.0: Mobil Qurilmalar Uchun "App-Like" Mobile-First Interfeys (Sticky Bottom Navigation, 2x2 Stats Grid & Touch Ergonomics)
+- [x] 1-Bosqich: Mobil Pastki Menyu (Sticky Bottom Navigation Bar):
+  * `frontend/src/components/Layout.tsx` va `frontend/src/index.css`: Kichik ekranlarda (`< 768px`) chap tomondagi desktop sidebar butunlay yashirildi (`sidebar hidden md:flex`).
+  * Ekran tubida qotirilgan (fixed bottom, `z-index: 50`), nafis shisha effektli (`backdrop-filter: blur(16px)`, `background: rgba(255, 255, 255, 0.92)` / `dark: rgba(15, 23, 42, 0.92)`) 5 ta elementdan iborat pastki navigatsiya paneli o'rnatildi:
+    - 🏠 Asosiy (`/dashboard`)
+    - 📝 Testlar (`/tests`)
+    - ✍️ Esse (`/essays`)
+    - ⚔️ Arena (`/arena`)
+    - 👤 Profil (`/profile`)
+  * Har bir sensor tugmaning bosish maydoni kamida 48x48px qilib ergonomik optimallashtirildi.
+  * Faol yo'nalish (Active route) yorqin oltin/amber indikator chizig'i va yumshoq foni bilan ajratildi.
+  * iOS Home Indicator va virtual tugmalar bilan to'qnashmasligi uchun `env(safe-area-inset-bottom, 0px)` qo'llab-quvvatlandi.
+- [x] 2-Bosqich: Mobil Header va Topbar Ixchamlashtirish:
+  * Mobil ekranda chap tomonda ixcham **GRANDEC** logotipi (`.topbar-mobile-brand`), o'ng tomonda bildirishnomalar qo'ng'irog'i, streak olovi va profil avatari saqlandi.
+  * Gorizontal ortiqcha siljishlar (`overflow-x: hidden`) bartaraf etildi.
+- [x] 3-Bosqich: Dashboard Komponentlarining Mobil Adaptatsiyasi:
+  * Motivatsiya Bosh Banneri: Sarlavha matni mobil ekranlar uchun mutanosib qisqartirildi, harakat tugmalari to'liq kenglikdagi (full-width) vertikal qatorga o'tkazildi.
+  * Statistika Kartalari: Mobil ekranlarda ortiqcha cho'zilib ketmasligi uchun qulay 2x2 ixcham grid (`grid-template-columns: repeat(2, 1fr)`) ko'rinishiga keltirildi. Raqamlar va matnlar ixcham, aniq ko'rinishi ta'minlandi.
+  * Asosiy Ishchi Oyna: 2 ustunli grid telefonda bitta ustun (`grid-cols-1`) bo'lib ochilishi ta'minlandi, test va esse tugmalari barmog'i bilan bemalol bosiladigan katta tugmalar bilan ta'minlandi.
+  * Pastki navigatsiya bar kontentni to'sib qo'ymasligi uchun sahifa ostiga `padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px))` xavfsiz masofa berildi.
+- [x] 4-Bosqich: QA, CI/CD va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.21s).
+  * Git commit muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS deploy: Faqat `/opt/lms` loyihasida Docker konteynerlari uzilishsiz yangilandi (`web`, `nginx`). `bestway` mustaqil loyihasi mutlaqo daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/dashboard` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.43. Rasmiy Versiya v1.47.0: Dashboard Workspace UI/UX Redesign (Clean Academic Luxury Concept)
 - [x] 1-Bosqich: Chap qism (Sidebar) Navigatsiyasini Tozalash:
   * frontend/src/components/Layout.tsx: Navigatsiya menyusi Reference uslubida tartiblandi: Boshqaruv paneli, Testlar (CBT Testlar), AI Esse Studiyasi, 1v1 Arena, Natijalar va Tahlil, Titul (OMR) Skaner.
