@@ -30,7 +30,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
       id: 1,
       badge: 'BMB 12 Mezon Rasmiy Tahlili',
       badgeIcon: '✍️',
-      badgeColor: '#F59E0B',
+      badgeColor: '#D97706',
       title: 'Inshongizni 15 soniyada rasmiy BMB mezonlari asosida tekshiring',
       subtitle: 'Sunʼiy intellekt har bir jumla, leksika va fikriy mantiqni Davlat BMB komissiyasi standartida baholaydi.',
       ctaText: 'Esse yozib ko‘rish →',
@@ -46,24 +46,24 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               padding: '12px 16px',
               borderRadius: 14,
               background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
             }}
           >
             <div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 BMB Insho Natijasi
               </span>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#F8FAFC', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                54.5 <span style={{ fontSize: 14, color: '#94A3B8' }}>/ 60 ball</span>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#0F172A', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                54.5 <span style={{ fontSize: 14, color: '#64748B' }}>/ 60 ball</span>
               </div>
             </div>
             <div
               style={{
                 padding: '6px 14px',
                 borderRadius: 999,
-                background: 'rgba(16, 185, 129, 0.2)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: '#34D399',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#059669',
                 fontSize: 12,
                 fontWeight: 800,
               }}
@@ -75,24 +75,24 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
           {/* 3 Criteria bars */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              { label: 'Mazmun va mavzuning to‘liq ochilishi', score: '19.0 / 20', pct: 95, color: '#10B981' },
-              { label: 'Uslubiy ravonlik va boy so‘z boyligi', score: '18.5 / 20', pct: 92, color: '#F59E0B' },
-              { label: 'Imlo, grammatika va tinish belgilari', score: '17.0 / 20', pct: 85, color: '#38BDF8' },
+              { label: 'Mazmun va mavzuning to‘liq ochilishi', score: '19.0 / 20', pct: 95, color: '#059669' },
+              { label: 'Uslubiy ravonlik va boy so‘z boyligi', score: '18.5 / 20', pct: 92, color: '#D97706' },
+              { label: 'Imlo, grammatika va tinish belgilari', score: '17.0 / 20', pct: 85, color: '#0284C7' },
             ].map((crit, i) => (
               <div
                 key={i}
                 style={{
                   padding: '8px 12px',
                   borderRadius: 10,
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  background: '#F8FAFC',
+                  border: '1px solid rgba(226, 232, 240, 0.9)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 600, color: '#E2E8F0', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 600, color: '#1E293B', marginBottom: 4 }}>
                   <span>{crit.label}</span>
                   <span style={{ color: crit.color, fontWeight: 800 }}>{crit.score}</span>
                 </div>
-                <div style={{ width: '100%', height: 5, borderRadius: 3, background: 'rgba(255, 255, 255, 0.1)', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'rgba(226, 232, 240, 0.8)', overflow: 'hidden' }}>
                   <div style={{ width: `${crit.pct}%`, height: '100%', background: crit.color, borderRadius: 3 }} />
                 </div>
               </div>
@@ -108,7 +108,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               border: '1px solid rgba(16, 185, 129, 0.25)',
               fontSize: 12,
               lineHeight: 1.5,
-              color: '#A7F3D0',
+              color: '#065F46',
             }}
           >
             <strong>💡 AI Tavsiyasi:</strong> "Xulosa qismida Navoiy qarashlari mukammal tahlil etilgan. Grammatik xatolar 0 ta, leksik boylik yuqori."
@@ -122,7 +122,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
       id: 2,
       badge: 'CBT Davlat Formati • 2026',
       badgeIcon: '📝',
-      badgeColor: '#10B981',
+      badgeColor: '#059669',
       title: 'Haqiqiy davlat imtihoni muhiti va vaqt nazorati',
       subtitle: 'Kompensatsiyalangan qatʼiy taymer, rasmiy 45 talik savollar va test yakunlanishi bilan bir zumda batafsil tahlil.',
       ctaText: 'Testni boshlash →',
@@ -135,31 +135,32 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '8px 14px',
+              padding: '9px 14px',
               borderRadius: 12,
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: '#F8FAFC',
+              border: '1px solid rgba(226, 232, 240, 0.95)',
               fontSize: 12,
               fontWeight: 700,
             }}
           >
-            <span style={{ color: '#E2E8F0' }}>Ona tili va Adabiyot (BMB-101)</span>
-            <span style={{ color: '#F59E0B', fontFamily: 'monospace', fontSize: 13 }}>⏱ 01:28:45</span>
+            <span style={{ color: '#0F172A' }}>Ona tili va Adabiyot (BMB-101)</span>
+            <span style={{ color: '#D97706', fontFamily: 'monospace', fontSize: 13, fontWeight: 800 }}>⏱ 01:28:45</span>
           </div>
 
           {/* Question preview box */}
           <div
             style={{
-              padding: '12px 14px',
-              borderRadius: 12,
-              background: 'rgba(19, 25, 38, 0.9)',
-              border: '1px solid rgba(245, 158, 11, 0.2)',
+              padding: '14px 16px',
+              borderRadius: 14,
+              background: '#FFFFFF',
+              border: '1px solid rgba(226, 232, 240, 0.95)',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.03)',
             }}
           >
-            <div style={{ fontSize: 11, color: '#F59E0B', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: '#D97706', fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
               14-Savol (Badiiy tahlil)
             </div>
-            <p style={{ fontSize: 12.5, color: '#F8FAFC', fontWeight: 600, margin: '0 0 10px', lineHeight: 1.45 }}>
+            <p style={{ fontSize: 12.5, color: '#0F172A', fontWeight: 600, margin: '0 0 10px', lineHeight: 1.45 }}>
               Navoiyning "Hayrat ul-abror" dostonidagi durroj masalining bosh g‘oyasi nimaga qaratilgan?
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -174,13 +175,13 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    padding: '6px 10px',
+                    padding: '7px 10px',
                     borderRadius: 8,
                     fontSize: 11.5,
                     fontWeight: 600,
-                    background: opt.correct ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.03)',
-                    border: opt.correct ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
-                    color: opt.correct ? '#34D399' : '#94A3B8',
+                    background: opt.correct ? 'rgba(16, 185, 129, 0.12)' : '#F8FAFC',
+                    border: opt.correct ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(226, 232, 240, 0.85)',
+                    color: opt.correct ? '#065F46' : '#475569',
                   }}
                 >
                   <span
@@ -188,8 +189,8 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                       width: 18,
                       height: 18,
                       borderRadius: 999,
-                      background: opt.correct ? '#10B981' : 'rgba(255, 255, 255, 0.1)',
-                      color: opt.correct ? '#000' : '#fff',
+                      background: opt.correct ? '#059669' : 'rgba(100, 116, 139, 0.15)',
+                      color: opt.correct ? '#FFFFFF' : '#475569',
                       fontSize: 10,
                       fontWeight: 800,
                       display: 'flex',
@@ -200,7 +201,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                     {opt.key}
                   </span>
                   <span>{opt.text}</span>
-                  {opt.correct && <CheckIcon size={14} style={{ marginLeft: 'auto', color: '#10B981' }} />}
+                  {opt.correct && <CheckIcon size={14} style={{ marginLeft: 'auto', color: '#059669' }} />}
                 </div>
               ))}
             </div>
@@ -211,18 +212,18 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             style={{
               padding: '8px 12px',
               borderRadius: 10,
-              background: 'rgba(16, 185, 129, 0.12)',
+              background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.28)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               fontSize: 12,
               fontWeight: 700,
-              color: '#34D399',
+              color: '#065F46',
             }}
           >
             <span>🎯 42/45 to‘g‘ri (93.3%)</span>
-            <span style={{ fontSize: 11, color: '#A7F3D0' }}>A Daraja kafolatlangan</span>
+            <span style={{ fontSize: 11, color: '#047857', fontWeight: 800 }}>A Daraja kafolatlangan</span>
           </div>
         </div>
       ),
@@ -233,7 +234,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
       id: 3,
       badge: 'PvP Bilim Jangi • Real-vaqt',
       badgeIcon: '⚔️',
-      badgeColor: '#38BDF8',
+      badgeColor: '#0284C7',
       title: 'O‘zbekiston bo‘yicha tengdoshlaringiz bilan 60 soniyalik bilim jangi',
       subtitle: 'Jonli ELO reytingi, raqobat ruhi va har bir to‘g‘ri javob uchun tezkor ochkolar bilan bilimingizni charxlang.',
       ctaText: 'Arenada bellashish ⚔️',
@@ -248,17 +249,17 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               justifyContent: 'space-between',
               padding: '10px 14px',
               borderRadius: 12,
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(56, 189, 248, 0.15))',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(2, 132, 199, 0.1))',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: '#FBBF24', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>
                 Jonli Jang • 1v1 Arena
               </span>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#38BDF8', background: 'rgba(56, 189, 248, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0284C7', background: 'rgba(2, 132, 199, 0.1)', padding: '2px 8px', borderRadius: 6 }}>
               60 soniya
             </span>
           </div>
@@ -270,15 +271,15 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               style={{
                 padding: '12px 10px',
                 borderRadius: 12,
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
                 textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 24, marginBottom: 4 }}>😎</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>Siz</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginTop: 2 }}>1 540 ELO</div>
-              <div style={{ fontSize: 11, color: '#34D399', fontWeight: 800, marginTop: 4 }}>5/5 to‘g‘ri ⚡</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Siz</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#059669', marginTop: 2 }}>1 540 ELO</div>
+              <div style={{ fontSize: 11, color: '#047857', fontWeight: 800, marginTop: 4 }}>5/5 to‘g‘ri ⚡</div>
             </div>
 
             {/* VS Badge */}
@@ -294,7 +295,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 14px rgba(245, 158, 11, 0.4)',
+                boxShadow: '0 0 14px rgba(245, 158, 11, 0.3)',
               }}
             >
               VS
@@ -305,15 +306,15 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               style={{
                 padding: '12px 10px',
                 borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: '#F8FAFC',
+                border: '1px solid rgba(226, 232, 240, 0.95)',
                 textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 24, marginBottom: 4 }}>🎯</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#F8FAFC' }}>Raqib (Toshkent)</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', marginTop: 2 }}>1 510 ELO</div>
-              <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, marginTop: 4 }}>4/5 to‘g‘ri</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>Raqib (Toshkent)</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B', marginTop: 2 }}>1 510 ELO</div>
+              <div style={{ fontSize: 11, color: '#64748B', fontWeight: 700, marginTop: 4 }}>4/5 to‘g‘ri</div>
             </div>
           </div>
 
@@ -322,18 +323,18 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             style={{
               padding: '10px 14px',
               borderRadius: 12,
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               fontSize: 12,
               fontWeight: 800,
-              color: '#FBBF24',
+              color: '#B45309',
             }}
           >
             <span>🏆 G‘alaba: +25 ELO ball!</span>
-            <span style={{ fontSize: 11, color: '#E2E8F0', fontWeight: 600 }}>Oltin Liga (Top 3%)</span>
+            <span style={{ fontSize: 11, color: '#475569', fontWeight: 600 }}>Oltin Liga (Top 3%)</span>
           </div>
         </div>
       ),
@@ -344,7 +345,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
       id: 4,
       badge: 'Vision AI OCR • Qog‘oz Test Skaneri',
       badgeIcon: '📷',
-      badgeColor: '#A78BFA',
+      badgeColor: '#7C3AED',
       title: 'Qog‘ozdagi test javoblarini kamerada 1 soniyada tekshiring',
       subtitle: 'Qog‘oz titul varaqasini rasmga oling — Vision AI bo‘yalgan doiralarni o‘qib, darhol natija va tahlil chiqaradi.',
       ctaText: 'Titulni skanerlash 📷',
@@ -356,17 +357,17 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             style={{
               padding: '12px 14px',
               borderRadius: 14,
-              background: 'rgba(139, 92, 246, 0.08)',
-              border: '1px dashed rgba(167, 139, 250, 0.4)',
+              background: 'rgba(124, 58, 237, 0.05)',
+              border: '1px dashed rgba(124, 58, 237, 0.35)',
               position: 'relative',
               overflow: 'hidden',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#C4B5FD', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>
                 📷 Vision AI OMR Skaner
               </span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#34D399', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#059669', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
                 1.2 soniya
               </span>
             </div>
@@ -387,9 +388,9 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                     textAlign: 'center',
                     fontSize: 11,
                     fontWeight: 800,
-                    background: item.ok ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    border: item.ok ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
-                    color: item.ok ? '#34D399' : '#F87171',
+                    background: item.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    border: item.ok ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)',
+                    color: item.ok ? '#059669' : '#DC2626',
                   }}
                 >
                   {item.q} {item.ok ? '✓' : '✗'}
@@ -397,8 +398,8 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               ))}
             </div>
 
-            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-              Aniqlangan kod: <strong style={{ color: '#F8FAFC' }}>BMB-101 (Ona tili)</strong>
+            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+              Aniqlangan kod: <strong style={{ color: '#0F172A' }}>BMB-101 (Ona tili)</strong>
             </div>
           </div>
 
@@ -407,22 +408,22 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             style={{
               padding: '10px 14px',
               borderRadius: 12,
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: '#F8FAFC',
+              border: '1px solid rgba(226, 232, 240, 0.95)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
             <div>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>Jami ball</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#F8FAFC' }}>
-                41 / 45 <span style={{ fontSize: 11, color: '#10B981' }}>(91.1%)</span>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Jami ball</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
+                41 / 45 <span style={{ fontSize: 11, color: '#059669' }}>(91.1%)</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>Aniqlangan xatolar</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#F87171' }}>4 ta savolda tahlil mavjud</div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Aniqlangan xatolar</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>4 ta savolda tahlil mavjud</div>
             </div>
           </div>
         </div>
@@ -466,11 +467,9 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
         position: 'relative',
         borderRadius: 24,
         padding: '28px 24px 22px',
-        background: 'rgba(19, 25, 38, 0.88)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(245, 158, 11, 0.22)',
-        boxShadow: '0 20px 50px -10px rgba(0, 0, 0, 0.6), 0 0 35px -8px rgba(245, 158, 11, 0.15)',
+        background: '#FFFFFF',
+        border: '1px solid rgba(226, 232, 240, 0.95)',
+        boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.07), 0 0 25px -5px rgba(217, 119, 6, 0.08)',
         minHeight: 460,
         display: 'flex',
         flexDirection: 'column',
@@ -489,8 +488,8 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             borderRadius: 999,
             fontSize: 11.5,
             fontWeight: 800,
-            background: `${activeSlide.badgeColor}1A`,
-            border: `1px solid ${activeSlide.badgeColor}4D`,
+            background: `${activeSlide.badgeColor}14`,
+            border: `1px solid ${activeSlide.badgeColor}3D`,
             color: activeSlide.badgeColor,
             letterSpacing: '0.04em',
           }}
@@ -506,13 +505,13 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             onClick={prevSlide}
             aria-label="Oldingi slayd"
             style={{
-              width: 30,
-              height: 30,
+              width: 32,
+              height: 32,
               borderRadius: 8,
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#E2E8F0',
-              fontSize: 15,
+              background: '#F1F5F9',
+              border: '1px solid #E2E8F0',
+              color: '#1E293B',
+              fontSize: 16,
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
@@ -523,7 +522,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
           >
             ‹
           </button>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', minWidth: 32, textAlign: 'center' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748B', minWidth: 32, textAlign: 'center' }}>
             {current + 1} / {slides.length}
           </span>
           <button
@@ -531,13 +530,13 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             onClick={nextSlide}
             aria-label="Keyingi slayd"
             style={{
-              width: 30,
-              height: 30,
+              width: 32,
+              height: 32,
               borderRadius: 8,
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: '#E2E8F0',
-              fontSize: 15,
+              background: '#F1F5F9',
+              border: '1px solid #E2E8F0',
+              color: '#1E293B',
+              fontSize: 16,
               fontWeight: 800,
               display: 'flex',
               alignItems: 'center',
@@ -567,7 +566,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               style={{
                 fontSize: 'clamp(1.15rem, 2vw, 1.35rem)',
                 fontWeight: 900,
-                color: '#F8FAFC',
+                color: '#0F172A',
                 margin: '0 0 6px',
                 lineHeight: 1.3,
                 letterSpacing: '-0.01em',
@@ -575,7 +574,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             >
               {activeSlide.title}
             </h3>
-            <p style={{ fontSize: 12.5, color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 12.5, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
               {activeSlide.subtitle}
             </p>
           </div>
@@ -592,11 +591,11 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
             className="btn-shimmer"
             style={{
               width: '100%',
-              padding: '11px 16px',
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
+              padding: '12px 18px',
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
               border: 'none',
-              color: '#090D16',
+              color: '#FFFFFF',
               fontWeight: 900,
               fontSize: 13.5,
               cursor: 'pointer',
@@ -604,7 +603,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
+              boxShadow: '0 4px 15px rgba(217, 119, 6, 0.25)',
               transition: 'all 0.18s ease',
             }}
           >
@@ -622,7 +621,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
           gap: 8,
           marginTop: 18,
           paddingTop: 12,
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          borderTop: '1px solid rgba(226, 232, 240, 0.8)',
         }}
       >
         {slides.map((s, idx) => {
@@ -637,11 +636,11 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
                 width: isActive ? 28 : 8,
                 height: 7,
                 borderRadius: 4,
-                background: isActive ? 'linear-gradient(135deg, #F59E0B, #10B981)' : 'rgba(255, 255, 255, 0.2)',
+                background: isActive ? 'linear-gradient(135deg, #D97706, #059669)' : 'rgba(203, 213, 225, 0.8)',
                 border: 'none',
                 cursor: 'pointer',
                 transition: 'all 0.25s ease',
-                boxShadow: isActive ? '0 0 10px rgba(245, 158, 11, 0.5)' : 'none',
+                boxShadow: isActive ? '0 0 8px rgba(217, 119, 6, 0.4)' : 'none',
               }}
             />
           );

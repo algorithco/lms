@@ -1,5 +1,39 @@
-/* LMS React — Modern Linear / Raycast Style Slate, Amber & Emerald Palette. */
+/* LMS React — Warm Academic Luxury Light Aesthetic (Ivory, Gold & Emerald) */
 :root,
+html.light {
+  --bg: #fbfbfa;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #ffffff 0%, #fbfbfa 100%);
+  --card: #ffffff;
+  --card-surface: #ffffff;
+  --card-2: #f8fafc;
+  --border: rgba(226, 232, 240, 0.85);
+  --border-focus: #d97706;
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --muted: #64748b;
+  --accent: #d97706;
+  --accent-dark: #b45309;
+  --accent-deep: #92400e;
+  --emerald: #059669;
+  --emerald-light: #10b981;
+  --danger: #e11d48;
+  --sidebar-bg: #ffffff;
+  --sidebar-ink: #0f172a;
+  --sidebar-border: rgba(226, 232, 240, 0.85);
+  --sidebar-link: #475569;
+  --sidebar-link-hover: #b45309;
+  --sidebar-link-active: #b45309;
+  --sidebar-link-bg-active: rgba(245, 158, 11, 0.12);
+  --radius: 1rem;
+  --font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --topbar-bg: rgba(255, 255, 255, 0.95);
+  --dropdown-bg: #ffffff;
+  --dropdown-border: rgba(226, 232, 240, 0.9);
+  --dropdown-hover: #f1f5f9;
+  --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  color-scheme: light;
+}
+
 html.dark {
   --bg: #0f141c;
   --bg-gradient: radial-gradient(circle at 50% 0%, #161e2e 0%, #0f141c 100%);
@@ -32,40 +66,6 @@ html.dark {
   --dropdown-hover: rgba(255, 255, 255, 0.06);
   --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
-}
-
-html.light {
-  --bg: #f8fafc;
-  --bg-gradient: radial-gradient(circle at 50% 0%, #ffffff 0%, #f8fafc 100%);
-  --card: #ffffff;
-  --card-surface: #ffffff;
-  --card-2: #f8fafc;
-  --border: #e2e8f0;
-  --border-focus: #d97706;
-  --ink: #0f172a;
-  --ink-soft: #1e293b;
-  --muted: #64748b;
-  --accent: #d97706;
-  --accent-dark: #b45309;
-  --accent-deep: #92400e;
-  --emerald: #059669;
-  --emerald-light: #10b981;
-  --danger: #e11d48;
-  --sidebar-bg: #ffffff;
-  --sidebar-ink: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-link: #475569;
-  --sidebar-link-hover: #b45309;
-  --sidebar-link-active: #b45309;
-  --sidebar-link-bg-active: rgba(245, 158, 11, 0.14);
-  --radius: 0.875rem;
-  --font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
-  --topbar-bg: rgba(255, 255, 255, 0.95);
-  --dropdown-bg: #ffffff;
-  --dropdown-border: #e2e8f0;
-  --dropdown-hover: #f1f5f9;
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  color-scheme: light;
 }
 
 body,

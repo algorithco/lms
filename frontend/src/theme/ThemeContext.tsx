@@ -15,17 +15,17 @@ const THEME_KEY = 'theme';
 function getStoredTheme(): Theme {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved === 'light') {
-      return 'light';
+    if (saved === 'dark') {
+      return 'dark';
     }
-    if (saved === 'dark' || saved === 'system') {
+    if (saved === 'light' || saved === 'system') {
       return saved;
     }
   } catch {
     /* ignore */
   }
-  // Default is STRICTLY dark mode
-  return 'dark';
+  // Default is STRICTLY light mode (Warm Academic Luxury)
+  return 'light';
 }
 
 const ThemeContext = createContext<ThemeState | null>(null);
@@ -33,9 +33,8 @@ const ThemeContext = createContext<ThemeState | null>(null);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme);
 
-  // Requirement: ONLY explicit 'light' activates light mode.
-  // 'dark' and 'system' (and default) are strictly dark mode.
-  const resolvedTheme: ResolvedTheme = theme === 'light' ? 'light' : 'dark';
+  // Default to light mode (warm academic luxury), dark only if explicitly chosen
+  const resolvedTheme: ResolvedTheme = theme === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
     const root = document.documentElement;

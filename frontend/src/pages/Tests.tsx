@@ -3,9 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { api, MockTests, type Paginated } from '../lib/api';
 import { listTestsPage, num, type TestListItem } from '../lib/testing';
-import { CheckIcon, ClockIcon, HashIcon } from '../components/icons';
+import { ClockIcon, HashIcon } from '../components/icons';
 
 const PAGE_SIZE = 20;
+
+function getCleanTestTitle(rawTitle: string | null | undefined, subject?: string): string {
+  if (!rawTitle) return subject === 'english' ? 'English CBT Mock Exam' : 'Ona tili va Adabiyot — Rasmiy BMB Diagnostika';
+  let s = String(rawTitle).trim();
+  s = s.replace(/#?MOCK-[A-Z0-9_-]+/gi, '').trim();
+  s = s.replace(/^[-–—:() ]+|[-–—:() ]+$/g, '').trim();
+  if (!s) return subject === 'english' ? 'English CBT Mock Exam' : 'Ona tili va Adabiyot — Rasmiy BMB Diagnostika';
+  return s;
+}
 
 export default function Tests() {
   const { t } = useLang();
@@ -233,10 +242,11 @@ export default function Tests() {
           className="card"
           style={{
             margin: '16px 0 20px',
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%)',
-            border: '1px solid rgba(59, 130, 246, 0.35)',
-            borderRadius: '12px',
-            padding: '16px 20px',
+            background: '#FFFFFF',
+            border: '1px solid rgba(226, 232, 240, 0.95)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            borderRadius: '16px',
+            padding: '18px 22px',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -296,32 +306,33 @@ export default function Tests() {
           className="card"
           style={{
             margin: '16px 0 20px',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            borderRadius: '12px',
-            padding: '16px 20px',
+            background: '#FFFFFF',
+            border: '1px solid rgba(226, 232, 240, 0.95)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            borderRadius: '16px',
+            padding: '18px 22px',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#10b981' }}>
-                <span>🎯</span> Mock Testga Kod Bilan Qo‘shilish
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#059669' }}>
+                <span>🎯</span> Rasmiy Mock Testga Qo‘shilish
               </strong>
               <p className="muted small" style={{ margin: '4px 0 0' }}>
-                Ustoz bergan <strong>#MOCK-...</strong> kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
+                Ustozingiz bergan maxsus test kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
               </p>
-              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn sm"
                   style={{
-                    background: 'rgba(139, 92, 246, 0.15)',
-                    border: '1px solid #8b5cf6',
-                    color: '#a78bfa',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    padding: '4px 12px',
-                    borderRadius: '8px',
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    color: '#6D28D9',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    padding: '6px 14px',
+                    borderRadius: '10px',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -334,19 +345,19 @@ export default function Tests() {
                     executeJoin('#MOCK-ATTEST2026');
                   }}
                 >
-                  🎓 #MOCK-ATTEST2026 (Attestatsiya Diagnostika 2026) →
+                  🎓 Attestatsiya Diagnostika 2026 →
                 </button>
                 <button
                   type="button"
                   className="btn sm"
                   style={{
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid #f59e0b',
-                    color: '#f59e0b',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    padding: '4px 12px',
-                    borderRadius: '8px',
+                    background: 'rgba(217, 119, 6, 0.08)',
+                    border: '1px solid rgba(217, 119, 6, 0.3)',
+                    color: '#B45309',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    padding: '6px 14px',
+                    borderRadius: '10px',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -359,19 +370,19 @@ export default function Tests() {
                     executeJoin('#MOCK-BMB-DIAGNOSTIC');
                   }}
                 >
-                  🔥 #MOCK-BMB-DIAGNOSTIC (BMB Rasmiy Mock Test) →
+                  🔥 Ona tili va Adabiyot — Rasmiy BMB Diagnostika →
                 </button>
                 <button
                   type="button"
                   className="btn sm"
                   style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid #10b981',
-                    color: '#10b981',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    padding: '4px 12px',
-                    borderRadius: '8px',
+                    background: 'rgba(5, 150, 105, 0.08)',
+                    border: '1px solid rgba(5, 150, 105, 0.3)',
+                    color: '#059669',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    padding: '6px 14px',
+                    borderRadius: '10px',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -384,7 +395,7 @@ export default function Tests() {
                     executeJoin('#MOCK-BMB04');
                   }}
                 >
-                  ⭐️ #MOCK-BMB04 (3 soatlik to‘liq BMB Mock #4) →
+                  ⭐️ BMB Rasmiy 3 soatlik Mock Test →
                 </button>
               </div>
             </div>
@@ -622,130 +633,175 @@ export default function Tests() {
         </div>
       )}
 
-      <div className="grid">
+      <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
         {visible.map((item) => {
           const isAttest = isMockAttest(item);
           const isBmbDiag = isMockBmbDiag(item);
           const isM4 = isMock4(item);
-          const isHighlight = isAttest || isBmbDiag || isM4;
+          const cleanTitle = getCleanTestTitle(item.title, item.subject);
+          const timeLimit = item.time_limit_minutes && item.time_limit_minutes > 0 ? item.time_limit_minutes : 180;
+          const questionsCount = num(item.total_questions, 45);
+          const passPct = num(item.pass_percentage, 60);
+
           return (
             <Link
               key={item.id}
               to={`/tests/${item.id}`}
               className="card link-card"
-              style={
-                isAttest
-                  ? {
-                      border: '1.5px solid rgba(139, 92, 246, 0.75)',
-                      background: 'radial-gradient(circle at top right, rgba(139, 92, 246, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                      boxShadow: '0 4px 20px rgba(139, 92, 246, 0.2)',
-                    }
+              style={{
+                borderRadius: '18px',
+                background: '#FFFFFF',
+                border: isAttest
+                  ? '1.5px solid rgba(139, 92, 246, 0.35)'
                   : isBmbDiag
-                  ? {
-                      border: '1.5px solid rgba(245, 158, 11, 0.7)',
-                      background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                      boxShadow: '0 4px 20px rgba(245, 158, 11, 0.15)',
-                    }
+                  ? '1.5px solid rgba(217, 119, 6, 0.35)'
                   : isM4
-                  ? {
-                      border: '1.5px solid rgba(16, 185, 129, 0.7)',
-                      background: 'radial-gradient(circle at top right, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                      boxShadow: '0 4px 20px rgba(16, 185, 129, 0.12)',
-                    }
-                  : undefined
-              }
+                  ? '1.5px solid rgba(16, 185, 129, 0.35)'
+                  : '1px solid rgba(226, 232, 240, 0.95)',
+                boxShadow: isAttest
+                  ? '0 6px 22px rgba(139, 92, 246, 0.07)'
+                  : isBmbDiag
+                  ? '0 6px 22px rgba(217, 119, 6, 0.07)'
+                  : '0 4px 18px rgba(0, 0, 0, 0.04)',
+                padding: '22px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                transition: 'all 0.2s ease',
+              }}
             >
-              {isHighlight ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              {/* Top Tags: Subject & Category */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    background: item.subject === 'english' ? 'rgba(2, 132, 199, 0.1)' : 'rgba(5, 150, 105, 0.1)',
+                    color: item.subject === 'english' ? '#0284C7' : '#059669',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                  }}
+                >
+                  {item.subject === 'english' ? '🇬🇧 Ingliz tili' : '🇺🇿 Ona tili va Adabiyot'}
+                </span>
+
+                {isAttest ? (
                   <span
                     style={{
-                      background: isAttest
-                        ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
-                        : isBmbDiag
-                        ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
+                      background: 'rgba(139, 92, 246, 0.12)',
+                      color: '#7C3AED',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
                       padding: '3px 10px',
-                      borderRadius: '9999px',
-                      boxShadow: isAttest
-                        ? '0 2px 8px rgba(139, 92, 246, 0.4)'
-                        : isBmbDiag
-                        ? '0 2px 8px rgba(245, 158, 11, 0.4)'
-                        : '0 2px 8px rgba(16, 185, 129, 0.4)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
+                      borderRadius: '999px',
                     }}
                   >
-                    {isAttest
-                      ? '🎓 Rasmiy Attestatsiya Diagnostika 2026'
-                      : isBmbDiag
-                      ? '🔥 BMB Rasmiy Mock Test'
-                      : '⭐️ BMB Rasmiy Mock #4 (Tekin)'}
+                    🎓 Attestatsiya
                   </span>
-                  <span className="badge amber">
-                    <ClockIcon size={12} className="ico" /> {item.time_limit_minutes ?? 100} {t('minutes_suffix')}
+                ) : isBmbDiag || isM4 ? (
+                  <span
+                    style={{
+                      background: 'rgba(217, 119, 6, 0.12)',
+                      color: '#B45309',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    🔥 Rasmiy BMB
                   </span>
-                  <span className="badge blue">Qiyin (Hard)</span>
-                  {item.is_strict_mode && (
-                    <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🔒 Strict Exam
-                    </span>
-                  )}
-                  {item.audio_url && (
-                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🎧 Audio Listening
-                    </span>
-                  )}
-                  {item.subject === 'english' && (
-                    <span style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🇬🇧 English
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="toolbar" style={{ marginBottom: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <span className="badge blue">{String(item.difficulty ?? '—')}</span>
-                  {item.is_strict_mode && (
-                    <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🔒 Strict Exam
-                    </span>
-                  )}
-                  {item.audio_url && (
-                    <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🎧 Audio
-                    </span>
-                  )}
-                  {item.subject === 'english' && (
-                    <span style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      🇬🇧 English
-                    </span>
-                  )}
-                  {(item.time_limit_minutes ?? 0) > 0 && (
-                    <span className="badge amber">
-                      <ClockIcon size={12} className="ico" /> {item.time_limit_minutes} {t('minutes_suffix')}
-                    </span>
-                  )}
-                </div>
-              )}
-              <strong>{String(item.title ?? `Test #${item.id}`)}</strong>
+                ) : null}
+
+                {item.audio_url && (
+                  <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 }}>
+                    🎧 Audio
+                  </span>
+                )}
+              </div>
+
+              {/* Title */}
+              <strong style={{ fontSize: '1.08rem', color: '#0F172A', lineHeight: 1.35, fontWeight: 800 }}>
+                {cleanTitle}
+              </strong>
+
               {item.description && (
-                <span className="muted small">{String(item.description).slice(0, 120)}</span>
-              )}
-              <span className="muted small">
-                <HashIcon size={12} className="ico" /> {num(item.total_questions, 0)} {t('questions_suffix')}
-                {' · '}
-                {t('pass_suffix')}: {num(item.pass_percentage, 0)}%
-                {' · '}
-                {t('th_attempts')}: {num(item.max_attempts, 0) === 0 ? '∞' : num(item.max_attempts, 0)}
-              </span>
-              {item.course_title && (
-                <span className="muted small">
-                  <CheckIcon size={12} className="ico" /> {String(item.course_title)}
+                <span style={{ fontSize: '0.84rem', color: '#64748B', lineHeight: 1.5 }}>
+                  {String(item.description).slice(0, 110)}
                 </span>
               )}
+
+              {/* Metadata Badges: Duration, Questions, Pass mark */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    color: '#B45309',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    padding: '3px 9px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <ClockIcon size={12} /> {timeLimit} daqiqa
+                </span>
+
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    color: '#475569',
+                    background: '#F1F5F9',
+                    padding: '3px 9px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <HashIcon size={12} /> {questionsCount} ta savol
+                </span>
+
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    color: '#059669',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    padding: '3px 9px',
+                    borderRadius: '8px',
+                  }}
+                >
+                  🎯 O\'tish bali: {passPct}%
+                </span>
+              </div>
+
+              {/* Bottom Action Button */}
+              <div style={{ marginTop: 'auto', paddingTop: 10 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    boxShadow: '0 4px 14px rgba(217, 119, 6, 0.25)',
+                  }}
+                >
+                  <span>Testni boshlash →</span>
+                </div>
+              </div>
             </Link>
           );
         })}

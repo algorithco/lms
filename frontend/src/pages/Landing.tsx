@@ -5,14 +5,13 @@ import { Mic, Headphones } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { School, landingFor, formatDisplayName } from '../lib/api';
+import { landingFor, formatDisplayName } from '../lib/api';
 import HeroCarousel from '../components/HeroCarousel';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import UserNavDropdown from '../components/UserNavDropdown';
 import {
-  BotIcon,
   CheckIcon,
   FileTextIcon,
   LightbulbIcon,
@@ -49,7 +48,7 @@ export default function Landing() {
   // -------------------------------------------------------------------------
   // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
   // -------------------------------------------------------------------------
-  const [landingSubject, setLandingSubject] = useState<MainSubject>(() => {
+  const [landingSubject] = useState<MainSubject>(() => {
     const track = localStorage.getItem('grandec_selected_track');
     if (track === 'ielts' || track === 'multilevel') return 'english';
     if (track === 'national_certificate' || track === 'attestation') return 'uzbek';
@@ -57,7 +56,7 @@ export default function Landing() {
     return saved === 'english' ? 'english' : 'uzbek';
   });
 
-  const [selectedTrack, setSelectedTrack] = useState<ExamTrack>(() => {
+  const [selectedTrack] = useState<ExamTrack>(() => {
     const track = localStorage.getItem('grandec_selected_track') as ExamTrack | null;
     if (track && ['ielts', 'multilevel', 'national_certificate', 'attestation'].includes(track)) {
       return track;
@@ -66,51 +65,7 @@ export default function Landing() {
     return savedSub === 'english' ? 'ielts' : 'national_certificate';
   });
 
-  const handleSubjectSwitch = (sub: MainSubject) => {
-    if (sub === landingSubject) return;
-    setLandingSubject(sub);
-    let newTrack: ExamTrack = sub === 'english' ? 'ielts' : 'national_certificate';
-    if (sub === 'english' && (selectedTrack === 'ielts' || selectedTrack === 'multilevel')) {
-      newTrack = selectedTrack;
-    } else if (sub === 'uzbek' && (selectedTrack === 'national_certificate' || selectedTrack === 'attestation')) {
-      newTrack = selectedTrack;
-    }
-    setSelectedTrack(newTrack);
-    localStorage.setItem('landing_subject', sub);
-    localStorage.setItem('lms_subject', sub);
-    localStorage.setItem('grandec_selected_track', newTrack);
-    window.dispatchEvent(new CustomEvent('subject-changed', { detail: sub }));
-  };
-
-  const handleTrackSwitch = (track: ExamTrack) => {
-    setSelectedTrack(track);
-    const sub: MainSubject = track === 'ielts' || track === 'multilevel' ? 'english' : 'uzbek';
-    setLandingSubject(sub);
-    localStorage.setItem('landing_subject', sub);
-    localStorage.setItem('lms_subject', sub);
-    localStorage.setItem('grandec_selected_track', track);
-    window.dispatchEvent(new CustomEvent('subject-changed', { detail: sub }));
-  };
-
-  // Live platform stats
-  const [stats, setStats] = useState<{
-    totals: { tests: number; students: number; essays_graded: number };
-    daily?: { labels: string[]; attempts: number[]; avg: number[] };
-  } | null>(null);
-
   const startTo = user ? landingFor(user) : '/register';
-
-  useEffect(() => {
-    let live = true;
-    School.publicStats()
-      .then((s) => {
-        if (live) setStats(s);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, []);
 
   // Lock scroll on mobile drawer
   useEffect(() => {
@@ -570,365 +525,172 @@ export default function Landing() {
       {/* MAIN CONTENT WRAPPER */}
       <main id="main-content">
         {/* HERO SECTION */}
-        <section id="hero" style={{ padding: '36px 20px 60px' }}>
+        <section id="hero" style={{ padding: '40px 20px 64px' }}>
           <div
             style={{
               margin: '0 auto',
               maxWidth: 1200,
             }}
           >
-            {/* 2-LEVEL HIERARCHICAL SELECTOR (Subject & Exam Selector) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-              {/* Level 1: Main Subject Switcher */}
-              <div
-                role="group"
-                aria-label="Asosiy fanni tanlang"
-                className="hero-subject-switcher"
-              >
-                {/* 🇺🇿 Ona tili */}
-                <button
-                  type="button"
-                  onClick={() => handleSubjectSwitch('uzbek')}
-                  className={`hero-switcher-btn ${landingSubject === 'uzbek' ? 'active' : ''}`}
-                  aria-pressed={landingSubject === 'uzbek'}
-                >
-                  <span style={{ fontSize: 18 }}>🇺🇿</span>
-                  <span>{t('hero_sub_uzbek_title')}</span>
-                  <span className="switcher-subtag">{t('hero_sub_uzbek_tag')}</span>
-                </button>
-
-                {/* 🇬🇧 English */}
-                <button
-                  type="button"
-                  onClick={() => handleSubjectSwitch('english')}
-                  className={`hero-switcher-btn ${landingSubject === 'english' ? 'active' : ''}`}
-                  aria-pressed={landingSubject === 'english'}
-                >
-                  <span style={{ fontSize: 18 }}>🇬🇧</span>
-                  <span>{t('hero_sub_english_title')}</span>
-                  <span className="switcher-subtag">{t('hero_sub_english_tag')}</span>
-                </button>
-              </div>
-
-              {/* Level 2: Exam Direction Switcher */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={landingSubject}
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18 }}
-                  className="hero-exam-switcher"
-                  role="group"
-                  aria-label={t('hero_exam_select_aria')}
-                >
-                  {landingSubject === 'english' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleTrackSwitch('ielts')}
-                        className={`hero-exam-btn ${selectedTrack === 'ielts' ? 'active active-eng' : ''}`}
-                        aria-pressed={selectedTrack === 'ielts'}
-                      >
-                        <span style={{ fontSize: 16 }}>🎓</span>
-                        <span>{t('hero_track_ielts_title')}</span>
-                        <span className="exam-btn-badge">{t('hero_track_ielts_badge')}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleTrackSwitch('multilevel')}
-                        className={`hero-exam-btn ${selectedTrack === 'multilevel' ? 'active active-eng' : ''}`}
-                        aria-pressed={selectedTrack === 'multilevel'}
-                      >
-                        <span style={{ fontSize: 16 }}>🎯</span>
-                        <span>{t('hero_track_multilevel_title')}</span>
-                        <span className="exam-btn-badge">{t('hero_track_multilevel_badge')}</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleTrackSwitch('national_certificate')}
-                        className={`hero-exam-btn ${selectedTrack === 'national_certificate' ? 'active active-uz' : ''}`}
-                        aria-pressed={selectedTrack === 'national_certificate'}
-                      >
-                        <span style={{ fontSize: 16 }}>🎓</span>
-                        <span>{t('hero_track_national_title')}</span>
-                        <span className="exam-btn-badge">{t('hero_track_national_badge')}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleTrackSwitch('attestation')}
-                        className={`hero-exam-btn ${selectedTrack === 'attestation' ? 'active active-uz' : ''}`}
-                        aria-pressed={selectedTrack === 'attestation'}
-                      >
-                        <span style={{ fontSize: 16 }}>👨‍🏫</span>
-                        <span>{t('hero_track_attestation_title')}</span>
-                        <span className="exam-btn-badge">{t('hero_track_attestation_badge')}</span>
-                      </button>
-                    </>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
             {/* HERO GRID */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr',
-                gap: 44,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 48,
                 alignItems: 'center',
               }}
               className="hero-grid"
             >
-              {/* Left Column: Dynamic Headlines & 1-Click CTAs */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedTrack}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -16 }}
-                  transition={{ duration: 0.22, ease: 'easeOut' }}
-                >
-                  {/* Dynamic Badge */}
-                  <div style={{ marginBottom: 20 }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 16px',
-                        borderRadius: 999,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        background:
-                          landingSubject === 'english'
-                            ? 'rgba(56, 189, 248, 0.12)'
-                            : 'rgba(245, 158, 11, 0.1)',
-                        color: landingSubject === 'english' ? '#38BDF8' : '#F59E0B',
-                        border:
-                          landingSubject === 'english'
-                            ? '1px solid rgba(56, 189, 248, 0.3)'
-                            : '1px solid rgba(245, 158, 11, 0.25)',
-                        boxShadow:
-                          landingSubject === 'english'
-                            ? '0 0 20px rgba(56, 189, 248, 0.15)'
-                            : '0 0 20px rgba(245, 158, 11, 0.1)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 999,
-                          background: landingSubject === 'english' ? '#38BDF8' : '#10B981',
-                          boxShadow: `0 0 10px ${landingSubject === 'english' ? '#38BDF8' : '#10B981'}`,
-                        }}
-                      />
-                      {selectedTrack === 'ielts'
-                        ? t('hero_pill_ielts')
-                        : selectedTrack === 'multilevel'
-                        ? t('hero_pill_multilevel')
-                        : selectedTrack === 'attestation'
-                        ? t('hero_pill_attestation')
-                        : t('hero_pill_national')}
-                    </span>
-                  </div>
-
-                  {/* Main Headline */}
-                  <h1
+              {/* Left Column: Clean, Elegant Headline & 1-Click CTAs */}
+              <div>
+                {/* 1 Single Elegant Badge */}
+                <div style={{ marginBottom: 20 }}>
+                  <span
                     style={{
-                      fontSize: 'clamp(2.3rem, 4.8vw, 3.8rem)',
-                      lineHeight: 1.12,
-                      fontWeight: 900,
-                      letterSpacing: '-0.03em',
-                      color: 'var(--ink)',
-                      margin: '0 0 20px',
-                    }}
-                  >
-                    {selectedTrack === 'ielts' ? (
-                      <>
-                        {t('hero_h1_ielts_pre')}{' '}
-                        <span className="hero-title-gradient">{t('hero_h1_ielts_grad')}</span>
-                      </>
-                    ) : selectedTrack === 'multilevel' ? (
-                      <>
-                        {t('hero_h1_multi_pre')}{' '}
-                        <span className="hero-title-gradient">{t('hero_h1_multi_grad')}</span>
-                      </>
-                    ) : selectedTrack === 'attestation' ? (
-                      <>
-                        {t('hero_h1_attest_pre')}{' '}
-                        <span className="hero-title-gradient">{t('hero_h1_attest_grad')}</span>
-                      </>
-                    ) : (
-                      <>
-                        {t('hero_h1_nat_pre')}{' '}
-                        <span className="hero-title-gradient">{t('hero_h1_nat_grad')}</span>
-                      </>
-                    )}
-                  </h1>
-
-                  {/* Subhead */}
-                  <p
-                    style={{
-                      fontSize: 'clamp(1.05rem, 1.8vw, 1.18rem)',
-                      lineHeight: 1.7,
-                      color: 'var(--muted)',
-                      maxWidth: 540,
-                      margin: '0 0 32px',
-                    }}
-                  >
-                    {selectedTrack === 'ielts'
-                      ? t('hero_sub_ielts')
-                      : selectedTrack === 'multilevel'
-                      ? t('hero_sub_multi')
-                      : selectedTrack === 'attestation'
-                      ? t('hero_sub_attest')
-                      : t('hero_sub_nat')}
-                  </p>
-
-                  {/* 1-Click Action Buttons */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 14,
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      marginBottom: 28,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleAction('/register')}
-                      className="btn-glow btn-shimmer"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '14px 28px',
-                        borderRadius: 14,
-                        fontSize: 15,
-                        fontWeight: 900,
-                        color: '#090D16',
-                        background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 25px rgba(245, 158, 11, 0.45)',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <span>Bepul boshlash →</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => (user ? navigate(startTo) : openAuthModal('login'))}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '13px 24px',
-                        borderRadius: 14,
-                        fontSize: 14.5,
-                        fontWeight: 800,
-                        color: '#F8FAFC',
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        cursor: 'pointer',
-                        backdropFilter: 'blur(12px)',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#F59E0B';
-                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.2)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.35)';
-                        e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)';
-                      }}
-                    >
-                      <span>⚡ 1-klikda kirish</span>
-                    </button>
-                  </div>
-
-                  {/* Trust Indicators */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '10px 24px',
+                      gap: 8,
+                      padding: '8px 18px',
+                      borderRadius: 999,
                       fontSize: 13,
-                      fontWeight: 600,
-                      color: '#94a3b8',
+                      fontWeight: 800,
+                      background: 'rgba(217, 119, 6, 0.08)',
+                      color: '#B45309',
+                      border: '1px solid rgba(217, 119, 6, 0.25)',
+                      boxShadow: '0 2px 10px rgba(217, 119, 6, 0.08)',
                     }}
                   >
-                    {selectedTrack === 'ielts' ? (
-                      <>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          {t('hero_trust_ielts_1')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          {t('hero_trust_ielts_2')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#38BDF8' }} />
-                          {t('hero_trust_ielts_3')}
-                        </span>
-                      </>
-                    ) : selectedTrack === 'multilevel' ? (
-                      <>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          {t('hero_trust_multi_1')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          {t('hero_trust_multi_2')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#6366F1' }} />
-                          {t('hero_trust_multi_3')}
-                        </span>
-                      </>
-                    ) : selectedTrack === 'attestation' ? (
-                      <>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#10B981' }} />
-                          {t('hero_trust_attest_1')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#F59E0B' }} />
-                          {t('hero_trust_attest_2')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} style={{ color: '#3B82F6' }} />
-                          {t('hero_trust_attest_3')}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} className="text-emerald" style={{ color: '#10B981' }} />
-                          {t('hero_trust_nat_1')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} className="text-amber" style={{ color: '#F59E0B' }} />
-                          {t('hero_trust_nat_2')}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <CheckIcon size={16} className="text-purple" style={{ color: '#8B5CF6' }} />
-                          {t('hero_trust_nat_3')}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              </AnimatePresence>
+                    ✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli
+                  </span>
+                </div>
+
+                {/* Main Headline */}
+                <h1
+                  style={{
+                    fontSize: 'clamp(2.3rem, 4.6vw, 3.6rem)',
+                    lineHeight: 1.15,
+                    fontWeight: 900,
+                    letterSpacing: '-0.03em',
+                    color: '#0F172A',
+                    margin: '0 0 20px',
+                  }}
+                >
+                  Milliy sertifikatga{' '}
+                  <span
+                    style={{
+                      background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #059669 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    sun'iy intellekt
+                  </span>{' '}
+                  bilan tayyorlaning
+                </h1>
+
+                {/* Subhead */}
+                <p
+                  style={{
+                    fontSize: 'clamp(1.05rem, 1.8vw, 1.18rem)',
+                    lineHeight: 1.7,
+                    color: '#475569',
+                    maxWidth: 540,
+                    margin: '0 0 32px',
+                  }}
+                >
+                  12 ta mezonli rasmiy AI esse tahlili, yangi formatdagi CBT testlar va jonli 1v1 bellashuvlar.
+                </p>
+
+                {/* 1-Click Action Buttons */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 14,
+                    alignItems: 'center',
+                    marginBottom: 28,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleAction('/register')}
+                    className="btn-glow btn-shimmer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '14px 28px',
+                      borderRadius: 14,
+                      fontSize: 15,
+                      fontWeight: 900,
+                      color: '#FFFFFF',
+                      background: 'linear-gradient(135deg, #D97706, #F59E0B)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 25px -4px rgba(217, 119, 6, 0.4)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <span>⚡️ Bepul boshlash →</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => (user ? navigate(startTo) : openAuthModal('login'))}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '13px 24px',
+                      borderRadius: 14,
+                      fontSize: 14.5,
+                      fontWeight: 800,
+                      color: '#0F172A',
+                      background: '#FFFFFF',
+                      border: '1px solid rgba(226, 232, 240, 0.95)',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#D97706';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(217, 119, 6, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(226, 232, 240, 0.95)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.04)';
+                    }}
+                  >
+                    <span>1-klikda kirish</span>
+                  </button>
+                </div>
+
+                {/* Trust Indicators */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '10px 24px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#64748B',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <CheckIcon size={16} style={{ color: '#059669' }} />
+                    BMB 12 mezonli rasmiy standart
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <CheckIcon size={16} style={{ color: '#D97706' }} />
+                    99.4% imtihon aniqligi
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <CheckIcon size={16} style={{ color: '#0284C7' }} />
+                    Ona tili va Ingliz tili
+                  </span>
+                </div>
+              </div>
 
               {/* Right Column: Modern Interactive Hero Carousel */}
               <div>
@@ -1452,68 +1214,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* STATS SECTION */}
-        <section id="stats" style={{ padding: '40px 20px 60px' }}>
-          <div style={{ margin: '0 auto', maxWidth: 1200 }}>
-            {stats && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 16,
-                  justifyContent: 'center',
-                  marginBottom: 32,
-                }}
-              >
-                {[
-                  { label: t('stats_students'), val: stats.totals.students.toLocaleString('uz-UZ'), Icon: BotIcon, col: '#10B981' },
-                  { label: t('stats_tests'), val: stats.totals.tests.toLocaleString('uz-UZ'), Icon: FileTextIcon, col: '#F59E0B' },
-                  { label: t('stats_essays'), val: stats.totals.essays_graded.toLocaleString('uz-UZ'), Icon: PenLineIcon, col: '#8B5CF6' },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className="glass-card"
-                    style={{
-                      flex: '1 1 240px',
-                      maxWidth: 360,
-                      borderRadius: 18,
-                      padding: '20px 24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 14,
-                        background: `${item.col}1A`,
-                        border: `1px solid ${item.col}33`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: item.col,
-                      }}
-                    >
-                      <item.Icon size={22} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1 }}>
-                        {item.val}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>
-                        {item.label}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-          </div>
-        </section>
-
         {/* HOW IT WORKS SECTION */}
         <HowItWorks />
 
@@ -1555,10 +1255,13 @@ export default function Landing() {
             </div>
 
             <div
-              className="glass-card"
+              className="card"
               style={{
                 borderRadius: 20,
                 overflow: 'hidden',
+                background: '#FFFFFF',
+                border: '1px solid rgba(226, 232, 240, 0.95)',
+                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.05)',
               }}
             >
               <div
@@ -1566,8 +1269,8 @@ export default function Landing() {
                   display: 'grid',
                   gridTemplateColumns: '1.4fr 1fr 1fr',
                   padding: '16px 20px',
-                  background: 'var(--card-2)',
-                  borderBottom: '1px solid var(--border)',
+                  background: '#F8FAFC',
+                  borderBottom: '1px solid rgba(226, 232, 240, 0.95)',
                   fontSize: 12,
                   fontWeight: 800,
                   textTransform: 'uppercase',
@@ -1661,16 +1364,15 @@ export default function Landing() {
             >
               {/* 1. Free Plan */}
               <div
-                className="glass-card lcard-hover"
+                className="card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: 'rgba(19, 25, 38, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  background: '#FFFFFF',
+                  border: '1px solid rgba(226, 232, 240, 0.95)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.04)',
                   transition: 'all 0.3s ease',
                 }}
               >
@@ -1704,9 +1406,9 @@ export default function Landing() {
                     width: '100%',
                     padding: 12,
                     borderRadius: 12,
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: 'var(--ink)',
+                    background: '#F1F5F9',
+                    border: '1px solid #E2E8F0',
+                    color: '#1E293B',
                     fontWeight: 700,
                     fontSize: 13.5,
                     cursor: 'pointer',
@@ -1720,18 +1422,16 @@ export default function Landing() {
 
               {/* 2. Starter Plan (New) */}
               <div
-                className="glass-card lcard-hover"
+                className="card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  background: 'rgba(19, 25, 38, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  boxShadow: '0 0 25px -5px rgba(16, 185, 129, 0.2)',
+                  background: '#FFFFFF',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.1)',
                   transition: 'all 0.3s ease',
                 }}
               >
@@ -1801,18 +1501,17 @@ export default function Landing() {
 
               {/* 3. Pro Plan (Popular) */}
               <div
-                className="glass-card lcard-hover"
+                className="card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  background: 'rgba(19, 25, 38, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '2px solid rgba(245, 158, 11, 0.7)',
-                  boxShadow: '0 0 30px -5px rgba(245, 158, 11, 0.25)',
+                  background: '#FFFFFF',
+                  border: '2px solid #D97706',
+                  boxShadow: '0 16px 35px -8px rgba(217, 119, 6, 0.22)',
+                  transform: 'translateY(-4px)',
                   transition: 'all 0.3s ease',
                 }}
               >
@@ -1883,18 +1582,16 @@ export default function Landing() {
 
               {/* 4. Premium Plan (VIP) */}
               <div
-                className="glass-card lcard-hover"
+                className="card lcard-hover"
                 style={{
                   borderRadius: 22,
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
                   position: 'relative',
-                  background: 'rgba(19, 25, 38, 0.9)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(139, 92, 246, 0.5)',
-                  boxShadow: '0 0 30px -5px rgba(139, 92, 246, 0.2)',
+                  background: '#FFFFFF',
+                  border: '1px solid rgba(139, 92, 246, 0.35)',
+                  boxShadow: '0 10px 25px -5px rgba(139, 92, 246, 0.1)',
                   transition: 'all 0.3s ease',
                 }}
               >

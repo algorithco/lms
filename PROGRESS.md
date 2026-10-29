@@ -9,6 +9,37 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.46. Rasmiy Versiya v1.50.0: Qorong'i "AI Slop"dan Voz Kechish, Yorug' Akademik Luxury Dizayn va Testlar Sahifasi Refaktoringi
+- [x] 1-Bosqich: Dizayn Tizimi va Palitrani Tubdan Yangilash (Warm Academic Luxury):
+  * `frontend/src/theme/ThemeContext.tsx`: Standart mavzu `light` qilib belgilandi (`getStoredTheme() -> 'light'`), tizim foydalanuvchiga birinchi marta kirganda iliq oq akademik dizaynni taqdim etadi.
+  * `frontend/src/index.css`: `:root` o'zgaruvchilari sof akademik palitraga moslashtirildi:
+    - Asosiy orqa fon: `#FBFBFA` (iliq fil suyagi) / `#F8FAFC`;
+    - Kartochkalar: `#FFFFFF` (toza oq), `border: rgba(226, 232, 240, 0.85)`, `box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05)`;
+    - Tipografiya: Chuqur o'qilishi oson to'q slate `#0F172A`, yordamchi `#64748B`;
+    - Oltin aksent: `#D97706`, `#B45309`, `#F59E0B` va zumrad `#059669`.
+- [x] 2-Bosqich: Bosh Sahifa (Landing Page) Hero Sectionini 100% Tozalash:
+  * Sarlavha ustidagi 5 ta mayda switcher pill olib tashlandi, o'rniga bitta nafis nishon qoldirildi:
+    `✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli`.
+  * Asosiy sarlavha: **"Milliy sertifikatga sun'iy intellekt bilan tayyorlaning"**.
+  * Ostidagi matn: *"12 ta mezonli rasmiy AI esse tahlili, yangi formatdagi CBT testlar va jonli 1v1 bellashuvlar."*.
+  * Asosiy CTA tugmalari: `[⚡️ Bepul boshlash →]` va `[1-klikda kirish]`.
+  * `HeroCarousel.tsx`: Qorong'i bloklardan toza oq `#FFFFFF` kartochka, yumshoq yorug' tahlil qutilari va o'qilishi qulay slate matnlarga o'tkazildi.
+- [x] 3-Bosqich: Bo'sh Obro'sizlantiruvchi Blokni Olib Tashlash va Taqqoslash/Tariflar Silliqlash:
+  * "42 foydalanuvchi, 6 ta test, 0 ta esse" bo'sh statistik bloki (`#stats`) butunlay o'chirildi.
+  * Taqqoslash va Tariflar sarlavhalari oraliqlari (margin/padding) to'g'irlanib, ustma-ust tushish bartaraf etildi.
+  * Tarif kartochkalari (`Starter: 7 000`, `Pro: 15 000`, `Premium: 27 000`) sof oq fonda, Pro tarifi oltin hoshiya va ko'tarilgan aksent (`transform: translateY(-4px)`) bilan ta'minlandi.
+- [x] 4-Bosqich: Testlar Sahifasini (`/tests`) To'liq Refaktoring Qilish:
+  * Qorong'i va sovuq gradientlar o'rniga oppoq `#FFFFFF` kartochkalar va mayin yorug' fon o'rnatildi.
+  * `#MOCK-ATTEST2026`, `#MOCK-BMB-DIAGNOSTIC` kabi ichki dasturchi teglari UI'dan olib tashlandi.
+  * Tezkor qo'shilish blokida tushunarli tugmalar: `🎓 Attestatsiya Diagnostika 2026`, `🔥 Ona tili va Adabiyot — Rasmiy BMB Diagnostika`, `⭐️ BMB Rasmiy 3 soatlik Mock Test`.
+  * Kartochkalar to'rida: Fan nishoni (`🇺🇿 Ona tili va Adabiyot` / `🇬🇧 Ingliz tili`), aniq toza sarlavha, qulay metrikalar (`⏱ 180 daqiqa`, `📝 45 ta savol`, `🎯 O'tish bali: 60%`) va `[Testni boshlash →]` tugmasi.
+- [x] 5-Bosqich: QA, CI/CD va VPS Zero-Downtime Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.21s).
+  * Git muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>`.
+  * Commit xabari: `feat(ui): complete visual overhaul to warm academic luxury light aesthetic and purge clutter`.
+  * VPS deploy: Faqat `/opt/lms` loyihasidagi `web` va `nginx` konteynerlari uzilishsiz yangilandi. `bestway` daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK), `https://grandec.uz/tests` (HTTP 200 OK).
+
 ### 2.45. Rasmiy Versiya v1.49.0: Landing Page & Pricing Modernization (Interactive Hero Carousel, Luxury Gold Palette, Updated Pricing Tiers)
 - [x] 1-Bosqich: Ko'zni Toliqtirmaydigan Iliq, Chuqur Akademik-Oltin Palitra:
   * rontend/src/index.css: O'ta sovuq fonlar o'rniga iliq chuqur akademik fon (--bg: #0f141c, --card: #131926, --card-2: #1b2334, --border: rgba(245, 158, 11, 0.16)) kiritildi.
