@@ -9,6 +9,24 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.43. Rasmiy Versiya v1.47.0: Dashboard Workspace UI/UX Redesign (Clean Academic Luxury Concept)
+- [x] 1-Bosqich: Chap qism (Sidebar) Navigatsiyasini Tozalash:
+  * frontend/src/components/Layout.tsx: Navigatsiya menyusi Reference uslubida tartiblandi: Boshqaruv paneli, Testlar (CBT Testlar), AI Esse Studiyasi, 1v1 Arena, Natijalar va Tahlil, Titul (OMR) Skaner.
+  * Pastki qismga maxsus 'Premium A’zolik' kartochkasi integratsiya qilindi.
+- [x] 2-Bosqich: Asosiy Dashboard (frontend/src/pages/Dashboard.tsx) ni To'liq Qayta Loyihalash:
+  * Header: Shaxsiy salomlashish ('Xush kelibsiz, [F.I.Sh]! ✨'), Milliy Sertifikat ilhomlantiruvchi subhead, PRO tarif ko'rsatkichi, Bildirishnomalar va Sozlamalar.
+  * Ilhomlantiruvchi Bosh Banner: Akademik iqtibos, BMB Milliy Sertifikat 2026 mock eslatmasi va [O'qishni davom ettirish →] asosiy harakat tugmasi.
+  * 4 ta Asosiy Metrika Kartasi: Yechilgan testlar (24 ta, +12% bu oy), Yozilgan esselar (16 ta, BMB 12 mezon tahlili), O'rtacha natija (88%, B+/A daraja), Kundalik faollik (7 kunlik streak 🔥).
+  * 2 Ustunli Ishchi Oyna:
+    * Chap ustun: Mening Testlarim — Faol testlar ro'yxati, savollar soni, foiz progress bari va [Davom ettirish] / [Boshlash] tugmalari.
+    * O'ng ustun: AI Esse Studiyasi — Bugungi kun tavsiya etilgan mavzusi, [+ Yangi Esse yozish / Yuklash] harakat tugmasi va so'nggi baholangan esselar tarixi.
+  * Pastki Muvaffaqiyat Chizig'i (Path to Excellence): Milliy Sertifikat maqsadiga erishish progress bari (72%), 'A+ Sertifikat' maqsadi va 3 bosqichli ko'rsatkich.
+- [x] 3-Bosqich: QA, Sinov va VPS Zero-Downtime Deploy:
+  * npm run lint: 0 ta xatolik, npm run build: 0 ta xatolik.
+  * Git commit muallifi: Komiljon Roziyev <kruziyev0@gmail.com>.
+  * VPS deploy: Faqat /opt/lms loyihasida web va nginx konteynerlari uzilishsiz yangilandi. bestway ga mutlaqo tegilmadi.
+  * Jonli verifikatsiya: https://grandec.uz/healthz/ (HTTP 200 OK), https://grandec.uz/ (HTTP 200 OK).
+
 ### 2.42. Rasmiy Versiya v1.45.0: Google OAuth Elementlarini Qat'iy Yashirish, URL Xatolarini Tozalash va Backend Xavfsiz Redirect
 - [x] 1-Bosqich: Frontenddan Google Elementlarini Qat'iy Yashirish va Banner Tozalash:
   * `frontend/src/pages/Login.tsx`, `Register.tsx` va `AuthModal.tsx`: `const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== "");` orqali to'liq qat'iy tekshiruv o'rnatildi.
