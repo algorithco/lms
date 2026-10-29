@@ -6,7 +6,6 @@ import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin, Gamification
 import UserNavDropdown from './UserNavDropdown';
 import SubjectSwitcher from './SubjectSwitcher';
 import {
-  AwardIcon,
   BarChartIcon,
   CameraIcon,
   CreditCardIcon,
@@ -14,14 +13,12 @@ import {
   FileTextIcon,
   FlameIcon,
   FolderOpenIcon,
-  GamepadIcon,
   HomeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   MenuIcon,
   MicIcon,
   PenLineIcon,
-  ReceiptIcon,
   ShieldCheckIcon,
   SparklesIcon,
   SwordsIcon,
@@ -86,7 +83,6 @@ export default function Layout() {
   };
 
   const close = () => setOpen(false);
-  const isStudent = user?.role === 'student';
   const isTeacher = canTeach(user);
   const isAdmin = isPlatformAdmin(user);
   const isParent = canViewParent(user);
@@ -103,47 +99,30 @@ export default function Layout() {
           </span>
         </Link>
         <nav className="side-nav" aria-label="Ilova bo'limlari">
-          <Section title={t('main')}>
-            <NavLink to="/dashboard" className={linkClass} onClick={close}><LayoutDashboardIcon size={16} className="ico" /> {t('dashboard')}</NavLink>
-            {activeSubject === 'english' ? (
-              <>
-                <NavLink to="/tests" className={linkClass} onClick={close}>
-                  <FileTextIcon size={16} className="ico" /> CBT Reading & Listening
-                </NavLink>
-                <NavLink to="/speaking" className={linkClass} onClick={close}>
-                  <MicIcon size={16} className="ico" /> AI Speaking (IELTS & Multi-level)
-                </NavLink>
-                <NavLink to="/essays" className={linkClass} onClick={close}>
-                  <PenLineIcon size={16} className="ico" /> IELTS Writing
-                </NavLink>
-              </>
-            ) : (
-              <>
-                <NavLink to="/tests" className={linkClass} onClick={close}>
-                  <FileTextIcon size={16} className="ico" /> {t('tests')}
-                </NavLink>
-                <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}>
-                  <CameraIcon size={16} className="ico" /> Titul (OMR)
-                </NavLink>
-                <NavLink to="/essays" className={linkClass} onClick={close}>
-                  <PenLineIcon size={16} className="ico" /> {t('essays')}
-                </NavLink>
-              </>
-            )}
-            {isStudent && (
-              <NavLink to="/results" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> {t('my_results')}</NavLink>
-            )}
-            {isStudent && (
-              <NavLink to="/certificates" className={linkClass} onClick={close}><AwardIcon size={16} className="ico" /> {t('my_certificates')}</NavLink>
-            )}
-            {activeSubject === 'uzbek' && (
-              <NavLink to="/games" className={linkClass} onClick={close}><GamepadIcon size={16} className="ico" /> {t('games')}</NavLink>
-            )}
-            <NavLink to="/arena" className={linkClass} onClick={close}>
-              <SwordsIcon size={16} className="ico" /> {activeSubject === 'english' ? 'Vocabulary Arena' : t('arena')}
+          <Section title="Asosiy Menyu">
+            <NavLink to="/dashboard" className={linkClass} onClick={close}>
+              <LayoutDashboardIcon size={16} className="ico" /> Boshqaruv paneli
             </NavLink>
-            <NavLink to="/tournaments" className={linkClass} onClick={close}><TrophyIcon size={16} className="ico" /> Turnirlar</NavLink>
-            <NavLink to="/essay-leaderboard" className={linkClass} onClick={close}><AwardIcon size={16} className="ico" /> {t('leaderboard')}</NavLink>
+            <NavLink to="/tests" className={linkClass} onClick={close}>
+              <FileTextIcon size={16} className="ico" /> Testlar (CBT Testlar)
+            </NavLink>
+            <NavLink to="/essays" className={linkClass} onClick={close}>
+              <PenLineIcon size={16} className="ico" /> AI Esse Studiyasi
+            </NavLink>
+            <NavLink to="/arena" className={linkClass} onClick={close}>
+              <SwordsIcon size={16} className="ico" /> 1v1 Arena (Jonli jang)
+            </NavLink>
+            <NavLink to="/results" className={linkClass} onClick={close}>
+              <TrophyIcon size={16} className="ico" /> Natijalar va Tahlil
+            </NavLink>
+            <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}>
+              <CameraIcon size={16} className="ico" /> Titul (OMR) Skaner
+            </NavLink>
+            {activeSubject === 'english' && (
+              <NavLink to="/speaking" className={linkClass} onClick={close}>
+                <MicIcon size={16} className="ico" /> AI Speaking
+              </NavLink>
+            )}
           </Section>
           {isTeacher && (
             <Section title={t('role_teacher')}>
@@ -174,10 +153,18 @@ export default function Layout() {
               <NavLink to="/enterprise" className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> O'quv markazi</NavLink>
             </Section>
           )}
-          <Section title="Premium">
-            <NavLink to="/subscribe" className={linkClass} onClick={close}><CrownIcon size={16} className="ico" /> {t('premium')}</NavLink>
-            <NavLink to="/my-subscription" className={linkClass} onClick={close}><ReceiptIcon size={16} className="ico" /> {t('pay_current_sub')}</NavLink>
-          </Section>
+          <div style={{ margin: '16px 10px 10px', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <CrownIcon size={16} style={{ color: '#f59e0b' }} />
+              <strong style={{ fontSize: 13, color: '#f59e0b' }}>Premium A’zolik</strong>
+            </div>
+            <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
+              12 mezonli BMB esse tekshiruvi va cheksiz CBT testlar.
+            </p>
+            <Link to="/subscribe" className="btn sm primary" onClick={close} style={{ width: '100%', textAlign: 'center', display: 'block', padding: '7px 10px', fontSize: 12, borderRadius: 10, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', color: '#090d16' }}>
+              Tarifni oshirish →
+            </Link>
+          </div>
         </nav>
         <div className="side-user">
           <span className="avatar">{(user?.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2) || '?'}</span>

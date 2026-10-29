@@ -25,8 +25,14 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
 def _get_google_config() -> dict[str, str]:
-    client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
-    client_secret = getattr(settings, "GOOGLE_CLIENT_SECRET", "")
+    client_id = (
+        getattr(settings, "GOOGLE_CLIENT_ID", "")
+        or getattr(settings, "GOOGLE_OAUTH2_CLIENT_ID", "")
+    )
+    client_secret = (
+        getattr(settings, "GOOGLE_CLIENT_SECRET", "")
+        or getattr(settings, "GOOGLE_OAUTH2_CLIENT_SECRET", "")
+    )
     redirect_uri = getattr(settings, "GOOGLE_REDIRECT_URI", "")
     if not client_id or not client_secret:
         return {}
@@ -44,7 +50,10 @@ def _get_google_config() -> dict[str, str]:
 @require_GET
 def google_auth_config(request: HttpRequest) -> JsonResponse:
     """Return public Google client ID for GIS / Google One Tap SDK."""
-    client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+    client_id = (
+        getattr(settings, "GOOGLE_CLIENT_ID", "")
+        or getattr(settings, "GOOGLE_OAUTH2_CLIENT_ID", "")
+    )
     return JsonResponse(
         {
             "client_id": client_id,
@@ -104,7 +113,7 @@ def _verified_claims(
 @require_GET
 def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
     if request.GET.get("error"):
-        return redirect("web:login")
+        return redirect("/login")
 
     code = request.GET.get("code")
     state = request.GET.get("state")
@@ -119,11 +128,11 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
         or not secrets.compare_digest(state, expected_state)
     ):
         logger.warning("Google OAuth missing code or invalid state")
-        return redirect("web:login")
+        return redirect("/login")
 
     config = _get_google_config()
     if not config:
-        return redirect("web:login")
+        return redirect("/login")
     token_data = urllib.parse.urlencode(
         {
             "code": code,
@@ -141,13 +150,13 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
             token_response = json.loads(response.read().decode("utf-8"))
     except Exception as exc:
         logger.warning("Google token exchange failed: %s", exc)
-        return redirect("web:login")
+        return redirect("/login")
     raw_id_token = token_response.get("id_token")
     if not isinstance(raw_id_token, str) or not raw_id_token:
-        return redirect("web:login")
+        return redirect("/login")
     claims = _verified_claims(raw_id_token, config["client_id"], nonce)
     if claims is None:
-        return redirect("web:login")
+        return redirect("/login")
 
     google_id = claims.get("sub")
     email = claims.get("email", "")
@@ -158,7 +167,7 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
         or not isinstance(email, str)
         or not email.strip()
     ):
-        return redirect("web:login")
+        return redirect("/login")
     email = email.strip().lower()
     User = get_user_model()
 
@@ -166,7 +175,7 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
         # A logged-in user deliberately started this flow. Never let a changed
         # browser session or a Google identity already owned by someone else link.
         if not request.user.is_authenticated or request.user.pk != link_user_id:
-            return redirect("web:login")
+            return redirect("/login")
         if User.objects.filter(google_id=google_id).exclude(pk=link_user_id).exists():
             messages.error(request, "Bu Google hisobi boshqa hisobga bog'langan.")
             return redirect("web:dashboard")
@@ -182,7 +191,7 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
                     user.google_id = google_id
                     user.save(update_fields=["google_id"])
         except (User.DoesNotExist, IntegrityError):
-            return redirect("web:login")
+            return redirect("/login")
     else:
         user = User.objects.filter(google_id=google_id).first()
         if user is None:
@@ -193,7 +202,7 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
                     request,
                     "Bu email allaqachon mavjud. Avval parol bilan kiring, keyin Google hisobingizni bog'lang.",
                 )
-                return redirect("web:login")
+                return redirect("/login")
             from apps.accounts.models import Profile
 
             try:
@@ -209,11 +218,11 @@ def google_auth_callback(request: HttpRequest) -> HttpResponseRedirect:
                     Profile.objects.get_or_create(user=user)
             except IntegrityError:
                 logger.warning("Google account creation collision")
-                return redirect("web:login")
+                return redirect("/login")
 
     if not user.is_active:
         logger.warning("Inactive Google-linked user denied: user_id=%s", user.pk)
-        return redirect("web:login")
+        return redirect("/login")
     login(request, user)
     request.session.set_expiry(60 * 60 * 24 * 30)
     logger.info("Google OAuth login: user_id=%s", user.pk)

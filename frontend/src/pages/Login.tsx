@@ -28,7 +28,7 @@ export default function Login() {
   // Friendly error message for URL error code
     // Silently clean up ?error=google_not_configured from address bar
   useEffect(() => {
-    if (urlError === 'google_not_configured') {
+    if (urlError === 'google_not_configured' || (typeof window !== 'undefined' && window.location.search.includes('google_not_configured'))) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [urlError]);
@@ -395,9 +395,7 @@ export default function Login() {
                 ⚡ Parol eslab qolish shart emas!
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
-                {hasGoogle
-                  ? 'Telegram yoki Google hisobingiz orqali bir marta bosishda xavfsiz kiring.'
-                  : 'Telegram hisobingiz orqali bir marta bosishda xavfsiz kiring.'}
+                Telegram hisobingiz orqali bir marta bosishda xavfsiz kiring.
               </div>
             </div>
 
@@ -571,7 +569,9 @@ export default function Login() {
             )}
 
             {tgError && <p className="error" style={{ marginTop: 12 }}>{tgError}</p>}
-            {activeError && <p className="error" style={{ marginTop: 12 }}>{activeError}</p>}
+            {activeError && activeError !== 'google_not_configured' && !activeError.includes('google_not_configured') && (
+              <p className="error" style={{ marginTop: 12 }}>{activeError}</p>
+            )}
           </div>
         ) : (
           <div>

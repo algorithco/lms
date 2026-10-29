@@ -442,7 +442,7 @@ export default function AuthModal() {
         </div>
 
         {/* Error Alert Box */}
-        {((errorMsg && !errorMsg.includes('Google') && !errorMsg.includes('google_not_configured')) || tgError) && (
+        {((errorMsg && !errorMsg.includes('Google') && !errorMsg.includes('google_not_configured') && errorMsg !== 'google_not_configured') || tgError) && (
           <div
             style={{
               padding: '10px 14px',
