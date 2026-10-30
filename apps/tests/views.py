@@ -560,6 +560,10 @@ class SubmitAttemptView(APIView):
                     "objective_score": str(result.objective_score),
                     "writing_score": str(result.writing_score),
                     "pending_written_count": result.pending_written_count,
+                    "rasch_score": str(getattr(result, "rasch_score", "0.00")),
+                    "max_rasch_score": str(getattr(result, "max_rasch_score", "0.00")),
+                    "rasch_grade": getattr(result, "rasch_grade", ""),
+                    "rasch_explanation": getattr(result, "rasch_explanation", ""),
                 },
             },
             status=status.HTTP_200_OK,
@@ -1115,3 +1119,51 @@ class CertificateCardView(APIView):
             ),
         )
         return Response(payload, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Recalculate Rasch 1PL Metrics View
+# ---------------------------------------------------------------------------
+class RecalculateRaschView(APIView):
+    """
+    POST /api/tests/<int:pk>/recalculate-rasch/
+    POST /api/v1/tests/<int:test_id>/recalculate-rasch/
+
+    Test savollarining Rasch 1PL koeffitsiyentlarini va o'quvchilar
+    natijalarini yangi qiyinlik darajalari bo'yicha qayta hisoblash.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Rasch IRT ko'rsatkichlarini qayta hisoblash",
+        description="Barcha topshirilgan javoblar asosida savollar qiyinlik logitlarini va o'quvchilar ballarini yangilaydi.",
+        tags=["Tests"],
+    )
+    def post(
+        self, request: Request, pk: int | None = None, test_id: int | None = None, *args: Any, **kwargs: Any
+    ) -> Response:
+        target_id = pk or test_id
+        try:
+            test = Test.objects.select_related("course").get(id=target_id)
+        except Test.DoesNotExist:
+            return Response({"error": "Test topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        from apps.accounts.access import is_platform_admin
+
+        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_teacher = getattr(user, "role", "") == "teacher" and bool(
+            test.course and test.course.teacher_id == user.id
+        )
+
+        if not (is_admin or is_teacher):
+            return Response(
+                {"error": "Faqat test yaratuvchisi yoki ma'mur qayta hisoblashi mumkin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from apps.tests.rasch_engine import RaschEngine
+
+        data = RaschEngine.recalculate_test_rasch(test.id)
+        return Response(data, status=status.HTTP_200_OK)

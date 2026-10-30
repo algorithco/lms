@@ -9,6 +9,30 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.51. Rasmiy Versiya v1.55.0: Haqiqiy Uzluksiz Rasch (1PL IRT) Baholash Dvigateli va Dinamik Savol Vaznlari
+- [x] 1-Bosqich: Matematik Model va Uzluksiz IRT Algoritmi (Rasch 1PL Continuous Engine):
+  * `apps/tests/rasch_engine.py`: Laplace tekislashi (Laplace smoothing) $P_i = \frac{C_i + 0.5}{N + 1}$ orqali 0 ga bo'linish ehtimolidan holi ehtimollik formulasi kiritildi.
+  * Savol qiyinlik darajasi (Difficulty Logit) $\beta_i = \ln\left(\frac{1 - P_i}{P_i}\right)$ hisoblandi (kam topilgan savollar musbat va yuqori logitga ega).
+  * Dinamik vazn (Savol bali) $W_i = \text{clamp}(B \times e^{k \cdot \beta_i}, 0.5, 10.0)$ uzluksiz funksiyasi joriy etildi ($k=0.40$). Qiyin savollar 3.5 - 10.0 ballgacha ko'tariladi, oson savollar 0.5 - 1.2 ballgacha pasayadi.
+  * O'quvchi yakuniy natijalarida Dual Scoring (`raw_score`, `rasch_score`, `rasch_grade`, `rasch_explanation`) to'liq tatbiq etildi.
+- [x] 2-Bosqich: Database Modellari va Migratsiyalar:
+  * `Question` modeliga `total_attempts`, `correct_attempts`, `current_rasch_weight`, `difficulty_logit` maydonlari qo'shildi.
+  * `Test` modeliga `scoring_type` (`STANDARD` yoki `RASCH_DYNAMIC`, default `RASCH_DYNAMIC`) qo'shildi.
+  * `TestAttempt` va `Result` modellariga `rasch_score`, `max_rasch_score`, `rasch_grade`, `rasch_explanation` maydonlari qo'shildi.
+  * Migratsiyalar (`results.0008` va `tests.0012`) toza yaratildi va lokal qo'llanildi.
+- [x] 3-Bosqich: Qayta Hisoblash Triggere va API Endpoint:
+  * `SubmitAttemptService`: Test topshirilishi bilanoq yangi urinishlar hisobga olinib, savol parametrlari va o'quvchi dinamik bali avtomatik hisoblanadi.
+  * Ustoz va Admin uchun "Rash bo'yicha qayta hisoblash" (`POST /api/tests/<pk>/recalculate-rasch/` va `POST /api/v1/tests/<test_id>/recalculate-rasch/`) endpointi yaratildi.
+- [x] 4-Bosqich: Frontend O'quvchi Natijasi va Tahlil Ko'rinishi:
+  * `/results` va `/take/:attemptId` sahifalarida "Rash Dinamik Bali: XX.X" yorqin oltinrang nishon bilan ko'rsatildi.
+  * Natijalar tahlilida shaxsiy tushuntirish kartochkasi ("Siz topgan X-savollar sinfdoshlaringiz uchun eng qiyin bo'lgani sababli, ularga yuqori dinamik ball berildi") taqdim etildi.
+  * Har bir savol yonida uning joriy vazni `⭐️ X.X ball` ko'rinishida aks ettirildi.
+- [x] 5-Bosqich: QA, Unit Testlar va Linter:
+  * `pytest tests/test_rasch_engine.py`: 5/5 ta yangi unit/integratsion test 100% PASS.
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.39s).
+  * `python manage.py check`: 0 ta muammo (System check identified no issues).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.50. Rasmiy Versiya v1.54.0: 1-Soniyada Test Yaratish (Smart Paste), Moslashuvchan Savollar Soni va Telegram Ulashish
 - [x] 1-Bosqich: Moslashuvchan Savollar Soni (Dynamic Question Count & Test Engine):
   * Backend (`apps/tests` modellari va baholash mexanizmlari): Savollar soni avtomatik ravishda yuklangan savollar miqdoriga qarab dinamik belgilanadi (10 yoki 15 talik Adabiyot, 20 yoki 30 talik Grammatika, 45-50 talik to'liq Davlat BMB Mock testi).

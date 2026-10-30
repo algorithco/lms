@@ -144,6 +144,10 @@ interface SubmitResult {
   objective_score?: string | number;
   writing_score?: string | number;
   pending_written_count?: number;
+  rasch_score?: string | number;
+  max_rasch_score?: string | number;
+  rasch_grade?: string;
+  rasch_explanation?: string;
 }
 
 interface AnswerEntry {
@@ -1647,7 +1651,21 @@ export default function TakeTest() {
           )}
           {result.grading_status !== 'pending_grading' && (
             <>
-          <div className="toolbar">
+          <div className="toolbar" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            {result.rasch_score !== undefined && result.rasch_score !== null && Number(result.rasch_score) > 0 && (
+              <span
+                className="badge"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(251, 191, 36, 0.28) 100%)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.6)',
+                  color: '#b45309',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                }}
+              >
+                ⚡️ Rash Dinamik Bali: {Number(result.rasch_score).toFixed(1)}{result.rasch_grade ? ` (${result.rasch_grade})` : ''}
+              </span>
+            )}
             <span className="badge green">
               {t('rd_correct')}: {result.correct_answers}
             </span>

@@ -12,6 +12,7 @@ Design:
       (ReportLab) doesn't block the HTTP response.
 """
 
+from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -74,6 +75,33 @@ class Result(models.Model):
     )
 
     # -- Milliy Sertifikat agregatsiyasi --------------------------------------
+    rasch_score = models.DecimalField(
+        _("Rasch dinamik balli"),
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Rasch IRT modeli bo'yicha hisoblangan dinamik umumiy ball."),
+    )
+    max_rasch_score = models.DecimalField(
+        _("Maksimal Rasch balli"),
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Testdagi barcha savollarning joriy maksimal Rasch balli."),
+    )
+    rasch_grade = models.CharField(
+        _("Rasch darajasi"),
+        max_length=10,
+        blank=True,
+        default="",
+        help_text=_("Rasch dinamik bali bo'yicha daraja (A+, A, B+, B, C+, C, Fail)."),
+    )
+    rasch_explanation = models.TextField(
+        _("Rasch tahlil tushuntirishi"),
+        blank=True,
+        default="",
+        help_text=_("O'quvchiga dinamik ball qanday hisoblangani haqida shaxsiy tushuntirish."),
+    )
     grading_status = models.CharField(
         _("baholash holati"),
         max_length=20,

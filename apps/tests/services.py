@@ -93,6 +93,10 @@ class AttemptResult:
     writing_score: Decimal = Decimal("0")
     pending_written_count: int = 0
     certificate_status: str = ""
+    rasch_score: Decimal = Decimal("0")
+    max_rasch_score: Decimal = Decimal("0")
+    rasch_grade: str = ""
+    rasch_explanation: str = ""
 
 
 @dataclass(frozen=True)
@@ -1158,6 +1162,12 @@ class SubmitAttemptService:
             )
         from apps.tests.score_converter import raw_to_ielts_band, raw_to_cefr_multilevel
 
+                # -- Rasch 1PL continuous dynamic evaluation -----------------------
+        from apps.tests.rasch_engine import RaschEngine
+        rasch_score, max_rasch_score, rasch_grade, rasch_explanation = (
+            RaschEngine.evaluate_attempt_rasch(attempt, all_questions, answers_by_qid)
+        )
+
         band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
         cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
 
@@ -1170,6 +1180,8 @@ class SubmitAttemptService:
             raw_score=correct_count,
             band_score=band_val,
             cefr_level=cefr_val,
+            rasch_score=rasch_score,
+            rasch_grade=rasch_grade,
         )
 
         # -- Result modeliga saqlash (denormalized, race-safe) --------------
@@ -1200,6 +1212,10 @@ class SubmitAttemptService:
                 "scoring_profile": profile,
                 "scoring_version": f"{profile.name}:{profile.version}",
                 "rubric_version": ExamBridgeService._rubric_version(),
+                "rasch_score": rasch_score,
+                "max_rasch_score": max_rasch_score,
+                "rasch_grade": rasch_grade,
+                "rasch_explanation": rasch_explanation,
             },
         )
         # Refresh path (finalize) or concurrent winner: overwrite with the
@@ -1379,6 +1395,10 @@ class SubmitAttemptService:
                 percentage=result.percentage,
                 is_passed=result.is_passed,
                 time_taken_seconds=result.time_taken_seconds,
+                rasch_score=result.rasch_score,
+                max_rasch_score=result.max_rasch_score,
+                rasch_grade=result.rasch_grade,
+                rasch_explanation=result.rasch_explanation,
                 grading_status=result.grading_status,
                 objective_score=result.objective_score,
                 writing_score=result.writing_score,

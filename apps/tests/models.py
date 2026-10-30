@@ -18,6 +18,7 @@ This is the heart of the platform. Key design decisions:
        can be worth more than a simple recall one.
 """
 
+from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -53,6 +54,18 @@ class Test(models.Model):
         DRAFT = "draft", _("Qoralama")
         PUBLISHED = "published", _("E'lon qilingan")
         ARCHIVED = "archived", _("Arxivlangan")
+
+    class ScoringType(models.TextChoices):
+        STANDARD = "STANDARD", _("Standart (Teng balli)")
+        RASCH_DYNAMIC = "RASCH_DYNAMIC", _("Rasch (Dinamik qiyinlik)")
+
+    scoring_type = models.CharField(
+        _("baholash turi"),
+        max_length=20,
+        choices=ScoringType.choices,
+        default=ScoringType.RASCH_DYNAMIC,
+        db_index=True,
+    )
 
     class ExamType(models.TextChoices):
         GENERAL = "general", _("Umumiy test")
@@ -433,6 +446,26 @@ class Question(models.Model):
         blank=True,
         help_text=_("Javob topshirilgandan keyin ko'rsatiladi."),
     )
+    total_attempts = models.PositiveIntegerField(
+        _("jami urinishlar soni"),
+        default=0,
+        help_text=_("Ushbu savolga berilgan barcha javoblar soni (Rasch uchun)."),
+    )
+    correct_attempts = models.PositiveIntegerField(
+        _("to'g'ri urinishlar soni"),
+        default=0,
+        help_text=_("Ushbu savolga berilgan to'g'ri javoblar soni (Rasch uchun)."),
+    )
+    current_rasch_weight = models.FloatField(
+        _("joriy Rasch vazni (ball)"),
+        default=2.0,
+        help_text=_("Rasch IRT 1PL modeli bo'yicha dinamik savol vazni (0.5 - 10.0)."),
+    )
+    difficulty_logit = models.FloatField(
+        _("qiyinlik logiti (beta)"),
+        default=0.0,
+        help_text=_("Rasch logit qiyinlik koeffitsiyenti ln((1-P)/P)."),
+    )
     position = models.PositiveIntegerField(_("tartib raqami"), default=0)
     config = models.JSONField(
         _("sozlama"),
@@ -619,6 +652,20 @@ class TestAttempt(models.Model):
         max_length=10,
         blank=True,
         default="",
+    )
+    rasch_score = models.DecimalField(
+        _("Rasch dinamik balli"),
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("Rasch IRT modeli bo'yicha hisoblangan dinamik umumiy ball."),
+    )
+    rasch_grade = models.CharField(
+        _("Rasch darajasi"),
+        max_length=10,
+        blank=True,
+        default="",
+        help_text=_("Rasch dinamik bali bo'yicha daraja (A+, A, B+, B, C+, C, Fail)."),
     )
     section_scores = models.JSONField(
         _("bo'limlar ballari"),

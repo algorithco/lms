@@ -55,6 +55,10 @@ interface QuestionDetail {
   question_text: string;
   question_type: string;
   points: number;
+  current_rasch_weight?: number;
+  difficulty_logit?: number;
+  total_attempts?: number;
+  correct_attempts?: number;
   correct_choices: { id: number; text: string }[];
   selected_choices: { id: number; text: string }[];
   correct_text?: string;
@@ -73,6 +77,10 @@ interface SectionScoreItem {
 
 interface ResultDetailData extends ResultListItem {
   bmb_grade?: string;
+  rasch_score?: string | number;
+  max_rasch_score?: string | number;
+  rasch_grade?: string;
+  rasch_explanation?: string;
   total_questions?: number;
   correct_answers?: number;
   wrong_answers?: number;
@@ -212,6 +220,22 @@ export default function Results() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <strong>{String(r.test_title ?? `Test #${r.test ?? r.id}`)}</strong>
+                    {r.rasch_score !== undefined && r.rasch_score !== null && Number(r.rasch_score) > 0 && (
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          color: '#b45309',
+                          background: 'rgba(245, 158, 11, 0.16)',
+                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                        }}
+                        title={`Rasch dinamik bali: ${r.rasch_score}`}
+                      >
+                        ⚡️ Rash: {Number(r.rasch_score).toFixed(1)}
+                      </span>
+                    )}
                     {(() => {
                       const bmb = getBmbBadge(r.bmb_grade as string | undefined, pct, t);
                       return (
@@ -477,21 +501,77 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '4px 12px',
-                borderRadius: '8px',
-                fontWeight: 800,
-                fontSize: '1rem',
-                color: bmb.color,
-                background: bmb.bg,
-                border: `1px solid ${bmb.color}60`,
-                marginBottom: '6px',
-              }}
-            >
-              {t('bmb_official_grade')}: {bmb.grade}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '8px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  color: bmb.color,
+                  background: bmb.bg,
+                  border: `1px solid ${bmb.color}60`,
+                }}
+              >
+                {t('bmb_official_grade')}: {bmb.grade}
+              </span>
+              {detail.rasch_score !== undefined && detail.rasch_score !== null && Number(detail.rasch_score) > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    color: '#92400e',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(251, 191, 36, 0.28) 100%)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.55)',
+                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)',
+                  }}
+                  title="Rasch 1PL uzluksiz dinamik baholash bali"
+                >
+                  <span>⚡️</span>
+                  <span>Rash Dinamik Bali: <strong>{Number(detail.rasch_score).toFixed(1)}</strong>{detail.max_rasch_score ? ` / ${Number(detail.max_rasch_score).toFixed(1)}` : ''}</span>
+                  {detail.rasch_grade && (
+                    <span
+                      style={{
+                        marginLeft: 4,
+                        background: '#d97706',
+                        color: '#ffffff',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.76rem',
+                        fontWeight: 900,
+                      }}
+                    >
+                      {detail.rasch_grade}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+            {detail.rasch_explanation && (
+              <div
+                style={{
+                  margin: '8px 0 12px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontSize: '1.1rem', marginTop: 1 }}>💡</span>
+                <p style={{ margin: 0, fontSize: '0.86rem', color: '#78350f', lineHeight: 1.45, fontWeight: 500 }}>
+                  {detail.rasch_explanation}
+                </p>
+              </div>
+            )}
             <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{bmb.desc}</p>
             <p className="muted small" style={{ margin: '4px 0 0' }}>
               {t('overall_score')}: <strong>{pct}%</strong> {detail.is_passed ? `(${t('passed_status')})` : `(${t('failed_status')})`}
@@ -763,9 +843,27 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
               <p style={{ whiteSpace: 'pre-line', margin: '0 0 10px', lineHeight: 1.5 }}>
                 <span
                   className={`badge ${qd.is_correct ? 'green' : isWrong ? 'rose' : ''}`}
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: 6 }}
                 >
                   {qd.is_correct ? '✓ To‘g‘ri' : isWrong ? '✗ Xato' : '—'}
+                </span>
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    color: '#d97706',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    marginRight: 8,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                  }}
+                  title={`Savolning Rasch dinamik vazni: ${(qd.current_rasch_weight ?? qd.points ?? 2.0).toFixed(1)} ball`}
+                >
+                  ⭐️ {(qd.current_rasch_weight ?? qd.points ?? 2.0).toFixed(1)} ball
                 </span>{' '}
                 <strong>{qd.question_text}</strong>
               </p>

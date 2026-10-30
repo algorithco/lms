@@ -1,3 +1,4 @@
+from apps.tests import views as views_tests
 from django.urls import include, path
 
 from apps.accounts import google_auth as google_auth_views
@@ -22,6 +23,11 @@ from apps.tests import views_converter, views_mistakes, views_omr, views_placeme
 app_name = "webapi"
 
 urlpatterns = [
+    path(
+        "tests/<int:test_id>/recalculate-rasch/",
+        views_tests.RecalculateRaschView.as_view(),
+        name="webapi-test-recalculate-rasch",
+    ),
     # -- Teacher CRM, Quotas & Financial Overview (1-3 Modullar) --------
     path(
         "panel/teachers/<int:teacher_id>/allocate-quota/",

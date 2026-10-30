@@ -29,6 +29,12 @@ urlpatterns = [
         views.TestDetailView.as_view(),
         name="test-detail",
     ),
+    path(
+        "<int:pk>/recalculate-rasch/",
+        views.RecalculateRaschView.as_view(),
+        name="recalculate-rasch",
+    ),
+
     # -- Attempt lifecycle ----------------------------------------------------
     path(
         "<int:test_id>/start/",

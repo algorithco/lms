@@ -44,6 +44,10 @@ export interface ResultListItem {
   grading_status?: string;
   time_taken_seconds?: number;
   calculated_at?: string;
+  rasch_score?: string | number;
+  max_rasch_score?: string | number;
+  rasch_grade?: string;
+  rasch_explanation?: string;
   [key: string]: unknown;
 }
 

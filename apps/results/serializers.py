@@ -54,6 +54,10 @@ class ResultListSerializer(serializers.ModelSerializer):
             "certificate_status",
             "bmb_grade",
             "bmb_info",
+            "rasch_score",
+            "max_rasch_score",
+            "rasch_grade",
+            "rasch_explanation",
         ]
 
     def get_certificate_status(self, obj: Result) -> str:
@@ -293,6 +297,10 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                     "question_type": q.question_type,
                     "points": q.points,
                     "section_id": q.section_id,
+                    "current_rasch_weight": float(q.current_rasch_weight or 2.0),
+                    "difficulty_logit": float(q.difficulty_logit or 0.0),
+                    "total_attempts": int(q.total_attempts or 0),
+                    "correct_attempts": int(q.correct_attempts or 0),
                     "correct_choices": correct_choices,
                     "selected_choices": selected,
                     "student_answer_text": student_text_answer,
