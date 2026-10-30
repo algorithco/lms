@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.57. Rasmiy Versiya v1.64.0: Talaba Kabineti Tozalanishi, Ikkitalik Logoni Yo'qotish va TestMakon Yorug' Akademik Dizayni
+- [x] 1-Bosqich: Talaba (Student) Kabinetidan O'qituvchi Tugmalarini Olib Tashlash (`Dashboard.tsx`):
+  * `isTeacherOrAdmin` va `isStudent` rollari qat'iy ajratildi (`role === 'teacher' || role === 'admin' || is_staff || is_superuser`).
+  * O'quvchi (`STUDENT`) uchun `[+ Yangi test yaratish (Smart Paste)]` va "Mening testlarim"dagi `+ Test qo'shish` tugmalari mutlaqo yashirildi.
+  * O'quvchi uchun markaziy harakat tugmalari:
+    - `[⚡️ BMB Mock Test topshirish]` (asosiy tilla rangli CTA)
+    - `[✍️ AI Esse tekshirtirish]`
+    - `[⚔️ 1v1 Arena bellashuvi]`
+  * Ustoz va Adminlar uchun esa test yaratish, guruhlar va esse tekshiruvi tugmalari to'liq saqlab qolindi.
+- [x] 2-Bosqich: Ikkitalik Logoni Yo'qotish va Headerni Tozalash (`Layout.tsx`):
+  * Header ichidagi ikkinchi logotip (`topbar-mobile-brand`) desktopda qat'iy `display: none !important;` (`md:hidden`) qilindi. Katta ekranda logotip FAQAT chap sidebarda chiqadi.
+  * Desktop Header chap tomoniga nafis kontekst nishoni (`🏛️ Milliy Sertifikat & AI Esse LMS`) joylashtirildi, ortiqcha ishlamaydigan hamburger tugmasi olib tashlandi.
+  * Header foni toza yorug' (`bg-white/80 border-b border-slate-200/80 backdrop-blur-md`) ga keltirildi.
+- [x] 3-Bosqich: Ichki Kabinetni TestMakon Kabi Yorug' (Light Academic) Uslubga O'tkazish (`Dashboard.tsx`, `index.css`, `index.html`):
+  * `index.html` da eski qorong'i `theme` tozalanib, tizim qat'iy toza yorug' rejimda ishga tushishi ta'minlandi.
+  * Asosiy ishchi zona foni: Toza fil suyagi/oq (`#F8FAFC`).
+  * Motivatsiya bloki: Nafis fil suyagi-tilla gradient (`.dash-hero-banner`), to'q slate matnlar (`#0F172A`).
+  * 4 ta metrika kartochkalari: Toza oq `#FFFFFF`, nozik soya va border.
+  * "Mening testlarim" va "AI Esse Studiyasi" kartochkalari TestMakon kabi toza oq fonda, yashil va tilla yorqin tugmalar bilan ta'minlandi.
+- [x] 4-Bosqich: `/tests/create` (SmartTestCreate) Sahifasi UI Refactoringi:
+  * Orqa fon toza `#F8FAFC`.
+  * Sozlamalar va parser kartochkalari toza oq (`bg-white rounded-3xl shadow-sm border border-slate-200`).
+  * Chapdagi matn kiritish maydoni (`textarea`): Toza zamonaviy editor (`bg-slate-50 border border-slate-300 focus:border-amber-500`).
+  * O'ngdagi savollar ro'yxati: Har bir savol toza ajratilgan yashil/oq kartochkada, to'g'ri javob tanlanganda zümrad yashil border va yashil fon bilan chiroyli chiqadi.
+- [x] 5-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (10.15s).
+  * Contabo VPS (`169.58.58.229` / `/opt/lms`) da `web` va `nginx` yangilandi, BestWay loyihasiga mutlaqo daxl qilinmadi.
+  * Jonli tekshiruv: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.64.0) va `https://grandec.uz/` (HTTP 200 OK).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.56. Rasmiy Versiya v1.62.0: Telegram Bot va Mini App To'liq Refaktoringi, Yangi Narxlar (7k/15k/27k) va Kontrast O'rnatilishi
 - [x] 1-Bosqich: Telegram Bot Crash Xatoliklari va Handlerlarini Bartaraf Etish:
   * `apps/notifications/bot/handlers.py`: Qo'pol `"Kutilmagan holat yuz berdi: Operatsiyani bajarishda kutilmagan holat yuz berdi"` xabarlari to'liq olib tashlanib, xushmuomala yordam xabarlari va tugmalar navigatsiyasiga ulandi.
