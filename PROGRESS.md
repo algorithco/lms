@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.49. Rasmiy Versiya v1.53.0: UI Refaktoring — Ikkitalik Logotipni Yo'qotish, Oltinrang Luxury Kartochkalar va Mobil 2x2 Layout
+- [x] 1-Bosqich: Ikkitalik Logotipni Yo'qotish (Duplicate Logo Elimination):
+  * `Layout.tsx`: Topbar mobil logotipidan (`.topbar-mobile-brand`) inline `style={{ display: 'flex' }}` olib tashlandi.
+  * `index.css`: `.topbar-mobile-brand { display: none !important; }` kiritildi, faqat kichik ekranlarda (`@media (max-width: 767px)`) `display: flex !important;` orqali ko'rinishi ta'minlandi.
+  * Desktop (>= 768px) ekranlarda logotip takrorlanishi 100% bartaraf etilib, faqat chap sidebarda qoldirildi.
+- [x] 2-Bosqich: Qora Motivatsiya Qutisini Yengillashtirish (Warm Academic Luxury Card):
+  * `Dashboard.tsx`: Ekranning o'rtasidagi ulkan qora gradient quti o'rniga yumshoq fil suyagi/oq fonga ega (`background: linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(253, 230, 138, 0.25) 100%)`), tilla hoshiyali (`border: 1px solid rgba(245, 158, 11, 0.28)`) va to'q slate matnli (`#1E293B`, `#475569`) estetik kartochka qo'yildi.
+  * `[+ Yangi test yaratish (Smart Paste)]` asosiy harakat tugmasi yorqin tilla gradientda birinchi o'ringa olib chiqildi.
+- [x] 3-Bosqich: Developer Teglarini Tozalash va OMR / Test Dropdownlarini Chiroyli Qilish:
+  * `ScanOMR.tsx`: Testlar ro'yxatidagi xunuk developer teglari (`##MOCK-BMB-DIAGNOSTIC`, `#CEFR-301`) regex orqali tozalanib, chiroyli `[BMB-DIAGNOSTIC] Test nomi (40 talik)` formatiga keltirildi.
+  * Barcha dropdown va inputlar toza oq fonga (`#FFFFFF`), to'q matnga (`#0F172A`) va tilla aksentli hoshiyaga (`border: 1.5px solid rgba(245, 158, 11, 0.4)`) o'tkazildi.
+  * Natijalar ko'rsatkichlari (Metrics tiles) toza yorug' kartochkalarga o'tkazildi (`#F8FAFC`, `#059669`, `#2563EB`, `#DC2626`, `#D97706`).
+  * `index.css`: `.toolbar select` va `.toolbar input` qat'iy oq fon, to'q matn va tilla fokus hoshiyaga ega bo'ldi.
+- [x] 4-Bosqich: Radikal Mobil Dashboard Soddalashtirish (Mobile-First):
+  * Kichik ekranlarda motivatsiya bloki ixcham 1 qatorli hikmatga aylantirildi (keraksiz teglari yashirildi).
+  * 4 ta asosiy statistika kartochkasi mobil qurilmalarda aniq 2x2 to'r (grid) bo'yicha markazlashtirib joylashtirildi.
+  * "Mening testlarim" bo'limida har bir test tugmasi mobil ekranda 100% eniga yoyilib, 44px teginishga qulay ergonomic tugmaga aylandi.
+  * Mobil kontent pastki qismiga `padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;` (`pb-28`) berilib, pastki suzuvchi menyu hech qachon kontentni to'sib qo'ymasligi kafolatlandi.
+- [x] 5-Bosqich: QA, Zero-Downtime VPS Deploy va Verifikatsiya:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.01s).
+  * `python manage.py check`: 0 ta muammo.
+  * Git muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS deploy: Faqat `/opt/lms` loyihasidagi `web` va `nginx` konteynerlari uzilishsiz yangilandi (`docker compose build web nginx && docker compose up -d --no-deps web nginx`). `bestway` mutlaqo daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.48. Rasmiy Versiya v1.52.0: Rasmiy Humo Logotipi Integratsiyasi, Moslashuvchan Testlar va Smart Paste Test Parser
 - [x] 1-Bosqich: Yangi Rasmiy Humo Qanotli Logotip Integratsiyasi:
   * Rasmiy Humo qanoti va oltin-zumrad rangdagi "GRANDEC ACADEMIC EDTECH" logotipi xom rasmdan toza vektor/shaffof PNG (`logo.png`, `logo-mark.png`, `logo-horizontal.png`) va favicon formatlariga keltirildi.

@@ -190,7 +190,7 @@ export default function Layout() {
               >
                 {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
               </button>
-              <Link to="/dashboard" className="topbar-mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Link to="/dashboard" className="topbar-mobile-brand">
                 <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                   <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: '#0F172A' }}>GRANDEC</span>

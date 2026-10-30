@@ -662,8 +662,16 @@ h1 .ico { vertical-align: -3px; margin-right: 6px; }
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: var(--card);
+  background: #ffffff;
+  color: #0f172a;
   min-width: 0;
+}
+
+.toolbar select:focus,
+.toolbar input:focus {
+  outline: none;
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
 }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
@@ -1447,7 +1455,7 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
 }
 
 .topbar-mobile-brand {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 767px) {
@@ -1457,7 +1465,7 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
   }
 
   .content {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
     padding-left: 14px !important;
     padding-right: 14px !important;
   }
@@ -1562,12 +1570,25 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
   }
 
   .dash-stat-card {
-    padding: 14px 12px !important;
+    padding: 14px 10px !important;
     border-radius: 16px !important;
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .dash-stat-card > div:first-child {
+    flex-direction: column-reverse !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
 
   .dash-stat-val {
-    font-size: 22px !important;
+    font-size: 20px !important;
     margin-bottom: 2px !important;
   }
 
@@ -1580,8 +1601,24 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
   }
 
   .dash-hero-banner {
-    padding: 20px 16px !important;
-    border-radius: 18px !important;
+    padding: 16px 14px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .dash-hero-badge-wrap {
+    display: none !important;
+  }
+
+  .dash-hero-title {
+    font-size: 13.5px !important;
+    line-height: 1.4 !important;
+    margin-bottom: 6px !important;
+    font-weight: 700 !important;
+  }
+
+  .dash-hero-desc {
+    display: none !important;
   }
 
   .dash-hero-actions {
@@ -1596,15 +1633,26 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
     justify-content: center !important;
   }
 
+  .dash-test-item-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .dash-test-btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+  }
+
   .dash-milestones-grid {
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: 10px !important;
-  }
-
-  .dash-hero-badge-wrap {
-    width: 100% !important;
-    margin-top: 6px;
   }
 }
 

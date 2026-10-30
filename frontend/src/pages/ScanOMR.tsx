@@ -326,12 +326,14 @@ export default function ScanOMR() {
                       onChange={(e) => setSearchTestQuery(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '8px 12px 8px 34px',
-                        borderRadius: 8,
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        background: 'rgba(0,0,0,0.2)',
-                        color: 'var(--ink)',
-                        fontSize: '0.82rem',
+                        padding: '10px 14px 10px 36px',
+                        borderRadius: 12,
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontSize: '0.86rem',
+                        fontWeight: 600,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
                       }}
                     />
                   </div>
@@ -343,43 +345,51 @@ export default function ScanOMR() {
                   onChange={(e) => handleSelectTest(Number(e.target.value))}
                   style={{
                     width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    border: '1px solid rgba(255, 255, 255, 0.16)',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    color: 'var(--ink)',
-                    fontSize: '0.88rem',
-                    fontWeight: 600,
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '1.5px solid rgba(245, 158, 11, 0.4)',
+                    background: '#FFFFFF',
+                    color: '#0F172A',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
                     outline: 'none',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                   }}
                 >
-                  {filteredTests.map((t) => (
-                    <option key={t.id} value={t.id} style={{ background: '#0F172A', color: '#F8FAFC' }}>
-                      #{t.mock_code || t.access_code}: {t.title} ({t.total_questions} talik)
-                    </option>
-                  ))}
+                  {filteredTests.map((t) => {
+                    const rawCode = String(t.mock_code || t.access_code || '').trim();
+                    const cleanCode = rawCode.replace(/^#+/, '').trim();
+                    let cleanTitle = String(t.title || '').replace(/#?#?[A-Z0-9_-]*(?:MOCK|CEFR|IELTS|BMB|DIAGNOSTIC)[A-Z0-9_-]*/gi, '').trim();
+                    cleanTitle = cleanTitle.replace(/^[-—:() ]+|[-—:() ]+$/g, '').trim() || t.title;
+                    return (
+                      <option key={t.id} value={t.id} style={{ background: '#FFFFFF', color: '#0F172A', padding: '8px' }}>
+                        {cleanCode ? `[${cleanCode}] ` : ''}{cleanTitle} ({t.total_questions} talik)
+                      </option>
+                    );
+                  })}
                 </select>
 
                 {/* Selected Test Badge */}
                 {selectedTestId && (
                   <div
                     style={{
-                      marginTop: 8,
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      background: 'rgba(16, 185, 129, 0.1)',
+                      marginTop: 10,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: 'rgba(16, 185, 129, 0.08)',
                       border: '1px solid rgba(16, 185, 129, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
-                      fontSize: '0.8rem',
-                      color: '#6EE7B7',
+                      fontSize: '0.85rem',
+                      color: '#065F46',
+                      fontWeight: 600,
                     }}
                   >
-                    <Check size={14} />
+                    <Check size={16} color="#059669" />
                     <span>
-                      Tanlangan: <b>#{mockCode}</b> · {filteredTests.find((t) => t.id === selectedTestId)?.total_questions || 40} ta savolli kalit bilan tekshiriladi
+                      Tanlangan: <b style={{ color: '#047857' }}>{mockCode ? `#${mockCode.replace(/^#+/, '')}` : 'Test tanlandi'}</b> · {filteredTests.find((t) => t.id === selectedTestId)?.total_questions || 40} ta savolli kalit bilan tekshiriladi
                     </span>
                   </div>
                 )}
@@ -393,12 +403,14 @@ export default function ScanOMR() {
                   onChange={(e) => setMockCode(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    background: 'rgba(0,0,0,0.25)',
-                    color: 'var(--ink)',
+                    padding: '11px 14px',
+                    borderRadius: 12,
+                    border: '1px solid #CBD5E1',
+                    background: '#FFFFFF',
+                    color: '#0F172A',
                     fontSize: '0.88rem',
+                    fontWeight: 600,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
                   }}
                 />
                 <span className="muted small" style={{ display: 'block', marginTop: 4, fontSize: '0.76rem' }}>
@@ -568,30 +580,30 @@ export default function ScanOMR() {
 
               {/* 4 Metrics Tiles */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-                <div style={{ padding: 14, borderRadius: 12, background: 'rgba(0,0,0,0.25)' }}>
-                  <span className="muted small">To'g'ri javoblar</span>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#34D399' }}>
+                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>To'g'ri javoblar</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#059669' }}>
                     {result.correct_count} / {result.total_questions}
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: 'rgba(0,0,0,0.25)' }}>
-                  <span className="muted small">To'plangan ball</span>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#60A5FA' }}>
+                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>To'plangan ball</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#2563EB' }}>
                     {result.total_score} / {result.max_score} ({result.percentage}%)
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: 'rgba(0,0,0,0.25)' }}>
-                  <span className="muted small">Noto'g'ri / Bo'sh</span>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#F87171' }}>
+                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>Noto'g'ri / Bo'sh</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#DC2626' }}>
                     {result.incorrect_count} xato · {result.blank_count} bo'sh
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: 'rgba(0,0,0,0.25)' }}>
-                  <span className="muted small">Gamification XP</span>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#FBBF24' }}>
+                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>Gamification XP</span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#D97706' }}>
                     +{result.xp_earned || 25} XP 🔥
                   </div>
                 </div>

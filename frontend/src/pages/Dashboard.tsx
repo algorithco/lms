@@ -275,30 +275,30 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 2. ILHOMLANTIRUVCHI BOSH BANNER (MOTIVATION & QUICK ACTION) */}
+      {/* 2. ILHOMLANTIRUVCHI BOSH BANNER (WARM LUXURY LIGHT CARD) */}
       <section
         className="dash-hero-banner"
         style={{
           position: 'relative',
           borderRadius: 20,
-          padding: '26px 28px',
+          padding: '22px 26px',
           marginBottom: 24,
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.3)',
+          background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(253, 230, 138, 0.25) 100%)',
+          border: '1px solid rgba(245, 158, 11, 0.28)',
+          boxShadow: '0 10px 30px -10px rgba(217, 119, 6, 0.08), 0 2px 8px rgba(0, 0, 0, 0.02)',
           overflow: 'hidden',
         }}
       >
-        {/* Soft background glow */}
+        {/* Soft amber radial glow */}
         <div
           style={{
             position: 'absolute',
-            top: -40,
-            right: -40,
-            width: 220,
-            height: 220,
-            background: 'radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, transparent 70%)',
-            filter: 'blur(40px)',
+            top: -30,
+            right: -30,
+            width: 200,
+            height: 200,
+            background: 'radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%)',
+            filter: 'blur(30px)',
             pointerEvents: 'none',
           }}
         />
@@ -311,10 +311,10 @@ export default function Dashboard() {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 18,
+            gap: 16,
           }}
         >
-          <div style={{ maxWidth: 660, width: '100%' }}>
+          <div style={{ maxWidth: 640, width: '100%' }}>
             <div
               style={{
                 display: 'inline-flex',
@@ -322,61 +322,85 @@ export default function Dashboard() {
                 gap: 6,
                 padding: '4px 10px',
                 borderRadius: 999,
-                background: 'rgba(245, 158, 11, 0.15)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                color: '#fbbf24',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                color: '#B45309',
                 fontSize: 11,
-                fontWeight: 700,
-                marginBottom: 10,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                marginBottom: 8,
               }}
             >
               <SparklesIcon size={12} />
               <span>KUN HIKMATI VA MOTIVATSIYA</span>
             </div>
             <h2
+              className="dash-hero-title"
               style={{
-                fontSize: 'clamp(1.15rem, 3.5vw, 1.45rem)',
-                fontWeight: 800,
-                color: '#ffffff',
-                margin: '0 0 8px',
-                lineHeight: 1.35,
+                fontSize: '15px',
+                fontWeight: 700,
+                color: '#1E293B',
+                margin: '0 0 6px',
+                lineHeight: 1.45,
               }}
             >
               &ldquo;Ilm — o‘rganish bilan, yuksak natija esa uzluksiz intilish bilan qo‘lga kiritiladi.&rdquo;
             </h2>
             <p
+              className="dash-hero-desc"
               style={{
                 margin: '0 0 16px',
                 fontSize: 13,
-                color: 'rgba(255, 255, 255, 0.75)',
+                color: '#475569',
                 lineHeight: 1.5,
               }}
             >
               BMB Milliy Sertifikat 2026 standarti bo‘yicha yangilangan rasmiy mock test va 12 mezonli AI esse topshirig‘i sizni kutmoqda.
             </p>
-            <div className="dash-hero-actions" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => navigate(available.length > 0 ? `/tests/${available[0].id}` : '/tests')}
-                className="btn-glow"
+            <div className="dash-hero-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Link
+                to="/tests/create"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '12px 22px',
+                  padding: '11px 20px',
                   borderRadius: 12,
                   background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                  border: 'none',
-                  color: '#090d16',
+                  color: '#FFFFFF',
                   fontWeight: 800,
-                  fontSize: 14,
+                  fontSize: 13.5,
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                  minHeight: 44,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(245, 158, 11, 0.35)',
-                  minHeight: 46,
+                  border: 'none',
+                }}
+              >
+                <span>✍️</span>
+                <span>+ Yangi test yaratish (Smart Paste)</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => navigate(available.length > 0 ? `/tests/${available[0].id}` : '/tests')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '11px 18px',
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  color: '#0F172A',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                  minHeight: 44,
                 }}
               >
                 <span>O‘qishni davom ettirish</span>
-                <span style={{ fontSize: 16 }}>→</span>
+                <span style={{ fontSize: 15, color: '#D97706' }}>→</span>
               </button>
               <Link
                 to="/essays"
@@ -384,41 +408,20 @@ export default function Dashboard() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '11px 18px',
+                  padding: '11px 16px',
                   borderRadius: 12,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.18)',
-                  color: '#ffffff',
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  color: '#334155',
                   fontWeight: 700,
                   fontSize: 13,
                   textDecoration: 'none',
-                  backdropFilter: 'blur(10px)',
-                  minHeight: 46,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                  minHeight: 44,
                 }}
               >
-                <PenLineIcon size={14} />
+                <PenLineIcon size={14} color="#D97706" />
                 <span>AI Esse tekshirish</span>
-              </Link>
-              <Link
-                to="/tests/create"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '11px 18px',
-                  borderRadius: 12,
-                  background: 'rgba(245, 158, 11, 0.16)',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  color: '#F59E0B',
-                  fontWeight: 800,
-                  fontSize: 13,
-                  textDecoration: 'none',
-                  backdropFilter: 'blur(10px)',
-                  minHeight: 46,
-                }}
-              >
-                <span>✍️</span>
-                <span>+ Yangi test (Smart Paste)</span>
               </Link>
             </div>
           </div>
@@ -429,11 +432,12 @@ export default function Dashboard() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 14,
-              background: 'rgba(255, 255, 255, 0.05)',
+              gap: 12,
+              background: '#FFFFFF',
               padding: '14px 18px',
               borderRadius: 16,
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.22)',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.03)',
             }}
           >
             <div
@@ -441,8 +445,8 @@ export default function Dashboard() {
                 width: 44,
                 height: 44,
                 borderRadius: 12,
-                background: 'rgba(245, 158, 11, 0.2)',
-                color: '#fbbf24',
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#D97706',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -452,13 +456,13 @@ export default function Dashboard() {
               <AwardIcon size={24} />
             </div>
             <div>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.6)', fontWeight: 700, letterSpacing: '0.05em' }}>
+              <div style={{ fontSize: 10.5, textTransform: 'uppercase', color: '#64748B', fontWeight: 800, letterSpacing: '0.06em' }}>
                 Keyingi Marra
               </div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>
                 A+ Sertifikat (65+ Ball)
               </div>
-              <div style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>
+              <div style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>
                 Tayyorgarlik darajasi: 72%
               </div>
             </div>
@@ -472,11 +476,11 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -511,11 +515,11 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -550,11 +554,11 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -589,11 +593,11 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -711,12 +715,12 @@ export default function Dashboard() {
                       gap: 8,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <div className="dash-test-item-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 180 }}>
-                        <strong style={{ fontSize: 13, color: 'var(--ink)', display: 'block', marginBottom: 3 }}>
+                        <strong style={{ fontSize: 13.5, color: '#0F172A', display: 'block', marginBottom: 4, fontWeight: 700 }}>
                           {test.title}
                         </strong>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#64748B', flexWrap: 'wrap' }}>
                           <span>Ona tili va Adabiyot</span>
                           <span>•</span>
                           <span>{num(test.total_questions, 0)} ta savol</span>
@@ -730,18 +734,22 @@ export default function Dashboard() {
                       </div>
                       <Link
                         to={`/tests/${test.id}`}
-                        className="btn sm primary"
+                        className="dash-test-btn"
                         style={{
                           whiteSpace: 'nowrap',
-                          padding: '8px 16px',
-                          borderRadius: 9,
-                          fontWeight: 700,
-                          fontSize: 12,
+                          padding: '9px 18px',
+                          borderRadius: 10,
+                          fontWeight: 800,
+                          fontSize: 12.5,
                           textDecoration: 'none',
-                          minHeight: 38,
+                          minHeight: 40,
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                          color: '#FFFFFF',
+                          boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                          border: 'none',
                         }}
                       >
                         {progressPct > 0 ? 'Davom ettirish' : 'Boshlash'}
