@@ -1236,9 +1236,10 @@ uff check apps/ 0 xato, pytest tests/test_spa_contract.py 20/20 test 100% PASS.
   * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
 
 ## 3. Jarayonda
-- Yangilanishlarni Git orqali yuborish va VPS serverda faqat `grandec` (lms) xizmatlarini qayta yuklash.
+- Barcha 2-bosqich vazifalari (Smart Paste, Moslashuvchan savollar soni, Telegram ulashish) to'liq yakunlandi va VPS serverda (grandec.uz) muvaffaqiyatli ishga tushirildi.
 
 ---
 
 ## 4. Keyingi qadamlar
-- Yangi 5 000 so'mlik Starter tarifining konversiyasini kuzatish.
+- O'qituvchilar tomonidan yaratilgan yangi testlar va Telegram orqali ulashilgan havolalarning konversiyasini kuzatish.
+- Keyingi bosqich talablari va takomillashtirishlarni amalga oshirish.
