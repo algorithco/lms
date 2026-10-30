@@ -27,6 +27,15 @@ type TargetType = 'national_certificate' | 'attestation' | 'ielts' | 'multilevel
 export default function OnboardingModal({ isOpen, onClose, onSuccess }: OnboardingModalProps) {
   const { user, updateUserLocal, refreshUser } = useAuth();
 
+  const role = (user?.role || '').toLowerCase();
+  const isStaffOrTeacher = role === 'admin' || role === 'teacher' || role === 'superadmin' || Boolean(user?.is_staff) || Boolean(user?.is_superuser);
+  const isStudent = role === 'student' && !isStaffOrTeacher;
+
+  const isDismissed = typeof window !== 'undefined' && (
+    localStorage.getItem('onboarding_dismissed') === 'true' ||
+    localStorage.getItem('grandec_onboarding_done') === 'true'
+  );
+
   const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
     const track = localStorage.getItem('grandec_selected_track');
     if (track === 'ielts' || track === 'multilevel') return 'english';
@@ -75,6 +84,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   const [savingPlan, setSavingPlan] = useState<boolean>(false);
 
   const persistLocalPlan = useCallback((tgt: TargetType, tl: number, gr: string) => {
+    localStorage.setItem('onboarding_dismissed', 'true');
     localStorage.setItem('grandec_onboarding_done', 'true');
     localStorage.setItem(
       'grandec_user_plan',
@@ -302,7 +312,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !isStudent || isDismissed) return null;
 
   return (
     <div

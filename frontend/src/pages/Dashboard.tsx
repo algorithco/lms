@@ -55,18 +55,25 @@ export default function Dashboard() {
   const [streak, setStreak] = useState<StreakInfoResponse | null>(null);
   const [, setVaultStats] = useState<{ unresolved_count: number; weak_topics: { topic: string; error_count: number }[] } | null>(null);
 
-  const isStudent = user?.role === 'student';
+  const role = (user?.role || '').toLowerCase();
+  const isStaffOrTeacher = role === 'admin' || role === 'teacher' || role === 'superadmin' || Boolean(user?.is_staff) || Boolean(user?.is_superuser);
+  const isStudent = role === 'student' && !isStaffOrTeacher;
 
   useEffect(() => {
+    if (!isStudent) {
+      setOnboardingOpen(false);
+      return;
+    }
+    const isDismissed = localStorage.getItem('onboarding_dismissed') === 'true';
     const isDone = localStorage.getItem('grandec_onboarding_done') === 'true';
-    if (isDone || user?.onboarding_completed === true) {
+    if (isDismissed || isDone || user?.onboarding_completed === true) {
       setOnboardingOpen(false);
       return;
     }
     if (user && user.onboarding_completed === false) {
       setOnboardingOpen(true);
     }
-  }, [user]);
+  }, [user, isStudent]);
 
   useEffect(() => {
     let alive = true;
@@ -276,19 +283,7 @@ export default function Dashboard() {
       )}
 
       {/* 2. ILHOMLANTIRUVCHI BOSH BANNER (WARM LUXURY LIGHT CARD) */}
-      <section
-        className="dash-hero-banner"
-        style={{
-          position: 'relative',
-          borderRadius: 20,
-          padding: '22px 26px',
-          marginBottom: 24,
-          background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(253, 230, 138, 0.25) 100%)',
-          border: '1px solid rgba(245, 158, 11, 0.28)',
-          boxShadow: '0 10px 30px -10px rgba(217, 119, 6, 0.08), 0 2px 8px rgba(0, 0, 0, 0.02)',
-          overflow: 'hidden',
-        }}
-      >
+      <section className="dash-hero-banner">
         {/* Soft amber radial glow */}
         <div
           style={{
@@ -339,7 +334,6 @@ export default function Dashboard() {
               style={{
                 fontSize: '15px',
                 fontWeight: 700,
-                color: '#1E293B',
                 margin: '0 0 6px',
                 lineHeight: 1.45,
               }}
@@ -351,7 +345,6 @@ export default function Dashboard() {
               style={{
                 margin: '0 0 16px',
                 fontSize: 13,
-                color: '#475569',
                 lineHeight: 1.5,
               }}
             >
@@ -382,6 +375,7 @@ export default function Dashboard() {
               </Link>
               <button
                 type="button"
+                className="dash-hero-btn-secondary"
                 onClick={() => navigate(available.length > 0 ? `/tests/${available[0].id}` : '/tests')}
                 style={{
                   display: 'inline-flex',
@@ -389,13 +383,9 @@ export default function Dashboard() {
                   gap: 8,
                   padding: '11px 18px',
                   borderRadius: 12,
-                  background: '#FFFFFF',
-                  border: '1px solid #CBD5E1',
-                  color: '#0F172A',
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
                   minHeight: 44,
                 }}
               >
@@ -404,19 +394,16 @@ export default function Dashboard() {
               </button>
               <Link
                 to="/essays"
+                className="dash-hero-btn-secondary"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '11px 16px',
                   borderRadius: 12,
-                  background: '#FFFFFF',
-                  border: '1px solid #CBD5E1',
-                  color: '#334155',
                   fontWeight: 700,
                   fontSize: 13,
                   textDecoration: 'none',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
                   minHeight: 44,
                 }}
               >
@@ -433,11 +420,8 @@ export default function Dashboard() {
               display: 'flex',
               alignItems: 'center',
               gap: 12,
-              background: '#FFFFFF',
               padding: '14px 18px',
               borderRadius: 16,
-              border: '1px solid rgba(245, 158, 11, 0.22)',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.03)',
             }}
           >
             <div
@@ -476,11 +460,8 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            borderRadius: 18,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -515,11 +496,8 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            borderRadius: 18,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -554,11 +532,8 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            borderRadius: 18,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -593,11 +568,8 @@ export default function Dashboard() {
         <div
           className="dash-stat-card"
           style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 18,
             padding: '18px 20px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            borderRadius: 18,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -717,10 +689,10 @@ export default function Dashboard() {
                   >
                     <div className="dash-test-item-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 180 }}>
-                        <strong style={{ fontSize: 13.5, color: '#0F172A', display: 'block', marginBottom: 4, fontWeight: 700 }}>
+                        <strong style={{ fontSize: 13.5, color: 'var(--ink)', display: 'block', marginBottom: 4, fontWeight: 700 }}>
                           {test.title}
                         </strong>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#64748B', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
                           <span>Ona tili va Adabiyot</span>
                           <span>•</span>
                           <span>{num(test.total_questions, 0)} ta savol</span>
@@ -1115,7 +1087,8 @@ export default function Dashboard() {
       </section>
 
       {/* Onboarding Modal */}
-      <OnboardingModal
+      {isStudent && (
+        <OnboardingModal
         isOpen={onboardingOpen}
         onClose={() => {
           localStorage.setItem('grandec_onboarding_done', 'true');
@@ -1126,6 +1099,7 @@ export default function Dashboard() {
           setOnboardingOpen(false);
         }}
       />
+      )}
     </div>
   );
 }

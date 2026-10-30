@@ -120,7 +120,13 @@ export default function PanelUsers() {
                 return (
                   <tr key={str(u.id)}>
                     <td>
-                      {str(u.full_name) || str(u.email)}
+                      {(() => {
+                        const fn = str(u.full_name).trim();
+                        const em = str(u.email).trim();
+                        if (fn && fn !== em) return fn;
+                        if (em.startsWith('tg_') || em.includes('@tma')) return `Foydalanuvchi #${u.id}`;
+                        return em || `Foydalanuvchi #${u.id}`;
+                      })()}
                       {isMe && (
                         <>
                           {' '}
@@ -129,7 +135,22 @@ export default function PanelUsers() {
                       )}
                     </td>
                     <td>
-                      <small className="muted">{str(u.email)}</small>
+                      {str(u.email).startsWith('tg_') || str(u.email).includes('@tma') ? (
+                        <span
+                          className="badge"
+                          style={{
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            color: '#0284c7',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          📱 Telegram SSO
+                        </span>
+                      ) : (
+                        <small className="muted">{str(u.email)}</small>
+                      )}
                     </td>
                     <td>
                       <select

@@ -504,7 +504,24 @@ export default function PanelDashboard() {
                       <td>
                         <div>
                           <strong>{g.teacher_name}</strong>
-                          <span className="muted small" style={{ display: 'block' }}>{g.teacher_email}</span>
+                          {g.teacher_email && (
+                            g.teacher_email.startsWith('tg_') || g.teacher_email.includes('@tma') ? (
+                              <span
+                                className="badge"
+                                style={{
+                                  background: 'rgba(56, 189, 248, 0.12)',
+                                  color: '#0284c7',
+                                  fontSize: '0.72rem',
+                                  display: 'inline-block',
+                                  marginTop: 2,
+                                }}
+                              >
+                                📱 Telegram
+                              </span>
+                            ) : (
+                              <span className="muted small" style={{ display: 'block' }}>{g.teacher_email}</span>
+                            )
+                          )}
                         </div>
                       </td>
                       <td>

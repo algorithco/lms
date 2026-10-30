@@ -751,7 +751,15 @@ export default function Groups() {
                                     <tr key={s.id}>
                                       <td>
                                         <strong>{s.full_name}</strong>
-                                        <div className="muted small">{s.email}</div>
+                                        <div className="muted small">
+                        {s.email.startsWith('tg_') || s.email.includes('@tma') ? (
+                          <span className="badge" style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#0284c7', fontSize: '0.7rem' }}>
+                            📱 Telegram
+                          </span>
+                        ) : (
+                          s.email
+                        )}
+                      </div>
                                       </td>
                                       <td>
                                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

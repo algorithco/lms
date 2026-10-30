@@ -9,6 +9,23 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.52. Rasmiy Versiya v1.56.0: Smart Onboarding Cheklovi, Dark Mode Kontrasti va Ustoz/Admin UX Tozalanishi
+- [x] 1-Bosqich: Smart Onboarding Cheklovi va To'xtatish (OnboardingModal & Dashboard):
+  * Admin, superadmin va ustozlar (`role !== 'student'`) uchun "Smart Onboarding — Maqsad va Reja" modali mutlaqo ochilmaydi.
+  * O'quvchi bir marta maqsad tanlasa yoki [O'tkazib yuborish] ni bossa, `localStorage.setItem('onboarding_dismissed', 'true')` saqlanib, qayta bezovta qilmaydi.
+  * React Rules of Hooks qoidalariga to'liq rioya qilindi (barcha hooklar shartli returnlardan oldin chaqiriladi).
+- [x] 2-Bosqich: Zamonaviy SaaS Dark Mode Kontrast Ziddiyatlarini Bartaraf Etish:
+  * `Dashboard.tsx` dagi oq fonli inline kartochkalar (`#FFFFFF`) olib tashlandi, ularning o'rniga CSS sinflari (`.dash-hero-banner`, `.dash-hero-title`, `.dash-stat-card`) joriy qilindi.
+  * Oq matn (`color: 'var(--ink)'`) oq fon ustida ko'rinmay qolishi to'liq bartaraf etildi.
+  * `frontend/src/index.css`: SaaS qorong'i rejim palitrasi (`--bg: #0B0F17`, `--card: #1E293B`, `--card-surface: rgba(30, 41, 59, 0.88)`, `--card-2: #0F172A`, matnlar uchun `#F8FAFC`, nofaol matnlar uchun `#94A3B8`) o'rnatildi.
+- [x] 3-Bosqich: Admin va Ustozlar Uchun UX Tozalash:
+  * Foydalanuvchilar ro'yxatidagi sintetik emaillar (`tg_...tma`) chiroyli `📱 Telegram SSO` badge bilan almashtirildi (`PanelUsers.tsx`, `PanelDashboard.tsx`, `Groups.tsx`).
+  * Mobil qurilmalarda pastki navigatsiya paneli kontentni to'sib qo'ymasligi uchun `.content` ga `pb-32` (`8.5rem` bottom padding) berildi (`Layout.tsx`, `index.css`).
+  * Qulay navigatsiya uchun `/tests/import` -> `/import` va `/attendance` -> `/panel` yo'naltiruvchi routelar kiritildi (`App.tsx`).
+- [x] 4-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (2.92s).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.51. Rasmiy Versiya v1.55.0: Haqiqiy Uzluksiz Rasch (1PL IRT) Baholash Dvigateli va Dinamik Savol Vaznlari
 - [x] 1-Bosqich: Matematik Model va Uzluksiz IRT Algoritmi (Rasch 1PL Continuous Engine):
   * `apps/tests/rasch_engine.py`: Laplace tekislashi (Laplace smoothing) $P_i = \frac{C_i + 0.5}{N + 1}$ orqali 0 ga bo'linish ehtimolidan holi ehtimollik formulasi kiritildi.

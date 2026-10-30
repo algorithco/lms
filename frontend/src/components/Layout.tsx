@@ -252,7 +252,7 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content">
+        <main className="content pb-32">
           <Outlet />
         </main>
       </div>

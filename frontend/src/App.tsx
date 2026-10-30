@@ -193,6 +193,8 @@ function AnimatedRoutes() {
               <Route path="/essays/teacher/queue" element={<Navigate to="/teacher/essays" replace />} />
               <Route path="/essays/teacher/:sid/review" element={<TeacherReviewRedirect />} />
               <Route path="/import" element={<Imports />} />
+              <Route path="/tests/import" element={<Navigate to="/import" replace />} />
+              <Route path="/attendance" element={<Navigate to="/panel" replace />} />
               {/* Legacy import pages → Imports hub */}
               <Route path="/import/students" element={<Navigate to="/import" replace />} />
               <Route path="/import/tests" element={<Navigate to="/import" replace />} />
