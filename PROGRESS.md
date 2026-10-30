@@ -9,6 +9,28 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.53. Rasmiy Versiya v1.57.0: TestMakon Uslubidagi 3D Soft Bottom Bar, Slide-over Menyu, Profil Drawer va Fanlar Katalogi
+- [x] 1-Bosqich: Topbar va Profil (Avatar Icon System & Header Refactoring):
+  * Tepadagi ortiqcha uzun yozuvlar va to'liq ism-familiyalar olib tashlanib, ixcham nafis mobil topbar joriy qilindi.
+  * Chapda: GRANDEC rasmiy logotipi (`h-8 w-auto`), O'rtada: Streak (`7 🔥`) va XP/fan nishoni, O'ngda: Ixcham Profil Avatari va Gamburger (☰) menyu.
+  * `MobileProfileDrawer.tsx`: Avatar ustiga bosilganda o'ngdan mayin sirg'alib chiquvchi zamonaviy profil paneli yaratildi (F.I.Sh, Telegram SSO, rol, PREMIUM PRO tarifi, #ID-XXX, til almashtirish va chiqish tugmasi).
+- [x] 2-Bosqich: TestMakon Zamonaviy Slide-Out Menyu (Slide-over Side Drawer):
+  * `MobileNavDrawer.tsx`: Gamburger (☰) bosilganda o'ng tomondan mayin surilib chiquvchi panel ochiladi.
+  * Yuqorida tezkor tablar: [Milliy Sertifikat], [Attestatsiya], [IELTS/CEFR].
+  * 3D chiroyli ikonkalarga ega to'liq bo'limlar: Bosh sahifa, Barcha Testlar, AI Esse Studiyasi (12 mezon), 1v1 Arena, Titul Skaner, Mening natijalarim, Tariflar va Obuna, Tungi/Kunduzgi rejim va Telegram yordam boti.
+- [x] 3-Bosqich: Mobil Bosh Sahifa (Landing)ni Cheksiz Cho'zilishdan Qutqarish:
+  * `Landing.tsx`: Mobilda ulkan matnli bloklar va takroriy kartochkalar ixchamlashtirildi (`hidden md:block`).
+  * 4 ta yirik 3D soft clay asosiy yo'nalishlar kartasi (2x2 grid: AI Esse, CBT Testlar, 1v1 Arena, Titul Skaner) joriy etildi.
+- [x] 4-Bosqich: TestMakon Kabi 3D Soft Bottom Navigation:
+  * `MobileBottomBar.tsx`: Ekran pastida qotirilgan (fixed bottom), yumshoq fonga ega 3D navigatsiya paneli (Bosh, AI Esse, markazda ko'tarilgan 3D Testlar tugmasi, Arena, Profil).
+  * `index.css`: `.testmakon-bottom-bar`, `.testmakon-raised-pill` va mobil xavfsiz maydon (`env(safe-area-inset-bottom)`) to'liq moslashtirildi.
+- [x] 5-Bosqich: Testlar Sahifasi (`/tests`) Katta Fanlar Katalogi:
+  * `Tests.tsx`: Mayda jadvallar o'rniga 2 ustunli (mobilda grid-cols-2) yirik 3D fan kartochkalari to'plami (Ona tili: 1642 ta savol, Adabiyot: 850 ta savol, Ingliz tili: 1200 ta savol, Attestatsiya 2026).
+  * Har bir kartochkani bosganda to'g'ridan-to'g'ri o'sha fanga tegishli testlar va mocklar ro'yxati filtrlash dinamikasi bilan ochiladi.
+- [x] 6-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (4.26s).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.52. Rasmiy Versiya v1.56.0: Smart Onboarding Cheklovi, Dark Mode Kontrasti va Ustoz/Admin UX Tozalanishi
 - [x] 1-Bosqich: Smart Onboarding Cheklovi va To'xtatish (OnboardingModal & Dashboard):
   * Admin, superadmin va ustozlar (`role !== 'student'`) uchun "Smart Onboarding — Maqsad va Reja" modali mutlaqo ochilmaydi.

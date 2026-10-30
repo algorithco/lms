@@ -1450,9 +1450,149 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
    MOBILE FIRST APP-LIKE BOTTOM NAVIGATION & WORKSPACE RESPONSIVENESS
    ========================================================================== */
 
-.mobile-bottom-nav {
+
+.mobile-bottom-nav,
+.testmakon-bottom-bar {
   display: none;
 }
+
+@media (max-width: 767px) {
+  .testmakon-bottom-bar {
+    display: flex !important;
+  }
+}
+
+.testmakon-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  max-width: 68px;
+  height: 52px;
+  padding: 4px 2px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #64748B;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 2px;
+  position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.dark .testmakon-nav-item {
+  color: #94A3B8;
+}
+
+.testmakon-nav-item:active {
+  transform: scale(0.92);
+}
+
+.testmakon-icon-wrap {
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.testmakon-icon-wrap.active {
+  background: rgba(245, 158, 11, 0.15);
+  color: #D97706;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  transform: translateY(-1px);
+}
+
+.testmakon-nav-item.active {
+  color: #D97706;
+}
+
+html.dark .testmakon-nav-item.active {
+  color: #F59E0B;
+}
+
+.testmakon-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* Center Raised 3D Pill for Testlar */
+.testmakon-center-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  max-width: 72px;
+  text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.testmakon-raised-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-top: -16px;
+}
+
+.testmakon-raised-pill {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px -2px rgba(217, 119, 6, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 3px solid rgba(255, 255, 255, 0.95);
+}
+
+html.dark .testmakon-raised-pill {
+  border: 3px solid #0F172A;
+  box-shadow: 0 8px 22px rgba(245, 158, 11, 0.4), inset 0 2px 2px rgba(255, 255, 255, 0.25);
+}
+
+.testmakon-center-item:active .testmakon-raised-pill {
+  transform: scale(0.92) translateY(2px);
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.35);
+}
+
+.testmakon-raised-pill.active {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  box-shadow: 0 8px 20px -2px rgba(5, 150, 105, 0.55), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+}
+
+.testmakon-label-center {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-top: 2px;
+  color: #64748B;
+}
+
+html.dark .testmakon-label-center {
+  color: #94A3B8;
+}
+
+.testmakon-label-center.active {
+  color: #059669;
+}
+
+html.dark .testmakon-label-center.active {
+  color: #10B981;
+}
+
 
 .topbar-mobile-brand {
   display: none !important;

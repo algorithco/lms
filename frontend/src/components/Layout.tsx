@@ -4,6 +4,9 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin, GamificationApi, type StreakInfoResponse } from '../lib/api';
 import UserNavDropdown from './UserNavDropdown';
+import MobileBottomBar from './MobileBottomBar';
+import MobileNavDrawer from './MobileNavDrawer';
+import MobileProfileDrawer from './MobileProfileDrawer';
 import SubjectSwitcher from './SubjectSwitcher';
 import {
   BarChartIcon,
@@ -24,7 +27,6 @@ import {
   SwordsIcon,
   TrophyIcon,
   UploadIcon,
-  UserIcon,
   UserPlusIcon,
   UsersIcon,
   ZapIcon,
@@ -49,6 +51,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [streakData, setStreakData] = useState<StreakInfoResponse | null>(null);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
     return (user?.active_subject as 'uzbek' | 'english') ||
       (localStorage.getItem('lms_subject') as 'uzbek' | 'english') ||
@@ -183,17 +187,17 @@ export default function Layout() {
           <div className="topbar-inner">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
-                className="hamburger always"
+                className="hamburger hidden md:flex"
                 aria-label={open ? "Menyuni yopish" : "Menyuni ochish"}
                 aria-expanded={open}
                 onClick={() => setOpen((v) => !v)}
               >
                 {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
               </button>
-              <Link to="/dashboard" className="topbar-mobile-brand">
-                <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+              <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: '#0F172A' }}>GRANDEC</span>
+                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: 'var(--ink)' }}>GRANDEC</span>
                   <span style={{ fontSize: 8, fontWeight: 800, color: '#D97706', letterSpacing: '0.1em' }}>ACADEMIC EDTECH</span>
                 </div>
               </Link>
@@ -205,50 +209,104 @@ export default function Layout() {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 10px',
+                    gap: '5px',
+                    padding: '4px 8px',
                     borderRadius: '20px',
                     background: 'rgba(245, 158, 11, 0.12)',
                     border: '1px solid rgba(245, 158, 11, 0.3)',
-                    fontSize: '12px',
+                    fontSize: '11.5px',
                     fontWeight: 700,
                     color: '#f59e0b',
                   }}
                   title={`Ketma-ketlik (Streak): ${streakData.current_streak} kun | Jami: ${streakData.xp_points} XP`}
                 >
-                  <FlameIcon size={14} style={{ color: streakData.is_active_today ? '#ea580c' : '#f59e0b' }} />
+                  <FlameIcon size={13} style={{ color: streakData.is_active_today ? '#ea580c' : '#f59e0b' }} />
                   <span>{streakData.current_streak}</span>
                   <span style={{ opacity: 0.4 }}>•</span>
-                  <ZapIcon size={12} style={{ color: '#fbbf24' }} />
+                  <ZapIcon size={11} style={{ color: '#fbbf24' }} />
                   <span>{streakData.xp_points} XP</span>
                 </div>
               )}
               <SubjectSwitcher size="sm" />
-              {isAdmin && (
-                <Link
-                  to="/panel"
-                  className="topbar-admin-pill"
+              <div className="hidden md:flex items-center gap-2">
+                {isAdmin && (
+                  <Link
+                    to="/panel"
+                    className="topbar-admin-pill"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      color: '#f59e0b',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                    title="Admin Boshqaruv Paneli"
+                  >
+                    <ShieldCheckIcon size={14} />
+                    <span>Admin Panel</span>
+                  </Link>
+                )}
+                <UserNavDropdown />
+              </div>
+
+              {/* Mobile Right Controls: Compact Avatar Icon + Hamburger Menu (☰) */}
+              <div className="flex md:hidden items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setProfileDrawerOpen(true)}
+                  aria-label="Profilni ochish"
                   style={{
-                    display: 'inline-flex',
+                    display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '5px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    color: '#f59e0b',
-                    fontWeight: 700,
-                    fontSize: '12px',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: '#FFFFFF',
+                    border: '2px solid rgba(245, 158, 11, 0.7)',
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    overflow: 'hidden',
                   }}
-                  title="Admin Boshqaruv Paneli"
                 >
-                  <ShieldCheckIcon size={14} />
-                  <span className="hidden sm:inline">Admin Panel</span>
-                </Link>
-              )}
-              <UserNavDropdown />
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 900 }}>
+                      {(user?.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNavDrawerOpen(true)}
+                  aria-label="Menyuni ochish"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: 'var(--card-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <MenuIcon size={18} />
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -257,59 +315,10 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* STICKY BOTTOM NAVIGATION BAR FOR MOBILE (iOS Safe Area, 48px Touch Target, Glassmorphism) */}
-      <nav className="mobile-bottom-nav" aria-label="Mobil pastki navigatsiya">
-        <NavLink
-          to="/dashboard"
-          end
-          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
-        >
-          <div className="mobile-nav-icon-wrap">
-            <HomeIcon size={20} />
-          </div>
-          <span className="mobile-nav-label">Asosiy</span>
-        </NavLink>
-
-        <NavLink
-          to="/tests"
-          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
-        >
-          <div className="mobile-nav-icon-wrap">
-            <FileTextIcon size={20} />
-          </div>
-          <span className="mobile-nav-label">Testlar</span>
-        </NavLink>
-
-        <NavLink
-          to="/essays"
-          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
-        >
-          <div className="mobile-nav-icon-wrap">
-            <PenLineIcon size={20} />
-          </div>
-          <span className="mobile-nav-label">Esse</span>
-        </NavLink>
-
-        <NavLink
-          to="/arena"
-          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
-        >
-          <div className="mobile-nav-icon-wrap">
-            <SwordsIcon size={20} />
-          </div>
-          <span className="mobile-nav-label">Arena</span>
-        </NavLink>
-
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}
-        >
-          <div className="mobile-nav-icon-wrap">
-            <UserIcon size={20} />
-          </div>
-          <span className="mobile-nav-label">Profil</span>
-        </NavLink>
-      </nav>
+      {/* TESTMAKON-STYLE 3D SOFT BOTTOM NAVIGATION & DRAWERS */}
+      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
+      <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
+      <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
     </div>
   );
 }

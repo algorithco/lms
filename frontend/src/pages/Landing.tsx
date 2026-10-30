@@ -11,6 +11,9 @@ import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import UserNavDropdown from '../components/UserNavDropdown';
+import MobileBottomBar from '../components/MobileBottomBar';
+import MobileNavDrawer from '../components/MobileNavDrawer';
+import MobileProfileDrawer from '../components/MobileProfileDrawer';
 import {
   CheckIcon,
   FileTextIcon,
@@ -44,6 +47,8 @@ export default function Landing() {
   const { resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
 
   // -------------------------------------------------------------------------
   // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
@@ -360,27 +365,77 @@ export default function Landing() {
               </>
             )}
 
-            {/* Mobile Hamburger */}
-            <button
-              type="button"
-              className="landing-burger-btn"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Menyu ochish"
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: 'var(--card-2)',
-                border: '1px solid var(--border)',
-                color: '#0F172A',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <MenuIcon size={20} />
-            </button>
+            {/* Mobile Right Controls: Avatar + Hamburger */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="md:hidden">
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => setProfileDrawerOpen(true)}
+                  aria-label="Profilni ochish"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: '#FFFFFF',
+                    border: '2px solid rgba(245, 158, 11, 0.7)',
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 900 }}>
+                      {(user.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: 12,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Kirish
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="landing-burger-btn"
+                onClick={() => setNavDrawerOpen(true)}
+                aria-label="Menyu ochish"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'var(--card-2)',
+                  border: '1px solid var(--border)',
+                  color: '#0F172A',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <MenuIcon size={18} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -648,10 +703,133 @@ export default function Landing() {
                     Ona tili va Ingliz tili
                   </span>
                 </div>
+
+                {/* Mobile 3D Direction Cards (TestMakon 2x2 Grid) */}
+                <div className="grid grid-cols-2 gap-3 mt-6 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleAction('/essays')}
+                    style={{
+                      padding: '16px 14px',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                      border: '1.5px solid #FDE68A',
+                      boxShadow: '0 6px 16px -3px rgba(217, 119, 6, 0.15)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 26 }}>✍️</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(217, 119, 6, 0.15)', color: '#B45309' }}>
+                        12 mezon
+                      </span>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E' }}>AI Esse</h4>
+                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B45309' }}>
+                        BMB rasmiy tahlil
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAction('/tests')}
+                    style={{
+                      padding: '16px 14px',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+                      border: '1.5px solid #A7F3D0',
+                      boxShadow: '0 6px 16px -3px rgba(5, 150, 105, 0.15)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 26 }}>📝</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(5, 150, 105, 0.15)', color: '#047857' }}>
+                        CBT Test
+                      </span>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#065F46' }}>Testlar</h4>
+                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#047857' }}>
+                        Davlat standarti
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAction('/arena')}
+                    style={{
+                      padding: '16px 14px',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
+                      border: '1.5px solid #FECACA',
+                      boxShadow: '0 6px 16px -3px rgba(220, 38, 38, 0.15)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 26 }}>⚔️</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(220, 38, 38, 0.15)', color: '#B91C1C' }}>
+                        Jonli jang
+                      </span>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#991B1B' }}>1v1 Arena</h4>
+                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B91C1C' }}>
+                        Tezkor duel
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAction('/tests/scan-omr')}
+                    style={{
+                      padding: '16px 14px',
+                      borderRadius: '18px',
+                      background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
+                      border: '1.5px solid #DDD6FE',
+                      boxShadow: '0 6px 16px -3px rgba(124, 58, 237, 0.15)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 26 }}>📷</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(124, 58, 237, 0.15)', color: '#6D28D9' }}>
+                        Skaner
+                      </span>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#5B21B6' }}>Titul Skaner</h4>
+                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#6D28D9' }}>
+                        Kamera orqali
+                      </p>
+                    </div>
+                  </button>
+                </div>
               </div>
 
-              {/* Right Column: Modern Interactive Hero Carousel */}
-              <div>
+              {/* Right Column: Modern Interactive Hero Carousel (Desktop Only) */}
+              <div className="hidden md:block">
                 <HeroCarousel onAction={handleAction} />
               </div>
             </div>
@@ -661,6 +839,7 @@ export default function Landing() {
         {/* 3 CORE DIRECTIONS SECTION ("IMKONIYATLAR") */}
         <section
           id="features"
+          className="hidden md:block"
           style={{
             padding: '70px 20px',
             position: 'relative',
@@ -1178,6 +1357,7 @@ export default function Landing() {
         {/* COMPARISON TABLE */}
         <section
           id="comparison"
+          className="hidden md:block"
           style={{
             padding: '70px 20px',
             position: 'relative',
@@ -1279,6 +1459,7 @@ export default function Landing() {
         {/* PRICING SECTION */}
         <section
           id="pricing"
+          className="hidden md:block"
           style={{
             padding: '70px 20px',
             position: 'relative',
@@ -1705,7 +1886,7 @@ export default function Landing() {
         </section>
 
         {/* BOTTOM CTA BANNER */}
-        <section style={{ padding: '40px 20px 80px' }}>
+        <section style={{ padding: '40px 20px 80px' }} className="hidden md:block">
           <div
             style={{
               margin: '0 auto',
@@ -1784,6 +1965,9 @@ export default function Landing() {
           </div>
         </section>
       </main>
+      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
+      <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
+      <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
 
       {/* FOOTER */}
       <footer

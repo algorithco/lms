@@ -26,7 +26,8 @@ export default function Tests() {
   const [hasPrev, setHasPrev] = useState(false);
   const [query, setQuery] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'milliy' | 'attestatsiya' | 'arena' | 'ielts' | 'multilevel'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'milliy' | 'adabiyot' | 'attestatsiya' | 'arena' | 'ielts' | 'multilevel'>('all');
+  const [catalogSubject, setCatalogSubject] = useState<'all' | 'ona_tili' | 'adabiyot' | 'english' | 'attestatsiya'>('all');
   const [activeSub, setActiveSub] = useState<'uzbek' | 'english'>(() => {
     return (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
   });
@@ -165,6 +166,12 @@ export default function Tests() {
     String(item.title ?? '').toLowerCase().includes('shukurov') ||
     String(item.title ?? '').toLowerCase().includes('bmb rasmiy mock');
 
+  const isAdabiyotTest = (item: TestListItem) => {
+    const title = String(item.title ?? '').toLowerCase();
+    const course = String(item.course_title ?? '').toLowerCase();
+    return title.includes('adabiyot') || course.includes('adabiyot') || title.includes('15') || title.includes('mumtoz');
+  };
+
   // Client-side search and category filtering
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -186,6 +193,9 @@ export default function Tests() {
         return true;
       }
 
+      if (categoryFilter === 'adabiyot') {
+        return isAdabiyotTest(item);
+      }
       if (categoryFilter === 'attestatsiya') {
         return isMockAttest(item);
       }
@@ -212,6 +222,41 @@ export default function Tests() {
   }, [tests, query, difficulty, categoryFilter, activeSub]);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const handleCatalogSelect = (track: 'ona_tili' | 'adabiyot' | 'english' | 'attestatsiya') => {
+    if (catalogSubject === track) {
+      setCatalogSubject('all');
+      setCategoryFilter('all');
+      setQuery('');
+      return;
+    }
+    setCatalogSubject(track);
+    if (track === 'ona_tili') {
+      setActiveSub('uzbek');
+      setCategoryFilter('milliy');
+      setQuery('');
+      localStorage.setItem('lms_subject', 'uzbek');
+      window.dispatchEvent(new CustomEvent('subject-changed', { detail: 'uzbek' }));
+    } else if (track === 'adabiyot') {
+      setActiveSub('uzbek');
+      setCategoryFilter('adabiyot');
+      setQuery('');
+      localStorage.setItem('lms_subject', 'uzbek');
+      window.dispatchEvent(new CustomEvent('subject-changed', { detail: 'uzbek' }));
+    } else if (track === 'english') {
+      setActiveSub('english');
+      setCategoryFilter('all');
+      setQuery('');
+      localStorage.setItem('lms_subject', 'english');
+      window.dispatchEvent(new CustomEvent('subject-changed', { detail: 'english' }));
+    } else if (track === 'attestatsiya') {
+      setActiveSub('uzbek');
+      setCategoryFilter('attestatsiya');
+      setQuery('');
+      localStorage.setItem('lms_subject', 'uzbek');
+      window.dispatchEvent(new CustomEvent('subject-changed', { detail: 'uzbek' }));
+    }
+  };
+
 
   const retry = async () => {
     setErr(null);
@@ -256,6 +301,241 @@ export default function Tests() {
         >
           <span>✍️</span> + Yangi test yaratish (Smart Paste)
         </Link>
+      </div>
+
+      {/* 📚 TESTMAKON-STYLE SUBJECT & EXAM CATALOG (2 COLUMNS ON MOBILE, 4 COLUMNS ON DESKTOP) */}
+      <div style={{ margin: '14px 0 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink)' }}>
+            <span>📚</span> Fanlar va Yo&apos;nalishlar Katalogi
+          </h2>
+          {catalogSubject !== 'all' && (
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogSubject('all');
+                setCategoryFilter('all');
+                setQuery('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#D97706',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+            >
+              Barchasini ko&apos;rsatish
+            </button>
+          )}
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: 12,
+          }}
+          className="grid grid-cols-2 md:grid-cols-4"
+        >
+          {/* Card 1: Ona tili */}
+          <div
+            onClick={() => handleCatalogSelect('ona_tili')}
+            style={{
+              padding: '16px 14px',
+              borderRadius: 18,
+              background: catalogSubject === 'ona_tili'
+                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(217, 119, 6, 0.12) 100%)'
+                : 'var(--card)',
+              border: catalogSubject === 'ona_tili'
+                ? '2px solid #F59E0B'
+                : '1px solid var(--border)',
+              boxShadow: catalogSubject === 'ona_tili'
+                ? '0 8px 24px -4px rgba(245, 158, 11, 0.35)'
+                : '0 4px 15px rgba(0, 0, 0, 0.03)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 30 }}>🇺🇿</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#D97706',
+                }}
+              >
+                {catalogSubject === 'ona_tili' ? '✓ Tanlandi' : 'BMB Mock'}
+              </span>
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 900, color: 'var(--ink)' }}>Ona tili</h3>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#D97706' }}>
+                1 642 ta savol
+              </p>
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginTop: 2 }}>
+                Milliy sertifikat va grammatika
+              </span>
+            </div>
+          </div>
+
+          {/* Card 2: Adabiyot */}
+          <div
+            onClick={() => handleCatalogSelect('adabiyot')}
+            style={{
+              padding: '16px 14px',
+              borderRadius: 18,
+              background: catalogSubject === 'adabiyot'
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(5, 150, 105, 0.12) 100%)'
+                : 'var(--card)',
+              border: catalogSubject === 'adabiyot'
+                ? '2px solid #10B981'
+                : '1px solid var(--border)',
+              boxShadow: catalogSubject === 'adabiyot'
+                ? '0 8px 24px -4px rgba(16, 185, 129, 0.35)'
+                : '0 4px 15px rgba(0, 0, 0, 0.03)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 30 }}>📚</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#059669',
+                }}
+              >
+                {catalogSubject === 'adabiyot' ? '✓ Tanlandi' : '15 talik test'}
+              </span>
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 900, color: 'var(--ink)' }}>Adabiyot</h3>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#059669' }}>
+                850 ta savol
+              </p>
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginTop: 2 }}>
+                Mumtoz va zamonaviy adabiyot
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Ingliz tili */}
+          <div
+            onClick={() => handleCatalogSelect('english')}
+            style={{
+              padding: '16px 14px',
+              borderRadius: 18,
+              background: catalogSubject === 'english'
+                ? 'linear-gradient(135deg, rgba(2, 132, 199, 0.18) 0%, rgba(3, 105, 161, 0.12) 100%)'
+                : 'var(--card)',
+              border: catalogSubject === 'english'
+                ? '2px solid #0284C7'
+                : '1px solid var(--border)',
+              boxShadow: catalogSubject === 'english'
+                ? '0 8px 24px -4px rgba(2, 132, 199, 0.35)'
+                : '0 4px 15px rgba(0, 0, 0, 0.03)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 30 }}>🇬🇧</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(2, 132, 199, 0.15)',
+                  color: '#0284C7',
+                }}
+              >
+                {catalogSubject === 'english' ? '✓ Tanlandi' : 'CEFR / IELTS'}
+              </span>
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 900, color: 'var(--ink)' }}>Ingliz tili</h3>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#0284C7' }}>
+                1 200 ta savol
+              </p>
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginTop: 2 }}>
+                Reading & Listening CBT
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Attestatsiya 2026 */}
+          <div
+            onClick={() => handleCatalogSelect('attestatsiya')}
+            style={{
+              padding: '16px 14px',
+              borderRadius: 18,
+              background: catalogSubject === 'attestatsiya'
+                ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.18) 0%, rgba(124, 58, 237, 0.12) 100%)'
+                : 'var(--card)',
+              border: catalogSubject === 'attestatsiya'
+                ? '2px solid #8B5CF6'
+                : '1px solid var(--border)',
+              boxShadow: catalogSubject === 'attestatsiya'
+                ? '0 8px 24px -4px rgba(139, 92, 246, 0.35)'
+                : '0 4px 15px rgba(0, 0, 0, 0.03)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 30 }}>🎓</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(139, 92, 246, 0.15)',
+                  color: '#7C3AED',
+                }}
+              >
+                {catalogSubject === 'attestatsiya' ? '✓ Tanlandi' : '70% Ustama'}
+              </span>
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 900, color: 'var(--ink)' }}>Attestatsiya 2026</h3>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#7C3AED' }}>
+                50 talik sinov
+              </p>
+              <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginTop: 2 }}>
+                Pedagoglar toifa diagnostikasi
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 🎯 Mock Testga Kod Bilan Qo'shilish */}
