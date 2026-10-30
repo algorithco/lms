@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.56. Rasmiy Versiya v1.62.0: Telegram Bot va Mini App To'liq Refaktoringi, Yangi Narxlar (7k/15k/27k) va Kontrast O'rnatilishi
+- [x] 1-Bosqich: Telegram Bot Crash Xatoliklari va Handlerlarini Bartaraf Etish:
+  * `apps/notifications/bot/handlers.py`: Qo'pol `"Kutilmagan holat yuz berdi: Operatsiyani bajarishda kutilmagan holat yuz berdi"` xabarlari to'liq olib tashlanib, xushmuomala yordam xabarlari va tugmalar navigatsiyasiga ulandi.
+  * Yangi test yaratish (Smart Paste), Excel hisobot, Guruh hisobotlari, Titul varaqni tekshirish (OMR) va Web kabinetga kirish tugmalari xavfsiz `try/except` bilan o'raldi, argumentlarsiz chaqirilganda ham WebApp yoki yo'naltiruvchi qo'llanma ochiladi.
+  * Callback query dispatcherida `menu_omr_scan` va `menu_web_cabinet` qo'shildi, inline klaviaturalar (`_persistent_menu_keyboard`, `_teacher_main_menu_keyboard`) to'liq moslashtirildi.
+  * Superadmin maxsus buyruqlari qat'iy administrator huquqlari (`is_staff`, `is_superuser`, `role == 'admin'`) bilan cheklandi.
+- [x] 2-Bosqich: Yangi Qat'iy Narxlar (7 000 / 15 000 / 27 000 so'm) va Limitlar:
+  * Barcha eski narxlar (5k, 49k, 60k, 89k) backend va botdan tozalab tashlandi.
+  * Qat'iy yangi tariflar o'rnatildi: STARTER — 7 000 so'm (30 Stars), PRO — 15 000 so'm (60 Stars), PREMIUM — 27 000 so'm (100 Stars).
+  * `apps/payments/migrations/0014_update_plan_prices_7k_15k_27k.py`: Ma'lumotlar bazasida narxlar va Stars miqdorlari yangilandi.
+  * `"⚠️ Telegram orqali sotuv sozlanmagan..."` ogohlantirishi o'chirildi, o'rniga to'g'ridan-to'g'ri `[💳 Click / Payme orqali to'lash]` (`https://grandec.uz/pricing`) va `[⭐️ Stars bilan to'lash]` tugmalari qo'yildi.
+  * `/limits` buyrug'i: `"administrator sozlamagan"` degan xom yozuvlar yo'qotildi, bepul foydalanuvchilar uchun haqiqiy limitlar (Matnli esse: 1 ta bepul, Rasmli esse: Qulflangan 🔒, Test: 1 ta rasmiy) ko'rsatiladi.
+- [x] 3-Bosqich: Telegram Mini App (TMA) Kontrastini Isitish (Warm Academic Luxury):
+  * `frontend/src/pages/tma/Tma.css`: To'q qora va ko'zni toliqtiruvchi palitra o'rniga engil fil suyagi/oq fon (`#F8FAFC`, `#FFFFFF`), to'q matn (`#0F172A`), nozik chegaralar (`#E2E8F0`) va oltin-zarrin aksentlar (`#D97706`) o'rnatildi.
+  * `Tma.tsx`, `TestFlow.tsx`, `Essays.tsx`: Kontrasti past yashil va qora elementlar yuqori kontrastli va qulay ko'rinishga keltirildi.
+- [x] 4-Bosqich: Zero-Downtime VPS Deploy va 200 OK Tasdiqlanishi:
+  * Contabo VPS (`169.58.58.229` / `/opt/lms`): `git pull origin main` qilindi, `web`, `bot`, `celery-worker`, `celery-beat` konteynerlari `docker compose up -d --build` orqali yangilandi.
+  * Barcha xizmatlar (`grandec.uz/healthz/`, `/pricing`, `/tma/`) HTTP 200 OK bilan barqaror ishlamoqda.
+  * Serverdagi `bestway` loyihasiga mutlaqo daxl qilinmadi.
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.55. Rasmiy Versiya v1.60.0: Desktop/Mobil Interfeys Tozalanishi va Bepul (FREE) Tarif Cheklovlarining Qat'iy O'rnatilishi
 - [x] 1-Bosqich: Desktop va Mobil Interfeys Aralashuvini Bartaraf Etish:
   * `MobileBottomBar.tsx`: Inline `display: 'flex'` o'chirildi, uning o'rniga `testmakon-bottom-bar md:hidden` responsive sinflari biriktirildi.
