@@ -12,8 +12,11 @@
     <script>
       (function () {
         try {
-          var t = localStorage.getItem('theme');
-          if (t === 'dark') {
+          if (localStorage.getItem('theme') === 'dark') {
+            localStorage.removeItem('theme');
+          }
+          var t2 = localStorage.getItem('theme_v2');
+          if (t2 === 'dark') {
             document.documentElement.classList.remove('light');
             document.documentElement.classList.add('dark');
             document.documentElement.style.colorScheme = 'dark';

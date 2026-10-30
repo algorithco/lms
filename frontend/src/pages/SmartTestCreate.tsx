@@ -351,7 +351,8 @@ export default function SmartTestCreate() {
   };
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px 80px' }}>
+    <div style={{ minHeight: '100%', background: '#F8FAFC', padding: '24px 20px 80px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Breadcrumb & Header */}
       <div
         style={{
@@ -634,10 +635,10 @@ export default function SmartTestCreate() {
       <div
         style={{
           background: '#FFFFFF',
-          borderRadius: 20,
-          border: '1px solid rgba(226, 232, 240, 0.9)',
+          borderRadius: 24,
+          border: '1px solid #E2E8F0',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
-          padding: 24,
+          padding: 26,
           marginBottom: 24,
         }}
       >
@@ -789,10 +790,10 @@ export default function SmartTestCreate() {
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: 20,
-            border: '1px solid rgba(226, 232, 240, 0.9)',
+            borderRadius: 24,
+            border: '1px solid #E2E8F0',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
-            padding: 24,
+            padding: 26,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
@@ -908,15 +909,26 @@ export default function SmartTestCreate() {
             rows={22}
             style={{
               width: '100%',
-              padding: 16,
-              borderRadius: 14,
-              border: '1px solid #CBD5E1',
-              fontSize: 13,
-              fontFamily: 'Consolas, Menlo, Monaco, monospace',
+              padding: 18,
+              borderRadius: 16,
+              border: '1.5px solid #CBD5E1',
+              fontSize: 13.5,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               color: '#0F172A',
               background: '#F8FAFC',
-              lineHeight: 1.6,
+              lineHeight: 1.65,
               resize: 'vertical',
+              outline: 'none',
+              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.02)',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#D97706';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(217, 119, 6, 0.15)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = '#CBD5E1';
+              e.currentTarget.style.boxShadow = 'inset 0 1px 3px rgba(0, 0, 0, 0.02)';
             }}
           />
         </div>
@@ -925,10 +937,10 @@ export default function SmartTestCreate() {
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: 20,
-            border: '1px solid rgba(226, 232, 240, 0.9)',
+            borderRadius: 24,
+            border: '1px solid #E2E8F0',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.03)',
-            padding: 24,
+            padding: 26,
           }}
         >
           {/* Header Stats & Publish Button */}
@@ -1048,11 +1060,13 @@ export default function SmartTestCreate() {
                   <div
                     key={q.order}
                     style={{
-                      background: '#F8FAFC',
-                      borderRadius: 16,
-                      border: hasCorrect ? '1px solid #E2E8F0' : '1.5px solid #F59E0B',
-                      padding: 18,
+                      background: hasCorrect ? 'rgba(240, 253, 244, 0.55)' : '#FFFFFF',
+                      borderRadius: 18,
+                      border: hasCorrect ? '1.5px solid #86EFAC' : '1.5px solid #FCD34D',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+                      padding: '18px 20px',
                       position: 'relative',
+                      transition: 'all 0.2s ease',
                     }}
                   >
                     {/* Header */}
@@ -1218,6 +1232,7 @@ export default function SmartTestCreate() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

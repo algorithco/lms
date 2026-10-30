@@ -1,7 +1,7 @@
 /* LMS React — Warm Academic Luxury Light Aesthetic (Ivory, Gold & Emerald) */
 :root,
 html.light {
-  --bg: #fbfbfa;
+  --bg: #F8FAFC;
   --bg-gradient: radial-gradient(circle at 50% 0%, #ffffff 0%, #fbfbfa 100%);
   --card: #ffffff;
   --card-surface: #ffffff;
@@ -1815,15 +1815,15 @@ html.dark body {
   color: #F8FAFC !important;
 }
 
-/* Dashboard Hero Banner */
+/* Dashboard Hero Banner — Warm Ivory-Gold Academic Card */
 .dash-hero-banner {
   position: relative;
-  border-radius: 20px;
-  padding: 22px 26px;
+  border-radius: 24px;
+  padding: 24px 28px;
   margin-bottom: 24px;
-  background: linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(253, 230, 138, 0.25) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  box-shadow: 0 10px 30px -10px rgba(217, 119, 6, 0.08), 0 2px 8px rgba(0, 0, 0, 0.02);
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.55) 0%, rgba(255, 255, 255, 0.98) 60%, rgba(253, 230, 138, 0.35) 100%) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 10px 30px -10px rgba(217, 119, 6, 0.08), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
   overflow: hidden;
 }
 html.dark .dash-hero-banner {
@@ -1873,11 +1873,17 @@ html.dark .dash-hero-badge-wrap {
 
 /* Stat Cards */
 .dash-stat-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--card-shadow);
+  background: #FFFFFF !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 20px !important;
+  padding: 20px 22px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
   transition: all 0.2s ease;
+}
+.dash-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
 }
 html.dark .dash-stat-card {
   background: #1E293B !important;

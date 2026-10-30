@@ -30,7 +30,6 @@ import {
   UserPlusIcon,
   UsersIcon,
   ZapIcon,
-  XIcon,
 } from './icons';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -183,24 +182,38 @@ export default function Layout() {
       {open && <div className="overlay" onClick={close} aria-hidden="true" />}
 
       <div className="main">
-        <header className="topbar app-topbar" aria-label="Yuqori panel">
+        <header className="topbar app-topbar bg-white/80 border-b border-slate-200/80 backdrop-blur-md" aria-label="Yuqori panel">
           <div className="topbar-inner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                className="hamburger hidden md:flex"
-                aria-label={open ? "Menyuni yopish" : "Menyuni ochish"}
-                aria-expanded={open}
-                onClick={() => setOpen((v) => !v)}
-              >
-                {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
-              </button>
+            {/* Mobile-only brand logo (Desktop uses left sidebar brand exclusively) */}
+            <div className="topbar-mobile-brand flex md:hidden items-center gap-2">
               <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
                 <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: 'var(--ink)' }}>GRANDEC</span>
+                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: '#0F172A' }}>GRANDEC</span>
                   <span style={{ fontSize: 8, fontWeight: 800, color: '#D97706', letterSpacing: '0.1em' }}>ACADEMIC EDTECH</span>
                 </div>
               </Link>
+            </div>
+
+            {/* Desktop Context Badge */}
+            <div className="hidden md:flex items-center gap-2">
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 12px',
+                  borderRadius: 16,
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#B45309',
+                }}
+              >
+                <span>🏛️</span>
+                <span>Milliy Sertifikat & AI Esse LMS</span>
+              </span>
             </div>
             <div className="spacer" />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

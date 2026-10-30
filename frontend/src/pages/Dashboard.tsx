@@ -25,6 +25,7 @@ import {
   PenLineIcon,
   SettingsIcon,
   SparklesIcon,
+  SwordsIcon,
   TrophyIcon,
   ZapIcon,
 } from '../components/icons';
@@ -56,8 +57,14 @@ export default function Dashboard() {
   const [, setVaultStats] = useState<{ unresolved_count: number; weak_topics: { topic: string; error_count: number }[] } | null>(null);
 
   const role = (user?.role || '').toLowerCase();
-  const isStaffOrTeacher = role === 'admin' || role === 'teacher' || role === 'superadmin' || Boolean(user?.is_staff) || Boolean(user?.is_superuser);
-  const isStudent = role === 'student' && !isStaffOrTeacher;
+  const isTeacherOrAdmin =
+    role === 'teacher' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'center_admin' ||
+    Boolean(user?.is_staff) ||
+    Boolean(user?.is_superuser);
+  const isStudent = !isTeacherOrAdmin;
 
   useEffect(() => {
     if (!isStudent) {
@@ -351,65 +358,129 @@ export default function Dashboard() {
               BMB Milliy Sertifikat 2026 standarti bo‘yicha yangilangan rasmiy mock test va 12 mezonli AI esse topshirig‘i sizni kutmoqda.
             </p>
             <div className="dash-hero-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Link
-                to="/tests/create"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '11px 20px',
-                  borderRadius: 12,
-                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                  color: '#FFFFFF',
-                  fontWeight: 800,
-                  fontSize: 13.5,
-                  textDecoration: 'none',
-                  boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
-                  minHeight: 44,
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <span>✍️</span>
-                <span>+ Yangi test yaratish (Smart Paste)</span>
-              </Link>
-              <button
-                type="button"
-                className="dash-hero-btn-secondary"
-                onClick={() => navigate(available.length > 0 ? `/tests/${available[0].id}` : '/tests')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '11px 18px',
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  minHeight: 44,
-                }}
-              >
-                <span>O‘qishni davom ettirish</span>
-                <span style={{ fontSize: 15, color: '#D97706' }}>→</span>
-              </button>
-              <Link
-                to="/essays"
-                className="dash-hero-btn-secondary"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '11px 16px',
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textDecoration: 'none',
-                  minHeight: 44,
-                }}
-              >
-                <PenLineIcon size={14} color="#D97706" />
-                <span>AI Esse tekshirish</span>
-              </Link>
+              {isTeacherOrAdmin ? (
+                <>
+                  <Link
+                    to="/tests/create"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 20px',
+                      borderRadius: 14,
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: 13.5,
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                      minHeight: 44,
+                      cursor: 'pointer',
+                      border: 'none',
+                    }}
+                  >
+                    <span>✍️</span>
+                    <span>+ Yangi test yaratish (Smart Paste)</span>
+                  </Link>
+                  <Link
+                    to="/teacher"
+                    className="dash-hero-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 18px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: 'none',
+                      minHeight: 44,
+                    }}
+                  >
+                    <span>👥 O‘quvchilar va Guruhlar</span>
+                    <span style={{ fontSize: 15, color: '#D97706' }}>→</span>
+                  </Link>
+                  <Link
+                    to="/essays"
+                    className="dash-hero-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 16px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: 'none',
+                      minHeight: 44,
+                    }}
+                  >
+                    <PenLineIcon size={14} color="#D97706" />
+                    <span>AI Esse tekshiruvi</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/tests"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 22px',
+                      borderRadius: 14,
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: 13.5,
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                      minHeight: 44,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ZapIcon size={16} />
+                    <span>⚡️ BMB Mock Test topshirish</span>
+                  </Link>
+                  <Link
+                    to="/essays"
+                    className="dash-hero-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 18px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: 'none',
+                      minHeight: 44,
+                    }}
+                  >
+                    <PenLineIcon size={15} color="#D97706" />
+                    <span>✍️ AI Esse tekshirtirish</span>
+                  </Link>
+                  <Link
+                    to="/arena"
+                    className="dash-hero-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 18px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: 'none',
+                      minHeight: 44,
+                    }}
+                  >
+                    <SwordsIcon size={15} color="#D97706" />
+                    <span>⚔️ 1v1 Arena bellashuvi</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -634,24 +705,26 @@ export default function Dashboard() {
               </h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Link
-                to="/tests/create"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: '#D97706',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  borderRadius: 8,
-                  padding: '4px 10px',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <span>✍️</span> + Test qo‘shish
-              </Link>
+              {isTeacherOrAdmin && (
+                <Link
+                  to="/tests/create"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: '#D97706',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    borderRadius: 8,
+                    padding: '4px 10px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span>✍️</span> + Test qo‘shish
+                </Link>
+              )}
               <Link
                 to="/tests"
                 style={{
