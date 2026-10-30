@@ -836,12 +836,15 @@ def tma_essay_submit_view(request: Request, submission_id: int) -> Response:
     except QuotaDenied as exc:
         return Response(
             {
+                "detail": "LIMIT_EXCEEDED",
                 "error": exc.message,
+                "message": exc.message,
                 "code": exc.code,
+                "upgrade_url": "/pricing",
                 "retry_after": exc.retry_after_seconds,
                 "remaining": exc.remaining,
             },
-            status=429,
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     # AI baholashni FONDA boshlash — broker (Celery) ishlab tursa worker'da,

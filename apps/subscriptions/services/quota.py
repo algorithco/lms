@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 class QuotaService:
     """Unified quota enforcement service for Web and Telegram Bot."""
 
-    FREE_DAILY_ESSAY_LIMIT = 1
+    FREE_ESSAY_LIMIT = 1
+    FREE_TEST_LIMIT = 1
+    FREE_ARENA_DAILY_LIMIT = 3
     STARTER_ESSAY_LIMIT = 3
     STARTER_TEST_LIMIT = 5
 
@@ -73,43 +75,40 @@ class QuotaService:
         today = timezone.localdate()
         date_str = today.strftime("%Y-%m-%d")
 
-        # 1. Bepul foydalanuvchi: kunlik 1 ta esse
+        # 1. Bepul foydalanuvchi: jami 1 ta matnli esse sinovi (rasmli esse esa mutlaqo taqiqlangan)
         if tier == "free":
-            # Check DB submissions today
             from apps.essays.models import EssaySubmission
 
             db_sub_count = EssaySubmission.objects.filter(
                 student=user,
-                submitted_at__date=today,
+                status__in=[
+                    EssaySubmission.Status.GRADED,
+                    EssaySubmission.Status.PENDING,
+                    EssaySubmission.Status.PENDING_TEACHER,
+                ],
             ).count()
 
-            # Check SubscriptionUsage today
             usage_count = SubscriptionUsage.objects.filter(
                 user=user,
-                created_at__date=today,
                 kind__in=[
                     SubscriptionUsage.Kind.TEXT_ESSAY,
                     SubscriptionUsage.Kind.IMAGE_ESSAY,
                 ],
             ).count()
 
-            # Check cache usage
-            cache_key = f"ai_daily_usage:{user.id}:{date_str}"
-            cache_used = int(cache.get(cache_key, 0))
+            used = max(db_sub_count, usage_count)
 
-            used = max(db_sub_count, usage_count, cache_used)
-
-            if used >= cls.FREE_DAILY_ESSAY_LIMIT:
+            if used >= cls.FREE_ESSAY_LIMIT:
                 msg = (
-                    "⚠️ <b>Kvotangiz tugadi!</b> Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz.\n\n"
-                    "Cheklovlarsiz ishlash uchun 5 000 so'mlik <b>Starter</b> yoki <b>PRO</b> tarifiga o'ting!"
+                    "⚠️ Bepul sinov limiti tugadi. Davom ettirish uchun "
+                    "STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
                 )
                 return (
                     False,
                     msg,
                     {
                         "tier": "free",
-                        "limit": cls.FREE_DAILY_ESSAY_LIMIT,
+                        "limit": cls.FREE_ESSAY_LIMIT,
                         "used": used,
                         "remaining": 0,
                         "allowed": False,
@@ -121,9 +120,9 @@ class QuotaService:
                 "",
                 {
                     "tier": "free",
-                    "limit": cls.FREE_DAILY_ESSAY_LIMIT,
+                    "limit": cls.FREE_ESSAY_LIMIT,
                     "used": used,
-                    "remaining": cls.FREE_DAILY_ESSAY_LIMIT - used,
+                    "remaining": cls.FREE_ESSAY_LIMIT - used,
                     "allowed": True,
                 },
             )
@@ -229,8 +228,8 @@ class QuotaService:
             return True
 
     @classmethod
-    def check_test_quota(cls, user: Any) -> tuple[bool, str, dict[str, Any]]:
-        """Check test quota for user."""
+    def check_test_quota(cls, user: Any, test_id: int | None = None) -> tuple[bool, str, dict[str, Any]]:
+        """Check test quota for user (Free tier: exactly 1 test trial, locked mocks require plan)."""
         tier = cls.get_user_tier(user)
         if tier in ("premium", "pro"):
             return True, "", {"tier": tier, "allowed": True, "remaining": 999}
@@ -242,11 +241,16 @@ class QuotaService:
             used_tests = TestAttempt.objects.filter(
                 student=user,
                 started_at__date__gte=today - timezone.timedelta(days=30),
+                status__in=[
+                    TestAttempt.Status.COMPLETED,
+                    TestAttempt.Status.IN_PROGRESS,
+                    TestAttempt.Status.TIMEOUT,
+                ],
             ).count()
             if used_tests >= cls.STARTER_TEST_LIMIT:
                 return (
                     False,
-                    f"Starter tarifi bo'yicha {cls.STARTER_TEST_LIMIT} ta test limitingiz tugadi.",
+                    f"Starter tarifi bo'yicha {cls.STARTER_TEST_LIMIT} ta test limitingiz tugadi. Cheksiz testlar uchun PRO tarifiga o'ting!",
                     {
                         "tier": "starter",
                         "limit": cls.STARTER_TEST_LIMIT,
@@ -267,4 +271,91 @@ class QuotaService:
                 },
             )
 
-        return True, "", {"tier": "free", "allowed": True, "remaining": 1}
+        # Free tier: 1 test total
+        from apps.tests.models import TestAttempt, Test
+        used_tests = TestAttempt.objects.filter(
+            student=user,
+            status__in=[
+                TestAttempt.Status.COMPLETED,
+                TestAttempt.Status.IN_PROGRESS,
+                TestAttempt.Status.TIMEOUT,
+            ],
+        ).count()
+
+        if used_tests >= cls.FREE_TEST_LIMIT:
+            return (
+                False,
+                "⚠️ Bepul sinov test limitingiz tugadi. Barcha to'liq Mock testlar va cheksiz mashqlardan foydalanish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
+                {
+                    "tier": "free",
+                    "limit": cls.FREE_TEST_LIMIT,
+                    "used": used_tests,
+                    "remaining": 0,
+                    "allowed": False,
+                },
+            )
+
+        # Check if test is a locked mock
+        if test_id:
+            try:
+                t_obj = Test.objects.filter(id=test_id).first()
+                if t_obj:
+                    title_lower = (t_obj.title or "").lower()
+                    if "#mock" in title_lower and not ("diagnostic" in title_lower or "bepul" in title_lower):
+                        return (
+                            False,
+                            "🔒 Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER yoki PRO tarifiga o'ting!",
+                            {
+                                "tier": "free",
+                                "limit": cls.FREE_TEST_LIMIT,
+                                "used": used_tests,
+                                "remaining": 0,
+                                "allowed": False,
+                                "is_locked_mock": True,
+                            },
+                        )
+            except Exception:
+                pass
+
+        return True, "", {"tier": "free", "allowed": True, "remaining": max(0, cls.FREE_TEST_LIMIT - used_tests)}
+
+    @classmethod
+    def check_arena_quota(cls, user: Any) -> tuple[bool, str, dict[str, Any]]:
+        """Check 1v1 Arena match quota (Free users: max 3 matches / day)."""
+        tier = cls.get_user_tier(user)
+        if tier in ("premium", "pro"):
+            return True, "", {"tier": tier, "allowed": True, "remaining": 999}
+
+        today = timezone.localdate()
+        from apps.arena.models import ArenaPlayer
+
+        played_today = ArenaPlayer.objects.filter(
+            player=user,
+            room__created_at__date=today,
+        ).count()
+
+        if tier == "free" and played_today >= cls.FREE_ARENA_DAILY_LIMIT:
+            return (
+                False,
+                "⚠️ Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
+                {
+                    "tier": "free",
+                    "limit": cls.FREE_ARENA_DAILY_LIMIT,
+                    "used": played_today,
+                    "remaining": 0,
+                    "allowed": False,
+                },
+            )
+
+        remaining = max(0, cls.FREE_ARENA_DAILY_LIMIT - played_today)
+        return (
+            True,
+            "",
+            {
+                "tier": tier,
+                "limit": cls.FREE_ARENA_DAILY_LIMIT,
+                "used": played_today,
+                "remaining": remaining,
+                "allowed": True,
+            },
+        )

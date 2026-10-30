@@ -310,13 +310,13 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content pb-32">
+        <main className="content pb-28 md:pb-8">
           <Outlet />
         </main>
       </div>
 
       {/* TESTMAKON-STYLE 3D SOFT BOTTOM NAVIGATION & DRAWERS */}
-      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
+      <div className="md:hidden"><MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} /></div>
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
       <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
     </div>

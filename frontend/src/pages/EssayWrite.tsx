@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Essays } from '../lib/api';
@@ -67,6 +68,8 @@ export default function EssayWrite() {
   const [restored, setRestored] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
   const [startedTopicId, setStartedTopicId] = useState<number | string | null>(null);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [limitModalMsg, setLimitModalMsg] = useState<string | undefined>();
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSubmitDone = useRef(false);
 
@@ -251,7 +254,20 @@ export default function EssayWrite() {
         clearLocalDraft(id);
         navigate(`/essays/result/${submissionId}`);
       } else {
-        setErr(res.error || t('essay_js_error'));
+        const errorText = res.error || t('essay_js_error');
+        if (
+          errorText.includes('LIMIT_EXCEEDED') ||
+          errorText.includes('limitingiz tugadi') ||
+          errorText.includes('Bepul sinov') ||
+          errorText.includes('Kvotangiz tugadi')
+        ) {
+          setLimitModalMsg(
+            "Bepul sinov limiti tugadi. Davom ettirish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
+          );
+          setLimitModalOpen(true);
+        } else {
+          setErr(errorText);
+        }
         setBusy(false);
       }
     } catch (e) {
@@ -489,6 +505,13 @@ export default function EssayWrite() {
           </div>
         </>
       )}
+      <LimitExceededModal
+        isOpen={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="⚠️ Bepul Sinov Limiti Tugadi"
+        message={limitModalMsg}
+        feature="essay"
+      />
     </div>
   );
 }

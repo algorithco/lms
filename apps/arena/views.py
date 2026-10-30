@@ -185,6 +185,19 @@ def arena_api_invites(request: HttpRequest) -> JsonResponse:
 @require_POST
 def arena_api_room_create(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/rooms/create/ — create a custom room with invite code."""
+    from apps.subscriptions.services.quota import QuotaService
+    allowed, quota_msg, quota_details = QuotaService.check_arena_quota(request.user)
+    if not allowed:
+        return JsonResponse(
+            {
+                "detail": "LIMIT_EXCEEDED",
+                "error": quota_msg,
+                "message": quota_msg,
+                "upgrade_url": "/pricing",
+                "quota": quota_details,
+            },
+            status=403,
+        )
     room = services.create_custom_room(request.user)
     return JsonResponse(
         {
@@ -200,6 +213,19 @@ def arena_api_room_create(request: HttpRequest) -> JsonResponse:
 @require_POST
 def arena_api_room_join(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/rooms/join/ — join a custom room by invite code."""
+    from apps.subscriptions.services.quota import QuotaService
+    allowed, quota_msg, quota_details = QuotaService.check_arena_quota(request.user)
+    if not allowed:
+        return JsonResponse(
+            {
+                "detail": "LIMIT_EXCEEDED",
+                "error": quota_msg,
+                "message": quota_msg,
+                "upgrade_url": "/pricing",
+                "quota": quota_details,
+            },
+            status=403,
+        )
     code = request.POST.get("code", "")
     if not code and request.body:
         try:
@@ -228,6 +254,19 @@ def arena_api_room_join(request: HttpRequest) -> JsonResponse:
 @require_POST
 def arena_api_queue(request: HttpRequest) -> JsonResponse:
     """POST /arena/api/queue/ — join matchmaking queue (REST convenience)."""
+    from apps.subscriptions.services.quota import QuotaService
+    allowed, quota_msg, quota_details = QuotaService.check_arena_quota(request.user)
+    if not allowed:
+        return JsonResponse(
+            {
+                "detail": "LIMIT_EXCEEDED",
+                "error": quota_msg,
+                "message": quota_msg,
+                "upgrade_url": "/pricing",
+                "quota": quota_details,
+            },
+            status=403,
+        )
     entry, room = services.join_matchmaking_queue(request.user)
     if room is not None:
         return JsonResponse(

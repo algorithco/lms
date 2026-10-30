@@ -87,35 +87,32 @@ class QuotaDenied(Exception):
 
 
 def _platform_defaults() -> dict:
-    """Fallback configuration for a tier that leaves a field unset.
-
-    Every value defaults to **unlimited** (``None``) on purpose: the Grandec
-    platform had no enforced essay quota before the commercial plans existed,
-    so introducing one by default would silently change what existing students
-    can do. Administrators opt in by configuring a plan row (or the ``free``
-    plan row, which represents the default policy).
+    """Fallback configuration for free tier policy:
+    - 0 image essays (image / OCR essay is strictly for PRO/PREMIUM)
+    - 1 text essay trial
+    - 1 diagnostic test trial
     """
     return {
         "image_essay_weekly_limit": getattr(
             settings,
             "SUBSCRIPTION_DEFAULT_IMAGE_ESSAY_WEEKLY_LIMIT",
-            None,
+            0,
         ),
         "text_essay_weekly_limit": getattr(
             settings,
             "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_WEEKLY_LIMIT",
-            None,
+            1,
         ),
         "text_essay_cooldown_hours": getattr(
             settings,
             "SUBSCRIPTION_DEFAULT_TEXT_ESSAY_COOLDOWN_HOURS",
-            None,
+            0,
         ),
-        "test_limit": getattr(settings, "SUBSCRIPTION_DEFAULT_TEST_LIMIT", None),
+        "test_limit": getattr(settings, "SUBSCRIPTION_DEFAULT_TEST_LIMIT", 1),
         "is_unlimited_image_essays": False,
         "is_unlimited_text_essays": False,
         "is_unlimited_tests": False,
-        "quota_period_days": 7,
+        "quota_period_days": 30,
     }
 
 
@@ -574,10 +571,10 @@ UPGRADE_HINT = "PRO tarifiga o'tish orqali cheklovni olib tashlashingiz mumkin."
 
 def _limit_message(kind: str) -> str:
     if kind == SubscriptionUsage.Kind.IMAGE_ESSAY:
-        return "Haftalik rasmli esse limitingiz tugadi."
+        return "Rasmli qo'lyozma esse tekshirish faqat PRO va PREMIUM tariflarida mavjud. Davom ettirish uchun STARTER yoki PRO tarifiga o'ting!"
     if kind == SubscriptionUsage.Kind.TEXT_ESSAY:
-        return "Matnli esse limitingiz tugadi."
-    return "Haftalik testingiz limitingi tugadi."
+        return "Bepul sinov limiti tugadi. Davom ettirish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
+    return "Bepul sinov test limitingiz tugadi. To'liq Mock testlar va cheksiz mashqlardan foydalanish uchun STARTER yoki PRO tarifiga o'ting!"
 
 
 def _remaining_message(kind: str, remaining: dict) -> str:

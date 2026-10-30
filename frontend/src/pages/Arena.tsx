@@ -5,6 +5,7 @@ import { ArenaLobby, arenaSocketUrl } from '../lib/api';
 import { SwordsIcon } from '../components/icons';
 import { useAuth } from '../auth/AuthContext';
 import TiltCard from '../components/TiltCard';
+import LimitExceededModal from '../components/LimitExceededModal';
 
 /**
  * Arena lobby — mirrors GET /tma/api/arena/ (JWT summary: stats +
@@ -57,6 +58,8 @@ export default function Arena() {
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [limitModalMsg, setLimitModalMsg] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [queue, setQueue] = useState<QueueState>('idle');
   const [queueMsg, setQueueMsg] = useState('');
@@ -133,7 +136,13 @@ export default function Arena() {
         queueWs.current = null;
         setTimeout(() => navigate(`/arena/${roomCode}`), 1500);
       } else if (data.type === 'error') {
-        setMsg(String(data.message ?? 'Error'));
+        const errStr = String(data.message ?? 'Error');
+        if (errStr.includes('LIMIT_EXCEEDED') || errStr.includes('limitingiz tugadi')) {
+          setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+          setLimitModalOpen(true);
+        } else {
+          setMsg(errStr);
+        }
       }
     };
     sock.onerror = () => {
@@ -165,7 +174,13 @@ export default function Arena() {
       const r = await ArenaLobby.createRoom();
       navigate(`/arena/${r.room_code}`);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Failed.');
+      const errorText = e instanceof Error ? e.message : 'Failed.';
+      if (errorText.includes('LIMIT_EXCEEDED') || errorText.includes('limitingiz tugadi')) {
+        setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalOpen(true);
+      } else {
+        setMsg(errorText);
+      }
     } finally {
       setBusy(false);
     }
@@ -183,7 +198,13 @@ export default function Arena() {
       const r = await ArenaLobby.joinRoom(value);
       navigate(`/arena/${r.room_code}`);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Failed.');
+      const errorText = e instanceof Error ? e.message : 'Failed.';
+      if (errorText.includes('LIMIT_EXCEEDED') || errorText.includes('limitingiz tugadi')) {
+        setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalOpen(true);
+      } else {
+        setMsg(errorText);
+      }
     } finally {
       setBusy(false);
     }
@@ -321,6 +342,14 @@ export default function Arena() {
           </tbody>
         </table>
       </div>
+
+      <LimitExceededModal
+        isOpen={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="⚔️ 1v1 Arena Limiti Tugadi"
+        message={limitModalMsg}
+        feature="arena"
+      />
     </div>
   );
 }

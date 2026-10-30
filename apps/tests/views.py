@@ -215,6 +215,21 @@ class StartAttemptView(APIView):
         self, request: Request, test_id: int, *args: Any, **kwargs: Any
     ) -> Response:
         """Yangi attempt yaratish."""
+        from apps.subscriptions.services.quota import QuotaService
+
+        allowed, quota_msg, quota_details = QuotaService.check_test_quota(request.user, test_id=test_id)
+        if not allowed:
+            return Response(
+                {
+                    "detail": "LIMIT_EXCEEDED",
+                    "error": quota_msg,
+                    "message": quota_msg,
+                    "upgrade_url": "/pricing",
+                    "quota": quota_details,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         mode = request.data.get("mode", "strict")
         try:
             attempt = StartAttemptService.execute(

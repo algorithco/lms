@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import LimitExceededModal from '../components/LimitExceededModal';
+import { useAuth } from '../auth/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
-import { api, MockTests, type Paginated } from '../lib/api';
+import { api, MockTests, Billing, type BillingEntitlement, type Paginated } from '../lib/api';
 import { listTestsPage, num, type TestListItem } from '../lib/testing';
 import { ClockIcon, HashIcon } from '../components/icons';
 
@@ -19,6 +21,16 @@ function getCleanTestTitle(rawTitle: string | null | undefined, subject?: string
 export default function Tests() {
   const { t } = useLang();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [entitlement, setEntitlement] = useState<BillingEntitlement | null>(null);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [limitModalMsg, setLimitModalMsg] = useState<string | undefined>();
+
+  useEffect(() => {
+    Billing.entitlement().then(setEntitlement).catch(() => setEntitlement(null));
+  }, []);
+
+  const isFreeUser = user?.role === 'student' && (!entitlement || (!entitlement.is_paid && !entitlement.is_sponsored && entitlement.source !== 'override'));
   const [tests, setTests] = useState<TestListItem[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -941,6 +953,8 @@ export default function Tests() {
           const isBmbDiag = isMockBmbDiag(item);
           const isM4 = isMock4(item);
           const cleanTitle = getCleanTestTitle(item.title, item.subject);
+          const isDiagnostic = isBmbDiag || (item.title && item.title.toLowerCase().includes('diagnostic'));
+          const isLocked = isFreeUser && !isDiagnostic && (isAttest || isM4 || (item.title && item.title.toLowerCase().includes('#mock')));
           const timeLimit = item.time_limit_minutes && item.time_limit_minutes > 0 ? item.time_limit_minutes : 180;
           const questionsCount = num(item.total_questions, 45);
           const passPct = num(item.pass_percentage, 60);
@@ -949,6 +963,13 @@ export default function Tests() {
             <Link
               key={item.id}
               to={`/tests/${item.id}`}
+              onClick={(e) => {
+                if (isLocked) {
+                  e.preventDefault();
+                  setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+                  setLimitModalOpen(true);
+                }
+              }}
               className="card link-card"
               style={{
                 borderRadius: '18px',
@@ -1012,6 +1033,37 @@ export default function Tests() {
                     }}
                   >
                     🔥 Rasmiy BMB
+                  </span>
+                ) : null}
+
+                {isLocked ? (
+                  <span
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#DC2626',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <span>🔒 Qulflangan (Faqat obunachilar uchun)</span>
+                  </span>
+                ) : isDiagnostic ? (
+                  <span
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      color: '#059669',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    ✅ 1 ta Bepul Sinov
                   </span>
                 ) : null}
 
@@ -1094,20 +1146,28 @@ export default function Tests() {
                     gap: 6,
                     padding: '10px 16px',
                     borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
                     color: '#FFFFFF',
                     fontWeight: 800,
                     fontSize: '0.85rem',
-                    boxShadow: '0 4px 14px rgba(217, 119, 6, 0.25)',
+                    background: isLocked ? '#64748B' : 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    boxShadow: isLocked ? 'none' : '0 4px 14px rgba(217, 119, 6, 0.25)',
                   }}
                 >
-                  <span>Testni boshlash →</span>
+                  <span>{isLocked ? '🔒 Qulflangan (Tarif kerak)' : 'Testni boshlash →'}</span>
                 </div>
               </div>
             </Link>
           );
         })}
       </div>
+
+      <LimitExceededModal
+        isOpen={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="🔒 To'liq Mock Test Qulflangan"
+        message={limitModalMsg}
+        feature="test"
+      />
 
       {(hasNext || hasPrev) && (
         <div className="toolbar" style={{ marginTop: 16 }}>

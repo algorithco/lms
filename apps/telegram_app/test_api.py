@@ -56,6 +56,21 @@ def tma_test_start_view(request, test_id: int) -> JsonResponse:
     if not user:
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
+    from apps.subscriptions.services.quota import QuotaService
+
+    allowed, quota_msg, quota_details = QuotaService.check_test_quota(user, test_id=test_id)
+    if not allowed:
+        return JsonResponse(
+            {
+                "detail": "LIMIT_EXCEEDED",
+                "error": quota_msg,
+                "message": quota_msg,
+                "upgrade_url": "/pricing",
+                "quota": quota_details,
+            },
+            status=403,
+        )
+
     from apps.tests.models import Test, TestAttempt, Question, Choice
 
     try:

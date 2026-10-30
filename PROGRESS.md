@@ -9,6 +9,28 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.55. Rasmiy Versiya v1.60.0: Desktop/Mobil Interfeys Tozalanishi va Bepul (FREE) Tarif Cheklovlarining Qat'iy O'rnatilishi
+- [x] 1-Bosqich: Desktop va Mobil Interfeys Aralashuvini Bartaraf Etish:
+  * `MobileBottomBar.tsx`: Inline `display: 'flex'` o'chirildi, uning o'rniga `testmakon-bottom-bar md:hidden` responsive sinflari biriktirildi.
+  * `index.css`: `@media (min-width: 768px)` da pastki menyuga qat'iy `display: none !important;` berildi.
+  * `Layout.tsx` & `Landing.tsx`: `<MobileBottomBar>` qat'iy `<div className="md:hidden">` bilan o'raldi, `<main>` ning pastki paddingi desktopda toza `pb-28 md:pb-8` ga keltirildi (desktopda keraksiz bo'sh joy qolmaydi).
+- [x] 2-Bosqich: Bepul (FREE) Tarif Cheklovlarini Qat'iy O'rnatish (Backend):
+  * `SubscriptionPlan` bazasida `free` tarifi cheklovlari mixlandi: `image_essay_weekly_limit = 0` (rasmli qo'lyozma esse yuklash bepul tarifda mutlaqo taqiqlangan), `text_essay_weekly_limit = 1`, `test_limit = 1`.
+  * `0013_enforce_free_plan_limits.py`: Avtomatik migratsiya yaratildi.
+  * `apps/payments/entitlements.py`: `_platform_defaults()` da bepul tarif uchun rasmli esse = 0, matnli esse = 1, test = 1 qilib belgilandi.
+  * `apps/subscriptions/services/quota.py`: `check_essay_quota` (bepul matnli esse faqat 1 ta), `check_test_quota` (1 ta diagnostika testi, to'liq mock testlar qulflangan), `check_arena_quota` (1v1 Arena kuniga maksimal 3 ta jang) joriy qilindi.
+  * `apps/tests/views.py` & `apps/telegram_app/test_api.py`: Test boshlashda bepul limit tugagan bo'lsa yoki qulflangan mock testga kirilsa, API `403 Forbidden` (`{"detail": "LIMIT_EXCEEDED", "upgrade_url": "/pricing"}`) qaytaradi.
+  * `apps/telegram_app/views.py`: Esse yuborishda kvota tugagan bo'lsa, `403 Forbidden` (`LIMIT_EXCEEDED`) qaytaradi.
+  * `apps/arena/views.py`: Xona yaratish, ulanish yoki navbatga turishda kunlik 3 ta o'yin limiti tugasa, `403 Forbidden` (`LIMIT_EXCEEDED`) qaytaradi.
+- [x] 3-Bosqich: Frontend Upgrade Modallari va Qulflangan Test Nishonlari:
+  * `LimitExceededModal.tsx`: Bepul limit tugaganda yoki qulflangan imkoniyat bosilganda chiquvchi zamonaviy modal (STARTER 15 000 so'm / PRO 49 000 so'm taklifi va `/pricing` ga yo'naltiruvchi tugma).
+  * `Tests.tsx`: Bepul foydalanuvchilar uchun Mock testlar kartochkasida `🔒 Qulflangan (Faqat obunachilar uchun)` nishoni va qulflangan tugma ko'rinadi. Bosilganda `LimitExceededModal` ochiladi. 1 ta diagnostika testi esa `✅ 1 ta Bepul Sinov` sifatida ochiq qoladi.
+  * `EssayWrite.tsx`, `TestDetail.tsx`, `Arena.tsx`: Limit tugashi xatoliklari ushlanib, `LimitExceededModal` ko'rsatiladi.
+- [x] 4-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (3.19s).
+  * `python manage.py check`: 0 ta xatolik (System check identified no issues).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.54. Rasmiy Versiya v1.58.0: TestMakon Uslubidagi Premium Landing, PWA, 3D Imtihon Kartochkalari va Addictive Natijalar Tahlili
 - [x] 1-Bosqich: TestMakon Bosh Sahifa (Landing) & PWA Integratsiyasi:
   * PWA Web App Manifest (manifest.json) va ServiceWorker registratsiyasi (main.tsx, index.html).

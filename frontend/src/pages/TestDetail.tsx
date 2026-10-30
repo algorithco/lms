@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Tests as TestsApi } from '../lib/api';
@@ -33,6 +34,8 @@ export default function TestDetail() {
   const { t } = useLang();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [myAttempts, setMyAttempts] = useState<number | null>(null);
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [limitModalMsg, setLimitModalMsg] = useState<string | undefined>();
   const [err, setErr] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [modeModalOpen, setModeModalOpen] = useState(false);
@@ -86,7 +89,13 @@ export default function TestDetail() {
         navigate(`/take/${attemptId}`);
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : t('err_retry_js'));
+      const msg = e instanceof Error ? e.message : t('err_retry_js');
+      if (msg.includes('LIMIT_EXCEEDED') || msg.includes('limitingiz tugadi') || msg.includes('obunachilar') || msg.includes('Qulflangan')) {
+        setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalOpen(true);
+      } else {
+        setErr(msg);
+      }
       setStarting(false);
     }
   };
@@ -154,6 +163,14 @@ export default function TestDetail() {
           </div>
         </>
       )}
+      <LimitExceededModal
+        isOpen={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="🔒 To'liq Test Qulflangan"
+        message={limitModalMsg}
+        feature="test"
+      />
+
       {/* Mode Selection Modal */}
       {modeModalOpen && (
         <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>

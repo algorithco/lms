@@ -2225,7 +2225,7 @@ export default function Landing() {
         </section>
       </main>
       <PassingScoresModal isOpen={scoresModalOpen} onClose={() => setScoresModalOpen(false)} />
-      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
+      <div className="md:hidden"><MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} /></div>
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
       <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
 

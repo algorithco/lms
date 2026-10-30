@@ -32,7 +32,7 @@ export default function MobileBottomBar({ onOpenProfile }: MobileBottomBarProps)
 
   return (
     <nav
-      className="testmakon-bottom-bar"
+      className="testmakon-bottom-bar md:hidden fixed bottom-0 left-0 right-0 z-50"
       aria-label="Mobil pastki navigatsiya"
       style={{
         position: 'fixed',
@@ -49,7 +49,6 @@ export default function MobileBottomBar({ onOpenProfile }: MobileBottomBarProps)
         boxShadow: isDark
           ? '0 -6px 25px rgba(0, 0, 0, 0.45)'
           : '0 -6px 25px rgba(15, 23, 42, 0.08)',
-        display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-around',
         paddingLeft: '12px',

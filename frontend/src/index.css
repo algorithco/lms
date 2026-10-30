@@ -1453,12 +1453,18 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
 
 .mobile-bottom-nav,
 .testmakon-bottom-bar {
-  display: none;
+  display: none !important;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   .testmakon-bottom-bar {
     display: flex !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .testmakon-bottom-bar {
+    display: none !important;
   }
 }
 
