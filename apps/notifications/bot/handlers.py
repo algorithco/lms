@@ -171,7 +171,7 @@ async def send_friendly_error(
 ) -> None:
     """Send user-friendly error with immediate navigation buttons so student is never stuck."""
     text = (
-        f"💡 *Kutilmagan holat yuz berdi:*\n"
+        f"✨ *Xabarnoma:*\n"
         f"{message}\n\n"
         f"Quyidagi tugmalar orqali davom etishingiz mumkin 👇"
     )
@@ -205,6 +205,7 @@ def _get_user_role(user: "User | None", tg_id: int | None = None) -> str:
         return "admin"
     if (
         getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
         or (getattr(user, "role", "") or "").lower() == "admin"
         or is_platform_admin(user)
     ):
@@ -309,7 +310,7 @@ def require_role(*roles: str):
                 try:
                     await send_friendly_error(
                         update,
-                        message="Operatsiyani bajarishda kutilmagan holat yuz berdi. Iltimos, /start ni bosing.",
+                        message="Amalni bajarishda qisqa uzilish yuz berdi. Kerakli bo'limni tanlang yoki /start ni bosing.",
                     )
                 except Exception:
                     pass
@@ -344,16 +345,16 @@ def _persistent_menu_keyboard(role: str = "student") -> ReplyKeyboardMarkup:
         return ReplyKeyboardMarkup(
             [
                 [
-                    KeyboardButton("📝 Yangi Mock yaratish (/newmock)"),
-                    KeyboardButton("📷 Titul varaqni tekshirish"),
+                    KeyboardButton("📝 Yangi test yaratish (Smart Paste)"),
+                    KeyboardButton("📷 Titul varaqni tekshirish (OMR)"),
                 ],
                 [
-                    KeyboardButton("👥 Mening guruhlarim"),
-                    KeyboardButton("📊 O'quvchilar hisoboti (Excel)"),
+                    KeyboardButton("👥 Mening guruhlarim va davomat"),
+                    KeyboardButton("📊 O'quvchilar natijalari (Excel)"),
                 ],
                 [
-                    KeyboardButton("📚 Testlar bazasi"),
-                    KeyboardButton("👤 Shaxsiy kabinet"),
+                    KeyboardButton("🌐 Web kabinetga kirish"),
+
                 ],
             ],
             resize_keyboard=True,
@@ -437,17 +438,17 @@ def _teacher_main_menu_keyboard() -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton(
-                    "📝 Yangi Mock yaratish (/newmock)",
+                    "📝 Yangi test yaratish (Smart Paste)",
                     callback_data="menu_teacher_newmock",
                 ),
-                InlineKeyboardButton("👥 Mening guruhlarim", callback_data="tgrplist"),
+                InlineKeyboardButton("👥 Mening guruhlarim va davomat", callback_data="tgrplist"),
             ],
             [
                 InlineKeyboardButton(
-                    "📊 Excel hisobot (.xlsx)", callback_data="menu_teacher_excel"
+                    "📊 O'quvchilar natijalari (Excel)", callback_data="menu_teacher_excel"
                 ),
                 InlineKeyboardButton(
-                    "📚 Testlar bazasi", web_app={"url": f"{_site_url}/tma/#/tests"}
+                    "📷 Titul varaqni tekshirish (OMR)", callback_data="menu_omr_scan"
                 ),
             ],
             [
@@ -463,7 +464,7 @@ def _teacher_main_menu_keyboard() -> InlineKeyboardMarkup:
                     "👤 Shaxsiy kabinet", callback_data="menu_teacher_profile"
                 ),
                 InlineKeyboardButton(
-                    "🌐 O'qituvchi boshqaruv paneli", url=f"{_site_url}/dashboard/"
+                    "🌐 Web kabinetga kirish", url=f"{_site_url}/login"
                 ),
             ],
         ]
@@ -707,11 +708,11 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             f"👨‍🏫 *Assalomu alaykum, Ustoz {user.first_name}!* 👋\n\n"
             f"🎓 *GRAND EDUCATION* — O'qituvchilar kabinetiga xush kelibsiz.\n\n"
             f"Bu yerda siz:\n"
-            f"• 📝 */newmock* — Yangi tezkor Mock test sessiyasini yaratish\n"
-            f"• 👥 *Guruhlarim* — O'z guruhlaringiz, taklif kodlari (#GR-XXX)\n"
-            f"• 📊 *Excel hisobot* — O'quvchilar monitoringini .xlsx formatida olish\n"
-            f"• 📚 *Testlar bazasi* — Mavjud test savollari va natijalar\n"
-            f"• 🗓 *Davomat* — Dars davomatini olish va qayd etish\n\n"
+            f"• 📝 *Yangi test yaratish* — Smart Paste (1 soniyada) yoki /newmock\n"
+            f"• 📷 *Titul varaqni tekshirish (OMR)* — Rasm yuborib tekshirish\n"
+            f"• 👥 *Guruhlarim va davomat* — Dars davomati va o'quvchilar ro'yxati\n"
+            f"• 📊 *O'quvchilar natijalari* — Monitoring hisoboti (.xlsx)\n"
+            f"• 🌐 *Web kabinet* — Kengaytirilgan boshqaruv paneli\n\n"
             f"Kerakli bo'limni tanlang 👇"
         )
         await update.message.reply_text(
@@ -982,6 +983,7 @@ async def auth_conversation_handler(
         await tests_handler(update, context)
         return
     elif raw_text in (
+        "📷 Titul varaqni tekshirish (OMR)",
         "📷 Titul varaqni tekshirish",
         "📷 Titul varaq",
         "/omr",
@@ -1057,7 +1059,7 @@ async def auth_conversation_handler(
         return
 
     # --- Teacher Persistent Buttons ---
-    elif raw_text in ("📝 Yangi Mock yaratish (/newmock)", "📝 Yangi Mock yaratish"):
+    elif raw_text in ("📝 Yangi test yaratish (Smart Paste)", "📝 Yangi test yaratish", "📝 Yangi Mock yaratish (/newmock)", "📝 Yangi Mock yaratish"):
         user = await _get_or_create_user_async(update)
         role = _get_user_role(
             user, update.effective_user.id if update.effective_user else None
@@ -1070,7 +1072,7 @@ async def auth_conversation_handler(
             return
         await newmock_handler(update, context)
         return
-    elif raw_text in ("👥 Mening guruhlarim", "👥 Guruhlarim", "Mening guruhlarim"):
+    elif raw_text in ("👥 Mening guruhlarim va davomat", "👥 Mening guruhlarim", "👥 Guruhlarim", "Mening guruhlarim"):
         user = await _get_or_create_user_async(update)
         role = _get_user_role(
             user, update.effective_user.id if update.effective_user else None
@@ -1084,6 +1086,8 @@ async def auth_conversation_handler(
         await groups_handler(update, context)
         return
     elif raw_text in (
+        "📊 O'quvchilar natijalari (Excel)",
+        "📊 O'quvchilar natijalari",
         "📊 O'quvchilar hisoboti (Excel)",
         "📊 O'quvchilar hisoboti",
         "O'quvchilar hisoboti (Excel)",
@@ -1127,6 +1131,9 @@ async def auth_conversation_handler(
         else:
             await profile_handler(update, context)
             return
+    elif raw_text in ("🌐 Web kabinetga kirish", "Web kabinet"):
+        await web_cabinet_handler(update, context)
+        return
 
     # --- Superadmin Persistent Buttons ---
     elif raw_text in (
@@ -2732,7 +2739,7 @@ def _plan_quota_line(plan) -> str:
         if unlimited:
             return f"{noun}: cheklanmagan"
         if limit is None:
-            return f"{noun}: sozlanmagan"
+            return f"{noun}: Pro/Premium 🔒"
         return f"{noun}: {limit}/hafta"
 
     return " · ".join(
@@ -3052,27 +3059,29 @@ async def plans_and_payment_handler(
 
     card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 5000
-    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 49000
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 89000
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 7000
+    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 15000
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 27000
 
     context.user_data["payment_state"] = "awaiting_screenshot"
 
     text = (
         f"💎 *GRAND EDUCATION TARIF VA OBUNA REJALARI*\n\n"
-        f"1️⃣ *⚡️ Starter tarifi — {starter_price:,} so'm / 30 kun*\n"
-        f"• 5 ta AI rasmli / 3 ta matn esse (haftasiga)\n"
-        f"• Standart testlar\n"
-        f"• Kunlik 20 ta AI repetitor so'rovi\n\n"
-        f"2️⃣ *🚀 Pro tarifi — {pro_price:,} so'm / 30 kun (Tavsiya etiladi)*\n"
-        f"• Haftalik 15 ta esse baholash\n"
-        f"• Barcha CBT va Mock testlar\n"
-        f"• Kunlik 50 ta AI repetitor so'rovi\n\n"
-        f"3️⃣ *👑 Premium tarifi — {premium_price:,} so'm / 30 kun*\n"
-        f"• ✍️ Cheksiz esse baholash (12 mezon + AI tahriri)\n"
-        f"• 📚 Barcha Mock testlar va Fast CBT\n"
-        f"• 🧠 Cheksiz 24/7 AI repetitor\n"
-        f"• 📜 PDF Sertifikatlar va ustoz tekshiruvi\n\n"
+        f"1️⃣ 📦 *STARTER — {starter_price:,} so'm / oy*\n"
+        f"• 5 ta to'liq test\n"
+        f"• Haftasiga 3 ta esse tekshirish (matnli)\n"
+        f"• Xatolar va zaif mavzular tahlili\n\n"
+
+
+        f"2️⃣ 🔥 *PRO — {pro_price:,} so'm / oy (Tavsiya etiladi)*\n"
+        f"• Haftasiga 15 ta esse (rasmli va matnli)\n"
+        f"• Kunlik rasmiy Mock testlar va CBT testlar\n"
+        f"• 24/7 AI repetitor izohlari\n\n"
+        f"3️⃣ 👑 *PREMIUM — {premium_price:,} so'm / oy*\n"
+        f"• ✍️ Cheksiz esse baholash (12 mezon)\n"
+        f"• 📚 Cheksiz Mock testlar va 1v1 Arena\n"
+        f"• 👨‍🏫 Ustoz tekshiruvi va rasmiy PDF sertifikat\n\n"
+
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💳 *KARTA ORQALI TO'LOV:*\n"
         f"Karta raqami: `{card_number}`\n"
@@ -3102,7 +3111,7 @@ async def plans_and_payment_handler(
             ],
             [
                 InlineKeyboardButton(
-                    "🌐 Veb-saytda to'lash", url="https://grandec.uz/subscribe/"
+                    "💳 Click / Payme orqali to'lash", url="https://grandec.uz/pricing"
                 ),
                 InlineKeyboardButton("📊 Mening limitlarim", callback_data="cb_limits"),
             ],
@@ -3156,12 +3165,13 @@ async def plans_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
         else:
             lines.append(
-                "   ⚠️ Telegram orqali sotuv sozlanmagan "
-                "(administrator Stars narxini kiritishi kerak)."
+                "   💳 To'lov: Click / Payme / Stars"
+                "(https://grandec.uz/pricing)"
             )
         lines.append("")
 
-    lines.append("To'lov *Telegram Stars* orqali amalga oshiriladi.")
+    lines.append("To'lovni *Click / Payme* yoki *Telegram Stars* orqali amalga oshirishingiz mumkin.")
+    buttons.insert(0, [InlineKeyboardButton("💳 Click / Payme orqali to'lash", url="https://grandec.uz/pricing")])
     buttons.append([InlineKeyboardButton("📊 Limitlarim", callback_data="cb_limits")])
     buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
     await send_reply(
@@ -3855,7 +3865,7 @@ async def limits_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if bucket["unlimited"]:
             return f"• {label}: Cheklanmagan"
         if bucket["limit"] is None:
-            return f"• {label}: administrator sozlamagan"
+            return f"• {label}: Faqat Pro/Premium 🔒"
         return f"• {label}: {bucket['remaining']}/{bucket['limit']} qoldi"
 
     lines = [f"📊 *Limitlaringiz* — {data['plan_name']}", ""]
@@ -5137,6 +5147,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
         elif data == "menu_teacher_newmock":
             await newmock_handler(update, context)
+        elif data == "menu_omr_scan":
+            await omr_scan_prompt_handler(update, context)
+        elif data == "menu_web_cabinet":
+            await web_cabinet_handler(update, context)
         elif data == "menu_teacher_excel":
             await teacher_excel_report_handler(update, context)
         elif data == "menu_teacher_attendance":
@@ -5279,7 +5293,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
             )
             card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-            defaults = {"starter": 15000, "pro": 49000, "premium": 60000}
+            defaults = {"starter": 7000, "pro": 15000, "premium": 27000}
             price = (
                 getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0)
                 or defaults[selected_slug]
@@ -5981,9 +5995,9 @@ async def payment_screenshot_handler(
 
     from django.conf import settings as _settings
 
-    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 15000)
-    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 49000)
-    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 60000)
+    starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 7000)
+    pro_price = getattr(_settings, "PLAN_PRO_PRICE", 15000)
+    premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 27000)
 
     # Determine plan slug
     if not selected_slug:
@@ -7084,61 +7098,140 @@ async def _send_group_card(update: Update, context, user, group) -> None:
     await edit_or_reply(update, text, parse_mode="Markdown", reply_markup=keyboard)
 
 
+async def new_test_smart_paste_prompt(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Prompt teacher to create tests via Smart Paste (WebApp) or /newmock in bot."""
+    from django.conf import settings as _settings
+
+    _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    text = (
+        "📝 *YANGI TEST YARATISH (SMART PASTE & MOCK)*\n\n"
+        "Ustoz, testlarni 2 xil usulda tezkor yaratishingiz mumkin:\n\n"
+        "1️⃣ *⚡️ Smart Paste orqali (Tavsiya etiladi)*\n"
+        "Word yoki matndan savollarni nusxalab tashlang — sun'iy intellekt "
+        "barcha savol va variantlarni 1 soniyada ajratib beradi!\n\n"
+        "2️⃣ *⌨️ Kalitlar orqali tezkor Mock yaratish*\n"
+        "Botga quyidagi formatda yuboring:\n"
+        "`/newmock 1a2b3c4d5a...40b`\n\n"
+        "Quyidagi tugma orqali Web-kabinetda Smart Paste oynasini ochishingiz mumkin 👇"
+    )
+    buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "⚡️ Web-kabinetda test yaratish (Smart Paste)",
+                    web_app={"url": f"{_site_url}/panel/tests/new"},
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🌐 Brauzerda ochish", url=f"{_site_url}/panel/tests/new"
+                ),
+                InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
+            ],
+        ]
+    )
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
+async def web_cabinet_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Direct link and WebApp for teacher web cabinet."""
+    from django.conf import settings as _settings
+
+    _site_url = getattr(_settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    text = (
+        "🌐 *GRAND EDUCATION O'QITUVCHI KABINETI*\n\n"
+        "Veb-kabinet orqali barcha imkoniyatlardan keng foydalaning:\n"
+        "• 📝 Yangi testlar yaratish (Smart Paste)\n"
+        "• 👥 Guruhlar, talabalar va davomat jurnali\n"
+        "• 📊 Monitoring va Excel hisobotlar\n"
+        "• 💳 O'quvchilar kurs to'lovlari hisobi\n\n"
+        "Quyidagi tugmalar orqali kabinetga o'ting 👇"
+    )
+    buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🌐 Veb-kabinetga kirish", url=f"{_site_url}/login"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "📱 Mini App orqali ochish", web_app={"url": f"{_site_url}/tma/"}
+                ),
+                InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main"),
+            ],
+        ]
+    )
+    await send_reply(update, text, parse_mode="Markdown", reply_markup=buttons)
+
+
 @require_role("TEACHER")
 async def newmock_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Create a new mock test session from answer keys.
-    Usage: /newmock 1a2b3c4d5a...40b
-    """
-    args = context.args or []
-    if not args:
-        await update.message.reply_text(
-            "Ustoz, kalitlarni quyidagi formatda yuboring:\n"
-            "`/newmock 1a2b3c4d5a...40b`\n\n"
-            "Masalan: 40 ta savol uchun `1a2b3c4d...`",
-            parse_mode="Markdown",
-        )
-        return
-
-    key_str = args[0].strip()
-    user = await _get_or_create_user_async(update)
-    from apps.tests.mock_service import create_quick_mock
-
+    """Create a new mock test session from answer keys or show smart paste prompt."""
     try:
+        args = context.args or []
+        if not args:
+            await new_test_smart_paste_prompt(update, context)
+            return
+
+        key_str = args[0].strip()
+        user = await _get_or_create_user_async(update)
+        from apps.tests.mock_service import create_quick_mock
+
         res = await _run_db(create_quick_mock, user, key_str)
         code = res["mock_code"]
-        await update.message.reply_text(
+        text = (
             f"✅ *Mock sessiya muvaffaqiyatli yaratildi!*\n\n"
             f"📌 Test kodi: `{code}`\n"
             f"🔢 Savollar: *{res['total_questions']} ta*\n"
             f"⏱ Vaqt: *{res['time_limit_minutes']} daqiqa*\n\n"
             f"O'quvchilaringizga ushbu kodni yuboring:\n"
-            f"👉 O'quvchi botga `{code}` deb yozsa, darhol test boshlanadi!",
+            f"👉 O'quvchi botga `{code}` deb yozsa, darhol test boshlanadi!"
+        )
+        await send_reply(update, text, parse_mode="Markdown")
+    except Exception as e:
+        logger.exception("Error in newmock_handler: %s", e)
+        await send_reply(
+            update,
+            f"⚠️ Mock test yaratishda xatolik: {e}\n\n"
+            "Kalitlarni to'g'ri formatda yuboring, masalan:\n`/newmock 1a2b3c4d...`",
             parse_mode="Markdown",
         )
-    except Exception as e:
-        await update.message.reply_text(f"Xatolik: {e}")
 
 
 async def _send_group_excel_document(
     update: Update, context: ContextTypes.DEFAULT_TYPE, group
 ) -> None:
     """Generate and send an Excel document (.xlsx) for a student group."""
-    from apps.courses.group_service import export_group_to_excel
-    import io
+    try:
+        from apps.courses.group_service import export_group_to_excel
+        import io
 
-    excel_bytes = await _run_db(export_group_to_excel, group)
-    f = io.BytesIO(excel_bytes)
-    f.name = f"{group.name}_hisobot.xlsx"
-    chat_id = (
-        update.effective_chat.id if update.effective_chat else update.effective_user.id
-    )
-    await context.bot.send_document(
-        chat_id=chat_id,
-        document=f,
-        filename=f"{group.name}_hisobot.xlsx",
-        caption=f"📊 *{group.name}* guruhi o'quvchilari natijalari va monitoring hisoboti (Excel .xlsx).",
-        parse_mode="Markdown",
-    )
+        excel_bytes = await _run_db(export_group_to_excel, group)
+        f = io.BytesIO(excel_bytes)
+        f.name = f"{group.name}_hisobot.xlsx"
+        chat_id = (
+            update.effective_chat.id if update.effective_chat else update.effective_user.id
+        )
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=f,
+            filename=f"{group.name}_hisobot.xlsx",
+            caption=f"📊 *{group.name}* guruhi o'quvchilari natijalari va monitoring hisoboti (Excel .xlsx).",
+            parse_mode="Markdown",
+        )
+    except Exception as exc:
+        logger.exception("Error sending group excel: %s", exc)
+        await send_reply(
+            update,
+            f"⚠️ *{group.name}* guruhi hisobotini tayyorlashda qisqa uzilish yuz berdi. "
+            "Veb-kabinet orqali ham yuklab olishingiz mumkin:\nhttps://grandec.uz/groups",
+            parse_mode="Markdown",
+        )
 
 
 @require_role("TEACHER")
@@ -7146,33 +7239,43 @@ async def teacher_excel_report_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Send student report in Excel format for teacher groups."""
-    user = await _get_or_create_user_async(update)
-    from apps.attendance.services import teacher_groups
+    try:
+        user = await _get_or_create_user_async(update)
+        from apps.attendance.services import teacher_groups
 
-    groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
-    if not groups:
+        groups = await _run_db(lambda: list(teacher_groups(user).order_by("name")))
+        if not groups:
+            await send_reply(
+                update,
+                "🏫 Sizga hali guruh biriktirilmagan. Excel hisobot olish uchun avval veb-kabinetda guruh yarating yoki administratorga murojaat qiling.\n\n"
+                "👉 Guruhlar kabineti: https://grandec.uz/groups",
+                reply_markup=_persistent_menu_keyboard("teacher"),
+            )
+            return
+
+        if len(groups) == 1:
+            group = groups[0]
+            await _send_group_excel_document(update, context, group)
+            return
+
+        buttons = [
+            [InlineKeyboardButton(f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}")]
+            for g in groups
+        ]
+        buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
         await send_reply(
             update,
-            "🏫 Sizga hali guruh biriktirilmagan. Excel hisobot olish uchun avval guruh yarating yoki administratorga murojaat qiling.",
+            "📊 Qaysi guruhingiz hisobotini Excel formatida yuklab olmoqchisiz?",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    except Exception as exc:
+        logger.exception("Error in teacher_excel_report_handler: %s", exc)
+        await send_reply(
+            update,
+            "📊 Excel hisobot tayyorlashda qisqa uzilish yuz berdi. "
+            "Hisobotni veb-kabinet orqali yuklab olishingiz mumkin: https://grandec.uz/groups",
             reply_markup=_persistent_menu_keyboard("teacher"),
         )
-        return
-
-    if len(groups) == 1:
-        group = groups[0]
-        await _send_group_excel_document(update, context, group)
-        return
-
-    buttons = [
-        [InlineKeyboardButton(f"📊 {g.name} (Excel)", callback_data=f"texcel_{g.id}")]
-        for g in groups
-    ]
-    buttons.append([InlineKeyboardButton("🔙 Bosh menyu", callback_data="menu_main")])
-    await send_reply(
-        update,
-        "📊 Qaysi guruhingiz hisobotini Excel formatida yuklab olmoqchisiz?",
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
 
 
 @require_role("TEACHER")

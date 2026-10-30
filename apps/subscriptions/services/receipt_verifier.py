@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 # Plan price standards
 PLAN_PRICES: dict[str, Decimal] = {
-    "starter": Decimal("5000"),
-    "pro": Decimal("49000"),
-    "premium": Decimal("89000"),
+    "starter": Decimal("7000"),
+    "pro": Decimal("15000"),
+    "premium": Decimal("27000"),
 }
 
 

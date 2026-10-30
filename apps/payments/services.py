@@ -189,8 +189,8 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
     if clean_key in ("starter", "start"):
         canonical_type = SubscriptionPlan.PlanType.STARTER
         name = "Starter"
-        price_uzs = getattr(settings, "PLAN_STARTER_PRICE", 15000)
-        desc = "Haftalik 5 ta rasm / 3 ta matn esse, standart testlar, kunlik 20 ta AI repetitor so'rovi."
+        price_uzs = getattr(settings, "PLAN_STARTER_PRICE", 7000)
+        desc = "5 ta to'liq test, haftasiga 3 ta esse tekshirish matnli, xatolar va zaif mavzular tahlili."
         kwargs = {
             "image_essay_weekly_limit": 5,
             "text_essay_weekly_limit": 3,
@@ -203,8 +203,8 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
     elif clean_key == "pro":
         canonical_type = SubscriptionPlan.PlanType.PRO
         name = "Pro"
-        price_uzs = getattr(settings, "PLAN_PRO_PRICE", 49000)
-        desc = "Haftalik 15 ta esse, barcha CBT va Mock testlar, 50 ta AI repetitor so'rovi."
+        price_uzs = getattr(settings, "PLAN_PRO_PRICE", 15000)
+        desc = "Haftasiga 15 ta esse rasmli/matnli, kunlik rasmiy Mock testlar, CBT testlar va AI repetitor."
         kwargs = {
             "image_essay_weekly_limit": 15,
             "text_essay_weekly_limit": 15,
@@ -219,8 +219,8 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
     else:
         canonical_type = SubscriptionPlan.PlanType.PREMIUM
         name = "Premium"
-        price_uzs = getattr(settings, "PLAN_PREMIUM_PRICE", 60000)
-        desc = "Cheksiz esse, barcha Mock testlar, cheksiz 24/7 AI repetitor, PDF sertifikatlar va ustoz tekshiruvi."
+        price_uzs = getattr(settings, "PLAN_PREMIUM_PRICE", 27000)
+        desc = "Cheksiz esse 12 mezon, cheksiz Mock testlar va 1v1 Arena, ustoz tekshiruvi va rasmiy PDF sertifikat."
         kwargs = {
             "image_essay_weekly_limit": None,
             "text_essay_weekly_limit": None,

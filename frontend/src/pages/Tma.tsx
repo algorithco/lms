@@ -77,8 +77,8 @@ export default function Tma() {
         wa.ready();
         wa.expand();
         try {
-          wa.setHeaderColor('#1a1a2e');
-          wa.setBackgroundColor('#1a1a2e');
+          wa.setHeaderColor('#FFFFFF');
+          wa.setBackgroundColor('#F8FAFC');
         } catch {
           /* older clients — ignore */
         }

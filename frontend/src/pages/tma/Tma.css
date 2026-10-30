@@ -1,19 +1,29 @@
-/* Dedicated Telegram Mini App theme (old tma/index.html parity, no Tailwind). */
+/* Dedicated Telegram Mini App theme — Warm Academic Luxury */
 .tma-root {
-  --tma-bg: #1a1a2e;
-  --tma-card: #16213e;
-  --tma-accent: #0f3460;
-  --tma-hl: #e94560;
-  --tma-green: #00b894;
-  --tma-gold: #fdcb6e;
+  --tma-bg: #F8FAFC;
+  --tma-card: #FFFFFF;
+  --tma-ink: #0F172A;
+  --tma-muted: #64748B;
+  --tma-border: #E2E8F0;
+  --tma-accent: #D97706;
+  --tma-accent-light: #FEF3C7;
+  --tma-hl: #D97706;
+  --tma-green: #16A34A;
+  --tma-green-light: #DCFCE7;
+  --tma-gold: #D97706;
+  --tma-red: #DC2626;
+  --tma-red-light: #FEE2E2;
+  --tma-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
   min-height: 100dvh;
   background: var(--tma-bg);
-  color: #fff;
+  color: var(--tma-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
 .tma-root * {
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 .tma-wrap {
   max-width: 560px;
@@ -26,10 +36,10 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(26, 26, 46, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--tma-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -37,13 +47,15 @@
 .tma-header h1 {
   font-size: 18px;
   font-weight: 800;
+  color: var(--tma-ink);
   margin: 0;
 }
 .tma-xp {
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(253, 203, 110, 0.2);
-  color: var(--tma-gold);
+  background: var(--tma-accent-light);
+  color: #B45309;
+  border: 1px solid rgba(217, 119, 6, 0.25);
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -62,25 +74,28 @@
   background: var(--tma-card);
   border-radius: 16px;
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tma-border);
+  box-shadow: var(--tma-shadow);
 }
 .tma-stat p {
   margin: 0;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--tma-muted);
   text-transform: uppercase;
   font-weight: 600;
+  letter-spacing: 0.05em;
 }
 .tma-stat b {
   display: block;
   font-size: 24px;
   font-weight: 800;
+  color: var(--tma-ink);
   margin-top: 4px;
 }
 .tma-h3 {
   font-size: 13px;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--tma-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 12px;
@@ -88,21 +103,27 @@
 .tma-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 .tma-card {
   width: 100%;
   text-align: left;
   background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tma-border);
   border-radius: 16px;
   padding: 16px;
-  color: #fff;
+  color: var(--tma-ink);
   cursor: pointer;
+  box-shadow: var(--tma-shadow);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tma-card:hover {
+  border-color: rgba(217, 119, 6, 0.3);
+  box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.08);
 }
 .tma-press:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
   transition: transform 0.1s;
 }
 .tma-row {
@@ -111,14 +132,15 @@
   gap: 12px;
 }
 .tma-ico {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   flex-shrink: 0;
+  background: #F1F5F9;
 }
 .tma-grow {
   flex: 1;
@@ -128,24 +150,37 @@
   margin: 0;
   font-size: 14px;
   font-weight: 700;
+  color: var(--tma-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tma-sub {
   margin: 4px 0 0;
-  font-size: 10px;
-  color: #6b7280;
+  font-size: 11px;
+  color: var(--tma-muted);
 }
 .tma-badge {
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
 }
-.tma-diff-easy { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.tma-diff-medium { background: rgba(234, 179, 8, 0.2); color: #facc15; }
-.tma-diff-hard { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.tma-diff-easy {
+  background: var(--tma-green-light);
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+.tma-diff-medium {
+  background: var(--tma-accent-light);
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+.tma-diff-hard {
+  background: var(--tma-red-light);
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
 .tma-score {
   padding: 6px 12px;
   border-radius: 12px;
@@ -153,30 +188,39 @@
   font-weight: 800;
   flex-shrink: 0;
 }
-.tma-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.tma-bad { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.tma-ok {
+  background: var(--tma-green-light);
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+.tma-bad {
+  background: var(--tma-red-light);
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
 .tma-empty {
   background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--tma-border);
   border-radius: 16px;
-  padding: 24px;
+  padding: 32px 16px;
   text-align: center;
-  color: #6b7280;
-  font-size: 13px;
+  color: var(--tma-muted);
+  font-size: 14px;
 }
 .tma-err {
-  background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
   border-radius: 16px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
-  color: #f87171;
+  color: #B91C1C;
   font-size: 14px;
+  font-weight: 600;
 }
 .tma-skel {
   height: 64px;
   border-radius: 16px;
-  background: linear-gradient(90deg, #16213e 25%, #1a2744 50%, #16213e 75%);
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
   background-size: 200% 100%;
   animation: tma-shimmer 1.5s infinite;
 }
@@ -188,7 +232,7 @@
   animation: tma-slide-up 0.3s ease-out;
 }
 @keyframes tma-slide-up {
-  from { transform: translateY(20px); opacity: 0; }
+  from { transform: translateY(16px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 .tma-nav {
@@ -196,11 +240,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(22, 33, 62, 0.95);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--tma-border);
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
 }
 .tma-nav-inner {
   max-width: 560px;
@@ -212,46 +257,68 @@
 .tma-nav button {
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--tma-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 12px;
+  gap: 4px;
+  padding: 6px 16px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 0.15s ease;
 }
 .tma-nav button.on {
-  color: var(--tma-hl);
+  color: var(--tma-accent);
 }
 .tma-nav svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 .tma-btn {
   width: 100%;
-  padding: 14px;
-  border-radius: 12px;
+  padding: 14px 20px;
+  border-radius: 14px;
   border: none;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  color: #fff;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transition: all 0.15s ease;
 }
-.tma-btn-hl { background: var(--tma-hl); }
-.tma-btn-green { background: var(--tma-green); }
+.tma-btn:active {
+  transform: scale(0.98);
+}
+.tma-btn-hl {
+  background: linear-gradient(135deg, #D97706, #B45309);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+}
+.tma-btn-green {
+  background: linear-gradient(135deg, #16A34A, #15803D);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+}
 .tma-btn-card {
-  background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #d1d5db;
+  background: #FFFFFF;
+  border: 1.5px solid var(--tma-border);
+  color: var(--tma-ink);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 .tma-btn:disabled {
   opacity: 0.5;
   cursor: default;
+  transform: none;
 }
 .tma-btn-row {
   display: flex;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 .tma-btn-row .tma-btn {
   flex: 1;
@@ -260,44 +327,61 @@
   width: 100%;
   text-align: left;
   padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  border: 1.5px solid var(--tma-border);
   background: var(--tma-card);
-  color: #fff;
+  color: var(--tma-ink);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
   transition: all 0.15s ease;
 }
+.tma-choice:hover {
+  border-color: rgba(217, 119, 6, 0.4);
+  background: #FFFDF9;
+}
 .tma-choice.sel {
-  background: rgba(99, 102, 241, 0.3);
-  border-color: #6366f1;
+  background: #FEF3C7;
+  border-color: var(--tma-accent);
+  color: #92400E;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.12);
 }
 .tma-timer {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 12px;
-  background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #F1F5F9;
+  border: 1px solid var(--tma-border);
   font-family: ui-monospace, monospace;
   font-weight: 700;
   font-size: 14px;
+  color: var(--tma-ink);
 }
-.tma-timer.warn { background: rgba(234, 179, 8, 0.15); border-color: rgba(234, 179, 8, 0.3); }
-.tma-timer.danger { background: rgba(153, 27, 27, 0.5); border-color: rgba(239, 68, 68, 0.3); }
+.tma-timer.warn {
+  background: var(--tma-accent-light);
+  border-color: #F59E0B;
+  color: #B45309;
+}
+.tma-timer.danger {
+  background: var(--tma-red-light);
+  border-color: #EF4444;
+  color: #B91C1C;
+}
 .tma-bar {
   width: 100%;
   height: 6px;
-  background: var(--tma-card);
+  background: #E2E8F0;
   border-radius: 999px;
   margin-bottom: 24px;
   overflow: hidden;
 }
 .tma-bar > div {
   height: 100%;
-  background: var(--tma-hl);
+  background: linear-gradient(90deg, #D97706, #F59E0B);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -313,43 +397,71 @@
   height: 12px;
   border-radius: 999px;
   border: none;
-  background: #4b5563;
+  background: #CBD5E1;
   cursor: pointer;
   padding: 0;
+  transition: all 0.15s ease;
 }
-.tma-dots button.on { background: var(--tma-hl); transform: scale(1.25); }
-.tma-dots button.done { background: var(--tma-green); }
+.tma-dots button.on {
+  background: var(--tma-accent);
+  transform: scale(1.3);
+}
+.tma-dots button.done {
+  background: var(--tma-green);
+}
 .tma-q {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.6;
+  color: var(--tma-ink);
   margin: 0 0 24px;
 }
 .tma-textarea {
   width: 100%;
-  min-height: 120px;
+  min-height: 140px;
   box-sizing: border-box;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--tma-card);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 14px;
+  border: 1.5px solid #CBD5E1;
+  color: var(--tma-ink);
+  font-size: 15px;
+  line-height: 1.6;
   resize: vertical;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+  transition: border-color 0.15s ease;
 }
-.tma-textarea.big { min-height: 256px; }
+.tma-textarea:focus {
+  outline: none;
+  border-color: var(--tma-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+.tma-textarea.big {
+  min-height: 260px;
+}
 .tma-input {
   width: 100%;
   box-sizing: border-box;
   padding: 12px 16px;
   border-radius: 12px;
-  background: var(--tma-bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--tma-card);
+  border: 1.5px solid #CBD5E1;
+  color: var(--tma-ink);
   font-size: 14px;
+  transition: border-color 0.15s ease;
 }
-.tma-center { text-align: center; }
-.tma-muted { color: #9ca3af; font-size: 13px; }
+.tma-input:focus {
+  outline: none;
+  border-color: var(--tma-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+.tma-center {
+  text-align: center;
+}
+.tma-muted {
+  color: var(--tma-muted);
+  font-size: 13px;
+}
 .tma-result-ico {
   width: 96px;
   height: 96px;
@@ -359,6 +471,7 @@
   align-items: center;
   justify-content: center;
   font-size: 48px;
+  background: var(--tma-accent-light);
 }
 .tma-auth {
   min-height: 100dvh;
@@ -369,47 +482,54 @@
 }
 .tma-auth-card {
   text-align: center;
-  max-width: 340px;
+  max-width: 360px;
+  background: var(--tma-card);
+  border: 1px solid var(--tma-border);
+  border-radius: 24px;
+  padding: 32px 24px;
+  box-shadow: var(--tma-shadow);
   animation: tma-slide-up 0.3s ease-out;
 }
 .tma-auth-logo {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 24px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, var(--tma-hl), #db2777);
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 20px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #D97706, #B45309);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
-  animation: tma-glow 2s infinite;
-}
-@keyframes tma-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); }
-  50% { box-shadow: 0 0 20px 10px rgba(233, 69, 96, 0.1); }
+  font-size: 42px;
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.3);
 }
 .tma-spin {
   width: 40px;
   height: 40px;
   margin: 0 auto 16px;
   border-radius: 999px;
-  border: 3px solid var(--tma-hl);
-  border-top-color: transparent;
+  border: 3px solid #E2E8F0;
+  border-top-color: var(--tma-accent);
   animation: tma-rot 0.8s linear infinite;
 }
-@keyframes tma-rot { to { transform: rotate(360deg); } }
+@keyframes tma-rot {
+  to { transform: rotate(360deg); }
+}
 .tma-crit {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 13px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--tma-border);
+  font-size: 14px;
+  color: var(--tma-ink);
 }
-.tma-crit:last-child { border-bottom: none; }
+.tma-crit:last-child {
+  border-bottom: none;
+}
 .tma-crit small {
   display: block;
-  color: #9ca3af;
-  font-size: 11px;
-  margin-top: 2px;
+  color: var(--tma-muted);
+  font-size: 12px;
+  margin-top: 4px;
 }

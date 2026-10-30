@@ -167,7 +167,7 @@ export default function TestFlow({
         <div className={`tma-result-ico ${passed ? 'tma-ok' : 'tma-bad'}`} style={{ background: passed ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)' }}>
           {passed ? '🎉' : '😔'}
         </div>
-        <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: passed ? '#4ade80' : '#f87171' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: passed ? '#16a34a' : '#dc2626' }}>
           {passed ? `${t('em_greeting_congrats')}!` : `${t('em_greeting_sorry')}...`}
         </h2>
         <p className="tma-muted" style={{ marginBottom: 24 }}>
@@ -176,7 +176,7 @@ export default function TestFlow({
         <div className="tma-card" style={{ marginBottom: 24 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div className="tma-center">
-              <p style={{ fontSize: 30, fontWeight: 800, margin: 0, color: passed ? '#4ade80' : '#f87171' }}>{pct}%</p>
+              <p style={{ fontSize: 30, fontWeight: 800, margin: 0, color: passed ? '#16a34a' : '#dc2626' }}>{pct}%</p>
               <p className="tma-sub">{t('tma_percent')}</p>
             </div>
             <div className="tma-center">
@@ -221,18 +221,18 @@ export default function TestFlow({
           <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{start.test_title}</h2>
           {!!start.test_description && <p className="tma-muted">{start.test_description}</p>}
           <div className="tma-grid2" style={{ margin: '24px 0' }}>
-            <div className="tma-stat" style={{ background: 'rgba(15,52,96,0.3)' }}>
+            <div className="tma-stat" style={{ background: '#F1F5F9' }}>
               <b>{start.total_questions}</b>
               <p>{t('tma_info_questions')}</p>
             </div>
-            <div className="tma-stat" style={{ background: 'rgba(15,52,96,0.3)' }}>
+            <div className="tma-stat" style={{ background: '#F1F5F9' }}>
               <b>{start.time_limit_minutes}</b>
               <p>{t('tma_info_minutes')}</p>
             </div>
           </div>
           <div className="tma-card" style={{ background: 'var(--tma-bg)', marginBottom: 24 }}>
             <p className="tma-sub">⏱ {t('tma_remaining')}:</p>
-            <p style={{ fontSize: 24, fontFamily: 'ui-monospace,monospace', fontWeight: 800, margin: '4px 0 0', color: secs < 300 ? '#f87171' : '#fff' }}>
+            <p style={{ fontSize: 24, fontFamily: 'ui-monospace,monospace', fontWeight: 800, margin: '4px 0 0', color: secs < 300 ? '#dc2626' : 'var(--tma-ink)' }}>
               {formatClock(secs)}
             </p>
           </div>

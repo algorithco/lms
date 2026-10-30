@@ -202,7 +202,7 @@ export default function Essays({
         ) : (
           <>
           {result.status === 'error' && (
-            <div className="tma-card" style={{ marginBottom: 16, color: '#f87171' }}>
+            <div className="tma-card" style={{ marginBottom: 16, color: '#dc2626', background: '#FEF2F2', borderColor: '#FECACA' }}>
               <b style={{ display: 'block', marginBottom: 4 }}>{t('essay_grading_failed')}</b>
               {result.error || t('tma_loading_error')}
             </div>
@@ -270,7 +270,7 @@ export default function Essays({
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        {error && <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p>}
+        {error && <p style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>{error}</p>}
         <div className="tma-btn-row">
           <button className="tma-btn tma-btn-card" onClick={exitToTopics}>
             {t('tma_cancel')}

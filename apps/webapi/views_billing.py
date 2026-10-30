@@ -148,9 +148,9 @@ def card_info_view(request):
     """GET /api/v1/payments/card-info/ — Public card and plan price settings."""
     card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
     card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
-    starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 15000
-    pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 49000
-    premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 60000
+    starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 7000
+    pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 15000
+    premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 27000
     return Response(
         {
             "card_number": card_number,
@@ -193,15 +193,15 @@ def payment_receipt_upload_view(request):
 
     amount_val = request.data.get("amount")
     default_amounts = {
-        "starter": getattr(settings, "PLAN_STARTER_PRICE", 15000),
-        "pro": getattr(settings, "PLAN_PRO_PRICE", 49000),
-        "premium": getattr(settings, "PLAN_PREMIUM_PRICE", 60000),
+        "starter": getattr(settings, "PLAN_STARTER_PRICE", 7000),
+        "pro": getattr(settings, "PLAN_PRO_PRICE", 15000),
+        "premium": getattr(settings, "PLAN_PREMIUM_PRICE", 27000),
     }
     if amount_val:
         try:
             amount = Decimal(str(amount_val))
         except (InvalidOperation, ValueError):
-            amount = Decimal(default_amounts.get(plan, 15000))
+            amount = Decimal(default_amounts.get(plan, 7000))
     else:
         amount = Decimal(default_amounts.get(plan, 15000))
 
