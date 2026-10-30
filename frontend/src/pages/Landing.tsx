@@ -14,6 +14,8 @@ import UserNavDropdown from '../components/UserNavDropdown';
 import MobileBottomBar from '../components/MobileBottomBar';
 import MobileNavDrawer from '../components/MobileNavDrawer';
 import MobileProfileDrawer from '../components/MobileProfileDrawer';
+import PwaInstallButton from '../components/PwaInstallButton';
+import PassingScoresModal from '../components/PassingScoresModal';
 import {
   CheckIcon,
   FileTextIcon,
@@ -49,6 +51,7 @@ export default function Landing() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [scoresModalOpen, setScoresModalOpen] = useState(false);
 
   // -------------------------------------------------------------------------
   // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
@@ -264,45 +267,103 @@ export default function Landing() {
             </div>
           </Link>
 
-          {/* Desktop Nav Anchors */}
-          <div
-            className="landing-desktop-nav"
-            style={{
-              display: 'none',
-              alignItems: 'center',
-              gap: 6,
-            }}
+          {/* Desktop Nav Anchors (TestMakon Style Center Menu) */}
+          <nav
+            className="hidden lg:flex items-center gap-1"
+            aria-label="Asosiy navigatsiya"
           >
-            {sectionNav.map(([k, href]) => (
-              <a
-                key={k}
-                href={href}
-                className="text-slate-900 hover:text-amber-600 font-semibold"
+            <Link
+              to="/tests"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Testlar
+            </Link>
+            <Link
+              to="/essays"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              AI Esse (12 mezon)
+            </Link>
+            <Link
+              to="/arena"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              1v1 Arena
+            </Link>
+            <button
+              type="button"
+              onClick={() => setScoresModalOpen(true)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>O&apos;tish ballari 2026</span>
+              <span
                 style={{
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#0F172A',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#D97706';
-                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#0F172A';
-                  e.currentTarget.style.background = 'transparent';
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: 999,
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#059669',
                 }}
               >
-                {t(k)}
-              </a>
-            ))}
-          </div>
+                Yangi
+              </span>
+            </button>
+            <Link
+              to="/pricing"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Tariflar
+            </Link>
+          </nav>
 
-          {/* Right Area: Language Switcher, Theme Switcher & Auth / User Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Right Area: PWA Install, Language Switcher, Theme Switcher & Auth */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PwaInstallButton className="hidden sm:inline-flex" />
             {user ? (
               <UserNavDropdown />
             ) : (
@@ -593,7 +654,7 @@ export default function Landing() {
                   </span>
                 </div>
 
-                {/* Main Headline */}
+                {/* Main Headline (TestMakon Contrast Sarlavha) */}
                 <h1
                   className="text-slate-900 font-black tracking-tight"
                   style={{
@@ -605,18 +666,20 @@ export default function Landing() {
                     margin: '0 0 20px',
                   }}
                 >
-                  Milliy sertifikatga{' '}
+                  Milliy sertifikatga tayyorgarlik{' '}
                   <span
-                    className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 font-extrabold"
                     style={{
-                      background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 50%, #B45309 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#FFFFFF',
+                      padding: '4px 16px',
+                      borderRadius: 18,
+                      display: 'inline-block',
+                      boxShadow: '0 8px 20px -3px rgba(217, 119, 6, 0.45)',
                     }}
                   >
-                    sun'iy intellekt bilan
+                    AI tahlili
                   </span>{' '}
-                  tayyorlaning
+                  bilan
                 </h1>
 
                 {/* Subhead */}
@@ -626,11 +689,11 @@ export default function Landing() {
                     fontSize: 'clamp(1.05rem, 1.8vw, 1.2rem)',
                     lineHeight: 1.7,
                     color: '#475569',
-                    maxWidth: 540,
+                    maxWidth: 560,
                     margin: '0 0 32px',
                   }}
                 >
-                  12 ta mezonli rasmiy AI esse tahlili, yangi formatdagi CBT testlar va jonli 1v1 bellashuvlar.
+                  Shaxsiy AI mentor zaif mavzularingizni topadi, 12 mezonli inshoni baholaydi va kunlik mashq rejasini tuzadi.
                 </p>
 
                 {/* 1-Click Action Buttons */}
@@ -657,12 +720,12 @@ export default function Landing() {
                       boxShadow: '0 8px 25px -4px rgba(217, 119, 6, 0.4)',
                     }}
                   >
-                    <span>⚡️ Bepul boshlash →</span>
+                    <span>⚡️ Bepul boshlash</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => (user ? navigate(startTo) : openAuthModal('login'))}
+                    onClick={() => navigate('/tests')}
                     className="bg-white border-2 border-slate-200 hover:border-amber-400 text-slate-800 font-bold px-7 py-3.5 rounded-xl shadow-sm text-base inline-flex items-center gap-2 transition-all cursor-pointer"
                     style={{
                       padding: '13px 28px',
@@ -675,7 +738,7 @@ export default function Landing() {
                       boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
                     }}
                   >
-                    <span>1-klikda kirish</span>
+                    <span>Testlarni ko&apos;rish</span>
                   </button>
                 </div>
 
@@ -835,6 +898,202 @@ export default function Landing() {
             </div>
           </div>
         </section>
+        {/* QAYSI IMTIHONGA TAYYORLANASIZ? (TESTMAKON 3D TOIFALAR KARTALARI) */}
+        <section style={{ padding: '20px 20px 60px' }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, color: '#0F172A', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+                Qaysi imtihonga tayyorlanasiz?
+              </h2>
+              <p style={{ fontSize: 15, color: '#64748B', margin: 0, fontWeight: 600 }}>
+                Rasmiy BMB va xalqaro standartlar asosida ishlab chiqilgan yo&apos;nalishni tanlang.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* 1. BMB Milliy Sertifikat */}
+              <div
+                onClick={() => handleAction('/tests')}
+                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                style={{
+                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
+                  minHeight: 240,
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <span style={{ fontSize: 40 }}>🥇</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(245, 158, 11, 0.15)', color: '#D97706' }}>
+                      BMB Standart
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
+                    BMB Milliy Sertifikat
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
+                    A+ dan C gacha rasmiy darajalar, 45 talik test formati va maksimal OTM imtiyozi.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#D97706' }}>Testga kirish</span>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 16,
+                      fontWeight: 900,
+                      boxShadow: '0 4px 12px rgba(217, 119, 6, 0.35)',
+                    }}
+                  >
+                    →
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Pedagoglar Attestatsiyasi 2026 */}
+              <div
+                onClick={() => handleAction('/tests')}
+                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                style={{
+                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
+                  minHeight: 240,
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <span style={{ fontSize: 40 }}>🎓</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(139, 92, 246, 0.15)', color: '#7C3AED' }}>
+                      70% Ustama
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
+                    Attestatsiya 2026
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
+                    O&apos;qituvchilar toifa sinovlari, 50 talik yangi namuna va oylik ustama kafolati.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#7C3AED' }}>Toifani oshirish</span>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 16,
+                      fontWeight: 900,
+                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                    }}
+                  >
+                    →
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. AI Esse Studiyasi (12 Mezon) */}
+              <div
+                onClick={() => handleAction('/essays')}
+                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                style={{
+                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
+                  minHeight: 240,
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <span style={{ fontSize: 40 }}>✍️</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
+                      12 Mezon
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
+                    AI Esse Studiyasi
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
+                    15 soniyada to&apos;liq grammatik va uslubiy tahlil, A daraja bo&apos;yicha professional tavsiyalar.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#059669' }}>Insho yozish</span>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #10B981, #059669)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 16,
+                      fontWeight: 900,
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                    }}
+                  >
+                    →
+                  </span>
+                </div>
+              </div>
+
+              {/* 4. CEFR & IELTS (Ingliz tili) */}
+              <div
+                onClick={() => handleAction('/tests')}
+                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                style={{
+                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
+                  minHeight: 240,
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <span style={{ fontSize: 40 }}>🇬🇧</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(2, 132, 199, 0.15)', color: '#0284C7' }}>
+                      Cambridge CBT
+                    </span>
+                  </div>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
+                    CEFR & IELTS
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
+                    Reading & Listening mock sinovlari va interaktiv AI Speaking trenajyori.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0284C7' }}>Ingliz tili CBT</span>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0284C7, #0369A1)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 16,
+                      fontWeight: 900,
+                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)',
+                    }}
+                  >
+                    →
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
 
         {/* 3 CORE DIRECTIONS SECTION ("IMKONIYATLAR") */}
         <section
@@ -1965,6 +2224,7 @@ export default function Landing() {
           </div>
         </section>
       </main>
+      <PassingScoresModal isOpen={scoresModalOpen} onClose={() => setScoresModalOpen(false)} />
       <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
       <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />

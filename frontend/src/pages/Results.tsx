@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import TestAddictiveResults, { type QuestionReviewItem } from '../components/TestAddictiveResults';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import {
   AiTutor,
-  type QuestionMistakeExplanation,
   type ResultDiagnosticsResponse,
   Results as ResultsApi,
 } from '../lib/api';
@@ -341,10 +341,9 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const { t } = useLang();
   const pct = num(detail.percentage, 0);
   const pending = detail.grading_status === 'pending_grading';
-  const unverified = detail.certificate_status === 'rules_unverified';
   const bmb = getBmbBadge(detail.bmb_grade, pct, t);
 
-  const [retesting, setRetesting] = useState(false);
+  const [_retesting, setRetesting] = useState(false);
   const [retestErr, setRetestErr] = useState<string | null>(null);
 
   const handleStartRetest = async () => {
@@ -371,12 +370,6 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   const [diagData, setDiagData] = useState<ResultDiagnosticsResponse | null>(null);
   const [diagErr, setDiagErr] = useState<string | null>(null);
 
-  // Interactive Question Mistake Explainer
-  const [explainingId, setExplainingId] = useState<number | null>(null);
-  const [explanations, setExplanations] = useState<
-    Record<number, { data?: QuestionMistakeExplanation; err?: string; open: boolean }>
-  >({});
-
   const toggleDiagnostics = async () => {
     if (showDiag) {
       setShowDiag(false);
@@ -397,625 +390,292 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
     }
   };
 
-  const explainQuestion = async (
-    questionId: number,
-    selectedChoiceId?: number | null,
-  ) => {
-    const existing = explanations[questionId];
-    if (existing?.open) {
-      setExplanations((prev) => ({
-        ...prev,
-        [questionId]: { ...prev[questionId], open: false },
-      }));
-      return;
-    }
-    if (existing?.data) {
-      setExplanations((prev) => ({
-        ...prev,
-        [questionId]: { ...prev[questionId], open: true },
-      }));
-      return;
+  // Map questions for TestAddictiveResults
+  const mappedQuestions: QuestionReviewItem[] = (detail.question_details ?? []).map((qd) => {
+    const isWrong = qd.is_correct === false;
+    const studentAnswerDisplay =
+      (qd.selected_choices ?? []).length > 0
+        ? qd.selected_choices.map((c) => c.text).filter(Boolean).join(', ')
+        : (qd.student_answer_text || '').trim() || 'Javob berilmagan';
+
+    let correctAnswerDisplay =
+      (qd.correct_choices ?? []).length > 0
+        ? qd.correct_choices.map((c) => c.text).filter(Boolean).join(', ')
+        : (qd.correct_text || '').trim();
+
+    if (!correctAnswerDisplay && qd.explanation) {
+      const m = qd.explanation.match(/To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?(.*?)['"»]?(?:\.|\n|$)/i);
+      if (m && m[1]) {
+        correctAnswerDisplay = m[1].trim();
+      }
     }
 
-    setExplainingId(questionId);
-    try {
-      const res = await AiTutor.explainMistake(questionId, {
-        selected_choice_id: selectedChoiceId ?? null,
-        attempt_id: detail.id,
-      });
-      setExplanations((prev) => ({
-        ...prev,
-        [questionId]: { data: res, open: true },
-      }));
-    } catch (e) {
-      setExplanations((prev) => ({
-        ...prev,
-        [questionId]: {
-          err: e instanceof Error ? e.message : t('err_retry_js'),
-          open: true,
-        },
-      }));
-    } finally {
-      setExplainingId(null);
-    }
-  };
+    const explanationClean = qd.explanation
+      ? qd.explanation.replace(/^To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?[^.'"]+['"»]?[.]?\s*/i, '').trim() || qd.explanation
+      : '';
+
+    return {
+      id: qd.question_id,
+      question_text: qd.question_text,
+      points: qd.current_rasch_weight ?? qd.points ?? 2,
+      is_correct: qd.is_correct,
+      selected_choice_text: isWrong ? studentAnswerDisplay : undefined,
+      correct_choice_text: correctAnswerDisplay || '—',
+      explanation: explanationClean,
+    };
+  });
 
   return (
     <div>
-      {/* Adaptive Re-Test Action Banner */}
-      {((detail.wrong_answers && detail.wrong_answers > 0) ||
-        (detail.question_details && detail.question_details.some((q) => q.is_correct === false))) && (
-        <div
-          style={{
-            marginBottom: '16px',
-            padding: '16px 20px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-        >
-          <div>
-            <strong style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1rem', fontWeight: 800 }}>
-              <span>🔁</span> Xatolar ustida avto-mashq (Adaptive Re-Test)
-            </strong>
-            <p className="muted small" style={{ margin: '4px 0 0' }}>
-              Ushbu testda yo'l qo'yilgan xatolar va zaif mavzular bo'yicha moslashtirilgan maqsadli mini-mashq.
-            </p>
-            {retestErr && <p className="error small" style={{ margin: '4px 0 0' }}>{retestErr}</p>}
-          </div>
-          <button
-            type="button"
-            className="btn primary sm"
-            disabled={retesting}
-            onClick={handleStartRetest}
-            style={{
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              border: 'none',
-              color: '#ffffff',
-              fontWeight: 800,
-              padding: '8px 18px',
-              fontSize: '0.9rem',
-              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)',
-            }}
-          >
-            {retesting ? 'Tayyorlanmoqda…' : `🔁 Xatolarim ustida ishlash (${detail.wrong_answers || 'Xatolar'} ta savol)`}
-          </button>
-        </div>
-      )}
-
-      {/* BMB Grade & Result Summary Card */}
-      <div
-        className="card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
-          border: `1px solid ${bmb.color}40`,
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '16px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: '8px' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '4px 12px',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  color: bmb.color,
-                  background: bmb.bg,
-                  border: `1px solid ${bmb.color}60`,
-                }}
-              >
-                {t('bmb_official_grade')}: {bmb.grade}
-              </span>
-              {detail.rasch_score !== undefined && detail.rasch_score !== null && Number(detail.rasch_score) > 0 && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 12px',
-                    borderRadius: '8px',
-                    fontWeight: 800,
-                    fontSize: '0.92rem',
-                    color: '#92400e',
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(251, 191, 36, 0.28) 100%)',
-                    border: '1.5px solid rgba(245, 158, 11, 0.55)',
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)',
-                  }}
-                  title="Rasch 1PL uzluksiz dinamik baholash bali"
-                >
-                  <span>⚡️</span>
-                  <span>Rash Dinamik Bali: <strong>{Number(detail.rasch_score).toFixed(1)}</strong>{detail.max_rasch_score ? ` / ${Number(detail.max_rasch_score).toFixed(1)}` : ''}</span>
-                  {detail.rasch_grade && (
-                    <span
-                      style={{
-                        marginLeft: 4,
-                        background: '#d97706',
-                        color: '#ffffff',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.76rem',
-                        fontWeight: 900,
-                      }}
-                    >
-                      {detail.rasch_grade}
-                    </span>
-                  )}
-                </span>
-              )}
-            </div>
-            {detail.rasch_explanation && (
-              <div
-                style={{
-                  margin: '8px 0 12px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                }}
-              >
-                <span style={{ fontSize: '1.1rem', marginTop: 1 }}>💡</span>
-                <p style={{ margin: 0, fontSize: '0.86rem', color: '#78350f', lineHeight: 1.45, fontWeight: 500 }}>
-                  {detail.rasch_explanation}
-                </p>
-              </div>
-            )}
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{bmb.desc}</p>
-            <p className="muted small" style={{ margin: '4px 0 0' }}>
-              {t('overall_score')}: <strong>{pct}%</strong> {detail.is_passed ? `(${t('passed_status')})` : `(${t('failed_status')})`}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn sm"
-            onClick={toggleDiagnostics}
-            style={{
-              borderColor: '#f59e0b',
-              color: '#f59e0b',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <span>🧠</span>
-            <span>{showDiag ? t('ai_diag_btn_close') : t('ai_diag_btn_open')}</span>
-          </button>
-        </div>
-
-        {/* AI Diagnostics Panel */}
-        {showDiag && (
-          <div
-            style={{
-              marginTop: '16px',
-              paddingTop: '16px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            {diagLoading && <p className="muted small">🤖 AI repetitor xatolaringizni tahlil qilmoqda…</p>}
-            {diagErr && <p className="error small">{diagErr}</p>}
-            {diagData && (
-              <div style={{ display: 'grid', gap: 12 }}>
-                <div
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                    borderRadius: '8px',
-                    padding: '12px',
-                  }}
-                >
-                  <strong style={{ color: '#f59e0b', display: 'block', marginBottom: 4 }}>
-                    💡 Shaxsiy AI Repetitor Xulosasi:
-                  </strong>
-                  <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>
-                    {diagData.general_advice}
-                  </p>
-                </div>
-
-                {diagData.weak_topics.length > 0 && (
-                  <div>
-                    <h5 style={{ margin: '8px 0', fontSize: '0.9rem' }}>
-                      Aniqlangan zaif mavzular ({diagData.weak_topics.length} ta):
-                    </h5>
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      {diagData.weak_topics.map((wt, idx) => {
-                        const sevColor =
-                          wt.severity === 'high'
-                            ? '#ef4444'
-                            : wt.severity === 'medium'
-                              ? '#f59e0b'
-                              : '#3b82f6';
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.02)',
-                              border: '1px solid rgba(255, 255, 255, 0.06)',
-                              borderRadius: '8px',
-                              padding: '10px 12px',
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <strong style={{ fontSize: '0.88rem' }}>{wt.topic}</strong>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  color: sevColor,
-                                  background: `${sevColor}20`,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {wt.incorrect_count} ta xato ·{' '}
-                                {wt.severity === 'high'
-                                  ? 'Yuqori xavf'
-                                  : wt.severity === 'medium'
-                                    ? 'O‘rta xavf'
-                                    : 'Takrorlash lozim'}
-                              </span>
-                            </div>
-                            <p className="muted small" style={{ margin: '4px 0 0', fontSize: '0.82rem' }}>
-                              👉 {wt.recommendation}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {pending ? (
-        <>
+      {pending && (
+        <div className="card" style={{ padding: 24, textAlign: 'center', marginBottom: 20 }}>
           <h3>{t('take_pending_title')}</h3>
           <p className="muted">{t('take_pending_msg')}</p>
           <p className="muted small">
             {t('take_objective_done')} · {t('take_writing_pending')}
           </p>
-        </>
-      ) : unverified ? (
-        <>
-          <h3>
-            {t('take_rules_unverified_title')} — {pct}%
-          </h3>
-          <p className="muted">{t('take_rules_unverified_msg')}</p>
-          <p className="badge blue">{t('raw_score_not_official')}</p>
-        </>
-      ) : (
-        <h3>
-          {detail.is_passed ? t('rd_passed_msg') : t('rd_failed_msg')} — {pct}%
-        </h3>
-      )}
-
-      {(detail.section_scores ?? []).length > 0 && (
-        <div
-          className="card"
-          style={{
-            margin: '16px 0',
-            background: 'rgba(59, 130, 246, 0.04)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
-            borderRadius: '12px',
-            padding: '16px',
-          }}
-        >
-          <h4 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#60a5fa' }}>
-            <span>📊</span> Bo‘limlar kesimidagi batafsil tahlil
-          </h4>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {(detail.section_scores ?? []).map((s) => {
-              const earnedNum = Number(s.earned) || 0;
-              const maxNum = Number(s.maximum) || 1;
-              const secPct = Math.round((earnedNum / maxNum) * 100);
-              const barColor = secPct >= 70 ? '#10b981' : secPct >= 50 ? '#f59e0b' : '#ef4444';
-              return (
-                <div
-                  key={s.section_code || s.section_name}
-                  style={{
-                    background: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                    <strong style={{ fontSize: '0.92rem', color: 'var(--ink)' }}>
-                      {s.section_name || s.section_code}
-                    </strong>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="badge" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
-                        {String(s.earned)} / {String(s.maximum)} ball
-                      </span>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          fontSize: '0.85rem',
-                          color: barColor,
-                        }}
-                      >
-                        {secPct}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="progress" style={{ height: '6px', margin: 0 }}>
-                    <div style={{ width: `${Math.min(100, Math.max(0, secPct))}%`, background: barColor }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 
-      <div className="toolbar">
-        <span className="badge green">
-          {t('rd_correct')}: {Number(detail.correct_answers ?? 0)}
-        </span>
-        <span className="badge rose">
-          {t('rd_wrong')}: {Number(detail.wrong_answers ?? 0)}
-        </span>
-        <span className="badge">
-          {t('rd_unanswered')}: {Number(detail.unanswered ?? 0)}
-        </span>
-        <span className="badge blue">
-          {t('score')}: {String(detail.score ?? '—')}/{String(detail.max_score ?? '—')}
-        </span>
-      </div>
-      <p className="muted small">
-        {t('rd_time_spent')}: {formatDuration(detail.time_taken_seconds)}
-      </p>
-      {unverified && <p className="badge blue">{t('raw_score_not_official')}</p>}
-      {detail.certificate_info && (
-        <p className="muted small">
-          {t('mc_number')} {detail.certificate_info.certificate_number} (
-          {detail.certificate_info.status}){' '}
-          <Link to="/certificates">{t('my_certificates')} →</Link>
-        </p>
+      {retestErr && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#DC2626', fontSize: 13, fontWeight: 600 }}>
+          {retestErr}
+        </div>
       )}
 
-      <h4 style={{ marginTop: '20px' }}>{t('rd_analysis')}</h4>
-      <div style={{ display: 'grid', gap: 12 }}>
-        {(detail.question_details ?? []).map((qd) => {
-          const isWrong = qd.is_correct === false;
-          const selectedChoiceId = qd.selected_choices?.[0]?.id ?? null;
-          const expl = explanations[qd.question_id];
-          const isThisLoading = explainingId === qd.question_id;
-
-          // Student javobini aniqlash (variant yoki ochiq matn)
-          const studentAnswerDisplay =
-            (qd.selected_choices ?? []).length > 0
-              ? qd.selected_choices.map((c) => c.text).filter(Boolean).join(', ')
-              : (qd.student_answer_text || '').trim() || 'Javob berilmagan';
-
-          // Rasmiy to'g'ri javobni aniqlash (barcha savol turlarida yashil blokda ko'rinadi)
-          let correctAnswerDisplay =
-            (qd.correct_choices ?? []).length > 0
-              ? qd.correct_choices.map((c) => c.text).filter(Boolean).join(', ')
-              : (qd.correct_text || '').trim();
-
-          if (!correctAnswerDisplay && qd.explanation) {
-            const m = qd.explanation.match(/To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?(.*?)['"»]?(?:\.|\n|$)/i);
-            if (m && m[1]) {
-              correctAnswerDisplay = m[1].trim();
-            }
-          }
-          if (!correctAnswerDisplay) {
-            correctAnswerDisplay = '—';
-          }
-
-          // AI tushuntirishini toza qoida va tahlil qilib ko'rsatish
-          const explanationClean = qd.explanation
-            ? qd.explanation.replace(/^To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?[^.'"]+['"»]?[.]?\s*/i, '').trim() || qd.explanation
-            : '';
-
-          return (
-            <div
-              key={qd.question_id}
-              className="card"
-              style={
-                isWrong
-                  ? {
-                      borderLeft: '4px solid #ef4444',
-                      background: 'radial-gradient(circle at top right, rgba(239, 68, 68, 0.03) 0%, var(--card) 100%)',
-                    }
-                  : qd.is_correct
-                  ? {
-                      borderLeft: '4px solid #10b981',
-                    }
-                  : undefined
-              }
-            >
-              <p style={{ whiteSpace: 'pre-line', margin: '0 0 10px', lineHeight: 1.5 }}>
-                <span
-                  className={`badge ${qd.is_correct ? 'green' : isWrong ? 'rose' : ''}`}
-                  style={{ marginRight: 6 }}
-                >
-                  {qd.is_correct ? '✓ To‘g‘ri' : isWrong ? '✗ Xato' : '—'}
-                </span>
-                <span
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(245, 158, 11, 0.12)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    color: '#d97706',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    marginRight: 8,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 3,
-                  }}
-                  title={`Savolning Rasch dinamik vazni: ${(qd.current_rasch_weight ?? qd.points ?? 2.0).toFixed(1)} ball`}
-                >
-                  ⭐️ {(qd.current_rasch_weight ?? qd.points ?? 2.0).toFixed(1)} ball
-                </span>{' '}
-                <strong>{qd.question_text}</strong>
+      <TestAddictiveResults
+        score={Number(detail.score ?? 0)}
+        maxScore={Number(detail.max_score ?? 0)}
+        percentage={pct}
+        correctCount={Number(detail.correct_answers ?? 0)}
+        wrongCount={Number(detail.wrong_answers ?? 0)}
+        unansweredCount={Number(detail.unanswered ?? 0)}
+        timeSpentSeconds={Number(detail.time_taken_seconds ?? 0)}
+        raschScore={detail.rasch_score}
+        raschGrade={detail.rasch_grade}
+        bmbGrade={detail.bmb_grade || bmb.grade}
+        courseTitle={detail.test_title}
+        attemptId={String((detail as any).attempt_id || detail.id)}
+        questions={mappedQuestions}
+        onRetest={handleStartRetest}
+      >
+        {/* Certificate info */}
+        {detail.certificate_info && (
+          <div
+            style={{
+              padding: '14px 18px',
+              borderRadius: 14,
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1.5px solid rgba(16, 185, 129, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            <div>
+              <strong style={{ color: '#059669', fontSize: '0.95rem' }}>
+                📜 Rasmiy Elektron Sertifikat Mavjud!
+              </strong>
+              <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                {t('mc_number')}: <strong>{detail.certificate_info.certificate_number}</strong> ({detail.certificate_info.status})
               </p>
+            </div>
+            <Link
+              to="/certificates"
+              className="btn sm"
+              style={{
+                background: '#10b981',
+                color: '#fff',
+                fontWeight: 800,
+                borderRadius: 10,
+                textDecoration: 'none',
+              }}
+            >
+              {t('my_certificates')} →
+            </Link>
+          </div>
+        )}
 
-              <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-                {/* ❌ Sizning javobingiz (agar xato bo'lsa) */}
-                {isWrong && (
+        {/* 24/7 AI Tutor Diagnostics Accordion */}
+        <div
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 18,
+            padding: '16px 20px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong style={{ fontSize: '0.98rem', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink)' }}>
+                <span>🧠</span> 24/7 Shaxsiy AI Repetitor Diagnostikasi
+              </strong>
+              <p className="muted small" style={{ margin: '2px 0 0' }}>
+                Xatolar bo&apos;yicha chuqurlashtirilgan tahlil va zaif mavzularni o&apos;rganish.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={toggleDiagnostics}
+              style={{
+                borderColor: '#f59e0b',
+                color: '#d97706',
+                fontWeight: 800,
+                borderRadius: 10,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>{showDiag ? '▲ Yopish' : '▼ AI Tahlilini Ko‘rish'}</span>
+            </button>
+          </div>
+
+          {showDiag && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              {diagLoading && <p className="muted small">🤖 AI repetitor xatolaringizni tahlil qilmoqda…</p>}
+              {diagErr && <p className="error small">{diagErr}</p>}
+              {diagData && (
+                <div style={{ display: 'grid', gap: 12 }}>
                   <div
                     style={{
-                      padding: '8px 12px',
-                      borderRadius: 8,
-                      background: 'rgba(239, 68, 68, 0.08)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: '#f87171',
-                      fontSize: '0.92rem',
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: '12px',
+                      padding: '14px',
                     }}
                   >
-                    <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      ❌ Sizning javobingiz:
-                    </strong>{' '}
-                    <span>{studentAnswerDisplay}</span>
+                    <strong style={{ color: '#d97706', display: 'block', marginBottom: 4 }}>
+                      💡 Shaxsiy AI Repetitor Xulosasi:
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.55 }}>
+                      {diagData.general_advice}
+                    </p>
                   </div>
-                )}
 
-                {/* ✅ To'g'ri javob */}
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#34d399',
-                    fontSize: '0.92rem',
-                  }}
-                >
-                  <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    ✅ To‘g‘ri javob:
-                  </strong>{' '}
-                  <span>{correctAnswerDisplay}</span>
-                  {qd.is_correct && (
-                    <span className="small muted" style={{ marginLeft: 6 }}>
-                      (Siz ham to‘g‘ri belgiladingiz)
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* 💡 Nega bu javob xato? AI tushuntirishi (Ochiq tursin) */}
-              {explanationClean && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    padding: '12px 14px',
-                    background: 'rgba(59, 130, 246, 0.06)',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
-                    borderRadius: 8,
-                    fontSize: '0.9rem',
-                    lineHeight: 1.6,
-                    color: 'var(--ink)',
-                  }}
-                >
-                  <strong style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span>💡</span> {isWrong ? 'Nega bu javob xato? AI tushuntirishi:' : t('bmb_rule_explanation')}
-                  </strong>
-                  <span>{explanationClean}</span>
-                </div>
-              )}
-
-              {/* Interactive AI Mistake Explainer */}
-              {isWrong && (
-                <div style={{ marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn sm ghost"
-                    disabled={isThisLoading}
-                    onClick={() => explainQuestion(qd.question_id, selectedChoiceId)}
-                    style={{
-                      borderColor: '#10b981',
-                      color: '#10b981',
-                      fontSize: '0.8rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span>💡</span>
-                    <span>
-                      {isThisLoading
-                        ? t('ai_explaining')
-                        : expl?.open
-                          ? t('ai_explain_hide')
-                          : t('ai_explain_btn')}
-                    </span>
-                  </button>
-
-                  {expl?.open && (
-                    <div
-                      style={{
-                        marginTop: '10px',
-                        background: 'rgba(16, 185, 129, 0.05)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        borderRadius: '8px',
-                        padding: '12px 14px',
-                        fontSize: '0.88rem',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {expl.err && <p className="error small" style={{ margin: 0 }}>{expl.err}</p>}
-                      {expl.data && (
-                        <div style={{ display: 'grid', gap: 8 }}>
-                          <div>
-                            <strong style={{ color: '#ef4444' }}>{t('why_wrong_title')}</strong>
-                            <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
-                              {expl.data.why_wrong}
-                            </p>
-                          </div>
-                          <div>
-                            <strong style={{ color: '#10b981' }}>{t('correct_rule_title')}</strong>
-                            <p style={{ margin: '2px 0 0', color: 'var(--text)' }}>
-                              {expl.data.correct_rule}
-                            </p>
-                          </div>
-                          {expl.data.memory_tip && (
+                  {diagData.weak_topics.length > 0 && (
+                    <div>
+                      <h5 style={{ margin: '8px 0', fontSize: '0.9rem' }}>
+                        Aniqlangan zaif mavzular ({diagData.weak_topics.length} ta):
+                      </h5>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {diagData.weak_topics.map((wt, idx) => {
+                          const sevColor =
+                            wt.severity === 'high'
+                              ? '#ef4444'
+                              : wt.severity === 'medium'
+                                ? '#f59e0b'
+                                : '#3b82f6';
+                          return (
                             <div
+                              key={idx}
                               style={{
-                                background: 'rgba(245, 158, 11, 0.08)',
-                                border: '1px dashed rgba(245, 158, 11, 0.3)',
-                                borderRadius: '6px',
-                                padding: '8px 10px',
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
                               }}
                             >
-                              <strong style={{ color: '#f59e0b', fontSize: '0.84rem' }}>
-                                {t('mnemonic_title')}
-                              </strong>
-                              <p style={{ margin: '2px 0 0', fontSize: '0.84rem' }}>
-                                {expl.data.memory_tip}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong style={{ fontSize: '0.88rem' }}>{wt.topic}</strong>
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    color: sevColor,
+                                    background: `${sevColor}20`,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {wt.incorrect_count} ta xato ·{' '}
+                                  {wt.severity === 'high'
+                                    ? 'Yuqori xavf'
+                                    : wt.severity === 'medium'
+                                      ? 'O‘rta xavf'
+                                      : 'Takrorlash lozim'}
+                                </span>
+                              </div>
+                              <p className="muted small" style={{ margin: '4px 0 0', fontSize: '0.82rem' }}>
+                                👉 {wt.recommendation}
                               </p>
                             </div>
-                          )}
-                        </div>
-                      )}
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
-          );
-        })}
-        {(detail.question_details ?? []).length === 0 && (
-          <p className="muted">{t('take_no_analysis')}</p>
+          )}
+        </div>
+
+        {/* Section Scores if present */}
+        {(detail.section_scores ?? []).length > 0 && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 16,
+              background: 'rgba(59, 130, 246, 0.04)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: '16px',
+              padding: '16px 20px',
+            }}
+          >
+            <h4 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.98rem', color: '#2563eb' }}>
+              <span>📊</span> Bo‘limlar kesimidagi rasmiy ballar
+            </h4>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {(detail.section_scores ?? []).map((s) => {
+                const earnedNum = Number(s.earned) || 0;
+                const maxNum = Number(s.maximum) || 1;
+                const secPct = Math.round((earnedNum / maxNum) * 100);
+                const barColor = secPct >= 70 ? '#10b981' : secPct >= 50 ? '#f59e0b' : '#ef4444';
+                return (
+                  <div
+                    key={s.section_code || s.section_name}
+                    style={{
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      padding: '10px 14px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                      <strong style={{ fontSize: '0.9rem', color: 'var(--ink)' }}>
+                        {s.section_name || s.section_code}
+                      </strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="badge" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                          {String(s.earned)} / {String(s.maximum)} ball
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            fontSize: '0.85rem',
+                            color: barColor,
+                          }}
+                        >
+                          {secPct}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="progress" style={{ height: '6px', margin: 0 }}>
+                      <div style={{ width: `${Math.min(100, Math.max(0, secPct))}%`, background: barColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
-      </div>
+      </TestAddictiveResults>
     </div>
   );
 }

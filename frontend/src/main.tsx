@@ -14,11 +14,10 @@ import { LangProvider } from './i18n/LangContext.tsx'
  * and fully non-blocking (push is best-effort).
  */
 function initPushNotifications(): void {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-  if (!import.meta.env.PROD) return
+  if (!('serviceWorker' in navigator)) return
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* push unavailable — app works without it */
+      /* PWA / push unavailable — app works without it */
     })
   })
 }

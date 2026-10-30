@@ -12,6 +12,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
+import TestAddictiveResults from '../components/TestAddictiveResults';
+import { TestsApi as RetestApi } from '../lib/testing';
 import { Tests as TestsApi } from '../lib/api';
 import AudioPlayerBar from '../components/AudioPlayerBar';
 import {
@@ -148,6 +150,7 @@ interface SubmitResult {
   max_rasch_score?: string | number;
   rasch_grade?: string;
   rasch_explanation?: string;
+  bmb_grade?: string;
 }
 
 interface AnswerEntry {
@@ -1592,16 +1595,16 @@ export default function TakeTest() {
       )}
 
       {result && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 24 }}>
           {result.grading_status === 'pending_grading' ? (
-            <>
+            <div className="card" style={{ padding: 24, textAlign: 'center' }}>
               <h2>{t('take_pending_title')}</h2>
               <p className="muted">{t('take_pending_msg')}</p>
               <p className="stat-value">{num(result.objective_score, 0)}</p>
               <p className="muted small">
                 {t('take_objective_done')} · {t('take_writing_pending')}
               </p>
-              <div className="toolbar" style={{ marginTop: 12 }}>
+              <div className="toolbar" style={{ marginTop: 16, justifyContent: 'center' }}>
                 <button
                   className="btn primary"
                   disabled={submitting}
@@ -1617,10 +1620,7 @@ export default function TakeTest() {
                       if (out && typeof out === 'object' && 'result' in out && out.result) {
                         setResult(out.result as SubmitResult);
                       } else {
-                        // 202: writing still grading — keep pending state.
-                        setErr(
-                          (out as { detail?: string }).detail ?? t('take_pending_msg'),
-                        );
+                        setErr((out as { detail?: string }).detail ?? t('take_pending_msg'));
                       }
                     } catch (e) {
                       setErr(e instanceof Error ? e.message : t('take_pending_msg'));
@@ -1635,63 +1635,69 @@ export default function TakeTest() {
                   {t('take_view_results')}
                 </button>
               </div>
-            </>
-          ) : result.certificate_status === 'rules_unverified' ? (
-            <>
-              <h2>{t('take_rules_unverified_title')}</h2>
-              <p className="muted">{t('take_rules_unverified_msg')}</p>
-              <p className="stat-value">{num(result.percentage, 0)}%</p>
-              <p className="badge blue">{t('raw_score_not_official')}</p>
-            </>
+            </div>
           ) : (
-            <>
-              <h2>{result.is_passed ? t('rd_passed_msg') : t('rd_failed_msg')}</h2>
-              <p className="stat-value">{num(result.percentage, 0)}%</p>
-            </>
-          )}
-          {result.grading_status !== 'pending_grading' && (
-            <>
-          <div className="toolbar" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            {result.rasch_score !== undefined && result.rasch_score !== null && Number(result.rasch_score) > 0 && (
-              <span
-                className="badge"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(251, 191, 36, 0.28) 100%)',
-                  border: '1.5px solid rgba(245, 158, 11, 0.6)',
-                  color: '#b45309',
-                  fontWeight: 800,
-                  fontSize: '0.88rem',
-                }}
-              >
-                ⚡️ Rash Dinamik Bali: {Number(result.rasch_score).toFixed(1)}{result.rasch_grade ? ` (${result.rasch_grade})` : ''}
-              </span>
-            )}
-            <span className="badge green">
-              {t('rd_correct')}: {result.correct_answers}
-            </span>
-            <span className="badge rose">
-              {t('rd_wrong')}: {result.wrong_answers}
-            </span>
-            <span className="badge">
-              {t('rd_unanswered')}: {result.unanswered}
-            </span>
-            <span className="badge blue">
-              {t('rd_time_spent')}: {formatClock(num(result.time_taken_seconds, 0))}
-            </span>
-          </div>
-          <div className="toolbar" style={{ marginTop: 12 }}>
-            <button className="btn primary" onClick={() => navigate('/results')}>
-              {t('take_view_results')}
-            </button>
-            {result.is_passed &&
-              result.certificate_status !== 'rules_unverified' &&
-              result.certificate_status !== 'pending_writing' && (
-                <button className="btn" onClick={() => navigate('/certificates')}>
-                  {t('my_certificates')}
-                </button>
-              )}
-          </div>
-            </>
+            <TestAddictiveResults
+              score={num(result.score, 0)}
+              maxScore={num(result.max_score, 0)}
+              percentage={num(result.percentage, 0)}
+              correctCount={num(result.correct_answers, 0)}
+              wrongCount={num(result.wrong_answers, 0)}
+              unansweredCount={num(result.unanswered, 0)}
+              timeSpentSeconds={num(result.time_taken_seconds, 0)}
+              raschScore={result.rasch_score}
+              raschGrade={result.rasch_grade}
+              bmbGrade={result.bmb_grade}
+              courseTitle={attempt?.test_title}
+              attemptId={attemptId}
+              onRetest={async () => {
+                try {
+                  const res = await RetestApi.generateRetest(attemptId);
+                  if (res.has_mistakes && res.attempt_id) {
+                    window.location.href = `/take/${res.attempt_id}`;
+                  } else {
+                    alert(res.message || "Barcha savollar to'g'ri yechilgan!");
+                  }
+                } catch (e) {
+                  alert(e instanceof Error ? e.message : "Qayta test yaratishda xatolik yuz berdi.");
+                }
+              }}
+            >
+              {result.is_passed &&
+                result.certificate_status !== 'rules_unverified' &&
+                result.certificate_status !== 'pending_writing' && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: '14px 18px',
+                      borderRadius: 14,
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1.5px solid rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: '#059669', fontSize: '0.95rem' }}>
+                        🎉 Tabriklaymiz! Siz o&apos;tish balini muvaffaqiyatli to&apos;pladingiz!
+                      </strong>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
+                        Rasmiy BMB va Attestatsiya sertifikatingizni kabinetingizda yuklab oling.
+                      </p>
+                    </div>
+                    <button
+                      className="btn primary sm"
+                      onClick={() => navigate('/certificates')}
+                      style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 800, borderRadius: 10 }}
+                    >
+                      {t('my_certificates')} →
+                    </button>
+                  </div>
+                )}
+            </TestAddictiveResults>
           )}
         </div>
       )}
