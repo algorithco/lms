@@ -221,31 +221,41 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
     Matndan test savollari, variantlari va to'g'ri kalitlarini
     avtomatik aniqlovchi yuqori aniqlikdagi Smart Paste parser.
     Formatlar:
-      - Savollar: 1., 1), 1 -, 1-savol:, Savol 1:, №1
-      - Variantlar: A), B), C), D) yoki a., b., c., d.
-      - Kalitlar: *A), +B), A) *matn, yoki oxirida 'Javob: B', 'Kalitlar: 1.A 2.B'
+      - Savollar: 1., 1), 1 -, 1-savol:, Savol 1:, №1, yoki raqam
+      - Variantlar: A), B), C), D) yoki A., B., C., D. yoki A - yoki (A) yoki [A]
+      - Kalitlar: *A), +B), A) *matn, A) matn*, Javob: B, Ans: C, Kalitlar: 1.A 2.B, 1-A 2-B
     """
     raw_clean = (raw_text or "").strip()
     if not raw_clean:
         return _fallback_dummy_template(subject)
 
-    lines = raw_clean.splitlines()
+    raw_lines = raw_clean.splitlines()
 
     global_keys: dict[int, str] = {}
     body_lines: list[str] = []
-    for line in lines:
-        if re.search(r"(?:javoblar|kalitlar|keys|answers)\s*:", line, re.I):
-            for m in re.finditer(r"(\d+)\s*[:.\-)?\s]?\s*([a-eA-E])", line):
+    pair_pattern = re.compile(r"(\d+)\s*[:.\-)?\s]\s*([a-eA-E])\b")
+
+    for raw_l in raw_lines:
+        line_s = raw_l.strip()
+        if (
+            re.search(r"(?:javoblar|kalitlar|keys|answers)\s*:", line_s, re.I)
+            or re.match(r"^(\s*\d+\s*[:.\-)?\s]\s*[a-eA-E]\s*[,;]?\s*){2,}$", line_s)
+        ):
+            for m in pair_pattern.finditer(line_s):
                 global_keys[int(m.group(1))] = m.group(2).upper()
         else:
-            body_lines.append(line)
+            body_lines.append(raw_l)
 
     q_start_re = re.compile(
-        r"^(?:(?:savol\s*|№\s*)?(\d+)[\.\)\-:\s]+|(\d+)\s*[-–—]?\s*savol[\.\):]?\s*)(.*)$",
+        r"^(?:(?:savol\s*|№\s*)?(\d+)[\.\)\-:\s]+|(\d+)\s*[-–—]?\s*savol[\.\):]?\s*)(.*)$",
         re.I,
     )
     inline_choice_re = re.compile(
-        r"(?:^|\s+)([\*\+]?)\s*([A-Ea-e])[\.\)\-]\s*(.*?)(?=(?:\s+[\*\+]?\s*[A-Ea-e][\.\)\-])|$)",
+        r"(?:^|\s+)([\*\+]?)\s*(?:\(|\[)?\s*([A-Ea-e])\s*(?:\)|\.|\-|\])\s*(.*?)(?=(?:\s+[\*\+]?\s*(?:\(|\[)?\s*[A-Ea-e]\s*(?:\)|\.|\-|\]))|$)",
+        re.I,
+    )
+    inline_ans_re = re.compile(
+        r"^(?:(?:to['ʼ`]?g['ʼ`]?ri\s+)?(?:javob|kalit|key)|ans(?:wer)?)\s*[:=\-]\s*([A-Ea-e])\b",
         re.I,
     )
 
@@ -258,17 +268,13 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
         if not line_clean:
             continue
 
-        ans_m = re.match(
-            r"^(?:to['ʼ`]?g['ʼ`]?ri\s+)?(?:javob|kalit|key)\s*[:=\-]\s*([A-Ea-e])",
-            line_clean,
-            re.I,
-        )
+        ans_m = inline_ans_re.match(line_clean)
         if ans_m and current_q:
             current_q["correct_answer"] = ans_m.group(1).upper()
             current_q["_has_explicit_answer"] = True
             continue
 
-        is_choice_start = re.match(r"^[\*\+]?\s*[A-Ea-e][\.\)\-]", line_clean)
+        is_choice_start = re.match(r"^[\*\+]?\s*(?:\(|\[)?\s*[A-Ea-e]\s*(?:\)|\.|\-|\])", line_clean)
         q_m = q_start_re.match(line_clean)
         if q_m and not is_choice_start:
             q_num = int(q_m.group(1) or q_m.group(2))
@@ -297,6 +303,10 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
                     c_text = re.sub(r"[\*\+\(\)]+$", "", c_text).strip()
                     current_q["correct_answer"] = code
                     current_q["_has_explicit_answer"] = True
+                elif c_text.startswith("*") or c_text.startswith("+"):
+                    c_text = re.sub(r"^[\*\+]+", "", c_text).strip()
+                    current_q["correct_answer"] = code
+                    current_q["_has_explicit_answer"] = True
                 elif star in ("*", "+"):
                     current_q["correct_answer"] = code
                     current_q["_has_explicit_answer"] = True
@@ -310,7 +320,7 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
             reading_passage += (" " if reading_passage else "") + line_clean
 
     for q in questions:
-        if not q.get("_has_explicit_answer") and q.get("q_num") in global_keys:
+        if not q.get("_has_explicit_answer") and q["q_num"] in global_keys:
             q["correct_answer"] = global_keys[q["q_num"]]
             q["_has_explicit_answer"] = True
 
@@ -321,19 +331,20 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
                 {"code": "C", "text": "C varianti"},
                 {"code": "D", "text": "D varianti"},
             ]
-        elif len(q["choices"]) < 4:
-            existing = {c["code"] for c in q["choices"]}
-            for letter in ["A", "B", "C", "D"]:
-                if letter not in existing:
-                    q["choices"].append({"code": letter, "text": f"{letter} varianti"})
-        q["choices"].sort(key=lambda x: x["code"])
+        else:
+            q["choices"].sort(key=lambda c: c.get("code", ""))
 
     if not questions:
         return _fallback_dummy_template(subject)
 
-    subject_label = (
-        "Ona tili va adabiyot" if subject == "uzbek" else "Ingliz tili (CBT)"
-    )
+    subject_label = "Ona tili va adabiyot"
+    if subject == "english":
+        subject_label = "Ingliz tili (CBT)"
+    elif subject == "adabiyot":
+        subject_label = "Adabiyot oraliq nazorat"
+    elif subject == "milliy":
+        subject_label = "Milliy sertifikat diagnostika"
+
     return {
         "test_title": f"{subject_label} — Smart Paste testi ({len(questions)} ta savol)",
         "reading_passage": reading_passage.strip(),
@@ -570,9 +581,18 @@ def save_converted_test(
 
     course = _get_or_create_mock_course(teacher)
 
+    exam_type = Test.ExamType.GENERAL
+    if raw_subject in ("milliy", "national_cert"):
+        exam_type = Test.ExamType.NATIONAL_CERT
+    elif raw_subject in ("ielts", "ielts_academic"):
+        exam_type = Test.ExamType.IELTS_ACADEMIC
+    elif raw_subject in ("cefr", "cefr_multilevel"):
+        exam_type = Test.ExamType.CEFR_MULTILEVEL
+
     test = Test.objects.create(
         course=course,
         subject=norm_subject,
+        exam_type=exam_type,
         title=title,
         description=f"Smart Paste orqali yaratilgan {len(questions_data)} ta savolli test. Kod: {mock_code}",
         time_limit_minutes=time_limit,

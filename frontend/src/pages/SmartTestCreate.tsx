@@ -1,8 +1,21 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Copy, ExternalLink, HelpCircle, Sparkles, Trash2, Zap, ShieldAlert, BookOpen } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  ExternalLink,
+  HelpCircle,
+  Sparkles,
+  Trash2,
+  Zap,
+  ShieldAlert,
+  BookOpen,
+  Send,
+  Edit3,
+} from 'lucide-react';
 import { api } from '../lib/api';
-import { parseSmartTestText, type ParsedQuestion } from '../lib/testParser';
+import { parseSmartTestText, type ParsedQuestion, type SupportedSubject } from '../lib/testParser';
 
 const SAMPLE_15_LITERATURE = `1. Alisher Navoiy qachon va qayerda tavallud topgan?
 *A) 1441-yil 9-fevralda Hirotda
@@ -154,11 +167,41 @@ A) Muxim
 C) Muhiym
 D) Muxym`;
 
+const SAMPLE_5_ENGLISH = `1. Which of the following is a synonym for 'meticulous'?
+A) Careless
+*B) Thorough and careful
+C) Rapid
+D) Hasty
+
+2. Identify the correct sentence in passive voice:
+A) The chef prepares the dinner.
+*B) The dinner was prepared by the chef.
+C) The chef was preparing dinner.
+D) The dinner prepares the chef.
+
+3. Choose the appropriate preposition: 'She has been living in London ___ 2018.'
+A) for
+*B) since
+C) during
+D) in
+
+4. What is the main theme of IELTS Academic Writing Task 1?
+*A) Describing factual data from charts or graphs
+B) Writing a personal opinion letter
+C) Telling an imaginative story
+D) Composing a poem
+
+5. Which word has a negative connotation?
+A) Ambitious
+B) Determined
+*C) Ruthless
+D) Confident`;
+
 export default function SmartTestCreate() {
   const navigate = useNavigate();
 
   // Test Settings
-  const [subject, setSubject] = useState<'uzbek' | 'english'>('uzbek');
+  const [subject, setSubject] = useState<SupportedSubject>('uzbek');
   const [title, setTitle] = useState('');
   const [timeLimit, setTimeLimit] = useState<number>(20);
   const [isStrictMode, setIsStrictMode] = useState(false);
@@ -168,6 +211,7 @@ export default function SmartTestCreate() {
   const [rawText, setRawText] = useState(SAMPLE_15_LITERATURE);
   const [readingPassage, setReadingPassage] = useState('');
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
+  const [editingQIdx, setEditingQIdx] = useState<number | null>(null);
 
   // UI state
   const [busy, setBusy] = useState(false);
@@ -190,13 +234,17 @@ export default function SmartTestCreate() {
       setReadingPassage(res.readingPassage);
     }
     if (!title && res.questions.length > 0) {
-      setTitle(
-        subject === 'uzbek'
-          ? `8-sinf Adabiyot — ${res.questions.length} talik test`
-          : `English Reading Mock — ${res.questions.length} Questions`
-      );
+      if (subject === 'adabiyot') {
+        setTitle(`8-sinf Adabiyot — ${res.questions.length} talik oraliq nazorat`);
+      } else if (subject === 'milliy') {
+        setTitle(`Milliy Sertifikat — ${res.questions.length} talik BMB Diagnostika`);
+      } else if (subject === 'english') {
+        setTitle(`English CBT Mock — ${res.questions.length} Questions`);
+      } else {
+        setTitle(`Ona tili — ${res.questions.length} talik mavzulashtirilgan test`);
+      }
     }
-  }, [rawText, subject]);
+  }, [rawText, subject, title]);
 
   const unansweredCount = useMemo(() => {
     return questions.filter((q) => !q.correctAnswer).length;
@@ -214,12 +262,24 @@ export default function SmartTestCreate() {
     });
   };
 
+  // Inline edit question text
+  const handleUpdateQuestionText = (questionIndex: number, newText: string) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      copy[questionIndex] = { ...copy[questionIndex], text: newText };
+      return copy;
+    });
+  };
+
   // Delete question
   const handleDeleteQuestion = (questionIndex: number) => {
     setQuestions((prev) => {
       const filtered = prev.filter((_, idx) => idx !== questionIndex);
       return filtered.map((q, idx) => ({ ...q, order: idx + 1 }));
     });
+    if (editingQIdx === questionIndex) {
+      setEditingQIdx(null);
+    }
   };
 
   // Submit test
@@ -229,7 +289,9 @@ export default function SmartTestCreate() {
       return;
     }
     if (unansweredCount > 0) {
-      setErrorMsg(`Diqqat! ${unansweredCount} ta savolda to‘g‘ri javob belgilanmagan. Iltimos, o‘ng tomondagi kartochkalarda to‘g‘ri javob variantini tanlang.`);
+      setErrorMsg(
+        `Diqqat! ${unansweredCount} ta savolda to‘g‘ri javob belgilanmagan. Iltimos, o‘ng tomondagi kartochkalarda to‘g‘ri variant ustiga bosing.`
+      );
       return;
     }
 
@@ -291,7 +353,16 @@ export default function SmartTestCreate() {
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px 80px' }}>
       {/* Breadcrumb & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748B', marginBottom: 6 }}>
             <Link to="/tests" style={{ color: '#64748B', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -320,7 +391,7 @@ export default function SmartTestCreate() {
                 Smart Paste — 1 soniyada test qo‘shish
               </h1>
               <p style={{ fontSize: 13.5, color: '#64748B', margin: '4px 0 0' }}>
-                Word, PDF yoki Telegram'dan tayyor test matnini nusxalab tashlang. Tizim avtomatik savol va javoblarga ajratadi.
+                Word yoki Telegram'dan tayyor test matnini nusxalab tashlang. Tizim avtomatik savol va javoblarga ajratadi.
               </p>
             </div>
           </div>
@@ -386,7 +457,7 @@ export default function SmartTestCreate() {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: 16,
-              maxWidth: 720,
+              maxWidth: 760,
               margin: '0 auto 28px',
             }}
           >
@@ -396,14 +467,14 @@ export default function SmartTestCreate() {
                 background: '#F8FAFC',
                 border: '1px solid #E2E8F0',
                 borderRadius: 16,
-                padding: 16,
+                padding: 18,
                 textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                Tezkor Ulanish Kodi
+                Tezkor Ulanish Kodi (PIN)
               </div>
-              <div style={{ fontSize: 26, fontWeight: 900, color: '#D97706', letterSpacing: '1px', marginBottom: 10 }}>
+              <div style={{ fontSize: 26, fontWeight: 900, color: '#D97706', letterSpacing: '1px', marginBottom: 12 }}>
                 {createdResult.mock_code}
               </div>
               <button
@@ -416,8 +487,8 @@ export default function SmartTestCreate() {
                   border: '1px solid #CBD5E1',
                   borderRadius: 10,
                   fontWeight: 700,
-                  fontSize: 12,
-                  padding: '6px 14px',
+                  fontSize: 12.5,
+                  padding: '7px 16px',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -435,7 +506,7 @@ export default function SmartTestCreate() {
                 background: '#F8FAFC',
                 border: '1px solid #E2E8F0',
                 borderRadius: 16,
-                padding: 16,
+                padding: 18,
                 textAlign: 'center',
               }}
             >
@@ -447,10 +518,14 @@ export default function SmartTestCreate() {
                   fontSize: 13,
                   fontWeight: 700,
                   color: '#0F172A',
-                  marginBottom: 10,
+                  marginBottom: 12,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  padding: '4px 8px',
+                  background: '#FFFFFF',
+                  borderRadius: 8,
+                  border: '1px solid #E2E8F0',
                 }}
               >
                 {createdResult.share_url}
@@ -465,8 +540,8 @@ export default function SmartTestCreate() {
                   border: '1px solid #CBD5E1',
                   borderRadius: 10,
                   fontWeight: 700,
-                  fontSize: 12,
-                  padding: '6px 14px',
+                  fontSize: 12.5,
+                  padding: '7px 16px',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -479,16 +554,45 @@ export default function SmartTestCreate() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* Action Buttons: Telegram Share & Open Test */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+            {/* Telegram Share Button */}
+            <a
+              href={`https://t.me/share/url?url=${encodeURIComponent(createdResult.share_url)}&text=${encodeURIComponent(
+                `🏆 GRAND EDUCATION — Yangi test e'lon qilindi!\n\n📖 Test: ${createdResult.title}\n🔢 Savollar soni: ${createdResult.questions_count} ta\n🔑 Ulanish kodi: ${createdResult.mock_code}\n\n👇 Testni yechish uchun quyidagi havola ustiga bosing:`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn"
+              style={{
+                background: '#0088cc',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: 14,
+                padding: '12px 24px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                textDecoration: 'none',
+                boxShadow: '0 4px 14px rgba(0, 136, 204, 0.3)',
+              }}
+            >
+              <Send size={16} />
+              <span>Telegram guruhga ulashish</span>
+            </a>
+
             <button
               type="button"
               onClick={() => navigate(`/tests/${createdResult.test_id}`)}
               style={{
                 background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                 color: '#FFFFFF',
-                fontWeight: 900,
+                fontWeight: 800,
                 fontSize: 14,
-                padding: '12px 28px',
+                padding: '12px 26px',
                 borderRadius: 12,
                 border: 'none',
                 cursor: 'pointer',
@@ -501,6 +605,7 @@ export default function SmartTestCreate() {
               <span>Testni boshlash (Ko‘rish)</span>
               <ExternalLink size={16} />
             </button>
+
             <button
               type="button"
               onClick={() => {
@@ -511,9 +616,9 @@ export default function SmartTestCreate() {
               style={{
                 background: '#FFFFFF',
                 color: '#475569',
-                fontWeight: 800,
+                fontWeight: 700,
                 fontSize: 14,
-                padding: '12px 24px',
+                padding: '12px 20px',
                 borderRadius: 12,
                 border: '1px solid #CBD5E1',
                 cursor: 'pointer',
@@ -525,7 +630,7 @@ export default function SmartTestCreate() {
         </div>
       )}
 
-      {/* Dynamic Test Settings Form */}
+      {/* Settings Form Card */}
       <div
         style={{
           background: '#FFFFFF',
@@ -536,8 +641,8 @@ export default function SmartTestCreate() {
           marginBottom: 24,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-          <Sparkles size={18} color="#D97706" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 14, fontWeight: 800, color: '#0F172A' }}>
+          <Sparkles size={16} color="#D97706" />
           <span>Moslashuvchan Test Sozlamalari</span>
         </div>
 
@@ -566,14 +671,14 @@ export default function SmartTestCreate() {
             />
           </div>
 
-          {/* Fani */}
+          {/* Fani va Yo‘nalishi */}
           <div>
             <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
               Fani va Yo‘nalishi
             </label>
             <select
               value={subject}
-              onChange={(e) => setSubject(e.target.value as 'uzbek' | 'english')}
+              onChange={(e) => setSubject(e.target.value as SupportedSubject)}
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -585,7 +690,9 @@ export default function SmartTestCreate() {
                 background: '#F8FAFC',
               }}
             >
-              <option value="uzbek">🇺🇿 Ona tili va adabiyot (Milliy Sertifikat / Attestatsiya)</option>
+              <option value="uzbek">🇺🇿 Ona tili (Grammatika va amaliyot)</option>
+              <option value="adabiyot">📚 Adabiyot (Tarixiy va badiiy asarlar)</option>
+              <option value="milliy">🏛️ Milliy sertifikat (BMB Davlat standarti)</option>
               <option value="english">🇬🇧 Ingliz tili (IELTS / CEFR Multi-level)</option>
             </select>
           </div>
@@ -695,10 +802,14 @@ export default function SmartTestCreate() {
             </div>
 
             {/* Quick Demo Fill Buttons */}
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => setRawText(SAMPLE_15_LITERATURE)}
+                onClick={() => {
+                  setSubject('adabiyot');
+                  setTitle('8-sinf Adabiyot — 15 talik oraliq nazorat');
+                  setRawText(SAMPLE_15_LITERATURE);
+                }}
                 title="15 talik Adabiyot testini namuna sifatida yuklash"
                 style={{
                   background: '#F8FAFC',
@@ -715,7 +826,11 @@ export default function SmartTestCreate() {
               </button>
               <button
                 type="button"
-                onClick={() => setRawText(SAMPLE_10_GRAMMAR)}
+                onClick={() => {
+                  setSubject('uzbek');
+                  setTitle('Ona tili — 10 talik grammatika testi');
+                  setRawText(SAMPLE_10_GRAMMAR);
+                }}
                 title="10 talik Grammatika testini namuna sifatida yuklash"
                 style={{
                   background: '#F8FAFC',
@@ -729,6 +844,27 @@ export default function SmartTestCreate() {
                 }}
               >
                 📋 10 talik Grammatika
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubject('english');
+                  setTitle('English CBT Mock — 5 Questions');
+                  setRawText(SAMPLE_5_ENGLISH);
+                }}
+                title="5 talik Ingliz tili testini namuna sifatida yuklash"
+                style={{
+                  background: '#F8FAFC',
+                  border: '1px solid #CBD5E1',
+                  color: '#475569',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                📋 5 talik English
               </button>
               <button
                 type="button"
@@ -762,7 +898,7 @@ export default function SmartTestCreate() {
               marginBottom: 14,
             }}
           >
-            <strong>💡 Format yo‘riqnomasi:</strong> Savol raqami (<code>1.</code>, <code>1)</code>), variantlar (<code>A)</code>, <code>B)</code>). To‘g‘ri javobni variant oldiga <code>*</code> yoki <code>+</code> qo‘yib (masalan: <code>*A)</code>), yoki savol tagiga <code>Javob: B</code> deb yozing.
+            <strong>💡 Format yo‘riqnomasi:</strong> Savol raqami (<code>1.</code>, <code>1)</code>), variantlar (<code>A)</code>, <code>B)</code> yoki <code>(A)</code>, <code>A.</code>). To‘g‘ri javobni variant oldiga <code>*</code> yoki <code>+</code> qo‘yib (masalan: <code>*A)</code>), yoki savol tagiga <code>Javob: B</code>, <code>Ans: C</code> deb yozing.
           </div>
 
           <textarea
@@ -907,6 +1043,7 @@ export default function SmartTestCreate() {
             ) : (
               questions.map((q, qIdx) => {
                 const hasCorrect = Boolean(q.correctAnswer);
+                const isEditingThis = editingQIdx === qIdx;
                 return (
                   <div
                     key={q.order}
@@ -948,6 +1085,31 @@ export default function SmartTestCreate() {
                             Javob tanlanmagan
                           </span>
                         )}
+
+                        {/* Inline Edit Button */}
+                        <button
+                          type="button"
+                          onClick={() => setEditingQIdx(isEditingThis ? null : qIdx)}
+                          title="Savol matnini tahrirlash"
+                          style={{
+                            background: isEditingThis ? '#E2E8F0' : 'transparent',
+                            border: 'none',
+                            color: isEditingThis ? '#0F172A' : '#64748B',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            padding: '4px 6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Edit3 size={14} />
+                          <span>{isEditingThis ? 'Tayyor' : 'Tahrirlash'}</span>
+                        </button>
+
+                        {/* Delete Question Button */}
                         <button
                           type="button"
                           onClick={() => handleDeleteQuestion(qIdx)}
@@ -965,10 +1127,43 @@ export default function SmartTestCreate() {
                       </div>
                     </div>
 
-                    {/* Question Text */}
-                    <p style={{ fontSize: 13.5, fontWeight: 600, color: '#0F172A', margin: '0 0 14px', lineHeight: 1.5 }}>
-                      {q.text}
-                    </p>
+                    {/* Question Text (or inline edit textarea) */}
+                    {isEditingThis ? (
+                      <div style={{ marginBottom: 14 }}>
+                        <textarea
+                          value={q.text}
+                          onChange={(e) => handleUpdateQuestionText(qIdx, e.target.value)}
+                          rows={3}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: 10,
+                            border: '1.5px solid #D97706',
+                            background: '#FFFFFF',
+                            color: '#0F172A',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            lineHeight: 1.5,
+                            fontFamily: 'inherit',
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <p
+                        onClick={() => setEditingQIdx(qIdx)}
+                        title="Matnni tahrirlash uchun bosing"
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 600,
+                          color: '#0F172A',
+                          margin: '0 0 14px',
+                          lineHeight: 1.5,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {q.text}
+                      </p>
+                    )}
 
                     {/* Options (Clickable to select correct answer) */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>

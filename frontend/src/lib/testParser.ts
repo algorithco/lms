@@ -2,10 +2,10 @@
  * Smart Paste Test Parser for GRANDEC LMS.
  * High-precision parsing of tests copied from Word, PDF, or Telegram.
  * Supports:
- *  - Question prefixes: 1., 1), 1 -, 1-savol, Savol 1:, №1
- *  - Choices: A), B), C), D) or a., b., c., d. or A - or [A]
+ *  - Question prefixes: 1., 1), 1 -, 1-savol, Savol 1:, №1, or digits
+ *  - Choices: A), B), C), D) or A., B., C., D. or A - or (A) or [A]
  *  - Inline multiple choices on the same line: "A) Olma  B) Anor  C) Behi  D) Uzum"
- *  - Correct answer indicators: *A), +B), A) *matn, A) matn*, Javob: B, Kalitlar: 1.A 2.B
+ *  - Correct answer indicators: *A), +B), A) *matn, A) matn*, Javob: B, Ans: C, Answer: D, Kalitlar: 1.A 2.B, 1-A 2-B
  */
 
 export interface ParsedChoice {
@@ -30,7 +30,9 @@ export interface SmartParseResult {
   unansweredCount: number;
 }
 
-export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'english' = 'uzbek'): SmartParseResult {
+export type SupportedSubject = 'uzbek' | 'adabiyot' | 'milliy' | 'english';
+
+export function parseSmartTestText(rawText: string, defaultSubject: SupportedSubject = 'uzbek'): SmartParseResult {
   const text = (rawText || '').trim();
   if (!text) {
     return {
@@ -45,22 +47,32 @@ export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'e
   const globalKeys: Record<number, string> = {};
   const bodyLines: string[] = [];
 
-  // 1. Check for global answer table (e.g., "Javoblar: 1-A, 2-B, 3-C" or "Kalitlar: 1.A 2.B")
-  for (const line of lines) {
-    if (/(?:javoblar|kalitlar|keys|answers)\s*:/i.test(line)) {
-      const pairRegex = /(\d+)\s*[:.\-)?\s]?\s*([a-eA-E])\b/g;
+  // 1. Check for global answer table (e.g., "Javoblar: 1-A, 2-B, 3-C" or "Kalitlar: 1.A 2.B" or "1-A 2-B 3-C")
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (
+      /(?:javoblar|kalitlar|keys|answers)\s*:/i.test(line) ||
+      /^(\s*\d+\s*[:.\-)?\s]\s*[a-eA-E]\s*[,;]?\s*){2,}$/.test(line)
+    ) {
+      const pairRegex = /(\d+)\s*[:.\-)?\s]\s*([a-eA-E])\b/g;
       let m: RegExpExecArray | null;
       while ((m = pairRegex.exec(line)) !== null) {
         globalKeys[Number(m[1])] = m[2].toUpperCase();
       }
     } else {
-      bodyLines.push(line);
+      bodyLines.push(rawLine);
     }
   }
 
   // Regex patterns
-  const qStartRe = /^(?:(?:savol\s*|№\s*)?(\d+)[\.\)\-:\s]+|\b(\d+)\s*[-–—]?\s*savol[\.\):]?\s*)(.*)$/i;
-  const inlineChoiceRe = /(?:^|\s+)([\*\+]?)\s*([A-Ea-e])[\.\)\-]\s*(.*?)(?=(?:\s+[\*\+]?\s*[A-Ea-e][\.\)\-])|$)/g;
+  // Matches: 1. or 1) or 1 - or Savol 1: or 1-savol: or №1
+  const qStartRe = /^(?:(?:savol\s*|№\s*)?(\d+)[\.\)\-:\s]+|(\d+)\s*[-–—]?\s*savol[\.\):]?\s*)(.*)$/i;
+
+  // Matches choices: A), A., A -, (A), [A], *A), +A)
+  const inlineChoiceRe = /(?:^|\s+)([\*\+]?)\s*(?:\(|\[)?\s*([A-Ea-e])\s*(?:\)|\.|\-|\])\s*(.*?)(?=(?:\s+[\*\+]?\s*(?:\(|\[)?\s*[A-Ea-e]\s*(?:\)|\.|\-|\]))|$)/g;
+
+  // Matches inline answer: Javob: A, To'g'ri javob: B, Ans: C, Answer: D, Kalit: A
+  const inlineAnsRe = /^(?:(?:to['ʼ`]?g['ʼ`]?ri\s+)?(?:javob|kalit|key)|ans(?:wer)?)\s*[:=\-]\s*([A-Ea-e])\b/i;
 
   const questions: ParsedQuestion[] = [];
   let currQ: ParsedQuestion | null = null;
@@ -70,16 +82,16 @@ export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'e
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Check for inline answer statement like "Javob: B" or "To'g'ri javob: C"
-    const ansMatch = line.match(/^(?:to['ʼ`]?g['ʼ`]?ri\s+)?(?:javob|kalit|key)\s*[:=\-]\s*([A-Ea-e])\b/i);
+    // Check for inline answer statement
+    const ansMatch = line.match(inlineAnsRe);
     if (ansMatch && currQ) {
       currQ.correctAnswer = ansMatch[1].toUpperCase();
       currQ.hasExplicitAnswer = true;
       continue;
     }
 
-    // Check if line starts a new question (must not look like a choice)
-    const isChoiceStart = /^[\*\+]?\s*[A-Ea-e][\.\)\-]/.test(line);
+    // Check if line starts a choice (e.g. A) or (A) or *A))
+    const isChoiceStart = /^[\*\+]?\s*(?:\(|\[)?\s*[A-Ea-e]\s*(?:\)|\.|\-|\])/.test(line);
     const qMatch = line.match(qStartRe);
 
     if (qMatch && !isChoiceStart) {
@@ -120,6 +132,10 @@ export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'e
           cText = cText.replace(/[\*\+\(\)]+$/, '').trim();
           currQ.correctAnswer = item.code;
           currQ.hasExplicitAnswer = true;
+        } else if (/^[\*\+]/.test(cText)) {
+          cText = cText.replace(/^[\*\+]+/, '').trim();
+          currQ.correctAnswer = item.code;
+          currQ.hasExplicitAnswer = true;
         } else if (item.star === '*' || item.star === '+') {
           currQ.correctAnswer = item.code;
           currQ.hasExplicitAnswer = true;
@@ -136,7 +152,7 @@ export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'e
     // Continuation of question text or reading passage
     if (currQ && currQ.choices.length === 0) {
       currQ.text += ' ' + line;
-    } else if (!currQ && line.length > 40) {
+    } else if (!currQ && line.length > 35) {
       readingPassage += (readingPassage ? ' ' : '') + line;
     }
   }
@@ -166,7 +182,15 @@ export function parseSmartTestText(rawText: string, defaultSubject: 'uzbek' | 'e
     }
   }
 
-  const subjectLabel = defaultSubject === 'english' ? 'English CBT' : 'Ona tili va Adabiyot';
+  let subjectLabel = 'Ona tili va adabiyot';
+  if (defaultSubject === 'english') {
+    subjectLabel = 'English CBT Mock';
+  } else if (defaultSubject === 'adabiyot') {
+    subjectLabel = 'Adabiyot oraliq nazorat';
+  } else if (defaultSubject === 'milliy') {
+    subjectLabel = 'Milliy Sertifikat Diagnostika';
+  }
+
   const defaultTitle = `${subjectLabel} — ${questions.length} talik test`;
 
   return {

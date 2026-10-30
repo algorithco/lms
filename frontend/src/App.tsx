@@ -120,6 +120,7 @@ function AnimatedRoutes() {
             <Route path="/tests/:id" element={<TestDetail />} />
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
+            <Route path="/tests/take/:id" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/take/:attemptId" element={<TakeTest />} />
             <Route path="/tests/scan-omr" element={<ScanOMR />} />
             <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />

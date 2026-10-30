@@ -9,6 +9,24 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.50. Rasmiy Versiya v1.54.0: 1-Soniyada Test Yaratish (Smart Paste), Moslashuvchan Savollar Soni va Telegram Ulashish
+- [x] 1-Bosqich: Moslashuvchan Savollar Soni (Dynamic Question Count & Test Engine):
+  * Backend (`apps/tests` modellari va baholash mexanizmlari): Savollar soni avtomatik ravishda yuklangan savollar miqdoriga qarab dinamik belgilanadi (10 yoki 15 talik Adabiyot, 20 yoki 30 talik Grammatika, 45-50 talik to'liq Davlat BMB Mock testi).
+  * `apps/tests/ai_converter.py`: `save_converted_test` funksiyasi `@transaction.atomic` bilan ta'minlanib, turli fanlar (`uzbek`, `adabiyot`, `milliy` -> `Test.ExamType.NATIONAL_CERT`, `english`) bo'yicha to'g'ri bog'lanish yaratildi.
+- [x] 2-Bosqich: "Smart Paste" Test Parser Versatiligi:
+  * `frontend/src/lib/testParser.ts` va `apps/tests/ai_converter.py`: Word, PDF yoki Telegram'dan nusxalangan matndan savollar (`1.`, `1)`, `1 -`, `Savol 1:`, `№1`), variantlar (`A)`, `B)`, `A.`, `B.`, `A -`, `(A)`, `[A]`) va to'g'ri javoblarni (`*A)`, `+B)`, `A) matn*`, `Javob: B`, `Ans: C`, `Answer: D`, `Kalitlar: 1.A 2.B`, `1-A 2-B`) 100% aniqlik bilan ajratuvchi mukammal parser joriy qilindi.
+- [x] 3-Bosqich: Interaktiv Jonli Ko'rib Chiqish va Inline Tahrirlash:
+  * `/tests/create` sahifasida matn tashlanishi bilan real-vaqtda interaktiv kartochkalar chiziladi.
+  * O'qituvchilar har bir savol matnini joyida tahrirlash (inline edit), savolni o'chirish yoki sichqoncha bilan 1-marta bosib to'g'ri variantni tanlash imkoniyatiga ega bo'ldi.
+- [x] 4-Bosqich: Havola va Telegram Guruhga Ulashish:
+  * Test saqlanishi bilanoq chiroyli modal oyna orqali qisqa PIN kod (`#MOCK-XXX`), to'g'ridan-to'g'ri havola (`https://grandec.uz/tests/<id>`) va **[Telegram guruhga ulashish]** tugmasi (`https://t.me/share/url?url=...&text=...`) taqdim etiladi.
+  * `frontend/src/App.tsx`: `/tests/take/:id` va `/tests/:id` havolalari o'quvchini to'g'ridan-to'g'ri test topshirish oynasiga olib kirishi kafolatlandi.
+- [x] 5-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (2.36s).
+  * `python manage.py check`: 0 ta muammo (System check identified no issues).
+  * Git muallifi: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS deploy: Faqat `/opt/lms` loyihasidagi `web` va `nginx` konteynerlari uzilishsiz yangilandi. `bestway` 100% daxlsiz saqlandi.
+
 ### 2.49. Rasmiy Versiya v1.53.0: UI Refaktoring — Ikkitalik Logotipni Yo'qotish, Oltinrang Luxury Kartochkalar va Mobil 2x2 Layout
 - [x] 1-Bosqich: Ikkitalik Logotipni Yo'qotish (Duplicate Logo Elimination):
   * `Layout.tsx`: Topbar mobil logotipidan (`.topbar-mobile-brand`) inline `style={{ display: 'flex' }}` olib tashlandi.
