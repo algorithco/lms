@@ -100,6 +100,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
+    const currentLang = typeof localStorage !== 'undefined'
+      ? (localStorage.getItem('i18nextLng') || localStorage.getItem('lms_lang') || 'uz')
+      : 'uz';
+    if (!headers.has('Accept-Language')) {
+      headers.set('Accept-Language', currentLang);
+    }
     return fetch(`${API_BASE}${path}`, { ...init, headers });
   };
 

@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.60. Rasmiy Versiya v1.68.0: 1v1 Arena ELO Animatsiyalari, Esse PDF Eksporti, Linear-Style Dark Mode va Global i18n (UZ | RU | EN)
+- [x] 1-Vazifa: 1v1 Arena Real-time Duels Takomillashtirilishi (`Arena.tsx`, `DuelRoom.tsx`):
+  * Foydalanuvchi ligasi nishonlari (🥉 Bronza, 🥈 Kumush, 🥇 Oltin, 💎 Olmos) ELO reytingi asosida dinamik ulandi.
+  * Duel yakunlanganda g'olib/mag'lub/durang holati uchun ELO animatsiyasi (`▲ +28 ELO` / `▼ -15 ELO`) va rag'batlantiruvchi xabarlar qo'shildi.
+  * Taymer (12s/15s) va savollar almashinuvi vizual ko'rsatkichlari kuchaytirildi, Ready 3..2..1..Fight holati to'liq animatsiyalandi.
+- [x] 2-Vazifa: AI Esse Studiyasi va BMB Baholash Varaqasi (`EssayResult.tsx`):
+  * BMB 12 mezonli rasmiy daraja nishoni (A+, A, B+, B, C+, C, F) va 60 ballik konversiya hisob-kitobi ulandi.
+  * 1-Click "Rasmiy BMB Natija Varaqasini (PDF) yuklab olish" (`window.print()`) tugmasi qo'shildi.
+  * Insho matnidagi imlo va grammatika xatoliklariga interaktiv to'lqinsimon chiziqlar va 1-klikda to'g'rilash (Grammarly rejimi) to'liq ishga tushirildi.
+- [x] 3-Vazifa: Oliy Kontrastli To'q (Deep Rich Night) Dark Mode (`#0A0E17`):
+  * `index.css` da `.dark` rejimi uchun chuqur ko'k-qora fon (`#0A0E17`) va sarlavhalarga `color: #F8FAFC !important`, oddiy matnlarga `#CBD5E1` berildi.
+  * Kartalar va nishonlar nozik tilla hoshiyalar (`rgba(245, 158, 11, 0.18)`) va chuqur soyalar bilan yaqqol ajratildi.
+  * Hero va topbar elementlari ostidagi nokerak qora overlaylar tozalanib, sarlavha va matnlar to'liq yorqin holatda old planga chiqarildi.
+- [x] 4-Vazifa: 100% Global Tillar Tizimi (UZ, RU, EN) Frontend va API Integratsiyasi:
+  * `LangContext.tsx`: Tanlangan til darhol `localStorage.setItem('i18nextLng', lang)` va `lms_lang` da saqlanadi, `useCallback([lang])` orqali butun sayt bo'ylab zudlik bilan re-render ta'minlandi.
+  * Asosiy Menyu (`Layout.tsx`), Topbar navigatsiyasi va Bosh sahifa (`Landing.tsx`) to'liq `t(...)` orqali dinamik qilindi.
+  * `translations.json` barcha asosiy sahifalar uchun UZ, RU, EN kalitlari bilan boyitildi.
+  * `src/lib/api.ts`: Barcha API so'rovlariga avtomatik `Accept-Language: <lang>` headeri ulandi.
+- [x] 5-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `npm --prefix frontend run lint`: 0 ta xatolik.
+  * `npm --prefix frontend run build`: 0 ta xatolik, toza yig'ildi (1.21s).
+  * `python manage.py check`: 0 ta xatolik.
+  * `pytest tests/test_essays_routing.py tests/test_arena.py`: 83 ta test 100% PASS.
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * Contabo VPS (`169.58.58.229`) da faqat `grandec` (`/opt/lms`) yangilandi, `bestway` daxlsiz saqlandi.
+
 ### 2.59. Rasmiy Versiya v1.67.0: CI/CD Workflows 100% Yashil Qilinishi, Yangi Narxlar (7k/15k/27k) va Karta Raqami Orqali To'lov (Telegram 1-Click Tasdiqlash)
 - [x] 1-Vazifa: GitHub Actions CI/CD Ish Oqimlarini 100% Yashil Qilish:
   * `.github/workflows/ci.yml` va `build.yml` da eskirgan `actions/checkout@v7` to'g'rilanib `actions/checkout@v4` ga o'tkazildi.

@@ -284,7 +284,7 @@ export default function Landing() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Testlar
+              {t('nav_tests', 'Testlar')}
             </Link>
             <Link
               to="/essays"
@@ -298,7 +298,7 @@ export default function Landing() {
                 transition: 'all 0.15s ease',
               }}
             >
-              AI Esse (12 mezon)
+              {t('nav_essays', 'AI Esse')}
             </Link>
             <Link
               to="/arena"
@@ -312,7 +312,7 @@ export default function Landing() {
                 transition: 'all 0.15s ease',
               }}
             >
-              1v1 Arena
+              {t('nav_arena', '1v1 Arena')}
             </Link>
             <button
               type="button"
@@ -331,7 +331,7 @@ export default function Landing() {
                 gap: 6,
               }}
             >
-              <span>O&apos;tish ballari 2026</span>
+              <span>{t('nav_passing_scores', "O'tish ballari")} 2026</span>
               <span
                 style={{
                   fontSize: 10,
@@ -357,7 +357,7 @@ export default function Landing() {
                 transition: 'all 0.15s ease',
               }}
             >
-              Tariflar
+              {t('nav_pricing', 'Tariflar')}
             </Link>
           </nav>
 

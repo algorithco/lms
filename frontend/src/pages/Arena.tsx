@@ -278,6 +278,32 @@ export default function Arena() {
                 ELO{stats.rank ? ` · #${stats.rank}` : ''}
               </small>
             </span>
+            {stats.rating !== undefined && (
+              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                {(() => {
+                  const r = Number(stats.rating ?? 0);
+                  let badge = '🥉 Bronza';
+                  let color = '#cd7f32';
+                  if (r >= 1800) { badge = '💎 Olmos'; color = '#67e8f9'; }
+                  else if (r >= 1500) { badge = '🥇 Oltin'; color = '#fbbf24'; }
+                  else if (r >= 1200) { badge = '🥈 Kumush'; color = '#94a3b8'; }
+                  return (
+                    <span style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color,
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: `1px solid ${color}`,
+                      borderRadius: 20,
+                      padding: '3px 10px',
+                      letterSpacing: '0.02em',
+                    }}>
+                      {badge}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
             <p className="muted small">
               {t('arena_wins')}: {stats.wins ?? '—'} · {t('arena_losses')}:{' '}
               {stats.losses ?? '—'} · {t('arena_draws')}: {stats.draws ?? '—'}

@@ -42,44 +42,114 @@ html.light {
 }
 
 html.dark {
-  --bg: #0B0F17;
-  --bg-page: #0B0F17;
-  --bg-gradient: radial-gradient(circle at 50% 0%, #161e2e 0%, #0B0F17 100%);
-  --card: #1E293B;
-  --bg-card: #1E293B;
-  --card-surface: rgba(30, 41, 59, 0.88);
-  --card-2: #0F172A;
-  --bg-card-2: #0F172A;
-  --border: rgba(255, 255, 255, 0.09);
-  --border-color: rgba(255, 255, 255, 0.09);
+  --bg: #0A0E17;
+  --bg-page: #0A0E17;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #111827 0%, #0A0E17 100%);
+  --card: #131B2E;
+  --bg-card: #131B2E;
+  --card-surface: rgba(19, 27, 46, 0.92);
+  --card-2: #0E1524;
+  --bg-card-2: #0E1524;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-color: rgba(255, 255, 255, 0.12);
   --border-focus: #f59e0b;
   --ink: #f8fafc;
   --text-primary: #f8fafc;
   --ink-soft: #e2e8f0;
   --muted: #94a3b8;
-  --text-secondary: #94a3b8;
+  --text-secondary: #cbd5e1;
   --accent: #f59e0b;
   --accent-dark: #fbbf24;
   --accent-deep: #d97706;
   --emerald: #10b981;
   --emerald-light: #34d399;
   --danger: #f43f5e;
-  --sidebar-bg: linear-gradient(180deg, #0f141c, #131926);
+  --sidebar-bg: #0A0E17;
   --sidebar-ink: #f8fafc;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-link: #94a3b8;
   --sidebar-link-hover: #fef9c3;
   --sidebar-link-active: #fde047;
   --sidebar-link-bg-active: linear-gradient(135deg, rgba(250, 204, 21, 0.2), rgba(250, 204, 21, 0.08));
   --radius: 0.875rem;
   --font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
-  --topbar-bg: rgba(15, 20, 28, 0.88);
-  --dropdown-bg: #131926;
-  --dropdown-border: rgba(255, 255, 255, 0.12);
-  --dropdown-hover: rgba(255, 255, 255, 0.06);
-  --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  --header-bg: rgba(19, 25, 38, 0.88);
+  --topbar-bg: rgba(10, 14, 23, 0.92);
+  --dropdown-bg: #131B2E;
+  --dropdown-border: rgba(255, 255, 255, 0.15);
+  --dropdown-hover: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  --header-bg: rgba(10, 14, 23, 0.92);
   color-scheme: dark;
+}
+
+/* Deep Rich Night (Linear-style high-contrast Dark Mode) */
+html.dark,
+.dark {
+  background-color: #0A0E17 !important;
+  color: #F8FAFC;
+}
+
+html.dark body,
+.dark body {
+  background-color: #0A0E17 !important;
+  color: #F8FAFC;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #F8FAFC !important;
+}
+
+html.dark p,
+.dark p {
+  color: #CBD5E1;
+}
+
+/* High contrast for cards and borders in dark mode */
+html.dark .card,
+html.dark .glass-card,
+html.dark .lcard,
+.dark .card,
+.dark .glass-card,
+.dark .lcard {
+  background-color: rgba(19, 27, 46, 0.92) !important;
+  border-color: rgba(245, 158, 11, 0.18) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* Fix hardcoded dark colors on text in dark mode */
+html.dark [style*="color: #0F172A"],
+html.dark [style*="color: #0f172a"],
+html.dark [style*="color:#0F172A"],
+html.dark [style*="color:#0f172a"],
+.dark [style*="color: #0F172A"],
+.dark [style*="color: #0f172a"] {
+  color: #F8FAFC !important;
+}
+
+html.dark [style*="color: #475569"],
+html.dark [style*="color: #334155"],
+html.dark [style*="color:#475569"],
+html.dark [style*="color:#334155"],
+.dark [style*="color: #475569"],
+.dark [style*="color: #334155"] {
+  color: #CBD5E1 !important;
+}
+
+/* Clear excessive dark overlays on Hero & Topbar in dark mode */
+html.dark .hero-overlay,
+.dark .hero-overlay {
+  opacity: 0.15 !important;
 }
 
 body,

@@ -111,6 +111,18 @@ function renderHighlightedText(text?: string, errors?: SpellingError[]) {
   }
 }
 
+function getBmbGrade(totalScore: number | null, maxScore: number): { grade: string; color: string; bg: string } | null {
+  if (totalScore === null || totalScore === undefined) return null;
+  const score60 = Math.round((totalScore / maxScore) * 60);
+  if (score60 >= 54) return { grade: 'A+', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+  if (score60 >= 48) return { grade: 'A', color: '#10b981', bg: 'rgba(16, 185, 129, 0.10)' };
+  if (score60 >= 42) return { grade: 'B+', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' };
+  if (score60 >= 36) return { grade: 'B', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.10)' };
+  if (score60 >= 30) return { grade: 'C+', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+  if (score60 >= 24) return { grade: 'C', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.10)' };
+  return { grade: 'F', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.10)' };
+}
+
 export default function EssayResult() {
   const { id = '' } = useParams();
   const { t } = useLang();
@@ -470,6 +482,50 @@ export default function EssayResult() {
               </p>
             </div>
           ) : null}
+          {!isEnglish && (() => {
+            const bmbGrade = getBmbGrade(displayScore, res.max_score);
+            const score60 = displayScore !== null ? Math.round((displayScore / res.max_score) * 60) : null;
+            return bmbGrade ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                padding: '16px 20px',
+                background: bmbGrade.bg,
+                border: `2px solid ${bmbGrade.color}`,
+                borderRadius: 16,
+                marginBottom: 20,
+              }}>
+                <div style={{
+                  fontSize: '3.5rem',
+                  fontWeight: 900,
+                  color: bmbGrade.color,
+                  lineHeight: 1,
+                  minWidth: 80,
+                  textAlign: 'center',
+                }}>
+                  {bmbGrade.grade}
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text, #f3f4f6)' }}>
+                    🏆 BMB Rasmiy Baho
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--muted, #9ca3af)', marginTop: 4 }}>
+                    {score60 !== null ? `${score60} / 60 ball` : ''} · 12 mezon bo’yicha baholandi
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: bmbGrade.color, fontWeight: 600, marginTop: 4 }}>
+                    {bmbGrade.grade === 'A+' ? '⭐ Ajoyib! Eng yuqori daraja' :
+                     bmbGrade.grade === 'A' ? "🎉 A'lo! Yuqori daraja" :
+                     bmbGrade.grade === 'B+' ? "✅ Yaxshi+! Yuqori o'rta" :
+                     bmbGrade.grade === 'B' ? "✅ Yaxshi! O'rta daraja" :
+                     bmbGrade.grade === 'C+' ? '⚠️ Qoniqarli+! Rivojlanish kerak' :
+                     bmbGrade.grade === 'C' ? "⚠️ Qoniqarli. Ko'proq mashq qiling" :
+                     '❌ Qoniqarsiz. Qayta yozish tavsiya etiladi'}
+                  </div>
+                </div>
+              </div>
+            ) : null;
+          })()}
           <h2>{t('essay_grading_graded')}</h2>
           {res.cached && (
             <p className="muted small">{t('essay_grading_cached')}</p>
@@ -1073,6 +1129,25 @@ export default function EssayResult() {
                 </div>
               </div>
             )}
+        {/* PDF/Print Button */}
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => window.print()}
+            style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderColor: '#3b82f6',
+              color: '#3b82f6',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontWeight: 700,
+            }}
+          >
+            <span>📄</span> Rasmiy BMB Natija Varaqasini (PDF) yuklab olish
+          </button>
+        </div>
         </>
       )}
 

@@ -235,7 +235,7 @@ export default function EssayWrite() {
 
     // Instant client pre-validation check
     const hasCharRepeat = /([a-zA-Zа-яА-ЯёЁ0-9])\1{4,}/.test(text);
-    const hasLongWord = text.split(/\s+/).some((w) => w.replace(/['\-]/g, '').length > 35);
+    const hasLongWord = text.split(/\s+/).some((w) => w.replace(/['-]/g, '').length > 35);
     const hasSmash = /(?:asdf|qwer|zxcv|asdasd|jkl;|ghjk|qwerty|tyui|dfgh|12345){2,}/i.test(text);
     if (hasCharRepeat || hasLongWord || hasSmash) {
       setErr('⛔ Matn tushunarsiz yoki safsata deb topildi. Iltimos, haqiqiy esse matnini kiriting.');

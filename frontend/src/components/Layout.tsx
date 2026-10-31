@@ -103,24 +103,24 @@ export default function Layout() {
           </span>
         </Link>
         <nav className="side-nav" aria-label="Ilova bo'limlari">
-          <Section title="Asosiy Menyu">
+          <Section title={t('main_menu', 'Asosiy Menyu')}>
             <NavLink to="/dashboard" className={linkClass} onClick={close}>
-              <LayoutDashboardIcon size={16} className="ico" /> Boshqaruv paneli
+              <LayoutDashboardIcon size={16} className="ico" /> {t('dashboard', 'Boshqaruv paneli')}
             </NavLink>
             <NavLink to="/tests" className={linkClass} onClick={close}>
-              <FileTextIcon size={16} className="ico" /> Testlar (CBT Testlar)
+              <FileTextIcon size={16} className="ico" /> {t('cbt_tests', 'Testlar (CBT)')}
             </NavLink>
             <NavLink to="/essays" className={linkClass} onClick={close}>
-              <PenLineIcon size={16} className="ico" /> AI Esse Studiyasi
+              <PenLineIcon size={16} className="ico" /> {t('ai_essay_studio', 'AI Esse Studiyasi')}
             </NavLink>
             <NavLink to="/arena" className={linkClass} onClick={close}>
-              <SwordsIcon size={16} className="ico" /> 1v1 Arena (Jonli jang)
+              <SwordsIcon size={16} className="ico" /> {t('arena_live_duel', '1v1 Arena (Jonli jang)')}
             </NavLink>
             <NavLink to="/results" className={linkClass} onClick={close}>
-              <TrophyIcon size={16} className="ico" /> Natijalar va Tahlil
+              <TrophyIcon size={16} className="ico" /> {t('results_analysis', 'Natijalar va Tahlil')}
             </NavLink>
             <NavLink to="/tests/scan-omr" className={linkClass} onClick={close}>
-              <CameraIcon size={16} className="ico" /> Titul (OMR) Skaner
+              <CameraIcon size={16} className="ico" /> {t('titul_scanner', 'Titul (OMR) Skaner')}
             </NavLink>
             {activeSubject === 'english' && (
               <NavLink to="/speaking" className={linkClass} onClick={close}>
@@ -160,13 +160,13 @@ export default function Layout() {
           <div style={{ margin: '16px 10px 10px', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <CrownIcon size={16} style={{ color: '#f59e0b' }} />
-              <strong style={{ fontSize: 13, color: '#f59e0b' }}>Premium A’zolik</strong>
+              <strong style={{ fontSize: 13, color: '#f59e0b' }}>{t('premium_membership', 'Premium A’zolik')}</strong>
             </div>
             <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
-              12 mezonli BMB esse tekshiruvi va cheksiz CBT testlar.
+              {t('premium_sub_hint', '12 mezonli BMB esse tekshiruvi va cheksiz CBT testlar.')}
             </p>
             <Link to="/subscribe" className="btn sm primary" onClick={close} style={{ width: '100%', textAlign: 'center', display: 'block', padding: '7px 10px', fontSize: 12, borderRadius: 10, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', color: '#090d16' }}>
-              Tarifni oshirish →
+              {t('upgrade_tier', 'Tarifni oshirish')} →
             </Link>
           </div>
         </nav>

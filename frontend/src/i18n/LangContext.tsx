@@ -158,10 +158,11 @@ export function translate(key: string, lang: AppLang, fallback?: string): string
 
 function readStoredLang(): AppLang {
   try {
-    const v = localStorage.getItem(LANG_KEY);
+    const v = (localStorage.getItem('i18nextLng') || localStorage.getItem(LANG_KEY)) as AppLang | null;
     if (v === 'ru' || v === 'en' || v === 'uz') return v;
     // Strictly default to 'uz' (Uzbek) on first visit and persist
     localStorage.setItem(LANG_KEY, 'uz');
+    localStorage.setItem('i18nextLng', 'uz');
   } catch {
     /* ignore */
   }
@@ -172,6 +173,7 @@ function readStoredLang(): AppLang {
 export function storeLang(lang: AppLang): void {
   try {
     localStorage.setItem(LANG_KEY, lang);
+    localStorage.setItem('i18nextLng', lang);
   } catch {
     /* ignore */
   }
@@ -191,8 +193,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
   langRef.current = lang;
 
   const t = useCallback(
-    (key: string, fallback?: string) => translate(key, langRef.current, fallback),
-    [],
+    (key: string, fallback?: string) => translate(key, lang, fallback),
+    [lang],
   );
 
   // Update document.documentElement.lang when language changes

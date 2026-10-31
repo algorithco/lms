@@ -512,10 +512,25 @@ export default function DuelRoom() {
 
       {state === 'countdown' && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-          <div style={{ fontSize: 72, fontWeight: 900, color: '#FACC15' }}>
-            {Math.max(countdown, 1)}
+          <div style={{
+            fontSize: 88,
+            fontWeight: 900,
+            color: countdown <= 1 ? '#10b981' : '#FACC15',
+            lineHeight: 1,
+            transition: 'color 0.3s ease',
+          }}>
+            {countdown <= 0 ? '⚔️' : Math.max(countdown, 1)}
           </div>
-          <p className="muted">{t('arena_starting')}</p>
+          <p className="muted" style={{ marginTop: 14, fontSize: '1.05rem', fontWeight: 600 }}>
+            {countdown <= 0 ? 'JANG BOSHLANDI!' : t('arena_starting')}
+          </p>
+          {p1 && p2 && (
+            <p className="muted small" style={{ marginTop: 8 }}>
+              <strong style={{ color: '#FACC15' }}>{p1.name}</strong>
+              {' '}⚔️{' '}
+              <strong style={{ color: '#ef4444' }}>{p2.name}</strong>
+            </p>
+          )}
         </div>
       )}
 
@@ -538,7 +553,22 @@ export default function DuelRoom() {
                   <b style={{ color: '#FACC15' }}>{myScore}</b>
                 </span>
               </div>
-              <span className={`timer${timeLeft <= 5 ? ' low' : ''}`}>{timeLeft}s</span>
+              <span className={`timer${timeLeft <= 5 ? ' low' : ''}`} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 48,
+                height: 34,
+                borderRadius: 17,
+                padding: '0 10px',
+                background: timeLeft <= 5 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)',
+                border: `1.5px solid ${timeLeft <= 5 ? '#ef4444' : '#f59e0b'}`,
+                color: timeLeft <= 5 ? '#ef4444' : '#f59e0b',
+                fontWeight: 800,
+                fontSize: '1rem',
+              }}>
+                ⏱️ {timeLeft}s
+              </span>
               <div className="score-side right">
                 <span>
                   <b style={{ display: 'block', fontSize: 13 }}>
@@ -633,10 +663,41 @@ export default function DuelRoom() {
           <p className="stat-value">
             {myScore} : {otherScore}
           </p>
-          <p className="muted small">
-            ⚡ +{rewards.xp} {t('xp')} · 🪙 +{rewards.coins} {t('coins')} · ELO{' '}
-            {rewards.elo >= 0 ? `+${rewards.elo}` : rewards.elo}
-          </p>
+          <div style={{ marginTop: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.9rem', color: '#a78bfa', fontWeight: 600 }}>
+                ⚡ +{rewards.xp} {t('xp')}
+              </span>
+              <span style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: 600 }}>
+                🪙 +{rewards.coins} {t('coins')}
+              </span>
+              <span style={{
+                fontSize: '1.05rem',
+                fontWeight: 800,
+                color: rewards.elo >= 0 ? '#10b981' : '#ef4444',
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: rewards.elo >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              }}>
+                ELO {rewards.elo >= 0 ? `▲ +${rewards.elo}` : `▼ ${rewards.elo}`}
+              </span>
+            </div>
+            {result === 'win' && (
+              <p style={{ fontSize: '0.85rem', color: '#10b981', marginTop: 10, fontWeight: 600 }}>
+                🎉 Ajoyib g'alaba! Reytingingiz oshdi!
+              </p>
+            )}
+            {result === 'lose' && (
+              <p style={{ fontSize: '0.85rem', color: '#ef4444', marginTop: 10, fontWeight: 600 }}>
+                💪 Yaxshi kurash bo'ldi! Keyingi duelda albatta yutasiz.
+              </p>
+            )}
+            {result === 'draw' && (
+              <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 10, fontWeight: 600 }}>
+                🤝 Do'stlik g'alaba qozondi! Teng kurash bo'ldi.
+              </p>
+            )}
+          </div>
           <button className="btn primary" onClick={() => navigate('/arena')}>
             {t('back')} →
           </button>
