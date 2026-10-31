@@ -937,16 +937,9 @@ def teacher_submit_review_view(
     allowed = {0.0, 0.5, 1.0, 1.5, 2.0}
     for cid in range(1, 13):
         raw = request.POST.get(f"score_{cid}", "0")
-        raw_str = str(raw).strip() if raw is not None else ""
+        raw_str = str(raw).strip() if raw is not None else "0"
         if raw_str == "":
-            return _safe_render_partial(
-                request,
-                "essays/teacher_review_result_partial.html",
-                {
-                    "success": False,
-                    "error": f"Mezon #{cid}: ball kiritilmadi.",
-                },
-            )
+            raw_str = "0"
         try:
             val = float(raw_str)
         except (ValueError, TypeError):

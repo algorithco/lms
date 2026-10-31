@@ -54,19 +54,54 @@ def enterprise_dashboard_view(request):
             {"error": "O'quvchilar uchun markaz boshqaruvi ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
-    center = _get_user_center(user)
 
-    # If user doesn't have a center yet, auto-provision one for demo/owner
+    # All centers accessible to this user
+    if user.is_staff or user.role == "admin":
+        centers_qs = LearningCenter.objects.all().order_by("-created_at")
+    elif hasattr(user, "owned_centers"):
+        centers_qs = user.owned_centers.all().order_by("-created_at")
+    else:
+        centers_qs = LearningCenter.objects.none()
+
+    center_id = request.GET.get("center_id")
+    center = None
+    if center_id:
+        try:
+            center = centers_qs.get(id=center_id)
+        except (LearningCenter.DoesNotExist, ValueError):
+            center = None
+
     if not center:
-        center = LearningCenter.objects.create(
-            name=f"{user.get_full_name() or user.first_name or 'Grand'} Ta'lim Markazi",
-            owner=user,
-            student_seat_limit=100,
-            subscription_expires_at=timezone.now() + timedelta(days=365),
+        center = _get_user_center(user)
+
+    all_centers = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "slug": c.slug,
+            "phone": c.phone,
+            "address": c.address,
+            "student_seat_limit": c.student_seat_limit,
+            "total_students": c.total_students_count,
+            "remaining_seats": c.remaining_seats,
+            "branches_count": c.branches.count(),
+            "is_active": c.is_active,
+        }
+        for c in centers_qs
+    ]
+
+    # If user doesn't have a center yet, return empty state data cleanly
+    if not center:
+        return Response(
+            {
+                "center": None,
+                "centers": all_centers,
+                "stats": None,
+                "branches": [],
+                "teachers": [],
+                "recent_results": [],
+            }
         )
-        CenterBranch.objects.create(center=center, name="Bosh filial")
-        user.learning_center = center
-        user.save(update_fields=["learning_center"])
 
     students = center.users.filter(role="student")
     total_students = students.count()
@@ -170,11 +205,14 @@ def enterprise_dashboard_view(request):
                 "id": center.id,
                 "name": center.name,
                 "slug": center.slug,
+                "phone": center.phone,
+                "address": center.address,
                 "student_seat_limit": seat_limit,
                 "remaining_seats": center.remaining_seats,
                 "subscription_expires_at": center.subscription_expires_at,
                 "is_active": center.is_active,
             },
+            "centers": all_centers,
             "stats": {
                 "total_students": total_students,
                 "seat_limit": seat_limit,
@@ -186,6 +224,115 @@ def enterprise_dashboard_view(request):
             "teachers": teachers_data,
             "recent_results": recent_results,
         }
+    )
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def enterprise_create_center_view(request):
+    """
+    Yangi O'quv Markazi Yaratish (Create Learning Center):
+    - POST: name, address, phone, branches_count, student_seat_limit
+    - GET: foydalanuvchiga tegishli markazlar ro'yxati
+    """
+    user = request.user
+    if request.method == "GET":
+        if user.is_staff or user.role == "admin":
+            qs = LearningCenter.objects.all().order_by("-created_at")
+        elif hasattr(user, "owned_centers"):
+            qs = user.owned_centers.all().order_by("-created_at")
+        else:
+            qs = LearningCenter.objects.none()
+
+        return Response(
+            {
+                "count": qs.count(),
+                "centers": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "slug": c.slug,
+                        "phone": c.phone,
+                        "address": c.address,
+                        "student_seat_limit": c.student_seat_limit,
+                        "total_students": c.total_students_count,
+                        "remaining_seats": c.remaining_seats,
+                        "branches_count": c.branches.count(),
+                        "is_active": c.is_active,
+                    }
+                    for c in qs
+                ],
+            }
+        )
+
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response(
+            {"detail": "Markaz nomini kiritish majburiy."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    phone = (request.data.get("phone") or "").strip()
+    address = (request.data.get("address") or "").strip()
+    branches_count_raw = request.data.get("branches_count", 1)
+    try:
+        branches_count = max(1, min(20, int(branches_count_raw)))
+    except (ValueError, TypeError):
+        branches_count = 1
+
+    seat_limit_raw = request.data.get("student_seat_limit", 50)
+    try:
+        seat_limit = max(10, min(10000, int(seat_limit_raw)))
+    except (ValueError, TypeError):
+        seat_limit = 50
+
+    with transaction.atomic():
+        center = LearningCenter.objects.create(
+            name=name,
+            owner=user,
+            phone=phone,
+            address=address,
+            student_seat_limit=seat_limit,
+            subscription_expires_at=timezone.now() + timedelta(days=365),
+            is_active=True,
+        )
+
+        CenterBranch.objects.create(
+            center=center,
+            name="Bosh filial",
+            phone=phone,
+            address=address,
+        )
+        for i in range(2, branches_count + 1):
+            CenterBranch.objects.create(
+                center=center,
+                name=f"{i}-filial",
+                phone=phone,
+                address=address,
+            )
+
+        if getattr(user, "role", None) == "student" and not user.is_staff:
+            user.role = "center_admin"
+        if not user.learning_center:
+            user.learning_center = center
+        user.save()
+
+    return Response(
+        {
+            "success": True,
+            "message": "Yangi o'quv markazi muvaffaqiyatli yaratildi!",
+            "center": {
+                "id": center.id,
+                "name": center.name,
+                "slug": center.slug,
+                "phone": center.phone,
+                "address": center.address,
+                "student_seat_limit": center.student_seat_limit,
+                "remaining_seats": center.remaining_seats,
+                "is_active": center.is_active,
+            },
+        },
+        status=status.HTTP_201_CREATED,
     )
 
 

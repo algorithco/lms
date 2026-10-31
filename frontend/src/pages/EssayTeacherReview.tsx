@@ -7,7 +7,17 @@ import { TeacherEssays, canReviewEssays, isPlatformAdmin } from '../lib/api';
 import { PencilIcon } from '../components/icons';
 import type { TeacherEssayDetail } from '../lib/api';
 
-const SCORE_STEPS = [0, 0.5, 1, 1.5, 2];
+const isScoreMissing = (val: any) => val === undefined || val === null || val === '';
+
+const CRITERION_MAX: Record<number, number> = {
+  1: 2, 2: 2, 3: 2, 4: 1.5, 5: 1.5, 6: 1.5,
+  7: 2, 8: 1.5, 9: 1.5, 10: 1.5, 11: 1.5, 12: 1.5,
+};
+
+const getScoreSteps = (cid: number) => {
+  const max = CRITERION_MAX[cid] ?? 2;
+  return max === 1.5 ? [0, 0.5, 1, 1.5] : [0, 0.5, 1, 1.5, 2];
+};
 
 /** Single-essay teacher review (parity with legacy /essays/teacher/<id>/review/). */
 export default function EssayTeacherReview() {
@@ -31,20 +41,32 @@ export default function EssayTeacherReview() {
       .then((d) => {
         setData(d);
         const preset: Record<number, number> = {};
-        if (d.existing_review) {
+        for (let i = 1; i <= 12; i++) {
+          preset[i] = 0;
+        }
+        if (d.existing_review?.criteria_scores) {
           for (const [k, v] of Object.entries(d.existing_review.criteria_scores)) {
-            preset[Number(k)] = Number(v);
+            if (!isScoreMissing(v)) {
+              preset[Number(k)] = Number(v);
+            }
           }
-          setComments(d.existing_review.teacher_comments);
-        } else {
-          for (const c of d.ai_criteria) preset[c.criterion_id] = c.score;
+          setComments(d.existing_review.teacher_comments || '');
+        } else if (d.ai_criteria && d.ai_criteria.length > 0) {
+          for (const c of d.ai_criteria) {
+            if (!isScoreMissing(c.score)) {
+              preset[c.criterion_id] = Number(c.score);
+            }
+          }
         }
         setScores(preset);
       })
       .catch((e) => setErr(e instanceof Error ? e.message : t('err_retry_js')));
   }, [id, t]);
 
-  const total = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+  const total = Array.from({ length: 12 }, (_, i) => i + 1).reduce((a, cid) => {
+    const val = scores[cid];
+    return a + (isScoreMissing(val) ? 0 : Number(val));
+  }, 0);
 
   const isAdmin = isPlatformAdmin(user);
 
@@ -77,9 +99,28 @@ export default function EssayTeacherReview() {
     e.preventDefault();
     setBusy(true);
     setErr(null);
+
+    // Strict validation: every criterion 1..12 must be present (0 is completely valid)
+    const sanitizedScores: Record<number, number> = {};
+    for (let cid = 1; cid <= 12; cid++) {
+      const val = scores[cid];
+      if (isScoreMissing(val)) {
+        setErr(`Mezon #${cid}: ball kiritilmadi.`);
+        setBusy(false);
+        return;
+      }
+      const num = Number(val);
+      if (isNaN(num) || num < 0) {
+        setErr(`Mezon #${cid}: ball noto'g'ri kiritildi.`);
+        setBusy(false);
+        return;
+      }
+      sanitizedScores[cid] = num;
+    }
+
     try {
       const r = await TeacherEssays.submitReview(id, {
-        criteria_scores: scores,
+        criteria_scores: sanitizedScores,
         teacher_comments: comments,
       });
       setSaved(r.final_score);
@@ -146,13 +187,13 @@ export default function EssayTeacherReview() {
 
       {saved !== null && (
         <p className="ok">
-          {t('tr_review_saved')}: {saved}/24
+          {t('tr_review_saved')}: {saved}/20
         </p>
       )}
 
       <form onSubmit={onSubmit}>
         <h2>
-          {t('tr_your_score')} — {total}/24
+          {t('tr_your_score')} — {total.toFixed(1)}/20
         </h2>
         <div className="table-wrap">
           <table className="data">
@@ -167,19 +208,23 @@ export default function EssayTeacherReview() {
             <tbody>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((cid) => {
                 const ai = data.ai_criteria.find((c) => c.criterion_id === cid);
+                const max = CRITERION_MAX[cid] ?? 2;
+                const steps = getScoreSteps(cid);
+                const currentVal = isScoreMissing(scores[cid]) ? 0 : scores[cid];
                 return (
                   <tr key={cid}>
                     <td>{cid}</td>
                     <td>{data.criterion_names[String(cid)] ?? ai?.name ?? '—'}</td>
-                    <td>{ai ? `${ai.score}/2` : '—'}</td>
+                    <td>{ai ? `${ai.score}/${max}` : `—/${max}`}</td>
                     <td>
                       <select
-                        value={scores[cid] ?? 0}
-                        onChange={(e) =>
-                          setScores((s) => ({ ...s, [cid]: Number(e.target.value) }))
-                        }
+                        value={currentVal}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setScores((s) => ({ ...s, [cid]: val }));
+                        }}
                       >
-                        {SCORE_STEPS.map((v) => (
+                        {steps.map((v) => (
                           <option key={v} value={v}>
                             {v}
                           </option>

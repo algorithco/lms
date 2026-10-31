@@ -1004,7 +1004,9 @@ class TeacherReviewService:
         validated_scores = {}
 
         for cid in range(1, 13):
-            raw = criteria_scores.get(cid, 0)
+            raw = criteria_scores.get(cid, criteria_scores.get(str(cid), 0))
+            if raw is None or raw == "":
+                raw = 0
             score = Decimal(str(raw))
             max_s = EssayCriterionScore.CRITERION_MAX_SCORES.get(cid, Decimal("2.0"))
             if score not in VALID_SCORES or score > max_s:

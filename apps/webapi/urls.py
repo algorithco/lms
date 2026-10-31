@@ -732,6 +732,16 @@ urlpatterns = [
         name="enterprise_dashboard",
     ),
     path(
+        "enterprise/centers/",
+        views_enterprise.enterprise_create_center_view,
+        name="enterprise_centers",
+    ),
+    path(
+        "enterprise/centers/create/",
+        views_enterprise.enterprise_create_center_view,
+        name="enterprise_create_center",
+    ),
+    path(
         "enterprise/students/bulk-import/",
         views_enterprise.enterprise_bulk_import_view,
         name="enterprise_bulk_import",

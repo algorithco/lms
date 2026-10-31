@@ -167,7 +167,7 @@ def teacher_submit_review_view(request, submission_id: int):
 
     for cid in range(1, 13):
         raw = raw_scores.get(cid, raw_scores.get(str(cid), None))
-        if raw is None:
+        if raw is None or (isinstance(raw, str) and raw.strip() == ""):
             return Response({"detail": f"Mezon #{cid}: ball kiritilmadi."}, status=400)
         if isinstance(raw, bool):
             return Response({"detail": f"Mezon #{cid}: ball noto'g'ri."}, status=400)
@@ -177,10 +177,11 @@ def teacher_submit_review_view(request, submission_id: int):
             return Response(
                 {"detail": f"Mezon #{cid}: ball noto'g'ri format '{raw}'."}, status=400
             )
-        if not _math.isfinite(val) or val not in allowed_scores:
+        max_s = float(EssayCriterionScore.CRITERION_MAX_SCORES.get(cid, 2.0))
+        if not _math.isfinite(val) or val not in allowed_scores or val > max_s:
             return Response(
                 {
-                    "detail": f"Mezon #{cid}: ball {raw} yaroqsiz. Ruxsat: {sorted(allowed_scores)}"
+                    "detail": f"Mezon #{cid}: ball {raw} yaroqsiz (maksimal: {max_s}). Ruxsat: {sorted(allowed_scores)}"
                 },
                 status=400,
             )

@@ -9,6 +9,26 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.69. Rasmiy Versiya v1.78.0: Esse Tekshiruvida 0 Ballarni Qabul Qilish va B2B Enterprise Portali Empty State & Markaz Yaratish (8.2.0-Bosqich)
+- [x] 1-Vazifa: Esse Tekshirishda "0 Ball" Qabul Qilinmaslik Xatosi Bartaraf Etildi (`EssayTeacherReview.tsx`, `apps/webapi/views_essays.py`, `apps/essays/services.py`, `apps/essays/views.py`):
+  * `isScoreMissing = (val: any) => val === undefined || val === null || val === ''`: 0 ball (`0`, `0.0`, `"0"`) qonuniy va to'laqonli baho sifatida qabul qilinadigan qilindi.
+  * `EssayTeacherReview.tsx`: Sahifa yuklanganda barcha 12 mezon standart 0 ga preset qilinadi; har bir mezon maksimal balliga ko'ra dinamik qadamlar (1, 2, 3, 7-mezonlar 2 ballgacha; 4-6, 8-12-mezonlar 1.5 ballgacha) ulandi; jami ball rasmiy 20 ballik shkalada hisoblanadi.
+  * Backend validatsiyasi: `apps/webapi/views_essays.py` va `apps/essays/services.py` da 0.0 ballari `None` yoki `blank` xatoligi bermasdan to'g'ri qabul qilinib, bazada `final_score` aniq jamlanadi.
+- [x] 2-Vazifa: Enterprise Portali Cheksiz Loading Xatosi va Bo'sh Holat (Empty State) Interfeysi (`EnterpriseDashboard.tsx`, `apps/organizations/views.py`, `urls.py`, `apps/webapi/urls.py`):
+  * API marshrutlari `/api/v1/enterprise/dashboard/`, `/api/v1/enterprise/students/bulk-import/`, `/api/v1/enterprise/centers/create/` to'g'rilandi.
+  * `try / catch / finally` blokida xatolik yuz berganda ham `setLoading(false)` chaqirilishi va do'stona xabar ko'rsatilishi kafolatlandi.
+  * Bo'sh holat (Empty State): O'quv markazi bo'lmagan foydalanuvchilar uchun chiroyli kartochka: *"Hozircha birorta ham o'quv markazi mavjud emas"* va katta tilla rangli `[➕ Yangi O'quv Markazi Qo'shish]` tugmasi chiqarildi.
+  * `CreateCenterModal`: Markaz nomi, manzili, aloqa telefoni, filiallar soni (1..10) va o'quvchilar limiti (50..500) kiritilib, markaz va uning filiallari bazaga yaratilishi ta'minlandi (`POST /api/v1/enterprise/centers/create/`).
+  * Bir nechta markazi bo'lgan foydalanuvchilar uchun markazlararo o'tish selektori va filiallararo raqobat, ustozlar reytingi va test natijalari kartalari faol holatda render qilinadi.
+- [x] 3-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `oxlint`: 0 ta xatolik (73 ta ogohlantirish, 0 errors).
+  * `npm --prefix frontend run build`: 0 ta xatolik (2.71s).
+  * `python manage.py check`: 0 ta xatolik.
+  * `pytest tests/test_zero_scores_and_enterprise.py -v`: 3 ta test 100% PASS.
+  * `pytest tests/test_audit_fixes.py tests/test_strategic_features.py -q`: 14 ta test 100% PASS.
+  * Git mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * Production VPS (`169.58.58.229` / `/opt/lms`): faqat `grandec` yangilanadi, `bestway` 100% daxlsiz saqlanadi.
+
 ### 2.68. Rasmiy Versiya v1.77.1: RBAC Sinov Akkauntlari Seed Komandasi (Admin & Tasdiqlangan Ustoz)
 - [x] 1-Vazifa: Django Idempotent Management Command (`apps/accounts/management/commands/seed_accounts.py`):
   * Bosh Administrator: `admin.grandec@gmail.com` (`Grandec Superadmin`), parol: `GrandAdmin2026!`, roli: `admin`, `is_staff=True`, `is_superuser=True`, `plan="ADMIN_UNLIMITED"`, kvotalar: 9999.
