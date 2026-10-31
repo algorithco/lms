@@ -894,7 +894,7 @@ export default function Landing() {
         <section style={{ padding: '20px 20px 60px' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, color: '#0F172A', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
                 Qaysi imtihonga tayyorlanasiz?
               </h2>
               <p style={{ fontSize: 15, color: '#64748B', margin: 0, fontWeight: 600 }}>
@@ -1182,13 +1182,13 @@ export default function Landing() {
                           Task 1 & 2
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         IELTS Writing AI Grader
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         Cambridge 4 ta mezoni (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq baholash, xatolar tuzatmasi va Band prognozi.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#38BDF8' }} />
                           <span>Task 1 (Grafiklar) va Task 2 (Esse) toʻliq qoʻllab-quvvatlash</span>
@@ -1216,13 +1216,13 @@ export default function Landing() {
                           Part 1, 2, 3
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feat_ielts_spk_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feat_ielts_spk_sub')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#34D399' }} />
                           <span>Part 2 Cue Card va 1 daqiqalik tayyorgarlik taymeri</span>
@@ -1250,13 +1250,13 @@ export default function Landing() {
                           Reading & Listening
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feat_ielts_cbt_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feat_ielts_cbt_sub')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#818CF8' }} />
                           <span>Cambridge 10–19 rasmiy test savollari</span>
@@ -1289,13 +1289,13 @@ export default function Landing() {
                           B2 / C1 Insho
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         CEFR Writing AI Tahlili
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         Davlat BMB standarti boʻyicha rasmiy insho va rasmiy xatlar tekshiruvi, leksik boylik va grammatik aniqlik.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#818CF8' }} />
                           <span>Part 1 (Xat/Email) va Part 2 (Esse) 20 ballik tizimda</span>
@@ -1323,13 +1323,13 @@ export default function Landing() {
                           35 talik Savollar
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feat_multi_cbt_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feat_multi_cbt_sub')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#38BDF8' }} />
                           <span>Haqiqiy imtihon interfeysi va taymer</span>
@@ -1357,13 +1357,13 @@ export default function Landing() {
                           B1 · B2 · C1
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         Lugʻat va Grammatika Arenasi
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         CEFR darajalari uchun maxsus leksik mini-trenajyorlar va boshqa abituriyentlar bilan 1v1 viktorinalar.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#34D399' }} />
                           <span>Oxford 3000 & 5000 soʻzlar bazasi</span>
@@ -1396,13 +1396,13 @@ export default function Landing() {
                           {t('feature_card_essay_badge')}
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feature_card_essay_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feature_card_essay_desc')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
                           <span>{t('feature_card_essay_bullet1')}</span>
@@ -1430,13 +1430,13 @@ export default function Landing() {
                           {t('feature_card_tests_badge')}
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feature_card_tests_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feature_card_tests_desc')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
                           <span>{t('feature_card_tests_bullet1')}</span>
@@ -1464,13 +1464,13 @@ export default function Landing() {
                           {t('feature_card_arena_badge')}
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         {t('feature_card_arena_title')}
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         {t('feature_card_arena_desc')}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#8B5CF6' }} />
                           <span>{t('feature_card_arena_bullet1')}</span>
@@ -1503,13 +1503,13 @@ export default function Landing() {
                           50 talik Format
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         Attestatsiya Simulyatori
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         Mutaxassislik fani (35), Kasbiy standart (5) va Pedagogik mahorat (10) savollarini oʻz ichiga olgan rasmiy sinov formati.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#F59E0B' }} />
                           <span>Haqiqiy davlat test tizimiga 100% mos vaqt taymeri</span>
@@ -1537,13 +1537,13 @@ export default function Landing() {
                           Metodika & Keyslar
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         Pedagogik Mahorat Trenajyori
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         Yangi milliy oʻquv dasturi, 4K koʻnikmalari va formativ baholash metodikasi boʻyicha amaliy keys savollari.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#10B981' }} />
                           <span>Dars tahlili va interaktiv metodlar boʻyicha amaliyot</span>
@@ -1571,13 +1571,13 @@ export default function Landing() {
                           70% Ustama
                         </span>
                       </div>
-                      <h3 style={{ fontSize: 20, fontWeight: 900, color: '#0F172A', margin: '0 0 10px' }}>
+                      <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px' }}>
                         Toifa va Ustama Prognozi
                       </h3>
-                      <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
+                      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
                         1-toifa va Oliy toifaga erishish ehtimolligi hamda oylik maoshga qoʻshiladigan 70% ustama kalkulyatori.
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: '#334155' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#3B82F6' }} />
                           <span>86+ ball bilan Oliy toifa uchun individual reja</span>
@@ -1648,9 +1648,9 @@ export default function Landing() {
               style={{
                 borderRadius: 20,
                 overflow: 'hidden',
-                background: '#FFFFFF',
-                border: '1px solid rgba(226, 232, 240, 0.95)',
-                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.05)',
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.1)',
               }}
             >
               <div
@@ -1658,13 +1658,13 @@ export default function Landing() {
                   display: 'grid',
                   gridTemplateColumns: '1.4fr 1fr 1fr',
                   padding: '16px 20px',
-                  background: '#F8FAFC',
-                  borderBottom: '1px solid rgba(226, 232, 240, 0.95)',
+                  background: 'var(--card-2)',
+                  borderBottom: '1px solid var(--border)',
                   fontSize: 12,
                   fontWeight: 800,
                   textTransform: 'uppercase',
                   letterSpacing: '0.08em',
-                  color: '#64748B',
+                  color: 'var(--muted)',
                 }}
               >
                 <div>{t('cmp_col_param')}</div>
@@ -1690,8 +1690,8 @@ export default function Landing() {
                     alignItems: 'center',
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: '#0F172A' }}>{param}</div>
-                  <div style={{ textAlign: 'center', color: '#64748B' }}>{trad}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{param}</div>
+                  <div style={{ textAlign: 'center', color: 'var(--muted)' }}>{trad}</div>
                   <div
                     style={{
                       textAlign: 'center',
@@ -1760,21 +1760,21 @@ export default function Landing() {
                   padding: '28px 24px',
                   display: 'flex',
                   flexDirection: 'column',
-                  background: '#FFFFFF',
-                  border: '1px solid rgba(226, 232, 240, 0.95)',
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.04)',
                   transition: 'all 0.3s ease',
                 }}
               >
-                <div style={{ fontSize: 17, fontWeight: 900, color: '#0F172A', marginBottom: 6 }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--ink)', marginBottom: 6 }}>
                   {t('plan_free_name')}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, minHeight: 36, lineHeight: 1.5 }}>
                   {t('plan_free_desc')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
-                  <span style={{ fontSize: 32, fontWeight: 900, color: '#0F172A' }}>0</span>
-                  <span style={{ fontSize: 13, color: '#64748B' }}>{t('plan_free_period', "so'm / umrbod")}</span>
+                  <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--ink)' }}>0</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('plan_free_period', "so'm / umrbod")}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
                   {[
@@ -1785,7 +1785,7 @@ export default function Landing() {
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
-                      <span style={{ color: '#334155' }}>{f}</span>
+                      <span style={{ color: 'var(--ink)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -1863,7 +1863,7 @@ export default function Landing() {
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
-                      <span style={{ color: '#334155' }}>{f}</span>
+                      <span style={{ color: 'var(--ink)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -1944,7 +1944,7 @@ export default function Landing() {
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
-                      <span style={{ color: '#334155' }}>{f}</span>
+                      <span style={{ color: 'var(--ink)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -2024,7 +2024,7 @@ export default function Landing() {
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
-                      <span style={{ color: '#334155' }}>{f}</span>
+                      <span style={{ color: 'var(--ink)' }}>{f}</span>
                     </div>
                   ))}
                 </div>
@@ -2097,20 +2097,20 @@ export default function Landing() {
               ].map(([q, a], i) => (
                 <details
                   key={i}
-                  className="card bg-white border border-slate-200/80"
+                  className="card"
                   style={{
                     borderRadius: 16,
                     padding: '16px 20px',
                     cursor: 'pointer',
-                    background: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
                   }}
                 >
                   <summary
                     style={{
                       fontSize: 15,
                       fontWeight: 700,
-                      color: '#0F172A',
+                      color: 'var(--ink)',
                       listStyle: 'none',
                       display: 'flex',
                       alignItems: 'center',
@@ -2124,7 +2124,7 @@ export default function Landing() {
                     style={{
                       margin: '12px 0 0',
                       fontSize: 13,
-                      color: '#64748B',
+                      color: 'var(--muted)',
                       lineHeight: 1.65,
                     }}
                   >
@@ -2252,7 +2252,7 @@ export default function Landing() {
             </div>
 
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 {t('foot_col_platform')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
@@ -2264,7 +2264,7 @@ export default function Landing() {
             </div>
 
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 {t('foot_col_legal')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
@@ -2275,7 +2275,7 @@ export default function Landing() {
             </div>
 
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 {t('foot_col_contact')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#64748B' }}>

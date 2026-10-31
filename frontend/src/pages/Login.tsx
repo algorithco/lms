@@ -12,7 +12,7 @@ type TgPhase = 'idle' | 'waiting' | 'code' | 'done';
 
 export default function Login() {
   const { login, loginWithTelegram, loginWithGoogle, error } = useAuth();
-  const { t } = useLang();
+  const { t, setLang } = useLang();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlError = searchParams.get('error');
@@ -134,9 +134,15 @@ export default function Login() {
 
   useEffect(() => {
     // 1-Click Auto-login if inside Telegram Mini App (TMA)
-    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } } })?.Telegram;
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; initDataUnsafe?: { user?: { language_code?: string } }; ready?: () => void; expand?: () => void } } })?.Telegram;
     const tgWebApp = tg?.WebApp;
-    if (tgWebApp?.initData) {
+    if (tgWebApp) {
+      const tgLang = tgWebApp.initDataUnsafe?.user?.language_code?.toLowerCase();
+      if (tgLang) {
+        const detected = tgLang.startsWith('ru') ? 'ru' : tgLang.startsWith('en') ? 'en' : 'uz';
+        setLang(detected);
+      }
+      if (tgWebApp.initData) {
       try {
         tgWebApp.ready?.();
         tgWebApp.expand?.();
@@ -151,6 +157,7 @@ export default function Login() {
         .catch(() => {
           setTgBusy(false);
         });
+      }
     }
 
     return stopPolling;

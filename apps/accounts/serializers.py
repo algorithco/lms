@@ -181,11 +181,29 @@ class UserProfileSerializer(serializers.ModelSerializer):
         source="profile.date_of_birth",
         read_only=True,
     )
-    plan = serializers.CharField(
-        source="profile.plan",
-        read_only=True,
-        default="free",
-    )
+    plan = serializers.SerializerMethodField()
+    is_paid = serializers.SerializerMethodField()
+
+    def get_plan(self, obj) -> str:
+        try:
+            from apps.payments.entitlements import get_effective_entitlement
+            ent = get_effective_entitlement(obj)
+            if ent and ent.is_paid():
+                code = getattr(ent, "plan_type", None) or getattr(ent, "plan_name", None)
+                if code:
+                    return str(code).upper()
+                return "PRO"
+        except Exception:
+            pass
+        return "FREE"
+
+    def get_is_paid(self, obj) -> bool:
+        try:
+            from apps.payments.entitlements import get_effective_entitlement
+            ent = get_effective_entitlement(obj)
+            return bool(ent and ent.is_paid())
+        except Exception:
+            return False
     active_subject = serializers.CharField(
         source="profile.active_subject",
         read_only=True,
@@ -238,6 +256,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "avatar",
             "date_of_birth",
             "plan",
+            "is_paid",
             "active_subject",
             "exam_target",
             "target_timeline_months",

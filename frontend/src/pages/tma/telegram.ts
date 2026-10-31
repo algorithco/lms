@@ -14,6 +14,7 @@ export interface TelegramHaptics {
 
 export interface TelegramWebApp {
   initData: string;
+  initDataUnsafe?: { user?: { language_code?: string; id?: number; first_name?: string } };
   colorScheme: 'light' | 'dark';
   BackButton?: TelegramBackButton;
   HapticFeedback?: TelegramHaptics;

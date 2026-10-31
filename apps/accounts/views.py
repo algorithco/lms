@@ -158,6 +158,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     "is_staff": user.is_staff,
                     "is_superuser": user.is_superuser,
                     "is_platform_admin": is_platform_admin(user),
+                    "plan": "PRO" if getattr(user, "is_superuser", False) else (
+                        (lambda ent: (getattr(ent, "plan_type", None) or getattr(ent, "plan_name", None) or "PRO").upper() if ent and ent.is_paid() else "FREE")(
+                            __import__("apps.payments.entitlements", fromlist=["get_effective_entitlement"]).get_effective_entitlement(user)
+                        )
+                    ),
+                    "is_paid": getattr(user, "is_superuser", False) or (
+                        bool(__import__("apps.payments.entitlements", fromlist=["get_effective_entitlement"]).get_effective_entitlement(user).is_paid())
+                    ),
                 },
             },
             status=status.HTTP_200_OK,

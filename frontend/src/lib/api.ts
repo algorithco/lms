@@ -200,6 +200,8 @@ export interface AuthUser {
   daily_plan_summary?: Record<string, unknown>;
   telegram_chat_id?: number | null;
   telegram_identity_verified_at?: string | null;
+  plan?: string;
+  is_paid?: boolean;
 }
 
 /** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */

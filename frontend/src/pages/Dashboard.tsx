@@ -174,33 +174,70 @@ export default function Dashboard() {
               letterSpacing: '-0.02em',
             }}
           >
-            <span>Xush kelibsiz, {userDisplayName}!</span>
+            <span>{t('dash_welcome', 'Xush kelibsiz')}, {userDisplayName}!</span>
             <span style={{ fontSize: '1.25rem' }}>✨</span>
           </h1>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>
-            Bilimingizni charxlang va Milliy Sertifikatga ishonch bilan tayyorlaning.
+            {t('dash_subtitle', 'Bilimingizni charxlang va Milliy Sertifikatga ishonch bilan tayyorlaning.')}
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Joriy tarif ko'rsatkichi */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              borderRadius: 999,
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              color: '#f59e0b',
-              fontWeight: 700,
-              fontSize: 12,
-            }}
-          >
-            <CrownIcon size={14} style={{ color: '#f59e0b' }} />
-            <span>Tarif: <strong>PREMIUM PRO</strong></span>
-          </div>
+          {user?.is_paid && user?.plan && user?.plan.toUpperCase() !== 'FREE' ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 999,
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#f59e0b',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              <CrownIcon size={14} style={{ color: '#f59e0b' }} />
+              <span>{t('tariff_label', 'Tarif')}: <strong>{user.plan.toUpperCase()}</strong></span>
+            </div>
+          ) : (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  background: 'rgba(148, 163, 184, 0.12)',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: 'var(--muted)',
+                  fontWeight: 600,
+                  fontSize: 12,
+                }}
+              >
+                <span>{t('tariff_label', 'Tarif')}: <strong>{t('tariff_free', 'BEPUL')}</strong></span>
+              </div>
+              <Link
+                to="/pricing"
+                className="btn sm"
+                style={{
+                  fontSize: 11.5,
+                  padding: '4px 10px',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                }}
+              >
+                {t('activate_sub', 'Obunani faollashtirish')}
+              </Link>
+            </div>
+          )}
 
           {/* Bildirishnomalar */}
           <Link
@@ -334,7 +371,7 @@ export default function Dashboard() {
               }}
             >
               <SparklesIcon size={12} />
-              <span>KUN HIKMATI VA MOTIVATSIYA</span>
+              <span>{t('dash_quote_badge', 'KUN HIKMATI VA MOTIVATSIYA')}</span>
             </div>
             <h2
               className="dash-hero-title"
@@ -441,7 +478,7 @@ export default function Dashboard() {
                     }}
                   >
                     <ZapIcon size={16} />
-                    <span>⚡️ BMB Mock Test topshirish</span>
+                    <span>{t('dash_take_test', '⚡️ BMB Mock Test topshirish')}</span>
                   </Link>
                   <Link
                     to="/essays"
@@ -459,7 +496,7 @@ export default function Dashboard() {
                     }}
                   >
                     <PenLineIcon size={15} color="#D97706" />
-                    <span>✍️ AI Esse tekshirtirish</span>
+                    <span>{t('dash_check_essay', '✍️ AI Esse tekshirtirish')}</span>
                   </Link>
                   <Link
                     to="/arena"
@@ -477,7 +514,7 @@ export default function Dashboard() {
                     }}
                   >
                     <SwordsIcon size={15} color="#D97706" />
-                    <span>⚔️ 1v1 Arena bellashuvi</span>
+                    <span>{t('dash_arena_duel', '⚔️ 1v1 Arena bellashuvi')}</span>
                   </Link>
                 </>
               )}
@@ -558,7 +595,7 @@ export default function Dashboard() {
             {testsTakenVal} ta
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>+12% bu oy</span>
+            <span>+12% {t('dash_this_month', 'bu oy')}</span>
             <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} ta o‘tgan</span>
           </div>
         </div>

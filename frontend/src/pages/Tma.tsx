@@ -29,7 +29,7 @@ type TmaAuthResponse = {
  */
 export default function Tma() {
   const { user, loginWithTelegram } = useAuth();
-  const { t } = useLang();
+  const { t, setLang } = useLang();
   const [boot, setBoot] = useState<Boot>('boot');
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<TmaProfile | null>(null);
@@ -68,6 +68,11 @@ export default function Tma() {
       await loadTelegramScript();
       if (cancelled) return;
       const wa = tg();
+      const rawLang = wa?.initDataUnsafe?.user?.language_code?.toLowerCase();
+      if (rawLang) {
+        const detected = rawLang.startsWith('ru') ? 'ru' : rawLang.startsWith('en') ? 'en' : 'uz';
+        setLang(detected);
+      }
       const initData = wa?.initData ?? '';
       if (!wa || !initData) {
         setBoot(user ? 'ready' : 'outside');

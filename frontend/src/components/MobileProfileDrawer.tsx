@@ -262,22 +262,40 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                       {roleBadge.label}
                     </span>
 
-                    <span
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 20,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        color: '#D97706',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <CrownIcon size={12} />
-                      PREMIUM PRO
-                    </span>
+                    {user.is_paid && user.plan && user.plan.toUpperCase() !== 'FREE' ? (
+                      <span
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          color: '#D97706',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <CrownIcon size={12} />
+                        {user.plan.toUpperCase()}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: 'rgba(148, 163, 184, 0.15)',
+                          color: isDark ? '#94A3B8' : '#64748B',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        BEPUL
+                      </span>
+                    )}
 
                     <span
                       style={{
