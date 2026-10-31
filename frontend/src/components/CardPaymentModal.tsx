@@ -50,8 +50,8 @@ export default function CardPaymentModal({
     pro_price: number;
     premium_price: number;
   }>({
-    card_number: '8600 5504 1234 5678',
-    card_holder: 'KOMILJON ROZIYEV',
+    card_number: '4916 9903 6325 9166',
+    card_holder: 'Ro\'ziyev K.',
     starter_price: 7000,
     pro_price: 15000,
     premium_price: 27000,
@@ -84,8 +84,8 @@ export default function CardPaymentModal({
       .then((data: CardDetailsResponse) => {
         if (data) {
           setCardInfo({
-            card_number: data.card_number || '8600 5504 1234 5678',
-            card_holder: data.card_holder || 'KOMILJON ROZIYEV',
+            card_number: data.card_number || '4916 9903 6325 9166',
+            card_holder: data.card_holder || 'Ro\'ziyev K.',
             starter_price: data.starter_price || 7000,
             pro_price: data.pro_price || 15000,
             premium_price: data.premium_price || 27000,
@@ -251,7 +251,7 @@ export default function CardPaymentModal({
                 color: 'var(--ink, #0F172A)',
               }}
             >
-              Chekingiz qabul qilindi!
+              🎉 Chekingiz qabul qilindi!
             </h3>
 
             <p
@@ -260,10 +260,10 @@ export default function CardPaymentModal({
                 fontSize: 15,
                 color: 'var(--muted, #64748B)',
                 lineHeight: 1.6,
-                maxWidth: 420,
+                maxWidth: 460,
               }}
             >
-              ✅ Administratorimiz <strong>5-15 daqiqa</strong> ichida to&apos;lovni tekshirib tarifingizni faollashtiradi.
+              Administrator tekshirguniga qadar sizga <strong>24 SOATLIK PRO TRIAL</strong> taqdim etildi. Hozirdanoq barcha test va AI esselardan cheklovlarsiz foydalanishingiz mumkin!
             </p>
 
             {/* Status Card */}
@@ -289,15 +289,15 @@ export default function CardPaymentModal({
                 <span style={{ color: 'var(--muted, #64748B)' }}>Joriy holat:</span>
                 <span
                   style={{
-                    background: '#FEF3C7',
-                    color: '#92400E',
+                    background: '#D1FAE5',
+                    color: '#065F46',
                     fontWeight: 800,
                     padding: '2px 10px',
                     borderRadius: 8,
                     fontSize: 12,
                   }}
                 >
-                  Kutilmoqda ⏳ (PENDING)
+                  ⚡️ 24 soatlik PRO Trial faollashdi (Tekshirilmoqda)
                 </span>
               </div>
             </div>
@@ -428,9 +428,26 @@ export default function CardPaymentModal({
               />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94A3B8', fontWeight: 700 }}>
-                  To&apos;lov kartasi (Uzcard / Humo)
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      background: '#1A1F71',
+                      color: '#FFFFFF',
+                      fontWeight: 900,
+                      fontStyle: 'italic',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      letterSpacing: '0.08em',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    VISA
+                  </span>
+                  <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94A3B8', fontWeight: 700 }}>
+                    Xalqaro Visa / Humo / Uzcard
+                  </span>
+                </div>
                 <span
                   style={{
                     background: 'rgba(245, 158, 11, 0.2)',

@@ -2139,38 +2139,20 @@ export default function Landing() {
         {/* BOTTOM CTA BANNER */}
         <section style={{ padding: '40px 20px 80px' }}>
           <div
-            className="cta-banner-box rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
+            className="cta-banner-box rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 dark:bg-slate-900/90 border border-amber-300/70 dark:border-slate-800 shadow-xl"
             style={{
               maxWidth: 960,
               margin: '0 auto',
-              background: isDark
-                ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))'
-                : landingSubject === 'english'
-                ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(99, 102, 241, 0.12))'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(139, 92, 246, 0.12))',
-              border: isDark
-                ? '1px solid rgba(255, 255, 255, 0.1)'
-                : landingSubject === 'english'
-                ? '1px solid rgba(56, 189, 248, 0.3)'
-                : '1px solid rgba(245, 158, 11, 0.3)',
-              boxShadow: isDark
-                ? '0 20px 40px rgba(0, 0, 0, 0.5)'
-                : '0 20px 40px rgba(245, 158, 11, 0.08)',
             }}
           >
             <h2
-              className="text-slate-900 dark:text-white font-extrabold"
+              className="cta-banner-title text-slate-900 dark:text-white font-extrabold"
               style={{
                 fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
                 fontWeight: 900,
                 lineHeight: 1.25,
                 padding: '4px 0',
                 color: isDark ? '#FFFFFF' : '#0F172A',
-                background: isDark
-                  ? 'linear-gradient(135deg, #FFFFFF 40%, #FBBF24 100%)'
-                  : 'linear-gradient(135deg, #0F172A 40%, #D97706 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
                 margin: '0 0 16px',
               }}
             >
@@ -2217,7 +2199,7 @@ export default function Landing() {
                   boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
                 }}
               >
-                {t('cta_banner_btn')} →
+                ⚡️ {t('cta_banner_btn', 'Bepul boshlash')} →
               </button>
             </div>
           </div>

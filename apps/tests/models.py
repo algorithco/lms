@@ -192,6 +192,52 @@ class Test(models.Model):
             "Yoqilsa, o'quvchi oynadan chiqsa ogohlantiriladi va 3-urinishda test yakunlanadi."
         ),
     )
+    strict_anti_cheat = models.BooleanField(
+        _("qat'iy anti-cheat nazorati"),
+        default=False,
+        help_text=_("Vkladkani almashtirish yoki minimallashtirishni taqiqlash (3-ogohlantirishda avto-yakunlash)."),
+    )
+
+    class AccessType(models.TextChoices):
+        PUBLIC = "PUBLIC", _("Ommaviy")
+        PRO_ONLY = "PRO_ONLY", _("Faqat PRO")
+        STUDENTS_ONLY = "STUDENTS_ONLY", _("Faqat o'quvchilarim")
+
+    access_type = models.CharField(
+        _("kirish huquqi"),
+        max_length=20,
+        choices=AccessType.choices,
+        default=AccessType.PUBLIC,
+        db_index=True,
+    )
+    assigned_group = models.ForeignKey(
+        "courses.StudentGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_tests",
+        verbose_name=_("biriktirilgan guruh"),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_tests",
+        verbose_name=_("yaratuvchi"),
+    )
+    auto_archive_on_completion = models.BooleanField(
+        _("barcha topshirgach avto-arxivlash"),
+        default=False,
+        help_text=_("Guruhdagi barcha o'quvchilar testni ishlab bo'lgach (yoki 24 soat o'tgach) avtomatik arxivlanadi."),
+    )
+    access_pin = models.CharField(
+        _("kirish PIN kodi"),
+        max_length=10,
+        blank=True,
+        default="",
+        help_text=_("Ixtiyoriy 4 xonali PIN kod."),
+    )
 
     # -- Meta -----------------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
@@ -208,6 +254,13 @@ class Test(models.Model):
                 fields=["subject", "is_active"], name="idx_test_subject_active"
             ),
         ]
+
+    def save(self, *args, **kwargs) -> None:
+        if self.strict_anti_cheat:
+            self.is_strict_mode = True
+        elif self.is_strict_mode:
+            self.strict_anti_cheat = True
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.title

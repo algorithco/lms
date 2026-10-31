@@ -589,15 +589,37 @@ def save_converted_test(
     elif raw_subject in ("cefr", "cefr_multilevel"):
         exam_type = Test.ExamType.CEFR_MULTILEVEL
 
+    raw_access = str(payload.get("access_type") or "PUBLIC").strip().upper()
+    access_type = (
+        raw_access
+        if raw_access in (Test.AccessType.PUBLIC, Test.AccessType.PRO_ONLY, Test.AccessType.STUDENTS_ONLY)
+        else Test.AccessType.PUBLIC
+    )
+    assigned_group_id = payload.get("assigned_group_id") or payload.get("assigned_group")
+    assigned_group = None
+    if assigned_group_id:
+        from apps.courses.models import StudentGroup
+        assigned_group = StudentGroup.objects.filter(id=assigned_group_id, teacher=teacher).first()
+
+    auto_archive = bool(payload.get("auto_archive_on_completion", False))
+    access_pin = str(payload.get("access_pin") or "").strip()[:10]
+    strict_anti_cheat = bool(payload.get("strict_anti_cheat", False) or is_strict_mode)
+
     test = Test.objects.create(
         course=course,
+        created_by=teacher,
+        assigned_group=assigned_group,
+        access_type=access_type,
+        auto_archive_on_completion=auto_archive,
+        access_pin=access_pin,
+        strict_anti_cheat=strict_anti_cheat,
         subject=norm_subject,
         exam_type=exam_type,
         title=title,
         description=f"Smart Paste orqali yaratilgan {len(questions_data)} ta savolli test. Kod: {mock_code}",
         time_limit_minutes=time_limit,
         pass_percentage=pass_percentage,
-        is_strict_mode=is_strict_mode,
+        is_strict_mode=strict_anti_cheat,
         status=Test.Status.PUBLISHED,
         is_active=True,
         mock_code=mock_code,

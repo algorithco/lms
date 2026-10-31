@@ -13,6 +13,7 @@ import {
   BookOpen,
   Send,
   Edit3,
+  Lock,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { parseSmartTestText, type ParsedQuestion, type SupportedSubject } from '../lib/testParser';
@@ -205,7 +206,26 @@ export default function SmartTestCreate() {
   const [title, setTitle] = useState('');
   const [timeLimit, setTimeLimit] = useState<number>(20);
   const [isStrictMode, setIsStrictMode] = useState(false);
+  const [strictAntiCheat, setStrictAntiCheat] = useState(false);
+  const [accessType, setAccessType] = useState<'PUBLIC' | 'PRO_ONLY' | 'STUDENTS_ONLY'>('PUBLIC');
+  const [assignedGroupId, setAssignedGroupId] = useState<string>('');
+  const [groups, setGroups] = useState<{ id: number; name: string; student_count: number }[]>([]);
+  const [autoArchive, setAutoArchive] = useState(false);
+  const [accessPin, setAccessPin] = useState('');
   const [customCode, setCustomCode] = useState('');
+
+  useEffect(() => {
+    api.get<{ id: number; name: string; student_count?: number }[]>('/api/v1/school/groups/')
+      .then((res) => {
+        if (Array.isArray(res)) {
+          setGroups(res.map((g) => ({ id: g.id, name: g.name, student_count: g.student_count || 0 })));
+          if (res.length > 0) {
+            setAssignedGroupId(String(res[0].id));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Raw text input & questions
   const [rawText, setRawText] = useState(SAMPLE_15_LITERATURE);
@@ -302,7 +322,12 @@ export default function SmartTestCreate() {
       test_title: title.trim() || `${questions.length} talik test`,
       subject,
       time_limit_minutes: Number(timeLimit) || 0,
-      is_strict_mode: isStrictMode,
+      is_strict_mode: isStrictMode || strictAntiCheat,
+      strict_anti_cheat: strictAntiCheat || isStrictMode,
+      access_type: accessType,
+      assigned_group_id: accessType === 'STUDENTS_ONLY' && assignedGroupId ? Number(assignedGroupId) : undefined,
+      auto_archive_on_completion: autoArchive,
+      access_pin: accessPin.trim() || undefined,
       custom_code: customCode.trim() || undefined,
       reading_passage: readingPassage.trim(),
       questions: questions.map((q, idx) => ({
@@ -749,37 +774,6 @@ export default function SmartTestCreate() {
             </div>
           </div>
 
-          {/* Anti-cheat Strict Mode */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-              Xavfsizlik & Anti-Cheat
-            </label>
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#0F172A',
-                cursor: 'pointer',
-                padding: '8px 12px',
-                borderRadius: 10,
-                background: isStrictMode ? 'rgba(239, 68, 68, 0.08)' : '#F8FAFC',
-                border: isStrictMode ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #E2E8F0',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isStrictMode}
-                onChange={(e) => setIsStrictMode(e.target.checked)}
-                style={{ accentColor: '#EF4444' }}
-              />
-              <ShieldAlert size={16} color={isStrictMode ? '#EF4444' : '#64748B'} />
-              <span>Strict Exam Mode</span>
-            </label>
-          </div>
-
           {/* Maxsus Kod */}
           <div>
             <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
@@ -802,6 +796,161 @@ export default function SmartTestCreate() {
                 letterSpacing: '1px',
               }}
             />
+          </div>
+        </div>
+
+        {/* Permissions, Privacy & Security Settings */}
+        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px dashed #E2E8F0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+          {/* Access Type Selection */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+              Kirish Huquqi (Access Type):
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { type: 'PUBLIC', label: '🌐 Ommaviy' },
+                { type: 'PRO_ONLY', label: '⚡️ Faqat PRO' },
+                { type: 'STUDENTS_ONLY', label: '👥 Faqat guruhim' },
+              ].map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => setAccessType(item.type as any)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 10,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: accessType === item.type ? '2px solid #D97706' : '1px solid #E2E8F0',
+                    background: accessType === item.type ? '#FEF3C7' : '#F8FAFC',
+                    color: accessType === item.type ? '#92400E' : '#475569',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {accessType === 'STUDENTS_ONLY' && (
+              <div style={{ marginTop: 10 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#64748B', marginBottom: 4 }}>
+                  Biriktiriladigan Guruh:
+                </label>
+                {groups.length > 0 ? (
+                  <select
+                    value={assignedGroupId}
+                    onChange={(e) => setAssignedGroupId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1.5px solid #D97706',
+                      background: '#FFFFFF',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#0F172A',
+                    }}
+                  >
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.student_count} ta o&apos;quvchi)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 12, color: '#EF4444' }}>
+                    Sizda hali guruhlar yo&apos;q. Avval [Guruhlar] bo&apos;limida guruh yarating.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Access PIN Code */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+              Kirish PIN Kodi (Ixtiyoriy 4 xonali):
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                maxLength={4}
+                value={accessPin}
+                onChange={(e) => setAccessPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Bo'sh bo'lsa PIN so'ralmaydi"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px 9px 34px',
+                  borderRadius: 10,
+                  border: '1px solid #CBD5E1',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: '2px',
+                  background: '#F8FAFC',
+                }}
+              />
+              <Lock size={15} color="#64748B" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)' }} />
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#64748B' }}>
+              Faqat PIN kodni bilgan o&apos;quvchilar testni boshlay oladi.
+            </p>
+          </div>
+
+          {/* Anti-cheat and Auto-archive checkboxes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: '#0F172A',
+                cursor: 'pointer',
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: strictAntiCheat || isStrictMode ? 'rgba(239, 68, 68, 0.08)' : '#F8FAFC',
+                border: strictAntiCheat || isStrictMode ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #E2E8F0',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={strictAntiCheat || isStrictMode}
+                onChange={(e) => {
+                  setStrictAntiCheat(e.target.checked);
+                  setIsStrictMode(e.target.checked);
+                }}
+                style={{ accentColor: '#EF4444' }}
+              />
+              <ShieldAlert size={16} color={strictAntiCheat || isStrictMode ? '#EF4444' : '#64748B'} />
+              <span>Strict Exam Mode & Anti-Cheat (3 marta vkladkadan chiqishda avto-yakunlash)</span>
+            </label>
+
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: '#0F172A',
+                cursor: 'pointer',
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: autoArchive ? 'rgba(245, 158, 11, 0.08)' : '#F8FAFC',
+                border: autoArchive ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #E2E8F0',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={autoArchive}
+                onChange={(e) => setAutoArchive(e.target.checked)}
+                style={{ accentColor: '#D97706' }}
+              />
+              <span>📦 Barcha o&apos;quvchilar topshirgach (yoki 24 soatdan so&apos;ng) avtomatik arxivlash</span>
+            </label>
           </div>
         </div>
       </div>

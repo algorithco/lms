@@ -2158,3 +2158,8 @@ html.dark .results-xp-desc { color: #FCD34D !important; }
     padding-bottom: 2rem !important;
   }
 }
+
+.cta-banner-title { color: #0F172A !important; -webkit-text-fill-color: #0F172A !important; background: none !important; }
+.cta-banner-box p { color: #475569; }
+[data-theme='dark'] .cta-banner-title, .dark .cta-banner-title { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+[data-theme='dark'] .cta-banner-box p, .dark .cta-banner-box p { color: #CBD5E1; }

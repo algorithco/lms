@@ -874,9 +874,10 @@ class QuickMockJoinView(APIView):
             if active:
                 attempt_id = active.id
             else:
+                pin = str(request.data.get("pin", "") or "").strip()
                 try:
                     attempt = StartAttemptService.execute(
-                        test_id=test.id, student=request.user
+                        test_id=test.id, student=request.user, pin=pin
                     )
                     attempt_id = attempt.id
                 except ValueError as err:

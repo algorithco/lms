@@ -130,7 +130,7 @@ class StartAttemptService:
 
     @staticmethod
     @transaction.atomic
-    def execute(test_id: int, student: Any, mode: str = "strict") -> TestAttempt:
+    def execute(test_id: int, student: Any, mode: str = "strict", pin: str = "") -> TestAttempt:
         """Yangi attempt yaratish."""
         # -- Test mavjudligini tekshirish ---------------------------------
         try:
@@ -149,6 +149,30 @@ class StartAttemptService:
                 student.role,
             )
             raise ValueError("Faqat o'quvchilar test topshira oladi.")
+
+        # -- PIN tekshirish (ixtiyoriy 4 xonali PIN) ----------------------
+        if getattr(test, "access_pin", None) and str(test.access_pin).strip():
+            provided_pin = str(pin or "").strip()
+            if provided_pin != str(test.access_pin).strip():
+                raise ValueError("Ushbu testga kirish uchun to'g'ri PIN kodni kiritishingiz shart.")
+
+        # -- Ruxsat turi (Access Type) tekshirish -------------------------
+        access_type = getattr(test, "access_type", Test.AccessType.PUBLIC)
+        if access_type == Test.AccessType.PRO_ONLY:
+            if not getattr(student, "has_pro_access", False):
+                raise ValueError("Ushbu test faqat PRO va PREMIUM obunachilar uchun mo'ljallangan.")
+        elif access_type == Test.AccessType.STUDENTS_ONLY:
+            is_member = False
+            if test.assigned_group:
+                is_member = test.assigned_group.students.filter(id=student.id).exists()
+            else:
+                teacher = test.created_by or getattr(getattr(test, "course", None), "teacher", None)
+                if teacher:
+                    is_member = student.student_groups.filter(teacher=teacher).exists()
+                else:
+                    is_member = student.student_groups.exists()
+            if not is_member:
+                raise ValueError("Ushbu test faqat o'qituvchining biriktirilgan guruhidagi o'quvchilar uchun mo'ljallangan.")
 
         # -- Aktiv attempt mavjudmi? --------------------------------------
         active_attempt = TestAttempt.objects.filter(
@@ -1183,6 +1207,51 @@ class SubmitAttemptService:
             rasch_score=rasch_score,
             rasch_grade=rasch_grade,
         )
+
+        # -- Auto-archive on completion -----------------------------------
+        if getattr(test, "auto_archive_on_completion", False):
+            try:
+                should_archive = False
+                if test.assigned_group:
+                    group_students = test.assigned_group.students.all()
+                    tot_students = group_students.count()
+                    if tot_students > 0:
+                        done_count = (
+                            TestAttempt.objects.filter(
+                                test=test,
+                                student__in=group_students,
+                                status__in=[
+                                    TestAttempt.Status.COMPLETED,
+                                    TestAttempt.Status.TIMEOUT,
+                                ],
+                            )
+                            .values("student")
+                            .distinct()
+                            .count()
+                        )
+                        if done_count >= tot_students:
+                            should_archive = True
+
+                first_done = (
+                    TestAttempt.objects.filter(
+                        test=test,
+                        status__in=[
+                            TestAttempt.Status.COMPLETED,
+                            TestAttempt.Status.TIMEOUT,
+                        ],
+                    )
+                    .order_by("completed_at")
+                    .first()
+                )
+                if first_done and first_done.completed_at:
+                    if (now - first_done.completed_at).total_seconds() >= 86400:
+                        should_archive = True
+
+                if should_archive:
+                    Test.objects.filter(id=test.id).update(is_active=False)
+                    logger.info("Test #%s auto-archived upon group completion criteria", test.id)
+            except Exception as auto_exc:
+                logger.warning("Error evaluating auto-archive on test #%s: %s", test.id, auto_exc)
 
         # -- Result modeliga saqlash (denormalized, race-safe) --------------
         # finalize_pending_grading qayta chaqirilganda Result allaqachon

@@ -292,6 +292,8 @@ class TestListSerializer(serializers.ModelSerializer):
     exam_type = serializers.CharField(read_only=True)
     audio_url = serializers.SerializerMethodField()
     is_strict_mode = serializers.SerializerMethodField()
+    has_pin = serializers.SerializerMethodField()
+    strict_anti_cheat = serializers.SerializerMethodField()
 
     class Meta:
         model = Test
@@ -313,6 +315,10 @@ class TestListSerializer(serializers.ModelSerializer):
             "max_attempts",
             "pass_percentage",
             "total_questions",
+            "access_type",
+            "has_pin",
+            "strict_anti_cheat",
+            "auto_archive_on_completion",
             "is_active",
             "created_at",
         ]
@@ -324,7 +330,13 @@ class TestListSerializer(serializers.ModelSerializer):
         return getattr(obj, "audio_url", "") or ""
 
     def get_is_strict_mode(self, obj: Test) -> bool:
-        return bool(getattr(obj, "is_strict_mode", False))
+        return bool(getattr(obj, "is_strict_mode", False) or getattr(obj, "strict_anti_cheat", False))
+
+    def get_has_pin(self, obj: Test) -> bool:
+        return bool(obj.access_pin and obj.access_pin.strip())
+
+    def get_strict_anti_cheat(self, obj: Test) -> bool:
+        return bool(getattr(obj, "strict_anti_cheat", False) or getattr(obj, "is_strict_mode", False))
 
 
 class TestDetailSerializer(serializers.ModelSerializer):
@@ -342,6 +354,10 @@ class TestDetailSerializer(serializers.ModelSerializer):
     subject = serializers.SerializerMethodField()
     audio_url = serializers.SerializerMethodField()
     is_strict_mode = serializers.SerializerMethodField()
+    has_pin = serializers.SerializerMethodField()
+    requires_pin = serializers.SerializerMethodField()
+    strict_anti_cheat = serializers.SerializerMethodField()
+    assigned_group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Test
@@ -363,6 +379,13 @@ class TestDetailSerializer(serializers.ModelSerializer):
             "shuffle_questions",
             "shuffle_choices",
             "show_results_immediately",
+            "access_type",
+            "has_pin",
+            "requires_pin",
+            "strict_anti_cheat",
+            "auto_archive_on_completion",
+            "assigned_group",
+            "assigned_group_name",
             "questions",
             "sections",
             "passages",
@@ -375,7 +398,19 @@ class TestDetailSerializer(serializers.ModelSerializer):
         return getattr(obj, "audio_url", "") or ""
 
     def get_is_strict_mode(self, obj: Test) -> bool:
-        return bool(getattr(obj, "is_strict_mode", False))
+        return bool(getattr(obj, "is_strict_mode", False) or getattr(obj, "strict_anti_cheat", False))
+
+    def get_has_pin(self, obj: Test) -> bool:
+        return bool(obj.access_pin and obj.access_pin.strip())
+
+    def get_requires_pin(self, obj: Test) -> bool:
+        return bool(obj.access_pin and obj.access_pin.strip())
+
+    def get_strict_anti_cheat(self, obj: Test) -> bool:
+        return bool(getattr(obj, "strict_anti_cheat", False) or getattr(obj, "is_strict_mode", False))
+
+    def get_assigned_group_name(self, obj: Test) -> str:
+        return obj.assigned_group.name if obj.assigned_group else ""
 
     def get_questions(self, obj: Test) -> list[dict[str, Any]]:
         """
@@ -493,10 +528,10 @@ class AttemptSerializer(serializers.ModelSerializer):
     def get_is_strict_mode(self, obj: TestAttempt) -> bool:
         if getattr(obj, "mode", None) == "practice":
             return False
-        if getattr(obj, "mode", None) == "strict":
-            return True
         test = getattr(obj, "test", None)
-        return bool(getattr(test, "is_strict_mode", False)) if test else False
+        if test and (getattr(test, "is_strict_mode", False) or getattr(test, "strict_anti_cheat", False)):
+            return True
+        return getattr(obj, "mode", None) == "strict" 
 
     def get_time_limit_minutes(self, obj: TestAttempt) -> int:
         test = getattr(obj, "test", None)

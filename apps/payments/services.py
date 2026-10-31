@@ -288,6 +288,7 @@ def approve_payment_receipt(
         payment_reference=f"receipt:{receipt.id}",
         grant_source="admin_card_receipt",
         days=30,
+        is_trial=False,
         actor=admin_user,
         reason=f"Payment receipt #{receipt.id} approved ({receipt.plan})",
     )
@@ -351,6 +352,22 @@ def reject_payment_receipt(
     if admin_user and getattr(admin_user, "is_authenticated", False):
         receipt.reviewed_by = admin_user
     receipt.save(update_fields=["status", "admin_note", "reviewed_at", "reviewed_by", "updated_at"])
+
+    # Revert trial immediately back to FREE upon rejection
+    user = receipt.user
+    sub = getattr(user, "subscription", None)
+    if sub and (
+        getattr(sub, "is_trial", False)
+        or getattr(sub, "grant_source", "") == "receipt_trial"
+        or getattr(sub, "payment_reference", "") == f"receipt_trial:{receipt.id}"
+    ):
+        sub.status = UserSubscription.Status.REVOKED
+        sub.is_trial = False
+        sub.save(update_fields=["status", "is_trial", "updated_at"])
+        if hasattr(user, "profile"):
+            user.profile.plan = "free"
+            user.profile.save(update_fields=["plan"])
+        logger.info("Reverted 24h trial to FREE for user %s after receipt #%s rejection", user.id, receipt.id)
 
     telegram_id = getattr(receipt.user, "telegram_chat_id", None)
     if telegram_id:

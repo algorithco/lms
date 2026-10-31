@@ -146,8 +146,9 @@ def entitlement_view(request):
 @permission_classes([AllowAny])
 def card_info_view(request):
     """GET /api/v1/payments/card-info/ & /api/v1/billing/card-details/ — Public card and plan price settings."""
-    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "8600 5504 1234 5678"
-    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON ROZIYEV"
+    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
+    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
+    card_bank = getattr(settings, "PAYMENT_CARD_BANK", "") or "Visa"
     starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 7000
     pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 15000
     premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 27000
@@ -155,6 +156,8 @@ def card_info_view(request):
         {
             "card_number": card_number,
             "card_holder": card_holder,
+            "card_bank": card_bank,
+            "card_type": "visa",
             "starter_price": starter_price,
             "pro_price": pro_price,
             "premium_price": premium_price,
@@ -253,12 +256,43 @@ def payment_receipt_upload_view(request):
         status=PaymentReceipt.Status.PENDING,
     )
 
+    # Instantly grant 24-hour PRO trial upon receipt upload
+    try:
+        from apps.payments.models import UserSubscription
+        from apps.payments.services import _get_or_create_plan_for_receipt
+        from apps.payments.subscriptions import grant_subscription
+
+        pro_plan = _get_or_create_plan_for_receipt("pro")
+        grant_subscription(
+            user=request.user,
+            plan=pro_plan,
+            source=UserSubscription.Source.WEBSITE,
+            payment_method="card",
+            payment_reference=f"receipt_trial:{receipt.id}",
+            grant_source="receipt_trial",
+            hours=24,
+            is_trial=True,
+            reason=f"Instant 24h Pro Trial for receipt #{receipt.id}",
+        )
+        if hasattr(request.user, "profile"):
+            request.user.profile.plan = "pro"
+            request.user.profile.save(update_fields=["plan"])
+    except Exception as exc:
+        logger.warning("Failed to grant instant trial on receipt #%s: %s", receipt.id, exc)
+
     try:
         notify_admin_new_receipt(receipt)
     except Exception as exc:
         logger.warning("Failed to notify admin of receipt #%s: %s", receipt.id, exc)
 
-    return Response(PaymentReceiptSerializer(receipt).data, status=201)
+    data = PaymentReceiptSerializer(receipt).data
+    data["trial_granted"] = True
+    data["trial_hours"] = 24
+    data["message"] = (
+        "🎉 Chekingiz qabul qilindi! Administrator tekshirguniga qadar sizga 24 SOATLIK PRO TRIAL taqdim etildi. "
+        "Hozirdanoq barcha test va AI esselardan cheklovlarsiz foydalanishingiz mumkin!"
+    )
+    return Response(data, status=201)
 
 
 @api_view(["GET"])

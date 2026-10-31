@@ -50,6 +50,8 @@ def grant_subscription(
     payment_reference: str = "",
     grant_source: str = "",
     days: int | None = None,
+    hours: int | None = None,
+    is_trial: bool = False,
     actor=None,
     reason: str = "",
     log_action: str | None = EntitlementAuditLog.Action.ACTIVATE_SUBSCRIPTION,
@@ -66,7 +68,10 @@ def grant_subscription(
     * The plan configuration and the effective entitlement are snapshotted onto
       the row, so a later plan edit cannot retroactively change what was bought.
     """
-    duration = timedelta(days=int(days or plan.duration_days or 30))
+    if hours is not None:
+        duration = timedelta(hours=int(hours))
+    else:
+        duration = timedelta(days=int(days or plan.duration_days or 30))
     now = timezone.now()
 
     existing = UserSubscription.objects.select_for_update().filter(user=user).first()
@@ -82,6 +87,8 @@ def grant_subscription(
             payment_reference=payment_reference,
             purchase_source=source,
             grant_source=grant_source,
+            is_trial=is_trial,
+            trial_days=max(1, (hours // 24) if hours else (days or 1)),
             # Freeze the plan configuration and the effective entitlement at
             # activation time so a later plan edit cannot retroactively change
             # what this student bought.
@@ -104,6 +111,7 @@ def grant_subscription(
             existing.plan_snapshot = plan.quota_snapshot()
 
         existing.status = UserSubscription.Status.ACTIVE
+        existing.is_trial = is_trial
         existing.expires_at = base + duration
         existing.purchase_source = source
         existing.grant_source = grant_source or existing.grant_source

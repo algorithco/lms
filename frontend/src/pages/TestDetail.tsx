@@ -26,6 +26,12 @@ interface Detail {
   show_results_immediately?: boolean;
   subject?: string;
   exam_type?: string;
+  access_type?: 'PUBLIC' | 'PRO_ONLY' | 'STUDENTS_ONLY';
+  has_pin?: boolean;
+  requires_pin?: boolean;
+  strict_anti_cheat?: boolean;
+  is_strict_mode?: boolean;
+  auto_archive_on_completion?: boolean;
   questions?: { id: number; text: string; points: number }[];
 }
 
@@ -41,6 +47,8 @@ export default function TestDetail() {
   const [err, setErr] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [modeModalOpen, setModeModalOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,11 +79,16 @@ export default function TestDetail() {
   }, [id]);
 
   const startWithMode = async (mode: 'strict' | 'practice') => {
+    if ((detail?.has_pin || detail?.requires_pin) && !pin.trim()) {
+      setPinError('Iltimos, testga kirish PIN kodini kiriting.');
+      return;
+    }
     setStarting(true);
     setErr(null);
+    setPinError(null);
     setModeModalOpen(false);
     try {
-      const res = await TestsApi.start(id, mode);
+      const res = await TestsApi.start(id, mode, pin.trim());
       const attemptId =
         'id' in res && typeof res.id === 'number'
           ? res.id
@@ -140,6 +153,26 @@ export default function TestDetail() {
             <span className="badge green">
               <CheckIcon size={12} className="ico" /> {t('pass_suffix')}: {detail.pass_percentage}%
             </span>
+            {detail.access_type === 'PRO_ONLY' && (
+              <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800 }}>
+                ⚡️ Faqat PRO
+              </span>
+            )}
+            {detail.access_type === 'STUDENTS_ONLY' && (
+              <span className="badge" style={{ background: '#EDE9FE', color: '#5B21B6', fontWeight: 800 }}>
+                👥 Faqat o&apos;quvchilarim
+              </span>
+            )}
+            {Boolean(detail.has_pin || detail.requires_pin) && (
+              <span className="badge" style={{ background: '#E0F2FE', color: '#0369A1', fontWeight: 800 }}>
+                🔒 PIN himoyasi
+              </span>
+            )}
+            {Boolean(detail.strict_anti_cheat || detail.is_strict_mode) && (
+              <span className="badge" style={{ background: '#FEE2E2', color: '#991B1B', fontWeight: 800 }}>
+                🛡 Anti-Cheat
+              </span>
+            )}
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <p className="muted small">
@@ -198,9 +231,39 @@ export default function TestDetail() {
         <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div className="card" style={{ maxWidth: 560, width: '100%', padding: 24, borderRadius: 16 }}>
             <h3 style={{ marginTop: 0, fontSize: 20 }}>Format va Rejimni Tanlang</h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
               Testni qanday formatda topshirmoqchisiz? Rasmiy imtihon qatʼiy nazorat ostida o'tkaziladi.
             </p>
+
+            {Boolean(detail?.has_pin || detail?.requires_pin) && (
+              <div style={{ marginBottom: 16, background: '#F8FAFC', padding: 14, borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>
+                  🔒 Testga kirish PIN kodi (Ustozingiz bergan kod):
+                </label>
+                <input
+                  type="password"
+                  maxLength={10}
+                  value={pin}
+                  onChange={(e) => {
+                    setPin(e.target.value);
+                    setPinError(null);
+                  }}
+                  placeholder="4 xonali PIN kod"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    border: pinError ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                    fontSize: 16,
+                    fontWeight: 800,
+                    letterSpacing: '3px',
+                    textAlign: 'center',
+                    background: '#FFFFFF',
+                  }}
+                />
+                {pinError && <p style={{ color: '#EF4444', fontSize: 12, margin: '6px 0 0', fontWeight: 600 }}>{pinError}</p>}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
               {/* Option 1: Strict Exam Mode */}

@@ -3057,8 +3057,8 @@ async def plans_and_payment_handler(
     """Show Grand Education card details, plans and payment receipt instructions."""
     from django.conf import settings as _settings
 
-    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
-    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
+    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
     starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 7000
     pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 15000
     premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 27000
@@ -5290,9 +5290,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             from django.conf import settings as _settings
 
             card_number = (
-                getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
+                getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
             )
-            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
             defaults = {"starter": 7000, "pro": 15000, "premium": 27000}
             price = (
                 getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0)

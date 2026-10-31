@@ -555,10 +555,10 @@ export const Tests = {
     return api<Paginated<TestSummary>>(`/api/tests/${query}`);
   },
   detail: (id: string) => api<Record<string, unknown>>(`/api/tests/${id}/`),
-  start: (id: string, mode: 'strict' | 'practice' = 'strict') =>
+  start: (id: string, mode: 'strict' | 'practice' = 'strict', pin?: string) =>
     api<Attempt | { attempt_id: number }>(`/api/tests/${id}/start/`, {
       method: 'POST',
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({ mode, pin: pin || undefined }),
     }),
   attempt: (id: string) => api<Attempt>(`/api/tests/attempts/${id}/`),
   saveAnswer: (
