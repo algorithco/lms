@@ -129,7 +129,8 @@ export default function Login() {
     stopPolling();
     setTgPhase('done');
     const adopted = loginWithTelegram(tokens, user);
-    navigate(landingFor(adopted));
+    const nextUrl = searchParams.get('next');
+    navigate(nextUrl || landingFor(adopted));
   };
 
   useEffect(() => {
@@ -279,7 +280,8 @@ export default function Login() {
     setBusy(true);
     try {
       const user = await login(email, password);
-      navigate(landingFor(user));
+      const nextUrl = searchParams.get('next');
+      navigate(nextUrl || landingFor(user));
     } catch {
       /* error shown from context */
     } finally {

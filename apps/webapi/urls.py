@@ -17,6 +17,7 @@ from . import (
     views_school,
     views_tournaments,
     views_feedback,
+    views_referral,
 )
 from apps.organizations import views as views_enterprise
 from apps.tests import views_converter, views_mistakes, views_omr, views_placement
@@ -327,6 +328,26 @@ urlpatterns = [
         name="school-group-export-pdf",
     ),
     path("school/groups/join/", views_school.group_join_view, name="school-group-join"),
+    path(
+        "school/groups/join/<str:token>/",
+        views_school.group_join_by_token_view,
+        name="school-group-join-by-token",
+    ),
+    path(
+        "groups/join/<str:token>/",
+        views_school.group_join_by_token_view,
+        name="group-join-by-token",
+    ),
+    path(
+        "referrals/my-code/",
+        views_referral.my_referral_code_view,
+        name="referrals-my-code",
+    ),
+    path(
+        "referrals/apply/",
+        views_referral.apply_referral_view,
+        name="referrals-apply",
+    ),
     path("school/students/", views_school.student_search_view, name="school-students"),
     path("school/parent/", views_school.parent_overview_view, name="school-parent"),
     path("school/teacher/", views_school.teacher_overview_view, name="school-teacher"),

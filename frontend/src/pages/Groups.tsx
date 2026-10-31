@@ -143,9 +143,19 @@ export default function Groups() {
     }
   };
 
-  const copyCode = (code: string) => {
-    void navigator.clipboard.writeText(code);
-    flash(`Guruh taklif kodi nusxalandi: ${code}`);
+  const copyInviteLink = (group: SchoolGroup) => {
+    const link = `https://grandec.uz/join/${group.invite_token || group.invite_code || group.id}`;
+    void navigator.clipboard.writeText(link);
+    flash(`Guruh taklif havolasi nusxalandi: ${link}`);
+  };
+
+  const shareToTelegram = (group: SchoolGroup) => {
+    const link = `https://grandec.uz/join/${group.invite_token || group.invite_code || group.id}`;
+    const text = `Assalomu alaykum! "${group.name}" guruhimizga qo'shiling va avtomatik ravishda 365 kunlik PRO tarifiga ega bo'ling: ${link}`;
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`,
+      '_blank',
+    );
   };
 
   const openBrandingModal = async () => {
@@ -405,8 +415,8 @@ export default function Groups() {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                       <strong>{g.name}</strong>
-                      {g.invite_code && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {g.invite_code && (
                           <span
                             style={{
                               padding: '2px 8px',
@@ -418,19 +428,42 @@ export default function Groups() {
                               border: '1px solid rgba(59, 130, 246, 0.3)',
                             }}
                           >
-                            {g.invite_code}
+                            #{g.invite_code}
                           </span>
-                          <button
-                            type="button"
-                            className="btn sm ghost"
-                            onClick={() => copyCode(g.invite_code!)}
-                            title="Taklif kodini nusxalash"
-                            style={{ padding: '2px 6px', fontSize: '0.75rem' }}
-                          >
-                            📋 Nusxa
-                          </button>
-                        </div>
-                      )}
+                        )}
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => copyInviteLink(g)}
+                          title="Guruhga 1-klikda taklif havolasini nusxalash"
+                          style={{
+                            padding: '3px 10px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            borderColor: 'rgba(245, 158, 11, 0.35)',
+                            color: '#d97706',
+                          }}
+                        >
+                          📋 Taklif havolasi
+                        </button>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => shareToTelegram(g)}
+                          title="Telegram guruh yoki kanalga ulashish"
+                          style={{
+                            padding: '3px 10px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            background: 'rgba(34, 158, 217, 0.12)',
+                            borderColor: 'rgba(34, 158, 217, 0.35)',
+                            color: '#229ED9',
+                          }}
+                        >
+                          ✈️ Telegram
+                        </button>
+                      </div>
                     </div>
                     <p className="muted small">
                       <UsersIcon size={12} className="ico" /> {g.student_count ?? students.length} {t('an_talaba_full')}

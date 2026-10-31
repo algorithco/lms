@@ -26,6 +26,12 @@ from .managers import UserManager
 # ---------------------------------------------------------------------------
 
 
+def generate_referral_code() -> str:
+    import secrets
+
+    return f"ref_{secrets.token_hex(4)}"
+
+
 class User(AbstractUser):
     """
     Custom User model — the single source of truth for authentication.
@@ -178,6 +184,27 @@ class User(AbstractUser):
         blank=True,
     )
 
+    # -- Referral & Viral Growth ----------------------------------------------
+    referral_code = models.CharField(
+        _("referal kodi"),
+        max_length=32,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("Foydalanuvchining do'stlarni taklif qilish unikal kodi"),
+    )
+    bonus_tests = models.PositiveIntegerField(
+        _("bonus testlar kvotasi"),
+        default=0,
+        help_text=_("Referal orqali olingan qo'shimcha testlar soni"),
+    )
+    bonus_essays = models.PositiveIntegerField(
+        _("bonus esselar kvotasi"),
+        default=0,
+        help_text=_("Referal orqali olingan qo'shimcha esse tekshiruvlari soni"),
+    )
+
     # -- Timestamps -----------------------------------------------------------
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
@@ -204,6 +231,8 @@ class User(AbstractUser):
             self.email = self.email.strip().lower()
         else:
             self.email = ""
+        if not self.referral_code:
+            self.referral_code = generate_referral_code()
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -608,3 +637,43 @@ class TeacherProfile(models.Model):
 
     def __str__(self) -> str:
         return f"TeacherProfile: {self.teacher.get_full_name()} (PRO: {self.pro_quota_balance}, PREMIUM: {self.premium_quota_balance})"
+
+
+class ReferralHistory(models.Model):
+    """Tracks referral invites and bonus rewards."""
+
+    referrer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="referrals_sent",
+        verbose_name=_("taklif qilgan"),
+    )
+    referred_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="referral_received",
+        verbose_name=_("taklif qilingan"),
+    )
+    referral_code = models.CharField(_("ishlatilgan kod"), max_length=32)
+    reward_given = models.BooleanField(_("mukofot berildimi"), default=True)
+    referrer_bonus_tests = models.PositiveIntegerField(
+        _("taklif qilganga test"), default=1
+    )
+    referred_bonus_tests = models.PositiveIntegerField(
+        _("yangi foydalanuvchiga test"), default=1
+    )
+    referrer_bonus_essays = models.PositiveIntegerField(
+        _("taklif qilganga esse"), default=1
+    )
+    referred_bonus_essays = models.PositiveIntegerField(
+        _("yangi foydalanuvchiga esse"), default=1
+    )
+    created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Referal tarixi")
+        verbose_name_plural = _("Referal tarixlari")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.referrer} -> {self.referred_user} ({self.referral_code})"

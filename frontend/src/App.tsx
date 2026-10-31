@@ -65,18 +65,23 @@ const TeacherAiConverter = lazyPage(() => import('./pages/TeacherAiConverter'));
 const TeacherFinanceDashboard = lazyPage(() => import('./pages/TeacherFinanceDashboard'));
 const TeacherVocabGenerator = lazyPage(() => import('./pages/TeacherVocabGenerator'));
 const EnglishExamInterface = lazyPage(() => import('./pages/tests/EnglishExamInterface'));
+const JoinGroup = lazyPage(() => import('./pages/JoinGroup'));
+const ReferralRedirect = lazyPage(() => import('./pages/ReferralRedirect'));
 
 import AuthModal from './components/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './context/ToastContext';
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ScrollTop />
-        <AnimatedRoutes />
-        <AuthModal />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <ScrollTop />
+          <AnimatedRoutes />
+          <AuthModal />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }
@@ -92,6 +97,8 @@ function AnimatedRoutes() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/join/:token" element={<JoinGroup />} />
+        <Route path="/r/:code" element={<ReferralRedirect />} />
         <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/password-reset/confirm/:uid/:token" element={<PasswordResetConfirm />} />
         {/* Old Django emailed link shape → SPA confirm */}

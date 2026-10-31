@@ -13,6 +13,7 @@ import {
 } from '../components/icons';
 import UsageLimits from '../components/UsageLimits';
 import ParentMonitoringCard from '../components/ParentMonitoringCard';
+import ReferralCard from '../components/ReferralCard';
 
 function getInitials(name?: string, email?: string): string {
   if (name && name.trim()) {
@@ -442,6 +443,11 @@ export default function Profile() {
       {/* Parent Monitoring Smart Alerts */}
       <div style={{ marginTop: 24 }}>
         <ParentMonitoringCard />
+      </div>
+
+      {/* Referral & Rewards Program */}
+      <div style={{ marginTop: 24 }}>
+        <ReferralCard />
       </div>
 
       {/* Subscription & Usage Limits */}

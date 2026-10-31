@@ -15,6 +15,7 @@ import {
 } from '../lib/api';
 import { num, TestsApi, type ResultListItem, type TestListItem } from '../lib/testing';
 import { Bell, CheckCircle2 } from 'lucide-react';
+import ReferralCard from '../components/ReferralCard';
 import {
   AwardIcon,
   BookOpenIcon,
@@ -739,6 +740,11 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Referral & Rewards Banner */}
+      <div style={{ marginBottom: 24 }}>
+        <ReferralCard />
+      </div>
 
       {/* 4. ASOSIY ISHCHI OYNA (1-col on Mobile, 2-col on Desktop) */}
       <div className="dash-main-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>

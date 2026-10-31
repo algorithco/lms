@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { GoogleAuth, landingFor } from '../lib/api';
+import { GoogleAuth, landingFor, ReferralApi } from '../lib/api';
 import SEO from '../components/SEO';
 
 export default function Register() {
@@ -81,7 +81,27 @@ export default function Register() {
     setBusy(true);
     try {
       const user = await register(form);
-      navigate(landingFor(user));
+
+      // Check pending referral
+      const pendingRef =
+        new URLSearchParams(window.location.search).get('ref') ||
+        localStorage.getItem('pending_referral_code');
+      if (pendingRef) {
+        try {
+          await ReferralApi.apply(pendingRef);
+          localStorage.removeItem('pending_referral_code');
+        } catch {
+          /* ignore duplicate or invalid */
+        }
+      }
+
+      // Check return/next URL
+      const nextUrl = new URLSearchParams(window.location.search).get('next');
+      if (nextUrl) {
+        navigate(nextUrl);
+      } else {
+        navigate(landingFor(user));
+      }
     } catch {
       /* error shown from context */
     } finally {

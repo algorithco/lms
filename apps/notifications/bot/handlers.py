@@ -52,6 +52,7 @@ from telegram import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     Update,
+    WebAppInfo,
 )
 from telegram.ext import ContextTypes
 
@@ -611,27 +612,125 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await tournament_handler(update, context)
         return
 
-    # --- Group join link flow: /start join_<invite_code> or /start GR-XXX ---
-    if args and (args[0].startswith("join_") or args[0].upper().startswith("GR-")):
-        invite_code = args[0].removeprefix("join_").upper()
-        from apps.courses.group_service import join_group_by_invite_code
+    # --- Group join link flow: /start group_<token>, /start join_<invite_code>, or /start GR-XXX ---
+    if args and (
+        args[0].startswith("group_")
+        or args[0].startswith("join_")
+        or args[0].upper().startswith("GR-")
+    ):
+        raw_arg = args[0]
+        if raw_arg.startswith("group_"):
+            token = raw_arg.removeprefix("group_")
+        elif raw_arg.startswith("join_"):
+            token = raw_arg.removeprefix("join_")
+        else:
+            token = raw_arg
+
+        from apps.courses.group_service import join_group_by_token
 
         user = await _get_or_create_user_async(update)
         if user:
-            ok, msg, joined_grp = await _run_db(
-                join_group_by_invite_code, user, invite_code
-            )
-            if ok and joined_grp:
+            try:
+                status_code, joined_grp = await _run_db(join_group_by_token, user, token)
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton(
+                            "📱 Guruh testlarini topshirish",
+                            web_app=WebAppInfo(url="https://grandec.uz/tests"),
+                        )
+                    ]
+                ])
+                if status_code == "ALREADY_MEMBER":
+                    await update.message.reply_text(
+                        f"ℹ️ <b>Siz allaqachon ushbu guruh a'zosisiz!</b>\n\n"
+                        f"🏫 Guruh: <b>{joined_grp.name}</b>\n"
+                        f"👨‍🏫 Ustoz: <b>{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}</b>\n\n"
+                        f"Guruh testlarini topshirish uchun quyidagi tugmani bosing:",
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
+                else:
+                    await update.message.reply_text(
+                        f"✅ <b>Guruhga muvaffaqiyatli qo'shildingiz!</b>\n\n"
+                        f"🏫 Guruh: <b>{joined_grp.name}</b>\n"
+                        f"👨‍🏫 O'qituvchi: <b>{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}</b>\n\n"
+                        f"⭐ <b>Sizga ustozingiz guruhi orqali avtomatik ravishda PRO tarifi ulandi!</b>\n"
+                        f"(Cheksiz BMB testlari va kunlik 50 ta AI repetitor kvotasi)",
+                        parse_mode="HTML",
+                        reply_markup=keyboard,
+                    )
+                return
+            except Exception as exc:
+                logger.warning("Bot group join failed: %s", exc)
+
+    # --- Test deep-link flow: /start test_<id> ---
+    if args and args[0].startswith("test_"):
+        test_id_str = args[0].removeprefix("test_")
+        try:
+            test_id = int(test_id_str)
+            from apps.tests.models import Test
+
+            test_obj = await _run_db(lambda: Test.objects.filter(id=test_id).first())
+            if test_obj:
+                tma_url = f"https://grandec.uz/tma?test={test_obj.id}"
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton(
+                            "⚡️ Testni Telegramda boshlash",
+                            web_app=WebAppInfo(url=tma_url),
+                        )
+                    ]
+                ])
+                q_count = await _run_db(lambda: test_obj.questions.count())
                 await update.message.reply_text(
-                    f"✅ *Guruhga muvaffaqiyatli qo'shildingiz!*\n\n"
-                    f"🏫 Guruh: *{joined_grp.name}*\n"
-                    f"👨‍🏫 O'qituvchi: *{joined_grp.teacher.get_full_name() or joined_grp.teacher.email}*\n\n"
-                    f"⭐ *Sizga ustozingiz guruhi orqali avtomatik ravishda PRO tarifi ulandi!*\n"
-                    f"(Cheksiz BMB testlari va 50 ta kunlik AI repetitor kvotasi)",
-                    parse_mode="Markdown",
-                    reply_markup=_persistent_menu_keyboard("student"),
+                    f"📝 <b>{test_obj.title}</b>\n\n"
+                    f"📚 Fan: <b>{getattr(test_obj, 'subject', 'Umumiy')}</b>\n"
+                    f"❓ Savollar soni: <b>{q_count} ta</b>\n"
+                    f"⏱ Ajratilgan vaqt: <b>{getattr(test_obj, 'duration_minutes', 60)} daqiqa</b>\n\n"
+                    f"Testni boshlash uchun quyidagi tugmani bosing:",
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
                 )
                 return
+        except Exception as exc:
+            logger.warning("Bot test deep-link error: %s", exc)
+
+    # --- Referral deep-link flow: /start ref_<code> ---
+    if args and args[0].startswith("ref_"):
+        ref_code = args[0]
+        user = await _get_or_create_user_async(update)
+        if user:
+            from apps.accounts.services.referral import apply_referral_reward
+
+            ok, msg = await _run_db(apply_referral_reward, user, ref_code)
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🚀 Platformaga kirish",
+                        web_app=WebAppInfo(url="https://grandec.uz/dashboard"),
+                    )
+                ]
+            ])
+            if ok:
+                await update.message.reply_text(
+                    f"🎉 <b>Xush kelibsiz! Taklif bonusi faollashtirildi!</b>\n\n"
+                    f"Sizga do'stingiz tavsiyasi bilan:\n"
+                    f"⭐️ <b>+1 ta bepul rasmiy Mock Test</b>\n"
+                    f"⭐️ <b>+1 ta AI Esse tekshiruvi</b>\n"
+                    f"sovg'a qilindi!\n\n"
+                    f"O'z bilimingizni hoziroq sinab ko'ring:",
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            else:
+                await update.message.reply_text(
+                    f"👋 <b>Xush kelibsiz!</b>\n\n"
+                    f"{msg}\n\n"
+                    f"GRAND EDUCATION platformasiga kirish:",
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            return
 
     tg_user = update.effective_user
     if not tg_user:

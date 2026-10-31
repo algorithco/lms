@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
+import { useAuth } from '../auth/AuthContext';
 import { Essays } from '../lib/api';
 import HologramRadar3D from '../components/HologramRadar3D';
 import TiltCard from '../components/TiltCard';
+import ScoreCardModal from '../components/ScoreCardModal';
 import {
   countEssayWords,
   isEssayDone,
@@ -126,8 +128,10 @@ function getBmbGrade(totalScore: number | null, maxScore: number): { grade: stri
 export default function EssayResult() {
   const { id = '' } = useParams();
   const { t } = useLang();
+  const { user } = useAuth();
   const [res, setRes] = useState<Result | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [showScoreCard, setShowScoreCard] = useState(false);
 
   // Improved version (session improve endpoint).
   const [improvedOpen, setImprovedOpen] = useState(false);
@@ -1129,8 +1133,8 @@ export default function EssayResult() {
                 </div>
               </div>
             )}
-        {/* PDF/Print Button */}
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
+        {/* PDF/Print & Score Card Buttons */}
+        <div style={{ marginTop: 20, textAlign: 'center', display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
           <button
             type="button"
             className="btn sm"
@@ -1147,8 +1151,56 @@ export default function EssayResult() {
           >
             <span>📄</span> Rasmiy BMB Natija Varaqasini (PDF) yuklab olish
           </button>
+
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => setShowScoreCard(true)}
+            style={{
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              borderColor: '#D97706',
+              color: '#0F172A',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontWeight: 900,
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <span>📲</span> Natijani Stories'ga ulashish (9:16)
+          </button>
         </div>
         </>
+      )}
+
+      {res && (
+        <ScoreCardModal
+          isOpen={showScoreCard}
+          onClose={() => setShowScoreCard(false)}
+          title={res.topic_title || 'AI Esse Studiyasi'}
+          studentName={
+            user?.first_name
+              ? `${user.first_name} ${user.last_name || ''}`.trim()
+              : user?.email || "O'quvchi"
+          }
+          scorePercentage={
+            res.score_percentage ||
+            (res.total_score && res.max_score
+              ? Math.round((res.total_score / res.max_score) * 100)
+              : 0)
+          }
+          gradeBadge={
+            (() => {
+              const ds = res.final_score !== null && res.final_score !== undefined ? res.final_score : res.total_score;
+              const bg = getBmbGrade(ds, res.max_score);
+              return bg ? `⭐️ ${bg.grade} DARAJA` : '⭐️ RASMIY NATIJA';
+            })()
+          }
+          correctCount={Math.round((res.score_percentage || 70) * 0.12)}
+          incorrectCount={12 - Math.round((res.score_percentage || 70) * 0.12)}
+          totalQuestions={12}
+          timeSpent={`${res.word_count || 250} so'z`}
+        />
       )}
 
       <p style={{ marginTop: 16 }}>

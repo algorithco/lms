@@ -405,11 +405,12 @@ class StudentGroupSerializer(serializers.ModelSerializer):
             "teacher",
             "teacher_name",
             "invite_code",
+            "invite_token",
             "student_count",
             "students",
             "created_at",
         ]
-        read_only_fields = ["teacher", "invite_code"]
+        read_only_fields = ["teacher", "invite_code", "invite_token"]
 
 
 # ---------------------------------------------------------------------------

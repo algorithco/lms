@@ -96,8 +96,10 @@ class QuotaService:
             ).count()
 
             used = max(db_sub_count, usage_count)
+            bonus_essays = getattr(user, "bonus_essays", 0)
+            effective_limit = cls.FREE_ESSAY_LIMIT + bonus_essays
 
-            if used >= cls.FREE_ESSAY_LIMIT:
+            if used >= effective_limit:
                 msg = (
                     "⚠️ Kvotangiz tugadi! Siz 1 ta bepul esse sinovidan foydalandingiz. "
                     "Davom ettirish uchun Starter (7 000 so'm) yoki PRO (15 000 so'm) tarifiga o'ting!"
@@ -107,7 +109,7 @@ class QuotaService:
                     msg,
                     {
                         "tier": "free",
-                        "limit": cls.FREE_ESSAY_LIMIT,
+                        "limit": effective_limit,
                         "used": used,
                         "remaining": 0,
                         "allowed": False,
@@ -119,9 +121,9 @@ class QuotaService:
                 "",
                 {
                     "tier": "free",
-                    "limit": cls.FREE_ESSAY_LIMIT,
+                    "limit": effective_limit,
                     "used": used,
-                    "remaining": cls.FREE_ESSAY_LIMIT - used,
+                    "remaining": effective_limit - used,
                     "allowed": True,
                 },
             )
@@ -270,7 +272,7 @@ class QuotaService:
                 },
             )
 
-        # Free tier: 1 test total
+        # Free tier: 1 test total (+ bonus tests from referrals)
         from apps.tests.models import TestAttempt, Test
         used_tests = TestAttempt.objects.filter(
             student=user,
@@ -281,21 +283,24 @@ class QuotaService:
             ],
         ).count()
 
-        if used_tests >= cls.FREE_TEST_LIMIT:
+        bonus_tests = getattr(user, "bonus_tests", 0)
+        effective_limit = cls.FREE_TEST_LIMIT + bonus_tests
+
+        if used_tests >= effective_limit:
             return (
                 False,
                 "⚠️ Bepul sinov test limitingiz tugadi. Barcha to'liq Mock testlar va cheksiz mashqlardan foydalanish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
                 {
                     "tier": "free",
-                    "limit": cls.FREE_TEST_LIMIT,
+                    "limit": effective_limit,
                     "used": used_tests,
                     "remaining": 0,
                     "allowed": False,
                 },
             )
 
-        # Check if test is a locked mock
-        if test_id:
+        # Check if test is a locked mock (if user has bonus tests, allow taking locked mock)
+        if test_id and bonus_tests == 0:
             try:
                 t_obj = Test.objects.filter(id=test_id).first()
                 if t_obj:
@@ -316,7 +321,17 @@ class QuotaService:
             except Exception:
                 pass
 
-        return True, "", {"tier": "free", "allowed": True, "remaining": max(0, cls.FREE_TEST_LIMIT - used_tests)}
+        return (
+            True,
+            "",
+            {
+                "tier": "free",
+                "limit": effective_limit,
+                "used": used_tests,
+                "remaining": max(0, effective_limit - used_tests),
+                "allowed": True,
+            },
+        )
 
     @classmethod
     def check_arena_quota(cls, user: Any) -> tuple[bool, str, dict[str, Any]]:

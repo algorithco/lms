@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 
-from .models import Profile, TeacherProfile, User
+from .models import Profile, ReferralHistory, TeacherProfile, User
 
 
 @admin.register(User)
@@ -96,3 +96,20 @@ class TeacherProfileAdmin(admin.ModelAdmin):
         "created_at",
     )
     search_fields = ("teacher__email", "teacher__first_name", "teacher__last_name")
+
+
+@admin.register(ReferralHistory)
+class ReferralHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "referrer",
+        "referred_user",
+        "referral_code",
+        "reward_given",
+        "created_at",
+    )
+    search_fields = (
+        "referrer__email",
+        "referred_user__email",
+        "referral_code",
+    )
+    list_filter = ("reward_given", "created_at")

@@ -26,6 +26,7 @@ export interface SchoolGroup {
   name: string;
   description: string;
   invite_code?: string;
+  invite_token?: string;
   teacher: number;
   teacher_name: string;
   student_count: number;

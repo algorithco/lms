@@ -168,6 +168,86 @@ def group_join_view(request):
         return Response({"error": str(err)}, status=400)
 
 
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def group_join_by_token_view(request, token: str):
+    """
+    1-klikda guruhga taklif havolasi (/join/:token).
+    GET: Guruh nomi, ustoz F.I.Sh, fan va a'zolar sonini qaytaradi.
+    POST: Foydalanuvchini ushbu guruhga o'quvchi sifatida biriktiradi.
+    """
+    from apps.courses.group_service import find_group_by_token_or_code, join_group_by_token
+
+    group = find_group_by_token_or_code(token)
+    if not group:
+        return Response(
+            {"error": "Taklif havolasi bo'yicha guruh topilmadi.", "status": "NOT_FOUND"},
+            status=404,
+        )
+
+    if request.method == "GET":
+        subject_display = (
+            group.get_subject_display()
+            if hasattr(group, "get_subject_display")
+            else group.subject
+        )
+        is_member = bool(
+            request.user
+            and request.user.is_authenticated
+            and group.students.filter(id=request.user.id).exists()
+        )
+        return Response(
+            {
+                "id": group.id,
+                "name": group.name,
+                "description": group.description or "",
+                "teacher_name": group.teacher.get_full_name() or group.teacher.email,
+                "subject": group.subject,
+                "subject_display": subject_display,
+                "student_count": group.student_count,
+                "invite_token": group.invite_token,
+                "invite_code": group.invite_code,
+                "is_member": is_member,
+            }
+        )
+
+    # POST: Join group
+    if not request.user or not request.user.is_authenticated:
+        return Response(
+            {
+                "detail": "Guruhga qo'shilish uchun avval tizimga kiring.",
+                "status": "UNAUTHORIZED",
+            },
+            status=401,
+        )
+
+    try:
+        status_code, joined_group = join_group_by_token(request.user, token)
+        if status_code == "ALREADY_MEMBER":
+            return Response(
+                {
+                    "status": "ALREADY_MEMBER",
+                    "group_id": joined_group.id,
+                    "name": joined_group.name,
+                    "message": f"Siz allaqachon '{joined_group.name}' guruhi a'zosisiz.",
+                },
+                status=200,
+            )
+
+        return Response(
+            {
+                "status": "SUCCESS",
+                "group_id": joined_group.id,
+                "name": joined_group.name,
+                "message": f"'{joined_group.name}' guruhiga muvaffaqiyatli qo'shildingiz!",
+                "group": StudentGroupSerializer(joined_group).data,
+            },
+            status=200,
+        )
+    except ValueError as err:
+        return Response({"error": str(err)}, status=400)
+
+
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
 def student_search_view(request):

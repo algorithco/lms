@@ -256,6 +256,40 @@ def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
         )
 
 
+def find_group_by_token_or_code(token_or_code: str) -> StudentGroup | None:
+    """Finds a StudentGroup by invite_token or invite_code."""
+    if not token_or_code:
+        return None
+    raw = token_or_code.strip()
+    clean_code = raw.removeprefix("#").upper()
+    return (
+        StudentGroup.objects.filter(invite_token=raw).first()
+        or StudentGroup.objects.filter(invite_code__iexact=clean_code).first()
+        or StudentGroup.objects.filter(invite_code__iexact=f"#{clean_code}").first()
+    )
+
+
+def join_group_by_token(student: User, token_or_code: str) -> tuple[str, StudentGroup]:
+    """
+    Joins student to group using invite token or code.
+    Returns:
+      ("ALREADY_MEMBER", group) if student is already in the group
+      ("SUCCESS", group) on successful addition with auto PRO activation.
+    Raises ValueError if group is not found.
+    """
+    group = find_group_by_token_or_code(token_or_code)
+    if not group:
+        raise ValueError(f"'{token_or_code}' bo'yicha guruh topilmadi.")
+
+    if group.students.filter(id=student.id).exists():
+        return ("ALREADY_MEMBER", group)
+
+    group.students.add(student)
+    _activate_student_pro_for_group(student, group)
+    logger.info("Student %s joined group %s via token %s", student.id, group.id, token_or_code)
+    return ("SUCCESS", group)
+
+
 def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
     """O'quvchini taklif kodi orqali guruhga qo'shadi va avtomatik PRO tarifini yoqadi."""
     raw = (invite_code or "").strip().upper()

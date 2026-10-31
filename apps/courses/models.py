@@ -237,6 +237,12 @@ class Enrollment(models.Model):
         return f"{self.student} → {self.course}"
 
 
+def generate_invite_token() -> str:
+    import secrets
+
+    return secrets.token_urlsafe(16)
+
+
 # ---------------------------------------------------------------------------
 # StudentGroup  (teacher's class groups)
 # ---------------------------------------------------------------------------
@@ -276,6 +282,15 @@ class StudentGroup(models.Model):
         db_index=True,
         help_text=_("O'quvchilar qo'shilishi uchun unikal kod (masalan: GR-101)"),
     )
+    invite_token = models.CharField(
+        _("taklif tokeni"),
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text=_("Guruhga 1-klikda qo'shilish uchun xavfsiz unikal havola tokeni"),
+    )
     monthly_fee = models.PositiveIntegerField(
         _("oylik to'lov (so'm)"),
         default=400000,
@@ -297,10 +312,12 @@ class StudentGroup(models.Model):
         return f"{self.name} ({self.teacher.get_full_name()})"
 
     def save(self, *args, **kwargs) -> None:
-        if not self.invite_code:
-            import secrets
+        import secrets
 
+        if not self.invite_code:
             self.invite_code = f"GR-{secrets.token_hex(3).upper()}"
+        if not self.invite_token:
+            self.invite_token = generate_invite_token()
         super().save(*args, **kwargs)
 
     @property

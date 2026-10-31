@@ -2508,4 +2508,57 @@ export const WhiteLabelApi = {
     `${API_BASE}/api/v1/school/groups/${groupId}/export/monthly-report-pdf/`,
 };
 
+// -- Group Invite & 1-Click Join -------------------------------------------
+export interface GroupJoinPreview {
+  id: number;
+  name: string;
+  description: string;
+  teacher_name: string;
+  subject: string;
+  subject_display: string;
+  student_count: number;
+  invite_token: string;
+  invite_code: string;
+  is_member?: boolean;
+}
+
+export interface GroupJoinResult {
+  status: 'SUCCESS' | 'ALREADY_MEMBER';
+  group_id: number;
+  name: string;
+  message: string;
+  group?: Record<string, unknown>;
+}
+
+export const GroupInviteApi = {
+  preview: (token: string) =>
+    api<GroupJoinPreview>(`/api/v1/groups/join/${encodeURIComponent(token)}/`),
+  join: (token: string) =>
+    api<GroupJoinResult>(`/api/v1/groups/join/${encodeURIComponent(token)}/`, {
+      method: 'POST',
+    }),
+};
+
+// -- Referral & Viral Bonus Engine -----------------------------------------
+export interface ReferralStats {
+  referral_code: string;
+  referral_link: string;
+  telegram_bot_link: string;
+  total_invited: number;
+  bonus_tests: number;
+  bonus_essays: number;
+}
+
+export const ReferralApi = {
+  getMyCode: () => api<ReferralStats>('/api/v1/referrals/my-code/'),
+  apply: (code: string) =>
+    api<{ status: string; message: string; bonus_tests: number; bonus_essays: number }>(
+      '/api/v1/referrals/apply/',
+      {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      },
+    ),
+};
+
 export const apiFetch = api;

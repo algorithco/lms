@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshIcon, ZapIcon } from './icons';
 import { TestsApi } from '../lib/testing';
+import ScoreCardModal from './ScoreCardModal';
+import { useAuth } from '../auth/AuthContext';
 
 export interface QuestionReviewItem {
   id: number;
@@ -49,8 +51,10 @@ export default function TestAddictiveResults({
   children,
 }: AddictiveResultProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [retesting, setRetesting] = useState(false);
   const [retestMsg, setRetestMsg] = useState<string | null>(null);
+  const [showScoreCard, setShowScoreCard] = useState(false);
 
   const pct = Math.round(percentage);
 
@@ -364,6 +368,28 @@ export default function TestAddictiveResults({
             </button>
           )}
 
+          <button
+            type="button"
+            onClick={() => setShowScoreCard(true)}
+            style={{
+              padding: '12px 18px',
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              color: '#0F172A',
+              border: 'none',
+              fontWeight: 900,
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <span>📲 Natijani Stories'ga ulashish (9:16)</span>
+          </button>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <button
               type="button"
@@ -664,6 +690,23 @@ export default function TestAddictiveResults({
           </div>
         </div>
       )}
+
+      <ScoreCardModal
+        isOpen={showScoreCard}
+        onClose={() => setShowScoreCard(false)}
+        title={courseTitle || 'Milliy Sertifikat / CBT Test'}
+        studentName={
+          user?.first_name
+            ? `${user.first_name} ${user.last_name || ''}`.trim()
+            : user?.email || "O'quvchi"
+        }
+        scorePercentage={pct}
+        gradeBadge={bmbGrade || (raschGrade ? `⭐️ ${raschGrade}` : '⭐️ A+ DARAJA')}
+        correctCount={correctCount}
+        incorrectCount={wrongCount}
+        totalQuestions={questions.length || (correctCount + wrongCount + unansweredCount)}
+        timeSpent={formatTime(timeSpentSeconds)}
+      />
     </div>
   );
 }

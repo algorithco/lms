@@ -9,6 +9,37 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.65. Rasmiy Versiya v1.75.0: Ustozlar Guruhi Taklif Havolasi, Referal Dvigateli, Viral 9:16 Score Card va Telegram Deep-Linking
+- [x] 1-Vazifa: Ustozlar Guruhiga 1-Click Taklif Havolasi (`/join/:token`):
+  * `StudentGroup` modeliga xavfsiz URL-token (`invite_token`, 64 belgi, unikal, indekslangan) qo'shildi (`apps/courses/models.py`).
+  * `find_group_by_token_or_code` va `join_group_by_token` servis funksiyalari yaratildi (`apps/courses/group_service.py`), ham `invite_token`, ham `invite_code` (#GR-XXX) orqali guruhga qo'shilish va avtomatik 365 kunlik PRO tarifini ulash ta'minlandi.
+  * Ommaviy preview va a'zolikka kirish API endpointlari yoqildi: `GET /api/v1/groups/join/<token>/` va `POST /api/v1/groups/join/<token>/` (`apps/webapi/views_school.py`, `apps/webapi/urls.py`).
+  * Frontendda `/join/:token` sahifasi (`JoinGroup.tsx`) yaratildi: Guruh nomi, fani, o'qituvchisi, o'quvchilar soni, PRO imtiyozlari kartochkasi, tizimga kirganlar uchun 1-click a'zolik va mehmonlar uchun ro'yxatdan o'tish/Telegram kirish yo'naltirishlari.
+  * Ustozlar dashboardidagi guruh kartasiga (`Groups.tsx`) `[📋 Taklif havolasi]` va `[✈️ Telegram]` 1-click ulashish tugmalari joylashtirildi.
+- [x] 2-Vazifa: "Do'stingni taklif qil" Referal va Bonus Tizimi:
+  * `User` modeliga `referral_code`, `bonus_tests` va `bonus_essays` maydonlari qo'shildi; `ReferralHistory` modeli yaratildi (`apps/accounts/models.py`, `admin.py`).
+  * `apply_referral_reward` servisida referal orqali ro'yxatdan o'tgan foydalanuvchiga va taklif qiluvchiga +1 ta Mock Test va +1 ta AI Esse bonusi qo'shilishi va taklif qiluvchiga Telegram xabarnoma yuborilishi amalga oshirildi (`apps/accounts/services/referral.py`).
+  * `QuotaService` (`apps/subscriptions/services/quota.py`): Bepul foydalanuvchi sinov limiti `FREE_LIMIT + bonus` sifatida dinamik hisoblanadigan qilindi.
+  * API endpointlari: `GET /api/v1/referrals/my-code/` va `POST /api/v1/referrals/apply/` (`apps/webapi/views_referral.py`).
+  * Frontendda oltin gradientli `ReferralCard.tsx` vidjeti yaratilib, `Dashboard.tsx` va `Profile.tsx` sahifalariga o'rnatildi.
+  * Yangi marshrut `/r/:code` (`ReferralRedirect.tsx`) qo'shilib, havoladan kelgan foydalanuvchini ro'yxatdan o'tishga yo'naltiradi va bonusni avtomatik biriktiradi.
+- [x] 3-Vazifa: 9:16 Instagram Stories & Telegram Natija Kartochkasi (Viral Score Card):
+  * `ScoreCardModal.tsx`: 1080x1920 (9:16) vertikal formatdagi HTML5 Canvas generatori yaratildi. Humo qanoti nishoni, neon neon gradusi, baho medali, statistika ko'rsatkichlari (aniqlik %, tezlik, to'g'ri javoblar soni), QR-kod tekshiruvi integratsiya qilindi.
+  * Yuklab olish (`[📥 Rasmni saqlash (.png)]`) va mobil/desktop Web Share API orqali to'g'ridan-to'g'ri Telegram/Stories'ga ulashish (`[✈️ Telegram / Stories'ga ulashish]`) taqdim etildi.
+  * Test natijalari sahifasida (`TestAddictiveResults.tsx`) va Esse natijasida (`EssayResult.tsx`) yorqin `[📲 Natijani Stories'ga ulashish (9:16)]` tugmasi ulandi.
+- [x] 4-Vazifa: Telegram Bot Deep-Linking (`@uz_essaygrader_bot`):
+  * `/start group_<token>` (va `join_`, `GR-`): Guruhga avtomatik biriktirish, PRO tarifini yoqish va TMA webapp tugmasini qaytarish.
+  * `/start test_<id>`: Test ma'lumotlari kartasi va to'g'ridan-to'g'ri TMA mini app testini ochish.
+  * `/start ref_<code>`: Xush kelibsiz bonusi bilan do'st taklifini rasmiylashtirish va +1 test, +1 esse sovg'a qilish.
+- [x] 5-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `oxlint`: 0 ta xatolik (Found 74 warnings and 0 errors).
+  * `npm --prefix frontend run build`: 0 ta xatolik (Vite v8.3.5, 3.05s).
+  * `pytest tests/test_growth_referrals.py`: 9 ta yangi test 100% PASS.
+  * `pytest tests/test_telegram_bot_features.py`: 27 ta test 100% PASS.
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS (`169.58.58.229` / `/opt/lms`): `web`, `nginx`, `bot` yangilanadi, `bestway` 100% daxlsiz saqlanadi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.64. Rasmiy Versiya v1.74.0: Test Start Barqarorligi, CEFR Mobile Layout, In-App Feedback va Jonli Fikrlar
 - [x] 1-Vazifa: Test Start Barqarorligi va Oq Ekran Yiqilishini Bartaraf Etish (`apps/tests/services.py`, `apps/tests/views.py`, `ErrorBoundary.tsx`, `TakeTest.tsx`, `EnglishExamInterface.tsx`):
   * `StartAttemptService.execute`: `access_type`, `access_pin`, `assigned_group` qiymatlarida null-safe himoya o'rnatildi.
