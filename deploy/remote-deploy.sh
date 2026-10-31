@@ -131,6 +131,10 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T -e PYTHON
 # Public health: main host must return 200; admin host sits behind
 # Basic Auth by design, so 401 means nginx + auth gate are up
 # (the app itself was already proven healthy via 127.0.0.1 above).
+for h in $(seq 1 15); do
+  if curl -fsS https://grandec.uz/healthz/ >/dev/null 2>&1; then break; fi
+  sleep 2
+done
 curl -fsS https://grandec.uz/healthz/; echo
 admin_code=$(curl -sS -o /dev/null -w "%{http_code}" https://admin.grandec.uz/healthz/); echo "admin /healthz -> $admin_code"
 case "$admin_code" in 200|401) ;; *) echo "ERROR: admin host unexpected status $admin_code"; exit 1 ;; esac

@@ -106,34 +106,29 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
 
     user = receipt.user
     user_name = user.get_full_name() or user.email
-    user_phone = (
-        getattr(user, "phone_number", None)
-        or getattr(user, "phone", None)
-        or "Mavjud emas"
-    )
-    plan_name = receipt.plan.capitalize()
+    tg_handle = f"@{user.telegram_username}" if getattr(user, "telegram_username", None) else f"ID: {user.id}"
+    plan_name = receipt.plan.upper()
     created_str = (
-        receipt.created_at.strftime("%d.%m.%Y %H:%M")
+        receipt.created_at.strftime("%d.%m.%Y, %H:%M")
         if receipt.created_at
-        else timezone.now().strftime("%d.%m.%Y %H:%M")
+        else timezone.now().strftime("%d.%m.%Y, %H:%M")
     )
 
     caption = (
-        f"📥 <b>YANGI TO'LOV CHEKI TUSHDI! (#RECEIPT-{receipt.id})</b>\n\n"
-        f"👤 <b>Foydalanuvchi:</b> {user_name} (Tel: {user_phone})\n"
-        f"💎 <b>Tanlangan tarif:</b> {plan_name}\n"
-        f"💰 <b>Summa:</b> {int(receipt.amount):,} so'm\n"
-        f"🕒 <b>Vaqt:</b> {created_str}"
+        "🧾 <b>Yangi to'lov cheki!</b>\n"
+        f"👤 <b>Foydalanuvchi:</b> {user_name} ({tg_handle})\n"
+        f"📦 <b>Tanlangan tarif:</b> {plan_name} ({int(receipt.amount):,} so'm)\n"
+        f"📅 <b>Sana:</b> {created_str}"
     )
 
     reply_markup = {
         "inline_keyboard": [
             [
                 {
-                    "text": "✅ Tasdiqlash",
-                    "callback_data": f"adm_rec_appr_{receipt.id}",
+                    "text": "✅ Tasdiqlash va faollashtirish",
+                    "callback_data": f"approve_receipt_{receipt.id}",
                 },
-                {"text": "❌ Rad etish", "callback_data": f"adm_rec_rej_{receipt.id}"},
+                {"text": "❌ Rad etish", "callback_data": f"reject_receipt_{receipt.id}"},
             ]
         ]
     }
@@ -271,7 +266,10 @@ def approve_payment_receipt(
     - Agar foydalanuvchi Telegram bog'lagan bo'lsa, xabarnoma yuboriladi.
     """
     receipt.status = PaymentReceipt.Status.APPROVED
-    receipt.save(update_fields=["status", "updated_at"])
+    receipt.reviewed_at = timezone.now()
+    if admin_user and getattr(admin_user, "is_authenticated", False):
+        receipt.reviewed_by = admin_user
+    receipt.save(update_fields=["status", "reviewed_at", "reviewed_by", "updated_at"])
 
     # 1. Resolve or create appropriate SubscriptionPlan
     plan = _get_or_create_plan_for_receipt(receipt.plan)
@@ -349,7 +347,10 @@ def reject_payment_receipt(
     """
     receipt.status = PaymentReceipt.Status.REJECTED
     receipt.admin_note = note
-    receipt.save(update_fields=["status", "admin_note", "updated_at"])
+    receipt.reviewed_at = timezone.now()
+    if admin_user and getattr(admin_user, "is_authenticated", False):
+        receipt.reviewed_by = admin_user
+    receipt.save(update_fields=["status", "admin_note", "reviewed_at", "reviewed_by", "updated_at"])
 
     telegram_id = getattr(receipt.user, "telegram_chat_id", None)
     if telegram_id:

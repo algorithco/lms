@@ -145,9 +145,9 @@ def entitlement_view(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def card_info_view(request):
-    """GET /api/v1/payments/card-info/ — Public card and plan price settings."""
-    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "9860 **** **** ****"
-    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON R"
+    """GET /api/v1/payments/card-info/ & /api/v1/billing/card-details/ — Public card and plan price settings."""
+    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "8600 5504 1234 5678"
+    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "KOMILJON ROZIYEV"
     starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 7000
     pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 15000
     premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 27000
@@ -158,6 +158,29 @@ def card_info_view(request):
             "starter_price": starter_price,
             "pro_price": pro_price,
             "premium_price": premium_price,
+            "tariffs": [
+                {
+                    "id": "STARTER",
+                    "code": "starter",
+                    "name": "Starter",
+                    "price": starter_price,
+                    "label": f"{starter_price:,} so'm/oy".replace(",", " "),
+                },
+                {
+                    "id": "PRO",
+                    "code": "pro",
+                    "name": "Pro",
+                    "price": pro_price,
+                    "label": f"{pro_price:,} so'm/oy".replace(",", " "),
+                },
+                {
+                    "id": "PREMIUM",
+                    "code": "premium",
+                    "name": "Premium",
+                    "price": premium_price,
+                    "label": f"{premium_price:,} so'm/oy".replace(",", " "),
+                },
+            ],
             "plans": {
                 "starter": {
                     "name": "Starter",
@@ -183,8 +206,9 @@ def card_info_view(request):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def payment_receipt_upload_view(request):
-    """POST /api/v1/payments/receipts/ — Upload card payment screenshot/receipt."""
-    plan = str(request.data.get("plan", "")).strip().lower()
+    """POST /api/v1/payments/receipts/ & /api/v1/billing/upload-receipt/ — Upload card payment screenshot/receipt."""
+    raw_plan = request.data.get("plan") or request.data.get("tariff") or ""
+    plan = str(raw_plan).strip().lower()
     if plan not in ("starter", "pro", "premium"):
         return Response(
             {"detail": "Tarif 'starter', 'pro' yoki 'premium' bo'lishi kerak."},
@@ -243,6 +267,60 @@ def my_payment_receipts_view(request):
     """GET /api/v1/payments/my-receipts/ — User's uploaded payment receipts."""
     receipts = PaymentReceipt.objects.filter(user=request.user).order_by("-created_at")
     return Response({"results": PaymentReceiptSerializer(receipts, many=True).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def receipt_review_view(request, receipt_id: int):
+    """
+    POST /api/v1/billing/receipts/<id>/review/
+    Faoliyat: Admin to'lov chekini tasdiqlaydi ('approve') yoki rad etadi ('reject').
+    """
+    user = request.user
+    is_admin = bool(
+        getattr(user, "is_staff", False)
+        or getattr(user, "is_superuser", False)
+        or getattr(user, "role", "") in ("admin", "superadmin")
+    )
+    if not is_admin:
+        return Response(
+            {"detail": "Faqat administratorlar to'lov chekini ko'rib chiqa oladi."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    receipt = get_object_or_404(PaymentReceipt, id=receipt_id)
+    action = str(request.data.get("action", "")).strip().lower()
+    note = str(request.data.get("note", "") or request.data.get("admin_notes", "")).strip()
+
+    from apps.payments.services import approve_payment_receipt, reject_payment_receipt
+
+    if action == "approve":
+        approve_payment_receipt(receipt, admin_user=user)
+        return Response(
+            {
+                "success": True,
+                "status": "APPROVED",
+                "receipt_id": receipt.id,
+                "detail": f"Chek tasdiqlandi. Foydalanuvchiga {receipt.plan.upper()} tarifi 30 kunga faollashtirildi.",
+            },
+            status=status.HTTP_200_OK,
+        )
+    elif action == "reject":
+        reject_payment_receipt(receipt, note=note or "Admin tomonidan rad etildi", admin_user=user)
+        return Response(
+            {
+                "success": True,
+                "status": "REJECTED",
+                "receipt_id": receipt.id,
+                "detail": "Chek rad etildi.",
+            },
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {"detail": "Action 'approve' yoki 'reject' bo'lishi kerak."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @api_view(["POST"])

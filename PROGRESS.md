@@ -9,6 +9,28 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.59. Rasmiy Versiya v1.67.0: CI/CD Workflows 100% Yashil Qilinishi, Yangi Narxlar (7k/15k/27k) va Karta Raqami Orqali To'lov (Telegram 1-Click Tasdiqlash)
+- [x] 1-Vazifa: GitHub Actions CI/CD Ish Oqimlarini 100% Yashil Qilish:
+  * `.github/workflows/ci.yml` va `build.yml` da eskirgan `actions/checkout@v7` to'g'rilanib `actions/checkout@v4` ga o'tkazildi.
+  * `.github/workflows/deploy.yml` SSH ulanishiga `ServerAliveInterval=15`, `ServerAliveCountMax=6`, `ConnectTimeout=30` qo'shilib, tarmoq uzilishlariga chidamli qilindi.
+  * `deploy/remote-deploy.sh` ga 30 soniyalik (15 ta urinish) healthcheck retry qo'shildi, Daphne ishga tushishi bilan 502 xatolik yuz bermaydi.
+  * `ruff check .` bo'yicha barcha foydalanilmagan o'zgaruvchilar tozalandi (0 ta xatolik).
+  * `python manage.py makemigrations --check --dry-run` to'liq 0 xatolik bilan o'tishi ta'minlandi.
+  * Barcha test regressiyalari (15 ta xatolik) tuzatildi va `pytest tests -q` to'liq 1306 ta test 100% PASS (0 failed) natijasiga keltirildi.
+- [x] 2-Vazifa: 5-Bosqich — Karta Raqami Orqali To'lov va Telegram Botda 1-Click Tasdiqlash:
+  * `PaymentReceipt` modeliga `reviewed_at`, `reviewed_by` qo'shildi va `0015_paymentreceipt_reviewed_at_and_more.py` migratsiyasi yaratildi.
+  * `GET /api/v1/billing/card-details/` va `POST /api/v1/billing/upload-receipt/` API'lari yaratildi.
+  * Admin Telegram botiga to'lov cheki yuborilganda chiroyli formatlangan rasm va `[✅ Tasdiqlash va faollashtirish]` (`approve_receipt_<id>`) hamda `[❌ Rad etish]` (`reject_receipt_<id>`) inline tugmalari bilan xabar boradi.
+  * 1-Click tasdiqlanganda: foydalanuvchiga avtomatik 30 kunlik obuna beriladi, unga tabrik xabari jo'natiladi, admin xabari esa "✅ Ushbu chek Admin tomonidan tasdiqlandi" holatiga yangilanadi.
+  * Rad etilganda: admin xabari "❌ Ushbu chek Admin tomonidan rad etildi" holatiga yangilanadi.
+- [x] 3-Vazifa: Frontend Warm Academic Luxury Modal va To'lov Integratsiyasi:
+  * `frontend/src/components/CardPaymentModal.tsx` yaratildi: Karta raqamini 1-click nusxalash (`8600 5504 1234 5678`), karta egasi (`KOMILJON ROZIYEV`), tariflar tanlash (7k, 15k, 27k), fayl yuklash (dropzone) va PENDING holat ekrani.
+  * `frontend/src/pages/Pricing.tsx` va `frontend/src/components/LimitExceededModal.tsx` yangi modal bilan to'liq bog'landi.
+  * `npm --prefix frontend run lint`: 0 xatolik, `npm --prefix frontend run build`: 0 xatolik (2.79s).
+- [x] 4-Vazifa: Zero AI Attribution va Zero-Downtime VPS Deploy:
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * BestWay loyihasiga mutlaqo teginilmadi, faqat Grand Education (`/opt/lms`) yangilandi.
+
 ### 2.58. Rasmiy Versiya v1.66.0: Mobil Topbar (Navbar) Tuzatilishi va O'qituvchilar Uchun Natijalar Vedomosti (PDF/Excel Export)
 - [x] 1-Vazifa: Mobil Topbar (Navbar) Minib Qolishini Bartaraf Etish (`Landing.tsx`, `index.css`):
   * Mobil ekranlarda (< 768px) desktop matnli menyulari (`Testlar`, `AI Esse`, `1v1 Arena`, `O'tish ballari`, `Tariflar`) butunlay yashirildi (`hidden md:flex`).

@@ -248,14 +248,32 @@ urlpatterns = [
         "payments/card-info/", views_billing.card_info_view, name="payments-card-info"
     ),
     path(
+        "billing/card-details/", views_billing.card_info_view, name="billing-card-details"
+    ),
+    path(
         "payments/receipts/",
         views_billing.payment_receipt_upload_view,
         name="payments-receipt-upload",
     ),
     path(
+        "billing/upload-receipt/",
+        views_billing.payment_receipt_upload_view,
+        name="billing-upload-receipt",
+    ),
+    path(
+        "billing/receipts/<int:receipt_id>/review/",
+        views_billing.receipt_review_view,
+        name="billing-receipt-review",
+    ),
+    path(
         "payments/my-receipts/",
         views_billing.my_payment_receipts_view,
         name="payments-my-receipts",
+    ),
+    path(
+        "billing/my-receipts/",
+        views_billing.my_payment_receipts_view,
+        name="billing-my-receipts",
     ),
     # -- Google OAuth ----------------------------------------------------
     path("auth/google/", google_auth_views.google_auth_verify, name="auth-google"),

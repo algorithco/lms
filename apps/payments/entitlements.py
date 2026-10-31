@@ -571,10 +571,10 @@ UPGRADE_HINT = "PRO tarifiga o'tish orqali cheklovni olib tashlashingiz mumkin."
 
 def _limit_message(kind: str) -> str:
     if kind == SubscriptionUsage.Kind.IMAGE_ESSAY:
-        return "Rasmli qo'lyozma esse tekshirish faqat PRO va PREMIUM tariflarida mavjud. Davom ettirish uchun STARTER yoki PRO tarifiga o'ting!"
+        return "Haftalik rasmli esse limitingiz tugadi."
     if kind == SubscriptionUsage.Kind.TEXT_ESSAY:
-        return "Bepul sinov limiti tugadi. Davom ettirish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
-    return "Bepul sinov test limitingiz tugadi. To'liq Mock testlar va cheksiz mashqlardan foydalanish uchun STARTER yoki PRO tarifiga o'ting!"
+        return "Matnli esse limitingiz tugadi."
+    return "Test limitingiz tugadi."
 
 
 def _remaining_message(kind: str, remaining: dict) -> str:

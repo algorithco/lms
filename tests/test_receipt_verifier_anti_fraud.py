@@ -50,11 +50,11 @@ class ReceiptVerifierAntiFraudTests(TestCase):
 
     @patch("apps.subscriptions.services.receipt_verifier.scan_receipt_vision")
     def test_valid_starter_receipt_activates_plan(self, mock_scan):
-        """Authentic 5,000 UZS receipt activates Starter plan immediately."""
+        """Authentic Starter receipt activates Starter plan immediately."""
         fake_bytes = b"sample_starter_receipt_image_data_12345"
         mock_scan.return_value = {
             "is_valid": True,
-            "amount": 5000.0,
+            "amount": 7000.0,
             "transaction_id": "CLICK-STARTER-9901",
             "payment_system": PaymentReceipt.PaymentSystem.CLICK,
             "date_str": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -75,7 +75,7 @@ class ReceiptVerifierAntiFraudTests(TestCase):
         # Verify PaymentReceipt saved
         receipt = PaymentReceipt.objects.get(transaction_id="CLICK-STARTER-9901")
         self.assertTrue(receipt.is_verified)
-        self.assertEqual(receipt.amount, Decimal("5000"))
+        self.assertEqual(receipt.amount, Decimal("7000"))
         self.assertEqual(receipt.receipt_hash, compute_receipt_hash(fake_bytes))
 
         # Verify plan activated

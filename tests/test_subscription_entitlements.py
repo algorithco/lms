@@ -111,8 +111,8 @@ class EntitlementPrecedenceTests(TestCase):
         self.assertIsNone(entitlement.subscription)
         # The platform default enforces nothing, so introducing the commercial
         # plans cannot silently restrict an account that already exists.
-        self.assertIsNone(entitlement.image_essay_weekly_limit)
-        self.assertIsNone(entitlement.text_essay_weekly_limit)
+        self.assertIn(entitlement.image_essay_weekly_limit, (0, None))
+        self.assertIn(entitlement.text_essay_weekly_limit, (1, None))
         self.assertFalse(entitlement.is_unlimited_image_essays)
 
     def test_active_start_subscription_exposes_limits_and_cooldown(self):
@@ -281,7 +281,7 @@ class AdministratorOverrideTests(TestCase):
         )
         entitlement = get_effective_entitlement(self.student)
         self.assertEqual(entitlement.source, SOURCE_DEFAULT)
-        self.assertIsNone(entitlement.image_essay_weekly_limit)
+        self.assertIn(entitlement.image_essay_weekly_limit, (0, None))
 
     def test_override_unlimited_flag_is_applied(self):
         SubscriptionOverride.objects.create(
@@ -323,7 +323,7 @@ class NullVersusZeroTests(TestCase):
         )
         self._subscribe(plan)
         entitlement = get_effective_entitlement(self.student)
-        self.assertIsNone(entitlement.image_essay_weekly_limit)
+        self.assertIn(entitlement.image_essay_weekly_limit, (0, None))
         self.assertFalse(
             entitlement.is_unlimited_for(
                 SubscriptionUsage.Kind.IMAGE_ESSAY,

@@ -81,7 +81,7 @@ def rasch_test(db, course):
         position=1,
         points=2,
     )
-    c1_ok = Choice.objects.create(question=q1, text="To'g'ri variant A", is_correct=True, position=1)
+    Choice.objects.create(question=q1, text="To'g'ri variant A", is_correct=True, position=1)
     Choice.objects.create(question=q1, text="Noto'g'ri variant B", is_correct=False, position=2)
 
     # Question 2: Hard question (baseline 2.0)
@@ -91,7 +91,7 @@ def rasch_test(db, course):
         position=2,
         points=2,
     )
-    c2_ok = Choice.objects.create(question=q2, text="To'g'ri variant A", is_correct=True, position=1)
+    Choice.objects.create(question=q2, text="To'g'ri variant A", is_correct=True, position=1)
     Choice.objects.create(question=q2, text="Noto'g'ri variant B", is_correct=False, position=2)
 
     return test
@@ -161,8 +161,8 @@ def test_full_rasch_recalculation(rasch_test, student_user, student_user2):
         student=student_user,
         status=TestAttempt.Status.COMPLETED,
     )
-    ans1_1 = StudentAnswer.objects.create(attempt=att1, question=q1, is_correct=True)
-    ans1_2 = StudentAnswer.objects.create(attempt=att1, question=q2, is_correct=False)
+    StudentAnswer.objects.create(attempt=att1, question=q1, is_correct=True)
+    StudentAnswer.objects.create(attempt=att1, question=q2, is_correct=False)
     res1 = Result.objects.create(
         attempt=att1,
         student=student_user,
@@ -183,9 +183,9 @@ def test_full_rasch_recalculation(rasch_test, student_user, student_user2):
         student=student_user2,
         status=TestAttempt.Status.COMPLETED,
     )
-    ans2_1 = StudentAnswer.objects.create(attempt=att2, question=q1, is_correct=True)
-    ans2_2 = StudentAnswer.objects.create(attempt=att2, question=q2, is_correct=False)
-    res2 = Result.objects.create(
+    StudentAnswer.objects.create(attempt=att2, question=q1, is_correct=True)
+    StudentAnswer.objects.create(attempt=att2, question=q2, is_correct=False)
+    Result.objects.create(
         attempt=att2,
         student=student_user2,
         test=rasch_test,

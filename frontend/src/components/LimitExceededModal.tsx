@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { LockIcon, XIcon, ZapIcon } from './icons';
+import CardPaymentModal from './CardPaymentModal';
 
 interface LimitExceededModalProps {
   isOpen: boolean;
@@ -13,15 +14,31 @@ export default function LimitExceededModal({
   isOpen,
   onClose,
   title = "Bepul Sinov Limiti Tugadi",
-  message = "Siz bepul sinov limitingizdan to'liq foydalandingiz. Davom ettirish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
+  message = "Siz bepul sinov limitingizdan to'liq foydalandingiz. Davom ettirish uchun STARTER (7 000 so'm) yoki PRO (15 000 so'm) tarifiga o'ting!",
 }: LimitExceededModalProps) {
-  const navigate = useNavigate();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   if (!isOpen) return null;
 
+  if (showPaymentModal) {
+    return (
+      <CardPaymentModal
+        isOpen={true}
+        initialTariff="PRO"
+        onClose={() => {
+          setShowPaymentModal(false);
+          onClose();
+        }}
+        onSuccess={() => {
+          setShowPaymentModal(false);
+          onClose();
+        }}
+      />
+    );
+  }
+
   const handleUpgrade = () => {
-    onClose();
-    navigate('/pricing');
+    setShowPaymentModal(true);
   };
 
   return (

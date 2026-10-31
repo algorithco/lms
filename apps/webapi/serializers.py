@@ -315,20 +315,26 @@ class PaymentReceiptSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "plan",
+            "tariff",
             "amount",
             "receipt_image",
             "receipt_image_url",
             "status",
             "source",
             "admin_note",
+            "admin_notes",
+            "reviewed_at",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "id",
+            "tariff",
             "status",
             "source",
             "admin_note",
+            "admin_notes",
+            "reviewed_at",
             "created_at",
             "updated_at",
         ]

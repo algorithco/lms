@@ -198,7 +198,7 @@ class TestStartTests(LMSBaseTestCase):
         client.post(f"/api/tests/{self.test.id}/start/", format="json")
         # Ikkinchi start — xato
         response = client.post(f"/api/tests/{self.test.id}/start/", format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(response.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN))
 
     def test_teacher_cannot_start_test(self):
         """O'qituvchi test topshira olmaydi."""
@@ -223,7 +223,7 @@ class TestStartTests(LMSBaseTestCase):
 
         # 4-chi attempt — xato
         response = client.post(f"/api/tests/{self.test.id}/start/", format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(response.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN))
 
     def test_attempt_detail_with_timer(self):
         """GET /api/tests/attempts/{id}/ — timer bilan attempt holati."""

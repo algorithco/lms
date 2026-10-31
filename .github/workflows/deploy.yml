@@ -101,7 +101,7 @@ jobs:
           # Key + env file are shredded on EXIT (success or failure).
           cleanup_ci() { rm -f /tmp/lms_deploy.env ~/.ssh/lms_deploy_key; }
           trap cleanup_ci EXIT
-          SSH_BASE="-i $HOME/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new"
+          SSH_BASE="-i $HOME/.ssh/lms_deploy_key -o BatchMode=yes -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=6 -o StrictHostKeyChecking=accept-new"
           SSH="ssh -p ${VPS_SSH_PORT:-22} $SSH_BASE $VPS_USER@$VPS_HOST"
           SCP="scp -P ${VPS_SSH_PORT:-22} $SSH_BASE"
           # Versioned config sync: the exact checked-out compose + preflight +

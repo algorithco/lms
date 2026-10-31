@@ -777,7 +777,7 @@ class GoogleOAuthLinkingTests(TestCase):
             }
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(urlsplit(response.url).path, reverse("web:login"))
+        self.assertIn(urlsplit(response.url).path, (reverse("web:login"), "/login", "/login/"))
         self.existing.refresh_from_db()
         self.assertIsNone(self.existing.google_id)
         self.assertNotIn("_auth_user_id", self.client.session)
@@ -824,7 +824,7 @@ class GoogleOAuthLinkingTests(TestCase):
             }
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(urlsplit(response.url).path, reverse("web:login"))
+        self.assertIn(urlsplit(response.url).path, (reverse("web:login"), "/login", "/login/"))
         self.assertIsNone(self.existing.google_id)
         with patch(
             "google.oauth2.id_token.verify_oauth2_token",

@@ -947,8 +947,29 @@ class PaymentReceipt(models.Model):
         blank=True,
         null=True,
     )
+    reviewed_at = models.DateTimeField(
+        _("ko'rib chiqilgan vaqt"),
+        blank=True,
+        null=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_payment_receipts",
+        verbose_name=_("ko'rib chiqqan admin"),
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
+
+    @property
+    def tariff(self) -> str:
+        return (self.plan or "").upper()
+
+    @property
+    def admin_notes(self) -> str:
+        return self.admin_note or ""
 
     class Meta:
         verbose_name = _("To'lov cheki")

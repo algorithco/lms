@@ -3,7 +3,8 @@ import type { FormEvent, DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { PaymentsApi } from '../lib/api';
-import { CreditCardIcon, CheckIcon, CopyIcon } from '../components/icons';
+import { CreditCardIcon, CheckIcon, CopyIcon, ZapIcon } from '../components/icons';
+import CardPaymentModal from '../components/CardPaymentModal';
 
 export const PLAN_PRICES = {
   starter: 7000,
@@ -14,6 +15,7 @@ export const PLAN_PRICES = {
 export default function Pricing() {
   const { t } = useLang();
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [cardInfo, setCardInfo] = useState<{
     card_number: string;
     card_holder: string;
@@ -168,6 +170,25 @@ export default function Pricing() {
             <li>Haftasiga 3 ta esse tekshirish</li>
             <li>Xatolar tahlili</li>
           </ul>
+          <button
+            type="button"
+            className="btn sm"
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              fontWeight: 600,
+              background: selectedPlan === 'starter' ? '#38bdf8' : 'rgba(56, 189, 248, 0.1)',
+              color: selectedPlan === 'starter' ? '#000' : '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPlan('starter');
+              setPaymentModalOpen(true);
+            }}
+          >
+            {selectedPlan === 'starter' ? "To'lov qilish →" : "Tanlash va to'lash"}
+          </button>
         </div>
 
         {/* PRO */}
@@ -199,6 +220,25 @@ export default function Pricing() {
             <li>Kunlik rasmiy Mock testlar</li>
             <li>AI repetitor izohlari</li>
           </ul>
+          <button
+            type="button"
+            className="btn sm"
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              fontWeight: 700,
+              background: selectedPlan === 'pro' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
+              color: selectedPlan === 'pro' ? '#000' : '#fbbf24',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPlan('pro');
+              setPaymentModalOpen(true);
+            }}
+          >
+            {selectedPlan === 'pro' ? "To'lov qilish →" : "Tanlash va to'lash"}
+          </button>
         </div>
 
         {/* PREMIUM */}
@@ -227,6 +267,25 @@ export default function Pricing() {
             <li>Ustoz tekshiruvi</li>
             <li>Rasmiy PDF sertifikat</li>
           </ul>
+          <button
+            type="button"
+            className="btn sm"
+            style={{
+              width: '100%',
+              justifyContent: 'center',
+              fontWeight: 600,
+              background: selectedPlan === 'premium' ? '#10b981' : 'rgba(16, 185, 129, 0.1)',
+              color: selectedPlan === 'premium' ? '#000' : '#34d399',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPlan('premium');
+              setPaymentModalOpen(true);
+            }}
+          >
+            {selectedPlan === 'premium' ? "To'lov qilish →" : "Tanlash va to'lash"}
+          </button>
         </div>
       </div>
 
@@ -257,7 +316,7 @@ export default function Pricing() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12, marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>Karta egasi:</span>
             <strong>{cardInfo.card_holder}</strong>
@@ -267,6 +326,15 @@ export default function Pricing() {
             <strong style={{ color: '#fbbf24', fontSize: 16 }}>{currentPrice.toLocaleString()} so'm</strong>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setPaymentModalOpen(true)}
+          className="btn primary btn-glow"
+          style={{ width: '100%', justifyContent: 'center', padding: '12px 16px', fontWeight: 700 }}
+        >
+          <ZapIcon size={16} className="ico" /> Karta orqali to'lash va chek yuklash (Telegram 1-click)
+        </button>
       </div>
 
       {/* Drag & Drop Receipt Verification Form */}
@@ -362,6 +430,13 @@ export default function Pricing() {
           </button>
         </form>
       </div>
+
+      <CardPaymentModal
+        isOpen={paymentModalOpen}
+        initialTariff={selectedPlan.toUpperCase() as 'STARTER' | 'PRO' | 'PREMIUM'}
+        onClose={() => setPaymentModalOpen(false)}
+        onSuccess={() => setPaymentModalOpen(false)}
+      />
     </div>
   );
 }

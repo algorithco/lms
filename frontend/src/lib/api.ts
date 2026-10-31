@@ -1402,6 +1402,47 @@ export interface PaymentReceiptItem {
   updated_at: string;
 }
 
+export interface CardDetailsResponse {
+  card_number: string;
+  card_holder: string;
+  starter_price: number;
+  pro_price: number;
+  premium_price: number;
+  tariffs?: {
+    id: string;
+    code: string;
+    name: string;
+    price: number;
+    label: string;
+  }[];
+  plans?: Record<string, { name: string; price: number; label: string }>;
+}
+
+export const BillingApi = {
+  cardDetails: () => api<CardDetailsResponse>('/api/v1/billing/card-details/'),
+  uploadReceipt: (tariff: string, file: File, amount?: number) => {
+    const fd = new FormData();
+    fd.append('tariff', tariff);
+    fd.append('plan', tariff.toLowerCase());
+    fd.append('receipt_image', file);
+    if (amount) fd.append('amount', String(amount));
+    return api<PaymentReceiptItem>('/api/v1/billing/upload-receipt/', {
+      method: 'POST',
+      body: fd,
+    });
+  },
+  reviewReceipt: (receiptId: number, action: 'approve' | 'reject', note?: string) => {
+    return api<{ success: boolean; status: string; receipt_id: number; detail: string }>(
+      `/api/v1/billing/receipts/${receiptId}/review/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ action, note }),
+      }
+    );
+  },
+  myReceipts: () => api<{ results: PaymentReceiptItem[] }>('/api/v1/billing/my-receipts/'),
+};
+
 export const PaymentsApi = {
   cardInfo: () => api<CardInfoResponse>('/api/v1/payments/card-info/'),
   uploadReceipt: (plan: 'starter' | 'pro' | 'premium', file: File, amount?: number) => {

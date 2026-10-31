@@ -73,7 +73,6 @@ class QuotaService:
             )
 
         today = timezone.localdate()
-        date_str = today.strftime("%Y-%m-%d")
 
         # 1. Bepul foydalanuvchi: jami 1 ta matnli esse sinovi (rasmli esse esa mutlaqo taqiqlangan)
         if tier == "free":
@@ -100,8 +99,8 @@ class QuotaService:
 
             if used >= cls.FREE_ESSAY_LIMIT:
                 msg = (
-                    "⚠️ Bepul sinov limiti tugadi. Davom ettirish uchun "
-                    "STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
+                    "⚠️ Kvotangiz tugadi! Siz 1 ta bepul esse sinovidan foydalandingiz. "
+                    "Davom ettirish uchun Starter (7 000 so'm) yoki PRO (15 000 so'm) tarifiga o'ting!"
                 )
                 return (
                     False,

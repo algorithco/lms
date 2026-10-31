@@ -5351,12 +5351,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             payment_id = _safe_callback_int(data, prefix="reject_payment_")
             if payment_id is not None:
                 await reject_payment_callback(update, context, payment_id)
-        elif data.startswith("adm_rec_appr_"):
-            receipt_id = _safe_callback_int(data, prefix="adm_rec_appr_")
+        elif data.startswith("adm_rec_appr_") or data.startswith("approve_receipt_"):
+            prefix = "approve_receipt_" if data.startswith("approve_receipt_") else "adm_rec_appr_"
+            receipt_id = _safe_callback_int(data, prefix=prefix)
             if receipt_id is not None:
                 await approve_receipt_callback(update, context, receipt_id)
-        elif data.startswith("adm_rec_rej_"):
-            receipt_id = _safe_callback_int(data, prefix="adm_rec_rej_")
+        elif data.startswith("adm_rec_rej_") or data.startswith("reject_receipt_"):
+            prefix = "reject_receipt_" if data.startswith("reject_receipt_") else "adm_rec_rej_"
+            receipt_id = _safe_callback_int(data, prefix=prefix)
             if receipt_id is not None:
                 await reject_receipt_callback(update, context, receipt_id)
         elif data.startswith("student_result_"):
