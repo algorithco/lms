@@ -9,6 +9,7 @@ import {
   StarIcon,
 } from '../components/icons';
 import SEO from '../components/SEO';
+import StudentAttemptReviewModal from '../components/StudentAttemptReviewModal';
 import {
   type GradebookResponse,
   type ItemAnalysisResponse,
@@ -25,6 +26,7 @@ export default function TeacherGradebook() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -573,6 +575,7 @@ export default function TeacherGradebook() {
                     <th style={{ padding: '14px 16px', textAlign: 'center' }}>Daraja</th>
                     <th style={{ padding: '14px 16px', textAlign: 'center' }}>Sarflangan vaqt</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>Topshirilgan vaqt</th>
+                    <th style={{ padding: '14px 16px', textAlign: 'center' }}>Xatolar tahlili</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -696,6 +699,33 @@ export default function TeacherGradebook() {
                       {/* Completed At */}
                       <td style={{ padding: '14px 16px', textAlign: 'right', color: 'var(--muted)', fontSize: 12.5 }}>
                         {st.completed_at}
+                      </td>
+
+                      {/* Mistake Inspector Action */}
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAttemptId(st.attempt_id)}
+                          className="btn sm"
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            color: '#D97706',
+                            border: '1px solid rgba(245, 158, 11, 0.35)',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            transition: 'all 0.15s ease',
+                          }}
+                          title="Ushbu o'quvchining savollar bo'yicha xatolarini tahlil qilish"
+                        >
+                          <span>🔍</span>
+                          <span>Xatolar tahlili</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -908,6 +938,13 @@ export default function TeacherGradebook() {
           Ushbu rasmiy vedomost GRAND EDUCATION LMS avtomatlashtirilgan baholash dvigateli tomonidan shakllantirilgan. Hujjat kodi: GRN-GB-{id}-{Date.now().toString().slice(-6)}
         </div>
       </div>
+
+      {/* Mistake Inspector Modal */}
+      <StudentAttemptReviewModal
+        isOpen={Boolean(selectedAttemptId)}
+        attemptId={selectedAttemptId}
+        onClose={() => setSelectedAttemptId(null)}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   Results,
   Tests,
   Tuition,
+  isPlatformAdmin,
   type PaymentReceiptItem,
   type StreakInfoResponse,
   type TuitionOverview,
@@ -189,7 +190,24 @@ export default function Dashboard() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Joriy tarif ko'rsatkichi */}
-          {user?.is_paid && user?.plan && user?.plan.toUpperCase() !== 'FREE' ? (
+          {isPlatformAdmin(user) ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 14px',
+                borderRadius: 999,
+                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.2) 0%, rgba(217, 119, 6, 0.15) 100%)',
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                color: '#c084fc',
+                fontWeight: 800,
+                fontSize: 12,
+              }}
+            >
+              <span>👑 Tizim Administratori (Root Access)</span>
+            </div>
+          ) : user?.is_paid && user?.plan && user?.plan.toUpperCase() !== 'FREE' ? (
             <div
               style={{
                 display: 'inline-flex',

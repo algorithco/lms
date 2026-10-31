@@ -30,9 +30,10 @@ def get_user_plan_tier(user: Any) -> str:
         return "free"
 
     # Superusers, platform staff, teachers and admins have unlimited access
-    if getattr(user, "is_superuser", False) or getattr(user, "role", None) in (
-        "admin",
-        "teacher",
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", None) in ("admin", "center_admin", "teacher")
     ):
         return "premium"
 

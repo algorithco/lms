@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { LockIcon, XIcon, ZapIcon } from './icons';
 import CardPaymentModal from './CardPaymentModal';
+import { useAuth } from '../auth/AuthContext';
+import { isPlatformAdmin } from '../lib/api';
 
 interface LimitExceededModalProps {
   isOpen: boolean;
@@ -16,7 +18,13 @@ export default function LimitExceededModal({
   title = "Bepul Sinov Limiti Tugadi",
   message = "Siz bepul sinov limitingizdan to'liq foydalandingiz. Davom ettirish uchun STARTER (7 000 so'm) yoki PRO (15 000 so'm) tarifiga o'ting!",
 }: LimitExceededModalProps) {
+  const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Root Admin Immunity: Admins never encounter paywalls or limit exceeded modals
+  if (isPlatformAdmin(user) || user?.is_staff || user?.role === 'admin' || user?.role === 'center_admin') {
+    return null;
+  }
 
   if (!isOpen) return null;
 

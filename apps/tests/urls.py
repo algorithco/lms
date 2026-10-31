@@ -13,11 +13,33 @@ Endpoints:
 
 from django.urls import path
 
-from . import views, views_converter, views_mistakes, views_omr, views_placement
+from . import views, views_converter, views_mistakes, views_omr, views_placement, views_teacher_inspector
 
 app_name = "tests"
 
 urlpatterns = [
+    # -- Teacher Mistake Inspector & Analytics ---------------------------------
+    path(
+        "teacher/tests/<int:test_id>/analytics/",
+        views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
+        name="teacher-test-analytics",
+    ),
+    path(
+        "teacher/attempts/<int:attempt_id>/details/",
+        views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
+        name="teacher-attempt-details",
+    ),
+    path(
+        "<int:test_id>/analytics/",
+        views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
+        name="test-analytics",
+    ),
+    path(
+        "attempts/<int:attempt_id>/details/",
+        views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
+        name="attempt-details",
+    ),
+
     # -- Test CRUD ------------------------------------------------------------
     path(
         "",

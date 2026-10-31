@@ -210,12 +210,19 @@ export interface AuthUser {
   is_paid?: boolean;
   tariff?: string;
   is_premium?: boolean;
+  has_pro_access?: boolean;
 }
 
-/** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
+/** Platform admin = active + (superuser or role==admin or center_admin or staff) (mirrors apps/accounts/access.py). */
 export function isPlatformAdmin(u: AuthUser | null | undefined): boolean {
   if (!u || u.is_active === false) return false;
-  return u.is_platform_admin === true || u.is_superuser === true || u.role === 'admin';
+  return (
+    u.is_platform_admin === true ||
+    u.is_superuser === true ||
+    u.role === 'admin' ||
+    u.role === 'center_admin' ||
+    u.is_staff === true
+  );
 }
 
 /** Where to land after sign-in: admins get the control panel, everyone else the student dashboard. */
@@ -300,29 +307,41 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     telegram_identity_verified_at:
       typeof raw.telegram_identity_verified_at === 'string' ? raw.telegram_identity_verified_at : null,
     plan:
-      typeof raw.plan === 'string' && raw.plan
+      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+        ? 'ADMIN_UNLIMITED'
+        : typeof raw.plan === 'string' && raw.plan
         ? raw.plan.toUpperCase()
         : typeof raw.tariff === 'string' && raw.tariff
         ? raw.tariff.toUpperCase()
         : 'FREE',
     tariff:
-      typeof raw.tariff === 'string' && raw.tariff
+      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+        ? 'ADMIN'
+        : typeof raw.tariff === 'string' && raw.tariff
         ? raw.tariff.toUpperCase()
         : typeof raw.plan === 'string' && raw.plan
         ? raw.plan.toUpperCase()
         : 'FREE',
     is_paid:
-      typeof raw.is_paid === 'boolean'
+      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+        ? true
+        : typeof raw.is_paid === 'boolean'
         ? raw.is_paid
         : typeof raw.is_premium === 'boolean'
         ? raw.is_premium
         : false,
     is_premium:
-      typeof raw.is_premium === 'boolean'
+      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+        ? true
+        : typeof raw.is_premium === 'boolean'
         ? raw.is_premium
         : typeof raw.is_paid === 'boolean'
         ? raw.is_paid
         : false,
+    has_pro_access:
+      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+        ? true
+        : Boolean(raw.has_pro_access || raw.is_paid || raw.is_premium),
   };
 }
 
@@ -776,11 +795,90 @@ export interface ItemAnalysisResponse {
   items: ItemAnalysisQuestion[];
 }
 
+export interface AttemptQuestionChoice {
+  id: number;
+  text: string;
+  is_correct: boolean;
+  is_selected: boolean;
+}
+
+export interface AttemptQuestionDetail {
+  question_id: number;
+  question_number: number;
+  question_text: string;
+  passage?: string;
+  question_type: string;
+  points: number;
+  rasch_weight: number;
+  explanation: string;
+  answered: boolean;
+  is_correct: boolean;
+  student_text_answer: string;
+  correct_text: string;
+  choices: AttemptQuestionChoice[];
+  ai_feedback?: Record<string, unknown>;
+}
+
+export interface TeacherAttemptDetailsResponse {
+  attempt_id: number;
+  test_id: number;
+  test_title: string;
+  mock_code: string;
+  student: {
+    id: number;
+    full_name: string;
+    username: string;
+    email: string;
+  };
+  status: string;
+  raw_score: number;
+  total_questions: number;
+  percentage: number;
+  rasch_score: number;
+  rasch_grade: string;
+  correct_count: number;
+  mistake_count: number;
+  unanswered_count: number;
+  time_spent_formatted: string;
+  started_at: string;
+  completed_at: string;
+  questions: AttemptQuestionDetail[];
+}
+
+export interface QuestionAnalyticsItem {
+  question_id: number;
+  question_number: number;
+  text: string;
+  question_type: string;
+  points: number;
+  rasch_weight: number;
+  total_attempts: number;
+  correct_attempts: number;
+  failure_count: number;
+  accuracy_percentage: number;
+  failure_percentage: number;
+}
+
+export interface TeacherTestAnalyticsResponse {
+  test_id: number;
+  test_title: string;
+  mock_code: string;
+  subject: string;
+  total_questions: number;
+  total_attempts: number;
+  questions: QuestionAnalyticsItem[];
+  top_5_hardest: QuestionAnalyticsItem[];
+}
+
 export const TeacherGradebookApi = {
   gradebook: (testId: number | string) =>
     api<GradebookResponse>(`/api/tests/${testId}/gradebook/`),
   itemAnalysis: (testId: number | string) =>
     api<ItemAnalysisResponse>(`/api/tests/${testId}/item-analysis/`),
+  testAnalytics: (testId: number | string) =>
+    api<TeacherTestAnalyticsResponse>(`/api/v1/teacher/tests/${testId}/analytics/`),
+  attemptDetails: (attemptId: number | string) =>
+    api<TeacherAttemptDetailsResponse>(`/api/v1/teacher/attempts/${attemptId}/details/`),
 };
 
 export interface WeakTopicItem {

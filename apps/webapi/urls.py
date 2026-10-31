@@ -20,11 +20,32 @@ from . import (
     views_referral,
 )
 from apps.organizations import views as views_enterprise
-from apps.tests import views_converter, views_mistakes, views_omr, views_placement
+from apps.tests import views_converter, views_mistakes, views_omr, views_placement, views_teacher_inspector
 
 app_name = "webapi"
 
 urlpatterns = [
+    # -- Teacher Mistake Inspector & Test Analytics -------------------------
+    path(
+        "teacher/tests/<int:test_id>/analytics/",
+        views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
+        name="webapi-teacher-test-analytics",
+    ),
+    path(
+        "teacher/attempts/<int:attempt_id>/details/",
+        views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
+        name="webapi-teacher-attempt-details",
+    ),
+    path(
+        "tests/<int:test_id>/analytics/",
+        views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
+        name="webapi-test-analytics",
+    ),
+    path(
+        "tests/attempts/<int:attempt_id>/details/",
+        views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
+        name="webapi-attempt-details",
+    ),
     path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
     path("feedback/public/", views_feedback.PublicFeedbackListView.as_view(), name="public-feedback-list"),
     path(

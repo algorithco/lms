@@ -308,6 +308,28 @@ def get_effective_entitlement(user) -> Entitlement:
             quota_period_days=period_days,
         )
 
+    # --- 0. Root Administrator / Staff Immunity (Absolute Highest Priority) ---
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return Entitlement(
+            source=SOURCE_OVERRIDE,
+            plan_type="admin",
+            plan_name="Tizim Administratori",
+            is_sponsored=False,
+            is_active=True,
+            image_essay_weekly_limit=None,
+            text_essay_weekly_limit=None,
+            text_essay_cooldown_hours=0,
+            test_limit=None,
+            is_unlimited_image_essays=True,
+            is_unlimited_text_essays=True,
+            is_unlimited_tests=True,
+            quota_period_days=3650,
+        )
+
     # --- 1. Explicit, active administrator override (highest priority) ------
     override = _active_override(user)
     if override is not None:

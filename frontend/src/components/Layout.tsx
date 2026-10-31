@@ -103,10 +103,69 @@ export default function Layout() {
           </span>
         </Link>
         <nav className="side-nav" aria-label="Ilova bo'limlari">
-          <Section title={t('main_menu', 'Asosiy Menyu')}>
-            <NavLink to="/dashboard" className={linkClass} onClick={close}>
-              <LayoutDashboardIcon size={16} className="ico" /> {t('dashboard', 'Boshqaruv paneli')}
-            </NavLink>
+          {/* Admin Dedicated Section */}
+          {isAdmin && (
+            <Section title={t('panel', 'Tizim Boshqaruvi')}>
+              <NavLink to="/panel" end className={linkClass} onClick={close}>
+                <ShieldCheckIcon size={16} className="ico" /> {t('panel_dashboard', 'Tizim Statistikasi')}
+              </NavLink>
+              <NavLink to="/panel/tuition" className={linkClass} onClick={close}>
+                <CreditCardIcon size={16} className="ico" /> {t('tuition_title', 'To‘lov Cheklari')}
+              </NavLink>
+              <NavLink to="/panel/users" className={linkClass} onClick={close}>
+                <UserPlusIcon size={16} className="ico" /> {t('manage_teachers', 'O‘qituvchilarni Boshqarish')}
+              </NavLink>
+              <NavLink to="/panel/tests" className={linkClass} onClick={close}>
+                <FileTextIcon size={16} className="ico" /> {t('all_tests_control', 'Barcha Testlar Nazorati')}
+              </NavLink>
+              <NavLink to="/enterprise" className={linkClass} onClick={close}>
+                <UsersIcon size={16} className="ico" /> {t('enterprise_title', 'O‘quv Markazlari')}
+              </NavLink>
+            </Section>
+          )}
+
+          {/* Teacher Dedicated Section */}
+          {isTeacher && (
+            <Section title={t('role_teacher', 'O‘qituvchi Kabineti')}>
+              <NavLink to="/dashboard" end className={linkClass} onClick={close}>
+                <LayoutDashboardIcon size={16} className="ico" /> {t('teacher_cabinet', 'O‘qituvchi Kabineti')}
+              </NavLink>
+              <NavLink to="/groups" className={linkClass} onClick={close}>
+                <FolderOpenIcon size={16} className="ico" /> {t('my_groups', 'Mening Guruhlarim')}
+              </NavLink>
+              <NavLink to="/tests/create" className={linkClass} onClick={close}>
+                <SparklesIcon size={16} className="ico" /> {t('create_smart_test', 'Yangi Test Yaratish')}
+              </NavLink>
+              <NavLink to="/tests" className={linkClass} onClick={close}>
+                <FileTextIcon size={16} className="ico" /> {t('my_tests', 'Mening Testlarim')}
+              </NavLink>
+              <NavLink to="/teacher" end className={linkClass} onClick={close}>
+                <UsersIcon size={16} className="ico" /> {t('students', 'O‘quvchilar')}
+              </NavLink>
+              <NavLink to="/teacher/ai-converter" className={linkClass} onClick={close}>
+                <SparklesIcon size={16} className="ico" /> AI Test Konvertor
+              </NavLink>
+              {isReviewer && (
+                <NavLink to="/teacher/essays" className={linkClass} onClick={close}>
+                  <PenLineIcon size={16} className="ico" /> {t('teacher_queue', 'Esse Tekshiruvi')}
+                </NavLink>
+              )}
+              <NavLink to="/analytics" className={linkClass} onClick={close}>
+                <BarChartIcon size={16} className="ico" /> {t('analytics', 'Tahlillar')}
+              </NavLink>
+              <NavLink to="/import" className={linkClass} onClick={close}>
+                <UploadIcon size={16} className="ico" /> CSV Import
+              </NavLink>
+            </Section>
+          )}
+
+          {/* Student & Learning Core Section */}
+          <Section title={isTeacher ? t('learning_tools', 'O‘quv Vositalari') : t('main_menu', 'Asosiy Menyu')}>
+            {!isTeacher && !isAdmin && (
+              <NavLink to="/dashboard" className={linkClass} onClick={close}>
+                <LayoutDashboardIcon size={16} className="ico" /> {t('dashboard', 'Boshqaruv paneli')}
+              </NavLink>
+            )}
             <NavLink to="/tests" className={linkClass} onClick={close}>
               <FileTextIcon size={16} className="ico" /> {t('cbt_tests', 'Testlar (CBT)')}
             </NavLink>
@@ -128,47 +187,48 @@ export default function Layout() {
               </NavLink>
             )}
           </Section>
-          {isTeacher && (
-            <Section title={t('role_teacher')}>
-              <NavLink to="/teacher" end className={linkClass} onClick={close}><UsersIcon size={16} className="ico" /> {t('students')}</NavLink>
-              <NavLink to="/groups" className={linkClass} onClick={close}><FolderOpenIcon size={16} className="ico" /> {t('groups')}</NavLink>
-              <NavLink to="/teacher/ai-converter" className={linkClass} onClick={close}><SparklesIcon size={16} className="ico" /> AI Test Konvertor</NavLink>
-              <NavLink to="/analytics" className={linkClass} onClick={close}><BarChartIcon size={16} className="ico" /> {t('analytics')}</NavLink>
-              <NavLink to="/import" className={linkClass} onClick={close}><UploadIcon size={16} className="ico" /> CSV</NavLink>
-              {isReviewer && (
-                <NavLink to="/teacher/essays" className={linkClass} onClick={close}><PenLineIcon size={16} className="ico" /> {t('teacher_queue')}</NavLink>
-              )}
-            </Section>
-          )}
-          {isAdmin && (
-            <Section title={t('panel')}>
-              <NavLink to="/panel" end className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> {t('panel_dashboard')}</NavLink>
-              <NavLink to="/panel/tuition" className={linkClass} onClick={close}><CreditCardIcon size={16} className="ico" /> {t('tuition_title')}</NavLink>
-              <NavLink to="/panel/users" className={linkClass} onClick={close}><UserPlusIcon size={16} className="ico" /> {t('manage_teachers')}</NavLink>
-            </Section>
-          )}
+
           {isParent && (
             <Section title={t('parent')}>
               <NavLink to="/parent" className={linkClass} onClick={close}><HomeIcon size={16} className="ico" /> {t('children')}</NavLink>
             </Section>
           )}
-          {(isAdmin || isTeacher || user?.role === 'center_admin') && (
-            <Section title="Enterprise">
-              <NavLink to="/enterprise" className={linkClass} onClick={close}><ShieldCheckIcon size={16} className="ico" /> O'quv markazi</NavLink>
-            </Section>
-          )}
-          <div style={{ margin: '16px 10px 10px', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <CrownIcon size={16} style={{ color: '#f59e0b' }} />
-              <strong style={{ fontSize: 13, color: '#f59e0b' }}>{t('premium_membership', 'Premium A’zolik')}</strong>
+
+          {/* Membership Badge / Upgrade Callout */}
+          {isAdmin ? (
+            <div style={{ margin: '16px 10px 10px', padding: '12px 14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)', border: '1px solid rgba(168, 85, 247, 0.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>👑</span>
+                <strong style={{ fontSize: 13, color: '#c084fc' }}>Tizim Administratori</strong>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
+                Root Access: Barcha kvotalar va vositalarga to‘liq cheksiz kirish.
+              </p>
             </div>
-            <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
-              {t('premium_sub_hint', '12 mezonli BMB esse tekshiruvi va cheksiz CBT testlar.')}
-            </p>
-            <Link to="/subscribe" className="btn sm primary" onClick={close} style={{ width: '100%', textAlign: 'center', display: 'block', padding: '7px 10px', fontSize: 12, borderRadius: 10, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', color: '#090d16' }}>
-              {t('upgrade_tier', 'Tarifni oshirish')} →
-            </Link>
-          </div>
+          ) : user?.is_paid && user?.plan && user?.plan.toUpperCase() !== 'FREE' ? (
+            <div style={{ margin: '16px 10px 10px', padding: '12px 14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <CrownIcon size={16} style={{ color: '#f59e0b' }} />
+                <strong style={{ fontSize: 13, color: '#f59e0b' }}>Tarif: {user.plan.toUpperCase()}</strong>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
+                Faol obuna: cheksiz ta‘lim imkoniyatlari.
+              </p>
+            </div>
+          ) : (
+            <div style={{ margin: '16px 10px 10px', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <CrownIcon size={16} style={{ color: '#f59e0b' }} />
+                <strong style={{ fontSize: 13, color: '#f59e0b' }}>{t('premium_membership', 'Premium A’zolik')}</strong>
+              </div>
+              <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>
+                {t('premium_sub_hint', '12 mezonli BMB esse tekshiruvi va cheksiz CBT testlar.')}
+              </p>
+              <Link to="/subscribe" className="btn sm primary" onClick={close} style={{ width: '100%', textAlign: 'center', display: 'block', padding: '7px 10px', fontSize: 12, borderRadius: 10, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', color: '#090d16' }}>
+                {t('upgrade_tier', 'Tarifni oshirish')} →
+              </Link>
+            </div>
+          )}
         </nav>
         <div className="side-user">
           <span className="avatar">{(user?.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2) || '?'}</span>

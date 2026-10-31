@@ -39,6 +39,13 @@ class QuotaService:
         Check if user is allowed to submit an essay today.
         Returns (is_allowed: bool, user_message: str, details: dict).
         """
+        if user and (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "is_staff", False)
+            or getattr(user, "role", "") in ("admin", "center_admin")
+        ):
+            return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
+
         if not user or not getattr(user, "is_authenticated", False):
             msg = (
                 "⚠️ <b>Kvotangiz tugadi!</b> Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz.\n\n"
@@ -231,6 +238,13 @@ class QuotaService:
     @classmethod
     def check_test_quota(cls, user: Any, test_id: int | None = None) -> tuple[bool, str, dict[str, Any]]:
         """Check test quota for user (Free tier: exactly 1 test trial, locked mocks require plan)."""
+        if user and (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "is_staff", False)
+            or getattr(user, "role", "") in ("admin", "center_admin")
+        ):
+            return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
+
         tier = cls.get_user_tier(user)
         if tier in ("premium", "pro"):
             return True, "", {"tier": tier, "allowed": True, "remaining": 999}
@@ -336,6 +350,13 @@ class QuotaService:
     @classmethod
     def check_arena_quota(cls, user: Any) -> tuple[bool, str, dict[str, Any]]:
         """Check 1v1 Arena match quota (Free users: max 3 matches / day)."""
+        if user and (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "is_staff", False)
+            or getattr(user, "role", "") in ("admin", "center_admin")
+        ):
+            return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
+
         tier = cls.get_user_tier(user)
         if tier in ("premium", "pro"):
             return True, "", {"tier": tier, "allowed": True, "remaining": 999}

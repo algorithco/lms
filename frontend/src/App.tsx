@@ -13,7 +13,7 @@ import type { ComponentType } from 'react';
 const lazyPage = (load: () => Promise<{ default: ComponentType }>) => lazy(load);
 const Analytics = lazyPage(() => import('./pages/Analytics'));
 const Arena = lazyPage(() => import('./pages/Arena'));
-const Dashboard = lazyPage(() => import('./pages/Dashboard'));
+const DashboardRouter = lazyPage(() => import('./pages/DashboardRouter'));
 const DuelRoom = lazyPage(() => import('./pages/DuelRoom'));
 const EssayLeaderboard = lazyPage(() => import('./pages/EssayLeaderboard'));
 const EssayResult = lazyPage(() => import('./pages/EssayResult'));
@@ -128,7 +128,7 @@ function AnimatedRoutes() {
                 (and the way back) never disappear. The API already
                 requires auth, so a shell-less public route only 401'd. */}
             <Route path="/essay-leaderboard" element={<EssayLeaderboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<DashboardRouter />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/create" element={<SmartTestCreate />} />
