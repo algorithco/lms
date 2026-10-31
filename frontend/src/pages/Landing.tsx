@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, Headphones } from 'lucide-react';
+import { Mic, Headphones, MessageSquare } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { landingFor, formatDisplayName } from '../lib/api';
+import { landingFor, formatDisplayName, FeedbackApi, type PublicFeedbackItem } from '../lib/api';
 import HeroCarousel from '../components/HeroCarousel';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
@@ -36,63 +36,6 @@ import {
 // ---------------------------------------------------------------------------
 export type MainSubject = 'uzbek' | 'english';
 export type ExamTrack = 'ielts' | 'multilevel' | 'national_certificate' | 'attestation';
-const TESTIMONIALS = [
-  {
-    name: "Diyorbek Xoldorov",
-    badge: "BMB Milliy Sertifikat A+ 94%",
-    badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-    role: "Toshkent Davlat Yuridik Universiteti talabasi",
-    initials: "DX",
-    gradient: "from-emerald-500 to-teal-600",
-    quote: "Grandec'dagi BMB mock testlari haqiqiy imtihon bilan 100% bir xil tushdi. Ayniqsa matematika va fizika blokidagi savollar darajasi va vaqt nazorati meni BMB imtihoniga to'liq tayyorladi.",
-  },
-  {
-    name: "Malika Rustamova",
-    badge: "IELTS 7.5 (Writing 7.0)",
-    badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-    role: "WIUT talabasi",
-    initials: "MR",
-    gradient: "from-blue-500 to-indigo-600",
-    quote: "Listening va Reading split-screen interfeysi xuddi British Council kompyuter imtihonidek. Ovoz sifati va savollar formati real imtihon muhitini yaratib berdi.",
-  },
-  {
-    name: "Jasur Kenjayev",
-    badge: "Attestatsiya 92 ball",
-    badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-    role: "Oliy toifali fizika fani o'qituvchisi",
-    initials: "JK",
-    gradient: "from-amber-500 to-orange-600",
-    quote: "Ustozlar attestatsiyasi uchun tayyorlandim. Qiyinlik darajasi vazirlik standartlariga mos, test tahlili va tushuntirishlar juda katta yordam berdi.",
-  },
-  {
-    name: "Shahlo Karimova",
-    badge: "CEFR B2 Sertifikat",
-    badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30",
-    role: "SamDCHTI magistranti",
-    initials: "SK",
-    gradient: "from-purple-500 to-pink-600",
-    quote: "Ovoz yozish va esse tekshirishdagi AI tahlili kutilganidan ancha kuchli. Grammatika va so'z boyligidagi xatolarimni bir soniyada ko'rsatib berdi.",
-  },
-  {
-    name: "Azizbek Eshonqulov",
-    badge: "Prezident Maktabi 1-o'rin",
-    badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
-    role: "O'quvchi (5-sinf)",
-    initials: "AE",
-    gradient: "from-rose-500 to-red-600",
-    quote: "Mantiqiy savollar va matematika testlari farzandimga juda yoqdi. Natijalar dinamikasi va xatolar ustida ishlash bo'limi ajoyib.",
-  },
-  {
-    name: "Nilufar Ziyodullayeva",
-    badge: "100+ O'quvchi tayyorlagan",
-    badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
-    role: "Ingliz tili fani o'qituvchisi (Grand Education)",
-    initials: "NZ",
-    gradient: "from-cyan-500 to-blue-600",
-    quote: "O'quvchilarimga test yaratib berish juda osonlashdi. Guruhlarga biriktirish, PIN-kod va natijalarni avtomatik hisoblash o'qituvchi vaqtini 10 barobar tejaydi.",
-  },
-];
-
 
 const sectionNav: [string, string][] = [
   ['nav_features', '#features'],
@@ -113,6 +56,31 @@ export default function Landing() {
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [scoresModalOpen, setScoresModalOpen] = useState(false);
   const [landingFeedbackOpen, setLandingFeedbackOpen] = useState(false);
+  const [feedbacks, setFeedbacks] = useState<PublicFeedbackItem[]>([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    FeedbackApi.listPublic()
+      .then((res) => {
+        if (mounted) {
+          setFeedbacks(res.results || []);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setFeedbacks([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoadingFeedbacks(false);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // -------------------------------------------------------------------------
   // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
@@ -2236,60 +2204,131 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {TESTIMONIALS.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all hover:scale-[1.01] hover:shadow-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm"
-                >
-                  <div className="space-y-4">
-                    {/* Stars + Badge */}
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1 text-amber-400">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <StarIcon key={s} size={16} fill="currentColor" />
-                        ))}
+            {feedbacks.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {feedbacks.map((item, idx) => {
+                  const gradient = [
+                    'from-amber-500 to-orange-600',
+                    'from-emerald-500 to-teal-600',
+                    'from-blue-500 to-indigo-600',
+                    'from-purple-500 to-pink-600',
+                    'from-cyan-500 to-blue-600',
+                    'from-rose-500 to-red-600',
+                  ][idx % 6];
+
+                  const getBadge = () => {
+                    switch (item.category?.toLowerCase()) {
+                      case 'praise':
+                        return {
+                          label: item.category_display || "Tashakkur",
+                          color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+                        };
+                      case 'suggestion':
+                        return {
+                          label: item.category_display || "Taklif",
+                          color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                        };
+                      case 'bug':
+                        return {
+                          label: item.category_display || "Xatolik",
+                          color: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+                        };
+                      default:
+                        return {
+                          label: item.category_display || "Fikr",
+                          color: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+                        };
+                    }
+                  };
+
+                  const badge = getBadge();
+                  const nameParts = (item.name || "").trim().split(/\s+/);
+                  const initials = nameParts.length >= 2
+                    ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+                    : (item.name || "GE").substring(0, 2).toUpperCase();
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all hover:scale-[1.01] hover:shadow-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm"
+                    >
+                      <div className="space-y-4">
+                        {/* Stars + Badge */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1 text-amber-400">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <StarIcon
+                                key={s}
+                                size={16}
+                                fill={s <= (item.rating || 5) ? "currentColor" : "none"}
+                                className={s <= (item.rating || 5) ? "text-amber-400" : "text-slate-300 dark:text-slate-700"}
+                              />
+                            ))}
+                          </div>
+                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+
+                        {/* Quote */}
+                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 italic">
+                          "{item.message}"
+                        </p>
                       </div>
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${item.badgeColor}`}>
-                        {item.badge}
-                      </span>
-                    </div>
 
-                    {/* Quote */}
-                    <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 italic">
-                      "{item.quote}"
-                    </p>
-                  </div>
-
-                  {/* Author */}
-                  <div className="flex items-center gap-3.5 pt-5 mt-4 border-t border-slate-100 dark:border-slate-800/80">
-                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${item.gradient} text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-md`}>
-                      {item.initials}
+                      {/* Author */}
+                      <div className="flex items-center gap-3.5 pt-5 mt-4 border-t border-slate-100 dark:border-slate-800/80">
+                        <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${gradient} text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-md`}>
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                            {item.name}
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            {item.role || "Foydalanuvchi"} • {item.created_at}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                        {item.name}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                        {item.role}
-                      </p>
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+            ) : !loadingFeedbacks ? (
+              <div className="max-w-xl mx-auto rounded-3xl p-8 sm:p-10 text-center bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm transition-all">
+                <div className="w-16 h-16 rounded-3xl bg-amber-500/15 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/30">
+                  <MessageSquare className="h-8 w-8" />
                 </div>
-              ))}
-            </div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2">
+                  Birinchi bo'lib o'z bahoyingizni qoldiring!
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto leading-relaxed">
+                  Platformamiz haqida fikr yoki taklifingiz bormi? Har bir fikr sinchkovlik bilan ko'rib chiqiladi va eng yaxshi sharhlar shu yerda e'lon qilinadi.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setLandingFeedbackOpen(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
+                >
+                  <span>💬</span>
+                  <span>Fikr bildirish</span>
+                </button>
+              </div>
+            ) : null}
 
             {/* Leave feedback CTA */}
-            <div style={{ textAlign: 'center', marginTop: 32 }}>
-              <button
-                type="button"
-                onClick={() => setLandingFeedbackOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-all cursor-pointer shadow-sm"
-              >
-                <span>💬</span>
-                <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>
-              </button>
-            </div>
+            {feedbacks.length > 0 && (
+              <div style={{ textAlign: 'center', marginTop: 32 }}>
+                <button
+                  type="button"
+                  onClick={() => setLandingFeedbackOpen(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+                >
+                  <span>💬</span>
+                  <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>
+                </button>
+              </div>
+            )}
           </div>
         </section>
 

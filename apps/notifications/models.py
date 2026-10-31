@@ -345,6 +345,12 @@ class UserFeedback(models.Model):
         default=Category.FEEDBACK,
     )
     message = models.TextField(_("xabar"))
+    is_published = models.BooleanField(
+        _("saytda chiqarilgan"),
+        default=False,
+        db_index=True,
+        help_text=_("Admin Telegram bot orqali tasdiqlasa, saytning bosh sahifasida ko'rinadi."),
+    )
     created_at = models.DateTimeField(_("yaratilgan vaqti"), auto_now_add=True)
 
     class Meta:
@@ -352,6 +358,17 @@ class UserFeedback(models.Model):
         verbose_name_plural = _("foydalanuvchilar fikrlari")
         ordering = ["-created_at"]
 
+    @property
+    def name(self) -> str:
+        if self.user:
+            return self.user.get_full_name() or self.user.username or "Foydalanuvchi"
+        return self.user_name or "Foydalanuvchi"
+
+    @property
+    def feedback_type(self) -> str:
+        return self.category
+
     def __str__(self) -> str:
         author = self.user_name or (self.user and getattr(self.user, "username", "")) or "Anonim"
-        return f"Feedback #{self.pk} by {author} ({self.rating}/5)"
+        status = " [Saytda]" if self.is_published else " [Kutilmoqda]"
+        return f"Feedback #{self.pk} by {author} ({self.rating}/5){status}"

@@ -26,6 +26,7 @@ app_name = "webapi"
 
 urlpatterns = [
     path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
+    path("feedback/public/", views_feedback.PublicFeedbackListView.as_view(), name="public-feedback-list"),
     path(
         "tests/<int:pk>/",
         views_tests.TestDetailView.as_view(),

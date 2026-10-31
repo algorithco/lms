@@ -852,12 +852,25 @@ export interface FeedbackPayload {
   phone?: string;
 }
 
+export interface PublicFeedbackItem {
+  id: number;
+  name: string;
+  role: string;
+  rating: number;
+  category: string;
+  category_display: string;
+  message: string;
+  created_at: string;
+}
+
 export const FeedbackApi = {
   submit: (data: FeedbackPayload) =>
     api<{ success: boolean; message: string; id: number }>('/api/v1/feedback/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  listPublic: () =>
+    api<{ results: PublicFeedbackItem[]; count: number }>('/api/v1/feedback/public/'),
 };
 
 export const Push = {

@@ -67,25 +67,47 @@ class FeedbackView(APIView):
             message=message,
         )
 
-        # Notify administrator via Telegram
+        # Notify administrator via Telegram with approval buttons
         try:
-            admin_id = getattr(settings, "ADMIN_TELEGRAM_ID", 5582178765)
+            admin_id = int(getattr(settings, "ADMIN_TELEGRAM_ID", 5582178765))
             stars = "⭐" * rating
             author_display = name or "Anonim"
+            user_handle = ""
+            if user:
+                user_handle = f" (@{user.username})" if getattr(user, "username", "") else f" (ID: {user.pk})"
             phone_display = phone or "-"
-            role_display = f" ({user.role})" if user and hasattr(user, "role") else ""
+            role_display = f" [{user.role}]" if user and hasattr(user, "role") else ""
             cat_display = dict(UserFeedback.Category.choices).get(category, category)
 
             telegram_text = (
-                f"💬 <b>Yangi fikr/taklif kelib tushdi!</b>\n\n"
-                f"👤 <b>Foydalanuvchi:</b> {author_display}{role_display}\n"
+                f"📬 <b>Yangi Fikr / Taklif / Xatolik!</b>\n\n"
+                f"👤 <b>Yuboruvchi:</b> {author_display}{user_handle}{role_display}\n"
                 f"📞 <b>Telefon:</b> {phone_display}\n"
-                f"⭐ <b>Baho:</b> {stars} ({rating}/5)\n"
-                f"📂 <b>Kategoriya:</b> {cat_display}\n"
-                f"📝 <b>Xabar:</b>\n{message}\n\n"
-                f"📅 <b>Vaqt:</b> {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+                f"⭐️ <b>Baho:</b> {stars} ({rating}/5)\n"
+                f"🏷 <b>Turi:</b> {cat_display}\n"
+                f"📅 <b>Sana:</b> {timezone.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+                f"📝 <b>Xabar matni:</b>\n"
+                f"<i>\"{message}\"</i>\n\n"
+                f"Ushbu sharhni bosh sahifada (grandec.uz) chiqarishni xohlaysizmi?"
             )
-            TelegramService.send_message(admin_id, telegram_text)
+            buttons = [
+                [
+                    {
+                        "text": "✅ Saytda chiqarish",
+                        "callback_data": f"publish_feedback_{feedback.pk}",
+                    },
+                    {
+                        "text": "❌ Rad etish",
+                        "callback_data": f"reject_feedback_{feedback.pk}",
+                    },
+                ]
+            ]
+            TelegramService.send_message_with_keyboard(
+                chat_id=admin_id,
+                text=telegram_text,
+                buttons=buttons,
+                parse_mode="HTML",
+            )
         except Exception as exc:
             logger.warning("Failed to send Telegram notification for feedback #%d: %s", feedback.pk, exc)
 
@@ -97,3 +119,50 @@ class FeedbackView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class PublicFeedbackListView(APIView):
+    """
+    GET /api/v1/feedback/public/
+    Admin tomonidan tasdiqlangan (is_published=True) haqiqiy foydalanuvchilar sharhlari.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        feedbacks = (
+            UserFeedback.objects.filter(is_published=True)
+            .select_related("user")
+            .order_by("-created_at")[:30]
+        )
+
+        results = []
+        for fb in feedbacks:
+            role_label = ""
+            if fb.user:
+                role_val = getattr(fb.user, "role", "")
+                if role_val == "student":
+                    role_label = "O'quvchi"
+                elif role_val == "teacher":
+                    role_label = "O'qituvchi"
+                elif role_val == "admin":
+                    role_label = "Administrator"
+                else:
+                    role_label = "Foydalanuvchi"
+            else:
+                role_label = "Foydalanuvchi"
+
+            results.append(
+                {
+                    "id": fb.pk,
+                    "name": fb.name,
+                    "role": role_label,
+                    "rating": fb.rating,
+                    "category": fb.category,
+                    "category_display": dict(UserFeedback.Category.choices).get(fb.category, fb.category),
+                    "message": fb.message,
+                    "created_at": fb.created_at.strftime("%Y-%m-%d"),
+                }
+            )
+
+        return Response({"results": results, "count": len(results)})

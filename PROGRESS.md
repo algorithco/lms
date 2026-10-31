@@ -9,6 +9,28 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.66. Rasmiy Versiya v1.76.0: Soxta Sharhlarni Butunlay Yo'qotish va Telegram Tasdiqli Jonli Sharhlar Tizimi
+- [x] 1-Vazifa: Barcha Soxta Ma'lumotlarni Tozalash va Modellarni Moslash:
+  * `Landing.tsx` dagi barcha qotirilgan (hardcoded) fake sharhlar ("Diyorbek", "Malika", "Jasur", "Shahlo", "Azizbek", "Nilufar") butunlay olib tashlandi.
+  * Bosh sahifadagi fikrlar bloki faqat backend API (`GET /api/v1/feedback/public/`) orqali dinamik yuklanadigan qilindi.
+  * Tasdiqlangan sharhlar bo'lmaganda soxta odamlar o'rniga nafis va toza chaqiruv kartochkasi ("Birinchi bo'lib o'z bahoyingizni qoldiring!") va `[💬 Fikr bildirish]` tugmasi chiqarildi.
+  * `UserFeedback` modeliga (`apps/notifications/models.py`) `is_published = models.BooleanField(default=False, db_index=True)` maydoni va `0012_userfeedback_is_published.py` migratsiyasi qo'shildi. `UserFeedbackAdmin` modelida `is_published` tahrirlanadigan qilindi.
+- [x] 2-Vazifa: Telegram Botga Tezkor Xabarnoma va 1-Klikda Tasdiqlash / Rad Etish:
+  * Foydalanuvchi saytdan fikr yuborgan zahoti (`POST /api/v1/feedback/`), Admin Telegramiga (`5582178765`) to'liq xabar va inline tugmalar yuboriladi: `[✅ Saytda chiqarish]` (`publish_feedback_<id>`) va `[❌ Rad etish]` (`reject_feedback_<id>`).
+  * Telegram botida `admin_publish_feedback_callback` va `admin_reject_feedback_callback` handlerlari qo'shildi (`apps/notifications/bot/handlers.py`):
+    - Admin `[✅ Saytda chiqarish]` ni bossa: bazada `is_published = True` belgilanadi, xabar tahrirlanib "✅ Ushbu sharh tasdiqlandi va saytda chiqarildi!" ga aylanadi va alert chiqadi.
+    - Admin `[❌ Rad etish]` ni bossa: `is_published = False` saqlanib, xabar "❌ Ushbu sharh rad etildi (saytda ko'rinmaydi)" ga o'zgaradi.
+- [x] 3-Vazifa: Ommaviy Sharhlar API Endpointi:
+  * `PublicFeedbackListView` (`apps/webapi/views_feedback.py`, `apps/webapi/urls.py`): `GET /api/v1/feedback/public/` faqat `is_published=True` sharhlarni muallif ismi, roli, yulduzcha bahosi, kategoriyasi va sanasi bilan JSON ko'rinishida taqdim etadi.
+  * Frontend `FeedbackApi.listPublic()` integratsiya qilindi (`frontend/src/lib/api.ts`).
+- [x] 4-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `tests/test_feedback_approval.py`: 5 ta yangi test 100% PASS (shaxsiy va anonim fikr, bot orqali tasdiqlash/rad etish, ruxsatsiz foydalanuvchilar himoyasi).
+  * `oxlint`: 0 ta xatolik.
+  * `npm --prefix frontend run build`: 0 ta xatolik (2.32s).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS (`169.58.58.229` / `/opt/lms`): `web`, `bot` yangilandi, `bestway` 100% daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/api/v1/feedback/public/` (HTTP 200 OK), `https://grandec.uz/healthz/` (HTTP 200 OK).
+
 ### 2.65. Rasmiy Versiya v1.75.0: Ustozlar Guruhi Taklif Havolasi, Referal Dvigateli, Viral 9:16 Score Card va Telegram Deep-Linking
 - [x] 1-Vazifa: Ustozlar Guruhiga 1-Click Taklif Havolasi (`/join/:token`):
   * `StudentGroup` modeliga xavfsiz URL-token (`invite_token`, 64 belgi, unikal, indekslangan) qo'shildi (`apps/courses/models.py`).

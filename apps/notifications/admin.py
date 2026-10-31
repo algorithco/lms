@@ -67,8 +67,9 @@ class NotificationLogAdmin(admin.ModelAdmin):
 
 @admin.register(UserFeedback)
 class UserFeedbackAdmin(admin.ModelAdmin):
-    list_display = ("id", "user_name", "user", "rating", "category", "created_at")
-    list_filter = ("category", "rating", "created_at")
+    list_display = ("id", "user_name", "user", "rating", "category", "is_published", "created_at")
+    list_filter = ("is_published", "category", "rating", "created_at")
+    list_editable = ("is_published",)
     search_fields = ("user_name", "user__email", "user__username", "message")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)

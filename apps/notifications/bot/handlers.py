@@ -89,8 +89,8 @@ def _get_or_create_user(update: Update) -> "User | None":
         user, created = get_or_create_telegram_user(
             {
                 "id": tg_user.id,
-                "first_name": tg_user.first_name or "",
-                "last_name": tg_user.last_name or "",
+                "first_name": getattr(tg_user, "first_name", "") or "",
+                "last_name": getattr(tg_user, "last_name", "") or "",
             }
         )
     except TelegramIdentityUnverified:
@@ -5194,6 +5194,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif data.startswith("adm_rej_tchr_"):
             target_id = int(data.removeprefix("adm_rej_tchr_"))
             await admin_reject_teacher_callback(update, context, target_id)
+        elif data.startswith("publish_feedback_"):
+            fb_id = int(data.removeprefix("publish_feedback_"))
+            await admin_publish_feedback_callback(update, context, fb_id)
+        elif data.startswith("reject_feedback_"):
+            fb_id = int(data.removeprefix("reject_feedback_"))
+            await admin_reject_feedback_callback(update, context, fb_id)
         elif data in ("menu_admin", "adm_main"):
             await admin_panel_handler(update, context)
         elif data == "adm_pending_receipts":
@@ -8102,6 +8108,94 @@ async def admin_reject_teacher_callback(
         )
     except Exception as e:
         logger.warning("Could not notify user %d: %s", target_tg_id, e)
+
+
+async def admin_publish_feedback_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, feedback_id: int
+) -> None:
+    """Admin approves and publishes a user feedback on the landing page."""
+    query = update.callback_query
+    from django.conf import settings as _settings
+
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    tg_user = update.effective_user
+    if not tg_user or tg_user.id != admin_id:
+        if query:
+            await query.answer("⛔️ Sizda ushbu amalni bajarish huquqi yo'q.", show_alert=True)
+        return
+
+    def _do_publish():
+        from apps.notifications.models import UserFeedback
+
+        fb = UserFeedback.objects.filter(id=feedback_id).first()
+        if fb:
+            fb.is_published = True
+            fb.save(update_fields=["is_published"])
+            return fb
+        return None
+
+    feedback = await _run_db(_do_publish)
+    if not feedback:
+        if query:
+            await query.answer("Sharh topilmadi.", show_alert=True)
+        return
+
+    if query:
+        await query.answer("✅ Sharh saytda e'lon qilindi!", show_alert=False)
+        old_text = query.message.text_html if query.message else ""
+        new_text = (
+            f"{old_text}\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✅ <b>Ushbu sharh tasdiqlandi va saytda (grandec.uz) chiqarildi!</b>"
+        )
+        try:
+            await query.edit_message_text(new_text, parse_mode="HTML")
+        except Exception:
+            pass
+
+
+async def admin_reject_feedback_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, feedback_id: int
+) -> None:
+    """Admin rejects a user feedback (will not appear on the landing page)."""
+    query = update.callback_query
+    from django.conf import settings as _settings
+
+    admin_id = int(getattr(_settings, "ADMIN_TELEGRAM_ID", SUPERADMIN_TELEGRAM_ID))
+    tg_user = update.effective_user
+    if not tg_user or tg_user.id != admin_id:
+        if query:
+            await query.answer("⛔️ Sizda ushbu amalni bajarish huquqi yo'q.", show_alert=True)
+        return
+
+    def _do_reject():
+        from apps.notifications.models import UserFeedback
+
+        fb = UserFeedback.objects.filter(id=feedback_id).first()
+        if fb:
+            fb.is_published = False
+            fb.save(update_fields=["is_published"])
+            return fb
+        return None
+
+    feedback = await _run_db(_do_reject)
+    if not feedback:
+        if query:
+            await query.answer("Sharh topilmadi.", show_alert=True)
+        return
+
+    if query:
+        await query.answer("❌ Sharh rad etildi.", show_alert=False)
+        old_text = query.message.text_html if query.message else ""
+        new_text = (
+            f"{old_text}\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"❌ <b>Ushbu sharh rad etildi (saytda ko'rinmaydi).</b>"
+        )
+        try:
+            await query.edit_message_text(new_text, parse_mode="HTML")
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
