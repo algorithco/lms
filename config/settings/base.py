@@ -488,9 +488,9 @@ ARENA_BOT_EMAIL = env("ARENA_BOT_EMAIL", default="arena.bot@lms.local")
 # ---------------------------------------------------------------------------
 # Manual payments (card transfer + Telegram receipt verification)
 # ---------------------------------------------------------------------------
-PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="4916 9903 6325 9166")
-PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="Visa")
-PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="Ro'ziyev K.")
+PAYMENT_CARD_NUMBER = (env("PAYMENT_CARD_NUMBER", default="") or "4916 9903 6325 9166")
+PAYMENT_CARD_BANK = (env("PAYMENT_CARD_BANK", default="") or "Visa")
+PAYMENT_CARD_HOLDER = (env("PAYMENT_CARD_HOLDER", default="") or "Ro'ziyev K.")
 PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="")
 PLAN_STARTER_PRICE = env.int("PLAN_STARTER_PRICE", default=7000)
 PLAN_PRO_PRICE = env.int("PLAN_PRO_PRICE", default=15000)
