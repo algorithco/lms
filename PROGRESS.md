@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.58. Rasmiy Versiya v1.66.0: Mobil Topbar (Navbar) Tuzatilishi va O'qituvchilar Uchun Natijalar Vedomosti (PDF/Excel Export)
+- [x] 1-Vazifa: Mobil Topbar (Navbar) Minib Qolishini Bartaraf Etish (`Landing.tsx`, `index.css`):
+  * Mobil ekranlarda (< 768px) desktop matnli menyulari (`Testlar`, `AI Esse`, `1v1 Arena`, `O'tish ballari`, `Tariflar`) butunlay yashirildi (`hidden md:flex`).
+  * Mobil Topbar qat'iy 3 ta elementga keltirildi: Chapda rasmiy Grandec logotipi (`h-8 w-auto`), O'ngda Profil avatari va Gamburger menyu (☰).
+  * Desktopda mavjud bo'lgan, ammo mobilda ekranni haddan tashqari cho'zib yuborgan dublyaj bloklar (`#features`, `#comparison`, pastki taklif banneri) `hidden md:block` orqali yashirilib, mobil sahifa ixcham va qulay holga keltirildi.
+  * `frontend/src/index.css` da responsive utilitlar (`.hidden`, `.flex`, `.block`, `.md:flex`, `.md:hidden`, `.md:block`) qo'shildi hamda rasmiy PDF chop etish uchun `@media print` (.printable-gradebook) qoidalari o'rnatildi.
+- [x] 2-Vazifa: 4-Bosqich — O'qituvchilar Uchun Natijalar Vedomosti va Rasmiy Eksport (`TeacherGradebook.tsx`, `apps/tests/views.py`):
+  * Backend API: `GET /api/v1/tests/<id>/gradebook/` va `GET /api/v1/tests/<id>/item-analysis/` (shuningdek `/api/tests/<id>/...` pariteti):
+    - Har bir o'quvchining o'rni (Rank), Ism-familiyasi, Login/username, Xom balli ($N/Total$), Rash dinamik bali (100 ballik shkalada), Bahosi (A+, A, B+, B, C, D, F), Sarflangan vaqti va topshirgan sanasi.
+    - 4 ta xulosa kartasi: Jami topshirganlar, O'rtacha xom ball, O'rtacha Rash dinamik bali, Eng qiyin savol indeksi.
+    - Psixometrik savollar tahlili: To'g'ri topish foizi ($P_i$), Rash dinamik vazni va eng ko'p chalg'itgan noto'g'ri variant.
+  * Frontend O'qituvchi Kabineti (`/tests/:id/gradebook`):
+    - 4 ta asosiy metrika kartasi (Warm Academic Luxury stilida).
+    - O'quvchilar reyting jadvali (qidiruv va saralash bilan).
+    - Savollar tahlili tab-paneli.
+    - 1-Click PDF Vedomost yuklab olish: `@media print` orqali rasmiy maktab/markaz shapkasi, "O'qituvchi imzosi" va "Muhr o'rni" bilan toza A4 formatda chop etish.
+    - 1-Click Excel (.csv) yuklab olish: UTF-8 BOM (`\uFEFF`) qo'shilgan, Microsoft Excelda o'zbekcha harflar (o', g', sh, ch) buzilmaydi.
+    - `TestDetail.tsx`, `Tests.tsx` va `SmartTestCreate.tsx` ga `[📊 Vedomostni ko'rish]` tugmasi integratsiya qilindi.
+- [x] 3-Bosqich: QA va Zero-Downtime VPS Deploy:
+  * `npm run lint`: 0 ta xatolik, `npm run build`: 0 ta xatolik (2.69s).
+  * `python manage.py check`: 0 ta xatolik (System check identified no issues).
+  * Contabo VPS (`169.58.58.229` / `/opt/lms`) da `web` va `nginx` yangilandi, BestWay loyihasiga mutlaqo daxl qilinmadi.
+  * Jonli tekshiruv: `https://grandec.uz/healthz/` (HTTP 200 OK, v1.66.0) va `https://grandec.uz/` (HTTP 200 OK).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.57. Rasmiy Versiya v1.64.0: Talaba Kabineti Tozalanishi, Ikkitalik Logoni Yo'qotish va TestMakon Yorug' Akademik Dizayni
 - [x] 1-Bosqich: Talaba (Student) Kabinetidan O'qituvchi Tugmalarini Olib Tashlash (`Dashboard.tsx`):
   * `isTeacherOrAdmin` va `isStudent` rollari qat'iy ajratildi (`role === 'teacher' || role === 'admin' || is_staff || is_superuser`).
