@@ -9,6 +9,30 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.64. Rasmiy Versiya v1.74.0: Test Start Barqarorligi, CEFR Mobile Layout, In-App Feedback va Jonli Fikrlar
+- [x] 1-Vazifa: Test Start Barqarorligi va Oq Ekran Yiqilishini Bartaraf Etish (`apps/tests/services.py`, `apps/tests/views.py`, `ErrorBoundary.tsx`, `TakeTest.tsx`, `EnglishExamInterface.tsx`):
+  * `StartAttemptService.execute`: `access_type`, `access_pin`, `assigned_group` qiymatlarida null-safe himoya o'rnatildi.
+  * Xatoliklar turi bo'yicha maxsus istisnolar (`TestPinRequiredError`, `TestInvalidPinError`, `TestAccessDeniedError`) kiritildi va frontendga toza 400/403 JSON qaytarildi (`PIN_REQUIRED`, `INVALID_PIN`, `LIMIT_EXCEEDED`).
+  * `AttemptSectionProgress` obyektlari `try/except` xavfsiz blokida yaratilishi ta'minlandi.
+  * Frontendda `ErrorBoundary.tsx` komponenti yaratilib, xatolik yuz berganda oq ekran o'rniga xushmuomala xatolik xabari va `[🔙 Testlar ro'yxatiga qaytish]` tugmasi taqdim etildi.
+  * Imtihondan chiqishda adashib bosilib ketishning oldini oluvchi tasdiqlash modali (`[Chiqishni tasdiqlash]`) kiritildi va kiosk rejimida fullscreen to'liq bekor qilinishi kafolatlandi.
+- [x] 2-Vazifa: CEFR Mock Imtihonining Mobil Layouti va Tab Navigatsiyasi (`EnglishExamInterface.tsx`):
+  * Mobilda matn va savollar bir-birini siqib qo'ymasligi uchun ikkita qulay tab o'rnatildi: `[📖 Matn / Passage]` va `[❓ Savollar / Questions]`.
+  * Yuqori panel mobilda ixchamlashtirildi: Qolgan vaqt taymeri, audio pleyer, fullscreen va chiqish tugmalari bir chiziqda qulay joylashtirildi.
+  * Savollar palitrasi gorizontal scroll bilan ixcham qilindi.
+- [x] 3-Vazifa: Foydalanuvchilar Fikrlari va Admin Bot Ogohlantirishi (`UserFeedback`, `FeedbackModal.tsx`, `Landing.tsx`, `Dashboard.tsx`):
+  * `UserFeedback` modeli (`apps/notifications/models.py`) va uning `0011_userfeedback.py` migratsiyasi yaratildi (rating 1-5, kategoriya, xabar, foydalanuvchi/telefon).
+  * `POST /api/v1/feedback/` endpointi orqali admin Telegram profiliga (`ADMIN_TELEGRAM_ID`: 5582178765) tezkor xabarnoma yuborilishi ulandi.
+  * Bosh sahifaga (`Landing.tsx`) 6 ta ilhomlantiruvchi o'quvchi va ustoz yutuqlari kartochkasi (BMB Milliy sertifikat A+ 94%, IELTS 7.5, Attestatsiya 92 ball va h.k.) qo'shildi.
+  * Dashboard va Landing sahifalariga `[💬 Fikr yoki taklif]` tugmasi va `FeedbackModal` modal oynasi ulandi.
+- [x] 4-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `npm --prefix frontend run lint`: 0 ta xatolik.
+  * `npm --prefix frontend run build`: 0 ta xatolik (2.18s).
+  * `pytest tests -q`: 1306 ta test 100% PASS (0 failed, 80 subtests passed).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS (`169.58.58.229` / `/opt/lms`): `web`, `nginx`, `bot`, `celery-worker`, `celery-beat` yangilandi, `bestway` 100% daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK), `https://grandec.uz/tests` (HTTP 200 OK).
+
 ### 2.63. Rasmiy Versiya v1.71.0: "In 3 steps" Kontrasti, HeroCarousel Dual-Theme va 100% Landing i18n
 - [x] 1-Vazifa: "In 3 steps" Bo'limidagi Oq Fonda Oq Matn Xatosini Ildizi Bilan Tuzatish (`HowItWorks.tsx`):
   * Bo'lim foni dual-theme qilindi (`bg-slate-50 dark:bg-slate-900/60`, `isDark ? 'rgba(15, 23, 42, 0.7)' : '#f8fafc'`).
