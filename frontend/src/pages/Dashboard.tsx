@@ -975,7 +975,7 @@ export default function Dashboard() {
                 textDecoration: 'none',
               }}
             >
-              Barchasi →
+              {t('dashboard.view_all', 'Barchasi')} →
             </Link>
           </div>
 

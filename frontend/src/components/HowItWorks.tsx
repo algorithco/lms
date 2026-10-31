@@ -22,11 +22,12 @@ export default function HowItWorks() {
   return (
     <section
       id="how"
+      className="bg-slate-50 dark:bg-slate-900/60 border-t border-b border-slate-200 dark:border-slate-800 transition-colors duration-200"
       style={{
         padding: '70px 20px',
-        background: '#f8fafc',
-        borderTop: '1px solid var(--border)',
-        borderBottom: '1px solid var(--border)',
+        background: isDark ? 'rgba(15, 23, 42, 0.7)' : '#f8fafc',
+        borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid var(--border)',
+        borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid var(--border)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -34,6 +35,7 @@ export default function HowItWorks() {
       <div style={{ margin: '0 auto', maxWidth: 1000, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 48px' }}>
           <span
+            className="text-amber-500 font-extrabold uppercase tracking-widest text-xs inline-block mb-2"
             style={{
               fontSize: 11,
               fontWeight: 900,
@@ -46,7 +48,15 @@ export default function HowItWorks() {
           >
             {t('how_eyebrow')}
           </span>
-          <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 900, color: '#0f172a', margin: '4px 0' }}>
+          <h2
+            className="text-slate-900 dark:text-white font-black"
+            style={{
+              fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
+              fontWeight: 900,
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              margin: '4px 0',
+            }}
+          >
             {t('how_title_1')} <span className="hero-title-gradient">{t('how_title_2')}</span>
           </h2>
         </div>
@@ -62,10 +72,10 @@ export default function HowItWorks() {
           {steps.map((st, i) => (
             <div
               key={i}
-              className="step-card"
+              className="step-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-9 text-center transition-all duration-300 flex flex-col items-center"
               style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
+                background: isDark ? '#0F172A' : '#FFFFFF',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
                 borderRadius: 20,
                 padding: '36px 28px',
                 textAlign: 'center',
@@ -76,21 +86,21 @@ export default function HowItWorks() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 boxShadow: isDark
-                  ? '0 10px 30px rgba(0, 0, 0, 0.35)'
+                  ? '0 10px 30px rgba(0, 0, 0, 0.45)'
                   : '0 4px 20px rgba(0, 0, 0, 0.05)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.6)';
                 e.currentTarget.style.transform = 'translateY(-4px)';
                 e.currentTarget.style.boxShadow = isDark
-                  ? '0 16px 36px -8px rgba(245, 158, 11, 0.2)'
+                  ? '0 16px 36px -8px rgba(245, 158, 11, 0.25)'
                   : '0 12px 28px -6px rgba(245, 158, 11, 0.25)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0';
+                e.currentTarget.style.borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0';
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = isDark
-                  ? '0 10px 30px rgba(0, 0, 0, 0.35)'
+                  ? '0 10px 30px rgba(0, 0, 0, 0.45)'
                   : '0 4px 20px rgba(0, 0, 0, 0.05)';
               }}
             >
@@ -115,10 +125,27 @@ export default function HowItWorks() {
               >
                 {st.num}
               </div>
-              <h3 style={{ fontSize: 19, fontWeight: 800, color: '#0f172a', margin: '0 0 12px', letterSpacing: '-0.3px' }}>
+              <h3
+                className="text-slate-900 dark:text-white font-extrabold tracking-tight"
+                style={{
+                  fontSize: 19,
+                  fontWeight: 800,
+                  color: isDark ? '#FFFFFF' : '#0F172A',
+                  margin: '0 0 12px',
+                  letterSpacing: '-0.3px',
+                }}
+              >
                 {st.title}
               </h3>
-              <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.65, margin: 0 }}>
+              <p
+                className="text-slate-600 dark:text-slate-300 leading-relaxed"
+                style={{
+                  fontSize: 14,
+                  color: isDark ? '#CBD5E1' : '#475569',
+                  lineHeight: 1.65,
+                  margin: 0,
+                }}
+              >
                 {st.desc}
               </p>
             </div>

@@ -47,6 +47,7 @@ export default function Landing() {
   const { t } = useLang();
   const { user, openAuthModal } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme !== 'light';
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
@@ -641,24 +642,24 @@ export default function Landing() {
               <div>
                 {/* 1 Single Elegant Badge */}
                 <div style={{ marginBottom: 20 }}>
-                  <span className="bg-amber-100/80 border border-amber-300 text-amber-900 font-semibold px-4 py-1.5 rounded-full inline-block text-xs sm:text-sm shadow-sm">
-                    ✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli
+                  <span className="bg-amber-100/80 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 font-semibold px-4 py-1.5 rounded-full inline-block text-xs sm:text-sm shadow-sm">
+                    {t('landing.bmb_badge', '✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli')}
                   </span>
                 </div>
 
                 {/* Main Headline (TestMakon Contrast Sarlavha) */}
                 <h1
-                  className="text-slate-900 font-black tracking-tight"
+                  className="text-slate-900 dark:text-white font-black tracking-tight"
                   style={{
                     fontSize: 'clamp(2.4rem, 4.8vw, 3.8rem)',
                     lineHeight: 1.15,
                     fontWeight: 900,
                     letterSpacing: '-0.03em',
-                    color: '#0F172A',
+                    color: isDark ? '#FFFFFF' : '#0F172A',
                     margin: '0 0 20px',
                   }}
                 >
-                  Milliy sertifikatga tayyorgarlik{' '}
+                  {t('landing.hero_title', 'Milliy sertifikatga tayyorgarlik')}{' '}
                   <span
                     style={{
                       background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
@@ -669,9 +670,9 @@ export default function Landing() {
                       boxShadow: '0 8px 20px -3px rgba(217, 119, 6, 0.45)',
                     }}
                   >
-                    AI tahlili
+                    {t('landing.hero_ai_analysis', 'AI tahlili')}
                   </span>{' '}
-                  bilan
+                  {t('landing.hero_with', 'bilan')}
                 </h1>
 
                 {/* Subhead */}
@@ -712,13 +713,13 @@ export default function Landing() {
                       boxShadow: '0 8px 25px -4px rgba(217, 119, 6, 0.4)',
                     }}
                   >
-                    <span>⚡️ Bepul boshlash</span>
+                    <span>⚡️ {t('landing.start_free', 'Bepul boshlash')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => navigate('/tests')}
-                    className="bg-white border-2 border-slate-200 hover:border-amber-400 text-slate-800 font-bold px-7 py-3.5 rounded-xl shadow-sm text-base inline-flex items-center gap-2 transition-all cursor-pointer"
+                    className="bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-400 text-slate-800 dark:text-slate-100 font-bold px-7 py-3.5 rounded-xl shadow-sm text-base inline-flex items-center gap-2 transition-all cursor-pointer"
                     style={{
                       padding: '13px 28px',
                       borderRadius: 14,
@@ -730,7 +731,7 @@ export default function Landing() {
                       boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
                     }}
                   >
-                    <span>Testlarni ko&apos;rish</span>
+                    <span>{t('landing.browse_tests', "Testlarni ko'rish")}</span>
                   </button>
                 </div>
 
@@ -742,23 +743,22 @@ export default function Landing() {
                     gap: '10px 24px',
                     fontSize: 13,
                     fontWeight: 600,
-                    color: '#64748B',
+                    color: isDark ? '#CBD5E1' : '#64748B',
                   }}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} style={{ color: '#059669' }} />
-                    BMB 12 mezonli rasmiy standart
+                    {t('landing.trust_bmb', 'BMB 12 mezonli rasmiy standart')}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} style={{ color: '#D97706' }} />
-                    99.4% imtihon aniqligi
+                    {t('landing.trust_accuracy', '99.4% imtihon aniqligi')}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} style={{ color: '#0284C7' }} />
-                    Ona tili va Ingliz tili
+                    {t('landing.trust_languages', 'Ona tili va Ingliz tili')}
                   </span>
                 </div>
-
                 {/* Mobile 3D Direction Cards (TestMakon 2x2 Grid) */}
                 <div className="grid grid-cols-2 gap-3 mt-6 md:hidden">
                   <button
@@ -780,13 +780,13 @@ export default function Landing() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 26 }}>✍️</span>
                       <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(217, 119, 6, 0.15)', color: '#B45309' }}>
-                        12 mezon
+                        {t('landing.badge_12_criteria', '12 mezon')}
                       </span>
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E' }}>AI Esse</h4>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E' }}>{t('landing.card_ai_essay', 'AI Esse')}</h4>
                       <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B45309' }}>
-                        BMB rasmiy tahlil
+                        {t('landing.card_ai_essay_sub', 'BMB rasmiy tahlil')}
                       </p>
                     </div>
                   </button>
@@ -810,13 +810,13 @@ export default function Landing() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 26 }}>📝</span>
                       <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(5, 150, 105, 0.15)', color: '#047857' }}>
-                        CBT Test
+                        {t('landing.badge_cbt_test', 'CBT Test')}
                       </span>
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#065F46' }}>Testlar</h4>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#065F46' }}>{t('landing.card_tests', 'Testlar')}</h4>
                       <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#047857' }}>
-                        Davlat standarti
+                        {t('landing.card_tests_sub', 'Davlat standarti')}
                       </p>
                     </div>
                   </button>
@@ -840,13 +840,13 @@ export default function Landing() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 26 }}>⚔️</span>
                       <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(220, 38, 38, 0.15)', color: '#B91C1C' }}>
-                        Jonli jang
+                        {t('landing.badge_live_battle', 'Jonli jang')}
                       </span>
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#991B1B' }}>1v1 Arena</h4>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#991B1B' }}>{t('landing.card_arena', '1v1 Arena')}</h4>
                       <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B91C1C' }}>
-                        Tezkor duel
+                        {t('landing.card_arena_sub', 'Tezkor duel')}
                       </p>
                     </div>
                   </button>
@@ -870,13 +870,13 @@ export default function Landing() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 26 }}>📷</span>
                       <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(124, 58, 237, 0.15)', color: '#6D28D9' }}>
-                        Skaner
+                        {t('landing.badge_scanner', 'Skaner')}
                       </span>
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#5B21B6' }}>Titul Skaner</h4>
+                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#5B21B6' }}>{t('landing.card_scanner', 'Titul Skaner')}</h4>
                       <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#6D28D9' }}>
-                        Kamera orqali
+                        {t('landing.card_scanner_sub', 'Kamera orqali')}
                       </p>
                     </div>
                   </button>
@@ -2137,61 +2137,68 @@ export default function Landing() {
         </section>
 
         {/* BOTTOM CTA BANNER */}
-        <section style={{ padding: '40px 20px 80px' }} className="hidden md:block">
+        <section style={{ padding: '40px 20px 80px' }}>
           <div
+            className="cta-banner-box rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
             style={{
+              maxWidth: 960,
               margin: '0 auto',
-              maxWidth: 1040,
-              borderRadius: 28,
-              padding: '48px 32px',
-              textAlign: 'center',
-              position: 'relative',
-              background:
-                landingSubject === 'english'
-                  ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(99, 102, 241, 0.12))'
-                  : 'linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(139, 92, 246, 0.12))',
-              border:
-                landingSubject === 'english'
-                  ? '1px solid rgba(56, 189, 248, 0.3)'
-                  : '1px solid rgba(245, 158, 11, 0.3)',
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))'
+                : landingSubject === 'english'
+                ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(99, 102, 241, 0.12))'
+                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(139, 92, 246, 0.12))',
+              border: isDark
+                ? '1px solid rgba(255, 255, 255, 0.1)'
+                : landingSubject === 'english'
+                ? '1px solid rgba(56, 189, 248, 0.3)'
+                : '1px solid rgba(245, 158, 11, 0.3)',
+              boxShadow: isDark
+                ? '0 20px 40px rgba(0, 0, 0, 0.5)'
+                : '0 20px 40px rgba(245, 158, 11, 0.08)',
             }}
           >
             <h2
+              className="text-slate-900 dark:text-white font-extrabold"
               style={{
                 fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
                 fontWeight: 900,
                 lineHeight: 1.25,
                 padding: '4px 0',
-                background: 'linear-gradient(135deg, #0F172A 30%, #D97706 100%)',
+                color: isDark ? '#FFFFFF' : '#0F172A',
+                background: isDark
+                  ? 'linear-gradient(135deg, #FFFFFF 40%, #FBBF24 100%)'
+                  : 'linear-gradient(135deg, #0F172A 40%, #D97706 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 margin: '0 0 16px',
               }}
             >
               {selectedTrack === 'ielts'
-                ? 'IELTS Band 7.5+ ga erishishga tayyormisiz?'
+                ? t('landing.cta_ielts_title', 'IELTS Band 7.5+ ga erishishga tayyormisiz?')
                 : selectedTrack === 'multilevel'
-                ? 'Multi-level C1 sertifikatini olishga tayyormisiz?'
+                ? t('landing.cta_multilevel_title', 'Multi-level C1 sertifikatini olishga tayyormisiz?')
                 : selectedTrack === 'attestation'
-                ? 'Oliy toifa va 70% ustama sinoviga tayyormisiz?'
-                : t('cta_banner_title')}
+                ? t('landing.cta_attestation_title', 'Oliy toifa va 70% ustama sinoviga tayyormisiz?')
+                : t('landing.cta_banner_title', t('cta_banner_title'))}
             </h2>
             <p
+              className="text-slate-600 dark:text-slate-300 font-medium"
               style={{
                 fontSize: 15,
-                color: '#64748B',
+                color: isDark ? '#CBD5E1' : '#475569',
                 maxWidth: 580,
                 margin: '0 auto 32px',
                 lineHeight: 1.65,
               }}
             >
               {selectedTrack === 'ielts'
-                ? 'Hozir roʻyxatdan oʻting va birinchi Writing hamda Speaking sinovini mutlaqo bepul topshiring!'
+                ? t('landing.cta_ielts_desc', 'Hozir roʻyxatdan oʻting va birinchi Writing hamda Speaking sinovini mutlaqo bepul topshiring!')
                 : selectedTrack === 'multilevel'
-                ? '35 talik namunaviy test va yozma insho tahlilidan bepul foydalaning.'
+                ? t('landing.cta_multilevel_desc', '35 talik namunaviy test va yozma insho tahlilidan bepul foydalaning.')
                 : selectedTrack === 'attestation'
-                ? '50 talik sinov diagnostikasini ishlab, toifa ehtimolligingizni aniqlang.'
-                : t('cta_banner_subtitle')}
+                ? t('landing.cta_attestation_desc', '50 talik sinov diagnostikasini ishlab, toifa ehtimolligingizni aniqlang.')
+                : t('landing.cta_banner_subtitle', t('cta_banner_subtitle'))}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
               <button
