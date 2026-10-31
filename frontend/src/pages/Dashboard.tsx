@@ -30,6 +30,7 @@ import {
   ZapIcon,
 } from '../components/icons';
 import OnboardingModal from '../components/OnboardingModal';
+import CardPaymentModal from '../components/CardPaymentModal';
 
 interface Stats {
   total_tests_taken?: number;
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const [, setTuition] = useState<TuitionOverview | null>(null);
   const [pendingReceipt, setPendingReceipt] = useState<PaymentReceiptItem | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [cardPaymentOpen, setCardPaymentOpen] = useState(false);
   const [streak, setStreak] = useState<StreakInfoResponse | null>(null);
   const [, setVaultStats] = useState<{ unresolved_count: number; weak_topics: { topic: string; error_count: number }[] } | null>(null);
 
@@ -174,11 +176,11 @@ export default function Dashboard() {
               letterSpacing: '-0.02em',
             }}
           >
-            <span>{t('dash_welcome', 'Xush kelibsiz')}, {userDisplayName}!</span>
+            <span>{t('dashboard.welcome', 'Xush kelibsiz')}, {userDisplayName}!</span>
             <span style={{ fontSize: '1.25rem' }}>✨</span>
           </h1>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>
-            {t('dash_subtitle', 'Bilimingizni charxlang va Milliy Sertifikatga ishonch bilan tayyorlaning.')}
+            {t('dashboard.subtitle', 'Bilimingizni charxlang va Milliy Sertifikatga ishonch bilan tayyorlaning.')}
           </p>
         </div>
 
@@ -200,10 +202,10 @@ export default function Dashboard() {
               }}
             >
               <CrownIcon size={14} style={{ color: '#f59e0b' }} />
-              <span>{t('tariff_label', 'Tarif')}: <strong>{user.plan.toUpperCase()}</strong></span>
+              <span>{t('dashboard.tariff_label', 'Tarif')}: <strong>{user.plan.toUpperCase()}</strong></span>
             </div>
           ) : (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <div
                 style={{
                   display: 'inline-flex',
@@ -218,24 +220,30 @@ export default function Dashboard() {
                   fontSize: 12,
                 }}
               >
-                <span>{t('tariff_label', 'Tarif')}: <strong>{t('tariff_free', 'BEPUL')}</strong></span>
+                <span>{t('dashboard.tariff_label', 'Tarif')}: <strong>{t('dashboard.tariff_free', 'BEPUL')}</strong></span>
               </div>
-              <Link
-                to="/pricing"
+              <button
+                type="button"
+                onClick={() => setCardPaymentOpen(true)}
                 className="btn sm"
                 style={{
                   fontSize: 11.5,
-                  padding: '4px 10px',
+                  padding: '5px 12px',
                   fontWeight: 700,
                   background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: 8,
-                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  boxShadow: '0 2px 6px rgba(217, 119, 6, 0.25)',
                 }}
               >
-                {t('activate_sub', 'Obunani faollashtirish')}
-              </Link>
+                <ZapIcon size={13} />
+                <span>{t('dashboard.activate_sub', 'Obunani faollashtirish')}</span>
+              </button>
             </div>
           )}
 
@@ -371,7 +379,7 @@ export default function Dashboard() {
               }}
             >
               <SparklesIcon size={12} />
-              <span>{t('dash_quote_badge', 'KUN HIKMATI VA MOTIVATSIYA')}</span>
+              <span>{t('dashboard.quote_title', 'KUN HIKMATI VA MOTIVATSIYA')}</span>
             </div>
             <h2
               className="dash-hero-title"
@@ -382,7 +390,7 @@ export default function Dashboard() {
                 lineHeight: 1.45,
               }}
             >
-              &ldquo;Ilm — o‘rganish bilan, yuksak natija esa uzluksiz intilish bilan qo‘lga kiritiladi.&rdquo;
+              &ldquo;{t('dashboard.quote_text', 'Ilm — o‘rganish bilan, yuksak natija esa uzluksiz intilish bilan qo‘lga kiritiladi.')}&rdquo;
             </h2>
             <p
               className="dash-hero-desc"
@@ -392,7 +400,7 @@ export default function Dashboard() {
                 lineHeight: 1.5,
               }}
             >
-              BMB Milliy Sertifikat 2026 standarti bo‘yicha yangilangan rasmiy mock test va 12 mezonli AI esse topshirig‘i sizni kutmoqda.
+              {t('dashboard.hero_desc', 'BMB Milliy Sertifikat 2026 standarti bo‘yicha yangilangan rasmiy mock test va 12 mezonli AI esse topshirig‘i sizni kutmoqda.')}
             </p>
             <div className="dash-hero-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {isTeacherOrAdmin ? (
@@ -417,7 +425,7 @@ export default function Dashboard() {
                     }}
                   >
                     <span>✍️</span>
-                    <span>+ Yangi test yaratish (Smart Paste)</span>
+                    <span>{t('dashboard.new_test_smart', '+ Yangi test yaratish (Smart Paste)')}</span>
                   </Link>
                   <Link
                     to="/teacher"
@@ -434,7 +442,7 @@ export default function Dashboard() {
                       minHeight: 44,
                     }}
                   >
-                    <span>👥 O‘quvchilar va Guruhlar</span>
+                    <span>{t('dashboard.students_groups', '👥 O‘quvchilar va Guruhlar')}</span>
                     <span style={{ fontSize: 15, color: '#D97706' }}>→</span>
                   </Link>
                   <Link
@@ -453,7 +461,7 @@ export default function Dashboard() {
                     }}
                   >
                     <PenLineIcon size={14} color="#D97706" />
-                    <span>AI Esse tekshiruvi</span>
+                    <span>{t('dashboard.check_essay_teacher', 'AI Esse tekshiruvi')}</span>
                   </Link>
                 </>
               ) : (
@@ -478,7 +486,7 @@ export default function Dashboard() {
                     }}
                   >
                     <ZapIcon size={16} />
-                    <span>{t('dash_take_test', '⚡️ BMB Mock Test topshirish')}</span>
+                    <span>{t('dashboard.cta_mock', '⚡️ BMB Mock Test topshirish')}</span>
                   </Link>
                   <Link
                     to="/essays"
@@ -496,7 +504,7 @@ export default function Dashboard() {
                     }}
                   >
                     <PenLineIcon size={15} color="#D97706" />
-                    <span>{t('dash_check_essay', '✍️ AI Esse tekshirtirish')}</span>
+                    <span>{t('dashboard.cta_essay', '✍️ AI Esse tekshirtirish')}</span>
                   </Link>
                   <Link
                     to="/arena"
@@ -514,7 +522,7 @@ export default function Dashboard() {
                     }}
                   >
                     <SwordsIcon size={15} color="#D97706" />
-                    <span>{t('dash_arena_duel', '⚔️ 1v1 Arena bellashuvi')}</span>
+                    <span>{t('dashboard.cta_arena', '⚔️ 1v1 Arena bellashuvi')}</span>
                   </Link>
                 </>
               )}
@@ -549,13 +557,13 @@ export default function Dashboard() {
             </div>
             <div>
               <div style={{ fontSize: 10.5, textTransform: 'uppercase', color: '#64748B', fontWeight: 800, letterSpacing: '0.06em' }}>
-                Keyingi Marra
+                {t('dashboard.next_milestone', 'Keyingi Marra')}
               </div>
               <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>
-                A+ Sertifikat (65+ Ball)
+                {t('dashboard.next_target', 'A+ Sertifikat (65+ Ball)')}
               </div>
               <div style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>
-                Tayyorgarlik darajasi: 72%
+                {t('dashboard.prep_level', 'Tayyorgarlik darajasi: 72%')}
               </div>
             </div>
           </div>
@@ -574,7 +582,7 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              Yechilgan testlar
+              {t('dashboard.metric_tests', 'Yechilgan testlar')}
             </span>
             <div
               style={{
@@ -592,11 +600,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-            {testsTakenVal} ta
+            {testsTakenVal} {t('dashboard.unit_item', 'ta')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>+12% {t('dash_this_month', 'bu oy')}</span>
-            <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} ta o‘tgan</span>
+            <span>+12% {t('dashboard.this_month', 'bu oy')}</span>
+            <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} {t('dashboard.passed_label', 'ta o‘tgan')}</span>
           </div>
         </div>
 
@@ -610,7 +618,7 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              Yozilgan esselar
+              {t('dashboard.metric_essays', 'Yozilgan esselar')}
             </span>
             <div
               style={{
@@ -628,11 +636,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-            {essaysCountVal} ta
+            {essaysCountVal} {t('dashboard.unit_item', 'ta')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#9333ea', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>BMB 12 mezon</span>
-            <span style={{ color: 'var(--muted)' }}>· A+ daraja</span>
+            <span>{t('dashboard.bmb_criteria', 'BMB 12 mezon')}</span>
+            <span style={{ color: 'var(--muted)' }}>· {t('dashboard.grade_aplus', 'A+ daraja')}</span>
           </div>
         </div>
 
@@ -646,7 +654,7 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              O‘rtacha natija
+              {t('dashboard.metric_avg', 'O‘rtacha natija')}
             </span>
             <div
               style={{
@@ -667,8 +675,8 @@ export default function Dashboard() {
             {avgVal}%
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>B+ / A daraja</span>
-            <span style={{ color: 'var(--muted)' }}>· A’lo</span>
+            <span>{t('dashboard.grade_range', 'B+ / A daraja')}</span>
+            <span style={{ color: 'var(--muted)' }}>· {t('dashboard.grade_excellent', 'A’lo')}</span>
           </div>
         </div>
 
@@ -682,7 +690,7 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              Kundalik faollik
+              {t('dashboard.metric_streak', 'Kundalik faollik')}
             </span>
             <div
               style={{
@@ -700,10 +708,10 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="dash-stat-val" style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-            {streakDaysVal} kun
+            {streakDaysVal} {t('dashboard.unit_days', 'kun')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#ef4444', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>Ketma-ket 🔥</span>
+            <span>{t('dashboard.streak_streak', 'Ketma-ket')} 🔥</span>
             <span style={{ color: 'var(--muted)' }}>· {streak?.xp_points || 340} XP</span>
           </div>
         </div>
@@ -738,7 +746,7 @@ export default function Dashboard() {
                 <FileTextIcon size={15} />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
-                Mening Testlarim
+                {t('dashboard.my_tests', 'Mening Testlarim')}
               </h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -759,7 +767,7 @@ export default function Dashboard() {
                     gap: 4,
                   }}
                 >
-                  <span>✍️</span> + Test qo‘shish
+                  <span>✍️</span> {t('dashboard.add_test', '+ Test qo‘shish')}
                 </Link>
               )}
               <Link
@@ -771,13 +779,13 @@ export default function Dashboard() {
                   textDecoration: 'none',
                 }}
               >
-                Barchasi →
+                {t('dashboard.view_all', 'Barchasi')} →
               </Link>
             </div>
           </div>
 
           <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--muted)' }}>
-            Ona tili va adabiyotidan faol topshiriqlar va rasmiy mock sinovlar:
+            {t('dashboard.my_tests_desc', 'Ona tili va adabiyotidan faol topshiriqlar va rasmiy mock sinovlar:')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -803,13 +811,13 @@ export default function Dashboard() {
                           {test.title}
                         </strong>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
-                          <span>Ona tili va Adabiyot</span>
+                          <span>{t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                           <span>•</span>
-                          <span>{num(test.total_questions, 0)} ta savol</span>
+                          <span>{num(test.total_questions, 0)} {t('dashboard.unit_questions', 'ta savol')}</span>
                           {test.time_limit_minutes && (
                             <>
                               <span>•</span>
-                              <span><ClockIcon size={11} style={{ display: 'inline', verticalAlign: 'middle' }} /> {test.time_limit_minutes} daqiqa</span>
+                              <span><ClockIcon size={11} style={{ display: 'inline', verticalAlign: 'middle' }} /> {test.time_limit_minutes} {t('dashboard.unit_minutes', 'daqiqa')}</span>
                             </>
                           )}
                         </div>
@@ -834,14 +842,14 @@ export default function Dashboard() {
                           border: 'none',
                         }}
                       >
-                        {progressPct > 0 ? 'Davom ettirish' : 'Boshlash'}
+                        {progressPct > 0 ? t('dashboard.continue', 'Davom ettirish') : t('dashboard.start', 'Boshlash')}
                       </Link>
                     </div>
 
                     {/* Progress Bar */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginBottom: 3 }}>
-                        <span>O‘zlashtirish</span>
+                        <span>{t('dashboard.mastery', 'O‘zlashtirish')}</span>
                         <span>{progressPct}%</span>
                       </div>
                       <div style={{ width: '100%', height: 5, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
@@ -882,7 +890,7 @@ export default function Dashboard() {
                         {item.title}
                       </strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
-                        <span>Ona tili va Adabiyot</span>
+                        <span>{t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                         <span>•</span>
                         <span>{item.q}</span>
                       </div>
@@ -903,12 +911,12 @@ export default function Dashboard() {
                         justifyContent: 'center',
                       }}
                     >
-                      {item.progress > 0 ? 'Davom ettirish' : 'Boshlash'}
+                      {item.progress > 0 ? t('dashboard.continue', 'Davom ettirish') : t('dashboard.start', 'Boshlash')}
                     </Link>
                   </div>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginBottom: 3 }}>
-                      <span>O‘zlashtirish</span>
+                      <span>{t('dashboard.mastery', 'O‘zlashtirish')}</span>
                       <span>{item.progress}%</span>
                     </div>
                     <div style={{ width: '100%', height: 5, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 999, overflow: 'hidden' }}>
@@ -955,7 +963,7 @@ export default function Dashboard() {
                 <PenLineIcon size={15} />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
-                AI Esse Studiyasi
+                {t('dashboard.essay_studio', 'AI Esse Studiyasi')}
               </h3>
             </div>
             <Link
@@ -982,14 +990,14 @@ export default function Dashboard() {
             }}
           >
             <span style={{ fontSize: 10, fontWeight: 800, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Bugungi tavsiya etilgan mavzu
+              {t('dashboard.today_topic_tag', 'Bugungi tavsiya etilgan mavzu')}
             </span>
             <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '4px 0 10px', lineHeight: 1.4 }}>
-              &ldquo;Alisher Navoiy &lsquo;Xamsa&rsquo; dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin&rdquo;
+              &ldquo;{t('dashboard.today_topic_title', 'Alisher Navoiy ‘Xamsa’ dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin')}&rdquo;
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                BMB 12 mezon · 50 ball
+                {t('dashboard.today_topic_meta', 'BMB 12 mezon · 50 ball')}
               </span>
               <Link
                 to="/essays"
@@ -1008,14 +1016,14 @@ export default function Dashboard() {
                   alignItems: 'center',
                 }}
               >
-                + Yangi Esse yozish / Yuklash
+                {t('dashboard.write_essay_cta', '+ Yangi Esse yozish / Yuklash')}
               </Link>
             </div>
           </div>
 
           {/* So'nggi baholangan esselar tarixi */}
           <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
-            So‘nggi baholangan esselar
+            {t('dashboard.recent_essays', 'So‘nggi baholangan esselar')}
           </h4>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1024,13 +1032,13 @@ export default function Dashboard() {
                 title: "Abdulla Qodiriyning 'O‘tkan kunlar' romanida milliy xarakter",
                 score: '56 / 60',
                 grade: 'A+ Daraja',
-                date: 'Kecha',
+                date: t('dashboard.yesterday', 'Kecha'),
               },
               {
                 title: "Mumtoz g‘azaliyotda tashxis va istiora san'atlarining qo‘llanilishi",
                 score: '52 / 60',
                 grade: 'A Daraja',
-                date: '3 kun oldin',
+                date: t('dashboard.days_ago', '3 kun oldin'),
               },
             ].map((eItem, i) => (
               <div
@@ -1210,6 +1218,10 @@ export default function Dashboard() {
         }}
       />
       )}
+      <CardPaymentModal
+        isOpen={cardPaymentOpen}
+        onClose={() => setCardPaymentOpen(false)}
+      />
     </div>
   );
 }

@@ -1,10 +1,9 @@
 # ============================================================================
-# LMS Platform — GitHub Actions CI
+# LMS Platform — GitHub Actions CI (Lint, Test, Build)
 # ============================================================================
 
 name: CI
 
-# Least privilege + no duplicate runs. Required check name: `test`.
 permissions:
   contents: read
 
@@ -19,7 +18,38 @@ on:
     branches: [main, master]
 
 jobs:
+  lint:
+    name: Lint (Backend & Frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint backend with ruff
+        run: ruff check .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Lint frontend with oxlint
+        run: npm --prefix frontend run lint
+
   test:
+    name: Test (Pytest & Django)
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -64,27 +94,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/development.txt
 
-      - name: Lint with ruff
-        run: |
-          ruff check .
-
       - name: Type check with mypy
         run: |
           mypy apps/ --ignore-missing-imports || true
-          # Advisory only: type errors do not block CI yet. Track via mypy
-          # reports, not as required gate.
 
-      - name: Collect static files (before tests — manifest storage needs them)
+      - name: Collect static files
         env:
           DJANGO_SETTINGS_MODULE: config.settings.development
           SECRET_KEY: test-secret-key
         run: |
           python manage.py collectstatic --noinput
 
-      - name: Run tests (canonical package only — root legacy scripts excluded)
-        # config.settings.test = fast MD5 hasher + throttles OFF. Development
-        # settings here caused PBKDF2 slowness (~188s) and LocMem-throttle
-        # 429s on login -> cascading 401s across the 311-test suite.
+      - name: Run tests (canonical test suite)
         env:
           DJANGO_SETTINGS_MODULE: config.settings.test
           SECRET_KEY: test-secret-key
@@ -95,10 +116,7 @@ jobs:
           python manage.py check
           python manage.py test tests --verbosity=2
 
-      - name: Coverage (report + regression floor)
-        # pytest-cov is in requirements/development.txt. Floor 50 is a
-        # starting regression gate (not a quality target) — raise once CI
-        # reports a stable baseline above it.
+      - name: Coverage check
         env:
           DJANGO_SETTINGS_MODULE: config.settings.test
           SECRET_KEY: test-secret-key
@@ -107,3 +125,22 @@ jobs:
           CELERY_TASK_ALWAYS_EAGER: "True"
         run: |
           pytest tests --cov=apps --cov-report=term --cov-report=xml --cov-fail-under=50 -q
+
+  build:
+    name: Build (Frontend & Verification)
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build frontend bundle
+        run: npm --prefix frontend run build

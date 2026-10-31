@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.62. Rasmiy Versiya v1.70.0: Aniq Bepul Tarif Holati, 100% Dashboard i18n va Qat'iy CI/CD Release Gate
+- [x] 1-Qism: Haqiqiy Tarif Holati (Soxta PREMIUM PRO'ni Yo'qotish va CardPaymentModal):
+  * Backend (`apps/accounts/serializers.py`, `apps/accounts/views.py`):
+    - Foydalanuvchi profili so'ralganda faol va muddati o'tmagan `UserSubscription` hamda tasdiqlangan `PaymentReceipt (APPROVED)` yozuvlari orqali real tekshiruv joriy qilindi.
+    - To'lovsiz barcha foydalanuvchilar uchun qat'iy `tariff: 'FREE'`, `plan: 'FREE'`, `is_paid: false`, `is_premium: false` qiymatlari kafolatlandi.
+  * Frontend (`frontend/src/lib/api.ts`):
+    - `AuthUser` interfeysiga `tariff` va `is_premium` maydonlari qo'shildi. `normalizeUser` ichida to'lov holati `raw.is_paid / raw.is_premium` va `plan / tariff` orqali to'g'ri o'zlashtirilishi yo'lga qo'yildi.
+  * Dashboard & Topbar (`Dashboard.tsx`):
+    - To'lovsiz foydalanuvchiga kulrang neytral `Tarif: BEPUL` nishoni ko'rsatiladi.
+    - Yonidagi `[⚡️ Obunani faollashtirish]` tugmasi bosilganda to'g'ridan-to'g'ri `CardPaymentModal` ochilishi ulandi.
+- [x] 2-Qism: 100% Global i18n — Dashboard va Profil Sozlamalari Sinxronizatsiyasi:
+  * `frontend/src/i18n/translations.json` ga `dashboard.welcome`, `dashboard.subtitle`, `dashboard.quote_title`, `dashboard.quote_text`, `dashboard.cta_mock`, `dashboard.cta_essay`, `dashboard.cta_arena`, `dashboard.metric_tests`, `dashboard.metric_essays`, `dashboard.metric_avg`, `dashboard.metric_streak`, `dashboard.my_tests`, `dashboard.essay_studio`, `dashboard.continue`, `dashboard.start` va boshqa barcha metrika hamda vidjet kalitlari UZ, RU, EN tillarida 100% to'liq kiritildi.
+  * `Dashboard.tsx` dagi barcha qattiq yozilgan o'zbekcha matnlar `t('dashboard....')` chaqiruvlari bilan almashtirildi. Til o'zgartirilganda butun dashboard bir zumda 100% tarjima bo'ladi.
+- [x] 3-Qism: GitHub Actions Qat'iy Release Gate:
+  * `.github/workflows/ci.yml`: `lint` (Python ruff + Frontend oxlint), `test` (1,306 ta test + coverage) va `build` (Frontend bundle vite build) 3 ta mustaqil va qat'iy tekshiruv bosqichiga ajratildi.
+  * `.github/workflows/release.yml`: Faqatgina `CI` muvaffaqiyatli (`success`) yakunlangandagina avtomatik ishga tushadigan `workflow_run` gate o'rnatildi. Agar birorta test yoki lint yiqilsa, release to'xtatiladi va git tag yaratilmaydi.
+  * `.github/workflows/build.yml`: Faqat yashil `CI` dan so'nggina Docker build va GHCR push bajariladi.
+- [x] 4-Qism: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `npm --prefix frontend run lint`: 0 ta xatolik (106 fayl, 116 qoida toza o'tdi).
+  * `npm --prefix frontend run build`: 0 ta xatolik (2.38s da toza yig'ildi).
+  * `python manage.py check`: 0 ta muammo (System check identified no issues).
+  * `pytest tests -q`: 1306 ta test 100% PASS (0 ta xatolik, 126.19s).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS (`169.58.58.229` / `/opt/lms`): BestWay mutlaqo daxlsiz saqlangan holda yangilandi.
+
 ### 2.61. Rasmiy Versiya v1.69.0: Aniq Tarif Sinxronizatsiyasi (FREE Plan), 100% Global i18n va Light/Dark Kontrast Mukammalligi
 - [x] 1-Vazifa: Aniq Tarif Sinxronizatsiyasi (FREE vs PRO Holati):
   * Backend (`apps/accounts/serializers.py`, `apps/accounts/views.py`): To'lov qilmagan yoki tasdiqlanmagan foydalanuvchilar uchun `get_effective_entitlement(user)` orqali real obuna tekshiruvi kiritildi (`plan: 'FREE'`, `is_paid: false`).

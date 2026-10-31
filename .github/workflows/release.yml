@@ -13,7 +13,9 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -33,7 +35,9 @@ concurrency:
 
 jobs:
   release:
-    if: "!contains(github.event.head_commit.message, 'chore(release)')"
+    if: >-
+      !contains(github.event.head_commit.message, 'chore(release)') &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

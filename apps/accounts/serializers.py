@@ -183,12 +183,37 @@ class UserProfileSerializer(serializers.ModelSerializer):
     )
     plan = serializers.SerializerMethodField()
     is_paid = serializers.SerializerMethodField()
+    tariff = serializers.SerializerMethodField()
+    is_premium = serializers.SerializerMethodField()
 
     def get_plan(self, obj) -> str:
         try:
+            from django.utils import timezone
+            from apps.payments.models import UserSubscription, PaymentReceipt
+            # 1. Check active unexpired UserSubscription
+            sub = UserSubscription.objects.filter(
+                user=obj,
+                status=UserSubscription.Status.ACTIVE,
+                expires_at__gt=timezone.now(),
+            ).select_related("plan").first()
+            if sub and sub.plan:
+                return str(sub.plan.plan_type).upper()
+
+            # 2. Check approved PaymentReceipt
+            rcpt = PaymentReceipt.objects.filter(
+                user=obj,
+                status=PaymentReceipt.Status.APPROVED,
+            ).order_by("-id").first()
+            if rcpt:
+                return str(rcpt.plan).upper()
+
+            # 3. Check effective entitlement
             from apps.payments.entitlements import get_effective_entitlement
             ent = get_effective_entitlement(obj)
-            if ent and ent.is_paid():
+            is_p = getattr(ent, "is_paid", False)
+            if callable(is_p):
+                is_p = is_p()
+            if is_p:
                 code = getattr(ent, "plan_type", None) or getattr(ent, "plan_name", None)
                 if code:
                     return str(code).upper()
@@ -199,11 +224,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_is_paid(self, obj) -> bool:
         try:
-            from apps.payments.entitlements import get_effective_entitlement
-            ent = get_effective_entitlement(obj)
-            return bool(ent and ent.is_paid())
+            return self.get_plan(obj) != "FREE"
         except Exception:
             return False
+
+    def get_tariff(self, obj) -> str:
+        return self.get_plan(obj)
+
+    def get_is_premium(self, obj) -> bool:
+        return self.get_is_paid(obj)
     active_subject = serializers.CharField(
         source="profile.active_subject",
         read_only=True,
@@ -257,6 +286,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "plan",
             "is_paid",
+            "tariff",
+            "is_premium",
             "active_subject",
             "exam_target",
             "target_timeline_months",

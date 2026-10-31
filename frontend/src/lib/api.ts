@@ -202,6 +202,8 @@ export interface AuthUser {
   telegram_identity_verified_at?: string | null;
   plan?: string;
   is_paid?: boolean;
+  tariff?: string;
+  is_premium?: boolean;
 }
 
 /** Platform admin = active + (superuser or role==admin) (mirrors apps/accounts/access.py). */
@@ -291,6 +293,30 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     telegram_chat_id: typeof raw.telegram_chat_id === 'number' ? raw.telegram_chat_id : null,
     telegram_identity_verified_at:
       typeof raw.telegram_identity_verified_at === 'string' ? raw.telegram_identity_verified_at : null,
+    plan:
+      typeof raw.plan === 'string' && raw.plan
+        ? raw.plan.toUpperCase()
+        : typeof raw.tariff === 'string' && raw.tariff
+        ? raw.tariff.toUpperCase()
+        : 'FREE',
+    tariff:
+      typeof raw.tariff === 'string' && raw.tariff
+        ? raw.tariff.toUpperCase()
+        : typeof raw.plan === 'string' && raw.plan
+        ? raw.plan.toUpperCase()
+        : 'FREE',
+    is_paid:
+      typeof raw.is_paid === 'boolean'
+        ? raw.is_paid
+        : typeof raw.is_premium === 'boolean'
+        ? raw.is_premium
+        : false,
+    is_premium:
+      typeof raw.is_premium === 'boolean'
+        ? raw.is_premium
+        : typeof raw.is_paid === 'boolean'
+        ? raw.is_paid
+        : false,
   };
 }
 
