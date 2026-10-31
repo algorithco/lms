@@ -30,6 +30,16 @@ urlpatterns = [
         name="test-detail",
     ),
     path(
+        "<int:pk>/gradebook/",
+        views.TestGradebookView.as_view(),
+        name="test-gradebook",
+    ),
+    path(
+        "<int:pk>/item-analysis/",
+        views.TestItemAnalysisView.as_view(),
+        name="test-item-analysis",
+    ),
+    path(
         "<int:pk>/recalculate-rasch/",
         views.RecalculateRaschView.as_view(),
         name="recalculate-rasch",

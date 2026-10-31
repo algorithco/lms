@@ -603,8 +603,30 @@ export default function SmartTestCreate() {
                 boxShadow: '0 4px 16px rgba(217, 119, 6, 0.35)',
               }}
             >
-              <span>Testni boshlash (Ko‘rish)</span>
+              <span>Testni ko‘rish</span>
               <ExternalLink size={16} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/tests/${createdResult.test_id}/gradebook`)}
+              style={{
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: 14,
+                padding: '12px 24px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+              }}
+            >
+              <span>📊</span>
+              <span>Vedomostni ko‘rish</span>
             </button>
 
             <button

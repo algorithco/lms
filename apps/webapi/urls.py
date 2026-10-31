@@ -24,6 +24,16 @@ app_name = "webapi"
 
 urlpatterns = [
     path(
+        "tests/<int:test_id>/gradebook/",
+        views_tests.TestGradebookView.as_view(),
+        name="webapi-test-gradebook",
+    ),
+    path(
+        "tests/<int:test_id>/item-analysis/",
+        views_tests.TestItemAnalysisView.as_view(),
+        name="webapi-test-item-analysis",
+    ),
+    path(
         "tests/<int:test_id>/recalculate-rasch/",
         views_tests.RecalculateRaschView.as_view(),
         name="webapi-test-recalculate-rasch",

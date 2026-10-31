@@ -2,15 +2,21 @@
 :root,
 html.light {
   --bg: #F8FAFC;
+  --bg-page: #F8FAFC;
   --bg-gradient: radial-gradient(circle at 50% 0%, #ffffff 0%, #fbfbfa 100%);
   --card: #ffffff;
+  --bg-card: #ffffff;
   --card-surface: #ffffff;
   --card-2: #f8fafc;
+  --bg-card-2: #f1f5f9;
   --border: rgba(226, 232, 240, 0.85);
+  --border-color: rgba(226, 232, 240, 0.9);
   --border-focus: #d97706;
   --ink: #0f172a;
+  --text-primary: #0f172a;
   --ink-soft: #334155;
   --muted: #64748b;
+  --text-secondary: #475569;
   --accent: #d97706;
   --accent-dark: #b45309;
   --accent-deep: #92400e;
@@ -37,15 +43,21 @@ html.light {
 
 html.dark {
   --bg: #0B0F17;
+  --bg-page: #0B0F17;
   --bg-gradient: radial-gradient(circle at 50% 0%, #161e2e 0%, #0B0F17 100%);
   --card: #1E293B;
+  --bg-card: #1E293B;
   --card-surface: rgba(30, 41, 59, 0.88);
   --card-2: #0F172A;
+  --bg-card-2: #0F172A;
   --border: rgba(255, 255, 255, 0.09);
+  --border-color: rgba(255, 255, 255, 0.09);
   --border-focus: #f59e0b;
   --ink: #f8fafc;
+  --text-primary: #f8fafc;
   --ink-soft: #e2e8f0;
   --muted: #94a3b8;
+  --text-secondary: #94a3b8;
   --accent: #f59e0b;
   --accent-dark: #fbbf24;
   --accent-deep: #d97706;
@@ -275,8 +287,116 @@ img.brand-badge {
   .hamburger.always { display: none; }
 }
 
+/* ==========================================================================
+   RESPONSIVE UTILITY CLASSES (DESKTOP & MOBILE ISOLATION)
+   ========================================================================== */
+.hidden { display: none !important; }
+.flex { display: flex !important; }
+.inline-flex { display: inline-flex !important; }
+.block { display: block !important; }
+.inline-block { display: inline-block !important; }
+
+@media (max-width: 767.98px) {
+  .hidden-mobile,
+  .md\:flex,
+  .md\:grid,
+  .md\:block,
+  .md\:inline,
+  .md\:inline-flex,
+  .lg\:flex,
+  .lg\:grid,
+  .lg\:block,
+  .lg\:inline-flex {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .hidden-desktop,
+  .md\:hidden {
+    display: none !important;
+  }
+  .md\:flex {
+    display: flex !important;
+  }
+  .md\:grid {
+    display: grid !important;
+  }
+  .md\:block {
+    display: block !important;
+  }
+  .md\:inline-flex {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .lg\:flex,
+  .lg\:grid,
+  .lg\:block,
+  .lg\:inline-flex {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:hidden {
+    display: none !important;
+  }
+  .lg\:flex {
+    display: flex !important;
+  }
+  .lg\:grid {
+    display: grid !important;
+  }
+  .lg\:block {
+    display: block !important;
+  }
+}
+
+/* ==========================================================================
+   OFFICIAL PRINT STYLES (PDF GRADEBOOK EXPORT)
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+  .no-print,
+  .topbar,
+  .app-topbar,
+  .sidebar,
+  .testmakon-bottom-bar,
+  .mobile-bottom-nav,
+  .mobile-nav-drawer,
+  .mobile-profile-drawer,
+  header,
+  footer {
+    display: none !important;
+  }
+  .main {
+    padding-left: 0 !important;
+  }
+  .content {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .printable-gradebook {
+    display: block !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
 /* ---------- App shell with sidebar ---------- */
-.app { min-height: 100svh; }
+.app {
+  min-height: 100svh;
+  background-color: var(--bg);
+  color: var(--ink);
+}
 
 .sidebar {
   position: fixed;
@@ -412,7 +532,13 @@ img.brand-badge {
   .main { padding-left: 260px; }
 }
 
-.main { min-height: 100svh; display: flex; flex-direction: column; }
+.main {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg);
+  color: var(--ink);
+}
 
 .app-topbar .topbar-inner { max-width: none; }
 
@@ -1463,7 +1589,10 @@ html.light .subject-switcher-btn:hover:not(:disabled) {
 }
 
 @media (min-width: 768px) {
-  .testmakon-bottom-bar {
+  .testmakon-bottom-bar,
+  .mobile-bottom-nav,
+  .mobile-nav-drawer,
+  .mobile-profile-drawer {
     display: none !important;
   }
 }
@@ -1803,8 +1932,8 @@ html.dark .testmakon-label-center.active {
 }
 
 .landing {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+  background-color: var(--bg) !important;
+  color: var(--ink) !important;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1914,7 +2043,8 @@ html.dark table.data tr:hover td {
 }
 html.dark input,
 html.dark select,
-html.dark textarea {
+html.dark textarea,
+html.dark option {
   background: #0F172A !important;
   border: 1px solid #334155 !important;
   color: #F8FAFC !important;
@@ -1925,14 +2055,36 @@ html.dark textarea:focus {
   border-color: #f59e0b !important;
 }
 
-/* Mobile Safe Bottom Spacing to Prevent Bar Overlap */
+/* XP Card Adaptive Dual Theme */
+.results-xp-card {
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1.5px solid #FDE68A;
+}
+.results-xp-title { color: #92400E; }
+.results-xp-desc { color: #B45309; }
+
+html.dark .results-xp-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.3) !important;
+}
+html.dark .results-xp-title { color: #FBBF24 !important; }
+html.dark .results-xp-desc { color: #FCD34D !important; }
+
+/* Mobile vs Desktop Bottom Spacing */
 .pb-32 {
   padding-bottom: 8.5rem !important;
 }
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
   .content,
   .main-content,
   .page-container {
-    padding-bottom: calc(8.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+@media (min-width: 768px) {
+  .content,
+  .main-content,
+  .page-container {
+    padding-bottom: 2rem !important;
   }
 }

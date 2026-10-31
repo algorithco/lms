@@ -48,6 +48,7 @@ const Subscribe = lazyPage(() => import('./pages/Subscribe'));
 const TakeTest = lazyPage(() => import('./pages/TakeTest'));
 const TeacherDashboard = lazyPage(() => import('./pages/TeacherDashboard'));
 const TestDetail = lazyPage(() => import('./pages/TestDetail'));
+const TeacherGradebook = lazyPage(() => import('./pages/TeacherGradebook'));
 const Tests = lazyPage(() => import('./pages/Tests'));
 const SmartTestCreate = lazyPage(() => import('./pages/SmartTestCreate'));
 const Tma = lazyPage(() => import('./pages/Tma'));
@@ -118,6 +119,7 @@ function AnimatedRoutes() {
             <Route path="/tests/create" element={<SmartTestCreate />} />
             <Route path="/tests/run/:id" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/tests/:id" element={<TestDetail />} />
+            <Route path="/tests/:id/gradebook" element={<TeacherGradebook />} />
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/tests/take/:id" element={<Navigate to="/tests/:id" replace />} />

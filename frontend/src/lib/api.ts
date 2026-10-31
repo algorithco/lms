@@ -659,6 +659,88 @@ export const MockTests = {
   },
   leaderboard: (testId: number | string) =>
     api<MockLeaderboardResponse>(`/api/tests/mock/${testId}/leaderboard/`),
+  gradebook: (testId: number | string) =>
+    api<GradebookResponse>(`/api/tests/${testId}/gradebook/`),
+  itemAnalysis: (testId: number | string) =>
+    api<ItemAnalysisResponse>(`/api/tests/${testId}/item-analysis/`),
+};
+
+export interface GradebookStudent {
+  rank: number;
+  attempt_id: number;
+  student_id: number;
+  student_name: string;
+  username: string;
+  avatar?: string | null;
+  raw_score: string;
+  raw_score_num: number;
+  total_questions: number;
+  percentage: number;
+  rasch_score: number;
+  rasch_grade: string;
+  badge_class: string;
+  time_spent_seconds: number;
+  time_spent_formatted: string;
+  completed_at: string;
+  status: string;
+}
+
+export interface GradebookHardestQuestion {
+  question_id: number;
+  question_number: number;
+  text: string;
+  correct_percentage: number;
+  rasch_weight: number;
+}
+
+export interface GradebookResponse {
+  test_id: number;
+  test_title: string;
+  mock_code: string;
+  subject: string;
+  teacher_name: string;
+  total_questions: number;
+  total_students: number;
+  avg_raw_score: number;
+  avg_rasch_score: number;
+  avg_percentage: number;
+  hardest_question: GradebookHardestQuestion | null;
+  created_at: string;
+  students: GradebookStudent[];
+}
+
+export interface ItemAnalysisChoice {
+  id: number;
+  text: string;
+  pick_count: number;
+  pick_percentage: number;
+}
+
+export interface ItemAnalysisQuestion {
+  question_id: number;
+  question_number: number;
+  text: string;
+  question_type: string;
+  total_attempts: number;
+  correct_attempts: number;
+  correct_percentage: number;
+  rasch_weight: number;
+  difficulty_logit: number;
+  most_distracting_choice: ItemAnalysisChoice | null;
+}
+
+export interface ItemAnalysisResponse {
+  test_id: number;
+  test_title: string;
+  total_questions: number;
+  items: ItemAnalysisQuestion[];
+}
+
+export const TeacherGradebookApi = {
+  gradebook: (testId: number | string) =>
+    api<GradebookResponse>(`/api/tests/${testId}/gradebook/`),
+  itemAnalysis: (testId: number | string) =>
+    api<ItemAnalysisResponse>(`/api/tests/${testId}/item-analysis/`),
 };
 
 export interface WeakTopicItem {

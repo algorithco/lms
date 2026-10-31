@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { Tests as TestsApi } from '../lib/api';
 import { Results as ResultsApi } from '../lib/api';
@@ -31,6 +32,7 @@ interface Detail {
 export default function TestDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { t } = useLang();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [myAttempts, setMyAttempts] = useState<number | null>(null);
@@ -160,6 +162,26 @@ export default function TestDetail() {
             <Link className="btn ghost" to="/results">
               {t('my_results')}
             </Link>
+            {(user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'center_admin') && (
+              <Link
+                className="btn"
+                to={`/tests/${id}/gradebook`}
+                style={{
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderRadius: 10,
+                  textDecoration: 'none',
+                  padding: '8px 16px',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                <span>📊</span> Vedomostni ko&apos;rish
+              </Link>
+            )}
           </div>
         </>
       )}

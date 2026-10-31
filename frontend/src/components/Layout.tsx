@@ -182,14 +182,14 @@ export default function Layout() {
       {open && <div className="overlay" onClick={close} aria-hidden="true" />}
 
       <div className="main">
-        <header className="topbar app-topbar bg-white/80 border-b border-slate-200/80 backdrop-blur-md" aria-label="Yuqori panel">
+        <header className="topbar app-topbar backdrop-blur-md" aria-label="Yuqori panel">
           <div className="topbar-inner">
             {/* Mobile-only brand logo (Desktop uses left sidebar brand exclusively) */}
             <div className="topbar-mobile-brand flex md:hidden items-center gap-2">
               <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
                 <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: '#0F172A' }}>GRANDEC</span>
+                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: 'var(--ink)' }}>GRANDEC</span>
                   <span style={{ fontSize: 8, fontWeight: 800, color: '#D97706', letterSpacing: '0.1em' }}>ACADEMIC EDTECH</span>
                 </div>
               </Link>

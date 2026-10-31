@@ -328,9 +328,9 @@ export default function ScanOMR() {
                         width: '100%',
                         padding: '10px 14px 10px 36px',
                         borderRadius: 12,
-                        border: '1px solid #CBD5E1',
-                        background: '#FFFFFF',
-                        color: '#0F172A',
+                        border: '1px solid var(--border)',
+                        background: 'var(--card-2)',
+                        color: 'var(--ink)',
                         fontSize: '0.86rem',
                         fontWeight: 600,
                         boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
@@ -348,8 +348,8 @@ export default function ScanOMR() {
                     padding: '12px 14px',
                     borderRadius: 12,
                     border: '1.5px solid rgba(245, 158, 11, 0.4)',
-                    background: '#FFFFFF',
-                    color: '#0F172A',
+                    background: 'var(--card-2)',
+                    color: 'var(--ink)',
                     fontSize: '0.9rem',
                     fontWeight: 700,
                     outline: 'none',
@@ -363,7 +363,7 @@ export default function ScanOMR() {
                     let cleanTitle = String(t.title || '').replace(/#?#?[A-Z0-9_-]*(?:MOCK|CEFR|IELTS|BMB|DIAGNOSTIC)[A-Z0-9_-]*/gi, '').trim();
                     cleanTitle = cleanTitle.replace(/^[-—:() ]+|[-—:() ]+$/g, '').trim() || t.title;
                     return (
-                      <option key={t.id} value={t.id} style={{ background: '#FFFFFF', color: '#0F172A', padding: '8px' }}>
+                      <option key={t.id} value={t.id} style={{ background: 'var(--card)', color: 'var(--ink)', padding: '8px' }}>
                         {cleanCode ? `[${cleanCode}] ` : ''}{cleanTitle} ({t.total_questions} talik)
                       </option>
                     );
@@ -580,29 +580,29 @@ export default function ScanOMR() {
 
               {/* 4 Metrics Tiles */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>To'g'ri javoblar</span>
+                <div style={{ padding: 14, borderRadius: 12, background: 'var(--card-2)', border: '1px solid var(--border)' }}>
+                  <span className="muted small" style={{ color: 'var(--muted)', fontWeight: 600 }}>To'g'ri javoblar</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#059669' }}>
                     {result.correct_count} / {result.total_questions}
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>To'plangan ball</span>
+                <div style={{ padding: 14, borderRadius: 12, background: 'var(--card-2)', border: '1px solid var(--border)' }}>
+                  <span className="muted small" style={{ color: 'var(--muted)', fontWeight: 600 }}>To'plangan ball</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#2563EB' }}>
                     {result.total_score} / {result.max_score} ({result.percentage}%)
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>Noto'g'ri / Bo'sh</span>
+                <div style={{ padding: 14, borderRadius: 12, background: 'var(--card-2)', border: '1px solid var(--border)' }}>
+                  <span className="muted small" style={{ color: 'var(--muted)', fontWeight: 600 }}>Noto'g'ri / Bo'sh</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#DC2626' }}>
                     {result.incorrect_count} xato · {result.blank_count} bo'sh
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 12, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <span className="muted small" style={{ color: '#64748B', fontWeight: 600 }}>Gamification XP</span>
+                <div style={{ padding: 14, borderRadius: 12, background: 'var(--card-2)', border: '1px solid var(--border)' }}>
+                  <span className="muted small" style={{ color: 'var(--muted)', fontWeight: 600 }}>Gamification XP</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#D97706' }}>
                     +{result.xp_earned || 25} XP 🔥
                   </div>

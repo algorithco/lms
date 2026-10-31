@@ -31,6 +31,7 @@ export default function Tests() {
   }, []);
 
   const isFreeUser = user?.role === 'student' && (!entitlement || (!entitlement.is_paid && !entitlement.is_sponsored && entitlement.source !== 'override'));
+  const isTeacherOrAdmin = user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'center_admin';
   const [tests, setTests] = useState<TestListItem[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -295,24 +296,26 @@ export default function Tests() {
           </h1>
           <p className="muted" style={{ margin: '4px 0 0' }}>{t('available_tests_hint')}</p>
         </div>
-        <Link
-          to="/tests/create"
-          style={{
-            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-            color: '#FFFFFF',
-            fontWeight: 800,
-            fontSize: 13.5,
-            padding: '10px 18px',
-            borderRadius: 12,
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
-          }}
-        >
-          <span>✍️</span> + Yangi test yaratish (Smart Paste)
-        </Link>
+        {isTeacherOrAdmin && (
+          <Link
+            to="/tests/create"
+            style={{
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: 13.5,
+              padding: '10px 18px',
+              borderRadius: 12,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)',
+            }}
+          >
+            <span>✍️</span> + Yangi test yaratish (Smart Paste)
+          </Link>
+        )}
       </div>
 
       {/* 📚 TESTMAKON-STYLE SUBJECT & EXAM CATALOG (2 COLUMNS ON MOBILE, 4 COLUMNS ON DESKTOP) */}
@@ -556,9 +559,9 @@ export default function Tests() {
           className="card"
           style={{
             margin: '16px 0 20px',
-            background: '#FFFFFF',
-            border: '1px solid rgba(226, 232, 240, 0.95)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--card-shadow)',
             borderRadius: '16px',
             padding: '18px 22px',
           }}
@@ -620,9 +623,9 @@ export default function Tests() {
           className="card"
           style={{
             margin: '16px 0 20px',
-            background: '#FFFFFF',
-            border: '1px solid rgba(226, 232, 240, 0.95)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--card-shadow)',
             borderRadius: '16px',
             padding: '18px 22px',
           }}
@@ -966,26 +969,26 @@ export default function Tests() {
               onClick={(e) => {
                 if (isLocked) {
                   e.preventDefault();
-                  setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+                  setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (7 000 so'm), PRO (15 000 so'm) yoki PREMIUM (27 000 so'm) tarifiga o'ting!");
                   setLimitModalOpen(true);
                 }
               }}
               className="card link-card"
               style={{
                 borderRadius: '18px',
-                background: '#FFFFFF',
+                background: 'var(--card)',
                 border: isAttest
-                  ? '1.5px solid rgba(139, 92, 246, 0.35)'
+                  ? '1.5px solid rgba(139, 92, 246, 0.4)'
                   : isBmbDiag
-                  ? '1.5px solid rgba(217, 119, 6, 0.35)'
+                  ? '1.5px solid rgba(217, 119, 6, 0.4)'
                   : isM4
-                  ? '1.5px solid rgba(16, 185, 129, 0.35)'
-                  : '1px solid rgba(226, 232, 240, 0.95)',
+                  ? '1.5px solid rgba(16, 185, 129, 0.4)'
+                  : '1px solid var(--border)',
                 boxShadow: isAttest
                   ? '0 6px 22px rgba(139, 92, 246, 0.07)'
                   : isBmbDiag
                   ? '0 6px 22px rgba(217, 119, 6, 0.07)'
-                  : '0 4px 18px rgba(0, 0, 0, 0.04)',
+                  : 'var(--card-shadow)',
                 padding: '22px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1075,12 +1078,12 @@ export default function Tests() {
               </div>
 
               {/* Title */}
-              <strong style={{ fontSize: '1.08rem', color: '#0F172A', lineHeight: 1.35, fontWeight: 800 }}>
+              <strong style={{ fontSize: '1.08rem', color: 'var(--ink)', lineHeight: 1.35, fontWeight: 800 }}>
                 {cleanTitle}
               </strong>
 
               {item.description && (
-                <span style={{ fontSize: '0.84rem', color: '#64748B', lineHeight: 1.5 }}>
+                <span style={{ fontSize: '0.84rem', color: 'var(--muted)', lineHeight: 1.5 }}>
                   {String(item.description).slice(0, 110)}
                 </span>
               )}
@@ -1110,8 +1113,8 @@ export default function Tests() {
                     gap: 5,
                     fontSize: '0.76rem',
                     fontWeight: 700,
-                    color: '#475569',
-                    background: '#F1F5F9',
+                    color: 'var(--ink-soft)',
+                    background: 'var(--card-2)',
                     padding: '3px 9px',
                     borderRadius: '8px',
                   }}
@@ -1138,22 +1141,52 @@ export default function Tests() {
 
               {/* Bottom Action Button */}
               <div style={{ marginTop: 'auto', paddingTop: 10 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    padding: '10px 16px',
-                    borderRadius: '12px',
-                    color: '#FFFFFF',
-                    fontWeight: 800,
-                    fontSize: '0.85rem',
-                    background: isLocked ? '#64748B' : 'linear-gradient(135deg, #F59E0B, #D97706)',
-                    boxShadow: isLocked ? 'none' : '0 4px 14px rgba(217, 119, 6, 0.25)',
-                  }}
-                >
-                  <span>{isLocked ? '🔒 Qulflangan (Tarif kerak)' : 'Testni boshlash →'}</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      background: isLocked ? '#64748B' : 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      boxShadow: isLocked ? 'none' : '0 4px 14px rgba(217, 119, 6, 0.25)',
+                    }}
+                  >
+                    <span>{isLocked ? '🔒 Qulflangan (Tarif kerak)' : 'Testni boshlash →'}</span>
+                  </div>
+                  {isTeacherOrAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/tests/${item.id}/gradebook`);
+                      }}
+                      title="Natijalar vedomostini ko'rish"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '12px',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        color: '#D97706',
+                        fontWeight: 800,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span>📊</span> Vedomost
+                    </button>
+                  )}
                 </div>
               </div>
             </Link>

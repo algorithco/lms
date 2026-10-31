@@ -120,10 +120,10 @@ export default function Landing() {
 
   return (
     <div
-      className="landing bg-[#F8FAFC] text-slate-900"
+      className="landing"
       style={{
-        background: '#F8FAFC',
-        color: '#0F172A',
+        background: 'var(--bg)',
+        color: 'var(--ink)',
         minHeight: '100svh',
         position: 'relative',
         overflowX: 'clip',
@@ -196,15 +196,15 @@ export default function Landing() {
 
       {/* NAVBAR */}
       <header
-        className="landing-header bg-white/80 dark:bg-white/80 backdrop-blur-md border-b border-slate-200/80"
+        className="landing-header backdrop-blur-md"
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 50,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          background: 'rgba(255, 255, 255, 0.88)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
+          background: 'var(--header-bg)',
+          borderBottom: '1px solid var(--border)',
           transition: 'background 0.3s ease, border-color 0.3s ease',
         }}
       >
@@ -212,41 +212,41 @@ export default function Landing() {
           style={{
             margin: '0 auto',
             maxWidth: 1200,
-            padding: '12px 20px',
+            padding: '10px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 16,
+            gap: 12,
           }}
         >
-          {/* Brand Logo */}
+          {/* 1. Chapda: GRANDEC rasmiy logotipi (h-8 w-auto) */}
           <Link
             to="/"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 10,
               textDecoration: 'none',
               color: 'inherit',
+              flexShrink: 0,
             }}
           >
             <img
               src="/logo-mark.png"
               alt="GRANDEC"
               style={{
-                height: 40,
+                height: 32,
                 width: 'auto',
                 objectFit: 'contain',
               }}
             />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span
-                className="text-slate-900 font-black tracking-tight"
                 style={{
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: 900,
                   letterSpacing: '-0.02em',
-                  color: '#0F172A',
+                  color: 'var(--ink)',
                   lineHeight: 1.1,
                 }}
               >
@@ -254,12 +254,12 @@ export default function Landing() {
               </span>
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 8,
                   fontWeight: 800,
-                  letterSpacing: '0.14em',
+                  letterSpacing: '0.12em',
                   color: '#D97706',
                   textTransform: 'uppercase',
-                  marginTop: 2,
+                  marginTop: 1,
                 }}
               >
                 ACADEMIC EDTECH
@@ -267,9 +267,9 @@ export default function Landing() {
             </div>
           </Link>
 
-          {/* Desktop Nav Anchors (TestMakon Style Center Menu) */}
+          {/* 2. Desktop Nav Anchors — Strictly hidden on mobile (< 768px) */}
           <nav
-            className="hidden lg:flex items-center gap-1"
+            className="hidden md:flex items-center gap-1"
             aria-label="Asosiy navigatsiya"
           >
             <Link
@@ -279,7 +279,7 @@ export default function Landing() {
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                color: '#0F172A',
+                color: 'var(--ink)',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
               }}
@@ -293,7 +293,7 @@ export default function Landing() {
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                color: '#0F172A',
+                color: 'var(--ink)',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
               }}
@@ -307,7 +307,7 @@ export default function Landing() {
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                color: '#0F172A',
+                color: 'var(--ink)',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
               }}
@@ -322,7 +322,7 @@ export default function Landing() {
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                color: '#0F172A',
+                color: 'var(--ink)',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
@@ -352,7 +352,7 @@ export default function Landing() {
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                color: '#0F172A',
+                color: 'var(--ink)',
                 textDecoration: 'none',
                 transition: 'all 0.15s ease',
               }}
@@ -361,137 +361,129 @@ export default function Landing() {
             </Link>
           </nav>
 
-          {/* Right Area: PWA Install, Language Switcher, Theme Switcher & Auth */}
+          {/* 3. O'ng tomon: Desktop (PWA, Lang, Theme, Auth) va Mobile (Faqat Avatar + Gamburger) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <PwaInstallButton className="hidden sm:inline-flex" />
-            {user ? (
-              <UserNavDropdown />
-            ) : (
-              <>
-                <LanguageSwitcher />
-                <button
-                  type="button"
-                  onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
-                  title={resolvedTheme === 'light' ? "Qorong'i rejimga o'tish" : "Yorug' rejimga o'tish"}
-                  aria-label={resolvedTheme === 'light' ? "Qorong'i rejim" : "Yorug' rejim"}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
-                    color: '#0F172A',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {resolvedTheme === 'light' ? <MoonIcon size={16} /> : <SunIcon size={16} />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('login')}
-                  className="btn-glow btn-shimmer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '9px 20px',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    fontWeight: 800,
-                    color: '#FFFFFF',
-                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(217, 119, 6, 0.3)',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <span>{t('login')}</span>
-                  <span
+            {/* Desktop-only right controls */}
+            <div className="hidden md:flex items-center gap-2">
+              <PwaInstallButton />
+              {user ? (
+                <UserNavDropdown />
+              ) : (
+                <>
+                  <LanguageSwitcher />
+                  <button
+                    type="button"
+                    onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
+                    title={resolvedTheme === 'light' ? "Qorong'i rejimga o'tish" : "Yorug' rejimga o'tish"}
+                    aria-label={resolvedTheme === 'light' ? "Qorong'i rejim" : "Yorug' rejim"}
                     style={{
-                      fontSize: 10,
-                      fontWeight: 800,
-                      padding: '2px 6px',
-                      borderRadius: 6,
-                      background: 'rgba(9, 13, 22, 0.2)',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--ink)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    1-klik
-                  </span>
-                </button>
-              </>
-            )}
-
-            {/* Mobile Right Controls: Avatar + Hamburger */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="md:hidden">
-              {user ? (
-                <button
-                  type="button"
-                  onClick={() => setProfileDrawerOpen(true)}
-                  aria-label="Profilni ochish"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                    color: '#FFFFFF',
-                    border: '2px solid rgba(245, 158, 11, 0.7)',
-                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {user.avatar ? (
-                    <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: 11, fontWeight: 900 }}>
-                      {(user.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                    {resolvedTheme === 'light' ? <MoonIcon size={16} /> : <SunIcon size={16} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal('login')}
+                    className="btn-glow btn-shimmer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '9px 20px',
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: '#FFFFFF',
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(217, 119, 6, 0.3)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <span>{t('login')}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: 6,
+                        background: 'rgba(9, 13, 22, 0.2)',
+                      }}
+                    >
+                      1-klik
                     </span>
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => openAuthModal('login')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                    color: '#FFFFFF',
-                    fontWeight: 800,
-                    fontSize: 12,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Kirish
-                </button>
+                  </button>
+                </>
               )}
+            </div>
+
+            {/* Mobile-only right controls: Faqat Profil Avatari (NJ / KR) va Gamburger menyu (☰) */}
+            <div className="flex md:hidden items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (user) {
+                    setProfileDrawerOpen(true);
+                  } else {
+                    openAuthModal('login');
+                  }
+                }}
+                aria-label="Profil"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: '#FFFFFF',
+                  border: '2px solid rgba(245, 158, 11, 0.7)',
+                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: 11, fontWeight: 900 }}>
+                    {user
+                      ? (user.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'KR'
+                      : 'KR'}
+                  </span>
+                )}
+              </button>
 
               <button
                 type="button"
-                className="landing-burger-btn"
                 onClick={() => setNavDrawerOpen(true)}
                 aria-label="Menyu ochish"
                 style={{
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   borderRadius: 10,
                   background: 'var(--card-2)',
                   border: '1px solid var(--border)',
-                  color: '#0F172A',
-                  display: 'inline-flex',
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                  display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
+                  padding: 0,
                 }}
               >
                 <MenuIcon size={18} />

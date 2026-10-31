@@ -1182,3 +1182,270 @@ class RecalculateRaschView(APIView):
 
         data = RaschEngine.recalculate_test_rasch(test.id)
         return Response(data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Teacher Gradebook & Item Analysis Views (4-Bosqich)
+# ---------------------------------------------------------------------------
+class TestGradebookView(APIView):
+    """
+    GET /api/v1/tests/<int:pk>/gradebook/
+    GET /api/tests/<int:pk>/gradebook/
+
+    Ustozlar uchun o'quvchilar natijalar vedomosti:
+    - O'rin, O'quvchi F.I.Sh, Xom ball, Rasch Dinamik bali, Darajasi, Sarflangan vaqt, Topshirilgan sana
+    - Umumiy xulosa statistikasi (jami o'quvchilar, o'rtacha xom ball, o'rtacha rasch ball, eng qiyin savol)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Test natijalari vedomosti (Ustoz kabineti)",
+        description="Ushbu testni topshirgan barcha o'quvchilar reytingi, xom ball, Rasch dinamik bali va eksport ma'lumotlari.",
+        tags=["Tests"],
+    )
+    def get(
+        self, request: Request, pk: int | None = None, test_id: int | None = None, *args: Any, **kwargs: Any
+    ) -> Response:
+        target_id = pk or test_id
+        try:
+            test = Test.objects.select_related("course", "course__teacher").get(id=target_id)
+        except Test.DoesNotExist:
+            return Response({"error": "Test topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        from apps.accounts.access import is_platform_admin
+
+        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
+            test.course and test.course.teacher_id == user.id
+        )
+
+        if not (is_admin or is_teacher):
+            return Response(
+                {"error": "Ushbu vedomost faqat o'qituvchilar va ma'murlar uchun ochiq."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        total_questions = test.questions.count()
+
+        attempts = (
+            TestAttempt.objects.filter(
+                test=test,
+                status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT],
+            )
+            .select_related("student")
+            .order_by("-score", "-rasch_score", "completed_at")
+        )
+
+        seen_students = set()
+        ranking = []
+        rank_idx = 1
+
+        total_raw_sum = 0
+        total_rasch_sum = 0
+        total_pct_sum = 0
+
+        from apps.tests.bmb_grading import calculate_bmb_grade
+
+        for att in attempts:
+            student = att.student
+            if student.id in seen_students:
+                continue
+            seen_students.add(student.id)
+
+            raw = att.raw_score
+            rasch = float(att.rasch_score) if att.rasch_score else float(att.score)
+            pct = float(att.percentage)
+
+            time_spent_secs = 0
+            if att.completed_at and att.started_at:
+                delta = (att.completed_at - att.started_at).total_seconds()
+                time_spent_secs = max(0, int(delta))
+
+            m = time_spent_secs // 60
+            s = time_spent_secs % 60
+            time_formatted = f"{m} daq {s} son" if m > 0 else f"{s} son"
+
+            grade_info = calculate_bmb_grade(pct)
+            grade = att.rasch_grade or grade_info["grade"]
+
+            total_raw_sum += raw
+            total_rasch_sum += rasch
+            total_pct_sum += pct
+
+            student_name = student.get_full_name() or student.username
+
+            ranking.append(
+                {
+                    "rank": rank_idx,
+                    "attempt_id": att.id,
+                    "student_id": student.id,
+                    "student_name": student_name,
+                    "username": student.username,
+                    "avatar": getattr(student, "avatar", None),
+                    "raw_score": f"{raw} / {total_questions}",
+                    "raw_score_num": raw,
+                    "total_questions": total_questions,
+                    "percentage": round(pct, 1),
+                    "rasch_score": round(rasch, 2),
+                    "rasch_grade": grade,
+                    "badge_class": grade_info.get("badge_class", "badge-gold"),
+                    "time_spent_seconds": time_spent_secs,
+                    "time_spent_formatted": time_formatted,
+                    "completed_at": (
+                        att.completed_at.strftime("%d.%m.%Y %H:%M")
+                        if att.completed_at
+                        else (att.started_at.strftime("%d.%m.%Y %H:%M") if att.started_at else "-")
+                    ),
+                    "status": att.status,
+                }
+            )
+            rank_idx += 1
+
+        total_students = len(ranking)
+        avg_raw = round(total_raw_sum / total_students, 1) if total_students > 0 else 0.0
+        avg_rasch = round(total_rasch_sum / total_students, 2) if total_students > 0 else 0.0
+        avg_pct = round(total_pct_sum / total_students, 1) if total_students > 0 else 0.0
+
+        hardest_q_data = None
+        questions = test.questions.all().order_by("position")
+        lowest_accuracy = 101.0
+        for idx, q in enumerate(questions, start=1):
+            if q.total_attempts > 0:
+                acc = (q.correct_attempts / q.total_attempts) * 100.0
+            else:
+                acc = 100.0
+            if acc < lowest_accuracy:
+                lowest_accuracy = acc
+                hardest_q_data = {
+                    "question_id": q.id,
+                    "question_number": q.position or idx,
+                    "text": q.text[:80] + ("..." if len(q.text) > 80 else ""),
+                    "correct_percentage": round(acc, 1),
+                    "rasch_weight": round(q.current_rasch_weight, 1),
+                }
+
+        teacher_name = ""
+        if test.course and test.course.teacher:
+            teacher_name = test.course.teacher.get_full_name() or test.course.teacher.username
+        elif user:
+            teacher_name = user.get_full_name() or user.username
+
+        return Response(
+            {
+                "test_id": test.id,
+                "test_title": test.title,
+                "mock_code": test.mock_code or "",
+                "subject": test.subject,
+                "teacher_name": teacher_name,
+                "total_questions": total_questions,
+                "total_students": total_students,
+                "avg_raw_score": avg_raw,
+                "avg_rasch_score": avg_rasch,
+                "avg_percentage": avg_pct,
+                "hardest_question": hardest_q_data,
+                "created_at": test.created_at.strftime("%d.%m.%Y"),
+                "students": ranking,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TestItemAnalysisView(APIView):
+    """
+    GET /api/v1/tests/<int:pk>/item-analysis/
+    GET /api/tests/<int:pk>/item-analysis/
+
+    Testdagi har bir savol bo'yicha sinf statistikasi:
+    - Savol raqami va qisqa matni;
+    - To'g'ri topgan o'quvchilar foizi (P_i);
+    - Savolning joriy Rash dinamik vazni (⭐️ 6.2 ball);
+    - Eng ko'p chalg'itgan noto'g'ri variant.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Test savollari psixometrik tahlili (Item Analysis)",
+        description="Har bir savol bo'yicha to'g'ri topish foizi, Rasch vazni va chalg'ituvchi variant tahlili.",
+        tags=["Tests"],
+    )
+    def get(
+        self, request: Request, pk: int | None = None, test_id: int | None = None, *args: Any, **kwargs: Any
+    ) -> Response:
+        target_id = pk or test_id
+        try:
+            test = Test.objects.prefetch_related("questions", "questions__choices").get(id=target_id)
+        except Test.DoesNotExist:
+            return Response({"error": "Test topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        from apps.accounts.access import is_platform_admin
+
+        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
+            test.course and test.course.teacher_id == user.id
+        )
+
+        if not (is_admin or is_teacher):
+            return Response(
+                {"error": "Ushbu tahlil faqat o'qituvchilar va ma'murlar uchun ochiq."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from apps.tests.models import Choice
+        from django.db.models import Count
+
+        questions = test.questions.all().order_by("position")
+        items = []
+
+        for idx, q in enumerate(questions, start=1):
+            q_num = q.position or idx
+            total_ans = q.total_attempts
+            correct_ans = q.correct_attempts
+            correct_pct = round((correct_ans / total_ans * 100), 1) if total_ans > 0 else 0.0
+
+            distractor = None
+            wrong_choices_counts = (
+                Choice.objects.filter(
+                    selected_by__question=q,
+                    selected_by__is_correct=False,
+                    is_correct=False,
+                )
+                .annotate(pick_count=Count("selected_by"))
+                .order_by("-pick_count")
+            )
+            top_wrong = wrong_choices_counts.first()
+            if top_wrong and top_wrong.pick_count > 0:
+                distractor = {
+                    "id": top_wrong.id,
+                    "text": top_wrong.text[:100],
+                    "pick_count": top_wrong.pick_count,
+                    "pick_percentage": round(top_wrong.pick_count / max(1, total_ans) * 100, 1),
+                }
+
+            items.append(
+                {
+                    "question_id": q.id,
+                    "question_number": q_num,
+                    "text": q.text,
+                    "question_type": q.question_type,
+                    "total_attempts": total_ans,
+                    "correct_attempts": correct_ans,
+                    "correct_percentage": correct_pct,
+                    "rasch_weight": round(q.current_rasch_weight, 1),
+                    "difficulty_logit": round(q.difficulty_logit, 2),
+                    "most_distracting_choice": distractor,
+                }
+            )
+
+        return Response(
+            {
+                "test_id": test.id,
+                "test_title": test.title,
+                "total_questions": len(items),
+                "items": items,
+            },
+            status=status.HTTP_200_OK,
+        )

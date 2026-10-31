@@ -286,11 +286,10 @@ export default function TestAddictiveResults({
       >
         {/* XP CARD */}
         <div
+          className="results-xp-card"
           style={{
             padding: 20,
             borderRadius: 22,
-            background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-            border: '1.5px solid #FDE68A',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -314,10 +313,10 @@ export default function TestAddictiveResults({
               <ZapIcon size={26} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#92400E' }}>
+              <h3 className="results-xp-title" style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>
                 +{earnedXp} XP
               </h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 700, color: '#B45309' }}>
+              <p className="results-xp-desc" style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 700 }}>
                 Tajriba nuqtalari hisobingizga qo&apos;shildi
               </p>
             </div>
