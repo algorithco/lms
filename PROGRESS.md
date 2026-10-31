@@ -9,6 +9,38 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.67. Rasmiy Versiya v1.77.0: RBAC Root Admin Immunity, Maxsus Rol Dashboardlari va Ustoz Xatolar Tahlili (8.1.0-Bosqich)
+- [x] 1-Vazifa: Administratorlar Uchun Paywallni Yo'qotish va Root Immunity (`apps/payments/entitlements.py`, `apps/payments/ai_quota.py`, `apps/subscriptions/services/quota.py`, `apps/accounts/serializers.py`, `LimitExceededModal.tsx`):
+  * `get_effective_entitlement(user)`: Administrator, staff yoki superuser (`role in ('admin', 'center_admin')`, `is_staff`, `is_superuser`) uchun to'g'ridan-to'g'ri `SOURCE_OVERRIDE` bilan cheksiz testlar, matnli va rasmli esselar, nol cooldown bilan `Entitlement` qaytaradi.
+  * `ai_quota.py` va `QuotaService`: `check_essay_quota`, `check_test_quota`, `check_arena_quota` metodlarida admin va staff foydalanuvchilariga paywall mutlaqo chiqmaydi (`allowed=True`, `remaining=999999`).
+  * `UserProfileSerializer`: Adminlar uchun `plan="ADMIN_UNLIMITED"`, `tariff="ADMIN"`, `is_paid=True`, `is_premium=True`, `has_pro_access=True` qaytaradi.
+  * Frontendda `LimitExceededModal`: Admin / staff foydalanuvchisi tizimda bo'lsa darhol `null` qaytaradi, to'lov yoki obuna so'ralmaydi.
+  * `Dashboard.tsx` va `Layout.tsx`: Admin foydalanuvchilarga "Tarif: Bepul" yoki "[⚡️ Obunani faollashtirish]" o'rniga maxsus binafsha-oltin nishon `👑 Tizim Administratori (Root Access)` chiqarildi.
+- [x] 2-Vazifa: Rollar Bo'yicha Maxsus Dashboardlar va Navigatsiya (`DashboardRouter.tsx`, `Layout.tsx`, `App.tsx`):
+  * `/dashboard` yo'nalishi `DashboardRouter` orqali dinamik boshqariladi:
+    - `admin` yoki `center_admin` $\to$ `/panel` (Tizim boshqaruv paneli);
+    - `teacher` $\to$ `TeacherDashboard` (O'qituvchi Kabineti);
+    - `student` $\to$ `Dashboard` (O'quvchi kabineti).
+  * Yon menyu (`Layout.tsx`) rollar bo'yicha saralandi:
+    - Ustozlar uchun: O'qituvchi Kabineti (`/dashboard`), Mening Guruhlarim (`/groups`), Yangi Test Yaratish (`/tests/create`), Mening Testlarim (`/tests`), O'quvchilar (`/teacher`), AI Test Konvertor (`/teacher/ai-converter`), Esse Tekshiruvi (`/teacher/essays`), Tahlillar (`/analytics`), CSV Import (`/import`).
+    - Adminlar uchun: Tizim Statistikasi (`/panel`), To'lov Cheklari (`/panel/tuition`), O'qituvchilarni Boshqarish (`/panel/users`), Barcha Testlar Nazorati (`/panel/tests`), O'quv Markazlari (`/enterprise`).
+    - O'quvchilar uchun: Boshqaruv paneli (`/dashboard`), CBT Testlar (`/tests`), AI Esse Studiyasi (`/essays`), 1v1 Arena (`/arena`), Natijalar va Tahlil (`/results`), Titul Skaner (`/tests/scan-omr`).
+- [x] 3-Vazifa: Ustoz Xatolar Tahlili (Teacher Mistake Inspector):
+  * Backend API:
+    - `GET /api/v1/teacher/tests/<test_id>/analytics/`: Savollar bo'yicha to'g'ri/xato foizlari va eng ko'p o'quvchilar adashgan top 5 savollar tahlili.
+    - `GET /api/v1/teacher/attempts/<attempt_id>/details/`: Talabaning test urinishi, savollar matni, variantlar ro'yxatida o'quvchi tanlagan javob vs to'g'ri javob, rasmiy tushuntirish va AI dalillari (`apps/tests/views_teacher_inspector.py`).
+    - Ruxsatsiz talabalar boshqalarning xatolarini ko'ra olmasligi uchun 403 Forbidden RBAC himoyasi ta'minlandi.
+  * Frontend UI:
+    - `TeacherGradebook.tsx`: Natijalar jadvalidagi har bir o'quvchi qatoriga `[🔍 Xatolar tahlili]` tugmasi qo'shildi.
+    - `StudentAttemptReviewModal.tsx`: O'quvchi ismi, xom ball, foiz, Rasch bali, vaqti, savollar bo'yicha "Barchasi", "❌ Xatolar", "✅ To'g'ri" filtrlari, variantlarda xato (qizil) va to'g'ri (yashil) indikatorlar, tushuntirishlar va chop etish funksiyasi.
+- [x] 4-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `oxlint`: 0 ta xatolik.
+  * `npm --prefix frontend run build`: 0 ta xatolik (2.46s).
+  * `pytest tests/test_rbac_and_mistake_inspector.py`: 7 ta test 100% PASS.
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * VPS (`169.58.58.229` / `/opt/lms`): `web`, `bot`, `celery-worker`, `nginx` yangilandi, `bestway` 100% daxlsiz saqlandi.
+  * Jonli verifikatsiya: `https://grandec.uz/healthz/` (HTTP 200 OK), `https://grandec.uz/` (HTTP 200 OK).
+
 ### 2.66. Rasmiy Versiya v1.76.0: Soxta Sharhlarni Butunlay Yo'qotish va Telegram Tasdiqli Jonli Sharhlar Tizimi
 - [x] 1-Vazifa: Barcha Soxta Ma'lumotlarni Tozalash va Modellarni Moslash:
   * `Landing.tsx` dagi barcha qotirilgan (hardcoded) fake sharhlar ("Diyorbek", "Malika", "Jasur", "Shahlo", "Azizbek", "Nilufar") butunlay olib tashlandi.
