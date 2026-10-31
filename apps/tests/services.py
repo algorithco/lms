@@ -111,11 +111,24 @@ class QuestionResult:
     selected_choice_ids: list[int]
 
 
+class TestPinRequiredError(ValueError):
+    """PIN-kod talab qilinganda tashlanadigan xatolik."""
+    pass
+
+
+class TestInvalidPinError(ValueError):
+    """Noto'g'ri PIN-kod kiritilganda tashlanadigan xatolik."""
+    pass
+
+
+class TestAccessDeniedError(ValueError):
+    """Foydalanuvchiga testga kirish huquqi berilmaganida tashlanadigan xatolik."""
+    pass
+
+
 # ---------------------------------------------------------------------------
 # 1. StartAttemptService
 # ---------------------------------------------------------------------------
-
-
 class StartAttemptService:
     """
     Testni boshlash — yangi TestAttempt yaratish.
@@ -132,6 +145,8 @@ class StartAttemptService:
     @transaction.atomic
     def execute(test_id: int, student: Any, mode: str = "strict", pin: str = "") -> TestAttempt:
         """Yangi attempt yaratish."""
+        from apps.accounts.access import is_platform_admin
+
         # -- Test mavjudligini tekshirish ---------------------------------
         try:
             test = Test.objects.get(id=test_id, is_active=True)
@@ -142,37 +157,43 @@ class StartAttemptService:
             raise ValueError("Test topilmadi yoki faol emas.")
 
         # -- Role tekshirish -----------------------------------------------
-        if student.role != "student":
+        if getattr(student, "role", "") != "student":
             logger.warning(
                 "Start attempt denied: user=%d role=%s (not student)",
                 student.id,
-                student.role,
+                getattr(student, "role", "unknown"),
             )
             raise ValueError("Faqat o'quvchilar test topshira oladi.")
 
-        # -- PIN tekshirish (ixtiyoriy 4 xonali PIN) ----------------------
-        if getattr(test, "access_pin", None) and str(test.access_pin).strip():
+        # -- PIN tekshirish (ixtiyoriy 4 xonali PIN yoki access_type == 'PIN') --------
+        access_pin = getattr(test, "access_pin", None)
+        has_pin = bool(access_pin and str(access_pin).strip())
+        access_type = getattr(test, "access_type", None) or Test.AccessType.PUBLIC
+
+        if has_pin or access_type == "PIN":
             provided_pin = str(pin or "").strip()
-            if provided_pin != str(test.access_pin).strip():
-                raise ValueError("Ushbu testga kirish uchun to'g'ri PIN kodni kiritishingiz shart.")
+            if not provided_pin:
+                raise TestPinRequiredError("Ushbu test uchun PIN-kod talab etiladi.")
+            if has_pin and provided_pin != str(access_pin).strip():
+                raise TestInvalidPinError("Kiritilgan PIN-kod noto'g'ri.")
 
         # -- Ruxsat turi (Access Type) tekshirish -------------------------
-        access_type = getattr(test, "access_type", Test.AccessType.PUBLIC)
-        if access_type == Test.AccessType.PRO_ONLY:
+        if access_type == Test.AccessType.PRO_ONLY and not is_admin:
             if not getattr(student, "has_pro_access", False):
-                raise ValueError("Ushbu test faqat PRO va PREMIUM obunachilar uchun mo'ljallangan.")
-        elif access_type == Test.AccessType.STUDENTS_ONLY:
+                raise TestAccessDeniedError("Ushbu test faqat PRO va PREMIUM obunachilar uchun mo'ljallangan.")
+        elif access_type == Test.AccessType.STUDENTS_ONLY and not is_admin:
             is_member = False
-            if test.assigned_group:
-                is_member = test.assigned_group.students.filter(id=student.id).exists()
+            assigned_group = getattr(test, "assigned_group", None)
+            if assigned_group:
+                is_member = assigned_group.students.filter(id=student.id).exists()
             else:
-                teacher = test.created_by or getattr(getattr(test, "course", None), "teacher", None)
-                if teacher:
+                teacher = getattr(test, "created_by", None) or getattr(getattr(test, "course", None), "teacher", None)
+                if teacher and hasattr(student, "student_groups"):
                     is_member = student.student_groups.filter(teacher=teacher).exists()
-                else:
+                elif hasattr(student, "student_groups"):
                     is_member = student.student_groups.exists()
             if not is_member:
-                raise ValueError("Ushbu test faqat o'qituvchining biriktirilgan guruhidagi o'quvchilar uchun mo'ljallangan.")
+                raise TestAccessDeniedError("Ushbu test faqat o'qituvchining biriktirilgan guruhidagi o'quvchilar uchun mo'ljallangan.")
 
         # -- Aktiv attempt mavjudmi? --------------------------------------
         active_attempt = TestAttempt.objects.filter(
@@ -182,15 +203,19 @@ class StartAttemptService:
         ).first()
 
         if active_attempt:
-            logger.info(
-                "Active attempt already exists: attempt=%d, student=%d",
-                active_attempt.id,
-                student.id,
-            )
-            raise ValueError(
-                "Sizda allaqachon davom etayotgan attempt bor. "
-                "Avval uni tugating yoki timeout bo'lishini kuting."
-            )
+            if getattr(active_attempt, "is_expired", False):
+                active_attempt.status = TestAttempt.Status.TIMEOUT
+                active_attempt.save(update_fields=["status"])
+            else:
+                logger.info(
+                    "Active attempt already exists: attempt=%d, student=%d",
+                    active_attempt.id,
+                    student.id,
+                )
+                raise ValueError(
+                    "Sizda allaqachon davom etayotgan attempt bor. "
+                    "Avval uni tugating yoki timeout bo'lishini kuting."
+                )
 
         # -- Max attempts tekshirish ---------------------------------------
         if test.max_attempts > 0:
@@ -236,15 +261,18 @@ class StartAttemptService:
             )
 
         # -- Bo'lim taymerlari (faqat mustaqil vaqtli bo'limlar uchun) -------
-        timed_sections = test.sections.filter(duration_minutes__gt=0)
-        if timed_sections:
-            AttemptSectionProgress.objects.bulk_create(
-                [
-                    AttemptSectionProgress(attempt=attempt, section=section)
-                    for section in timed_sections
-                ],
-                ignore_conflicts=True,
-            )
+        try:
+            timed_sections = test.sections.filter(duration_minutes__gt=0)
+            if timed_sections.exists():
+                AttemptSectionProgress.objects.bulk_create(
+                    [
+                        AttemptSectionProgress(attempt=attempt, section=section)
+                        for section in timed_sections
+                    ],
+                    ignore_conflicts=True,
+                )
+        except Exception as exc:
+            logger.warning("Could not initialize section timers: %s", exc)
 
         logger.info(
             "Attempt started: id=%d, test=%d, student=%d",

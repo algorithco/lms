@@ -38,7 +38,7 @@ from .serializers import (
     TestDetailSerializer,
     TestListSerializer,
 )
-from .services import SaveAnswerService, StartAttemptService, SubmitAttemptService
+from .services import SaveAnswerService, StartAttemptService, SubmitAttemptService, TestPinRequiredError, TestInvalidPinError, TestAccessDeniedError
 
 logger = logging.getLogger(__name__)
 
@@ -199,8 +199,8 @@ class StartAttemptView(APIView):
         description=(
             "Yangi test attempt yaratish.\n\n"
             "**Business rules:**\n"
-            "- Faqat o'quvchilar test topshira oladi\n"
-            "- Aktiv attempt bo'lmasligi kerak\n"
+            "- Faol testlar uchun attempt yaratiladi\n"
+            "- Aktiv attempt bo'lsa, qaytariladi yoki davom ettiriladi\n"
             "- Max attempts chegarasini bosmaslik kerak\n"
             "- Vaqt chegarasi: `time_limit_minutes` daqiqa"
         ),
@@ -208,6 +208,7 @@ class StartAttemptView(APIView):
         responses={
             201: AttemptSerializer,
             400: {"description": "Business rule xatoligi"},
+            403: {"description": "Limit yoki ruxsat yo'q"},
         },
         tags=["Tests"],
     )
@@ -215,37 +216,89 @@ class StartAttemptView(APIView):
         self, request: Request, test_id: int, *args: Any, **kwargs: Any
     ) -> Response:
         """Yangi attempt yaratish."""
+        from apps.accounts.access import is_platform_admin
         from apps.subscriptions.services.quota import QuotaService
 
-        allowed, quota_msg, quota_details = QuotaService.check_test_quota(request.user, test_id=test_id)
-        if not allowed:
-            return Response(
-                {
-                    "detail": "LIMIT_EXCEEDED",
-                    "error": quota_msg,
-                    "message": quota_msg,
-                    "upgrade_url": "/pricing",
-                    "quota": quota_details,
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        is_admin_or_teacher = (
+            is_platform_admin(request.user)
+            or getattr(request.user, "is_superuser", False)
+            or getattr(request.user, "role", "") in ["admin", "teacher"]
+        )
+
+        if not is_admin_or_teacher:
+            allowed, quota_msg, quota_details = QuotaService.check_test_quota(request.user, test_id=test_id)
+            if not allowed:
+                return Response(
+                    {
+                        "error": "LIMIT_EXCEEDED",
+                        "code": "LIMIT_EXCEEDED",
+                        "detail": "LIMIT_EXCEEDED",
+                        "message": quota_msg,
+                        "upgrade_url": "/pricing",
+                        "quota": quota_details,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         mode = request.data.get("mode", "strict")
+        pin = request.data.get("pin", "")
         try:
             attempt = StartAttemptService.execute(
                 test_id=test_id,
                 student=request.user,
                 mode=mode,
+                pin=pin,
+            )
+        except TestPinRequiredError as e:
+            return Response(
+                {
+                    "error": "PIN_REQUIRED",
+                    "code": "PIN_REQUIRED",
+                    "message": str(e) or "Ushbu test uchun PIN-kod talab etiladi.",
+                    "detail": str(e) or "Ushbu test uchun PIN-kod talab etiladi.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TestInvalidPinError as e:
+            return Response(
+                {
+                    "error": "INVALID_PIN",
+                    "code": "INVALID_PIN",
+                    "message": str(e) or "Kiritilgan PIN-kod noto'g'ri.",
+                    "detail": str(e) or "Kiritilgan PIN-kod noto'g'ri.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TestAccessDeniedError as e:
+            return Response(
+                {
+                    "error": "ACCESS_DENIED",
+                    "code": "ACCESS_DENIED",
+                    "message": str(e),
+                    "detail": str(e),
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
         except ValueError as e:
+            msg = str(e)
             logger.warning(
                 "Start attempt failed: test=%d, user=%d, error=%s",
                 test_id,
                 request.user.id,
-                str(e),
+                msg,
             )
+            if "PIN" in msg.upper() and ("TALAB" in msg.upper() or "SHART" in msg.upper()):
+                return Response(
+                    {
+                        "error": "PIN_REQUIRED",
+                        "code": "PIN_REQUIRED",
+                        "message": msg,
+                        "detail": msg,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response(
-                {"error": str(e)},
+                {"error": msg, "message": msg, "detail": msg},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
@@ -255,6 +308,7 @@ class StartAttemptView(APIView):
             return Response(
                 {
                     "error": "Testni boshlashda kutilmagan xatolik yuz berdi.",
+                    "message": "Testni boshlashda kutilmagan xatolik yuz berdi.",
                     "detail": str(e),
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

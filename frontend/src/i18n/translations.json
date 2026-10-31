@@ -1844,7 +1844,9 @@
     "carousel.slide4_subject": "BMB-101 (Ona tili)",
     "carousel.slide4_total_score": "Jami ball",
     "carousel.slide4_detected_errors": "Aniqlangan xatolar",
-    "carousel.slide4_errors_desc": "4 ta savolda tahlil mavjud"
+    "carousel.slide4_errors_desc": "4 ta savolda tahlil mavjud",
+    "dashboard.feedback": "Fikr yoki taklif",
+    "exit": "Chiqish"
   },
   "ru": {
     "main": "Главное",
@@ -3691,7 +3693,9 @@
     "carousel.slide4_subject": "БМБ-101 (Родной язык)",
     "carousel.slide4_total_score": "Итоговый балл",
     "carousel.slide4_detected_errors": "Найденные ошибки",
-    "carousel.slide4_errors_desc": "Анализ по 4 вопросам"
+    "carousel.slide4_errors_desc": "Анализ по 4 вопросам",
+    "dashboard.feedback": "Отзыв или предложение",
+    "exit": "Выйти"
   },
   "en": {
     "main": "Main",
@@ -5538,6 +5542,8 @@
     "carousel.slide4_subject": "BMB-101 (Native Language)",
     "carousel.slide4_total_score": "Total score",
     "carousel.slide4_detected_errors": "Detected errors",
-    "carousel.slide4_errors_desc": "Analysis ready for 4 questions"
+    "carousel.slide4_errors_desc": "Analysis ready for 4 questions",
+    "dashboard.feedback": "Feedback or suggestion",
+    "exit": "Exit"
   }
 }

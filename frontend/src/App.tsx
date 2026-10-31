@@ -67,6 +67,7 @@ const TeacherVocabGenerator = lazyPage(() => import('./pages/TeacherVocabGenerat
 const EnglishExamInterface = lazyPage(() => import('./pages/tests/EnglishExamInterface'));
 
 import AuthModal from './components/AuthModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   return (
@@ -107,7 +108,14 @@ function AnimatedRoutes() {
 
         <Route element={<ProtectedRoute />}>
           {/* Authentic Cambridge CD-IELTS / BMB CBT Kiosk Mode (distraction-free 100vw x 100vh) */}
-          <Route path="/english-exam/:attemptId" element={<EnglishExamInterface />} />
+          <Route
+            path="/english-exam/:attemptId"
+            element={
+              <ErrorBoundary fallbackTitle="Ingliz tili imtihonini yuklashda xatolik">
+                <EnglishExamInterface />
+              </ErrorBoundary>
+            }
+          />
           <Route element={<Layout />}>
             {/* Ratings live inside the app shell so the sidebar/topbar
                 (and the way back) never disappear. The API already
@@ -123,7 +131,14 @@ function AnimatedRoutes() {
             {/* Legacy /tests/<id>/take/ → detail (starts attempt there) */}
             <Route path="/tests/:id/take" element={<Navigate to="/tests/:id" replace />} />
             <Route path="/tests/take/:id" element={<Navigate to="/tests/:id" replace />} />
-            <Route path="/take/:attemptId" element={<TakeTest />} />
+            <Route
+              path="/take/:attemptId"
+              element={
+                <ErrorBoundary fallbackTitle="Testni yuklashda xatolik">
+                  <TakeTest />
+                </ErrorBoundary>
+              }
+            />
             <Route path="/tests/scan-omr" element={<ScanOMR />} />
             <Route path="/scan-omr" element={<Navigate to="/tests/scan-omr" replace />} />
             <Route path="/titul-scanner" element={<TitulScanner />} />

@@ -126,11 +126,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {
-      const body = (await res.json()) as unknown;
-      if (typeof body === 'object' && body !== null && 'detail' in body) {
-        detail = String((body as { detail: unknown }).detail);
-      } else {
-        detail = JSON.stringify(body);
+      const body = (await res.json()) as any;
+      if (typeof body === 'object' && body !== null) {
+        if ('detail' in body && body.detail) {
+          detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
+        } else if ('message' in body && body.message) {
+          detail = String(body.message);
+        } else if ('error' in body && body.error) {
+          detail = String(body.error);
+        } else {
+          detail = JSON.stringify(body);
+        }
       }
     } catch {
       /* keep default */
@@ -836,6 +842,23 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   const raw = window.atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
+
+
+export interface FeedbackPayload {
+  rating: number;
+  category: 'feedback' | 'suggestion' | 'bug' | 'praise';
+  message: string;
+  name?: string;
+  phone?: string;
+}
+
+export const FeedbackApi = {
+  submit: (data: FeedbackPayload) =>
+    api<{ success: boolean; message: string; id: number }>('/api/v1/feedback/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
 
 export const Push = {
   supported: () =>

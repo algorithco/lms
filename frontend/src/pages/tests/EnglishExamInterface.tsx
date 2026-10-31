@@ -17,6 +17,7 @@ import {
   ChevronRightIcon,
   RefreshCwIcon,
   ExternalLinkIcon,
+  LogOutIcon,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -134,6 +135,15 @@ export default function EnglishExamInterface() {
 
   // Mobile tab toggle (passage vs questions)
   const [mobileTab, setMobileTab] = useState<'passage' | 'questions'>('passage');
+  // Exit confirmation modal
+  const [exitModalOpen, setExitModalOpen] = useState(false);
+
+  const handleConfirmExit = useCallback(() => {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+    navigate('/tests');
+  }, [navigate]);
 
   // Finish confirmation modal
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
@@ -320,6 +330,9 @@ export default function EnglishExamInterface() {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
       window.removeEventListener('click', handleInitialFullscreen);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('blur', handleBlur);
@@ -735,7 +748,7 @@ export default function EnglishExamInterface() {
             }`}
           >
             <ClockIcon className={`h-4 w-4 ${remaining !== null && remaining < 300 ? 'text-rose-400' : 'text-amber-400'}`} />
-            <span>⏱ {formatTime(remaining)} remaining</span>
+            <span>⏱ {formatTime(remaining)} <span className="hidden sm:inline">remaining</span></span>
           </div>
         </div>
 
@@ -853,6 +866,16 @@ export default function EnglishExamInterface() {
           >
             {isFullscreen ? <Minimize2Icon className="h-4 w-4" /> : <Maximize2Icon className="h-4 w-4" />}
           </button>
+
+          {/* Exit Exam Button */}
+          <button
+            type="button"
+            onClick={() => setExitModalOpen(true)}
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors"
+            title="Testdan chiqish"
+          >
+            <LogOutIcon className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
@@ -861,26 +884,26 @@ export default function EnglishExamInterface() {
         <button
           type="button"
           onClick={() => setMobileTab('passage')}
-          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
+          className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
             mobileTab === 'passage'
-              ? 'border-blue-500 text-white bg-slate-800/40'
+              ? 'border-blue-500 text-white bg-slate-800/60 shadow-sm'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <BookOpenIcon className="h-3.5 w-3.5" />
-          <span>Reading Passage</span>
+          <BookOpenIcon className="h-4 w-4 text-blue-400" />
+          <span>📖 Matn / Passage</span>
         </button>
         <button
           type="button"
           onClick={() => setMobileTab('questions')}
-          className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
+          className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
             mobileTab === 'questions'
-              ? 'border-blue-500 text-white bg-slate-800/40'
+              ? 'border-blue-500 text-white bg-slate-800/60 shadow-sm'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <HelpCircleIcon className="h-3.5 w-3.5" />
-          <span>Questions ({currentQIndex + 1}/{questions.length})</span>
+          <HelpCircleIcon className="h-4 w-4 text-emerald-400" />
+          <span>❓ Savollar ({currentQIndex + 1}/{questions.length})</span>
         </button>
       </div>
 
@@ -1215,6 +1238,41 @@ export default function EnglishExamInterface() {
       </footer>
 
       {/* 4. MODALS */}
+
+      {/* Exit Confirmation Modal */}
+      {exitModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
+              <LogOutIcon className="h-6 w-6" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-white">Testdan chiqmoqchimisiz?</h3>
+              <p className="text-slate-400 text-xs mt-1">
+                Kiritilgan javoblaringiz saqlanib qoladi. Keyinroq yana davom ettirishingiz mumkin.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setExitModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700"
+              >
+                Davom etish
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExit}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50"
+              >
+                Testdan chiqish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* A. Finish Confirmation Modal */}
       {confirmSubmitOpen && (

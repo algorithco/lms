@@ -86,14 +86,18 @@ export default function TestDetail() {
     setStarting(true);
     setErr(null);
     setPinError(null);
-    setModeModalOpen(false);
     try {
       const res = await TestsApi.start(id, mode, pin.trim());
       const attemptId =
         'id' in res && typeof res.id === 'number'
           ? res.id
-          : (res as { attempt_id: number }).attempt_id;
+          : (res as { attempt_id: number })?.attempt_id;
       
+      if (!attemptId) {
+        throw new Error("Test attempt ID yaratilmadi yoki olinmadi. Qayta urinib ko'ring.");
+      }
+      setModeModalOpen(false);
+
       const isEnglish = detail?.subject === 'english' ||
         detail?.exam_type?.includes('ielts') ||
         detail?.exam_type?.includes('cefr');
@@ -106,9 +110,14 @@ export default function TestDetail() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('err_retry_js');
       if (msg.includes('LIMIT_EXCEEDED') || msg.includes('limitingiz tugadi') || msg.includes('obunachilar') || msg.includes('Qulflangan')) {
+        setModeModalOpen(false);
         setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
         setLimitModalOpen(true);
+      } else if (msg.includes('PIN_REQUIRED') || msg.includes('PIN') || msg.includes('PIN kodni kiritishingiz shart')) {
+        setModeModalOpen(true);
+        setPinError(msg.includes('noto') ? "Kiritilgan PIN-kod noto'g'ri. Qayta tekshiring." : "Ushbu test uchun PIN-kod talab etiladi.");
       } else {
+        setModeModalOpen(false);
         setErr(msg);
       }
       setStarting(false);

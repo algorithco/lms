@@ -7,7 +7,7 @@ is configured in exactly one place — do not register it again here.
 
 from django.contrib import admin
 
-from .models import NotificationLog
+from .models import NotificationLog, UserFeedback
 
 
 @admin.register(NotificationLog)
@@ -62,3 +62,13 @@ class NotificationLogAdmin(admin.ModelAdmin):
     # original registration did not restrict deletion and existing behaviour
     # must not change. Only the display and the new ``dedup_key`` listing were
     # added.
+
+
+
+@admin.register(UserFeedback)
+class UserFeedbackAdmin(admin.ModelAdmin):
+    list_display = ("id", "user_name", "user", "rating", "category", "created_at")
+    list_filter = ("category", "rating", "created_at")
+    search_fields = ("user_name", "user__email", "user__username", "message")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)

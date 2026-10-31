@@ -310,3 +310,48 @@ class TelegramAuthToken(models.Model):
                     continue
             return code
         raise RuntimeError("Could not generate a unique short code after retries.")
+
+
+
+# ---------------------------------------------------------------------------
+# UserFeedback
+# ---------------------------------------------------------------------------
+class UserFeedback(models.Model):
+    """
+    Foydalanuvchilardan kelgan fikr-mulohazalar, takliflar va xatolik xabarlari.
+    """
+
+    class Category(models.TextChoices):
+        FEEDBACK = "feedback", _("Fikr-mulohaza")
+        SUGGESTION = "suggestion", _("Taklif")
+        BUG = "bug", _("Xatolik/Muammo")
+        PRAISE = "praise", _("Tashakkur")
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedbacks",
+        verbose_name=_("foydalanuvchi"),
+    )
+    user_name = models.CharField(_("ism"), max_length=150, blank=True, default="")
+    user_phone = models.CharField(_("telefon"), max_length=32, blank=True, default="")
+    rating = models.PositiveSmallIntegerField(_("baho"), default=5)
+    category = models.CharField(
+        _("kategoriya"),
+        max_length=20,
+        choices=Category.choices,
+        default=Category.FEEDBACK,
+    )
+    message = models.TextField(_("xabar"))
+    created_at = models.DateTimeField(_("yaratilgan vaqti"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("foydalanuvchi fikri")
+        verbose_name_plural = _("foydalanuvchilar fikrlari")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        author = self.user_name or (self.user and getattr(self.user, "username", "")) or "Anonim"
+        return f"Feedback #{self.pk} by {author} ({self.rating}/5)"

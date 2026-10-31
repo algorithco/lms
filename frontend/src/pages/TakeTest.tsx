@@ -1262,15 +1262,29 @@ export default function TakeTest() {
         )}
 
         {!finished && !result && (
-          <button
-            type="button"
-            className="btn sm"
-            style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
-            disabled={submitting}
-            onClick={() => setConfirmOpen(true)}
-          >
-            {submitting ? t('loading') : t('take_finish')}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="btn sm ghost"
+              onClick={() => {
+                if (window.confirm("Testdan chiqishni xohlaysizmi? Javoblaringiz saqlanadi.")) {
+                  navigate('/tests');
+                }
+              }}
+              title="Testdan chiqish"
+            >
+              🚪 {t('exit') || 'Chiqish'}
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+              disabled={submitting}
+              onClick={() => setConfirmOpen(true)}
+            >
+              {submitting ? t('loading') : t('take_finish')}
+            </button>
+          </div>
         )}
       </div>
 

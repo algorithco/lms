@@ -16,9 +16,11 @@ import MobileNavDrawer from '../components/MobileNavDrawer';
 import MobileProfileDrawer from '../components/MobileProfileDrawer';
 import PwaInstallButton from '../components/PwaInstallButton';
 import PassingScoresModal from '../components/PassingScoresModal';
+import FeedbackModal from '../components/FeedbackModal';
 import {
   CheckIcon,
   FileTextIcon,
+  StarIcon,
   LightbulbIcon,
   MenuIcon,
   MoonIcon,
@@ -34,6 +36,63 @@ import {
 // ---------------------------------------------------------------------------
 export type MainSubject = 'uzbek' | 'english';
 export type ExamTrack = 'ielts' | 'multilevel' | 'national_certificate' | 'attestation';
+const TESTIMONIALS = [
+  {
+    name: "Diyorbek Xoldorov",
+    badge: "BMB Milliy Sertifikat A+ 94%",
+    badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    role: "Toshkent Davlat Yuridik Universiteti talabasi",
+    initials: "DX",
+    gradient: "from-emerald-500 to-teal-600",
+    quote: "Grandec'dagi BMB mock testlari haqiqiy imtihon bilan 100% bir xil tushdi. Ayniqsa matematika va fizika blokidagi savollar darajasi va vaqt nazorati meni BMB imtihoniga to'liq tayyorladi.",
+  },
+  {
+    name: "Malika Rustamova",
+    badge: "IELTS 7.5 (Writing 7.0)",
+    badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
+    role: "WIUT talabasi",
+    initials: "MR",
+    gradient: "from-blue-500 to-indigo-600",
+    quote: "Listening va Reading split-screen interfeysi xuddi British Council kompyuter imtihonidek. Ovoz sifati va savollar formati real imtihon muhitini yaratib berdi.",
+  },
+  {
+    name: "Jasur Kenjayev",
+    badge: "Attestatsiya 92 ball",
+    badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    role: "Oliy toifali fizika fani o'qituvchisi",
+    initials: "JK",
+    gradient: "from-amber-500 to-orange-600",
+    quote: "Ustozlar attestatsiyasi uchun tayyorlandim. Qiyinlik darajasi vazirlik standartlariga mos, test tahlili va tushuntirishlar juda katta yordam berdi.",
+  },
+  {
+    name: "Shahlo Karimova",
+    badge: "CEFR B2 Sertifikat",
+    badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30",
+    role: "SamDCHTI magistranti",
+    initials: "SK",
+    gradient: "from-purple-500 to-pink-600",
+    quote: "Ovoz yozish va esse tekshirishdagi AI tahlili kutilganidan ancha kuchli. Grammatika va so'z boyligidagi xatolarimni bir soniyada ko'rsatib berdi.",
+  },
+  {
+    name: "Azizbek Eshonqulov",
+    badge: "Prezident Maktabi 1-o'rin",
+    badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+    role: "O'quvchi (5-sinf)",
+    initials: "AE",
+    gradient: "from-rose-500 to-red-600",
+    quote: "Mantiqiy savollar va matematika testlari farzandimga juda yoqdi. Natijalar dinamikasi va xatolar ustida ishlash bo'limi ajoyib.",
+  },
+  {
+    name: "Nilufar Ziyodullayeva",
+    badge: "100+ O'quvchi tayyorlagan",
+    badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30",
+    role: "Ingliz tili fani o'qituvchisi (Grand Education)",
+    initials: "NZ",
+    gradient: "from-cyan-500 to-blue-600",
+    quote: "O'quvchilarimga test yaratib berish juda osonlashdi. Guruhlarga biriktirish, PIN-kod va natijalarni avtomatik hisoblash o'qituvchi vaqtini 10 barobar tejaydi.",
+  },
+];
+
 
 const sectionNav: [string, string][] = [
   ['nav_features', '#features'],
@@ -53,6 +112,7 @@ export default function Landing() {
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [scoresModalOpen, setScoresModalOpen] = useState(false);
+  const [landingFeedbackOpen, setLandingFeedbackOpen] = useState(false);
 
   // -------------------------------------------------------------------------
   // HIERARCHICAL 2-LEVEL SUBJECT & EXAM SELECTOR STATE
@@ -2136,6 +2196,103 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* TESTIMONIALS / SOCIAL PROOF SECTION */}
+        <section id="testimonials" style={{ padding: '60px 20px 40px' }}>
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 48px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: '1.5px',
+                  textTransform: 'uppercase',
+                  color: '#D97706',
+                  marginBottom: 8,
+                }}
+              >
+                💬 REAL NATIJALAR VA ISHONCH
+              </span>
+              <h2
+                style={{
+                  fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)',
+                  fontWeight: 900,
+                  margin: '0 0 12px',
+                  color: 'var(--text, #0F172A)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                O'quvchilarimiz va Ustozlar Fikrlari
+              </h2>
+              <p
+                style={{
+                  fontSize: 15,
+                  color: 'var(--muted, #64748B)',
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                Minglab talabalar, o'quvchilar va pedagoglar GRAND EDUCATION bilan o'z orzularidagi natijalarga erishdilar
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {TESTIMONIALS.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all hover:scale-[1.01] hover:shadow-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm"
+                >
+                  <div className="space-y-4">
+                    {/* Stars + Badge */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 text-amber-400">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <StarIcon key={s} size={16} fill="currentColor" />
+                        ))}
+                      </div>
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${item.badgeColor}`}>
+                        {item.badge}
+                      </span>
+                    </div>
+
+                    {/* Quote */}
+                    <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 italic">
+                      "{item.quote}"
+                    </p>
+                  </div>
+
+                  {/* Author */}
+                  <div className="flex items-center gap-3.5 pt-5 mt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${item.gradient} text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-md`}>
+                      {item.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {item.name}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {item.role}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Leave feedback CTA */}
+            <div style={{ textAlign: 'center', marginTop: 32 }}>
+              <button
+                type="button"
+                onClick={() => setLandingFeedbackOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+              >
+                <span>💬</span>
+                <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* BOTTOM CTA BANNER */}
         <section style={{ padding: '40px 20px 80px' }}>
           <div
@@ -2206,6 +2363,7 @@ export default function Landing() {
         </section>
       </main>
       <PassingScoresModal isOpen={scoresModalOpen} onClose={() => setScoresModalOpen(false)} />
+      <FeedbackModal isOpen={landingFeedbackOpen} onClose={() => setLandingFeedbackOpen(false)} />
       <div className="md:hidden"><MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} /></div>
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
       <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />

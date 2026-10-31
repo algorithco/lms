@@ -16,6 +16,7 @@ from . import (
     views_parents,
     views_school,
     views_tournaments,
+    views_feedback,
 )
 from apps.organizations import views as views_enterprise
 from apps.tests import views_converter, views_mistakes, views_omr, views_placement
@@ -23,6 +24,17 @@ from apps.tests import views_converter, views_mistakes, views_omr, views_placeme
 app_name = "webapi"
 
 urlpatterns = [
+    path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
+    path(
+        "tests/<int:pk>/",
+        views_tests.TestDetailView.as_view(),
+        name="webapi-test-detail",
+    ),
+    path(
+        "tests/<int:test_id>/start/",
+        views_tests.StartAttemptView.as_view(),
+        name="webapi-test-start",
+    ),
     path(
         "tests/<int:test_id>/gradebook/",
         views_tests.TestGradebookView.as_view(),

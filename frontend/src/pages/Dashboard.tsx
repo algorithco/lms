@@ -31,6 +31,7 @@ import {
 } from '../components/icons';
 import OnboardingModal from '../components/OnboardingModal';
 import CardPaymentModal from '../components/CardPaymentModal';
+import FeedbackModal from '../components/FeedbackModal';
 
 interface Stats {
   total_tests_taken?: number;
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<Stats | null>(null);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [available, setAvailable] = useState<TestListItem[]>([]);
   const [, setRecent] = useState<ResultListItem[]>([]);
   const [, setErr] = useState<string | null>(null);
@@ -524,6 +526,27 @@ export default function Dashboard() {
                     <SwordsIcon size={15} color="#D97706" />
                     <span>{t('dashboard.cta_arena', '⚔️ 1v1 Arena bellashuvi')}</span>
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackModalOpen(true)}
+                    className="dash-hero-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '11px 18px',
+                      borderRadius: 14,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      minHeight: 44,
+                      cursor: 'pointer',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      background: 'rgba(245, 158, 11, 0.08)',
+                    }}
+                  >
+                    <span>💬</span>
+                    <span>{t('dashboard.feedback', 'Fikr yoki taklif')}</span>
+                  </button>
                 </>
               )}
             </div>
@@ -1221,6 +1244,10 @@ export default function Dashboard() {
       <CardPaymentModal
         isOpen={cardPaymentOpen}
         onClose={() => setCardPaymentOpen(false)}
+      />
+      <FeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
       />
     </div>
   );
