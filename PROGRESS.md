@@ -9,6 +9,35 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.63. Rasmiy Versiya v1.71.0: "In 3 steps" Kontrasti, HeroCarousel Dual-Theme va 100% Landing i18n
+- [x] 1-Vazifa: "In 3 steps" Bo'limidagi Oq Fonda Oq Matn Xatosini Ildizi Bilan Tuzatish (`HowItWorks.tsx`):
+  * Bo'lim foni dual-theme qilindi (`bg-slate-50 dark:bg-slate-900/60`, `isDark ? 'rgba(15, 23, 42, 0.7)' : '#f8fafc'`).
+  * Sarlavha: `text-slate-900 dark:text-white font-black`.
+  * 3 ta qadam kartasi foni: Light rejimda toza oq (`#FFFFFF`), Dark rejimda esa to'q slate (`#0F172A`, `border-slate-800`).
+  * Karta sarlavhasi: `text-slate-900 dark:text-white font-extrabold` (`isDark ? '#FFFFFF' : '#0F172A'`).
+  * Karta tavsifi: `text-slate-600 dark:text-slate-300` (`isDark ? '#CBD5E1' : '#475569'`). Qorong'i yoki yorug' rejimda har qanday sharoitda matnlar yorqin va kontrastli ko'rinadi.
+- [x] 2-Vazifa: HeroCarousel O'ng Tomon Karta Kontrasti va To'liq Dark Mode (`HeroCarousel.tsx`):
+  * `useTheme` va `useLang` ulandi; butun karusel tashqi kartasi `bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800` bilan dual-theme qilindi.
+  * Slayd sarlavhalari va tavsiflari: `text-slate-900 dark:text-white font-black` hamda `text-slate-600 dark:text-slate-300`.
+  * Barcha 4 ta slayd (AI Esse, CBT Test Simulyatori, 1v1 Arena va Titul Skaner) vidjetlari, mezon barlari, ELO kartalari va natijalar bloklari dark mode ga moslandi.
+- [x] 3-Vazifa: Pastki CTA Banner Matn Kontrasti (`Landing.tsx`):
+  * Dark rejimda sarlavha ko'rinmas bo'lib qolishi gradient tuzatilib bartaraf etildi: Dark rejimda `linear-gradient(135deg, #FFFFFF 40%, #FBBF24 100%)` va `text-slate-900 dark:text-white font-extrabold`; Light rejimda `linear-gradient(135deg, #0F172A 40%, #D97706 100%)`.
+  * Tavsif: `text-slate-600 dark:text-slate-300 font-medium` (`isDark ? '#CBD5E1' : '#475569'`).
+  * `hidden md:block` olib tashlanib, mobil qurilmalarda ham pastki CTA banner to'liq ko'rinadigan qilindi.
+- [x] 4-Vazifa: 100% Landing & Carousel i18n (`Landing.tsx`, `HeroCarousel.tsx`, `Dashboard.tsx`, `translations.json`):
+  * Landing Hero sarlavhasi, nishoni, tavsifi, harakat tugmalari, ishonch mezonlari va mobil 3D toifalar kartalari dinamik `t(...)` ga ulandi.
+  * HeroCarousel dagi barcha 4 ta slaydning nishonlari, sarlavhalari, subtitrlari, tugmalari, test savoli, variantlari va AI tavsiyalari UZ, RU, EN tillarida dinamik qilindi.
+  * `Dashboard.tsx` dagi qolib ketgan "Barchasi →" havolasi `{t('dashboard.view_all', 'Barchasi')} →` ga almashtirildi.
+  * `frontend/src/i18n/translations.json` ga barcha `landing.*` va `carousel.*` kalitlari UZ, RU, EN tillarida qo'shildi.
+- [x] Sifat Nazorati va Natijalar:
+  * `npm --prefix frontend run lint`: 0 ta xatolik (Found 70 warnings and 0 errors, clean exit).
+  * `npm --prefix frontend run build`: 0 ta xatolik (Vite v8.3.5, 3.28s).
+  * `python manage.py check`: 0 ta muammo (System check identified no issues).
+  * VPS (`169.58.58.229` / `/opt/lms`): Granular `docker compose up -d --build web nginx` orqali yangilandi.
+  * BestWay stacki mutlaqo to'xtatilmadi va daxlsiz saqlab qolindi.
+  * `https://grandec.uz/healthz/`: HTTP 200 OK.
+  * `https://grandec.uz/`: HTTP 200 OK.
+
 ### 2.62. Rasmiy Versiya v1.70.0: Aniq Bepul Tarif Holati, 100% Dashboard i18n va Qat'iy CI/CD Release Gate
 - [x] 1-Qism: Haqiqiy Tarif Holati (Soxta PREMIUM PRO'ni Yo'qotish va CardPaymentModal):
   * Backend (`apps/accounts/serializers.py`, `apps/accounts/views.py`):
