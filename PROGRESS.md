@@ -9,6 +9,23 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.70. Rasmiy Versiya v1.79.0: Bazadagi Eski Testlar va Guruhlarni Xavfsiz Tozalash (8.3.0-Bosqich)
+- [x] 1-Vazifa: Xavfsiz Tozalash Boshqaruv Buyrug'i (`apps/tests/management/commands/purge_tests_and_groups.py`):
+  * Testlar va ularning bog'liq jadvallari: `StudentAnswer`, `GapResponse`, `MatchingResponse`, `AttemptSectionProgress`, `ExamWrittenBridge`, `Certificate`, `ResultSectionScore`, `Result`, `TestAttempt`, `Choice`, `GapBlank`, `MatchingPair`, `MatchingOption`, `MatchingPrompt`, `Question`, `ReadingPassage`, `ExamSection`, `ExamScoringProfile`, `Test`.
+  * Guruhlar va ularning bog'liq jadvallari: `GroupEnrollment`, `HomeworkSubmission`, `Homework`, `AttendanceRecord`, `AttendanceSession`, `WeeklyGroupReport`, `StudentTuition`, `EssayAssignment`, `TeacherSponsorship`, `StudentGroup`.
+  * Daxlsiz saqlanuvchi ma'lumotlar kafolati: `User` (barcha Admin, Ustoz, O'quvchi hisoblari), `UserSubscription`, `PaymentReceipt`, `EssaySubmission`, `EssayTopic` 100% o'zgarmas saqlanadi.
+  * Xavfsizlik opsiyalari: `--dry-run` orqali o'chiriladigan ob'ektlar hisoboti, `--confirm` orqali atomik tranzaksiya ichida boladan-otaga tartibli tozalash.
+- [x] 2-Vazifa: Mahalliy Test va Integratsiya:
+  * `--dry-run` testi: 1722 ta ob'ekt o'chirishga rejalashtirildi, 0 ta daxlsiz ma'lumotga tegilmadi.
+  * `--confirm` ijrosi: 1722 ta eski test va guruh ob'ektlari muvaffaqiyatli tozalandi.
+  * Idempotentlik tekshirildi: 0 ta qoldiq ob'ekt.
+  * Daxlsiz hisoblar yaxlitligi: Admin va ustoz hisoblari to'liq butun.
+- [x] 3-Vazifa: Production VPS (`169.58.58.229` / `/opt/lms`):
+  * Xavfsiz git sync va `purge_tests_and_groups --confirm` buyrug'ini bajarish.
+  * Serverdagi `bestway` loyihasiga mutlaqo teginilmadi va 100% daxlsiz saqlandi.
+  * Endpoint salomatligi: `curl -fsS https://grandec.uz/healthz/` (HTTP 200 OK).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.69. Rasmiy Versiya v1.78.0: Esse Tekshiruvida 0 Ballarni Qabul Qilish va B2B Enterprise Portali Empty State & Markaz Yaratish (8.2.0-Bosqich)
 - [x] 1-Vazifa: Esse Tekshirishda "0 Ball" Qabul Qilinmaslik Xatosi Bartaraf Etildi (`EssayTeacherReview.tsx`, `apps/webapi/views_essays.py`, `apps/essays/services.py`, `apps/essays/views.py`):
   * `isScoreMissing = (val: any) => val === undefined || val === null || val === ''`: 0 ball (`0`, `0.0`, `"0"`) qonuniy va to'laqonli baho sifatida qabul qilinadigan qilindi.
