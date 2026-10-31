@@ -9,6 +9,21 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.68. Rasmiy Versiya v1.77.1: RBAC Sinov Akkauntlari Seed Komandasi (Admin & Tasdiqlangan Ustoz)
+- [x] 1-Vazifa: Django Idempotent Management Command (`apps/accounts/management/commands/seed_accounts.py`):
+  * Bosh Administrator: `admin.grandec@gmail.com` (`Grandec Superadmin`), parol: `GrandAdmin2026!`, roli: `admin`, `is_staff=True`, `is_superuser=True`, `plan="ADMIN_UNLIMITED"`, kvotalar: 9999.
+  * Tasdiqlangan Ustoz: `ustoz.grandec@gmail.com` (`Hamid Olimjon`), parol: `GrandUstoz2026!`, roli: `teacher`, `can_create_test=True`, `can_create_essay_topic=True`, `is_staff=False`, `is_superuser=False`, `plan="PRO"`, kvotalar: 50 ta test, 10 ta esse.
+  * Namuna faol sinf/guruh: "11-A Ona tili guruhi", taklif kodi: `GR-11A`, xavfsiz token generatsiyasi va ustozga biriktirilishi.
+- [x] 2-Vazifa: Mahalliy va Jonli VPS Verifikatsiyasi:
+  * Mahalliy muhitda `seed_accounts` va DRF auth testi: 100% muvaffaqiyatli.
+  * Production VPS (`169.58.58.229` / `/opt/lms`): Buyruq muvaffaqiyatli bajarildi, admin va ustoz profillari yaratildi.
+  * Jonli API orqali autentifikatsiya testi (`https://grandec.uz/api/auth/login/`):
+    - Admin: HTTP 200 OK, `role: 'admin'`, `is_platform_admin: True`, `plan: 'ADMIN_UNLIMITED'`, `is_premium: True`.
+    - Ustoz: HTTP 200 OK, `role: 'teacher'`, `is_platform_admin: False`, `has_pro_access: True`.
+  * Public endpoint salomatligi: `https://grandec.uz/` (HTTP 200 OK).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+  * Serverdagi `bestway` loyihasiga mutlaqo teginilmadi, 100% daxlsiz saqlandi.
+
 ### 2.67. Rasmiy Versiya v1.77.0: RBAC Root Admin Immunity, Maxsus Rol Dashboardlari va Ustoz Xatolar Tahlili (8.1.0-Bosqich)
 - [x] 1-Vazifa: Administratorlar Uchun Paywallni Yo'qotish va Root Immunity (`apps/payments/entitlements.py`, `apps/payments/ai_quota.py`, `apps/subscriptions/services/quota.py`, `apps/accounts/serializers.py`, `LimitExceededModal.tsx`):
   * `get_effective_entitlement(user)`: Administrator, staff yoki superuser (`role in ('admin', 'center_admin')`, `is_staff`, `is_superuser`) uchun to'g'ridan-to'g'ri `SOURCE_OVERRIDE` bilan cheksiz testlar, matnli va rasmli esselar, nol cooldown bilan `Entitlement` qaytaradi.
