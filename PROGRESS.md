@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.61. Rasmiy Versiya v1.69.0: Aniq Tarif Sinxronizatsiyasi (FREE Plan), 100% Global i18n va Light/Dark Kontrast Mukammalligi
+- [x] 1-Vazifa: Aniq Tarif Sinxronizatsiyasi (FREE vs PRO Holati):
+  * Backend (`apps/accounts/serializers.py`, `apps/accounts/views.py`): To'lov qilmagan yoki tasdiqlanmagan foydalanuvchilar uchun `get_effective_entitlement(user)` orqali real obuna tekshiruvi kiritildi (`plan: 'FREE'`, `is_paid: false`).
+  * Frontend (`Dashboard.tsx`, `MobileProfileDrawer.tsx`): Bepul foydalanuvchilarda soxta `Tarif: PREMIUM PRO` butunlay olib tashlandi; toza kulrang `Tarif: BEPUL` nishoni va yonida `[Obunani faollashtirish]` CTA tugmasi (`/pricing` havolasi) o'rnatildi.
+- [x] 2-Vazifa: 100% Global i18n (UZ | RU | EN) Integratsiyasi:
+  * Dashboard barcha matnlari ("Xush kelibsiz", motivatsiya hikmati, 3 ta asosiy harakat tugmasi, 4 ta statistika kartalari) `t(...)` kalitlariga ulandi.
+  * `frontend/src/i18n/translations.json` ga barcha yangi kalitlar UZ, RU, EN tillarida qo'shildi.
+  * Telegram WebApp tili (`language_code` -> `uz`, `ru`, `en`) `Tma.tsx` va `Login.tsx` sahifalarida avtomatik aniqlanib, tizim tiliga sinxronlash ta'minlandi.
+- [x] 3-Vazifa: Light va Dark Rejim Kontrastini Universal Qilish:
+  * "3 bosqichda" (In 3 steps) qadamma-qadam blokidagi oq fonda oq matn nuqsoni bartaraf etildi (`var(--ink)`, `var(--muted)`).
+  * "Nega aynan GRAND EDUCATION?" taqqoslash jadvali, "Tariflar" BEPUL kartasi va "FAQ" savol-javob bo'limi ikkala rejimda ham tiniq o'qiladigan holatga keltirildi.
+  * Hero, CTA banner va Footer bo'limlaridagi qotirilgan qora ranglar (`#0F172A`) tozalanib, CSS o'zgaruvchilari bilan birlashtirildi.
+- [x] 4-Vazifa: Sifat Nazorati va Zero-Downtime VPS Deploy:
+  * `npm --prefix frontend run lint`: 0 ta xatolik.
+  * `npm --prefix frontend run build`: 0 ta xatolik (4.74s).
+  * `python manage.py check`: 0 ta xatolik (System check identified no issues).
+  * `pytest tests/test_essays_routing.py tests/test_arena.py`: 80 ta test 100% PASS.
+  * GitHub Actions: Build (Success), Release (Success), Deploy (Success).
+  * Contabo VPS (`169.58.58.229` / `/opt/lms`): Jonli tekshiruv `curl https://grandec.uz/healthz/` (HTTP 200 OK) va `https://grandec.uz/` (HTTP 200 OK).
+  * BestWay loyihasi to'liq daxlsiz saqlandi, barcha xizmatlari uzluksiz ishlab turibdi.
+
 ### 2.60. Rasmiy Versiya v1.68.0: 1v1 Arena ELO Animatsiyalari, Esse PDF Eksporti, Linear-Style Dark Mode va Global i18n (UZ | RU | EN)
 - [x] 1-Vazifa: 1v1 Arena Real-time Duels Takomillashtirilishi (`Arena.tsx`, `DuelRoom.tsx`):
   * Foydalanuvchi ligasi nishonlari (🥉 Bronza, 🥈 Kumush, 🥇 Oltin, 💎 Olmos) ELO reytingi asosida dinamik ulandi.
