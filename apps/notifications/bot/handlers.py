@@ -9529,24 +9529,48 @@ def setup_handlers(app) -> None:
     """Register all handlers with the Application."""
     from telegram.ext import (
         CallbackQueryHandler,
+        ChatMemberHandler,
         CommandHandler,
         MessageHandler,
         filters,
     )
+    from apps.notifications.bot.group_assistant import (
+        on_my_chat_member,
+        on_new_chat_members,
+        link_group_command,
+        group_davomat_yakun_command,
+        group_yangi_test_command,
+        ustoz_menu_command,
+        group_assistant_callback_handler,
+        unified_davomat_handler,
+        unified_leaderboard_handler,
+        unified_test_handler,
+    )
 
     # Global error handler — a crash in one handler must never kill the bot
     app.add_error_handler(error_handler)
+
+    # Group Assistant (Bot added to group or member status changed)
+    app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_new_chat_members))
 
     # Commands
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("help", help_handler))
     app.add_handler(CommandHandler("profile", profile_handler))
     app.add_handler(CommandHandler("tests", tests_handler))
+    app.add_handler(CommandHandler("test", unified_test_handler))
+    app.add_handler(CommandHandler("yangi_test", group_yangi_test_command))
     app.add_handler(CommandHandler("results", results_handler))
     app.add_handler(CommandHandler("essays", essays_handler))
     app.add_handler(CommandHandler("essay_submit", essay_submit_handler))
     app.add_handler(CommandHandler("cancel_essay", cancel_essay_handler))
-    app.add_handler(CommandHandler("leaderboard", leaderboard_handler))
+    app.add_handler(CommandHandler("leaderboard", unified_leaderboard_handler))
+    app.add_handler(CommandHandler("reyting", unified_leaderboard_handler))
+    app.add_handler(CommandHandler("link_group", link_group_command))
+    app.add_handler(CommandHandler("davomat", unified_davomat_handler))
+    app.add_handler(CommandHandler("davomat_yakun", group_davomat_yakun_command))
+    app.add_handler(CommandHandler("ustoz", ustoz_menu_command))
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))
     app.add_handler(CommandHandler("premium", premium_handler))
@@ -9615,13 +9639,17 @@ def setup_handlers(app) -> None:
     from apps.notifications.bot.quiz import quiz_handler, quiz_callback_handler
 
     app.add_handler(CommandHandler("quiz", quiz_handler))
-    from apps.bot.crm import davomat_handler, tolovlar_handler
+    from apps.bot.crm import tolovlar_handler
 
     app.add_handler(CommandHandler("finance", finance_handler))
     app.add_handler(CommandHandler("tolovlar", tolovlar_handler))
-    app.add_handler(CommandHandler("davomat", davomat_handler))
     app.add_handler(CommandHandler("vocab", vocab_handler))
     app.add_handler(CallbackQueryHandler(quiz_callback_handler, pattern=r"^quiz_"))
+
+    # Group Assistant callbacks (must be before generic callback_handler)
+    app.add_handler(
+        CallbackQueryHandler(group_assistant_callback_handler, pattern=r"^(grp_att_|grp_cmd_)")
+    )
 
     # Auth conversation handler — catches text/contact during auth flow
     # Must be before generic callback_handler but after command handlers

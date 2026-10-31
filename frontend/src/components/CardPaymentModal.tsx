@@ -263,7 +263,7 @@ export default function CardPaymentModal({
                 maxWidth: 460,
               }}
             >
-              Administrator tekshirguniga qadar sizga <strong>24 SOATLIK PRO TRIAL</strong> taqdim etildi. Hozirdanoq barcha test va AI esselardan cheklovlarsiz foydalanishingiz mumkin!
+              Admin tasdiqlaguncha <strong>24 soatlik PRO TRIAL</strong> faollashtirildi.
             </p>
 
             {/* Status Card */}

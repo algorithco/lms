@@ -296,6 +296,13 @@ class StudentGroup(models.Model):
         default=400000,
         help_text=_("O'quvchilar uchun oylik to'lov summasi."),
     )
+    telegram_chat_id = models.BigIntegerField(
+        _("Telegram guruh chat ID"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("Ushbu sinfga ulangan Telegram guruhining unikal chat ID si"),
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 

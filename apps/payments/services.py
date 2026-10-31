@@ -102,7 +102,13 @@ def validate_and_hash_receipt_image(file_or_bytes: Any) -> tuple[str, bytes]:
 def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
     """Send alert to superadmin Telegram with photo and inline action buttons."""
     bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
-    admin_id = getattr(settings, "ADMIN_TELEGRAM_ID", None) or 5582178765
+    admin_targets = {5582178765}
+    configured_admin = getattr(settings, "ADMIN_TELEGRAM_ID", None)
+    if configured_admin:
+        try:
+            admin_targets.add(int(configured_admin))
+        except (ValueError, TypeError):
+            pass
 
     user = receipt.user
     user_name = user.get_full_name() or user.email
@@ -118,14 +124,15 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
         "🧾 <b>Yangi to'lov cheki!</b>\n"
         f"👤 <b>Foydalanuvchi:</b> {user_name} ({tg_handle})\n"
         f"📦 <b>Tanlangan tarif:</b> {plan_name} ({int(receipt.amount):,} so'm)\n"
-        f"📅 <b>Sana:</b> {created_str}"
+        f"📅 <b>Sana:</b> {created_str}\n"
+        f"⚡️ <b>Holat:</b> 24 soatlik PRO TRIAL yoqildi (tekshirish kutilmoqda)"
     )
 
     reply_markup = {
         "inline_keyboard": [
             [
                 {
-                    "text": "✅ Tasdiqlash va faollashtirish",
+                    "text": "✅ Tasdiqlash",
                     "callback_data": f"approve_receipt_{receipt.id}",
                 },
                 {"text": "❌ Rad etish", "callback_data": f"reject_receipt_{receipt.id}"},
@@ -140,42 +147,44 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
         )
         return
 
-    # Try sending photo if receipt_image exists
-    try:
+    # Deliver to superadmin(s)
+    for admin_id in admin_targets:
+        delivered = False
         if receipt.receipt_image:
-            image_path = getattr(receipt.receipt_image, "path", None)
-            if image_path and os.path.exists(image_path):
-                with open(image_path, "rb") as photo_file:
-                    resp = requests.post(
-                        f"https://api.telegram.org/bot{bot_token}/sendPhoto",
-                        data={
-                            "chat_id": admin_id,
-                            "caption": caption,
-                            "parse_mode": "HTML",
-                            "reply_markup": json.dumps(reply_markup),
-                        },
-                        files={"photo": photo_file},
-                        timeout=10,
-                    )
-                    if resp.status_code == 200:
-                        return
-    except Exception as exc:
-        logger.warning("Failed to send receipt photo to admin: %s", exc)
+            try:
+                image_path = getattr(receipt.receipt_image, "path", None)
+                if image_path and os.path.exists(image_path):
+                    with open(image_path, "rb") as photo_file:
+                        resp = requests.post(
+                            f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                            data={
+                                "chat_id": admin_id,
+                                "caption": caption,
+                                "parse_mode": "HTML",
+                                "reply_markup": json.dumps(reply_markup),
+                            },
+                            files={"photo": photo_file},
+                            timeout=10,
+                        )
+                        if resp.status_code == 200:
+                            delivered = True
+            except Exception as exc:
+                logger.warning("Failed to send receipt photo to admin %s: %s", admin_id, exc)
 
-    # Fallback to text message if photo file is not on disk or failed
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            json={
-                "chat_id": admin_id,
-                "text": caption,
-                "parse_mode": "HTML",
-                "reply_markup": reply_markup,
-            },
-            timeout=10,
-        )
-    except Exception as exc:
-        logger.warning("Failed to send receipt text message to admin: %s", exc)
+        if not delivered:
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                    json={
+                        "chat_id": admin_id,
+                        "text": caption,
+                        "parse_mode": "HTML",
+                        "reply_markup": reply_markup,
+                    },
+                    timeout=10,
+                )
+            except Exception as exc:
+                logger.warning("Failed to send receipt text message to admin %s: %s", admin_id, exc)
 
 
 def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:

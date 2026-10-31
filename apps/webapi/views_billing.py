@@ -4,13 +4,32 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    parser_classes,
+    permission_classes,
+)
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 logger = logging.getLogger(__name__)
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """
+    SessionAuthentication that completely skips CSRF validation.
+    Used for mobile apps, SPAs, and file upload forms where JWT or session
+    credentials are sent without Django's default CSRF cookie header.
+    """
+
+    def enforce_csrf(self, request):
+        return
 
 from apps.payments.entitlements import (
     can_start_test,
@@ -205,7 +224,9 @@ def card_info_view(request):
     )
 
 
+@csrf_exempt
 @api_view(["POST"])
+@authentication_classes([JWTAuthentication, CsrfExemptSessionAuthentication])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def payment_receipt_upload_view(request):
@@ -295,7 +316,9 @@ def payment_receipt_upload_view(request):
     return Response(data, status=201)
 
 
+@csrf_exempt
 @api_view(["GET"])
+@authentication_classes([JWTAuthentication, CsrfExemptSessionAuthentication])
 @permission_classes([IsAuthenticated])
 def my_payment_receipts_view(request):
     """GET /api/v1/payments/my-receipts/ — User's uploaded payment receipts."""
@@ -303,7 +326,9 @@ def my_payment_receipts_view(request):
     return Response({"results": PaymentReceiptSerializer(receipts, many=True).data})
 
 
+@csrf_exempt
 @api_view(["POST"])
+@authentication_classes([JWTAuthentication, CsrfExemptSessionAuthentication])
 @permission_classes([IsAuthenticated])
 def receipt_review_view(request, receipt_id: int):
     """

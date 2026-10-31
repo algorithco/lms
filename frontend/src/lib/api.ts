@@ -92,11 +92,21 @@ export interface ApiError extends Error {
   detail: string;
 }
 
+export function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 /** Authenticated fetch with one automatic refresh-and-retry on 401. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const doFetch = async (access: string | null): Promise<Response> => {
     const headers = new Headers(init.headers);
     if (access) headers.set('Authorization', `Bearer ${access}`);
+    const csrfToken = getCsrfToken();
+    if (csrfToken && !headers.has('X-CSRFToken')) {
+      headers.set('X-CSRFToken', csrfToken);
+    }
     if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }

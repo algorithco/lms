@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.71. Rasmiy Versiya v1.80.0: Chek Yuklashda CSRF Xatosini Yo'qotish va Telegram Guruh Yordamchisi Boti (8.4.0-Bosqich)
+- [x] 1-Vazifa: Chek Yuklashda "CSRF Failed" Xatosini Zudlik Bilan Bartaraf Etish (`apps/webapi/views_billing.py`, `apps/payments/services.py`, `frontend/src/lib/api.ts`, `frontend/src/components/CardPaymentModal.tsx`):
+  * `CsrfExemptSessionAuthentication`: DRF sessiya tekshiruvidagi CSRF blokirovkasini to'liq bekor qiluvchi autentifikator yaratildi va `payment_receipt_upload_view`, `my_payment_receipts_view`, `receipt_review_view` ga ulandi.
+  * `api.ts`: `getCsrfToken()` orqali agar mavjud bo'lsa `X-CSRFToken` hamda `Authorization: Bearer <token>` sarlavhalari yuborilishi ta'minlandi.
+  * Chek yuklangach: 24 soatlik PRO TRIAL bir zumda yoqiladi (`grant_subscription`, `hours=24`, `is_trial=True`).
+  * Telegram Superadmin xabarnomasi: Superadmin ID si (`5582178765`) ga to'lov cheki rasmi, to'lov summasi, foydalanuvchi ma'lumoti va `[✅ Tasdiqlash]`, `[❌ Rad etish]` tugmalari to'g'ridan-to'g'ri yuboriladi.
+  * `CardPaymentModal.tsx`: Muvaffaqiyat xabari yangilandi: *"🎉 Chekingiz qabul qilindi! Admin tasdiqlaguncha 24 soatlik PRO TRIAL faollashtirildi."*
+- [x] 2-Vazifa: Grand Education Telegram Botini Guruhlar Uchun Raqamli Yordamchiga Aylantirish (`apps/courses/models.py`, `apps/notifications/bot/group_assistant.py`, `apps/notifications/bot/handlers.py`):
+  * `StudentGroup.telegram_chat_id`: Guruhlarni Telegram guruhlari bilan bog'lovchi yangi maydon va migratsiya (`0010_studentgroup_telegram_chat_id.py`).
+  * Guruhga qo'shilganda: `ChatMemberHandler` va `StatusUpdate.NEW_CHAT_MEMBERS` orqali bot guruhga salomlashish va `/link_group` ko'rsatmasini yuboradi.
+  * `/link_group <Guruh_Kodi>`: Ustoz guruhni platformadagi sinfiga bir zumda bog'laydi.
+  * `/davomat` va `/davomat_yakun`: Guruhda jonli interaktiv davomat sessiyasi ochilib, o'quvchilar `[ 🟢 Keldim / Darsdaman ]` tugmasini bosganda ro'yxat jonli yangilanadi. Yakunlangach, LMS `AttendanceSession` va `AttendanceRecord` ga to'liq qayd etiladi.
+  * `/yangi_test` va `/test`: Guruhga test nomi, vaqti, savollar soni, PIN-kodi va Mini App `[ 🚀 Testni Boshlash (Web App) ]` tugmasi bilan e'lon qilinadi.
+  * `/leaderboard` va `/reyting`: Guruh o'quvchilari natijalari (🥇, 🥈, 🥉), guruh o'rtacha foizi va eng ko'p xato qilingan mavzu tahlili bilan chiroyli chiqadi.
+  * `/ustoz`: Shaxsiy chatda ustoz kabineti, barcha guruhlar holati va boshqaruv menyusi.
+- [x] 3-Vazifa: Sinov va Sifat Nazorati:
+  * `python manage.py check`: 0 ta xato.
+  * `npm --prefix frontend run build`: 0 ta xato (3.22s).
+  * `pytest tests/test_billing_csrf_and_group_bot.py -v`: 5 ta test 100% PASS.
+  * Barcha daxlsizlik va zero-AI mualliflik talablari bajarildi.
+
 ### 2.70. Rasmiy Versiya v1.79.0: Bazadagi Eski Testlar va Guruhlarni Xavfsiz Tozalash (8.3.0-Bosqich)
 - [x] 1-Vazifa: Xavfsiz Tozalash Boshqaruv Buyrug'i (`apps/tests/management/commands/purge_tests_and_groups.py`):
   * Testlar va ularning bog'liq jadvallari: `StudentAnswer`, `GapResponse`, `MatchingResponse`, `AttemptSectionProgress`, `ExamWrittenBridge`, `Certificate`, `ResultSectionScore`, `Result`, `TestAttempt`, `Choice`, `GapBlank`, `MatchingPair`, `MatchingOption`, `MatchingPrompt`, `Question`, `ReadingPassage`, `ExamSection`, `ExamScoringProfile`, `Test`.
