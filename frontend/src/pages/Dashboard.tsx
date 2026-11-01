@@ -76,6 +76,7 @@ export default function Dashboard() {
 
   const toast = useToast();
   const [referralLink, setReferralLink] = useState('');
+  const [copiedReferral, setCopiedReferral] = useState(false);
 
   useEffect(() => {
     ReferralApi.getMyCode()
@@ -93,7 +94,9 @@ export default function Dashboard() {
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(activeReferralLink);
+    setCopiedReferral(true);
     toast.success("Taklif havolasi nusxalandi!");
+    setTimeout(() => setCopiedReferral(false), 2000);
   };
 
   const handleShareTelegram = () => {
@@ -698,33 +701,29 @@ export default function Dashboard() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: 16,
-          marginBottom: 24,
+          marginBottom: 20,
         }}
       >
         {/* Stat 1: Yechilgan testlar */}
         <div
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md"
+          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md flex flex-col justify-between"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '18px 20px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            minHeight: 135,
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted, #64748b)' }}>
                 {t('dashboard.metric_tests', 'Yechilgan testlar')}
               </span>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
                   background: 'rgba(56, 189, 248, 0.12)',
                   color: '#0284c7',
                   display: 'flex',
@@ -732,14 +731,19 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <FileTextIcon size={16} />
+                <FileTextIcon size={17} />
               </div>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-              {testsTakenVal} {t('dashboard.unit_item', 'ta')}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '6px 0 2px' }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+                {testsTakenVal}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                {t('dashboard.unit_item', 'ta')}
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#10b981', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
             {testsTakenVal > 0 ? (
               <>
                 <span>{stats?.total_passed ?? 0} {t('dashboard.passed_label', 'ta o‘tgan')}</span>
@@ -753,28 +757,24 @@ export default function Dashboard() {
 
         {/* Stat 2: Yozilgan esselar */}
         <div
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md"
+          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md flex flex-col justify-between"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '18px 20px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            minHeight: 135,
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted, #64748b)' }}>
                 {t('dashboard.metric_essays', 'Yozilgan esselar')}
               </span>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
                   background: 'rgba(168, 85, 247, 0.12)',
                   color: '#9333ea',
                   display: 'flex',
@@ -782,14 +782,19 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <PenLineIcon size={16} />
+                <PenLineIcon size={17} />
               </div>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-              {essaysCountVal} {t('dashboard.unit_item', 'ta')}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '6px 0 2px' }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+                {essaysCountVal}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                {t('dashboard.unit_item', 'ta')}
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#9333ea', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#9333ea', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
             {essaysCountVal > 0 ? (
               <>
                 <span>{t('dashboard.bmb_criteria', 'BMB 12 mezon')}</span>
@@ -803,28 +808,24 @@ export default function Dashboard() {
 
         {/* Stat 3: O'rtacha natija */}
         <div
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md"
+          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md flex flex-col justify-between"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '18px 20px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            minHeight: 135,
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted, #64748b)' }}>
                 {t('dashboard.metric_avg', 'O‘rtacha natija')}
               </span>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
                   background: 'rgba(245, 158, 11, 0.12)',
                   color: '#f59e0b',
                   display: 'flex',
@@ -832,17 +833,22 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <TrophyIcon size={16} />
+                <TrophyIcon size={17} />
               </div>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-              {avgVal}%
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, margin: '6px 0 2px' }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+                {avgVal}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                %
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
             {testsTakenVal > 0 ? (
               <>
-                <span>{avgVal >= 70 ? 'A / A+ daraja' : avgVal >= 50 ? 'B / B+ daraja' : 'Tayyorgarlik talab etiladi'}</span>
+                <span>{avgVal >= 70 ? 'A / A+ Yuqori daraja' : avgVal >= 50 ? 'B / B+ Yaxshi daraja' : 'Tayyorgarlik talab etiladi'}</span>
               </>
             ) : (
               <span style={{ color: 'var(--muted)' }}>Sinov natijasi yo‘q</span>
@@ -852,28 +858,24 @@ export default function Dashboard() {
 
         {/* Stat 4: Kundalik faollik (Streak) */}
         <div
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md"
+          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-all hover:shadow-md flex flex-col justify-between"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 18,
-            padding: '18px 20px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            minHeight: 135,
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted, #64748b)' }}>
                 {t('dashboard.metric_streak', 'Kundalik faollik')}
               </span>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
                   background: 'rgba(239, 68, 68, 0.12)',
                   color: '#ef4444',
                   display: 'flex',
@@ -881,14 +883,19 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <FlameIcon size={16} />
+                <FlameIcon size={17} />
               </div>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>
-              {streakDaysVal} {t('dashboard.unit_days', 'kun')}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '6px 0 2px' }}>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2 }}>
+                {streakDaysVal}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                {t('dashboard.unit_days', 'kun')}
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#ef4444', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#ef4444', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
             <span>{t('dashboard.streak_streak', 'Ketma-ket')} 🔥</span>
             <span style={{ color: 'var(--muted)' }}>· {streak?.xp_points ?? 0} XP</span>
           </div>
@@ -897,44 +904,44 @@ export default function Dashboard() {
 
       {/* 3.1 REFERAL VA MUKOFOT BLOKI (IXCHAM KARTA) */}
       <div className="w-full my-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0 shadow-sm">
             🎁
           </div>
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
               Do'stingizga 1 ta bepul test sovg'a qiling va bonus oling!
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Do'stingiz ro'yxatdan o'tsa unga +1 ta test/esse, sizga ham +1 ta rasmiy Mock Test beriladi.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-72">
             <input
               type="text"
               readOnly
-              value={referralLink || `https://grandec.uz/r/${user?.referral_code || 'join'}`}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 rounded-xl py-2 px-3 pr-8 focus:outline-none"
+              value={activeReferralLink}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 rounded-xl py-2.5 px-3.5 pr-9 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono shadow-inner"
             />
             <button
               type="button"
               onClick={handleCopyReferral}
               title="Nusxalash"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm transition-colors cursor-pointer"
             >
-              📋
+              {copiedReferral ? '✓' : '📋'}
             </button>
           </div>
           <button
             type="button"
             onClick={handleShareTelegram}
-            className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-colors shrink-0"
+            className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-sm hover:shadow cursor-pointer"
           >
             <span>✈️</span>
-            <span className="hidden sm:inline">Ulashish</span>
+            <span>Ulashish</span>
           </button>
         </div>
       </div>

@@ -2308,7 +2308,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
+                  className="mt-4 px-6 py-3 bg-[#24A1DE] hover:bg-[#208bbf] text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 cursor-pointer mx-auto"
                 >
                   <span>💬</span>
                   <span>Fikr bildirish</span>
@@ -2322,7 +2322,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-all cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#24A1DE] hover:bg-[#208bbf] text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer"
                 >
                   <span>💬</span>
                   <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { FeedbackApi, type FeedbackPayload } from '../lib/api';
 import { StarIcon, XIcon, CheckCircle2Icon, MessageSquareHeartIcon } from 'lucide-react';
@@ -19,6 +19,16 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -47,7 +57,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         setSubmitted(false);
         setMessage('');
         onClose();
-      }, 2200);
+      }, 2000);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Xatolik yuz berdi. Qayta urinib ko'ring.");
     } finally {
@@ -56,61 +66,92 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-2xl transition-all">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedback-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl transition-all"
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '440px',
+          borderRadius: '20px',
+          background: 'var(--card, #ffffff)',
+          border: '1px solid var(--border, rgba(148, 163, 184, 0.2))',
+          padding: '24px 26px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           title="Yopish"
         >
           <XIcon className="h-5 w-5" />
         </button>
 
         {submitted ? (
-          <div className="py-8 text-center space-y-4 animate-scale-up">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/30">
-              <CheckCircle2Icon className="h-9 w-9" />
+          <div className="py-6 text-center space-y-3 animate-scale-up">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+              <CheckCircle2Icon className="h-8 w-8" />
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
               Katta rahmat!
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 max-w-sm mx-auto">
-              Sizning fikringiz va taklifingiz GRAND EDUCATION platformasini yanada mukammal qilishga yordam beradi.
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xs mx-auto leading-relaxed">
+              Sizning fikringiz GRAND EDUCATION platformasini yanada mukammal qilishga yordam beradi.
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Header */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30 shrink-0">
+            <div className="flex items-center gap-3 pr-8">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30 shrink-0">
                 <MessageSquareHeartIcon className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                <h3 id="feedback-modal-title" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
                   Fikr yoki taklif qoldirish
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Platformamizni yaxshilash bo'yicha fikr va bahoingizni ulashing
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Platformani yaxshilash bo'yicha fikringizni ulashing
                 </p>
               </div>
             </div>
 
             {/* Error banner */}
             {err && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs font-medium">
                 {err}
               </div>
             )}
 
-            {/* 1. Star Rating */}
-            <div className="text-center py-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                Platforma bahosi:
-              </label>
-              <div className="flex items-center justify-center gap-1.5">
+            {/* 1. Star Rating with Golden Hover */}
+            <div className="text-center py-2.5 px-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/80">
+              <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+                Bahongizni belgilang:
+              </span>
+              <div className="flex items-center justify-center gap-2">
                 {[1, 2, 3, 4, 5].map((star) => {
                   const activeStar = (hoverRating !== null ? hoverRating : rating) >= star;
                   return (
@@ -120,51 +161,52 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(null)}
                       onClick={() => setRating(star)}
-                      className="p-1 text-2xl transition-transform hover:scale-125 focus:outline-none"
+                      className="p-1 transition-transform hover:scale-125 focus:outline-none cursor-pointer"
+                      title={`${star} ball`}
                     >
                       <StarIcon
-                        className={`h-7 w-7 transition-colors ${
+                        className={`h-6 w-6 transition-all duration-150 ${
                           activeStar
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)]'
-                            : 'text-slate-300 dark:text-slate-600'
+                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_8px_rgba(251,191,36,0.6)]'
+                            : 'text-slate-300 dark:text-slate-700 hover:text-amber-300'
                         }`}
                       />
                     </button>
                   );
                 })}
               </div>
-              <span className="text-xs font-semibold text-amber-500 dark:text-amber-400 mt-1 inline-block">
+              <span className="text-xs font-bold text-amber-500 dark:text-amber-400 mt-1 inline-block">
                 {rating === 5
-                  ? 'Ajoyib! (5/5)'
+                  ? 'Ajoyib! (5/5) ⭐'
                   : rating === 4
-                  ? 'Yaxshi (4/5)'
+                  ? 'Yaxshi (4/5) 👍'
                   : rating === 3
-                  ? 'O\'rtacha (3/5)'
+                  ? 'O\'rtacha (3/5) 👌'
                   : rating === 2
-                  ? 'Kamchiliklar bor (2/5)'
-                  : 'Qoniqarsiz (1/5)'}
+                  ? 'Kamchiliklar bor (2/5) ⚠️'
+                  : 'Qoniqarsiz (1/5) ❌'}
               </span>
             </div>
 
-            {/* 2. Category Selector */}
+            {/* 2. Category Selector (Pills) */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Xabar turi:
+                Kategoriya:
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'feedback', label: '💬 Fikr' },
                   { id: 'suggestion', label: '💡 Taklif' },
-                  { id: 'bug', label: '🐛 Xatolik' },
+                  { id: 'bug', label: '🚨 Xatolik' },
                   { id: 'praise', label: '❤️ Tashakkur' },
                 ].map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setCategory(item.id as any)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center ${
+                    className={`py-1.5 px-3.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
                       category === item.id
-                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm shadow-amber-500/25'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                     }`}
                   >
@@ -180,59 +222,59 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                 Xabaringiz / Fikringiz:
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 required
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Platforma bo'yicha qanday taklifingiz yoki savolingiz bor? Batafsil yozing..."
-                className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed resize-none"
+                placeholder="Platforma bo'yicha fikr, savol yoki taklifingizni qoldiring..."
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 p-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 leading-relaxed resize-none transition-all"
               />
             </div>
 
-            {/* 4. Optional Guest Name / Phone if not logged in */}
+            {/* 4. Guest info if not logged in */}
             {!user && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Ismingiz (ixtiyoriy):
+                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Ismingiz:
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Masalan: Sardor"
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Sardor"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Telefon raqam (ixtiyoriy):
+                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Telefon raqam:
                   </label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+998 90 123 45 67"
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="+998 90..."
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
                   />
                 </div>
               </div>
             )}
 
-            {/* Submit & Cancel */}
-            <div className="flex items-center justify-end gap-3 pt-2">
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
               >
                 Bekor qilish
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 disabled:opacity-50 transition-all cursor-pointer"
+                className="flex-2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-amber-500/25 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
                 {submitting ? "Yuborilmoqda..." : "Yuborish 🚀"}
               </button>
