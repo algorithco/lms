@@ -1663,6 +1663,7 @@ export default function TakeTest() {
               raschGrade={result.rasch_grade}
               bmbGrade={result.bmb_grade}
               courseTitle={attempt?.test_title}
+              subject={(attempt as any)?.subject || ((attempt?.test_title || '').toLowerCase().includes('english') || (attempt?.test_title || '').toLowerCase().includes('cefr') || (attempt?.test_title || '').toLowerCase().includes('ielts') ? 'english' : 'uzbek')}
               attemptId={attemptId}
               onRetest={async () => {
                 try {

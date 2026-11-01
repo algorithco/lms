@@ -383,7 +383,7 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content pb-28 md:pb-8">
+        <main className="content pt-3 sm:pt-4 md:pt-6 pb-28 md:pb-8">
           <Outlet />
         </main>
       </div>

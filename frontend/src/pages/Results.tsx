@@ -483,6 +483,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
     return {
       id: qd.question_id,
       question_text: qd.question_text,
+      topic: (qd as any).topic || (qd as any).section_name || undefined,
       points: qd.current_rasch_weight ?? qd.points ?? 2,
       is_correct: qd.is_correct,
       selected_choice_text: isWrong ? studentAnswerDisplay : undefined,
@@ -521,6 +522,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
         raschGrade={detail.rasch_grade}
         bmbGrade={detail.bmb_grade || bmb.grade}
         courseTitle={detail.test_title}
+        subject={(detail as any).test_subject || ((detail.test_title || '').toLowerCase().includes('english') || (detail.test_title || '').toLowerCase().includes('cefr') || (detail.test_title || '').toLowerCase().includes('ielts') ? 'english' : 'uzbek')}
         attemptId={String((detail as any).attempt_id || detail.id)}
         questions={mappedQuestions}
         onRetest={handleStartRetest}

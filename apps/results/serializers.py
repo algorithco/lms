@@ -29,6 +29,8 @@ class ResultListSerializer(serializers.ModelSerializer):
     )
     test_title = serializers.CharField(source="test.title", read_only=True)
     course_title = serializers.CharField(source="course.title", read_only=True)
+    test_subject = serializers.CharField(source="test.subject", read_only=True, default="uzbek")
+    exam_type = serializers.CharField(source="test.exam_type", read_only=True, default="general")
     student_name = serializers.SerializerMethodField()
     certificate_status = serializers.SerializerMethodField()
     bmb_grade = serializers.CharField(read_only=True)
@@ -41,6 +43,8 @@ class ResultListSerializer(serializers.ModelSerializer):
             "attempt_id",
             "test",
             "test_title",
+            "test_subject",
+            "exam_type",
             "course",
             "course_title",
             "student_name",
@@ -157,6 +161,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
         return certificate_status(obj)
 
     def get_question_details(self, obj: Result) -> list[dict[str, Any]]:
+        from apps.tests.ai_tutor import _detect_question_topic
         """
         Har bir savol uchun batafsil ma'lumot:
         - Savol matni
@@ -290,9 +295,21 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                         "word_count": answer.written_word_count,
                     }
 
+            sec_code = getattr(q.section, "code", "") if q.section else ""
+            sec_name = getattr(q.section, "name", "") if q.section else ""
+            q_topic = _detect_question_topic(
+                q.text,
+                q.explanation or "",
+                subject=getattr(obj.test, "subject", "uzbek"),
+                section_code=sec_code,
+                section_name=sec_name,
+            )
             result.append(
                 {
                     "question_id": q.id,
+                    "section_name": sec_name,
+                    "section_code": sec_code,
+                    "topic": q_topic,
                     "question_text": q.text,
                     "question_type": q.question_type,
                     "points": q.points,

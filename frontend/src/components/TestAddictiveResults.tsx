@@ -29,6 +29,7 @@ export interface AddictiveResultProps {
   raschGrade?: string | null;
   bmbGrade?: string | null;
   courseTitle?: string;
+  subject?: string;
   attemptId?: string | number;
   questions?: QuestionReviewItem[];
   onRetest?: () => void;
@@ -45,6 +46,7 @@ export default function TestAddictiveResults({
   raschGrade,
   bmbGrade,
   courseTitle,
+  subject,
   attemptId,
   questions = [],
   onRetest,
@@ -57,6 +59,14 @@ export default function TestAddictiveResults({
   const [showScoreCard, setShowScoreCard] = useState(false);
 
   const pct = Math.round(percentage);
+
+  const isEnglish =
+    subject === 'english' ||
+    (courseTitle && (
+      courseTitle.toLowerCase().includes('english') ||
+      courseTitle.toLowerCase().includes('ielts') ||
+      courseTitle.toLowerCase().includes('cefr')
+    ));
 
   // Dynamic Score Hero Gradient
   const heroGradient =
@@ -81,7 +91,14 @@ export default function TestAddictiveResults({
   const topicStats: Record<string, { correct: number; total: number }> = {};
   if (questions.length > 0) {
     questions.forEach((q, idx) => {
-      const topicName = q.topic || (idx < 15 ? 'Grammatika va Morfologiya' : idx < 30 ? 'Matn tushunish va Leksika' : 'Mumtoz va Zamonaviy Adabiyot');
+      let topicName = q.topic;
+      if (!topicName) {
+        if (isEnglish) {
+          topicName = idx < 10 ? 'Listening' : idx < 25 ? 'Reading Comprehension' : idx < 35 ? 'Grammar & Structure' : 'Vocabulary & Lexis';
+        } else {
+          topicName = idx < 15 ? 'Grammatika va Morfologiya' : idx < 30 ? 'Matn tushunish va Leksika' : 'Mumtoz va Zamonaviy Adabiyot';
+        }
+      }
       if (!topicStats[topicName]) {
         topicStats[topicName] = { correct: 0, total: 0 };
       }
@@ -92,18 +109,33 @@ export default function TestAddictiveResults({
     });
   } else {
     // Fallback topic distribution if question details not passed
-    topicStats['Grammatika va Morfologiya'] = {
-      correct: Math.round(correctCount * 0.4),
-      total: Math.max(1, Math.round((correctCount + wrongCount) * 0.4)),
-    };
-    topicStats['Leksika va Ma\'nodosh so\'zlar'] = {
-      correct: Math.round(correctCount * 0.3),
-      total: Math.max(1, Math.round((correctCount + wrongCount) * 0.3)),
-    };
-    topicStats['Adabiyot va Badiiy tahlil'] = {
-      correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
-      total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
-    };
+    if (isEnglish) {
+      topicStats['Listening'] = {
+        correct: Math.round(correctCount * 0.35),
+        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.35)),
+      };
+      topicStats['Reading Comprehension'] = {
+        correct: Math.round(correctCount * 0.35),
+        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.35)),
+      };
+      topicStats['Grammar & Structure'] = {
+        correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
+        total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
+      };
+    } else {
+      topicStats['Grammatika va Morfologiya'] = {
+        correct: Math.round(correctCount * 0.4),
+        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.4)),
+      };
+      topicStats['Leksika va Ma\'nodosh so\'zlar'] = {
+        correct: Math.round(correctCount * 0.3),
+        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.3)),
+      };
+      topicStats['Adabiyot va Badiiy tahlil'] = {
+        correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
+        total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
+      };
+    }
   }
 
   // Find lowest performing topic for AI recommendation

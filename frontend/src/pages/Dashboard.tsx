@@ -183,9 +183,10 @@ export default function Dashboard() {
   const essaysCountVal = stats?.total_essays_submitted ?? 0;
 
   const userDisplayName = user?.full_name || 'Hurmatli O‘quvchi';
+  const isEnglishSubject = user?.active_subject === 'english' || (typeof window !== 'undefined' && localStorage.getItem('lms_subject') === 'english');
 
   return (
-    <div className="dash-container" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
+    <div className="dash-container pt-2 md:pt-4" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
       {/* 1. YUQORI SARLAVHA (HEADER) */}
       <header
         style={{
@@ -237,7 +238,7 @@ export default function Dashboard() {
                 fontSize: 12,
               }}
             >
-              <span>👑 Tizim Administratori (Root Access)</span>
+              <span>{t('dashboard.admin_badge', '👑 Tizim Administratori (Root Access)')}</span>
             </div>
           ) : user?.is_paid && user?.plan && user?.plan.toUpperCase() !== 'FREE' ? (
             <div
@@ -364,9 +365,9 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>⏳</span>
             <div>
-              <strong style={{ color: '#fbbf24', fontSize: 13 }}>To‘lov kvitansiyasi tekshirilmoqda</strong>
+              <strong style={{ color: '#fbbf24', fontSize: 13 }}>{t('dashboard.pending_receipt_title', 'To‘lov kvitansiyasi tekshirilmoqda')}</strong>
               <p style={{ margin: 0, fontSize: 11, color: '#fde68a' }}>
-                {pendingReceipt.plan.toUpperCase()} tarifi tasdiqlanishi kutilmoqda.
+                {pendingReceipt.plan.toUpperCase()} {t('dashboard.pending_receipt_desc', 'tarifi tasdiqlanishi kutilmoqda.')}
               </p>
             </div>
           </div>
@@ -382,7 +383,7 @@ export default function Dashboard() {
               textDecoration: 'none',
             }}
           >
-            Holatni ko‘rish
+            {t('dashboard.view_status', 'Holatni ko‘rish')}
           </Link>
         </div>
       )}
@@ -747,10 +748,10 @@ export default function Dashboard() {
             {testsTakenVal > 0 ? (
               <>
                 <span>{stats?.total_passed ?? 0} {t('dashboard.passed_label', 'ta o‘tgan')}</span>
-                <span style={{ color: 'var(--muted)' }}>· {testsTakenVal - (stats?.total_passed ?? 0)} ta o'tmagan</span>
+                <span style={{ color: 'var(--muted)' }}>· {testsTakenVal - (stats?.total_passed ?? 0)} {t('dashboard.failed_label', "ta o'tmagan")}</span>
               </>
             ) : (
-              <span style={{ color: 'var(--muted)' }}>Hali test topshirilmagan</span>
+              <span style={{ color: 'var(--muted)' }}>{t('dashboard.no_tests_yet', 'Hali test topshirilmagan')}</span>
             )}
           </div>
         </div>
@@ -798,10 +799,10 @@ export default function Dashboard() {
             {essaysCountVal > 0 ? (
               <>
                 <span>{t('dashboard.bmb_criteria', 'BMB 12 mezon')}</span>
-                <span style={{ color: 'var(--muted)' }}>· AI tahlili</span>
+                <span style={{ color: 'var(--muted)' }}>· {t('dashboard.ai_analysis', 'AI tahlili')}</span>
               </>
             ) : (
-              <span style={{ color: 'var(--muted)' }}>Hali esse yozilmagan</span>
+              <span style={{ color: 'var(--muted)' }}>{t('dashboard.no_essays_yet', 'Hali esse yozilmagan')}</span>
             )}
           </div>
         </div>
@@ -848,10 +849,10 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap', marginTop: 4 }}>
             {testsTakenVal > 0 ? (
               <>
-                <span>{avgVal >= 70 ? 'A / A+ Yuqori daraja' : avgVal >= 50 ? 'B / B+ Yaxshi daraja' : 'Tayyorgarlik talab etiladi'}</span>
+                <span>{avgVal >= 70 ? t('dashboard.high_score', 'A / A+ Yuqori daraja') : avgVal >= 50 ? t('dashboard.good_score', 'B / B+ Yaxshi daraja') : t('dashboard.needs_prep', 'Tayyorgarlik talab etiladi')}</span>
               </>
             ) : (
-              <span style={{ color: 'var(--muted)' }}>Sinov natijasi yo‘q</span>
+              <span style={{ color: 'var(--muted)' }}>{t('dashboard.no_result_yet', 'Sinov natijasi yo‘q')}</span>
             )}
           </div>
         </div>
@@ -910,10 +911,10 @@ export default function Dashboard() {
           </div>
           <div>
             <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
-              Do'stingizga 1 ta bepul test sovg'a qiling va bonus oling!
+              {t('dashboard.referral_title', "Do'stingizga 1 ta bepul test sovg'a qiling va bonus oling!")}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Do'stingiz ro'yxatdan o'tsa unga +1 ta test/esse, sizga ham +1 ta rasmiy Mock Test beriladi.
+              {t('dashboard.referral_desc', "Do'stingiz ro'yxatdan o'tsa unga +1 ta test/esse, sizga ham +1 ta rasmiy Mock Test beriladi.")}
             </p>
           </div>
         </div>
@@ -929,7 +930,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={handleCopyReferral}
-              title="Nusxalash"
+              title={t('dashboard.referral_copy', 'Nusxalash')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm transition-colors cursor-pointer"
             >
               {copiedReferral ? '✓' : '📋'}
@@ -941,7 +942,7 @@ export default function Dashboard() {
             className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-sm hover:shadow cursor-pointer"
           >
             <span>✈️</span>
-            <span>Ulashish</span>
+            <span>{t('dashboard.referral_share', 'Ulashish')}</span>
           </button>
         </div>
       </div>
@@ -1040,7 +1041,7 @@ export default function Dashboard() {
                           {test.title}
                         </strong>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
-                          <span>{t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
+                          <span>{isEnglishSubject ? 'Ingliz tili (CEFR / IELTS)' : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                           <span>•</span>
                           <span>{num(test.total_questions, 0)} {t('dashboard.unit_questions', 'ta savol')}</span>
                           {test.time_limit_minutes && (
@@ -1096,11 +1097,15 @@ export default function Dashboard() {
                 );
               })
             ) : (
-              [
+              (isEnglishSubject ? [
+                { id: 'mock-1', title: 'CEFR Multi-Level Mock Exam #1 (Full Exam)', q: '75 questions', progress: 0 },
+                { id: 'mock-2', title: 'IELTS Academic Reading & Listening Practice', q: '40 questions', progress: 0 },
+                { id: 'mock-3', title: 'English Grammar & Advanced Vocabulary Diagnostic', q: '30 questions', progress: 0 },
+              ] : [
                 { id: 'mock-1', title: 'BMB Milliy Sertifikat 2026 — Variant #1', q: '35 ta savol', progress: 80 },
                 { id: 'mock-2', title: 'Morfologiya va Fonetika Chuqur Diagnostikasi', q: '25 ta savol', progress: 45 },
                 { id: 'mock-3', title: 'Mumtoz Adabiyot va Matn Tahlili Sinovi', q: '30 ta savol', progress: 0 },
-              ].map((item) => (
+              ]).map((item) => (
                 <div
                   key={item.id}
                   style={{
@@ -1119,7 +1124,7 @@ export default function Dashboard() {
                         {item.title}
                       </strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
-                        <span>{t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
+                        <span>{isEnglishSubject ? 'Ingliz tili (CEFR / IELTS)' : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                         <span>•</span>
                         <span>{item.q}</span>
                       </div>
@@ -1222,11 +1227,13 @@ export default function Dashboard() {
               {t('dashboard.today_topic_tag', 'Bugungi tavsiya etilgan mavzu')}
             </span>
             <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '4px 0 10px', lineHeight: 1.4 }}>
-              {t('dashboard.today_topic_title', 'Alisher Navoiy “Xamsa” dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin').replace(/^["“«\s]+|["”»\s]+$/g, '')}
+              {isEnglishSubject
+                ? 'Some people believe that university education should be free for everyone. Discuss both views and give your opinion.'
+                : t('dashboard.today_topic_title', 'Alisher Navoiy “Xamsa” dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin').replace(/^["“«\s]+|["”»\s]+$/g, '')}
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {t('dashboard.today_topic_meta', 'BMB 12 mezon · 50 ball')}
+                {isEnglishSubject ? 'IELTS Task 2 · Band 9.0 Rubric' : t('dashboard.today_topic_meta', 'BMB 12 mezon · 50 ball')}
               </span>
               <Link
                 to="/essays"
@@ -1256,7 +1263,20 @@ export default function Dashboard() {
           </h4>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
+            {(isEnglishSubject ? [
+              {
+                title: "Discuss the advantages and disadvantages of artificial intelligence in education",
+                score: 'Band 7.5',
+                grade: 'CEFR C1',
+                date: t('dashboard.yesterday', 'Kecha'),
+              },
+              {
+                title: "Should governments invest more in public transportation or road infrastructure?",
+                score: 'Band 7.0',
+                grade: 'CEFR B2',
+                date: t('dashboard.days_ago', '3 kun oldin'),
+              },
+            ] : [
               {
                 title: "Abdulla Qodiriyning 'O‘tkan kunlar' romanida milliy xarakter",
                 score: '56 / 60',
@@ -1269,7 +1289,7 @@ export default function Dashboard() {
                 grade: 'A Daraja',
                 date: t('dashboard.days_ago', '3 kun oldin'),
               },
-            ].map((eItem, i) => (
+            ]).map((eItem, i) => (
               <div
                 key={i}
                 style={{
@@ -1327,10 +1347,10 @@ export default function Dashboard() {
         >
           <div>
             <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 3px', color: 'var(--ink)' }}>
-              Milliy Sertifikat Maqsadiga Erishish (Path to Excellence)
+              {t('dashboard.path_title', 'Milliy Sertifikat Maqsadiga Erishish (Path to Excellence)')}
             </h3>
             <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>
-              Umumiy tayyorgarlik darajangiz va navbatdagi maqsadga erishish bosqichlari.
+              {t('dashboard.path_subtitle', 'Umumiy tayyorgarlik darajangiz va navbatdagi maqsadga erishish bosqichlari.')}
             </p>
           </div>
           <div
@@ -1344,14 +1364,14 @@ export default function Dashboard() {
               fontSize: 12,
             }}
           >
-            Maqsad: A+ Sertifikat (70 ball)
+            {t('dashboard.target_badge', 'Maqsad: A+ Sertifikat (70 ball)')}
           </div>
         </div>
 
         {/* Big Progress Bar */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 5 }}>
-            <span style={{ color: 'var(--ink)' }}>Joriy tayyorgarlik ko‘rsatkichi</span>
+            <span style={{ color: 'var(--ink)' }}>{t('dashboard.readiness_indicator', 'Joriy tayyorgarlik ko‘rsatkichi')}</span>
             <span style={{ color: '#10b981' }}>72%</span>
           </div>
           <div
@@ -1390,8 +1410,8 @@ export default function Dashboard() {
           >
             <div style={{ color: '#10b981', flexShrink: 0 }}><CheckCircle2 size={18} /></div>
             <div>
-              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>1. Boshlang‘ich Diagnostika</strong>
-              <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Topshirildi (88% natija)</span>
+              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>{t('dashboard.step1_title', '1. Boshlang‘ich Diagnostika')}</strong>
+              <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>{t('dashboard.step1_desc', 'Topshirildi (88% natija)')}</span>
             </div>
           </div>
 
@@ -1408,8 +1428,8 @@ export default function Dashboard() {
           >
             <div style={{ color: '#f59e0b', flexShrink: 0 }}><ZapIcon size={18} /></div>
             <div>
-              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>2. 12 Mezonli Esse & Mashq</strong>
-              <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>Faol jarayonda (72%)</span>
+              <strong style={{ fontSize: 12, color: 'var(--ink)', display: 'block' }}>{t('dashboard.step2_title', '2. 12 Mezonli Esse & Mashq')}</strong>
+              <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>{t('dashboard.step2_desc', 'Faol jarayonda (72%)')}</span>
             </div>
           </div>
 
@@ -1426,8 +1446,8 @@ export default function Dashboard() {
           >
             <div style={{ color: 'var(--muted)', flexShrink: 0 }}><BookOpenIcon size={18} /></div>
             <div>
-              <strong style={{ fontSize: 12, color: 'var(--muted)', display: 'block' }}>3. Rasmiy BMB Mock Imtihon</strong>
-              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Kutilmoqda (Navbatdagi sinov)</span>
+              <strong style={{ fontSize: 12, color: 'var(--muted)', display: 'block' }}>{t('dashboard.step3_title', '3. Rasmiy BMB Mock Imtihon')}</strong>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>{t('dashboard.step3_desc', 'Kutilmoqda (Navbatdagi sinov)')}</span>
             </div>
           </div>
         </div>

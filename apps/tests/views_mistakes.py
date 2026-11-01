@@ -86,7 +86,15 @@ class GenerateRetestView(APIView):
         orig_test = attempt.test
         weak_topics = set()
         for q in wrong_questions:
-            t = _detect_question_topic(q.text, q.explanation)
+            test_sub = getattr(orig_test, 'subject', 'uzbek') if orig_test else 'uzbek'
+            q_sec = getattr(q, 'section', None)
+            t = _detect_question_topic(
+                q.text,
+                q.explanation,
+                subject=test_sub,
+                section_code=getattr(q_sec, 'code', '') if q_sec else '',
+                section_name=getattr(q_sec, 'name', '') if q_sec else '',
+            )
             weak_topics.add(t)
 
         # Savollar ro'yxatini shakllantirish (kamida 5 ta bo'lishi uchun tegishli mavzulardan qo'shimcha savollar)
@@ -187,7 +195,15 @@ class MistakeVaultView(APIView):
             if not a.question or a.question.id in seen_q:
                 continue
             seen_q.add(a.question.id)
-            topic = _detect_question_topic(a.question.text, a.question.explanation)
+            test_sub = getattr(a.attempt.test, 'subject', 'uzbek') if (a.attempt and a.attempt.test) else 'uzbek'
+            q_sec = getattr(a.question, 'section', None)
+            topic = _detect_question_topic(
+                a.question.text,
+                a.question.explanation,
+                subject=test_sub,
+                section_code=getattr(q_sec, 'code', '') if q_sec else '',
+                section_name=getattr(q_sec, 'name', '') if q_sec else '',
+            )
             topic_counts[topic] = topic_counts.get(topic, 0) + 1
 
             correct_choice = a.question.choices.filter(is_correct=True).first()

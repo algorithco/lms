@@ -143,8 +143,76 @@ TOPIC_KEYWORDS = {
 }
 
 
-def _detect_question_topic(question_text: str, explanation: str = "") -> str:
-    """Savol matni va izohiga qarab mavzuni aniqlaydi."""
+# Ingliz tili (CEFR Multi-Level & IELTS) bo'yicha rasmiy mavzular kalit so'zlari
+ENGLISH_TOPIC_KEYWORDS = {
+    "Listening": [
+        "listen", "audio", "speaker", "conversation", "dialogue",
+        "recording", "hear", "announcement", "interview", "accent", "monologue"
+    ],
+    "Reading Comprehension": [
+        "passage", "text", "paragraph", "author", "according to the text",
+        "mention", "reading", "heading", "true", "false", "not given",
+        "statement", "summary"
+    ],
+    "Grammar & Structure": [
+        "tense", "verb", "preposition", "clause", "passive", "active",
+        "modal", "conditional", "infinitive", "gerund", "noun", "pronoun",
+        "adjective", "adverb", "conjunction", "relative", "syntax"
+    ],
+    "Vocabulary & Lexis": [
+        "synonym", "antonym", "definition", "word", "meaning", "phrase",
+        "idiom", "collocation", "context", "vocabulary", "lexical"
+    ],
+    "Writing & Coherence": [
+        "essay", "task 1", "task 2", "cohesion", "coherence",
+        "overview", "introduction", "conclusion", "linking", "paragraphing"
+    ],
+}
+
+
+def _detect_question_topic(
+    question_text: str,
+    explanation: str = "",
+    subject: str = "uzbek",
+    section_code: str = "",
+    section_name: str = "",
+) -> str:
+    """Savol matni, izohi va bo'limiga qarab mavzuni aniqlaydi."""
+    is_eng = (
+        subject == "english"
+        or "english" in str(subject).lower()
+        or "ielts" in str(subject).lower()
+        or "cefr" in str(subject).lower()
+    )
+
+    if is_eng:
+        sec_str = f"{section_code} {section_name}".upper()
+        if "LISTEN" in sec_str:
+            return "Listening"
+        if "READ" in sec_str:
+            return "Reading Comprehension"
+        if "WRIT" in sec_str:
+            return "Writing & Coherence"
+        if "LANG" in sec_str or "GRAM" in sec_str:
+            return "Grammar & Structure"
+
+        combined = f"{question_text} {explanation}".lower()
+        scores: dict[str, int] = {}
+        for topic, words in ENGLISH_TOPIC_KEYWORDS.items():
+            score = sum(1 for w in words if w in combined)
+            if score > 0:
+                scores[topic] = score
+
+        if scores:
+            return max(scores.items(), key=lambda x: x[1])[0]
+
+        if "listen" in combined or "audio" in combined:
+            return "Listening"
+        if "passage" in combined or "paragraph" in combined:
+            return "Reading Comprehension"
+        return "Grammar & Structure"
+
+    # Default: Uzbek Ona tili va adabiyot
     combined = f"{question_text} {explanation}".lower()
     scores: dict[str, int] = {}
     for topic, words in TOPIC_KEYWORDS.items():
@@ -154,7 +222,7 @@ def _detect_question_topic(question_text: str, explanation: str = "") -> str:
 
     if scores:
         return max(scores.items(), key=lambda x: x[1])[0]
-    return "Umumiy ona tili va adabiyot qoidalari"
+    return "Umumiy ona tili va adabiyot qoidalari" 
 
 
 def get_result_diagnostics(result_id: int) -> dict[str, Any]:
@@ -274,7 +342,7 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
     return diagnostics
 
 
-def _get_topic_advice(topic: str) -> str:
+def _get_topic_advice(topic: str, subject: str = "uzbek") -> str:
     """Mavzu bo'yicha tezkor repetitor maslahati."""
     advice_map = {
         "Fonetika va imlo": "Qo'sh unlilar, tuturuq belgisi va jarangli/jarangsiz undoshlar imlosiga oid qoidalarni 5-sinf darsligidan takrorlang.",
@@ -284,7 +352,26 @@ def _get_topic_advice(topic: str) -> str:
         "Mumtoz adabiyot": "Alisher Navoiy 'Xamsa' dostonlari va g'azallari, aruz vazni turlari (hazaj, ramal) hamda mumtoz san'atlarni o'rganing.",
         "Jadid va zamonaviy adabiyot": "Abdulla Qodiriy va Cho'lpon asarlarining yaratilish tarixi, bosh qahramonlari tahliliga e'tibor qarating.",
         "Matn tahlili va uslubiyat": "Matnni diqqat bilan o'qib, muallif g'oyasi va kalit so'zlarni ajratish malakasini oshiring.",
+        # English topics
+        "Listening": "Ingliz tilidagi audio va suhbatlarni (BBC 6 Minute English, IELTS Listening) muntazam tinglab, asosiy kalit so'zlarni ilg'ash malakasini oshiring.",
+        "Reading Comprehension": "Akademik matnlarni Skimming va Scanning usullarida tez o'qib, kalit g'oyani va muallif pozitsiyasini topish ustida ishlang.",
+        "Grammar & Structure": "Murakkab zamon shakllari, conditionals, passive voice va gap tuzilishi qoidalarini darslikdan qayta mustahkamlang.",
+        "Vocabulary & Lexis": "Akademik so'zlar ro'yxati (AWL), sinonimlar va turg'un iboralarni (collocations) kontekstda yod olishga ko'proq vaqt ajrating.",
+        "Writing & Coherence": "Paragraphing, linking words (transitions) va mavzuga aniq dalillar keltirish orqali yozma ish strukturasini mustahkamlang.",
+        "English Examination": "CEFR va IELTS imtihon ko'nikmalarini oshirish uchun har kuni testlar va xatolar ustida muntazam ishlang.",
     }
+    if subject == "english" or topic in [
+        "Listening",
+        "Reading Comprehension",
+        "Grammar & Structure",
+        "Vocabulary & Lexis",
+        "Writing & Coherence",
+        "English Examination",
+    ]:
+        return advice_map.get(
+            topic,
+            "Ingliz tili ko'nikmalaringizni oshirish uchun ushbu bo'limdagi amaliy mashqlarni ko'proq bajaring.",
+        )
     return advice_map.get(
         topic, "Ushbu mavzu bo'yicha darslik va amaliy mashqlarni bajaring."
     )
@@ -307,7 +394,7 @@ def explain_question_mistake(
         return cached
 
     question = (
-        Question.objects.filter(id=question_id).prefetch_related("choices").first()
+        Question.objects.filter(id=question_id).select_related("test", "section").prefetch_related("choices").first()
     )
     if not question:
         return {"error": "Savol topilmadi."}
@@ -358,9 +445,18 @@ def explain_question_mistake(
             passage_text=passage_text,
             question_explanation=question.explanation or "",
         )
+        sec_code = getattr(question.section, "code", "") if getattr(question, "section", None) else ""
+        sec_name = getattr(question.section, "name", "") if getattr(question, "section", None) else ""
+        eng_topic = _detect_question_topic(
+            question.text,
+            question.explanation or "",
+            subject="english",
+            section_code=sec_code,
+            section_name=sec_name,
+        )
         explanation_data = {
             "question_id": question.id,
-            "topic": "English Examination",
+            "topic": eng_topic,
             "question_text": question.text,
             "selected_answer": selected_text,
             "correct_answer": correct_text,
