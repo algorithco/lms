@@ -37,6 +37,11 @@ urlpatterns = [
         name="webapi-teacher-attempt-details",
     ),
     path(
+        "teacher/attempts/<int:attempt_id>/update-score/",
+        views_teacher_inspector.TeacherUpdateAttemptScoreView.as_view(),
+        name="webapi-teacher-attempt-update-score",
+    ),
+    path(
         "tests/<int:test_id>/analytics/",
         views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
         name="webapi-test-analytics",
@@ -45,6 +50,11 @@ urlpatterns = [
         "tests/attempts/<int:attempt_id>/details/",
         views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
         name="webapi-attempt-details",
+    ),
+    path(
+        "tests/attempts/<int:attempt_id>/update-score/",
+        views_teacher_inspector.TeacherUpdateAttemptScoreView.as_view(),
+        name="webapi-attempt-update-score",
     ),
     path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
     path("feedback/public/", views_feedback.PublicFeedbackListView.as_view(), name="public-feedback-list"),

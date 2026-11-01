@@ -95,6 +95,12 @@ def process_test_result_task(
         except Exception:
             logger.exception("Parent alert dispatch error for result_id=%s", result_id)
 
+        # -- Step 5: Guruhga avtomatik natija va PDF vedomost yuborish ------
+        try:
+            _send_group_result_and_vedomost(result)
+        except Exception:
+            logger.exception("Group result broadcasting error for result_id=%s", result_id)
+
         return {
             "status": "completed",
             "result_id": result_id,
@@ -306,6 +312,81 @@ def _send_email_result(result: Any) -> None:
         )
     except Exception as e:
         logger.error("Email send failed for result %d: %s", result.id, e)
+
+
+def _send_group_result_and_vedomost(result: Any) -> None:
+    """
+    O'quvchi test topshirganda uning guruhi Telegram guruh chatiga
+    avtomatik xabarnoma va rasmiy PDF vedomostni yuborish.
+    """
+    import os
+    from apps.notifications.services.telegram_service import TelegramService
+    from apps.results.pdf_generator import generate_student_vedomost_pdf
+
+    test = result.test
+    student = result.student
+
+    # Find group with telegram_chat_id
+    group = getattr(test, "assigned_group", None)
+    if not group or not group.telegram_chat_id:
+        group = student.student_groups.filter(telegram_chat_id__isnull=False).first()
+
+    if not group or not group.telegram_chat_id:
+        logger.info("No group with telegram_chat_id found for result=%s student=%s", result.id, student.email)
+        return
+
+    # Generate PDF vedomost
+    pdf_path = None
+    try:
+        if result.attempt_id:
+            pdf_path = generate_student_vedomost_pdf(result.attempt_id)
+    except Exception:
+        logger.exception("Failed to generate student vedomost PDF for result=%s", result.id)
+
+    student_name = student.get_full_name() or student.username
+    status_emoji = "✅" if result.is_passed else "⚠️"
+    status_str = "O'TDI" if result.is_passed else "O'TMADI"
+
+    grade_str = getattr(result, "bmb_grade", "") or getattr(result, "rasch_grade", "") or ""
+    attempt = getattr(result, "attempt", None)
+    extras = []
+    if grade_str:
+        extras.append(f"Daraja: {grade_str}")
+    if attempt and attempt.band_score:
+        extras.append(f"IELTS Band: {attempt.band_score}")
+    if attempt and attempt.cefr_level:
+        extras.append(f"CEFR: {attempt.cefr_level}")
+
+    extra_info = f"\n🏆 <b>Ko'rsatkich:</b> {' | '.join(extras)}" if extras else ""
+
+    caption = (
+        f"📊 <b>YANGI IMTIHON NATIJASI</b>\n\n"
+        f"👤 <b>O'quvchi:</b> {student_name}\n"
+        f"🏛 <b>Guruh:</b> {group.name}\n"
+        f"📝 <b>Imtihon:</b> {test.title}\n"
+        f"🎯 <b>Ball:</b> {result.score:g} / {result.max_score:g} ({result.percentage:.1f}%){extra_info}\n"
+        f"{status_emoji} <b>Holat:</b> {status_str}\n\n"
+        f"<i>Ilova: Rasmiy imtihon vedomosti (PDF)</i>"
+    )
+
+    try:
+        if pdf_path and os.path.exists(pdf_path):
+            TelegramService._send_document(
+                chat_id=group.telegram_chat_id,
+                file_path=pdf_path,
+                caption=caption,
+                recipient=student,
+                parse_mode="HTML",
+            )
+        else:
+            TelegramService.send_message(
+                chat_id=group.telegram_chat_id,
+                text=caption,
+                parse_mode="HTML",
+            )
+        logger.info("Sent result & vedomost to group %s (chat_id=%s)", group.name, group.telegram_chat_id)
+    except Exception as exc:
+        logger.exception("Failed to send telegram message/vedomost to group %s: %s", group.name, exc)
 
 
 # Import parent notification tasks so Celery discovers them

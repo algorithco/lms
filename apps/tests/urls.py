@@ -30,6 +30,11 @@ urlpatterns = [
         name="teacher-attempt-details",
     ),
     path(
+        "teacher/attempts/<int:attempt_id>/update-score/",
+        views_teacher_inspector.TeacherUpdateAttemptScoreView.as_view(),
+        name="teacher-attempt-update-score",
+    ),
+    path(
         "<int:test_id>/analytics/",
         views_teacher_inspector.TeacherTestAnalyticsView.as_view(),
         name="test-analytics",
@@ -38,6 +43,11 @@ urlpatterns = [
         "attempts/<int:attempt_id>/details/",
         views_teacher_inspector.TeacherAttemptDetailsView.as_view(),
         name="attempt-details",
+    ),
+    path(
+        "attempts/<int:attempt_id>/update-score/",
+        views_teacher_inspector.TeacherUpdateAttemptScoreView.as_view(),
+        name="attempt-update-score",
     ),
 
     # -- Test CRUD ------------------------------------------------------------

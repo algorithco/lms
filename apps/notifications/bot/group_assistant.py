@@ -12,7 +12,9 @@ Integrates Telegram groups with LMS StudentGroup records:
 from __future__ import annotations
 
 import logging
+import os
 import random
+from decimal import Decimal
 from typing import Any
 
 from asgiref.sync import sync_to_async
@@ -575,7 +577,88 @@ async def group_results_leaderboard_command(update: Update, context: ContextType
 
 
 # ---------------------------------------------------------------------------
-# 6. Teacher Private Management Menu (/ustoz)
+# 6. Group Vedomost & Exam PDF Report (/vedomost)
+# ---------------------------------------------------------------------------
+async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Guruh imtihon vedomostini PDF formatida generatsiya qilib yuborish."""
+    chat = update.effective_chat
+    user = update.effective_user
+    if not chat:
+        return
+
+    from apps.courses.models import StudentGroup
+    from apps.results.pdf_generator import generate_group_vedomost_pdf
+
+    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        def _get_group(c_id):
+            return StudentGroup.objects.filter(telegram_chat_id=c_id).first()
+
+        group = await _run_db(_get_group, chat.id)
+        if not group:
+            await update.message.reply_text(
+                "⚠️ Ushbu guruh tizimda ro'yxatdan o'tmagan. Guruhni ulash uchun <code>/link_group Guruh_Kodi</code> buyrug'idan foydalaning.",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        loading_msg = await update.message.reply_text(
+            "⏳ <i>Guruh imtihon vedomosti (PDF) tayyorlanmoqda, iltimos kuting...</i>",
+            parse_mode=ParseMode.HTML,
+        )
+
+        try:
+            pdf_path = await _run_db(generate_group_vedomost_pdf, group.id)
+            caption = (
+                f"📄 <b>{group.name} Guruhi Imtihon Vedomosti</b>\n\n"
+                f"🏛 Fan: {group.subject or 'Umumiy'}\n"
+                f"👥 O'quvchilar: {await _run_db(lambda: group.students.count())} nafar\n\n"
+                f"<i>Rasmiy jadval va yakuniy ballar ilovadagi PDF hujjatda keltirilgan.</i>"
+            )
+            with open(pdf_path, "rb") as f:
+                await context.bot.send_document(
+                    chat_id=chat.id,
+                    document=f,
+                    filename=os.path.basename(pdf_path),
+                    caption=caption,
+                    parse_mode=ParseMode.HTML,
+                )
+            await loading_msg.delete()
+        except Exception as exc:
+            logger.exception("Failed to send group vedomost PDF: %s", exc)
+            await loading_msg.edit_text("❌ Vedomost PDF yaratishda xatolik yuz berdi.")
+    else:
+        # Private chat with teacher
+        from apps.accounts.models import User as UserModel
+
+        def _get_teacher_groups(tg_id, username):
+            teacher = UserModel.objects.filter(telegram_chat_id=tg_id).first()
+            if not teacher and username:
+                teacher = UserModel.objects.filter(telegram_username__iexact=username).first()
+            if not teacher:
+                return []
+            return list(StudentGroup.objects.filter(teacher=teacher).values("id", "name"))
+
+        groups = await _run_db(_get_teacher_groups, user.id, user.username) if user else []
+        if not groups:
+            await update.message.reply_text(
+                "Sizga biriktirilgan guruhlar topilmadi. Guruh vedomostini olish uchun uni guruh ichida <code>/vedomost</code> deb yuboring.",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        buttons = [
+            [InlineKeyboardButton(f"📄 {g['name']} vedomosti", callback_data=f"grp_cmd_vedomost_{g['id']}")]
+            for g in groups
+        ]
+        await update.message.reply_text(
+            "📊 <b>Qaysi guruhning imtihon vedomostini olmoqchisiz?</b>",
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode=ParseMode.HTML,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. Teacher Private Management Menu (/ustoz)
 # ---------------------------------------------------------------------------
 async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ustoz shaxsiy chatda /ustoz deb yozganda guruhlari va o'quvchilar tahlilini ko'radi."""
@@ -600,7 +683,7 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not teacher or not is_teacher_role:
             return None, "Ustoz hisobi topilmadi"
 
-        groups = StudentGroup.objects.filter(teacher=teacher).prefetch_related("students")
+        groups = list(StudentGroup.objects.filter(teacher=teacher).prefetch_related("students"))
         group_list = []
         for g in groups:
             st_count = g.students.count()
@@ -613,9 +696,33 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "linked": linked_badge,
             })
 
+        # Fetch recent 5 completed attempts for students in teacher's groups
+        from apps.tests.models import TestAttempt
+        recent_attempts = list(
+            TestAttempt.objects.filter(
+                student__student_groups__in=groups,
+                status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.PENDING_GRADING],
+            )
+            .select_related("student", "test")
+            .order_by("-completed_at", "-started_at")[:5]
+        )
+
+        attempts_list = []
+        for att in recent_attempts:
+            attempts_list.append({
+                "id": att.id,
+                "student_name": att.student.get_full_name() or att.student.email,
+                "test_title": att.test.title[:20],
+                "score": float(att.score),
+                "pct": float(att.percentage),
+                "passed": att.is_passed,
+                "overridden": att.teacher_overridden,
+            })
+
         return {
             "name": teacher.get_full_name() or teacher.email,
             "groups": group_list,
+            "recent_attempts": attempts_list,
         }, None
 
     data, err = await _run_db(_get_teacher_overview, user.id, user.username)
@@ -642,18 +749,48 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         keyboard_rows.append([
             InlineKeyboardButton(f"📋 {g['name']} (Davomat)", callback_data=f"dav_grp_{g['id']}"),
-            InlineKeyboardButton(f"📝 Test yuborish", callback_data=f"grp_cmd_test_{g['id']}"),
+            InlineKeyboardButton(f"📄 Vedomost PDF", callback_data=f"grp_cmd_vedomost_{g['id']}"),
         ])
+
+    if data.get("recent_attempts"):
+        lines.append("\n📝 <b>So'nggi topshirilgan testlar (Baholash):</b>")
+        for att in data["recent_attempts"]:
+            chk = "✅" if att["passed"] else "⚠️"
+            ovr = " ✏️" if att["overridden"] else ""
+            lines.append(f"• {att['student_name']}: {att['score']:g} ball ({att['pct']}%) {chk}{ovr}")
+            keyboard_rows.append([
+                InlineKeyboardButton(
+                    f"✏️ {att['student_name']} ({att['pct']}%) ballini tahrirlash",
+                    callback_data=f"ustoz_grade_{att['id']}",
+                )
+            ])
 
     if not data["groups"]:
         lines.append("<i>Hozircha sizda guruhlar mavjud emas. Saytda yangi guruh yarating.</i>")
 
     keyboard_rows.append([InlineKeyboardButton("🔄 Yangilash", callback_data="grp_cmd_refresh")])
-    await update.message.reply_text(
-        "\n".join(lines),
-        parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(keyboard_rows),
-    )
+    
+    target_msg = update.message if update.message else (update.callback_query.message if update.callback_query else None)
+    if target_msg:
+        if update.callback_query:
+            try:
+                await update.callback_query.edit_message_text(
+                    "\n".join(lines),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(keyboard_rows),
+                )
+            except Exception:
+                await target_msg.reply_text(
+                    "\n".join(lines),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(keyboard_rows),
+                )
+        else:
+            await target_msg.reply_text(
+                "\n".join(lines),
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(keyboard_rows),
+            )
 
 
 async def group_assistant_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -667,6 +804,129 @@ async def group_assistant_callback_handler(update: Update, context: ContextTypes
         await group_attendance_callback(update, context)
     elif data.startswith("grp_cmd_test_"):
         await query.answer("Guruhda /yangi_test buyrug'ini yuboring!")
+    elif data.startswith("grp_cmd_vedomost_"):
+        gid = int(data.split("_")[-1])
+        await query.answer("Vedomost tayyorlanmoqda...")
+        from apps.results.pdf_generator import generate_group_vedomost_pdf
+        from apps.courses.models import StudentGroup
+
+        def _build_pdf(g_id):
+            grp = StudentGroup.objects.get(id=g_id)
+            path = generate_group_vedomost_pdf(g_id)
+            return grp.name, path
+
+        try:
+            grp_name, pdf_path = await _run_db(_build_pdf, gid)
+            with open(pdf_path, "rb") as f:
+                await context.bot.send_document(
+                    chat_id=query.message.chat_id,
+                    document=f,
+                    filename=os.path.basename(pdf_path),
+                    caption=f"📄 <b>{grp_name} Guruhi Imtihon Vedomosti (PDF)</b>",
+                    parse_mode=ParseMode.HTML,
+                )
+        except Exception as exc:
+            logger.exception("Failed to generate/send vedomost PDF: %s", exc)
+            await query.message.reply_text("❌ Vedomost faylini yaratishda xatolik yuz berdi.")
+    elif data.startswith("ustoz_grade_"):
+        attempt_id = int(data.split("_")[-1])
+        await query.answer()
+
+        from apps.tests.models import TestAttempt
+
+        def _get_att_info(a_id):
+            att = TestAttempt.objects.select_related("test", "student").get(id=a_id)
+            return {
+                "id": att.id,
+                "student_name": att.student.get_full_name() or att.student.email,
+                "test_title": att.test.title,
+                "score": float(att.score),
+                "percentage": float(att.percentage),
+                "is_passed": att.is_passed,
+                "teacher_overridden": att.teacher_overridden,
+            }
+
+        att_info = await _run_db(_get_att_info, attempt_id)
+        status_str = "✅ O'tgan" if att_info["is_passed"] else "⚠️ O'tmagan"
+        override_str = " (Ustoz tasdiqlagan)" if att_info["teacher_overridden"] else ""
+
+        text = (
+            f"✏️ <b>O'quvchi ballini baholash va tahrirlash</b>\n\n"
+            f"👤 <b>O'quvchi:</b> {att_info['student_name']}\n"
+            f"📝 <b>Test:</b> {att_info['test_title']}\n"
+            f"🎯 <b>Joriy ball:</b> {att_info['score']} ({att_info['percentage']}%) {status_str}{override_str}\n\n"
+            f"Quyidagi tezkor amallardan birini tanlang:"
+        )
+
+        buttons = [
+            [
+                InlineKeyboardButton("➕ +5 ball qo'shish", callback_data=f"ustoz_adj_{attempt_id}_5"),
+                InlineKeyboardButton("➖ -5 ball ayirish", callback_data=f"ustoz_adj_{attempt_id}_-5"),
+            ],
+            [
+                InlineKeyboardButton("✅ O'tdi deb tasdiqlash", callback_data=f"ustoz_pass_{attempt_id}"),
+                InlineKeyboardButton("💯 100% (A+) qo'yish", callback_data=f"ustoz_set_{attempt_id}_100"),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Orqaga", callback_data="grp_cmd_refresh"),
+            ],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=ParseMode.HTML)
+    elif data.startswith("ustoz_adj_") or data.startswith("ustoz_pass_") or data.startswith("ustoz_set_"):
+        from apps.tests.models import TestAttempt
+        from apps.results.models import Result
+        from apps.accounts.models import User as UserModel
+
+        parts = data.split("_")
+        action = parts[1]
+        attempt_id = int(parts[2])
+
+        def _apply_override(a_id, act, extra_val, tg_user):
+            att = TestAttempt.objects.select_related("test", "student").get(id=a_id)
+            teacher = UserModel.objects.filter(telegram_chat_id=tg_user.id).first() if tg_user else None
+
+            if act == "adj":
+                delta = Decimal(extra_val)
+                att.score = max(Decimal("0.00"), att.score + delta)
+                all_q = att.test.questions.all()
+                max_pts = sum(q.points for q in all_q) or 100
+                att.percentage = min(
+                    Decimal("100.00"),
+                    max(Decimal("0.00"), round((att.score / Decimal(str(max_pts))) * Decimal("100.0"), 2)),
+                )
+                att.is_passed = att.percentage >= Decimal(str(att.test.pass_percentage or 60))
+            elif act == "pass":
+                att.is_passed = True
+                if att.percentage < Decimal(str(att.test.pass_percentage or 60)):
+                    att.percentage = Decimal(str(att.test.pass_percentage or 60))
+            elif act == "set":
+                all_q = att.test.questions.all()
+                max_pts = sum(q.points for q in all_q) or 100
+                att.score = Decimal(str(max_pts))
+                att.percentage = Decimal("100.00")
+                att.is_passed = True
+
+            att.teacher_overridden = True
+            if teacher:
+                att.graded_by = teacher
+            att.save()
+
+            # Sync Result
+            res = Result.objects.filter(attempt=att).first()
+            if res:
+                res.score = att.score
+                res.percentage = att.percentage
+                res.is_passed = att.is_passed
+                res.grading_status = "graded"
+                res.save()
+            return att.score, att.percentage, att.is_passed
+
+        extra = parts[3] if len(parts) > 3 else ""
+        new_score, new_pct, passed = await _run_db(
+            _apply_override, attempt_id, action, extra, update.effective_user
+        )
+        await query.answer(f"✅ Saqlandi: {new_score:g} ball ({new_pct:.1f}%)", show_alert=True)
+        await ustoz_menu_command(update, context)
     elif data == "grp_cmd_refresh":
         await ustoz_menu_command(update, context)
         await query.answer("Yangilandi")

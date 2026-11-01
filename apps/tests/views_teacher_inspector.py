@@ -13,6 +13,7 @@ Provides:
 
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
 from typing import Any
 
@@ -179,7 +180,7 @@ class TeacherAttemptDetailsView(APIView):
             )
 
         student = attempt.student
-        student_name = student.get_full_name() or student.username
+        student_name = student.get_full_name() or getattr(student, "username", student.email)
         total_questions = test.questions.count()
 
         # Map student answers by question_id
@@ -260,7 +261,7 @@ class TeacherAttemptDetailsView(APIView):
                 "student": {
                     "id": student.id,
                     "full_name": student_name,
-                    "username": student.username,
+                    "username": getattr(student, "username", student.email),
                     "email": student.email,
                 },
                 "status": attempt.status,
@@ -276,6 +277,166 @@ class TeacherAttemptDetailsView(APIView):
                 "started_at": attempt.started_at.strftime("%d.%m.%Y %H:%M") if attempt.started_at else "-",
                 "completed_at": attempt.completed_at.strftime("%d.%m.%Y %H:%M") if attempt.completed_at else "-",
                 "questions": questions_detail,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TeacherUpdateAttemptScoreView(APIView):
+    """
+    PATCH /api/v1/teacher/attempts/<attempt_id>/update-score/
+    PATCH /api/tests/teacher/attempts/<attempt_id>/update-score/
+    PATCH /api/tests/attempts/<attempt_id>/update-score/
+
+    Allows teachers and admins to override an attempt's score, band, section scores,
+    or leave comments. Updates TestAttempt and synchronizes Result.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="O'qituvchi: O'quvchi urinishi ballini tahrirlash",
+        description="Ustoz yoki admin tomonidan o'quvchi test/imtihon balli, band score, bo'lim ballari va izohlarini tahrirlash.",
+        tags=["Teacher Analytics"],
+    )
+    def patch(self, request: Request, attempt_id: int, *args: Any, **kwargs: Any) -> Response:
+        try:
+            attempt = TestAttempt.objects.select_related("test", "student").get(id=attempt_id)
+        except TestAttempt.DoesNotExist:
+            return Response({"error": "Test urinishi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        test = attempt.test
+        user = request.user
+
+        # Permission check: must be teacher or admin/staff; student cannot grade own attempt!
+        if attempt.student_id == user.id and not (user.is_staff or user.is_superuser or is_platform_admin(user)):
+            return Response(
+                {"error": "O'quvchi o'z ballini tahrirlay olmaydi."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not _can_inspect_test_or_attempt(user, test, attempt) or (not user.is_staff and not user.is_superuser and getattr(user, "role", "") not in ("teacher", "admin", "center_admin")):
+            return Response(
+                {"error": "Ushbu urinish ballini tahrirlash uchun o'qituvchi yoki admin huquqi talab qilinadi."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = request.data
+        if not isinstance(data, dict):
+            return Response({"error": "Noto'g'ri so'rov formati."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Update TestAttempt fields
+        if "score" in data:
+            try:
+                attempt.score = Decimal(str(data["score"]))
+            except Exception:
+                return Response({"error": "Noto'g'ri 'score' qiymati."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if "raw_score" in data:
+            try:
+                attempt.raw_score = int(data["raw_score"])
+            except Exception:
+                return Response({"error": "Noto'g'ri 'raw_score' qiymati."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Max score calculation for percentage if needed
+        all_questions = test.questions.all()
+        total_q_count = all_questions.count()
+        max_possible_points = sum(q.points for q in all_questions) or (total_q_count if total_q_count > 0 else 100)
+
+        if "percentage" in data:
+            try:
+                pct = Decimal(str(data["percentage"]))
+                attempt.percentage = min(Decimal("100.00"), max(Decimal("0.00"), pct))
+            except Exception:
+                return Response({"error": "Noto'g'ri 'percentage' qiymati."}, status=status.HTTP_400_BAD_REQUEST)
+        elif "score" in data and max_possible_points > 0:
+            pct = (Decimal(str(attempt.score)) / Decimal(str(max_possible_points))) * Decimal("100.0")
+            attempt.percentage = min(Decimal("100.00"), max(Decimal("0.00"), round(pct, 2)))
+
+        if "is_passed" in data:
+            attempt.is_passed = bool(data["is_passed"])
+        else:
+            attempt.is_passed = attempt.percentage >= Decimal(str(test.pass_percentage or 60))
+
+        if "band_score" in data:
+            try:
+                attempt.band_score = Decimal(str(data["band_score"]))
+            except Exception:
+                return Response({"error": "Noto'g'ri 'band_score' qiymati."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            from apps.tests.score_converter import raw_to_ielts_band
+            raw_val = attempt.raw_score or int(attempt.score)
+            attempt.band_score = raw_to_ielts_band(raw_val, total_questions=total_q_count or 40)
+
+        if "cefr_level" in data:
+            attempt.cefr_level = str(data["cefr_level"])
+        else:
+            from apps.tests.score_converter import raw_to_cefr_multilevel
+            raw_val = attempt.raw_score or int(attempt.score)
+            cefr_val, _ = raw_to_cefr_multilevel(raw_val, max_score=total_q_count or 40)
+            if cefr_val:
+                attempt.cefr_level = cefr_val
+
+        if "teacher_comment" in data:
+            attempt.teacher_comment = str(data["teacher_comment"]).strip()
+
+        if "section_scores" in data and isinstance(data["section_scores"], dict):
+            attempt.section_scores = data["section_scores"]
+
+        attempt.teacher_overridden = True
+        attempt.graded_by = user
+        attempt.save()
+
+        # 2. Synchronize Result & ResultSectionScore
+        from apps.results.models import Result, ResultSectionScore
+        result = Result.objects.filter(attempt=attempt).first()
+        if result:
+            result.score = attempt.score
+            result.percentage = attempt.percentage
+            result.is_passed = attempt.is_passed
+            result.grading_status = "graded"
+            result.save()
+
+            if isinstance(attempt.section_scores, dict):
+                for sec_key, sec_val in attempt.section_scores.items():
+                    sec_code = str(sec_key).upper()
+                    if isinstance(sec_val, dict):
+                        earned = Decimal(str(sec_val.get("earned", 0)))
+                        maximum = Decimal(str(sec_val.get("maximum", 0)))
+                        sec_name = sec_val.get("name", sec_code)
+                    else:
+                        earned = Decimal(str(sec_val))
+                        maximum = Decimal(str(sec_val))
+                        sec_name = sec_code
+                    ResultSectionScore.objects.update_or_create(
+                        result=result,
+                        section_code=sec_code,
+                        defaults={
+                            "earned": earned,
+                            "maximum": maximum,
+                            "section_name": sec_name,
+                        },
+                    )
+
+            # Invalidate diagnostics cache
+            from django.core.cache import cache
+            cache.delete(f"ai_tutor_diagnostics_r{result.id}")
+
+        return Response(
+            {
+                "success": True,
+                "message": "Urinish balli muvaffaqiyatli saqlandi.",
+                "attempt_id": attempt.id,
+                "score": float(attempt.score),
+                "raw_score": attempt.raw_score,
+                "percentage": float(attempt.percentage),
+                "band_score": float(attempt.band_score) if attempt.band_score else None,
+                "cefr_level": attempt.cefr_level,
+                "is_passed": attempt.is_passed,
+                "teacher_comment": attempt.teacher_comment,
+                "teacher_overridden": attempt.teacher_overridden,
+                "graded_by": user.get_full_name() or getattr(user, "username", user.email),
+                "section_scores": attempt.section_scores,
             },
             status=status.HTTP_200_OK,
         )

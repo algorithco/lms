@@ -602,6 +602,7 @@ class TelegramService:
         caption: str = "",
         recipient: Any = None,
         certificate: Any = None,
+        parse_mode: str = "HTML",
     ) -> dict[str, Any]:
         """
         Telegram API orqali fayl (document) yuborish.
@@ -614,7 +615,7 @@ class TelegramService:
             recipient=recipient,
             channel=NotificationLog.Channel.TELEGRAM,
             notification_type="certificate",
-            title=f"Certificate PDF: {caption}",
+            title=f"Certificate PDF: {caption[:100]}",
             message=f"PDF fayl yuborildi: {file_path}",
             status=NotificationLog.Status.PENDING,
             related_certificate=certificate,
@@ -628,6 +629,8 @@ class TelegramService:
                     filename = os.path.basename(file_path)
                     files = {"document": (filename, f, "application/pdf")}
                     data = {"chat_id": chat_id, "caption": caption}
+                    if parse_mode:
+                        data["parse_mode"] = parse_mode
                     response = client.post(url, data=data, files=files)
                     result = response.json()
 

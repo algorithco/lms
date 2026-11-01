@@ -735,6 +735,23 @@ class TestAttempt(models.Model):
         default=dict,
         blank=True,
     )
+    teacher_comment = models.TextField(
+        _("ustoz izohi"),
+        blank=True,
+        default="",
+    )
+    teacher_overridden = models.BooleanField(
+        _("ustoz tomonidan tahrirlangan"),
+        default=False,
+    )
+    graded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="graded_attempts",
+        verbose_name=_("tekshirgan ustoz"),
+    )
 
     class Meta:
         verbose_name = _("Test urinishi")

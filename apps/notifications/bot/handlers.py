@@ -9540,6 +9540,7 @@ def setup_handlers(app) -> None:
         link_group_command,
         group_davomat_yakun_command,
         group_yangi_test_command,
+        group_vedomost_command,
         ustoz_menu_command,
         group_assistant_callback_handler,
         unified_davomat_handler,
@@ -9570,6 +9571,7 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("link_group", link_group_command))
     app.add_handler(CommandHandler("davomat", unified_davomat_handler))
     app.add_handler(CommandHandler("davomat_yakun", group_davomat_yakun_command))
+    app.add_handler(CommandHandler("vedomost", group_vedomost_command))
     app.add_handler(CommandHandler("ustoz", ustoz_menu_command))
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))
@@ -9648,7 +9650,7 @@ def setup_handlers(app) -> None:
 
     # Group Assistant callbacks (must be before generic callback_handler)
     app.add_handler(
-        CallbackQueryHandler(group_assistant_callback_handler, pattern=r"^(grp_att_|grp_cmd_)")
+        CallbackQueryHandler(group_assistant_callback_handler, pattern=r"^(grp_att_|grp_cmd_|ustoz_)")
     )
 
     # Auth conversation handler — catches text/contact during auth flow

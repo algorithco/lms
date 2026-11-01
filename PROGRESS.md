@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.78. Rasmiy Versiya v1.87.0: Ustoz Ballarini Tahrirlash API, Avtomatlashgan PDF Vedomost Generatori va Telegram Guruhga Natijalarni Efirga Uzatish Tizimi (9.3.0-Bosqich)
+- [x] 1-Vazifa: Ustoz va Adminlar Uchun Test Ballarini Tahrirlash API (`apps/tests/views_teacher_inspector.py`, `apps/tests/models.py`, `apps/tests/urls.py`, `apps/webapi/urls.py`):
+  * `TestAttempt` modeliga `teacher_comment` (ustoz izohi), `teacher_overridden` (tahrirlanganlik belgisi) va `graded_by` (FK to User) maydonlari qo'shildi (`0015` migratsiyasi).
+  * `PATCH /api/v1/teacher/attempts/<id>/update-score/` va `PATCH /api/tests/teacher/attempts/<id>/update-score/` API yaratildi.
+  * O'quvchi o'z ballini o'zi o'zgartira olmasligi (403 Forbidden) va faqat ustoz/adminlar tahrirlay olishi qat'iy kafolatlandi.
+  * `score`, `raw_score`, `percentage`, `band_score`, `cefr_level`, `is_passed`, `teacher_comment` va bo'limlar ballari (`section_scores`) qabul qilinib, `TestAttempt` hamda `Result` o'rtasida to'liq sinxronlash ta'minlandi. `ResultSectionScore` va diagnostika keshlarini tozalash avtomatlashtirildi.
+- [x] 2-Vazifa: ReportLab Asosidagi Professional PDF Vedomost Generatori (`apps/results/pdf_generator.py`):
+  * `generate_student_vedomost_pdf(attempt_id)`: A4 formatdagi o'quvchi rasmiy imtihon vedomosti (scorecard) PDF generatsiyasi. Grand Education brendi, talaba ma'lumotlari, metrikalar (Ball, Foiz, O'tdi/O'tmadi, CEFR/Band), bo'limlar bo'yicha tahlil jadvali, ustoz xulosasi, tekshiruv QR kodi va ustoz imzosi bloki joylashtirildi.
+  * `generate_group_vedomost_pdf(group_id, test_id)`: A4 Landscape formatdagi to'liq guruh imtihon vedomosti PDF generatsiyasi. Guruh statistikasi (jami o'quvchilar, qatnashganlar soni, o'rtacha foiz), har bir talabaning bo'limlar bo'yicha ballari, yakuniy natijalari va ustoz qaydlari bilan rasmiy jadval hosil qilindi.
+- [x] 3-Vazifa: Celery Orqali Telegram Guruhiga Avtomatik Natija va PDF Vedomost Yuborish (`apps/notifications/tasks.py`, `apps/notifications/services/telegram_service.py`):
+  * `process_test_result_task` da yangi qadam kiritildi: O'quvchi testni yakunlaganda (`submit`), tizim uning guruhidagi `telegram_chat_id` ni aniqlaydi.
+  * Telegram guruhga chiroyli formatdagi imtihon xabarnomasi (O'quvchi, Guruh, Fan, Ball, Foiz, Daraja, Holat) va talabaning shaxsiy rasmiy PDF vedomosti avtomatik yuboriladi.
+  * `TelegramService._send_document` da `parse_mode="HTML"` va xavfsiz fayl yuklash qo'llab-quvvatlandi.
+- [x] 4-Vazifa: Telegram Bot Guruh Vedomosti va Ustoz Interaktiv Baholash Menyusi (`apps/notifications/bot/group_assistant.py`, `apps/notifications/bot/handlers.py`):
+  * `/vedomost` buyrug'i: Guruh ichida yoki ustoz shaxsiy chatida chaqirilganda, guruhning barcha o'quvchilari ballarini o'z ichiga olgan rasmiy PDF vedomostni generatsiya qilib guruhga tashlaydi.
+  * `/ustoz` buyrug'i: Guruhlar ro'yxatida `[📄 Vedomost PDF]` tugmasi va "So'nggi topshirilgan testlar" bloki qo'shildi. Ustoz to'g'ridan-to'g'ri Telegram orqali `[✏️ Ballni tahrirlash]` tugmasini bosib, `[+5 ball]`, `[-5 ball]`, `[✅ O'tdi]`, `[💯 100% (A+)]` opsiyalari orqali ballni tezkor tahrirlashi mumkin.
+- [x] 5-Vazifa: QA Test Suite (100% PASS Gate):
+  * `tests/test_teacher_grade_override_and_vedomost.py` yaratildi:
+    - `test_unauthenticated_forbidden`: PASSED
+    - `test_student_cannot_override_own_score`: PASSED
+    - `test_teacher_can_override_score_and_sync_result`: PASSED
+    - `test_student_vedomost_pdf_generation`: PASSED
+    - `test_group_vedomost_pdf_generation`: PASSED
+    - `test_send_group_result_and_vedomost`: PASSED
+    - Natija: 6/6 test 100% PASS (19.40 soniya).
+
 ### 2.77. Rasmiy Versiya v1.86.0: Dashboard Overlap Bartaraf Etildi, Ingliz Tili Mavzular Tahlili To'g'rilandi va To'liq i18n Lokalizatsiyasi Amalga Oshirildi (9.1.2-Bosqich)
 - [x] 1-Vazifa: Dashboard Overlap va Layout Buzilishi Bartaraf Etildi (`frontend/src/components/Layout.tsx`, `frontend/src/index.css`, `frontend/src/pages/Dashboard.tsx`):
   * Sticky `.topbar` balandligi va `.content` o'rtasidagi bosilish yo'qotildi: `<main className="content pt-3 sm:pt-4 md:pt-6 pb-28 md:pb-8">` o'rnatildi.
