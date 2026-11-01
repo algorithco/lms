@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { GoogleAuth, TelegramAuth, landingFor } from '../lib/api';
 import confetti from 'canvas-confetti';
+import OtpInput from './OtpInput';
 import {
   LockIcon,
   MailIcon,
@@ -202,16 +203,17 @@ export default function AuthModal() {
   };
 
   // Submit 6-digit Telegram Code
-  const submitTelegramCode = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!/^\d{6}$/.test(tgCode.trim())) {
+  const submitTelegramCode = async (e?: FormEvent, overrideCode?: string) => {
+    if (e) e.preventDefault();
+    const codeToSubmit = (overrideCode || tgCode).trim();
+    if (!/^\d{6}$/.test(codeToSubmit)) {
       setTgError('Iltimos, 6 xonali raqamli kodni kiriting.');
       return;
     }
     setTgBusy(true);
     setTgError(null);
     try {
-      const data = await TelegramAuth.loginWithCode(tgCode.trim());
+      const data = await TelegramAuth.loginWithCode(codeToSubmit);
       triggerSuccessCelebration();
       const adopted = loginWithTelegram(data.tokens, data.user);
       closeAuthModal();
@@ -653,68 +655,84 @@ export default function AuthModal() {
           {/* Telegram Code Input Mode */}
           {tgPhase === 'code' && (
             <form
-              onSubmit={submitTelegramCode}
+              onSubmit={(e) => void submitTelegramCode(e)}
               style={{
-                padding: '16px',
-                borderRadius: 14,
+                padding: '20px 16px',
+                borderRadius: 16,
                 background: 'rgba(42, 171, 238, 0.08)',
-                border: '1px solid rgba(42, 171, 238, 0.3)',
+                border: '1px solid rgba(42, 171, 238, 0.25)',
+                textAlign: 'center',
               }}
             >
-              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', margin: '0 0 10px' }}>
-                Telegram bot bergan 6 xonali tasdiqlash kodini kiriting:
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  color: '#38bdf8',
+                  fontSize: 20,
+                  marginBottom: 8,
+                }}
+              >
+                ⚡
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 4px' }}>
+                Telegram bot bergan 6 xonali tasdiqlash kodini kiriting
               </p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={tgCode}
-                  onChange={(e) => setTgCode(e.target.value)}
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>
+                Kodni botdan nusxalab, to'g'ridan-to'g'ri kiritishingiz mumkin.
+              </p>
+
+              <OtpInput
+                value={tgCode}
+                onChange={setTgCode}
+                onComplete={(code) => void submitTelegramCode(undefined, code)}
+                disabled={tgBusy}
+                error={Boolean(tgError)}
+              />
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setTgPhase('idle')}
                   style={{
                     flex: 1,
-                    background: 'var(--card-2)',
-                    border: '1px solid var(--border)',
+                    padding: '11px',
                     borderRadius: 10,
-                    padding: '10px 14px',
-                    fontSize: 16,
-                    fontWeight: 800,
-                    letterSpacing: '0.2em',
-                    textAlign: 'center',
-                    color: 'var(--ink)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: '#94a3b8',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
                   }}
-                />
+                >
+                  ← Orqaga
+                </button>
                 <button
                   type="submit"
                   disabled={tgBusy || tgCode.trim().length !== 6}
                   style={{
-                    padding: '10px 18px',
+                    flex: 2,
+                    padding: '11px',
                     borderRadius: 10,
-                    background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                    color: '#090d16',
-                    fontWeight: 800,
-                    fontSize: 13,
+                    background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: 14,
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: tgBusy || tgCode.trim().length !== 6 ? 'not-allowed' : 'pointer',
+                    opacity: tgBusy || tgCode.trim().length !== 6 ? 0.6 : 1,
+                    boxShadow: '0 4px 12px rgba(56, 189, 248, 0.25)',
                   }}
                 >
-                  {tgBusy ? '...' : 'Tasdiqlash'}
+                  {tgBusy ? 'Tasdiqlanmoqda…' : 'Kirish →'}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setTgPhase('idle')}
-                style={{
-                  marginTop: 10,
-                  fontSize: 11,
-                  color: '#94a3b8',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Orqaga
-              </button>
             </form>
           )}
         </div>

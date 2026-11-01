@@ -7,6 +7,7 @@ import { GoogleAuth, TelegramAuth, landingFor } from '../lib/api';
 import { ArrowLeftIcon } from '../components/icons';
 import Particles from '../components/Particles';
 import SEO from '../components/SEO';
+import OtpInput from '../components/OtpInput';
 
 type TgPhase = 'idle' | 'waiting' | 'code' | 'done';
 
@@ -228,16 +229,17 @@ export default function Login() {
     }
   };
 
-  const submitTelegramCode = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!/^\d{6}$/.test(tgCode.trim())) {
+  const submitTelegramCode = async (e?: FormEvent, overrideCode?: string) => {
+    if (e) e.preventDefault();
+    const codeToSubmit = (overrideCode || tgCode).trim();
+    if (!/^\d{6}$/.test(codeToSubmit)) {
       setTgError(t('code_invalid_js'));
       return;
     }
     setTgBusy(true);
     setTgError(null);
     try {
-      const data = await TelegramAuth.loginWithCode(tgCode.trim());
+      const data = await TelegramAuth.loginWithCode(codeToSubmit);
       adoptTelegramLogin(data.tokens, data.user);
     } catch (err) {
       setTgError(err instanceof Error ? err.message : t('code_invalid_js'));
@@ -518,29 +520,79 @@ export default function Login() {
             {/* Telegram 6-digit Code State */}
             {tgPhase === 'code' && (
               <form onSubmit={(e) => void submitTelegramCode(e)} className="form" style={{ marginBottom: 14 }}>
-                <p className="muted small">✅ {t('telegram_login_step2')}</p>
-                <p className="muted small">{t('code_hint')}</p>
-                <div className="floating">
-                  <input
-                    id="tg-code"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    pattern="[0-9]{6}"
-                    placeholder="123456"
-                    value={tgCode}
-                    onChange={(e) => setTgCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    autoComplete="one-time-code"
-                  />
-                  <label htmlFor="tg-code">123456</label>
+                <div style={{ textAlign: 'center', marginBottom: 6 }}>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 42,
+                      height: 42,
+                      borderRadius: '50%',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      color: '#38bdf8',
+                      fontSize: 20,
+                      marginBottom: 8,
+                    }}
+                  >
+                    ⚡
+                  </div>
+                  <h4 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
+                    {t('telegram_login_step2')}
+                  </h4>
+                  <p className="muted small" style={{ margin: 0, fontSize: 13 }}>
+                    {t('code_hint')}
+                  </p>
                 </div>
-                <button className="btn primary" disabled={tgBusy || tgCode.length !== 6}>
-                  {tgBusy ? '…' : t('submit')}
+
+                <OtpInput
+                  value={tgCode}
+                  onChange={setTgCode}
+                  onComplete={(code) => void submitTelegramCode(undefined, code)}
+                  disabled={tgBusy}
+                  error={Boolean(tgError)}
+                />
+
+                <button
+                  type="submit"
+                  className="btn primary"
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    fontSize: 15,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    borderRadius: 12,
+                  }}
+                  disabled={tgBusy || tgCode.length !== 6}
+                >
+                  {tgBusy ? '…' : (
+                    <>
+                      <span>{t('submit')}</span>
+                      <span>→</span>
+                    </>
+                  )}
                 </button>
-                <p className="muted small" style={{ marginTop: 8 }}>{t('code_expires')}</p>
-                <button type="button" className="btn" onClick={cancelTelegramAuth}>
-                  ✕
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                  <p className="muted small" style={{ margin: 0, fontSize: 11 }}>{t('code_expires')}</p>
+                  <button
+                    type="button"
+                    onClick={cancelTelegramAuth}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#94a3b8',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      padding: '4px 6px',
+                    }}
+                  >
+                    ← {t('cancel') || 'Bekor qilish'}
+                  </button>
+                </div>
               </form>
             )}
 

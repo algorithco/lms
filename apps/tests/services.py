@@ -156,8 +156,17 @@ class StartAttemptService:
             )
             raise ValueError("Test topilmadi yoki faol emas.")
 
+        is_admin = (
+            is_platform_admin(student)
+            or getattr(student, "is_superuser", False)
+            or getattr(student, "is_staff", False)
+            or getattr(student, "role", "") in ["admin", "center_admin"]
+        )
+        is_teacher = getattr(student, "role", "") == "teacher"
+        is_admin_or_teacher = is_admin or is_teacher
+
         # -- Role tekshirish -----------------------------------------------
-        if getattr(student, "role", "") != "student":
+        if not is_admin_or_teacher and getattr(student, "role", "") != "student":
             logger.warning(
                 "Start attempt denied: user=%d role=%s (not student)",
                 student.id,
@@ -178,10 +187,10 @@ class StartAttemptService:
                 raise TestInvalidPinError("Kiritilgan PIN-kod noto'g'ri.")
 
         # -- Ruxsat turi (Access Type) tekshirish -------------------------
-        if access_type == Test.AccessType.PRO_ONLY and not is_admin:
+        if access_type == Test.AccessType.PRO_ONLY and not is_admin_or_teacher:
             if not getattr(student, "has_pro_access", False):
                 raise TestAccessDeniedError("Ushbu test faqat PRO va PREMIUM obunachilar uchun mo'ljallangan.")
-        elif access_type == Test.AccessType.STUDENTS_ONLY and not is_admin:
+        elif access_type == Test.AccessType.STUDENTS_ONLY and not is_admin_or_teacher:
             is_member = False
             assigned_group = getattr(test, "assigned_group", None)
             if assigned_group:
@@ -215,7 +224,7 @@ class StartAttemptService:
                 return active_attempt
 
         # -- Max attempts tekshirish ---------------------------------------
-        if test.max_attempts > 0:
+        if test.max_attempts > 0 and not is_admin_or_teacher:
             completed_count = TestAttempt.objects.filter(
                 test=test,
                 student=student,

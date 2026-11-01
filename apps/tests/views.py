@@ -113,13 +113,13 @@ class TestListView(generics.ListAPIView):
 
             if not user or not user.is_authenticated:
                 return qs.filter(is_active=True)
-            if is_platform_admin(user):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
                 return qs
             role = getattr(user, "role", "student")
             if role == "student":
                 return qs.filter(is_active=True)
             elif role == "teacher":
-                return qs.filter(course__teacher=user)
+                return qs.filter(Q(is_active=True) | Q(course__teacher=user) | Q(created_by=user)).distinct()
             return qs.filter(is_active=True)
         except Exception as exc:
             logger.exception("Error in TestListView.get_queryset: %s", exc)
@@ -147,13 +147,13 @@ class TestDetailView(generics.RetrieveAPIView):
             user = getattr(self.request, "user", None)
             if not user or not user.is_authenticated:
                 return Test.objects.filter(is_active=True)
-            if is_platform_admin(user):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
                 return Test.objects.all()
             role = getattr(user, "role", "student")
             if role == "student":
                 return Test.objects.filter(is_active=True)
             if role == "teacher":
-                return Test.objects.filter(course__teacher=user)
+                return Test.objects.filter(Q(is_active=True) | Q(course__teacher=user) | Q(created_by=user)).distinct()
             return Test.objects.filter(is_active=True)
         except Exception as exc:
             logger.exception("Error in TestDetailView.get_queryset: %s", exc)
@@ -193,7 +193,7 @@ class StartAttemptView(APIView):
     Faqat o'quvchilar. Max attempts chegarasi nazorat qilinadi.
     """
 
-    permission_classes = [IsAuthenticated, IsStudent]
+    permission_classes = [IsAuthenticated, CanStartAttempt]
 
     @extend_schema(
         summary="Testni boshlash",

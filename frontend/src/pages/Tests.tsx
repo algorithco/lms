@@ -934,19 +934,112 @@ export default function Tests() {
       )}
 
       {!loading && !err && tests.length === 0 && (
-        <div className="card" style={{ padding: '28px 20px', textAlign: 'center' }}>
-          <h3>{activeSub === 'english' ? '🎧 CBT Reading & Listening Testlar' : t('no_tests_title')}</h3>
-          <p className="muted" style={{ maxWidth: 520, margin: '8px auto 0' }}>
+        <div
+          className="card"
+          style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            maxWidth: 620,
+            margin: '36px auto',
+            borderRadius: 24,
+            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.6) 100%)',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <div
+            style={{
+              width: 76,
+              height: 76,
+              margin: '0 auto 18px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(56, 189, 248, 0.05))',
+              border: '2px solid rgba(56, 189, 248, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 34,
+              boxShadow: '0 0 25px rgba(56, 189, 248, 0.2)',
+            }}
+          >
+            {activeSub === 'english' ? '🎧' : '📚'}
+          </div>
+          <h3
+            style={{
+              fontSize: '20px',
+              fontWeight: 800,
+              margin: '0 0 8px',
+              color: 'var(--ink, #f8fafc)',
+            }}
+          >
+            {activeSub === 'english' ? '🎧 CBT Reading & Listening Testlar' : (t('no_tests_title') || 'Testlar mavjud emas')}
+          </h3>
+          <p
+            className="muted"
+            style={{
+              fontSize: '14px',
+              lineHeight: 1.6,
+              maxWidth: 480,
+              margin: '0 auto 20px',
+              color: '#94a3b8',
+            }}
+          >
             {activeSub === 'english'
               ? 'Hozircha ochiq CBT testlar tayyorlanmoqda. Yuqoridagi "English CBT Mock & Exam Access" maydoniga o\'qituvchingiz bergan test kodini kiritib testni boshlashingiz mumkin.'
-              : t('no_tests_hint')}
+              : (t('no_tests_hint') || "Ayni paytda faol testlar topilmadi. Tez orada yangi testlar joylanadi.")}
           </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void retry()}
+            style={{
+              padding: '10px 24px',
+              borderRadius: 12,
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            🔄 Qayta yuklash
+          </button>
         </div>
       )}
 
       {!loading && !err && tests.length > 0 && visible.length === 0 && (
-        <div className="card" style={{ padding: '24px 20px', textAlign: 'center' }}>
-          <p className="muted">{t('test_no_match')}</p>
+        <div
+          className="card"
+          style={{
+            padding: '36px 20px',
+            textAlign: 'center',
+            maxWidth: 520,
+            margin: '28px auto',
+            borderRadius: 18,
+            background: 'rgba(30, 41, 59, 0.35)',
+            border: '1px solid rgba(148, 163, 184, 0.12)',
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+          <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700, color: 'var(--ink, #f8fafc)' }}>
+            Mos keluvchi testlar topilmadi
+          </h4>
+          <p className="muted" style={{ margin: '0 0 16px', fontSize: '14px', color: '#94a3b8' }}>
+            {t('test_no_match') || "Qidiruv yoki filtr mezonlariga mos keladigan test mavjud emas."}
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setQuery('');
+              setCategoryFilter('all');
+            }}
+            style={{
+              padding: '8px 20px',
+              borderRadius: 10,
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
+          >
+            Filtrni tozalash
+          </button>
         </div>
       )}
 

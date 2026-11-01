@@ -193,11 +193,77 @@ export default function Results() {
       )}
 
       {!loading && !err && results.length === 0 && (
-        <div className="card">
-          <h3>{t('no_results_title')}</h3>
-          <p className="muted">{t('no_results_hint')}</p>
-          <Link className="btn primary" to="/tests">
-            {t('view_tests')}
+        <div
+          className="card"
+          style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            maxWidth: 600,
+            margin: '36px auto',
+            borderRadius: 24,
+            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.6) 100%)',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              margin: '0 auto 20px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05))',
+              border: '2px solid rgba(245, 158, 11, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 38,
+              boxShadow: '0 0 30px rgba(245, 158, 11, 0.2)',
+            }}
+          >
+            🏆
+          </div>
+          <h3
+            style={{
+              fontSize: '22px',
+              fontWeight: 800,
+              margin: '0 0 10px',
+              color: 'var(--ink, #f8fafc)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {t('no_results_title') || "Hali natijalar mavjud emas"}
+          </h3>
+          <p
+            className="muted"
+            style={{
+              fontSize: '15px',
+              lineHeight: 1.6,
+              maxWidth: 460,
+              margin: '0 auto 24px',
+              color: '#94a3b8',
+            }}
+          >
+            Sizning natijalaringiz shu yerda jamlanadi. Birinchi testni topshirib, o'z rekordingizni o'rnating!
+          </p>
+          <Link
+            className="btn primary"
+            to="/tests"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 28px',
+              fontSize: 16,
+              fontWeight: 700,
+              borderRadius: 14,
+              boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              textDecoration: 'none',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <span>🚀</span>
+            <span>Testlarga o'tish</span>
           </Link>
         </div>
       )}

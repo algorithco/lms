@@ -198,3 +198,66 @@ class TestCefrMockEngine:
         assert data["total_tests_taken"] == 0
         assert data["total_essays_submitted"] == 0
         assert data["average_percentage"] == 0.0
+
+    def test_admin_and_teacher_can_start_and_preview_attempt(self):
+        """Admin and Teacher must be permitted to start, preview, and submit attempts."""
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from apps.tests.views import StartAttemptView, AttemptDetailView, SaveAnswerView, SubmitAttemptView
+
+        call_command("seed_cefr_mock_1")
+        test = Test.objects.filter(mock_code="CEFR-RECORD-1").first()
+        assert test is not None
+
+        admin = User.objects.create_user(
+            email="preview_admin@example.com",
+            password="pass",
+            role="admin",
+            is_staff=True,
+            is_superuser=True,
+        )
+        teacher = User.objects.create_user(
+            email="preview_teacher@example.com",
+            password="pass",
+            role="teacher",
+        )
+
+        factory = APIRequestFactory()
+
+        # 1. Admin can start attempt (no 403 Student access required)
+        req_admin = factory.post(f"/api/tests/{test.id}/start/", {}, format="json")
+        force_authenticate(req_admin, user=admin)
+        res_admin = StartAttemptView.as_view()(req_admin, test_id=test.id)
+        assert res_admin.status_code == 201
+        admin_attempt_id = res_admin.data["id"]
+
+        # 2. Teacher can start attempt
+        req_teacher = factory.post(f"/api/tests/{test.id}/start/", {}, format="json")
+        force_authenticate(req_teacher, user=teacher)
+        res_teacher = StartAttemptView.as_view()(req_teacher, test_id=test.id)
+        assert res_teacher.status_code == 201
+        teacher_attempt_id = res_teacher.data["id"]
+
+        # 3. Teacher can view detail/timer
+        req_detail = factory.get(f"/api/tests/attempts/{teacher_attempt_id}/")
+        force_authenticate(req_detail, user=teacher)
+        res_detail = AttemptDetailView.as_view()(req_detail, pk=teacher_attempt_id)
+        assert res_detail.status_code == 200
+
+        # 4. Teacher can save answer
+        question = test.questions.filter(question_type=Question.QuestionType.MULTIPLE_CHOICE).first()
+        choice = question.choices.first()
+        req_ans = factory.post(
+            f"/api/tests/attempts/{teacher_attempt_id}/save-answer/",
+            {"question_id": question.id, "choice_ids": [choice.id]},
+            format="json",
+        )
+        force_authenticate(req_ans, user=teacher)
+        res_ans = SaveAnswerView.as_view()(req_ans, attempt_id=teacher_attempt_id)
+        assert res_ans.status_code == 200
+
+        # 5. Teacher can submit
+        req_sub = factory.post(f"/api/tests/attempts/{teacher_attempt_id}/submit/", {}, format="json")
+        force_authenticate(req_sub, user=teacher)
+        res_sub = SubmitAttemptView.as_view()(req_sub, attempt_id=teacher_attempt_id)
+        assert res_sub.status_code == 200
+        assert TestAttempt.objects.get(id=teacher_attempt_id).status in [TestAttempt.Status.COMPLETED, TestAttempt.Status.PENDING_GRADING]
