@@ -9,6 +9,29 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.76. Rasmiy Versiya v1.85.0: Dashboard Metrikalar Dizayni Mukammallashtirildi, Referal Banneri Tiklandi va Fikr Bildirish Modali Jozibali Qilindi (9.1.1-Bosqich)
+- [x] 1-Vazifa: Dashboard Statistika Kartalari Mutanosibligi va Referal Blokini Tiklash (`frontend/src/pages/Dashboard.tsx`):
+  * 4 ta asosiy metrika kartalari (`p-5`, `minHeight: 135px`, `borderRadius: 18`) ichki tipografiyasi qayta muvozanatlashtirildi: yozuvlar `13px font-semibold text-slate-500`, metrika qiymati `24px font-extrabold text-slate-900 dark:text-white`, o'lchov birligi `13px` va status qatori `12px font-semibold` qilindi (raqam va matn o'rtasidagi nomutanosiblik butunlay yo'qotildi).
+  * Statistika kartalari tagida **"Referal (Do'stingizga test sovg'a qiling)"** ixcham banneri qat'iy joylashtirildi: `w-full my-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm`.
+  * Havolani nusxalash tugmasi bir zumda `✓` ga aylanadigan interaktiv holat (`copiedReferral`), Telegramga ulashish tugmasi (`#24A1DE`, `✈️ Ulashish`) to'liq ulandi.
+- [x] 2-Vazifa: Fikr Qoldirish Oynasini Haqiqiy Jozibali Modalga Aylantirish (`frontend/src/components/FeedbackModal.tsx`):
+  * Ekranning markazida, orqa foni xira qoraytirilgan (`backdrop-blur-sm bg-slate-900/60`), o'zi oq/to'q fonli (`bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl w-full max-w-md`) haqiqiy dialog modaliga aylantirildi.
+  * Tashqi fonga bosilganda yoki `Escape` klavishi bosilganda modal xavfsiz yopilishi ta'minlandi.
+  * Yulduzchalar tilla rangda (`text-amber-400 fill-amber-400`), hover effektli (`hover:scale-125`) va nozik o'lchamda ishlandi.
+  * Kategoriya tugmalari (`💬 Fikr`, `💡 Taklif`, `🚨 Xatolik`, `❤️ Tashakkur`) qulay pill shaklida va bosilganda faol tilla rangga (`bg-amber-500 text-slate-950 shadow-amber-500/25`) kiradigan qilindi.
+  * Textarea va inputlar nozik hoshiyali, focus bo'lganda tilla ring (`ring-2 ring-amber-500/30`) bilan zamonaviy shaklga keltirildi.
+- [x] 3-Vazifa: Landing Sahifasidagi Tugma Kontrastini Kuchaytirish (`frontend/src/pages/Landing.tsx`):
+  * Bosh sahifadagi "Birinchi bo'lib o'z bahoyingizni qoldiring" blokidagi `[💬 Fikr bildirish]` tugmasi va sharhlar tagidagi taklif tugmasi jozibali, yuqori kontrastli CTA ga aylantirildi: `className="mt-4 px-6 py-3 bg-[#24A1DE] hover:bg-[#208bbf] text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 cursor-pointer mx-auto"`.
+- [x] 4-Vazifa: Qurilish va Contabo VPS (`169.58.58.229`) Zero-Downtime Deploy:
+  * `npm --prefix frontend run build` 3.19 soniyada 0 ta xato bilan muvaffaqiyatli qurildi.
+  * `bestway` loyihasining barcha konteynerlari daxlsiz saqlandi.
+  * Granular darajada `web` va `nginx` konteynerlari yangilanib, jonli SPA sinxronlandi.
+  * Jonli havolalar HTTP 200 OK qaytardi:
+    - `https://grandec.uz/` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/dashboard` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/api/health/` $\rightarrow$ **HTTP 200 OK**
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.75. Rasmiy Versiya v1.84.0: Admin/Ustoz Test Preview Ruxsatlari, 6-Xonali Nafis OTP Input va Natijalar/Testlar Empty State Qayta Tiklanishi (9.1.0-Bosqich)
 - [x] 1-Vazifa: "Student Access Required" Bugini Tuzatish (Admin va Ustoz Test Preview) (`apps/tests/permissions.py`, `apps/tests/views.py`, `apps/tests/services.py`):
   * `CanStartAttempt` va `IsAttemptOwner` ruxsatnomalari to'liq yangilandi: endilikda `is_superuser`, `is_staff`, `is_platform_admin` hamda `role in ['teacher', 'admin', 'center_admin']` egalari testni bemalol boshlashi, o'z attemptlarini ko'rishi, javoblarini saqlashi va topshirishi mumkin.
