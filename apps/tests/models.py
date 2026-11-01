@@ -436,12 +436,22 @@ class Question(models.Model):
     """
 
     class QuestionType(models.TextChoices):
-        SINGLE_CHOICE = "single", _("Bita to'g'ri javob")
-        MULTIPLE_CHOICE = "multiple", _("Ko'p to'g'ri javob")
-        TEXT_MATCH = "text", _("Matnli javob")
-        GAP_FILL = "gap_fill", _("Bo'shliqni to'ldirish")
-        MATCHING = "matching", _("Moslashtirish")
-        WRITTEN = "written", _("Yozma ish")
+        # Official CD-IELTS & CEFR Exam Question Types
+        MULTIPLE_CHOICE = "MULTIPLE_CHOICE", _("Multiple Choice (A, B, C, D)")
+        INLINE_GAP_FILL = "INLINE_GAP_FILL", _("Inline Gap Fill (Matn ichida to'ldirish)")
+        MAP_LABELING = "MAP_LABELING", _("Map / Diagram Labeling (Xaritadagi joylar)")
+        HEADING_MATCHING = "HEADING_MATCHING", _("Headings Matching (Paragraf sarlavhalari)")
+        MATCHING = "MATCHING", _("Statements Matching (Matnlarga moslashtirish)")
+        TRUE_FALSE_NOT_GIVEN = "TRUE_FALSE_NOT_GIVEN", _("True / False / No Information")
+        SHORT_ANSWER = "SHORT_ANSWER", _("Short Answer (Qisqa javob)")
+
+        # Backward compatibility / legacy types
+        SINGLE_CHOICE = "single", _("Bitta to'g'ri javob (Legacy)")
+        LEGACY_MULTIPLE = "multiple", _("Ko'p to'g'ri javob (Legacy)")
+        TEXT_MATCH = "text", _("Matnli javob (Legacy)")
+        GAP_FILL = "gap_fill", _("Bo'shliqni to'ldirish (Legacy)")
+        LEGACY_MATCHING = "matching", _("Moslashtirish (Legacy)")
+        WRITTEN = "written", _("Yozma ish / Esse")
 
     test = models.ForeignKey(
         Test,
@@ -477,7 +487,7 @@ class Question(models.Model):
     text = models.TextField(_("savol matni"))
     question_type = models.CharField(
         _("savol turi"),
-        max_length=10,
+        max_length=32,
         choices=QuestionType.choices,
         default=QuestionType.SINGLE_CHOICE,
     )

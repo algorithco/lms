@@ -173,6 +173,7 @@ def _student_question_payload(
             }
             for c in choices
         ],
+        "config": getattr(q, "config", {}) or {},
     }
 
     qtype = getattr(q, "question_type", "single")
@@ -846,3 +847,4 @@ class SaveAnswerSerializer(serializers.Serializer):
                 )
             cleaned[pos] = str(raw_text or "")[:200]
         return cleaned
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Tests as TestsApi } from '../../lib/api';
 import { useLang } from '../../i18n/LangContext';
@@ -7,8 +7,6 @@ import {
   FlagIcon,
   Maximize2Icon,
   Minimize2Icon,
-  Volume2Icon,
-  VolumeXIcon,
   HelpCircleIcon,
   AlertTriangleIcon,
   BookOpenIcon,
@@ -20,6 +18,14 @@ import {
   LogOutIcon,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import {
+  CommunityCentrePlanSvg,
+  HeadingsMatchingView,
+  MatchingStatementsView,
+  TfngRadioGroup,
+  InlineGapFillInput,
+  ListeningAudioBar,
+} from './CefrExamComponents';
 
 interface Choice {
   id: number;
@@ -54,7 +60,20 @@ interface ReadingPassage {
 interface Question {
   id: number;
   text: string;
-  question_type: 'single' | 'multiple' | 'text' | 'gap_fill' | 'matching' | 'written';
+  question_type:
+    | 'single'
+    | 'multiple'
+    | 'text'
+    | 'gap_fill'
+    | 'matching'
+    | 'written'
+    | 'MULTIPLE_CHOICE'
+    | 'INLINE_GAP_FILL'
+    | 'MAP_LABELING'
+    | 'HEADING_MATCHING'
+    | 'MATCHING'
+    | 'TRUE_FALSE_NOT_GIVEN'
+    | 'SHORT_ANSWER';
   points: number;
   position: number;
   section_id?: number | null;
@@ -68,6 +87,7 @@ interface Question {
   selected_choice_ids?: number[];
   text_answer?: string;
   written_text?: string;
+  config?: Record<string, any>;
 }
 
 interface ExamSection {
@@ -156,10 +176,8 @@ export default function EnglishExamInterface() {
   const submittedRef = useRef(false);
 
   // Audio Lock State
-  const [, setAudioPlayed] = useState(false);
   const [volume, setVolume] = useState<number>(0.8);
   const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Practice mode AI evidence state
   const [evidenceData, setEvidenceData] = useState<EvidenceModalData | null>(null);
@@ -170,6 +188,35 @@ export default function EnglishExamInterface() {
   const passageContainerRef = useRef<HTMLDivElement | null>(null);
   const [highlights, setHighlights] = useState<string[]>([]);
   const [floatingPill, setFloatingPill] = useState<{ x: number; y: number } | null>(null);
+
+  // Desktop Split-Screen resizable state (50/50 default, clamped 25-75%)
+  const [splitRatio, setSplitRatio] = useState<number>(50);
+  const [isDraggingSplit, setIsDraggingSplit] = useState(false);
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMouseDownSplit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingSplit(true);
+  };
+
+  useEffect(() => {
+    if (!isDraggingSplit) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const newRatio = ((e.clientX - rect.left) / rect.width) * 100;
+      if (newRatio >= 25 && newRatio <= 75) {
+        setSplitRatio(newRatio);
+      }
+    };
+    const handleMouseUp = () => setIsDraggingSplit(false);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingSplit]);
 
   // 1. Submit Exam Callback (defined first for effect dependencies)
   const handleSubmit = useCallback(async (_auto = false) => {
@@ -636,6 +683,130 @@ export default function EnglishExamInterface() {
     );
   }
 
+  // Dynamic Headings & Statements derived directly from DB choices
+  const dynamicHeadingsList = useMemo(() => {
+    if (currentQ?.choices && currentQ.choices.length > 0) {
+      return currentQ.choices.map((c) => {
+        const match = c.text.match(/^([A-Z])[\s\.\:\-]+(.*)$/);
+        return {
+          letter: match ? match[1].trim() : c.text.slice(0, 1).toUpperCase(),
+          title: match ? match[2].trim() : c.text,
+        };
+      });
+    }
+    return [
+      { letter: 'A', title: 'For adventurous skiers' },
+      { letter: 'B', title: 'Especially good in autumn' },
+      { letter: 'C', title: 'For the rich and lazy' },
+      { letter: 'D', title: 'Not just for gamblers' },
+      { letter: 'E', title: 'Like an island in heaven' },
+      { letter: 'F', title: 'Film-makers like it' },
+      { letter: 'G', title: 'Looking down from up there' },
+      { letter: 'H', title: 'Probably the best one of five' },
+    ];
+  }, [currentQ]);
+
+  const dynamicStatementsList = useMemo(() => {
+    if (currentQ?.choices && currentQ.choices.length > 0) {
+      return currentQ.choices.map((c) => {
+        const match = c.text.match(/^([A-Z])[\s\.\:\-]+(.*)$/);
+        return {
+          letter: match ? match[1].trim() : c.text.slice(0, 1).toUpperCase(),
+          desc: match ? match[2].trim() : c.text,
+        };
+      });
+    }
+    return [
+      { letter: 'A', desc: 'A cozy spot near a fireplace, perfect for enjoying a warm drink and a good book.' },
+      { letter: 'B', desc: 'A unique dining experience with breathtaking city views, a cool breeze, and a touch of romance.' },
+      { letter: 'C', desc: 'A breathtaking experience with panoramic views, fresh mountain air, and a feeling of accomplishment.' },
+      { letter: 'D', desc: 'A bustling marketplace with vibrant stalls, delicious street food, and a lively atmosphere.' },
+      { letter: 'E', desc: 'A tranquil spot by a lake, perfect for a relaxing afternoon with loved ones.' },
+      { letter: 'F', desc: 'A peaceful escape surrounded by towering trees and lush greenery, offering a magical atmosphere.' },
+      { letter: 'G', desc: 'A casual and convenient option, ideal for a quick bite and people-watching in the city.' },
+      { letter: 'H', desc: 'A leisurely picnic with a scenic backdrop, featuring a flowing river and the sound of water.' },
+      { letter: 'I', desc: 'A tranquil escape surrounded by blooming flowers and fragrant herbs, perfect for a romantic date.' },
+      { letter: 'J', desc: 'A quintessential summer experience with the sound of waves crashing and the warmth of the sun.' },
+    ];
+  }, [currentQ]);
+
+  // Map Labeling: Assigned rooms tracking across all questions
+  const assignedMapRooms: Record<string, { qNum: number; placeName: string }> = {};
+  questions.forEach((q) => {
+    if (
+      q.question_type === 'MAP_LABELING' ||
+      q.config?.subtype === 'map_labeling' ||
+      (q.position >= 19 && q.position <= 23 && q.choices?.length === 8)
+    ) {
+      const choiceId = answers[q.id]?.choices?.[0];
+      const c = q.choices?.find((opt) => opt.id === choiceId);
+      if (c) {
+        const letter = c.text.replace(/^Room\s+/i, '').trim().toUpperCase();
+        assignedMapRooms[letter] = {
+          qNum: q.position,
+          placeName: q.config?.place_name || q.text.replace(/^\d+\.\s*/, ''),
+        };
+      }
+    }
+  });
+
+  // Headings Matching: Used headings tracking
+  const usedHeadings: Record<string, number> = {};
+  questions.forEach((q) => {
+    if (
+      q.question_type === 'HEADING_MATCHING' ||
+      q.config?.subtype === 'headings_matching' ||
+      (q.position >= 15 && q.position <= 20 && q.text.startsWith('Paragraph'))
+    ) {
+      const choiceId = answers[q.id]?.choices?.[0];
+      const c = q.choices?.find((opt) => opt.id === choiceId);
+      if (c) {
+        const match = c.text.match(/^([A-H])\b/);
+        if (match) {
+          usedHeadings[match[1]] = q.position;
+        }
+      }
+    }
+  });
+
+  // Current Question Subtype Flags
+  const isMapQuestion = Boolean(
+    currentQ &&
+      (currentQ.question_type === 'MAP_LABELING' ||
+        currentQ.config?.subtype === 'map_labeling' ||
+        (currentQ.position >= 19 && currentQ.position <= 23 && currentQ.choices?.length === 8))
+  );
+
+  const isHeadingsQuestion = Boolean(
+    currentQ &&
+      (currentQ.question_type === 'HEADING_MATCHING' ||
+        currentQ.config?.subtype === 'headings_matching' ||
+        (currentQ.position >= 15 && currentQ.position <= 20 && currentQ.text.startsWith('Paragraph')))
+  );
+
+  const isMatchingStatements = Boolean(
+    currentQ &&
+      (currentQ.question_type === 'MATCHING' ||
+        currentQ.config?.subtype === 'matching_statements' ||
+        (currentQ.position >= 7 && currentQ.position <= 14 && currentQ.choices?.length === 10))
+  );
+
+  const isTfngQuestion = Boolean(
+    currentQ &&
+      (currentQ.question_type === 'TRUE_FALSE_NOT_GIVEN' ||
+        currentQ.config?.subtype === 'tfng' ||
+        (currentQ.choices?.length === 3 &&
+          currentQ.choices.some((c) => /^(true|false|no information)$/i.test(c.text.trim()))))
+  );
+
+  const isInlineGap = Boolean(
+    currentQ &&
+      currentQ.question_type !== 'written' &&
+      (currentQ.question_type === 'INLINE_GAP_FILL' ||
+        currentQ.config?.subtype === 'inline_gap_fill' ||
+        /(?:\(\d+\)\s*_{2,}|_{3,})/.test(currentQ.text))
+  );
+
   // Render passage paragraphs with Cambridge Drop Cap badges (A, B, C...)
   const renderPassageBody = () => {
     if (!currentPassage) {
@@ -802,51 +973,19 @@ export default function EnglishExamInterface() {
             )}
           </div>
 
-          {/* Audio Volume Minimalist Slider */}
+          {/* Official Audio Controller */}
           {attempt?.audio_url && (
-            <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!audioRef.current) return;
-                  audioRef.current.muted = !isMuted;
-                  setIsMuted(!isMuted);
-                }}
-                className="text-slate-300 hover:text-white"
-                title={isMuted ? 'Ovozni yoqish' : 'Ovozni o\'chirish'}
-              >
-                {isMuted ? (
-                  <VolumeXIcon className="h-3.5 w-3.5 text-rose-400" />
-                ) : (
-                  <Volume2Icon className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  setVolume(val);
-                  setIsMuted(false);
-                  if (audioRef.current) {
-                    audioRef.current.volume = val;
-                    audioRef.current.muted = false;
-                  }
-                }}
-                className="w-16 h-1 accent-emerald-500 cursor-pointer"
-                title="Audio ovozi"
-              />
-              <audio
-                ref={audioRef}
-                src={attempt.audio_url}
-                autoPlay={isStrict}
-                controls={false}
-                onPlay={() => setAudioPlayed(true)}
-              />
-            </div>
+            <ListeningAudioBar
+              audioUrl={attempt.audio_url}
+              isStrict={Boolean(isStrict)}
+              volume={volume}
+              isMuted={isMuted}
+              onVolumeChange={(val) => {
+                setVolume(val);
+                setIsMuted(false);
+              }}
+              onToggleMute={() => setIsMuted(!isMuted)}
+            />
           )}
 
           {/* Anti-cheat status in strict mode */}
@@ -907,13 +1046,14 @@ export default function EnglishExamInterface() {
         </button>
       </div>
 
-      {/* 2. MAIN 50/50 SPLIT-SCREEN WORKSPACE */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden relative">
-        {/* LEFT COLUMN: READING PASSAGE (50%) */}
+      {/* 2. MAIN SPLIT-SCREEN WORKSPACE (DESKTOP RESIZABLE) */}
+      <main ref={splitContainerRef} className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        {/* LEFT COLUMN: READING PASSAGE & MAP REFERENCE */}
         <section
-          className={`flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40 h-full overflow-hidden ${
-            mobileTab === 'passage' ? 'flex' : 'hidden lg:flex'
+          className={`flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40 h-full overflow-hidden shrink-0 ${
+            mobileTab === 'passage' ? 'flex w-full' : 'hidden lg:flex'
           }`}
+          style={{ width: `${splitRatio}%` }}
         >
           {/* Passage Switcher Tabs Bar */}
           <div className="p-3 border-b border-slate-800 bg-slate-900 flex items-center justify-between shrink-0">
@@ -957,6 +1097,28 @@ export default function EnglishExamInterface() {
             className="flex-1 overflow-y-auto p-6 lg:p-8 font-serif leading-relaxed select-text"
           >
             <div className="max-w-2xl mx-auto space-y-4">
+              {/* Interactive Community Centre Map for Map Labeling Questions */}
+              {isMapQuestion && (
+                <div className="mb-4">
+                  <CommunityCentrePlanSvg
+                    selectedLetter={(() => {
+                      const selectedId = answers[currentQ.id]?.choices?.[0];
+                      const c = currentQ.choices?.find((opt) => opt.id === selectedId);
+                      return c ? c.text.replace(/^Room\s+/i, '').trim().toUpperCase() : undefined;
+                    })()}
+                    onSelectLetter={(letter) => {
+                      const c = currentQ.choices?.find(
+                        (opt) => opt.text.replace(/^Room\s+/i, '').trim().toUpperCase() === letter
+                      );
+                      if (c) updateAnswer(currentQ.id, 'choices', [c.id]);
+                    }}
+                    assignedRooms={assignedMapRooms}
+                    availableLetters={currentQ.choices?.map((c) =>
+                      c.text.replace(/^Room\s+/i, '').trim().toUpperCase()
+                    )}
+                  />
+                </div>
+              )}
               {currentPassage?.title && (
                 <h2 className="text-xl sm:text-2xl font-bold font-sans text-white border-b border-slate-800 pb-3">
                   {currentPassage.title}
@@ -967,11 +1129,22 @@ export default function EnglishExamInterface() {
           </div>
         </section>
 
-        {/* RIGHT COLUMN: QUESTIONS & AI EVIDENCE (50%) */}
+        {/* DESKTOP RESIZABLE SPLIT DIVIDER */}
+        <div
+          onMouseDown={handleMouseDownSplit}
+          onDoubleClick={() => setSplitRatio(50)}
+          className="hidden lg:flex w-2.5 bg-slate-800 hover:bg-blue-600 active:bg-blue-500 cursor-col-resize items-center justify-center relative select-none transition-colors group z-20 shrink-0"
+          title="Sudrab o'lchamni o'zgartiring (2 marta bosilsa 50/50 tiklanadi)"
+        >
+          <div className="w-1 h-8 rounded-full bg-slate-600 group-hover:bg-white transition-colors" />
+        </div>
+
+        {/* RIGHT COLUMN: QUESTIONS & CEFR/IELTS COMPONENTS */}
         <section
-          className={`flex flex-col h-full bg-slate-950 overflow-hidden ${
-            mobileTab === 'questions' ? 'flex' : 'hidden lg:flex'
+          className={`flex flex-col h-full bg-slate-950 overflow-hidden shrink-0 ${
+            mobileTab === 'questions' ? 'flex w-full' : 'hidden lg:flex'
           }`}
+          style={{ width: `${100 - splitRatio}%` }}
         >
           {/* Question Viewport */}
           <div className="flex-1 overflow-y-auto p-6 lg:p-8">
@@ -996,14 +1169,22 @@ export default function EnglishExamInterface() {
 
                 {/* Instruction banner in italics */}
                 <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 italic">
-                  {currentQ.question_type === 'single'
+                  {currentQ.question_type === 'single' || currentQ.question_type === 'MULTIPLE_CHOICE'
                     ? 'Choose the correct letter, A, B, C or D.'
                     : currentQ.question_type === 'multiple'
                     ? 'Choose ALL correct options that apply.'
-                    : currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill'
+                    : currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill' || currentQ.question_type === 'INLINE_GAP_FILL' || currentQ.question_type === 'SHORT_ANSWER'
                     ? 'Write NO MORE THAN TWO WORDS from the passage for each answer.'
                     : currentQ.question_type === 'written'
                     ? 'Write your response in the box below. Check your grammar and paragraph structure.'
+                    : currentQ.question_type === 'MAP_LABELING'
+                    ? 'Select the correct letter from the map.'
+                    : currentQ.question_type === 'HEADING_MATCHING'
+                    ? 'Choose the correct heading for each paragraph.'
+                    : currentQ.question_type === 'MATCHING'
+                    ? 'Match each item to the correct statement.'
+                    : currentQ.question_type === 'TRUE_FALSE_NOT_GIVEN'
+                    ? 'Select True, False, or No Information.'
                     : 'Answer the question carefully.'}
                 </div>
 
@@ -1016,20 +1197,151 @@ export default function EnglishExamInterface() {
                   {currentQ.text}
                 </div>
 
-                {/* 1. SINGLE / MULTIPLE CHOICE CARDS */}
-                {(currentQ.question_type === 'single' || currentQ.question_type === 'multiple') && (
+                {/* --- 1. INLINE GAP-FILL COMPONENT --- */}
+                {isInlineGap ? (
+                  <InlineGapFillInput
+                    questionText={currentQ.text}
+                    value={answers[currentQ.id]?.text || ''}
+                    onChange={(val) => updateAnswer(currentQ.id, 'text', val)}
+                    onEnterOrTab={() => {
+                      setCurrentQIndex((prev) => Math.min(questions.length - 1, prev + 1));
+                    }}
+                    gapNumber={currentQ.position}
+                  />
+                ) : isMapQuestion ? (
+                  /* --- 2. INTERACTIVE MAP LABELING COMPONENT --- */
+                  <div className="space-y-4 pt-2">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                      <span className="text-xs uppercase text-slate-400 font-bold block mb-1">Joy / Bino nomi:</span>
+                      <h3 className="text-xl font-extrabold text-amber-300">{currentQ.text}</h3>
+                      <p className="text-xs text-slate-400 mt-1">Xaritadagi mos xonani tanlang:</p>
+                    </div>
+
+                    {/* Mobile interactive map fallback */}
+                    <div className="lg:hidden">
+                      <CommunityCentrePlanSvg
+                        selectedLetter={(() => {
+                          const selectedId = answers[currentQ.id]?.choices?.[0];
+                          const c = currentQ.choices?.find((opt) => opt.id === selectedId);
+                          return c ? c.text.replace(/^Room\s+/i, '').trim().toUpperCase() : undefined;
+                        })()}
+                        onSelectLetter={(letter) => {
+                          const c = currentQ.choices?.find(
+                            (opt) => opt.text.replace(/^Room\s+/i, '').trim().toUpperCase() === letter
+                          );
+                          if (c) updateAnswer(currentQ.id, 'choices', [c.id]);
+                        }}
+                        assignedRooms={assignedMapRooms}
+                        availableLetters={currentQ.choices?.map((c) =>
+                          c.text.replace(/^Room\s+/i, '').trim().toUpperCase()
+                        )}
+                      />
+                    </div>
+
+                    {/* Letter pills dynamically derived from choices */}
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                      {(currentQ.choices && currentQ.choices.length > 0
+                        ? currentQ.choices.map((c) => ({
+                            choice: c,
+                            letter: c.text.replace(/^Room\s+/i, '').trim().toUpperCase(),
+                          }))
+                        : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((l) => ({
+                            choice: undefined,
+                            letter: l,
+                          }))
+                      ).map(({ choice, letter }) => {
+                        const matchingChoice =
+                          choice ||
+                          currentQ.choices?.find(
+                            (c) => c.text.replace(/^Room\s+/i, '').trim().toUpperCase() === letter
+                          );
+                        const isSelected = (answers[currentQ.id]?.choices || []).includes(matchingChoice?.id);
+                        const isAssigned = assignedMapRooms[letter] && assignedMapRooms[letter].qNum !== currentQ.position;
+
+                        return (
+                          <button
+                            key={letter}
+                            type="button"
+                            onClick={() => {
+                              if (matchingChoice) {
+                                updateAnswer(currentQ.id, 'choices', [matchingChoice.id]);
+                              }
+                            }}
+                            className={`py-3.5 rounded-xl font-bold text-base transition-all flex flex-col items-center justify-center cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg scale-105 font-black'
+                                : isAssigned
+                                ? 'bg-slate-900/60 border border-slate-800 text-slate-500'
+                                : 'bg-slate-900 border border-slate-800 text-slate-200 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <span>{letter}</span>
+                            {isAssigned && (
+                              <span className="text-[10px] text-slate-500 font-normal">Q{assignedMapRooms[letter].qNum}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : isHeadingsQuestion ? (
+                  /* --- 3. HEADINGS MATCHING COMPONENT --- */
+                  <HeadingsMatchingView
+                    currentQNum={currentQ.position}
+                    selectedHeadingLetter={(() => {
+                      const selectedId = answers[currentQ.id]?.choices?.[0];
+                      const c = currentQ.choices?.find((opt) => opt.id === selectedId);
+                      return c ? c.text.match(/^([A-H])\b/)?.[1] : undefined;
+                    })()}
+                    onSelectHeading={(letter) => {
+                      const c = currentQ.choices?.find((opt) => opt.text.startsWith(letter));
+                      if (c) updateAnswer(currentQ.id, 'choices', [c.id]);
+                    }}
+                    headings={dynamicHeadingsList}
+                    usedHeadings={usedHeadings}
+                  />
+                ) : isMatchingStatements ? (
+                  /* --- 4. MATCHING STATEMENTS COMPONENT --- */
+                  <MatchingStatementsView
+                    selectedLetter={(() => {
+                      const selectedId = answers[currentQ.id]?.choices?.[0];
+                      const c = currentQ.choices?.find((opt) => opt.id === selectedId);
+                      return c ? c.text.match(/^([A-J])\b/)?.[1] : undefined;
+                    })()}
+                    onSelectLetter={(letter) => {
+                      const c = currentQ.choices?.find((opt) => opt.text.startsWith(letter));
+                      if (c) updateAnswer(currentQ.id, 'choices', [c.id]);
+                    }}
+                    statements={dynamicStatementsList}
+                  />
+                ) : isTfngQuestion ? (
+                  /* --- 5. TRUE / FALSE / NO INFORMATION COMPONENT --- */
+                  <TfngRadioGroup
+                    value={(() => {
+                      const selectedId = answers[currentQ.id]?.choices?.[0];
+                      const c = currentQ.choices?.find((opt) => opt.id === selectedId);
+                      return c ? c.text : undefined;
+                    })()}
+                    onChange={(val) => {
+                      const c = currentQ.choices?.find(
+                        (opt) => opt.text.trim().toLowerCase() === val.trim().toLowerCase()
+                      );
+                      if (c) updateAnswer(currentQ.id, 'choices', [c.id]);
+                    }}
+                  />
+                ) : (currentQ.question_type === 'single' || currentQ.question_type === 'multiple' || currentQ.question_type === 'MULTIPLE_CHOICE') ? (
+                  /* --- STANDARD MULTIPLE / SINGLE CHOICES --- */
                   <div className="space-y-3 pt-2">
                     {(currentQ.choices || []).map((c, cIdx) => {
                       const isSelected = (answers[currentQ.id]?.choices || []).includes(c.id);
                       const letter = String.fromCharCode(65 + cIdx);
-                      const isTFNG = /^(true|false|not given|yes|no)$/i.test(c.text.trim());
 
                       return (
                         <button
                           key={c.id}
                           type="button"
                           onClick={() => {
-                            if (currentQ.question_type === 'single') {
+                            if (currentQ.question_type === 'single' || currentQ.question_type === 'MULTIPLE_CHOICE') {
                               updateAnswer(currentQ.id, 'choices', [c.id]);
                             } else {
                               const prev = answers[currentQ.id]?.choices || [];
@@ -1052,24 +1364,17 @@ export default function EnglishExamInterface() {
                                 : 'bg-slate-800 border border-slate-700 text-slate-400 group-hover:text-slate-200 group-hover:border-slate-600'
                             }`}
                           >
-                            {isTFNG ? (isSelected ? '✓' : letter) : letter}
+                            {letter}
                           </span>
-                          <span
-                            className={`flex-1 font-medium ${
-                              isTFNG ? 'uppercase tracking-wider font-bold' : ''
-                            } ${fontSize === 'large' ? 'text-base' : 'text-sm'}`}
-                          >
-                            {c.text}
+                          <span className={`flex-1 font-medium ${fontSize === 'large' ? 'text-base' : 'text-sm'}`}>
+                            {c.text.replace(/^[A-Z][\s\.\:\-]+/, '')}
                           </span>
                           {isSelected && <span className="text-blue-400 font-bold text-sm shrink-0">●</span>}
                         </button>
                       );
                     })}
                   </div>
-                )}
-
-                {/* 2. FILL-IN-THE-BLANKS / TEXT INPUT */}
-                {(currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill') && (
+                ) : (currentQ.question_type === 'text' || currentQ.question_type === 'gap_fill' || currentQ.question_type === 'SHORT_ANSWER') ? (
                   <div className="space-y-4 pt-2">
                     <label className="text-xs text-slate-400 uppercase tracking-wider block font-semibold">
                       Your Answer:
@@ -1082,7 +1387,7 @@ export default function EnglishExamInterface() {
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3.5 text-white text-base focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-                )}
+                ) : null}
 
                 {/* 3. WRITTEN ESSAY (IELTS Task 1 / Task 2) */}
                 {currentQ.question_type === 'written' && (
@@ -1130,14 +1435,21 @@ export default function EnglishExamInterface() {
         {floatingPill && (
           <div
             style={{ left: `${floatingPill.x}px`, top: `${floatingPill.y}px` }}
-            className="fixed -translate-x-1/2 -translate-y-full z-40 animate-fade-in pointer-events-auto"
+            className="fixed -translate-x-1/2 -translate-y-full z-40 animate-fade-in pointer-events-auto flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl"
           >
             <button
               type="button"
               onClick={handleHighlightSelection}
-              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg shadow-xl border border-amber-300 flex items-center gap-1 cursor-pointer transition-transform hover:scale-105"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-2.5 py-1.5 rounded-lg shadow border border-amber-300 flex items-center gap-1 cursor-pointer transition-transform hover:scale-105"
             >
-              <span>🖍️ Highlight</span>
+              <span>🖍️ Sariq marker</span>
+            </button>
+            <button
+              type="button"
+              onClick={clearHighlights}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs px-2 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <span>🧼 Tozalash</span>
             </button>
           </div>
         )}
@@ -1162,12 +1474,12 @@ export default function EnglishExamInterface() {
                 }}
                 className={`relative min-w-[32px] w-8 h-8 rounded-lg text-xs font-bold shrink-0 transition-all flex items-center justify-center ${
                   isCurrent
-                    ? 'ring-2 ring-blue-400 bg-blue-600 text-white font-black shadow-md scale-105'
+                    ? 'ring-2 ring-blue-400 bg-blue-600 text-white font-black shadow-lg scale-105'
                     : isFlag
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/60'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/70 font-bold'
                     : answered
-                    ? 'bg-slate-800 text-sky-400 border border-sky-500/40 font-semibold'
-                    : 'bg-slate-800/40 text-slate-500 border border-slate-700/60 hover:text-slate-300 hover:border-slate-500'
+                    ? 'bg-teal-950/80 text-teal-300 border border-teal-500/50 font-bold'
+                    : 'bg-slate-900 text-slate-500 border border-slate-800 hover:text-slate-300 hover:border-slate-600'
                 }`}
                 title={`Question ${idx + 1}${answered ? ' (Answered)' : ''}${isFlag ? ' (Flagged)' : ''}`}
               >

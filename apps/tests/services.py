@@ -435,14 +435,26 @@ class SaveAnswerService:
             StudentAnswer.objects.filter(attempt=attempt, question=question).delete()
             return SaveAnswerService._CLEARED
 
-        # -- GAP_FILL -------------------------------------------------------
-        if qtype == Question.QuestionType.GAP_FILL:
-            return SaveAnswerService._save_gap_fill(
-                attempt, question, gap_answers or {}
+        # -- GAP_FILL / INLINE_GAP_FILL ------------------------------------
+        if qtype in (Question.QuestionType.GAP_FILL, Question.QuestionType.INLINE_GAP_FILL):
+            if gap_answers:
+                SaveAnswerService._save_gap_fill(attempt, question, gap_answers)
+            student_answer, created = StudentAnswer.objects.update_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={"text_answer": text_answer.strip()},
             )
+            if not created and student_answer.text_answer != text_answer.strip():
+                student_answer.text_answer = text_answer.strip()
+                student_answer.save(update_fields=["text_answer"])
+            student_answer.selected_choices.clear()
+            return student_answer
 
-        # -- MATCHING --------------------------------------------------------
-        if qtype == Question.QuestionType.MATCHING:
+        # -- MATCHING (relational prompt-option pairs) ----------------------
+        if (
+            qtype in (Question.QuestionType.MATCHING, Question.QuestionType.LEGACY_MATCHING)
+            and question.matching_prompts.exists()
+        ):
             return SaveAnswerService._save_matching(attempt, question, matching or {})
 
         # -- WRITTEN (qoralama; baholash esse dvigateli orqali) --------------
@@ -451,8 +463,8 @@ class SaveAnswerService:
                 attempt, question, written_text or ""
             )
 
-        # -- Matnli javob savollari (TEXT_MATCH) ---------------------------
-        if qtype == Question.QuestionType.TEXT_MATCH:
+        # -- Matnli javob savollari (TEXT_MATCH & SHORT_ANSWER) -------------
+        if qtype in (Question.QuestionType.TEXT_MATCH, Question.QuestionType.SHORT_ANSWER):
             student_answer, created = StudentAnswer.objects.update_or_create(
                 attempt=attempt,
                 question=question,
@@ -472,15 +484,24 @@ class SaveAnswerService:
         if valid_choices.count() != len(choice_ids):
             raise ValueError("Noto'g'ri variantlar tanlandi.")
 
-        # -- Single choice tekshirish --------------------------------------
-        if question.question_type == Question.QuestionType.SINGLE_CHOICE:
+        # -- Single choice & discrete choice question types ----------------
+        if question.question_type in (
+            Question.QuestionType.SINGLE_CHOICE,
+            Question.QuestionType.MAP_LABELING,
+            Question.QuestionType.HEADING_MATCHING,
+            Question.QuestionType.TRUE_FALSE_NOT_GIVEN,
+            Question.QuestionType.MATCHING,
+        ):
             if len(choice_ids) != 1:
                 raise ValueError(
                     "Bitta to'g'ri javobli savolda faqat bitta variant tanlash kerak."
                 )
 
         # -- Multiple choice tekshirish -------------------------------------
-        if question.question_type == Question.QuestionType.MULTIPLE_CHOICE:
+        if question.question_type in (
+            Question.QuestionType.MULTIPLE_CHOICE,
+            Question.QuestionType.LEGACY_MULTIPLE,
+        ):
             if len(choice_ids) < 1:
                 raise ValueError(
                     "Ko'p to'g'ri javobli savolda kamida bitta variant tanlash kerak."
@@ -923,7 +944,10 @@ class SubmitAttemptService:
         }
         gaps_by_qid: dict[int, dict[int, list[str]]] = {}
         for q in all_questions:
-            if q.question_type != Question.QuestionType.GAP_FILL:
+            if q.question_type not in (
+                Question.QuestionType.GAP_FILL,
+                Question.QuestionType.INLINE_GAP_FILL,
+            ):
                 continue
             accepted: dict[int, list[str]] = {}
             for b in q.gap_blanks.all():
@@ -931,7 +955,10 @@ class SubmitAttemptService:
             gaps_by_qid[q.id] = accepted
         pairs_by_qid: dict[int, dict[int, int | None]] = {}
         for q in all_questions:
-            if q.question_type != Question.QuestionType.MATCHING:
+            if q.question_type not in (
+                Question.QuestionType.MATCHING,
+                Question.QuestionType.LEGACY_MATCHING,
+            ):
                 continue
             pairs_by_qid[q.id] = {
                 p.id: (
@@ -987,21 +1014,31 @@ class SubmitAttemptService:
 
             qtype = question.question_type
 
-            # -- GAP_FILL ----------------------------------------------------
-            if qtype == Question.QuestionType.GAP_FILL:
+            # -- GAP_FILL / INLINE_GAP_FILL ----------------------------------
+            if qtype in (Question.QuestionType.GAP_FILL, Question.QuestionType.INLINE_GAP_FILL):
                 accepted = gaps_by_qid.get(question.id, {})
-                if not accepted:
-                    logger.warning("Gap-fill without blanks: question=%d", question.id)
-                    is_correct, earned = False, Decimal("0")
-                else:
+                student_gap_responses = gap_map.get(student_answer.id, {})
+                if accepted and student_gap_responses:
                     gs = _grade_gap_fill(
                         accepted,
-                        gap_map.get(student_answer.id, {}),
+                        student_gap_responses,
                         question.points,
                         partial_credit=partial_credit,
                         case_sensitive=case_sensitive,
                     )
                     is_correct, earned = gs.fully_correct, gs.earned
+                else:
+                    # Fallback to text_answer against question.correct_text or gap_blanks
+                    raw_keys = [
+                        k.strip()
+                        for k in (question.correct_text or "").split("|")
+                        if k.strip()
+                    ]
+                    for pos_keys in accepted.values():
+                        raw_keys.extend(pos_keys)
+                    is_correct = _evaluate_text_answer(student_answer.text_answer, raw_keys)
+                    earned = qmax if is_correct else Decimal("0")
+
                 question_scores.append(
                     QuestionScore(
                         question_id=question.id,
@@ -1017,8 +1054,11 @@ class SubmitAttemptService:
                     to_update.append(student_answer)
                 continue
 
-            # -- MATCHING -----------------------------------------------------
-            if qtype == Question.QuestionType.MATCHING:
+            # -- MATCHING (Relational prompts ↔ options) ---------------------
+            if (
+                qtype in (Question.QuestionType.MATCHING, Question.QuestionType.LEGACY_MATCHING)
+                and question.matching_prompts.exists()
+            ):
                 correct_pairs = {
                     pid: oid
                     for pid, oid in pairs_by_qid.get(question.id, {}).items()
@@ -1112,7 +1152,7 @@ class SubmitAttemptService:
             selected_choice_ids = selected_map.get(student_answer.id, set())
 
             # -- Grading logic (semantika o'zgarmagan) ----------------------
-            if qtype == Question.QuestionType.TEXT_MATCH:
+            if qtype in (Question.QuestionType.TEXT_MATCH, Question.QuestionType.SHORT_ANSWER):
                 raw_keys = [
                     k.strip()
                     for k in (question.correct_text or "").split("|")
@@ -1145,7 +1185,13 @@ class SubmitAttemptService:
                     student_answer.is_correct = False
                     to_update.append(student_answer)
                 continue
-            elif qtype == Question.QuestionType.SINGLE_CHOICE:
+            elif qtype in (
+                Question.QuestionType.SINGLE_CHOICE,
+                Question.QuestionType.MAP_LABELING,
+                Question.QuestionType.HEADING_MATCHING,
+                Question.QuestionType.TRUE_FALSE_NOT_GIVEN,
+                Question.QuestionType.MATCHING,
+            ):
                 is_correct = correct_choice_ids == selected_choice_ids
                 question_scores.append(
                     QuestionScore(

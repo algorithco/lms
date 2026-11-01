@@ -55,13 +55,22 @@ class QuestionAdmin(admin.ModelAdmin):
     def get_inlines(self, request, obj=None):
         if obj is None:
             return [ChoiceInline]
-        if obj.question_type == "gap_fill":
+        qtype = str(obj.question_type)
+        if qtype in ("gap_fill", "INLINE_GAP_FILL", "text", "SHORT_ANSWER"):
             return [GapBlankInline]
-        if obj.question_type == "matching":
+        if qtype in ("matching",):
             return [MatchingPromptInline, MatchingOptionInline]
-        if obj.question_type in ("single", "multiple"):
+        if qtype in (
+            "single",
+            "multiple",
+            "MULTIPLE_CHOICE",
+            "MAP_LABELING",
+            "HEADING_MATCHING",
+            "MATCHING",
+            "TRUE_FALSE_NOT_GIVEN",
+        ):
             return [ChoiceInline]
-        return []
+        return [ChoiceInline]
 
 
 @admin.register(Test)
