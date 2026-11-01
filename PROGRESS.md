@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.74. Rasmiy Versiya v1.83.0: Referal Kartasi To'liq Qayta Ishlandi, 4 ta Statistika Kartalari Qayta Tiklandi va AI Esse Mavzusi Qo'shtirnoqlari Tozalandi
+- [x] 1-Vazifa: Referal Blokini Qayta Yozish (`frontend/src/pages/Dashboard.tsx`, `frontend/src/components/ReferralCard.tsx`):
+  * Eskirgan va ulkan `MUKOFOT VA DO'STLAR DASTURI` bloki, o'ngdagi bo'sh div va adashgan nusxalash ikonalari butunlay olib tashlandi.
+  * O'rniga ixcham, nafis, 1 qatorlik gorizontal banner kiritildi: sovg'a belgisi (🎁), do'stga bepul test taqdim etish matni, havolani avtomatik olish, bir bosishda nusxalash (`📋`) va Telegramga to'g'ridan-to'g'ri ulashish (`✈️ Ulashish`) tugmasi.
+  * `AuthUser` interfeysiga `referral_code` qo'shildi va `useToast` orqali muvaffaqiyatli xabarnoma ulandi.
+- [x] 2-Vazifa: AI Esse Studiyasidagi Uchtalik Qo'shtirnoq Xatosi Tuzatildi (`frontend/src/pages/Dashboard.tsx`, `frontend/src/i18n/translations.json`):
+  * `translations.json` (UZ, RU, EN) dagi `dashboard.today_topic_title` matnlaridagi ortiqcha tashqi qo'shtirnoqlar (`“... ”`, `«... »`) tozalab tashlandi.
+  * `Dashboard.tsx` dagi tashqi `&ldquo;` va `&rdquo;` olib tashlanib, `.replace(/^["“«\s]+|["”»\s]+$/g, '')` sanitizatori o'rnatildi. Natijada `"""Alisher Navoiy..."""` takrorlanishi butunlay yo'qoldi.
+- [x] 3-Vazifa: 4 ta Statistika Kartasini Qayta Tiklash va To'liq Solid Dizayn:
+  * `.dash-stat-card` uchun yo'q bo'lgan fon va chegaralar to'liq o'rnatildi: `background: var(--card)`, `border: 1px solid var(--border)`, `borderRadius: 18`, `boxShadow: 0 2px 10px rgba(0, 0, 0, 0.04)`.
+  * Tailwind va CSS Grid kombinatsiyasi orqali mobil va desktop moslashuvchanligi kafolatlandi (`grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6`, `repeat(auto-fit, minmax(220px, 1fr))`).
+  * Barcha 4 ta karta (Yechilgan testlar, Yozilgan esselar, O'rtacha natija, Kundalik faollik) to'laqonli, ravshan va chiroyli holatga keltirildi.
+- [x] 4-Vazifa: Qurilish va Contabo VPS (`169.58.58.229`) Zero-Downtime Deploy:
+  * `npm --prefix frontend run build` 2.59 soniyada 0 ta xato bilan muvaffaqiyatli qurildi.
+  * `python manage.py check`: 0 ta xato.
+  * Serverdagi `bestway` loyihasiga mutlaqo teginilmadi va uning 7 ta konteyneri to'liq sog'lom saqlandi.
+  * `web` konteyneri granular yangilandi va tekshirildi:
+    - `https://grandec.uz/dashboard` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/` $\rightarrow$ **HTTP 200 OK**
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.73. Rasmiy Versiya v1.82.0: Minified React Error #310 va Hook Qoidasi Tuzatildi, Test Urinishlari Idempotentligi va Haqiqiy Dashboard Statistikasi (9.0.0-Bosqich)
 - [x] 1-Vazifa: Minified React Error #310 ni Yo'qotish (`frontend/src/pages/tests/EnglishExamInterface.tsx`):
   * React Hook qoidasi (`useMemo`, `useState`, `useEffect`, `useCallback`, `useRef`) qat'iy tartibga keltirildi: barcha hooklar va memoizatsiya qilingan o'zgaruvchilar (`dynamicHeadingsList`, `dynamicStatementsList`, `assignedMapRooms`, `usedHeadings`, `isMapQuestion`, `isHeadingsQuestion`, `isMatchingStatements`, `isTfngQuestion`, `isInlineGap`) shartli qaytishlardan (`if (loading)`, `if (err && !attempt)`, `if (resultData)`) oldin eng yuqori darajada e'lon qilinishi ta'minlandi.
