@@ -9,6 +9,34 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.75. Rasmiy Versiya v1.84.0: Admin/Ustoz Test Preview Ruxsatlari, 6-Xonali Nafis OTP Input va Natijalar/Testlar Empty State Qayta Tiklanishi (9.1.0-Bosqich)
+- [x] 1-Vazifa: "Student Access Required" Bugini Tuzatish (Admin va Ustoz Test Preview) (`apps/tests/permissions.py`, `apps/tests/views.py`, `apps/tests/services.py`):
+  * `CanStartAttempt` va `IsAttemptOwner` ruxsatnomalari to'liq yangilandi: endilikda `is_superuser`, `is_staff`, `is_platform_admin` hamda `role in ['teacher', 'admin', 'center_admin']` egalari testni bemalol boshlashi, o'z attemptlarini ko'rishi, javoblarini saqlashi va topshirishi mumkin.
+  * `StartAttemptView` dagi `permission_classes = [IsAuthenticated, IsStudent]` cheklovi `[IsAuthenticated, CanStartAttempt]` ga almashtirildi.
+  * `StartAttemptService.execute`: Ustoz va administratorlar uchun `student` roli cheklovi, max attempts va guruh cheklovlari preview rejimi uchun ruxsat etildi.
+  * `TestListView` va `TestDetailView`: Ustozlar endi nafaqat o'z kursiga biriktirilgan, balki platformadagi barcha faol testlarni (`Q(is_active=True) | Q(course__teacher=user) | Q(created_by=user)`) ko'ra oladi.
+- [x] 2-Vazifa: Telegram OTP Kod Kiritish Interfeysi To'liq Qayta Ishlandi (`frontend/src/components/OtpInput.tsx`, `frontend/src/pages/Login.tsx`, `frontend/src/components/AuthModal.tsx`):
+  * Yangi zamonaviy 6-xonali `OtpInput` komponenti yaratildi (`[ ][ ][ ] — [ ][ ][ ]`).
+  * Har bir raqam kiritilganda avtomatik keyingi katakka o'tish, Backspace bosilganda oldingi katakni tozalash va unga qaytish, klaviatura chap/o'ng strelkalari bilan harakatlanish imkoniyatlari kiritildi.
+  * 6 xonali kod to'liq nusxalab joylashtirilganda (paste), barcha kataklar bir zumda to'ldiriladi.
+  * 6-raqam kiritilishi bilanoq tizimga avtomatik kirish (`onComplete`) chaqiriladi, "Kirish" tugmasini qayta bosish shart emas.
+  * Glassmorphism, yumshoq neon focus border (`#38bdf8`), raqamli monospace shrift va mobil qurilmalarga to'liq moslashuvchanlik ta'minlandi.
+- [x] 3-Vazifa: Natijalar va Testlar Sahifasidagi Bo'sh Holatlar (Empty State) Nafis Ko'rinishga Keltirildi (`frontend/src/pages/Results.tsx`, `frontend/src/pages/Tests.tsx`):
+  * `Results.tsx`: Quruq "Hali natijalar yo'q" o'rniga nufuzli oltin kubok (🏆), "Hali natijalar mavjud emas" sarlavhasi, "Sizning natijalaringiz shu yerda jamlanadi. Birinchi testni topshirib, o'z rekordingizni o'rnating!" tavsifi va `[ 🚀 Testlarga o'tish ]` tugmasi bilan zamonaviy gradient karta o'rnatildi.
+  * `Tests.tsx`: Faol testlar topilmaganda yoki qidiruv natijasi bo'sh bo'lganda (🔍) ilhomlantiruvchi karta va `[ 🔄 Qayta yuklash ]` hamda `[ Filtrni tozalash ]` tugmalari qo'shildi.
+- [x] 4-Vazifa: Baza Seederi va 100% QA Test Qamrovi (`tests/test_cefr_mock_engine.py`):
+  * `seed_cefr_mock_1`: 35 Listening + 35 Reading + 3 Writing + 4 Speaking (jami 77 ta savol) bazaga muvaffaqiyatli urug'lantirildi.
+  * `test_admin_and_teacher_can_start_and_preview_attempt` testi yozildi: Superadmin va Ustoz testni boshlashi, javob saqlashi va topshirishi 100% PASS qildi.
+  * `pytest tests/test_cefr_mock_engine.py -v`: 8 ta test 100% PASS (19.65s).
+- [x] 5-Vazifa: Contabo VPS (`169.58.58.229` / `/opt/lms`) Zero-Downtime Deploy:
+  * Serverdagi `bestway` loyihasiga (barcha konteynerlar, bazalar va portlar) mutlaqo teginilmadi va daxlsiz saqlandi.
+  * Faqat `/opt/lms` doirasida `web` va `nginx` konteynerlari granular darajada yangilandi.
+  * Jonli sayt va API larning 200 OK holati tasdiqlandi:
+    - `https://grandec.uz/` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/tests` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/api/health/` $\rightarrow$ **HTTP 200 OK**
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.74. Rasmiy Versiya v1.83.0: Referal Kartasi To'liq Qayta Ishlandi, 4 ta Statistika Kartalari Qayta Tiklandi va AI Esse Mavzusi Qo'shtirnoqlari Tozalandi
 - [x] 1-Vazifa: Referal Blokini Qayta Yozish (`frontend/src/pages/Dashboard.tsx`, `frontend/src/components/ReferralCard.tsx`):
   * Eskirgan va ulkan `MUKOFOT VA DO'STLAR DASTURI` bloki, o'ngdagi bo'sh div va adashgan nusxalash ikonalari butunlay olib tashlandi.
