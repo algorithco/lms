@@ -68,7 +68,9 @@ def _jwt_pair_for(user) -> dict:
 def _jwt_user_payload(user) -> dict:
     """User payload for SPA (mirrors CustomTokenObtainPairView response)."""
     from apps.accounts.access import is_platform_admin
+    from apps.accounts.serializers import UserProfileSerializer
 
+    ser = UserProfileSerializer(user)
     return {
         "id": user.pk,
         "email": user.email,
@@ -79,6 +81,14 @@ def _jwt_user_payload(user) -> dict:
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
         "is_platform_admin": is_platform_admin(user),
+        "plan": ser.get_plan(user),
+        "tariff": ser.get_tariff(user),
+        "is_paid": ser.get_is_paid(user),
+        "is_premium": ser.get_is_premium(user),
+        "has_pro_access": ser.get_has_pro_access(user),
+        "subscription_expires_at": ser.get_subscription_expires_at(user),
+        "days_until_expiration": ser.get_days_until_expiration(user),
+        "is_expiring_soon": ser.get_is_expiring_soon(user),
     }
 
 

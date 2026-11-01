@@ -450,32 +450,157 @@ export default function Profile() {
         <ReferralCard />
       </div>
 
-      {/* Subscription & Usage Limits */}
-      <div style={{ marginTop: 24 }}>
-        <UsageLimits />
-      </div>
+      {/* Admin Quick Action Hub (Only for Admin / Superuser) */}
+      {isPlatformAdmin(user) ? (
+        <div
+          className="card"
+          style={{
+            marginTop: 24,
+            padding: 24,
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(192, 132, 252, 0.08) 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                }}
+              >
+                👑
+              </div>
+              <div>
+                <h3 style={{ fontSize: 18, margin: 0, fontWeight: 800, color: 'var(--ink)' }}>
+                  {t('admin_hub_title', 'Platforma Boshqaruv Markazi (Admin Control Hub)')}
+                </h3>
+                <p className="muted small" style={{ margin: '2px 0 0' }}>
+                  {t('admin_hub_subtitle', 'Siz tizimning to‘liq huquqli boshqaruvchisisiz. Barcha resurslar va imkoniyatlar siz uchun cheksiz.')}
+                </p>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                padding: '4px 14px',
+                borderRadius: 20,
+                background: 'rgba(245, 158, 11, 0.2)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              ⭐ UNLIMITED ACCESS
+            </span>
+          </div>
 
-      {/* Quick Nav Card */}
-      <div
-        className="card"
-        style={{
-          marginTop: 24,
-          padding: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div>
-          <strong style={{ display: 'block', fontSize: 15 }}>{t('profile_manage_sub')}</strong>
-          <span className="muted small">{t('profile_view_plans_receipts')}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 16 }}>
+            <Link
+              to="/panel/users"
+              className="btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: '#0284c7',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>👥</span>
+              <span>{t('admin_btn_users', "O'quvchilarni Boshqarish va PRO Ulashish")}</span>
+            </Link>
+
+            <Link
+              to="/panel/teachers"
+              className="btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: '#7c3aed',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>👨‍🏫</span>
+              <span>{t('admin_btn_teachers', "Ustozlarga Limit va Ruxsat Qo'yish")}</span>
+            </Link>
+
+            <Link
+              to="/panel/tuition"
+              className="btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: '#059669',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🧾</span>
+              <span>{t('admin_btn_receipts', "Yangi To'lov Cheklarini Tekshirish")}</span>
+            </Link>
+          </div>
         </div>
-        <Link to="/subscribe" className="btn primary sm btn-glow" style={{ textDecoration: 'none' }}>
-          {t('profile_view_plans_btn')}
-        </Link>
-      </div>
+      ) : (
+        <>
+          {/* Subscription & Usage Limits (Non-admin only) */}
+          <div style={{ marginTop: 24 }}>
+            <UsageLimits />
+          </div>
+
+          {/* Quick Nav Card (Non-admin only) */}
+          <div
+            className="card"
+            style={{
+              marginTop: 24,
+              padding: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            <div>
+              <strong style={{ display: 'block', fontSize: 15 }}>{t('profile_manage_sub')}</strong>
+              <span className="muted small">{t('profile_view_plans_receipts')}</span>
+            </div>
+            <Link to="/subscribe" className="btn primary sm btn-glow" style={{ textDecoration: 'none' }}>
+              {t('profile_view_plans_btn')}
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   );
 }

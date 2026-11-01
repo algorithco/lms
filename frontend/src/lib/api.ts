@@ -222,6 +222,9 @@ export interface AuthUser {
   is_premium?: boolean;
   has_pro_access?: boolean;
   referral_code?: string;
+  subscription_expires_at?: string | null;
+  days_until_expiration?: number | null;
+  is_expiring_soon?: boolean;
 }
 
 /** Platform admin = active + (superuser or role==admin or center_admin or staff) (mirrors apps/accounts/access.py). */

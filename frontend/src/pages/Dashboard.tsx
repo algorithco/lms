@@ -614,6 +614,89 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* 2.05 PRO OBUNA TUGASHIGA OGOHLANTIRISH BANNERI */}
+      {user?.is_expiring_soon && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: '16px 20px',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(245, 158, 11, 0.12) 100%)',
+            border: '1.5px solid rgba(239, 68, 68, 0.4)',
+            boxShadow: '0 8px 24px rgba(239, 68, 68, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#EF4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                flexShrink: 0,
+              }}
+            >
+              ⚠️
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    background: '#EF4444',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  {t('dashboard.expiry_alert_badge', 'Obuna Ogohlantirishi')}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#DC2626' }}>
+                  {t('dashboard.expiry_days_left', `PRO obunangiz tugashiga ${user?.days_until_expiration || 1} kun qoldi!`)}
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B', fontWeight: 500 }}>
+                {t('dashboard.expiry_desc', "Uzluksiz ta'lim olish va sun'iy intellekt xizmatlaridan foydalanishda davom etish uchun obunani yangilang.")}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/subscribe"
+            className="btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              fontSize: 13,
+              textDecoration: 'none',
+              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>💳</span>
+            <span>{t('dashboard.expiry_renew_btn', 'Obunani yangilash')}</span>
+          </Link>
+        </div>
+      )}
+
       {/* 2.1 BO'SH HOLAT UCHUN ILHOMLANTIRUVCHI BANNER (0-STATE) */}
       {testsTakenVal === 0 && essaysCountVal === 0 && (
         <div

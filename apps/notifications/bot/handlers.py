@@ -849,16 +849,99 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
+def _authenticate_or_provision_tg_user(auth_token_str: str, tg_user_data: dict):
+    """Upsert user by Telegram identity and verify auth_token for instant 1-click SSO."""
+    from django.contrib.auth import get_user_model
+    from django.db import transaction
+    from django.utils import timezone
+    from apps.accounts.models import Profile
+    from apps.notifications.models import TelegramAuthToken
+
+    User = get_user_model()
+    tg_id = tg_user_data["id"]
+    tg_first = (tg_user_data.get("first_name") or "").strip()
+    tg_last = (tg_user_data.get("last_name") or "").strip()
+    tg_username = (tg_user_data.get("username") or "").strip()
+
+    with transaction.atomic():
+        try:
+            auth_token = TelegramAuthToken.objects.select_for_update().get(token=auth_token_str)
+        except TelegramAuthToken.DoesNotExist:
+            return None, False
+
+        if auth_token.is_expired or auth_token.consumed_at or auth_token.is_verified:
+            return None, False
+
+        user = User.objects.filter(telegram_chat_id=tg_id).first()
+        is_new = False
+        if not user and tg_username:
+            user = User.objects.filter(telegram_username=tg_username).first()
+
+        if user:
+            # Existing user - ensure telegram_chat_id and verified status
+            update_fields = []
+            if not user.telegram_chat_id:
+                user.telegram_chat_id = tg_id
+                update_fields.append("telegram_chat_id")
+            if tg_username and not user.telegram_username:
+                user.telegram_username = tg_username
+                update_fields.append("telegram_username")
+            if not user.telegram_identity_verified_at:
+                user.telegram_identity_verified_at = timezone.now()
+                update_fields.append("telegram_identity_verified_at")
+            if not user.is_active:
+                user.is_active = True
+                update_fields.append("is_active")
+            if update_fields:
+                user.save(update_fields=update_fields)
+        else:
+            # Automatically provision student account with verified Telegram SSO
+            base_email = f"tg_{tg_id}@grandec.uz"
+            email = base_email
+            counter = 1
+            while User.objects.filter(email=email).exists():
+                email = f"tg_{tg_id}_{counter}@grandec.uz"
+                counter += 1
+
+            user = User.objects.create(
+                email=email,
+                first_name=tg_first[:150],
+                last_name=tg_last[:150],
+                role=User.Role.STUDENT,
+                telegram_chat_id=tg_id,
+                telegram_username=tg_username[:64] if tg_username else None,
+                telegram_identity_verified_at=timezone.now(),
+                is_active=True,
+            )
+            user.set_unusable_password()
+            user.save()
+            is_new = True
+
+        Profile.objects.get_or_create(user=user)
+        full_name = user.get_full_name() or tg_first or "Telegram user"
+
+        auth_token.user = user
+        auth_token.telegram_chat_id = tg_id
+        auth_token.full_name = full_name
+        auth_token.phone_verified = True
+        auth_token.is_verified = True
+        auth_token.verified_at = timezone.now()
+        auth_token.conversation_state = "verified"
+        auth_token.generate_short_code()
+        auth_token.save()
+
+        return user, is_new
+
+
 async def _handle_auth_token(
     update: Update, context: ContextTypes.DEFAULT_TYPE, token_arg: str
 ) -> None:
-    """Handle /start auth_<token>.
+    """Handle /start auth_<token> with instant 1-Click Telegram SSO.
 
-    A verified Telegram link is already sufficient to identify an existing
-    account, so do not make those users share their phone again.  Phone
-    sharing remains required only when the account has to be matched by its
-    website profile phone (or when a new account is being created).
+    Automatically identifies or registers the user and verifies the token immediately.
+    The web browser polls status and redirects straight to /dashboard with zero code input.
     """
+    from django.conf import settings
     from apps.notifications.models import TelegramAuthToken
 
     token = token_arg.removeprefix("auth_")
@@ -891,65 +974,41 @@ async def _handle_auth_token(
         )
         return
 
-    # Fast path for users who have already completed the signed Telegram link
-    # challenge.  This is both safer and much less confusing than asking an
-    # already-linked user for a phone number that may not be present on their
-    # Telegram account.
-    from apps.accounts.models import Profile
-    from apps.accounts.services.telegram_identity import (
-        TelegramIdentityUnverified,
-        resolve_bot_auth_user,
-        normalize_phone,
+    user, is_new = await _run_db(
+        _authenticate_or_provision_tg_user,
+        token,
+        {
+            "id": tg_user.id,
+            "first_name": getattr(tg_user, "first_name", "") or "",
+            "last_name": getattr(tg_user, "last_name", "") or "",
+            "username": getattr(tg_user, "username", "") or "",
+        },
     )
 
-    try:
-        linked_user, how = await _run_db(resolve_bot_auth_user, tg_user.id, "")
-    except TelegramIdentityUnverified as exc:
-        await update.message.reply_text(str(exc))
-        return
-    except ValueError as exc:
-        await update.message.reply_text(str(exc) or "Hisob faol emas.")
-        return
-
-    if linked_user is not None and how == "tg":
-
-        def _linked_profile_phone():
-            try:
-                return normalize_phone(linked_user.profile.phone)
-            except Profile.DoesNotExist:
-                return ""
-
-        profile_phone = await _run_db(_linked_profile_phone)
-        context.user_data["auth_token"] = token
-        await _finish_existing_account(
-            update,
-            context,
-            token,
-            linked_user,
-            linked_user.get_full_name() or tg_user.first_name or "Telegram user",
-            profile_phone,
+    if not user:
+        await update.message.reply_text(
+            "❌ Token eskirgan yoki xatolik yuz berdi.\n\n"
+            "Iltimos, saytda qaytadan 'Telegram orqali kirish' tugmasini bosing."
         )
         return
 
-    # Store token in context for conversation flow. Phone FIRST: an existing
-    # account is matched by the verified contact number (fast code); only a
-    # genuinely new number is asked for a name afterwards.
-    context.user_data["auth_token"] = token
-    context.user_data["auth_state"] = "awaiting_phone"
+    _clear_auth_state(context)
 
-    # Start conversation: ask for the verified contact number
+    site_url = getattr(settings, "FRONTEND_URL", None) or getattr(settings, "SITE_URL", "https://grandec.uz")
+    dashboard_url = f"{site_url.rstrip('/')}/dashboard"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 Saytga o'tish (Dashboard)", url=dashboard_url)]
+    ])
+
+    user_disp_name = user.get_full_name() or getattr(tg_user, "first_name", "") or "Foydalanuvchi"
     await update.message.reply_text(
-        "🔐 *Telegram orqali kirish*\n\n"
-        "Hisobingizni topish uchun telefon raqamingizni ulashing:",
+        f"🎉 *Xush kelibsiz, {user_disp_name}!*\n\n"
+        "Grand Education tizimiga 1-klikda muvaffaqiyatli kirdingiz!\n\n"
+        "🌐 Brauzeringiz avtomatik ravishda platformaga yo'naltirilmoqda.",
         parse_mode="Markdown",
-        reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton(text="📱 Telefonni yuborish", request_contact=True)]],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        ),
+        reply_markup=keyboard,
     )
-
-    logger.info("TG auth conversation started: tg_id=%d", tg_user.id if tg_user else 0)
+    logger.info("TG 1-click SSO successful: user_id=%s, tg_id=%s, is_new=%s", user.pk, tg_user.id, is_new)
 
 
 def _clear_auth_state(context: ContextTypes.DEFAULT_TYPE) -> None:

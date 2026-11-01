@@ -305,6 +305,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         default=dict,
     )
     is_platform_admin = serializers.SerializerMethodField()
+    subscription_expires_at = serializers.SerializerMethodField()
+    days_until_expiration = serializers.SerializerMethodField()
+    is_expiring_soon = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -337,6 +340,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
             "is_platform_admin",
+            "subscription_expires_at",
+            "days_until_expiration",
+            "is_expiring_soon",
         ]
         read_only_fields = fields  # Hammasi read-only
 
@@ -344,6 +350,76 @@ class UserProfileSerializer(serializers.ModelSerializer):
         from apps.accounts.access import is_platform_admin
 
         return is_platform_admin(obj)
+
+    def get_subscription_expires_at(self, obj: Any) -> str | None:
+        if obj and (
+            getattr(obj, "is_superuser", False)
+            or getattr(obj, "is_staff", False)
+            or getattr(obj, "role", "") in ("admin", "center_admin")
+        ):
+            return None
+        try:
+            from django.utils import timezone
+            from apps.payments.models import UserSubscription
+            sub = UserSubscription.objects.filter(
+                user=obj,
+                status=UserSubscription.Status.ACTIVE,
+                expires_at__gt=timezone.now(),
+            ).order_by("-expires_at").first()
+            if sub and sub.expires_at:
+                return sub.expires_at.isoformat()
+        except Exception:
+            pass
+        return None
+
+    def get_days_until_expiration(self, obj: Any) -> int | None:
+        if obj and (
+            getattr(obj, "is_superuser", False)
+            or getattr(obj, "is_staff", False)
+            or getattr(obj, "role", "") in ("admin", "center_admin")
+        ):
+            return None
+        try:
+            import math
+            from django.utils import timezone
+            from apps.payments.models import UserSubscription
+            sub = UserSubscription.objects.filter(
+                user=obj,
+                status=UserSubscription.Status.ACTIVE,
+                expires_at__gt=timezone.now(),
+            ).order_by("-expires_at").first()
+            if sub and sub.expires_at:
+                delta = sub.expires_at - timezone.now()
+                if delta.total_seconds() > 0:
+                    return max(1, math.ceil(delta.total_seconds() / 86400))
+        except Exception:
+            pass
+        return None
+
+    def get_is_expiring_soon(self, obj: Any) -> bool:
+        if obj and (
+            getattr(obj, "is_superuser", False)
+            or getattr(obj, "is_staff", False)
+            or getattr(obj, "role", "") in ("admin", "center_admin")
+        ):
+            return False
+        try:
+            import math
+            from django.utils import timezone
+            from apps.payments.models import UserSubscription
+            sub = UserSubscription.objects.filter(
+                user=obj,
+                status=UserSubscription.Status.ACTIVE,
+                expires_at__gt=timezone.now(),
+            ).order_by("-expires_at").first()
+            if sub and sub.expires_at:
+                delta = sub.expires_at - timezone.now()
+                if delta.total_seconds() > 0:
+                    days = math.ceil(delta.total_seconds() / 86400)
+                    return 1 <= days <= 5
+        except Exception:
+            pass
+        return False
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):

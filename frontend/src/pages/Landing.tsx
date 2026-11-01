@@ -923,10 +923,10 @@ export default function Landing() {
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
-                Qaysi imtihonga tayyorlanasiz?
+                {t('landing.which_exam_title', 'Qaysi imtihonga tayyorlanasiz?')}
               </h2>
               <p style={{ fontSize: 15, color: '#64748B', margin: 0, fontWeight: 600 }}>
-                Rasmiy BMB va xalqaro standartlar asosida ishlab chiqilgan yo&apos;nalishni tanlang.
+                {t('landing.which_exam_desc', "Rasmiy BMB va xalqaro standartlar asosida ishlab chiqilgan yo'nalishni tanlang.")}
               </p>
             </div>
 
@@ -944,18 +944,18 @@ export default function Landing() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     <span style={{ fontSize: 40 }}>🥇</span>
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(245, 158, 11, 0.15)', color: '#D97706' }}>
-                      BMB Standart
+                      {t('landing.bmb_tag', 'BMB Standart')}
                     </span>
                   </div>
                   <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
                     BMB Milliy Sertifikat
                   </h3>
                   <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    A+ dan C gacha rasmiy darajalar, 45 talik test formati va maksimal OTM imtiyozi.
+                    {t('landing.bmb_desc', 'A+ dan C gacha rasmiy darajalar, 45 talik test formati va maksimal OTM imtiyozi.')}
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#D97706' }}>Testga kirish</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#D97706' }}>{t('landing.start_test_btn', 'Testga kirish')}</span>
                   <span
                     style={{
                       width: 36,
@@ -993,10 +993,10 @@ export default function Landing() {
                     </span>
                   </div>
                   <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    Attestatsiya 2026
+                    {t('landing.attestation_title', 'Attestatsiya 2026')}
                   </h3>
                   <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    O&apos;qituvchilar toifa sinovlari, 50 talik yangi namuna va oylik ustama kafolati.
+                    {t('landing.attestation_desc', "O'qituvchilar toifa sinovlari, 50 talik yangi namuna va oylik ustama kafolati.")}
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
@@ -1034,18 +1034,18 @@ export default function Landing() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     <span style={{ fontSize: 40 }}>✍️</span>
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
-                      12 Mezon
+                      {t('landing.ai_rubric_tag', '12 Mezon')}
                     </span>
                   </div>
                   <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    AI Esse Studiyasi
+                    {t('landing.ai_essay_title', 'AI Esse Studiyasi')}
                   </h3>
                   <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    15 soniyada to&apos;liq grammatik va uslubiy tahlil, A daraja bo&apos;yicha professional tavsiyalar.
+                    {t('landing.ai_essay_desc', "15 soniyada to'liq grammatik va uslubiy tahlil, A daraja bo'yicha professional tavsiyalar.")}
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#059669' }}>Insho yozish</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#059669' }}>{t('landing.write_essay_btn', 'Insho yozish')}</span>
                   <span
                     style={{
                       width: 36,
@@ -1066,7 +1066,7 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* 4. CEFR & IELTS (Ingliz tili) */}
+              {/* 4. {t('landing.cefr_title', 'CEFR & IELTS')} (Ingliz tili) */}
               <div
                 onClick={() => handleAction('/tests')}
                 className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
@@ -1086,11 +1086,11 @@ export default function Landing() {
                     CEFR & IELTS
                   </h3>
                   <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    Reading & Listening mock sinovlari va interaktiv AI Speaking trenajyori.
+                    {t('landing.cefr_desc', 'Reading & Listening mock sinovlari va interaktiv AI Speaking trenajyori.')}
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0284C7' }}>Ingliz tili CBT</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0284C7' }}>{t('landing.english_cbt_btn', 'Ingliz tili CBT')}</span>
                   <span
                     style={{
                       width: 36,

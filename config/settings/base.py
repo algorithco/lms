@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "apps.panel",  # In-app admin panel (/control-panel/)
     "apps.webapi",
     "apps.vocabulary",  # JSON API for the React SPA (/api/v1/)
+    "apps.billing",  # Quota & Limits Service
 ]
 
 MIDDLEWARE = [
@@ -439,6 +440,11 @@ CELERY_BEAT_SCHEDULE = {
     "tuition-due-alerts-daily": {
         "task": "notifications.send_tuition_due_alerts",
         "schedule": crontab(minute=30, hour=9),  # Daily 09:30
+    },
+    # PRO Subscription Expiration Warning (5-day advance alert)
+    "billing-check-expiring-subscriptions": {
+        "task": "billing.check_expiring_subscriptions",
+        "schedule": crontab(minute=30, hour=10),  # Daily 10:30 AM
     },
 }
 
