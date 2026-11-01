@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.77. Rasmiy Versiya v1.86.0: Dashboard Overlap Bartaraf Etildi, Ingliz Tili Mavzular Tahlili To'g'rilandi va To'liq i18n Lokalizatsiyasi Amalga Oshirildi (9.1.2-Bosqich)
+- [x] 1-Vazifa: Dashboard Overlap va Layout Buzilishi Bartaraf Etildi (`frontend/src/components/Layout.tsx`, `frontend/src/index.css`, `frontend/src/pages/Dashboard.tsx`):
+  * Sticky `.topbar` balandligi va `.content` o'rtasidagi bosilish yo'qotildi: `<main className="content pt-3 sm:pt-4 md:pt-6 pb-28 md:pb-8">` o'rnatildi.
+  * `.content` kengligi `max-width: 80rem` (1280px) va qulay padding (`1.5rem 1.25rem`) ga moslashtirildi, dashboard sarlavhasi va referal kartasi endi hech qachon topbar ostiga tiqilib qolmaydi.
+  * `Dashboard.tsx` konteyneriga `pt-2 md:pt-4` berilib, erkin nafas oluvchi zamonaviy visual iyerarxiya o'rnatildi.
+- [x] 2-Vazifa: Ingliz Tili Testlarida "Mumtoz Adabiyot" Noto'g'ri Ko'rsatilishi Butunlay Yo'qotildi (`apps/tests/ai_tutor.py`, `apps/tests/views_mistakes.py`, `apps/results/serializers.py`, `frontend/src/components/TestAddictiveResults.tsx`, `frontend/src/pages/Results.tsx`, `frontend/src/pages/TakeTest.tsx`):
+  * `apps/tests/ai_tutor.py`: `ENGLISH_TOPIC_KEYWORDS` (Listening, Reading Comprehension, Grammar & Structure, Vocabulary & Lexis, Writing & Coherence) joriy etildi.
+  * `_detect_question_topic` funksiyasi `subject`, `section_code` va `section_name` bo'yicha mustaqil tahlil qiladigan qilindi. Ingliz tili testlarida endi faqat ingliz tili rasmiy imtihon domenlari va maslahatlari qaytariladi.
+  * `ResultDetailSerializer`: `test_subject` va `exam_type` maydonlari qo'shildi, har bir savol uchun test faniga mos `topic` avtomatik aniqlanadi.
+  * `TestAddictiveResults.tsx`: `isEnglish` tekshiruvi orqali zaif mavzular tahlili va fallback taqsimoti ("Listening", "Reading Comprehension", "Grammar & Structure") ajratildi.
+- [x] 3-Vazifa: Dashboard Sahifasi Qotirilgan Matnlardan To'liq Tozalandi (i18n Lokalizatsiyasi):
+  * `frontend/src/i18n/translations.json` (UZ, RU, EN) yangi kalitlar bilan boyitildi: referal sarlavhasi, ulashish, nusxalash, 0-holat xabarlari, metrika kartalari holatlari, "Path to Excellence" bosqichlari va kvitansiya banneri.
+  * `frontend/src/pages/Dashboard.tsx` va `frontend/src/components/ReferralCard.tsx`: Barcha matnlar `t('dashboard....')` orqali dinamik o'qiladi. Ingliz tili tanlanganda barcha ma'lumotlar ingliz tilida chiqishi ta'minlandi.
+  * Foydalanuvchi fani (Active Subject) Ingliz tili bo'lganda dashboarddagi tavsiya etilgan testlar (CEFR Mock, IELTS Reading) va esse mavzulari ham avtomatik Ingliz tiliga o'tadi.
+- [x] 4-Vazifa: QA Testlar, Qurilish va Contabo VPS (`169.58.58.229`) Zero-Downtime Deploy:
+  * `pytest tests/test_cefr_mock_engine.py -v`: 8/8 test 100% PASS (24.88s).
+  * `npm --prefix frontend run build`: 0 ta xato bilan 3.25 soniyada qurildi.
+  * Git commit: `feat(dashboard): resolve layout overlap, map english test topics, and enforce i18n localization` muallif: `Komiljon Roziyev <kruziyev0@gmail.com>`.
+  * Contabo VPS (`169.58.58.229`) da `/opt/lms` granular yangilandi:
+    - `bestway` loyihasining barcha konteynerlari daxlsiz saqlandi.
+    - `https://grandec.uz/` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/dashboard` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/tests` $\rightarrow$ **HTTP 200 OK**
+    - `https://grandec.uz/profile` $\rightarrow$ **HTTP 200 OK**
+
 ### 2.76. Rasmiy Versiya v1.85.0: Dashboard Metrikalar Dizayni Mukammallashtirildi, Referal Banneri Tiklandi va Fikr Bildirish Modali Jozibali Qilindi (9.1.1-Bosqich)
 - [x] 1-Vazifa: Dashboard Statistika Kartalari Mutanosibligi va Referal Blokini Tiklash (`frontend/src/pages/Dashboard.tsx`):
   * 4 ta asosiy metrika kartalari (`p-5`, `minHeight: 135px`, `borderRadius: 18`) ichki tipografiyasi qayta muvozanatlashtirildi: yozuvlar `13px font-semibold text-slate-500`, metrika qiymati `24px font-extrabold text-slate-900 dark:text-white`, o'lchov birligi `13px` va status qatori `12px font-semibold` qilindi (raqam va matn o'rtasidagi nomutanosiblik butunlay yo'qotildi).
