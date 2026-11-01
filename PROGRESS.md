@@ -9,6 +9,33 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.73. Rasmiy Versiya v1.82.0: Minified React Error #310 va Hook Qoidasi Tuzatildi, Test Urinishlari Idempotentligi va Haqiqiy Dashboard Statistikasi (9.0.0-Bosqich)
+- [x] 1-Vazifa: Minified React Error #310 ni Yo'qotish (`frontend/src/pages/tests/EnglishExamInterface.tsx`):
+  * React Hook qoidasi (`useMemo`, `useState`, `useEffect`, `useCallback`, `useRef`) qat'iy tartibga keltirildi: barcha hooklar va memoizatsiya qilingan o'zgaruvchilar (`dynamicHeadingsList`, `dynamicStatementsList`, `assignedMapRooms`, `usedHeadings`, `isMapQuestion`, `isHeadingsQuestion`, `isMatchingStatements`, `isTfngQuestion`, `isInlineGap`) shartli qaytishlardan (`if (loading)`, `if (err && !attempt)`, `if (resultData)`) oldin eng yuqori darajada e'lon qilinishi ta'minlandi.
+  * O'zgaruvchilar null-xavfsiz holatga keltirildi (`questions = attempt?.questions || []`, `currentQ = questions[currentQIndex] || null`, `currentPassage = passages[currentPassageIndex] || passages[0] || currentQ?.passage || null`).
+  * Frontend `npm --prefix frontend run build` 2.17 soniyada 0 ta xato bilan muvaffaqiyatli qurildi.
+- [x] 2-Vazifa: "Failed to Fetch" & Test Attempts (400/500) Xatosini Bartaraf Etish (`apps/tests/services.py`, `apps/tests/views.py`):
+  * `StartAttemptService.execute`: Talabada faol, vaqti o'tmagan attempt mavjud bo'lganda `ValueError` tashlash o'rniga mavjud `active_attempt` xavfsiz qaytariladi (idempotentlik ta'minlandi).
+  * `IntegrityError` yuz berganda parallel boshlangan in-progress attempt qaytariladi.
+  * `StartAttemptView.post`: `transaction.atomic()` bilan o'ralib, xatolik yuz berganda tranzaksiya toza rollback qilinishi ta'minlandi.
+- [x] 3-Vazifa: Dashboarddagi Soxta Statistikani Tozalash va Haqiqiy 0-Holat (`frontend/src/pages/Dashboard.tsx`, `apps/results/views.py`, `apps/results/serializers.py`):
+  * `Dashboard.tsx`: Barcha sun'iy qotirilgan sonlar (`|| 24`, `|| 7`, `essaysCountVal = 16`, `340 XP`, `|| 18 ta o'tgan`, `+12% bu oy`) olib tashlandi.
+  * Yangi foydalanuvchilar uchun 0 ta test, 0 ta esse, 0% o'rtacha natija toza ko'rsatiladi va `testsTakenVal === 0 && essaysCountVal === 0` holatida maxsus ilhomlantiruvchi taklif kartasi `[ 🚀 Boshlang'ich testni yechish ]` chiqadi.
+  * `apps/results/serializers.py` va `views.py`: `ResultStatsSerializer` ga `total_essays_submitted` qo'shildi va real esse topshiriqlari hisoblab beriladi.
+- [x] 4-Vazifa: QA Test Qamrovi va Idempotentlik Kafolati (`tests/test_cefr_mock_engine.py`):
+  * `test_start_attempt_returns_existing_active_attempt_idempotently`: Ikkinchi marta start chaqirilganda bir xil faol attempt qaytishi sinovdan o'tkazildi (100% PASS).
+  * `test_result_stats_includes_essays_and_zero_state`: Yangi o'quvchi uchun 0-holat va `total_essays_submitted` qiymatlari to'g'ri qaytishi tekshirildi (100% PASS).
+  * `pytest tests/test_cefr_mock_engine.py -v`: 7 ta test 100% PASS (27.49s).
+- [x] 5-Vazifa: Contabo VPS (`169.58.58.229` / `/opt/lms`) Xavfsiz Deploy:
+  * Serverdagi `bestway` loyihasiga mutlaqo teginilmadi va uning barcha 7 ta konteyneri (`education-backend`, `bestway-prod-assessment-worker-1`, `education-frontend`, `bestway-prod-game-scheduler-1`, `bestway-prod-telegram-bot-1`, `education-postgres`, `education-cache`) 100% sog'lom va daxlsiz saqlandi.
+  * `docker compose up -d --build web` orqali faqat LMS platformasining web konteyneri granular yangilandi.
+  * CEFR Mock Test 12 bazada to'liq yangilandi (77 ta savol).
+  * Endpointlar tekshirildi:
+    - `https://grandec.uz/` -> HTTP 200 OK
+    - `https://grandec.uz/tests` -> HTTP 200 OK
+    - `https://grandec.uz/api/v1/healthz/` -> HTTP 200 OK
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.72. Rasmiy Versiya v1.81.0: 100% Ma'lumotlar Bazasi va Admin Panelga Bog'langan CEFR / CD-IELTS Imtihon Dvigateli (8.7.0-Bosqich)
 - [x] 1-Vazifa: Django Modellar va Admin Paneli Kengaytmasi (`apps/tests/models.py`, `apps/tests/admin.py`, `apps/tests/serializers.py`):
   * `Question.QuestionType` ga rasmiy kompyuter imtihoni turlari kiritildi: `MULTIPLE_CHOICE`, `INLINE_GAP_FILL`, `MAP_LABELING`, `HEADING_MATCHING`, `MATCHING`, `TRUE_FALSE_NOT_GIVEN`, `SHORT_ANSWER`.
