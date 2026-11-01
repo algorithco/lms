@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.80. Rasmiy Versiya v1.89.0: Dashboard Overlap Butunlay Yo'qotildi, Ingliz Tili Mavzulari To'g'rilandi, To'liq i18n Integratsiyasi va Fikr Bildirish Modali Mukammallashtirildi (9.1.2-Bosqich)
+- [x] 1-Vazifa: Dashboard Overlap va Layout Bo'shliqlari Ildizi Bilan Bartaraf Etildi (`frontend/src/components/Layout.tsx`, `frontend/src/pages/Dashboard.tsx`):
+  * Sticky `.topbar` balandligi sababli yuzaga kelgan overlap muammosi `Layout.tsx` dagi `<main>` konteyneriga `pt-20 sm:pt-24 pb-28 md:pb-8` berish orqali tubdan hal qilindi.
+  * `Dashboard.tsx` dagi padding mutanosiblashtirildi (`pt-2 sm:pt-4`), mobil va desktop ekranlarda hech qanday sarlavha, banner yoki referal kartasi yuqori navigatsiya paneli ostiga qisilib qolmaydi.
+- [x] 2-Vazifa: Ingliz Tili Testlarida "Mumtoz Adabiyot" Noto'g'ri Chiqishi Butunlay Yo'qotildi (`apps/tests/ai_tutor.py`, `frontend/src/components/TestAddictiveResults.tsx`):
+  * `apps/tests/ai_tutor.py`: `ENGLISH_TOPIC_KEYWORDS` (Listening, Reading Comprehension, Grammar & Structure, Vocabulary & Lexis, Writing & Coherence) joriy qilindi.
+  * `get_result_diagnostics` va `explain_question_mistake` funksiyalari test fanini (`subject='english'`) avtomatik aniqlab, savollarni o'zbek adabiyoti bo'yicha tahlil qilishini 100% to'xtatdi.
+  * `TestAddictiveResults.tsx` komponentida ingliz tili testlari uchun sanitizatsiya qo'shildi: har qanday eski o'zbek adabiyoti mavzulari ("Mumtoz adabiyot", "Jadid adabiyoti") avtomatik "Reading Comprehension", "Listening" yoki "Grammar" domenlariga filtrlanadi.
+- [x] 3-Vazifa: Dashboard Matnlari To'liq i18n Lokalizatsiyasiga O'tkazildi (`frontend/src/pages/Dashboard.tsx`, `frontend/src/components/Layout.tsx`, `frontend/src/i18n/translations.json`):
+  * Dashboard sahifasida qotib qolgan barcha o'zbekcha yozuvlar (`"Mening Testlarim"`, `"AI Esse Studiyasi"`, `"Milliy Sertifikat & AI Esse LMS"`, `"12 mezon tekshirildi"`, `"Hurmatli O'quvchi"`, rubrikalar va metrikalar) `t('...')` tarjimalariga ulandi.
+  * `translations.json` faylida UZ, RU va EN tillari uchun barcha kerakli kalitlar kiritildi va to'liq sinxronlashtirildi. Foydalanuvchi ingliz yoki rus tilini tanlaganda dashboard 100% tanlangan tilda ko'rinadi.
+- [x] 4-Vazifa: Fikr Bildirish Modali va Landing CTA Tugmalari Mukammallashtirildi (`frontend/src/components/FeedbackModal.tsx`, `frontend/src/pages/Landing.tsx`, `frontend/src/components/ReferralCard.tsx`):
+  * `FeedbackModal.tsx`: Yulduzchalar haqiqiy oltin tusli (`#f59e0b`, fill va color), hover qilinganda 130% kattalashuvchi animatsiyaga keltirildi. Textarea focus bo'lganda `ring-2 ring-amber-500` bilan yorishadi. Kategoriya tugmalari zamonaviy pill formatiga o'tkazildi.
+  * `Landing.tsx`: "Fikr bildirish" tugmalari yuqori kontrastli `#0284c7` CTA tugmalariga aylantirildi (`hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg`).
+  * `ReferralCard.tsx`: Ortiqcha kulrang qutilar yo'qotildi, bitta ixcham gorizontal qatorli nafis kartaga keltirildi.
+- [x] 5-Vazifa: QA Testlar, Build va Contabo VPS (`169.58.58.229`) Zero-Downtime Deploy:
+  * `pytest tests/test_cefr_mock_engine.py -v`: 8/8 test 100% PASS (57.27s).
+  * `npm --prefix frontend run build`: 5.71s da 0 ta xato bilan qurildi (`dist/assets/index-al3FqPKT.js`).
+  * Git commit `3e7e6f2`: `fix(core): resolve dashboard overlap, fix english test topic mismatch, enforce i18n translations, and complete UI polish` muallif: `Komiljon Roziyev <kruziyev0@gmail.com>`.
+  * Contabo VPS (`169.58.58.229`) da `/opt/lms` granular darajada yangilandi:
+    - `bestway` loyihasining barcha 3 ta konteyneri daxlsiz saqlandi (Up 23-26h).
+    - `lms-platform-prod-web-1` qayta qurildi, yangi SPA fayllari `/app/spa-live/` ga muvaffaqiyatli sinxronlandi.
+    - `lms-platform-prod-nginx-1` reload qilindi.
+    - Jonli tekshiruv: `https://grandec.uz/` $\rightarrow$ **HTTP 200 OK** (serves `index-al3FqPKT.js`).
+    - Modullar tekshiruvi: `DashboardRouter-DCWnmlwm.js` $\rightarrow$ **HTTP 200 OK**, `FeedbackModal-B2UK9Hwc.js` $\rightarrow$ **HTTP 200 OK**.
+
 ### 2.79. Rasmiy Versiya v1.88.0: Dashboard Sarlavhasi Padding-Top Kengaytirildi, Referal Kartasi Bitta Komponentga Biriktirildi, Landing CTA Tugmalari Mukammallashtirildi va NGINX Kesh Sozlamalari To'g'rilandi (9.1.3-Bosqich)
 - [x] 1-Vazifa: Dashboard Sarlavhasi Ustma-ust Tushishi Butunlay Yo'qotildi (`frontend/src/pages/Dashboard.tsx`):
   * `"Xush kelibsiz, ..."` sarlavhasi tepadagi oq navigatsiya panelining tagiga kirib qolishi bartaraf etildi.
