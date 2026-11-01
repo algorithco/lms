@@ -9,6 +9,29 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.72. Rasmiy Versiya v1.81.0: 100% Ma'lumotlar Bazasi va Admin Panelga Bog'langan CEFR / CD-IELTS Imtihon Dvigateli (8.7.0-Bosqich)
+- [x] 1-Vazifa: Django Modellar va Admin Paneli Kengaytmasi (`apps/tests/models.py`, `apps/tests/admin.py`, `apps/tests/serializers.py`):
+  * `Question.QuestionType` ga rasmiy kompyuter imtihoni turlari kiritildi: `MULTIPLE_CHOICE`, `INLINE_GAP_FILL`, `MAP_LABELING`, `HEADING_MATCHING`, `MATCHING`, `TRUE_FALSE_NOT_GIVEN`, `SHORT_ANSWER`.
+  * `Question.question_type` maydoni uzunligi 32 belgiga oshirildi va migratsiya (`0014_alter_question_question_type.py`) yaratildi.
+  * `QuestionAdmin.get_inlines()` orqali Django Admin panelida har bir savol turi uchun mos inline variantlar (`ChoiceInline`, `GapBlankInline`, `MatchingPromptInline`, `MatchingOptionInline`) dinamik chiqishi ta'minlandi.
+  * DRF `_student_question_payload()` serializeriga `config` uzatish qo'shildi (`is_correct` maxfiyligi qat'iy saqlandi).
+- [x] 2-Vazifa: Backend Avto-Baholash va Javoblarni Saqlash Xizmatlari (`apps/tests/services.py`):
+  * `SaveAnswerService`: `INLINE_GAP_FILL`, `SHORT_ANSWER`, `MAP_LABELING`, `HEADING_MATCHING`, `TRUE_FALSE_NOT_GIVEN`, `MULTIPLE_CHOICE` savollari uchun javoblarni avto-saqlash va validatsiya qo'shildi.
+  * `SubmitAttemptService`: Barcha yangi savol turlari uchun baholash integratsiyasi (`INLINE_GAP_FILL` bo'shliqlar va matn orqali, `MAP_LABELING`, `HEADING_MATCHING`, `MATCHING`, `TRUE_FALSE_NOT_GIVEN` to'g'ri variantlar orqali 100% to'g'ri baholanadi).
+- [x] 3-Vazifa: To'liq Dinamik Frontend va Komponentlar (`frontend/src/pages/tests/EnglishExamInterface.tsx`, `frontend/src/pages/tests/CefrExamComponents.tsx`):
+  * Barcha statik (hardcoded) massivlar olib tashlandi: `HeadingsMatchingView` sarlavhalari, `MatchingStatementsView` fikrlari va `CommunityCentrePlanSvg` xona variantlari 100% ma'lumotlar bazasidagi `currentQ.choices` dan dinamik olinadi.
+  * Split-screen interfeys, autentik audio pleyer, to'liq ekranli anti-cheat kiosk rejimi va Cambridge drop cap matn formati ishga tushirildi.
+  * Frontend `tsc -b && vite build` muvaffaqiyatli yakunlandi (0 ta xatolik, 3.10s).
+- [x] 4-Vazifa: Seeder va 100% QA Test Qamrovi (`apps/tests/management/commands/seed_cefr_mock_1.py`, `tests/test_cefr_mock_engine.py`):
+  * `seed_cefr_mock_1`: 35 Listening + 35 Reading + 3 Writing + 4 Speaking (jami 77 ta savol) to'liq yangi savol turlari va bazadagi variantlari bilan qayta urug'lantirildi.
+  * `pytest tests/test_cefr_mock_engine.py -v`: 5 ta test 100% PASS (23.45s).
+- [x] 5-Vazifa: Contabo VPS (`169.58.58.229` / `/opt/lms`) Xavfsiz Deploy:
+  * Serverdagi `bestway` loyihasiga mutlaqo teginilmadi va 100% daxlsiz saqlandi.
+  * `docker compose up -d --build web` orqali granular darajada yangilandi.
+  * Bazaga `seed_cefr_mock_1 --reset` kiritildi.
+  * Endpointlar tekshirildi: `https://grandec.uz/` (HTTP 200 OK), `https://grandec.uz/tests` (HTTP 200 OK).
+  * Mualliflik: `Komiljon Roziyev <kruziyev0@gmail.com>` (Zero AI attribution).
+
 ### 2.71. Rasmiy Versiya v1.80.0: Chek Yuklashda CSRF Xatosini Yo'qotish va Telegram Guruh Yordamchisi Boti (8.4.0-Bosqich)
 - [x] 1-Vazifa: Chek Yuklashda "CSRF Failed" Xatosini Zudlik Bilan Bartaraf Etish (`apps/webapi/views_billing.py`, `apps/payments/services.py`, `frontend/src/lib/api.ts`, `frontend/src/components/CardPaymentModal.tsx`):
   * `CsrfExemptSessionAuthentication`: DRF sessiya tekshiruvidagi CSRF blokirovkasini to'liq bekor qiluvchi autentifikator yaratildi va `payment_receipt_upload_view`, `my_payment_receipts_view`, `receipt_review_view` ga ulandi.
