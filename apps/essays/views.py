@@ -555,18 +555,25 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
     # --- Daily AI Quota Check -----------------------------------------------
     from apps.payments.ai_quota import check_and_consume_ai_quota
 
-    ai_allowed, ai_err = check_and_consume_ai_quota(request.user)
-    if not ai_allowed:
-        return JsonResponse(
-            {
-                "ok": False,
-                "error": ai_err,
-                "quota_denied": True,
-                "code": "quota_exceeded",
-                "redirect_url": "/pricing/",
-            },
-            status=429,
-        )
+    is_admin_user = (
+        getattr(request.user, "is_superuser", False)
+        or getattr(request.user, "is_staff", False)
+        or getattr(request.user, "role", "") in ("admin", "center_admin")
+    )
+
+    if not is_admin_user:
+        ai_allowed, ai_err = check_and_consume_ai_quota(request.user)
+        if not ai_allowed:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": ai_err,
+                    "quota_denied": True,
+                    "code": "quota_exceeded",
+                    "redirect_url": "/pricing/",
+                },
+                status=429,
+            )
 
     # --- Tijoriy kvota (TEXT_ESSAY) -----------------------------------------
     # Limit FAQAT haqiqiy yangi baholash ishi uchun sarflanadi: yuqoridagi

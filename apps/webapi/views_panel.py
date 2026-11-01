@@ -563,6 +563,70 @@ def user_block_view(request, user_id: int):
             pass
     return Response(UserAdminSerializer(target).data)
 
+@api_view(["POST"])
+@permission_classes([IsPanelAdmin])
+def user_grant_subscription_view(request, user_id: int):
+    """
+    POST /api/v1/panel/users/<user_id>/grant-subscription/
+    Admin har qanday o'quvchi yoki o'qituvchiga bepul PRO / Premium obuna taqdim etishi mumkin.
+    Payload:
+      {
+        "plan_type": "pro" | "premium" | "starter",
+        "days": 30 | 90 | 180 | 365,
+        "reason": "Admin direct grant"
+      }
+    """
+    target = get_object_or_404(User, id=user_id)
+    plan_type = str(request.data.get("plan_type", "pro")).lower().strip()
+    try:
+        days = int(request.data.get("days", 30))
+        if days <= 0:
+            days = 30
+    except (TypeError, ValueError):
+        days = 30
+
+    reason = str(request.data.get("reason", "Admin direct grant")).strip()
+
+    from apps.payments.models import SubscriptionPlan, UserSubscription
+    from apps.payments.subscriptions import grant_subscription
+
+    plan = SubscriptionPlan.objects.filter(plan_type=plan_type).first()
+    if not plan:
+        plan = SubscriptionPlan.objects.filter(plan_type="pro").first()
+    if not plan:
+        return Response({"detail": f"'{plan_type}' obuna rejasi topilmadi."}, status=400)
+
+    sub = grant_subscription(
+        user=target,
+        plan=plan,
+        days=days,
+        source=UserSubscription.Source.ADMIN,
+        payment_method="admin_grant",
+        grant_source="admin_panel",
+        actor=request.user,
+        reason=reason,
+    )
+
+    if hasattr(target, "profile") and target.profile:
+        target.profile.plan = plan.plan_type
+        target.profile.save(update_fields=["plan"])
+
+    display_name = target.get_full_name() or target.email or f"Foydalanuvchi #{target.id}"
+    return Response(
+        {
+            "status": "success",
+            "message": f"{display_name} ga {days} kunlik {plan.name or plan_type.upper()} obunasi muvaffaqiyatli berildi.",
+            "user_id": target.id,
+            "plan_type": plan.plan_type,
+            "plan_name": plan.name,
+            "days": days,
+            "expires_at": sub.expires_at.strftime("%Y-%m-%d %H:%M"),
+            "is_active": sub.is_active,
+            "user": UserAdminSerializer(target).data,
+        }
+    )
+
+
 
 @api_view(["POST"])
 @permission_classes([IsPanelAdmin])

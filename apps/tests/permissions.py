@@ -88,7 +88,48 @@ class CanStartAttempt(BasePermission):
         u = getattr(request, "user", None)
         if not (u and u.is_authenticated):
             return False
-        if is_platform_admin(u) or getattr(u, "is_superuser", False) or getattr(u, "is_staff", False):
+        if (
+            is_platform_admin(u)
+            or getattr(u, "is_superuser", False)
+            or getattr(u, "is_staff", False)
+            or getattr(u, "role", "") in ("admin", "center_admin")
+        ):
             return True
         role = getattr(u, "role", "")
         return role in ["student", "teacher", "admin", "center_admin"]
+
+
+def check_user_limits(user) -> bool:
+    """Check user test limits. Admin/staff users have unlimited access."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+        or is_platform_admin(user)
+    ):
+        return True  # Adminlarga hamma narsa cheksiz va bepul
+    from apps.subscriptions.services.quota import QuotaService
+
+    tier = QuotaService.get_user_tier(user)
+    return tier in ("pro", "premium")
+
+
+def has_active_subscription(user) -> bool:
+    """Check if user has active subscription. Admin/staff always True."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+        or is_platform_admin(user)
+    ):
+        return True  # Adminlarga hamma narsa cheksiz va bepul
+    from apps.payments.models import UserSubscription
+
+    sub = UserSubscription.objects.filter(
+        user=user, status=UserSubscription.Status.ACTIVE
+    ).first()
+    return bool(sub and sub.is_active)

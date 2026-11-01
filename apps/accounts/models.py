@@ -271,8 +271,12 @@ class User(AbstractUser):
 
     @property
     def has_pro_access(self) -> bool:
-        """True if user has PRO access (either via teacher role, teacher group, subscription or profile)."""
-        if self.role in (self.Role.TEACHER, self.Role.ADMIN):
+        """True if user has PRO access (either via superuser/staff/admin, teacher role, teacher group, subscription or profile)."""
+        if (
+            getattr(self, "is_superuser", False)
+            or getattr(self, "is_staff", False)
+            or self.role in (self.Role.TEACHER, self.Role.ADMIN, "center_admin")
+        ):
             return True
         if hasattr(self, "student_groups") and self.student_groups.exists():
             return True

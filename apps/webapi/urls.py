@@ -247,6 +247,11 @@ urlpatterns = [
         views_panel.user_block_view,
         name="panel-user-block",
     ),
+    path(
+        "panel/users/<int:user_id>/grant-subscription/",
+        views_panel.user_grant_subscription_view,
+        name="panel-user-grant-subscription",
+    ),
     path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
     path("panel/teachers/", views_panel.panel_teachers_view, name="panel-teachers"),
     path(

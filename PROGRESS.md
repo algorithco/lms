@@ -9,6 +9,36 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.81. Rasmiy Versiya v1.90.0: Administrator Uchun Cheksiz Huquqlar (Unlimited Access), Bepul PRO/Premium Obuna Biriktirish Tizimi va PanelUsers Interfeysi (9.4.0-Bosqich)
+- [x] 1-Vazifa: Administratorlar Uchun Barcha Limitlar va To'lov Cheklovlari Bekor Qilindi (Unlimited Access):
+  * `apps/billing/services.py`: `check_user_limits`, `has_active_subscription`, `can_take_test`, `can_submit_essay` funksiyalari joriy etildi. Har bir funksiyaning boshida `user.is_superuser or user.is_staff or user.role in ('admin', 'center_admin')` tekshiruvi o'rnatilib, platforma ma'murlariga to'lov, test soni yoki esse topshirish limitlaridan 100% cheksiz (unlimited) immunitet berildi.
+  * `apps/essays/permissions.py` va `apps/tests/permissions.py`: Ruxsatnomalar yangilandi, adminlar test boshlash va esse yuborishda hech qachon bloklanmaydi.
+  * `apps/payments/ai_quota.py`: `get_user_ai_quota` va `check_and_consume_ai_quota` funksiyalariga admin tekshiruvi qo'shildi, adminlar kunlik AI so'rovlar limitiga tushmaydi.
+  * `apps/payments/entitlements.py`: `can_submit_essay`, `can_start_test`, `enforce_essay_quota`, `enforce_test_quota` larda adminlar uchun to'g'ridan-to'g'ri ruxsat qaytarilishi ta'minlandi.
+  * `apps/accounts/models.py`: `User.has_pro_access` xususiyatiga `is_superuser` va `is_staff` qo'shildi.
+  * `apps/accounts/access.py`: `is_platform_admin` funksiyasiga `is_staff` va `center_admin` kiritildi.
+- [x] 2-Vazifa: Admin Har Qanday O'quvchi va O'qituvchiga Bepul PRO/Premium Obuna Bera Olishi Ta'minlandi:
+  * Backend API: `POST /api/v1/panel/users/<user_id>/grant-subscription/` yaratildi. Admin `plan_type` ('pro' yoki 'premium') va `days` (30, 90, 180, 365 kun) ni tanlab, istalgan foydalanuvchiga obunani biriktiradi.
+  * Tranzaksion xavfsizlik: `apps/payments/subscriptions.py` dagi `grant_subscription` chaqirilib, obuna muddati, kvota snapshot'i va `EntitlementAuditLog` da rasmiylashtiriladi. Foydalanuvchi profilidagi `plan` ham sinxron yangilanadi.
+  * `apps/accounts/admin.py`: Django Admin (`/admin/accounts/user/`) da yangi admin harakatlari (actions) qo'shildi:
+    - ⭐ "Tanlanganlarga 30 kunlik PRO obuna berish"
+    - ⭐ "Tanlanganlarga 1 yillik PRO obuna berish"
+    - 💎 "Tanlanganlarga 1 yillik PREMIUM obuna berish"
+    - Ro'yxatda "Obuna (Tarif)" ustuni qo'shildi.
+- [x] 3-Vazifa: Frontend Boshqaruv Paneli Foydalanuvchilar Sahifasi Mukammallashtirildi (`frontend/src/pages/PanelUsers.tsx`, `frontend/src/lib/api.ts`):
+  * `UserAdminSerializer` ga `plan`, `has_pro`, `subscription_expires_at` maydonlari qo'shildi.
+  * `PanelUsers.tsx` jadvalida har bir foydalanuvchining joriy tarifi (`👑 Admin`, `⭐ PRO`, `💎 PREMIUM`, `Free`) va muddati ko'rsatiladi.
+  * Har bir foydalanuvchi qatorida `[⭐ PRO Berish]` tugmasi va interaktiv modal oyna yaratildi. Admin reja turi va muddatini tanlab, bir zumda tekinga obuna berishi mumkin.
+- [x] 4-Vazifa: QA Test Suite (100% PASS Gate):
+  * `tests/test_admin_privileges_and_subscription_grant.py` yaratildi:
+    - `test_admin_unlimited_privileges`: PASSED
+    - `test_admin_grant_pro_subscription_to_student`: PASSED
+    - `test_admin_grant_premium_subscription_to_teacher`: PASSED
+    - `test_non_admin_cannot_grant_subscription`: PASSED
+    - 4/4 test 100% PASS (27.70s).
+  * Regressiya testlari: `pytest tests/test_teacher_grade_override_and_vedomost.py tests/test_cefr_mock_engine.py -v`: 14/14 test 100% PASS (26.91s).
+  * Frontend Build: `npm --prefix frontend run build` 0 xato bilan 4.37s da muvaffaqiyatli qurildi (`index-CnWferlR.js`).
+
 ### 2.80. Rasmiy Versiya v1.89.0: Dashboard Overlap Butunlay Yo'qotildi, Ingliz Tili Mavzulari To'g'rilandi, To'liq i18n Integratsiyasi va Fikr Bildirish Modali Mukammallashtirildi (9.1.2-Bosqich)
 - [x] 1-Vazifa: Dashboard Overlap va Layout Bo'shliqlari Ildizi Bilan Bartaraf Etildi (`frontend/src/components/Layout.tsx`, `frontend/src/pages/Dashboard.tsx`):
   * Sticky `.topbar` balandligi sababli yuzaga kelgan overlap muammosi `Layout.tsx` dagi `<main>` konteyneriga `pt-20 sm:pt-24 pb-28 md:pb-8` berish orqali tubdan hal qilindi.

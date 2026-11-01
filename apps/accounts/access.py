@@ -12,7 +12,8 @@ def is_platform_admin(user) -> bool:
         and user.is_active
         and (
             getattr(user, "is_superuser", False)
-            or getattr(user, "role", None) == "admin"
+            or getattr(user, "is_staff", False)
+            or getattr(user, "role", None) in ("admin", "center_admin")
         )
     )
 

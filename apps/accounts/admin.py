@@ -17,12 +17,111 @@ class UserAdmin(BaseUserAdmin):
         "first_name",
         "last_name",
         "role",
+        "subscription_plan_display",
         "can_create_essay_topic",
         "can_create_test",
         "is_active",
         "is_staff",
         "created_at",
     )
+    actions = (
+        "grant_pro_30_days",
+        "grant_pro_1_year",
+        "grant_premium_1_year",
+    )
+
+    @admin.display(description="Obuna (Tarif)")
+    def subscription_plan_display(self, obj):
+        if getattr(obj, "is_superuser", False) or getattr(obj, "role", "") == "admin":
+            return "👑 Admin (Cheksiz)"
+        sub = getattr(obj, "subscription", None)
+        if sub and getattr(sub, "is_active", False) and getattr(sub, "plan", None):
+            exp = sub.expires_at.strftime("%Y-%m-%d") if sub.expires_at else ""
+            return f"⭐ {sub.plan.plan_type.upper()} ({exp})"
+        if getattr(obj, "has_pro_access", False):
+            return "⭐ PRO (Ustoz/Guruh)"
+        return "Free"
+
+    @admin.action(description="⭐ Tanlanganlarga 30 kunlik PRO obuna berish")
+    def grant_pro_30_days(self, request, queryset):
+        from apps.payments.models import SubscriptionPlan, UserSubscription
+        from apps.payments.subscriptions import grant_subscription
+        from django.contrib import messages
+
+        plan = SubscriptionPlan.objects.filter(plan_type="pro").first()
+        if not plan:
+            self.message_user(request, "PRO tarif rejasi topilmadi.", level=messages.ERROR)
+            return
+        count = 0
+        for user in queryset:
+            grant_subscription(
+                user=user,
+                plan=plan,
+                days=30,
+                source=UserSubscription.Source.ADMIN,
+                payment_method="admin_grant",
+                actor=request.user,
+                reason="Django admin action: grant PRO 30 days",
+            )
+            if hasattr(user, "profile") and user.profile:
+                user.profile.plan = "pro"
+                user.profile.save(update_fields=["plan"])
+            count += 1
+        self.message_user(request, f"{count} ta foydalanuvchiga 30 kunlik PRO obuna berildi.", level=messages.SUCCESS)
+
+    @admin.action(description="⭐ Tanlanganlarga 1 yillik (365 kun) PRO obuna berish")
+    def grant_pro_1_year(self, request, queryset):
+        from apps.payments.models import SubscriptionPlan, UserSubscription
+        from apps.payments.subscriptions import grant_subscription
+        from django.contrib import messages
+
+        plan = SubscriptionPlan.objects.filter(plan_type="pro").first()
+        if not plan:
+            self.message_user(request, "PRO tarif rejasi topilmadi.", level=messages.ERROR)
+            return
+        count = 0
+        for user in queryset:
+            grant_subscription(
+                user=user,
+                plan=plan,
+                days=365,
+                source=UserSubscription.Source.ADMIN,
+                payment_method="admin_grant",
+                actor=request.user,
+                reason="Django admin action: grant PRO 365 days",
+            )
+            if hasattr(user, "profile") and user.profile:
+                user.profile.plan = "pro"
+                user.profile.save(update_fields=["plan"])
+            count += 1
+        self.message_user(request, f"{count} ta foydalanuvchiga 1 yillik PRO obuna berildi.", level=messages.SUCCESS)
+
+    @admin.action(description="💎 Tanlanganlarga 1 yillik (365 kun) PREMIUM obuna berish")
+    def grant_premium_1_year(self, request, queryset):
+        from apps.payments.models import SubscriptionPlan, UserSubscription
+        from apps.payments.subscriptions import grant_subscription
+        from django.contrib import messages
+
+        plan = SubscriptionPlan.objects.filter(plan_type="premium").first() or SubscriptionPlan.objects.filter(plan_type="pro").first()
+        if not plan:
+            self.message_user(request, "PREMIUM tarif rejasi topilmadi.", level=messages.ERROR)
+            return
+        count = 0
+        for user in queryset:
+            grant_subscription(
+                user=user,
+                plan=plan,
+                days=365,
+                source=UserSubscription.Source.ADMIN,
+                payment_method="admin_grant",
+                actor=request.user,
+                reason="Django admin action: grant PREMIUM 365 days",
+            )
+            if hasattr(user, "profile") and user.profile:
+                user.profile.plan = plan.plan_type
+                user.profile.save(update_fields=["plan"])
+            count += 1
+        self.message_user(request, f"{count} ta foydalanuvchiga 1 yillik PREMIUM obuna berildi.", level=messages.SUCCESS)
     list_filter = (
         "role",
         "is_active",

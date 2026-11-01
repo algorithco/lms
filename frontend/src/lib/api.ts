@@ -1408,6 +1408,14 @@ export const Panel = {
     }),
   toggleBlock: (id: number | string) =>
     api<Record<string, unknown>>(`/api/v1/panel/users/${id}/block/`, { method: 'POST' }),
+  grantSubscription: (id: number | string, planType: string = 'pro', days: number = 30) =>
+    api<{ status: string; message: string; plan_type: string; expires_at: string; user: Record<string, unknown> }>(
+      `/api/v1/panel/users/${id}/grant-subscription/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ plan_type: planType, days }),
+      },
+    ),
   groups: () => api<{ results: PanelGroupItem[] }>('/api/v1/panel/groups/'),
   createGroup: (payload: { name: string; subject: string; teacher_id: number; monthly_fee?: number }) =>
     api<PanelGroupItem & { message?: string }>('/api/v1/panel/groups/', {

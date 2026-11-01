@@ -197,6 +197,12 @@ class QuotaService:
         """Record essay quota consumption in DB and cache."""
         if not user or not getattr(user, "is_authenticated", False):
             return False
+        if (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "is_staff", False)
+            or getattr(user, "role", "") in ("admin", "center_admin")
+        ):
+            return True
 
         today = timezone.localdate()
         date_str = today.strftime("%Y-%m-%d")

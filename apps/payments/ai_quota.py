@@ -69,6 +69,19 @@ def get_user_plan_tier(user: Any) -> str:
 
 def get_user_ai_quota(user: Any) -> dict[str, Any]:
     """Get user's AI quota and usage for today."""
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return {
+            "tier": "admin",
+            "limit": None,
+            "used": 0,
+            "remaining": None,
+            "allowed": True,
+        }
+
     tier = get_user_plan_tier(user)
     limit = DAILY_QUOTA_MAP.get(tier, 1)
 
@@ -106,6 +119,13 @@ def check_and_consume_ai_quota(user: Any) -> tuple[bool, str]:
     Check if user has remaining AI quota today and consume 1 request if allowed.
     Returns (allowed: bool, error_message: str).
     """
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return True, ""
+
     quota_info = get_user_ai_quota(user)
     if not quota_info["allowed"]:
         tier = quota_info["tier"]

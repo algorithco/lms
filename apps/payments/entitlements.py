@@ -622,6 +622,13 @@ def _remaining_message(kind: str, remaining: dict) -> str:
 
 def can_submit_essay(user, kind: str) -> tuple[bool, str | None, dict]:
     """Non-mutating eligibility check. Returns ``(ok, reason, remaining)``."""
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return True, None, get_remaining_limits(user)
+
     if kind not in ESSAY_KINDS:
         raise ValueError(f"Unknown essay kind: {kind!r}")
     entitlement = get_effective_entitlement(user)
@@ -644,6 +651,13 @@ def can_submit_essay(user, kind: str) -> tuple[bool, str | None, dict]:
 
 def can_start_test(user) -> tuple[bool, str | None, dict]:
     """Non-mutating check for starting a practice test."""
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return True, None, get_remaining_limits(user)
+
     entitlement = get_effective_entitlement(user)
     remaining = get_remaining_limits(user, entitlement)
     if entitlement.is_unlimited_tests:
@@ -892,6 +906,18 @@ def enforce_essay_quota(
     user, kind: str, *, idempotency_key: str | None = None, source: str = ""
 ) -> Reservation:
     """Reserve an essay allowance or raise :class:`QuotaDenied`."""
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return Reservation(
+            ok=True,
+            usage=None,
+            remaining=get_remaining_limits(user),
+            not_counted=True,
+        )
+
     reservation = reserve_usage(
         user,
         kind,
@@ -912,6 +938,18 @@ def enforce_test_quota(
     user, *, idempotency_key: str | None = None, source: str = ""
 ) -> Reservation:
     """Reserve a test allowance or raise :class:`QuotaDenied`."""
+    if user and (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") in ("admin", "center_admin")
+    ):
+        return Reservation(
+            ok=True,
+            usage=None,
+            remaining=get_remaining_limits(user),
+            not_counted=True,
+        )
+
     ok, reason, remaining = can_start_test(user)
     if not ok:
         raise QuotaDenied(

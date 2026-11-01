@@ -213,6 +213,9 @@ class EssayTopicSerializer(serializers.ModelSerializer):
 
 class UserAdminSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
+    plan = serializers.SerializerMethodField()
+    has_pro = serializers.SerializerMethodField()
+    subscription_expires_at = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -225,8 +228,28 @@ class UserAdminSerializer(serializers.ModelSerializer):
             "role",
             "is_active",
             "date_joined",
+            "plan",
+            "has_pro",
+            "subscription_expires_at",
         ]
         read_only_fields = ["email", "date_joined"]
+
+    def get_plan(self, obj) -> str:
+        sub = getattr(obj, "subscription", None)
+        if sub and getattr(sub, "is_active", False) and getattr(sub, "plan", None):
+            return str(sub.plan.plan_type)
+        if hasattr(obj, "profile") and getattr(obj.profile, "plan", None):
+            return str(obj.profile.plan)
+        return "free"
+
+    def get_has_pro(self, obj) -> bool:
+        return getattr(obj, "has_pro_access", False)
+
+    def get_subscription_expires_at(self, obj):
+        sub = getattr(obj, "subscription", None)
+        if sub and getattr(sub, "is_active", False) and sub.expires_at:
+            return sub.expires_at.strftime("%Y-%m-%d")
+        return None
 
 
 # ---------------------------------------------------------------------------
