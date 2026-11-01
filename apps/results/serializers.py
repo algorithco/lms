@@ -342,3 +342,4 @@ class ResultStatsSerializer(serializers.Serializer):
     average_percentage = serializers.FloatField()
     best_percentage = serializers.FloatField()
     total_time_spent_seconds = serializers.IntegerField()
+    total_essays_submitted = serializers.IntegerField(default=0, required=False)

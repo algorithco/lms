@@ -1,3 +1,4 @@
+from django.db import transaction
 """
 Tests views — test-taking endpoints.
 
@@ -243,12 +244,13 @@ class StartAttemptView(APIView):
         mode = request.data.get("mode", "strict")
         pin = request.data.get("pin", "")
         try:
-            attempt = StartAttemptService.execute(
-                test_id=test_id,
-                student=request.user,
-                mode=mode,
-                pin=pin,
-            )
+            with transaction.atomic():
+                attempt = StartAttemptService.execute(
+                    test_id=test_id,
+                    student=request.user,
+                    mode=mode,
+                    pin=pin,
+                )
         except TestPinRequiredError as e:
             return Response(
                 {

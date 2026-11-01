@@ -145,6 +145,11 @@ class ResultStatsView(APIView):
                 float(stats["average_percentage"] or 0), 2
             )
             stats["total_time_spent_seconds"] = stats["total_time_spent_seconds"] or 0
+            try:
+                from apps.essays.models import EssaySubmission
+                stats["total_essays_submitted"] = EssaySubmission.objects.filter(student=request.user).count()
+            except Exception:
+                stats["total_essays_submitted"] = 0
 
             serializer = ResultStatsSerializer(data=stats)
             serializer.is_valid(raise_exception=True)
@@ -159,6 +164,7 @@ class ResultStatsView(APIView):
                     "average_percentage": 0.0,
                     "best_percentage": 0.0,
                     "total_time_spent_seconds": 0,
+                    "total_essays_submitted": 0,
                 },
                 status=status.HTTP_200_OK,
             )

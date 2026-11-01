@@ -42,6 +42,7 @@ interface Stats {
   average_percentage?: number;
   best_percentage?: number;
   total_time_spent_seconds?: number;
+  total_essays_submitted?: number;
 }
 
 export default function Dashboard() {
@@ -145,10 +146,10 @@ export default function Dashboard() {
 
   const avgVal = stats?.average_percentage !== undefined && stats?.average_percentage !== null
     ? Math.round(Number(stats.average_percentage))
-    : 88;
-  const testsTakenVal = stats?.total_tests_taken || 24;
-  const streakDaysVal = streak?.current_streak || 7;
-  const essaysCountVal = 16;
+    : 0;
+  const testsTakenVal = stats?.total_tests_taken ?? 0;
+  const streakDaysVal = streak?.current_streak ?? 0;
+  const essaysCountVal = stats?.total_essays_submitted ?? 0;
 
   const userDisplayName = user?.full_name || 'Hurmatli O‘quvchi';
 
@@ -612,6 +613,56 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* 2.1 BO'SH HOLAT UCHUN ILHOMLANTIRUVCHI BANNER (0-STATE) */}
+      {testsTakenVal === 0 && essaysCountVal === 0 && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 51, 234, 0.05) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            borderRadius: 20,
+            padding: '20px 24px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ maxWidth: 650 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 22 }}>🚀</span>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>
+                {t('dashboard.first_step_title', "Grand Education platformasiga xush kelibsiz!")}
+              </h3>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+              {t('dashboard.first_step_desc', "Siz hali birorta ham test topshirmadingiz. O'z bilim darajangizni aniqlash uchun birinchi sinovni boshlang!")}
+            </p>
+          </div>
+          <Link
+            to="/tests"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '11px 22px',
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+              color: '#ffffff',
+              fontWeight: 800,
+              fontSize: 13.5,
+              textDecoration: 'none',
+              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>🚀</span>
+            <span>{t('dashboard.start_first_test', "Boshlang'ich testni yechish")}</span>
+          </Link>
+        </div>
+      )}
+
       {/* 3. ASOSIY METRIKALAR KARTALARI (2x2 Grid on Mobile, 4-col on Desktop) */}
       <section className="dash-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {/* Stat 1: Yechilgan testlar */}
@@ -645,8 +696,14 @@ export default function Dashboard() {
             {testsTakenVal} {t('dashboard.unit_item', 'ta')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>+12% {t('dashboard.this_month', 'bu oy')}</span>
-            <span style={{ color: 'var(--muted)' }}>· {stats?.total_passed || 18} {t('dashboard.passed_label', 'ta o‘tgan')}</span>
+            {testsTakenVal > 0 ? (
+              <>
+                <span>{stats?.total_passed ?? 0} {t('dashboard.passed_label', 'ta o‘tgan')}</span>
+                <span style={{ color: 'var(--muted)' }}>· {testsTakenVal - (stats?.total_passed ?? 0)} ta o'tmagan</span>
+              </>
+            ) : (
+              <span style={{ color: 'var(--muted)' }}>Hali test topshirilmagan</span>
+            )}
           </div>
         </div>
 
@@ -681,8 +738,14 @@ export default function Dashboard() {
             {essaysCountVal} {t('dashboard.unit_item', 'ta')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#9333ea', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>{t('dashboard.bmb_criteria', 'BMB 12 mezon')}</span>
-            <span style={{ color: 'var(--muted)' }}>· {t('dashboard.grade_aplus', 'A+ daraja')}</span>
+            {essaysCountVal > 0 ? (
+              <>
+                <span>{t('dashboard.bmb_criteria', 'BMB 12 mezon')}</span>
+                <span style={{ color: 'var(--muted)' }}>· AI tahlili</span>
+              </>
+            ) : (
+              <span style={{ color: 'var(--muted)' }}>Hali esse yozilmagan</span>
+            )}
           </div>
         </div>
 
@@ -717,8 +780,13 @@ export default function Dashboard() {
             {avgVal}%
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f59e0b', fontWeight: 600, flexWrap: 'wrap' }}>
-            <span>{t('dashboard.grade_range', 'B+ / A daraja')}</span>
-            <span style={{ color: 'var(--muted)' }}>· {t('dashboard.grade_excellent', 'A’lo')}</span>
+            {testsTakenVal > 0 ? (
+              <>
+                <span>{avgVal >= 70 ? 'A / A+ daraja' : avgVal >= 50 ? 'B / B+ daraja' : 'Tayyorgarlik talab etiladi'}</span>
+              </>
+            ) : (
+              <span style={{ color: 'var(--muted)' }}>Sinov natijasi yo‘q</span>
+            )}
           </div>
         </div>
 
@@ -754,7 +822,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#ef4444', fontWeight: 600, flexWrap: 'wrap' }}>
             <span>{t('dashboard.streak_streak', 'Ketma-ket')} 🔥</span>
-            <span style={{ color: 'var(--muted)' }}>· {streak?.xp_points || 340} XP</span>
+            <span style={{ color: 'var(--muted)' }}>· {streak?.xp_points ?? 0} XP</span>
           </div>
         </div>
       </section>

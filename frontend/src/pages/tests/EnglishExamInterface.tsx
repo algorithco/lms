@@ -515,38 +515,11 @@ export default function EnglishExamInterface() {
     return false;
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white">
-        <div className="text-center">
-          <RefreshCwIcon className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold">Cambridge CD-IELTS / BMB CBT muhiti yuklanmoqda...</h2>
-          <p className="text-slate-400 text-sm mt-1">Split-screen interfeysi va test savollari sozlanmoqda</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (err && !attempt) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white p-6">
-        <div className="max-w-md bg-slate-900 p-8 rounded-2xl border border-red-500/30 text-center">
-          <AlertTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-red-200">Xatolik</h2>
-          <p className="text-slate-300 mt-2 mb-6">{err}</p>
-          <Link to="/tests" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium">
-            Testlar ro'yxatiga qaytish
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const questions = attempt?.questions || [];
-  const currentQ = questions[currentQIndex];
+  const currentQ = questions[currentQIndex] || null;
   const passages = attempt?.passages || [];
   const currentPassageIndex = passages.findIndex((p) => p.id === activePassageId);
-  const currentPassage = passages[currentPassageIndex] || passages[0] || currentQ?.passage;
+  const currentPassage = passages[currentPassageIndex] || passages[0] || currentQ?.passage || null;
 
   // Format countdown
   const formatTime = (secs: number | null) => {
@@ -560,128 +533,6 @@ export default function EnglishExamInterface() {
   const answeredCount = questions.filter((q) => isQuestionAnswered(q.id)).length;
   const unansweredCount = questions.length - answeredCount;
   const flaggedCount = questions.filter((q) => flagged[q.id]).length;
-
-  // POST-EXAM RESULTS VIEW
-  if (resultData) {
-    return (
-      <div className="min-h-screen w-screen bg-slate-950 text-slate-100 p-4 md:p-8 overflow-y-auto">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Header Summary */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 via-blue-500 to-indigo-500" />
-            <AwardIcon className="h-16 w-16 text-amber-400 mx-auto mb-3" />
-            <h1 className="text-3xl font-extrabold text-white">{attempt?.test_title || 'English Examination'}</h1>
-            <p className="text-slate-400 text-sm mt-1">Imtihon natijalari va xalqaro baholash xulosasi</p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <span className="text-xs text-slate-400 uppercase tracking-wider block">To'g'ri javoblar</span>
-                <span className="text-2xl font-bold text-emerald-400 mt-1 block">
-                  {resultData.correct_answers ?? attempt?.raw_score ?? 0} / {attempt?.total_questions ?? questions.length}
-                </span>
-              </div>
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <span className="text-xs text-slate-400 uppercase tracking-wider block">IELTS Band</span>
-                <span className="text-2xl font-bold text-amber-400 mt-1 block">
-                  {attempt?.band_score ? `Band ${attempt.band_score}` : 'Band 6.5'}
-                </span>
-              </div>
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <span className="text-xs text-slate-400 uppercase tracking-wider block">CEFR Darajasi</span>
-                <span className="text-2xl font-bold text-indigo-400 mt-1 block">
-                  {attempt?.cefr_level || 'B2'}
-                </span>
-              </div>
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <span className="text-xs text-slate-400 uppercase tracking-wider block">Muvaffaqiyat</span>
-                <span className={`text-2xl font-bold mt-1 block ${resultData.is_passed ? 'text-emerald-400' : 'text-slate-300'}`}>
-                  {resultData.percentage ?? 0}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Digital Certificate Card */}
-          {certificateData && (
-            <div className="bg-gradient-to-b from-white to-amber-50 text-slate-900 rounded-3xl p-8 border-4 border-amber-400/80 shadow-2xl relative print:p-0">
-              <div className="flex justify-between items-center border-b border-amber-200 pb-4 mb-6">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-700">Official Cambridge / CEFR Standard</span>
-                  <h2 className="text-2xl font-black tracking-tight">{certificateData.title}</h2>
-                  <p className="text-xs text-slate-600">{certificateData.subtitle}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-500 block">Sertifikat ID</span>
-                  <span className="font-mono font-bold text-emerald-800">{certificateData.certificate_number}</span>
-                </div>
-              </div>
-
-              <div className="text-center my-6">
-                <p className="text-xs uppercase text-slate-500 tracking-wider">Ushbu hujjat tasdiqlaydi:</p>
-                <h3 className="text-3xl font-extrabold text-slate-900 mt-1 underline decoration-amber-400 underline-offset-8">
-                  {certificateData.candidate_name}
-                </h3>
-                <p className="text-sm text-slate-600 mt-4 max-w-xl mx-auto">
-                  {certificateData.exam_title} imtihonini muvaffaqiyatli topshirib, quyidagi rasmiy ko'rsatkichlarga ega bo'ldi:
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 text-center">
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Listening</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
-                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
-                </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Reading</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
-                  <span className="text-xs text-amber-700 font-semibold">B2</span>
-                </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Writing</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
-                  <span className="text-xs text-amber-700 font-semibold">B2</span>
-                </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Speaking</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
-                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-between items-center border-t border-amber-200 pt-6 mt-6 text-xs text-slate-600 gap-4">
-                <div>
-                  <p className="font-semibold">{certificateData.issuer}</p>
-                  <p>Berilgan sana: {certificateData.issue_date}</p>
-                </div>
-                <div className="text-center sm:text-right">
-                  <a
-                    href={certificateData.qr_verification_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-indigo-700 hover:underline font-semibold"
-                  >
-                    <span>Haqiqiyligini tekshirish (QR)</span>
-                    <ExternalLinkIcon className="h-3.5 w-3.5" />
-                  </a>
-                  <p className="text-[10px] text-slate-400">grandec.uz/verify-certificate</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-center gap-4 pt-4">
-            <Link to="/results" className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold">
-              Barcha natijalarim
-            </Link>
-            <Link to="/tests" className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold">
-              Boshqa imtihonlar
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Dynamic Headings & Statements derived directly from DB choices
   const dynamicHeadingsList = useMemo(() => {
@@ -806,6 +657,155 @@ export default function EnglishExamInterface() {
         currentQ.config?.subtype === 'inline_gap_fill' ||
         /(?:\(\d+\)\s*_{2,}|_{3,})/.test(currentQ.text))
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <RefreshCwIcon className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold">Cambridge CD-IELTS / BMB CBT muhiti yuklanmoqda...</h2>
+          <p className="text-slate-400 text-sm mt-1">Split-screen interfeysi va test savollari sozlanmoqda</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (err && !attempt) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white p-6">
+        <div className="max-w-md bg-slate-900 p-8 rounded-2xl border border-red-500/30 text-center">
+          <AlertTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-red-200">Xatolik</h2>
+          <p className="text-slate-300 mt-2 mb-6">{err}</p>
+          <Link to="/tests" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium">
+            Testlar ro'yxatiga qaytish
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // POST-EXAM RESULTS VIEW
+  if (resultData) {
+    return (
+      <div className="min-h-screen w-screen bg-slate-950 text-slate-100 p-4 md:p-8 overflow-y-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header Summary */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 via-blue-500 to-indigo-500" />
+            <AwardIcon className="h-16 w-16 text-amber-400 mx-auto mb-3" />
+            <h1 className="text-3xl font-extrabold text-white">{attempt?.test_title || 'English Examination'}</h1>
+            <p className="text-slate-400 text-sm mt-1">Imtihon natijalari va xalqaro baholash xulosasi</p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">To'g'ri javoblar</span>
+                <span className="text-2xl font-bold text-emerald-400 mt-1 block">
+                  {resultData.correct_answers ?? attempt?.raw_score ?? 0} / {attempt?.total_questions ?? questions.length}
+                </span>
+              </div>
+              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">IELTS Band</span>
+                <span className="text-2xl font-bold text-amber-400 mt-1 block">
+                  {attempt?.band_score ? `Band ${attempt.band_score}` : 'Band 6.5'}
+                </span>
+              </div>
+              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">CEFR Darajasi</span>
+                <span className="text-2xl font-bold text-indigo-400 mt-1 block">
+                  {attempt?.cefr_level || 'B2'}
+                </span>
+              </div>
+              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">Muvaffaqiyat</span>
+                <span className={`text-2xl font-bold mt-1 block ${resultData.is_passed ? 'text-emerald-400' : 'text-slate-300'}`}>
+                  {resultData.percentage ?? 0}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Digital Certificate Card */}
+          {certificateData && (
+            <div className="bg-gradient-to-b from-white to-amber-50 text-slate-900 rounded-3xl p-8 border-4 border-amber-400/80 shadow-2xl relative print:p-0">
+              <div className="flex justify-between items-center border-b border-amber-200 pb-4 mb-6">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-amber-700">Official Cambridge / CEFR Standard</span>
+                  <h2 className="text-2xl font-black tracking-tight">{certificateData.title}</h2>
+                  <p className="text-xs text-slate-600">{certificateData.subtitle}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-500 block">Sertifikat ID</span>
+                  <span className="font-mono font-bold text-emerald-800">{certificateData.certificate_number}</span>
+                </div>
+              </div>
+
+              <div className="text-center my-6">
+                <p className="text-xs uppercase text-slate-500 tracking-wider">Ushbu hujjat tasdiqlaydi:</p>
+                <h3 className="text-3xl font-extrabold text-slate-900 mt-1 underline decoration-amber-400 underline-offset-8">
+                  {certificateData.candidate_name}
+                </h3>
+                <p className="text-sm text-slate-600 mt-4 max-w-xl mx-auto">
+                  {certificateData.exam_title} imtihonini muvaffaqiyatli topshirib, quyidagi rasmiy ko'rsatkichlarga ega bo'ldi:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 text-center">
+                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
+                  <span className="text-xs font-bold text-slate-600 uppercase">Listening</span>
+                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
+                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
+                </div>
+                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
+                  <span className="text-xs font-bold text-slate-600 uppercase">Reading</span>
+                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
+                  <span className="text-xs text-amber-700 font-semibold">B2</span>
+                </div>
+                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
+                  <span className="text-xs font-bold text-slate-600 uppercase">Writing</span>
+                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
+                  <span className="text-xs text-amber-700 font-semibold">B2</span>
+                </div>
+                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
+                  <span className="text-xs font-bold text-slate-600 uppercase">Speaking</span>
+                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
+                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-center border-t border-amber-200 pt-6 mt-6 text-xs text-slate-600 gap-4">
+                <div>
+                  <p className="font-semibold">{certificateData.issuer}</p>
+                  <p>Berilgan sana: {certificateData.issue_date}</p>
+                </div>
+                <div className="text-center sm:text-right">
+                  <a
+                    href={certificateData.qr_verification_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-indigo-700 hover:underline font-semibold"
+                  >
+                    <span>Haqiqiyligini tekshirish (QR)</span>
+                    <ExternalLinkIcon className="h-3.5 w-3.5" />
+                  </a>
+                  <p className="text-[10px] text-slate-400">grandec.uz/verify-certificate</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-center gap-4 pt-4">
+            <Link to="/results" className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold">
+              Barcha natijalarim
+            </Link>
+            <Link to="/tests" className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold">
+              Boshqa imtihonlar
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render passage paragraphs with Cambridge Drop Cap badges (A, B, C...)
   const renderPassageBody = () => {

@@ -154,3 +154,47 @@ class TestCefrMockEngine:
         assert attempt.status == TestAttempt.Status.COMPLETED
         ans25.refresh_from_db()
         assert ans25.is_correct is True
+
+    def test_start_attempt_returns_existing_active_attempt_idempotently(self):
+        """When an unexpired attempt is in progress, starting again safely returns the same attempt."""
+        from apps.tests.services import StartAttemptService
+
+        call_command("seed_cefr_mock_1")
+        test = Test.objects.get(mock_code="CEFR-RECORD-1")
+        student = User.objects.create_user(
+            email="reentrant_student@example.com",
+            password="pass",
+            role="student",
+        )
+
+        att1 = StartAttemptService.execute(test_id=test.id, student=student)
+        assert att1 is not None
+        assert att1.status == TestAttempt.Status.IN_PROGRESS
+
+        # Re-start without error
+        att2 = StartAttemptService.execute(test_id=test.id, student=student)
+        assert att2.id == att1.id
+
+    def test_result_stats_includes_essays_and_zero_state(self):
+        """Result stats view must return 0-state safely including total_essays_submitted."""
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        from apps.results.views import ResultStatsView
+
+        student = User.objects.create_user(
+            email="new_stats_user@example.com",
+            password="pass",
+            role="student",
+        )
+
+        factory = APIRequestFactory()
+        request = factory.get("/api/results/stats/")
+        force_authenticate(request, user=student)
+
+        view = ResultStatsView.as_view()
+        response = view(request)
+
+        assert response.status_code == 200
+        data = response.data
+        assert data["total_tests_taken"] == 0
+        assert data["total_essays_submitted"] == 0
+        assert data["average_percentage"] == 0.0

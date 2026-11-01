@@ -208,14 +208,11 @@ class StartAttemptService:
                 active_attempt.save(update_fields=["status"])
             else:
                 logger.info(
-                    "Active attempt already exists: attempt=%d, student=%d",
+                    "Returning active in-progress attempt=%d for student=%d",
                     active_attempt.id,
                     student.id,
                 )
-                raise ValueError(
-                    "Sizda allaqachon davom etayotgan attempt bor. "
-                    "Avval uni tugating yoki timeout bo'lishini kuting."
-                )
+                return active_attempt
 
         # -- Max attempts tekshirish ---------------------------------------
         if test.max_attempts > 0:
@@ -255,6 +252,18 @@ class StartAttemptService:
                 mode=selected_mode,
             )
         except IntegrityError:
+            active = TestAttempt.objects.filter(
+                test=test,
+                student=student,
+                status=TestAttempt.Status.IN_PROGRESS,
+            ).first()
+            if active and not getattr(active, "is_expired", False):
+                logger.info(
+                    "Returning concurrent in-progress attempt=%d for student=%d",
+                    active.id,
+                    student.id,
+                )
+                return active
             raise ValueError(
                 "Sizda allaqachon davom etayotgan attempt bor. "
                 "Avval uni tugating yoki timeout bo'lishini kuting."
