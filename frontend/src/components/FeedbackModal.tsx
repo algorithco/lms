@@ -147,11 +147,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
             )}
 
             {/* 1. Star Rating with Golden Hover */}
-            <div className="text-center py-2.5 px-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/80">
-              <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+            <div className="text-center py-3 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-inner">
+              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
                 Bahongizni belgilang:
               </span>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-3">
                 {[1, 2, 3, 4, 5].map((star) => {
                   const activeStar = (hoverRating !== null ? hoverRating : rating) >= star;
                   return (
@@ -161,21 +161,25 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(null)}
                       onClick={() => setRating(star)}
-                      className="p-1 transition-transform hover:scale-125 focus:outline-none cursor-pointer"
+                      className="p-1.5 transition-transform hover:scale-130 active:scale-110 focus:outline-none cursor-pointer"
                       title={`${star} ball`}
                     >
                       <StarIcon
-                        className={`h-6 w-6 transition-all duration-150 ${
+                        className={`h-7 w-7 transition-all duration-150 ${
                           activeStar
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_8px_rgba(251,191,36,0.6)]'
-                            : 'text-slate-300 dark:text-slate-700 hover:text-amber-300'
+                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_10px_rgba(245,158,11,0.7)]'
+                            : 'text-slate-300 dark:text-slate-600 hover:text-amber-300'
                         }`}
+                        style={{
+                          color: activeStar ? '#f59e0b' : '#cbd5e1',
+                          fill: activeStar ? '#f59e0b' : 'none',
+                        }}
                       />
                     </button>
                   );
                 })}
               </div>
-              <span className="text-xs font-bold text-amber-500 dark:text-amber-400 mt-1 inline-block">
+              <span className="text-xs font-extrabold text-amber-500 dark:text-amber-400 mt-1.5 inline-block">
                 {rating === 5
                   ? 'Ajoyib! (5/5) ⭐'
                   : rating === 4
@@ -190,7 +194,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
             {/* 2. Category Selector (Pills) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Kategoriya:
               </label>
               <div className="flex flex-wrap gap-2">
@@ -204,10 +208,10 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     key={item.id}
                     type="button"
                     onClick={() => setCategory(item.id as any)}
-                    className={`py-1.5 px-3.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                    className={`py-2 px-3.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       category === item.id
-                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm shadow-amber-500/25'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm shadow-amber-500/30'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400/50'
                     }`}
                   >
                     {item.label}
@@ -218,7 +222,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
             {/* 3. Message Textarea */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Xabaringiz / Fikringiz:
               </label>
               <textarea
@@ -227,7 +231,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Platforma bo'yicha fikr, savol yoki taklifingizni qoldiring..."
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 p-3 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 leading-relaxed resize-none transition-all"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/70 p-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed resize-none transition-all shadow-inner"
               />
             </div>
 

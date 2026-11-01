@@ -151,11 +151,11 @@ export default function Dashboard() {
   const streakDaysVal = streak?.current_streak ?? 0;
   const essaysCountVal = stats?.total_essays_submitted ?? 0;
 
-  const userDisplayName = user?.full_name || 'Hurmatli O‘quvchi';
+  const userDisplayName = user?.full_name || t('dashboard.default_student_name', 'Hurmatli O‘quvchi');
   const isEnglishSubject = user?.active_subject === 'english' || (typeof window !== 'undefined' && localStorage.getItem('lms_subject') === 'english');
 
   return (
-    <div className="dash-container pt-24 sm:pt-28" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
+    <div className="dash-container pt-2 sm:pt-4" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
       {/* 1. YUQORI SARLAVHA (HEADER) */}
       <header
         style={{
@@ -904,7 +904,7 @@ export default function Dashboard() {
                 <FileTextIcon size={15} />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
-                {t('dashboard.my_tests', 'Mening Testlarim')}
+                {t('my_tests', t('dashboard.my_tests', 'Mening Testlarim'))}
               </h3>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -969,7 +969,7 @@ export default function Dashboard() {
                           {test.title}
                         </strong>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
-                          <span>{isEnglishSubject ? 'Ingliz tili (CEFR / IELTS)' : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
+                          <span>{isEnglishSubject ? t('dashboard.subject_english', 'Ingliz tili (CEFR / IELTS)') : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                           <span>•</span>
                           <span>{num(test.total_questions, 0)} {t('dashboard.unit_questions', 'ta savol')}</span>
                           {test.time_limit_minutes && (
@@ -1052,7 +1052,7 @@ export default function Dashboard() {
                         {item.title}
                       </strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
-                        <span>{isEnglishSubject ? 'Ingliz tili (CEFR / IELTS)' : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
+                        <span>{isEnglishSubject ? t('dashboard.subject_english', 'Ingliz tili (CEFR / IELTS)') : t('dashboard.subject_label', 'Ona tili va Adabiyot')}</span>
                         <span>•</span>
                         <span>{item.q}</span>
                       </div>
@@ -1125,7 +1125,7 @@ export default function Dashboard() {
                 <PenLineIcon size={15} />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
-                {t('dashboard.essay_studio', 'AI Esse Studiyasi')}
+                {t('ai_essay_studio', t('dashboard.essay_studio', 'AI Esse Studiyasi'))}
               </h3>
             </div>
             <Link
@@ -1156,12 +1156,12 @@ export default function Dashboard() {
             </span>
             <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', margin: '4px 0 10px', lineHeight: 1.4 }}>
               {isEnglishSubject
-                ? 'Some people believe that university education should be free for everyone. Discuss both views and give your opinion.'
+                ? t('dashboard.today_topic_en', 'Some people believe that university education should be free for everyone. Discuss both views and give your opinion.')
                 : t('dashboard.today_topic_title', 'Alisher Navoiy “Xamsa” dostonidagi insonparvarlik g‘oyalari va zamonaviy talqin').replace(/^["“«\s]+|["”»\s]+$/g, '')}
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {isEnglishSubject ? 'IELTS Task 2 · Band 9.0 Rubric' : t('dashboard.today_topic_meta', 'BMB 12 mezon · 50 ball')}
+                {isEnglishSubject ? t('dashboard.essay_rubric_en', 'IELTS Task 2 · Band 9.0 Rubric') : t('dashboard.today_topic_meta', 'BMB 12 mezon · 50 ball')}
               </span>
               <Link
                 to="/essays"
@@ -1236,7 +1236,7 @@ export default function Dashboard() {
                     {eItem.title}
                   </strong>
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                    {eItem.date} · 12 mezon tekshirildi
+                    {eItem.date} · {t('dashboard.criteria_checked', '12 mezon tekshirildi')}
                   </span>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>

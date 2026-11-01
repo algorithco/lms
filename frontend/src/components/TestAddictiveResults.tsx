@@ -92,9 +92,19 @@ export default function TestAddictiveResults({
   if (questions.length > 0) {
     questions.forEach((q, idx) => {
       let topicName = q.topic;
-      if (!topicName) {
+      const isUzbekTopicInEnglish = isEnglish && topicName && (
+        topicName.includes('Adabiyot') ||
+        topicName.includes('Mumtoz') ||
+        topicName.includes('Ona tili') ||
+        topicName.includes('Morfologiya') ||
+        topicName.includes('Fonetika') ||
+        topicName.includes('Sintaksis') ||
+        topicName.includes('Leksika') ||
+        topicName.includes('Qoidalar')
+      );
+      if (!topicName || isUzbekTopicInEnglish) {
         if (isEnglish) {
-          topicName = idx < 10 ? 'Listening' : idx < 25 ? 'Reading Comprehension' : idx < 35 ? 'Grammar & Structure' : 'Vocabulary & Lexis';
+          topicName = idx < 10 ? 'Listening' : idx < 25 ? 'Reading Comprehension' : idx < 35 ? 'Grammar' : 'Vocabulary';
         } else {
           topicName = idx < 15 ? 'Grammatika va Morfologiya' : idx < 30 ? 'Matn tushunish va Leksika' : 'Mumtoz va Zamonaviy Adabiyot';
         }
@@ -118,7 +128,7 @@ export default function TestAddictiveResults({
         correct: Math.round(correctCount * 0.35),
         total: Math.max(1, Math.round((correctCount + wrongCount) * 0.35)),
       };
-      topicStats['Grammar & Structure'] = {
+      topicStats['Grammar'] = {
         correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
         total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
       };

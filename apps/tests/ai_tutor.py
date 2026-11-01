@@ -154,16 +154,16 @@ ENGLISH_TOPIC_KEYWORDS = {
         "mention", "reading", "heading", "true", "false", "not given",
         "statement", "summary"
     ],
-    "Grammar & Structure": [
+    "Grammar": [
         "tense", "verb", "preposition", "clause", "passive", "active",
         "modal", "conditional", "infinitive", "gerund", "noun", "pronoun",
-        "adjective", "adverb", "conjunction", "relative", "syntax"
+        "adjective", "adverb", "conjunction", "relative", "syntax", "grammar"
     ],
-    "Vocabulary & Lexis": [
+    "Vocabulary": [
         "synonym", "antonym", "definition", "word", "meaning", "phrase",
         "idiom", "collocation", "context", "vocabulary", "lexical"
     ],
-    "Writing & Coherence": [
+    "Writing": [
         "essay", "task 1", "task 2", "cohesion", "coherence",
         "overview", "introduction", "conclusion", "linking", "paragraphing"
     ],
@@ -192,9 +192,11 @@ def _detect_question_topic(
         if "READ" in sec_str:
             return "Reading Comprehension"
         if "WRIT" in sec_str:
-            return "Writing & Coherence"
+            return "Writing"
         if "LANG" in sec_str or "GRAM" in sec_str:
-            return "Grammar & Structure"
+            return "Grammar"
+        if "VOCAB" in sec_str or "LEX" in sec_str:
+            return "Vocabulary"
 
         combined = f"{question_text} {explanation}".lower()
         scores: dict[str, int] = {}
@@ -210,7 +212,9 @@ def _detect_question_topic(
             return "Listening"
         if "passage" in combined or "paragraph" in combined:
             return "Reading Comprehension"
-        return "Grammar & Structure"
+        if "word" in combined or "meaning" in combined or "synonym" in combined:
+            return "Vocabulary"
+        return "Grammar"
 
     # Default: Uzbek Ona tili va adabiyot
     combined = f"{question_text} {explanation}".lower()
@@ -243,8 +247,14 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
         return {"error": "Natija topilmadi."}
 
     attempt = result.attempt
+    test_obj = result.test
+    test_subject = getattr(test_obj, "subject", "uzbek") if test_obj else "uzbek"
+    title_lower = (getattr(test_obj, "title", "") or "").lower()
+    if "english" in title_lower or "ielts" in title_lower or "cefr" in title_lower:
+        test_subject = "english"
+
     answers = list(
-        attempt.answers.select_related("question").prefetch_related(
+        attempt.answers.select_related("question", "question__section").prefetch_related(
             "selected_choices", "question__choices"
         )
     )
@@ -257,7 +267,16 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
             ans.is_correct is None and not ans.selected_choices.exists()
         ):
             q = ans.question
-            topic = _detect_question_topic(q.text, q.explanation)
+            sec = getattr(q, "section", None)
+            sec_code = getattr(sec, "code", "") if sec else ""
+            sec_name = getattr(sec, "name", "") if sec else ""
+            topic = _detect_question_topic(
+                q.text,
+                q.explanation,
+                subject=test_subject,
+                section_code=sec_code,
+                section_name=sec_name,
+            )
             if topic not in wrong_by_topic:
                 wrong_by_topic[topic] = []
 
@@ -293,7 +312,7 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
                 "topic": topic,
                 "error_count": count,
                 "questions": questions,
-                "advice": _get_topic_advice(topic),
+                "advice": _get_topic_advice(topic, subject=test_subject),
             }
         )
 
@@ -301,13 +320,22 @@ def get_result_diagnostics(result_id: int) -> dict[str, Any]:
     recommendations = []
     if weak_topics:
         top_weak = weak_topics[0]["topic"]
-        recommendations.append(
-            f"Eng ko'p xato: '{top_weak}'. Ushbu mavzudagi qoidalarni darslikdan qayta takrorlang."
-        )
-        if len(weak_topics) > 1:
+        if test_subject == "english":
             recommendations.append(
-                f"Qo'shimcha e'tibor qarating: '{weak_topics[1]['topic']}'."
+                f"Most mistakes in: '{top_weak}'. Practice more questions and review key concepts."
             )
+            if len(weak_topics) > 1:
+                recommendations.append(
+                    f"Also pay attention to: '{weak_topics[1]['topic']}'."
+                )
+        else:
+            recommendations.append(
+                f"Eng ko'p xato: '{top_weak}'. Ushbu mavzudagi qoidalarni darslikdan qayta takrorlang."
+            )
+            if len(weak_topics) > 1:
+                recommendations.append(
+                    f"Qo'shimcha e'tibor qarating: '{weak_topics[1]['topic']}'."
+                )
         recommendations.append(
             "BMB darajangizni oshirish uchun har kuni kamida 1 ta mavzulashtirilgan test ishlang."
         )
@@ -355,6 +383,9 @@ def _get_topic_advice(topic: str, subject: str = "uzbek") -> str:
         # English topics
         "Listening": "Ingliz tilidagi audio va suhbatlarni (BBC 6 Minute English, IELTS Listening) muntazam tinglab, asosiy kalit so'zlarni ilg'ash malakasini oshiring.",
         "Reading Comprehension": "Akademik matnlarni Skimming va Scanning usullarida tez o'qib, kalit g'oyani va muallif pozitsiyasini topish ustida ishlang.",
+        "Grammar": "Murakkab zamon shakllari, conditionals, passive voice va gap tuzilishi qoidalarini darslikdan qayta mustahkamlang.",
+        "Vocabulary": "Akademik so'zlar ro'yxati (AWL), sinonimlar va turg'un iboralarni (collocations) kontekstda yod olishga ko'proq vaqt ajrating.",
+        "Writing": "Paragraphing, linking words (transitions) va mavzuga aniq dalillar keltirish orqali yozma ish strukturasini mustahkamlang.",
         "Grammar & Structure": "Murakkab zamon shakllari, conditionals, passive voice va gap tuzilishi qoidalarini darslikdan qayta mustahkamlang.",
         "Vocabulary & Lexis": "Akademik so'zlar ro'yxati (AWL), sinonimlar va turg'un iboralarni (collocations) kontekstda yod olishga ko'proq vaqt ajrating.",
         "Writing & Coherence": "Paragraphing, linking words (transitions) va mavzuga aniq dalillar keltirish orqali yozma ish strukturasini mustahkamlang.",
@@ -363,6 +394,9 @@ def _get_topic_advice(topic: str, subject: str = "uzbek") -> str:
     if subject == "english" or topic in [
         "Listening",
         "Reading Comprehension",
+        "Grammar",
+        "Vocabulary",
+        "Writing",
         "Grammar & Structure",
         "Vocabulary & Lexis",
         "Writing & Coherence",
@@ -480,7 +514,17 @@ def explain_question_mistake(
         return explanation_data
 
     # Mavzuni aniqlash
-    topic = _detect_question_topic(question.text, question.explanation)
+    test_subject = 'english' if is_english else getattr(test_obj, 'subject', 'uzbek')
+    q_sec = getattr(question, 'section', None)
+    sec_code = getattr(q_sec, 'code', '') if q_sec else ''
+    sec_name = getattr(q_sec, 'name', '') if q_sec else ''
+    topic = _detect_question_topic(
+        question.text,
+        question.explanation,
+        subject=test_subject,
+        section_code=sec_code,
+        section_name=sec_name,
+    )
 
     # 1. Agar LLM mavjud bo'lsa, aqlli izoh generatsiya qilish
     explanation_data = None

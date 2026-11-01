@@ -58,13 +58,13 @@ export default function ReferralCard() {
             type="text"
             readOnly
             value={shareUrl}
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 rounded-xl py-2.5 px-3.5 pr-9 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono shadow-inner"
+            className="w-full bg-white dark:bg-slate-900/90 border border-amber-500/30 text-xs text-slate-800 dark:text-slate-200 rounded-xl py-2.5 px-3.5 pr-9 focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono shadow-sm"
           />
           <button
             type="button"
             onClick={copyToClipboard}
             title={t('dashboard.referral_copy', 'Nusxalash')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm transition-colors cursor-pointer"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-600 dark:text-amber-400 hover:text-amber-500 text-sm transition-colors cursor-pointer p-0.5"
           >
             {copied ? '✓' : '📋'}
           </button>
@@ -72,7 +72,7 @@ export default function ReferralCard() {
         <button
           type="button"
           onClick={shareViaTelegram}
-          className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-sm hover:shadow cursor-pointer"
+          className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-sm hover:shadow cursor-pointer"
         >
           <span>✈️</span>
           <span>{t('dashboard.referral_share', 'Ulashish')}</span>

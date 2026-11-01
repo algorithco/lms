@@ -2206,7 +2206,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span>💬</span>
                   <span>Fikr bildirish</span>
@@ -2318,7 +2318,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="mt-4 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow flex items-center gap-2 cursor-pointer mx-auto transition-all"
+                  className="mt-4 inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0 mx-auto"
                 >
                   <span>💬</span>
                   <span>Fikr bildirish</span>
@@ -2332,7 +2332,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span>💬</span>
                   <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>

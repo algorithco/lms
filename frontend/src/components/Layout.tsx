@@ -272,7 +272,7 @@ export default function Layout() {
                 }}
               >
                 <span>🏛️</span>
-                <span>Milliy Sertifikat & AI Esse LMS</span>
+                <span>{t('app_motto_badge', 'Milliy Sertifikat & AI Esse LMS')}</span>
               </span>
             </div>
             <div className="spacer" />
@@ -383,7 +383,7 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content pt-3 sm:pt-4 md:pt-6 pb-28 md:pb-8">
+        <main className="content pt-20 sm:pt-24 pb-28 md:pb-8">
           <Outlet />
         </main>
       </div>

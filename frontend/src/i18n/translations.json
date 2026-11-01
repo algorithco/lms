@@ -74,7 +74,7 @@
     "student_dashboard": "O'quvchi paneli",
     "teacher_dashboard": "O'qituvchi paneli",
     "my_results": "Natijalarim",
-    "my_tests": "Testlarim",
+    "my_tests": "Mening Testlarim",
     "my_essays": "Esselarim",
     "my_certificates": "Sertifikatlarim",
     "my_profile": "Profilim",
@@ -1875,7 +1875,13 @@
     "dashboard.step3_desc": "Kutilmoqda (Navbatdagi sinov)",
     "dashboard.pending_receipt_title": "To‘lov kvitansiyasi tekshirilmoqda",
     "dashboard.pending_receipt_desc": "tarifi tasdiqlanishi kutilmoqda.",
-    "dashboard.view_status": "Holatni ko‘rish"
+    "dashboard.view_status": "Holatni ko‘rish",
+    "app_motto_badge": "Milliy Sertifikat & AI Esse LMS",
+    "dashboard.criteria_checked": "12 mezon tekshirildi",
+    "dashboard.default_student_name": "Hurmatli O‘quvchi",
+    "dashboard.subject_english": "Ingliz tili (CEFR / IELTS)",
+    "dashboard.essay_rubric_en": "IELTS Task 2 · Band 9.0 mezonlari",
+    "dashboard.today_topic_en": "Ayrim insonlar oliy ta'lim har bir fuqaro uchun bepul bo'lishi kerak deb hisoblashadi. Har ikkala qarashni tahlil qiling va o'z xulosangizni bildiring."
   },
   "ru": {
     "main": "Главное",
@@ -3753,7 +3759,13 @@
     "dashboard.step3_desc": "Ожидается (Следующий тест)",
     "dashboard.pending_receipt_title": "Чек об оплате на проверке",
     "dashboard.pending_receipt_desc": "Ожидается подтверждение тарифа.",
-    "dashboard.view_status": "Посмотреть статус"
+    "dashboard.view_status": "Посмотреть статус",
+    "app_motto_badge": "Национальный сертификат и ИИ Эссе LMS",
+    "dashboard.criteria_checked": "12 критериев проверено",
+    "dashboard.default_student_name": "Уважаемый Студент",
+    "dashboard.subject_english": "Английский язык (CEFR / IELTS)",
+    "dashboard.essay_rubric_en": "IELTS Task 2 · Критерии Band 9.0",
+    "dashboard.today_topic_en": "Некоторые считают, что высшее образование должно быть бесплатным для всех. Обсудите обе точки зрения и выскажите свое мнение."
   },
   "en": {
     "main": "Main",
@@ -5631,6 +5643,12 @@
     "dashboard.step3_desc": "Pending (Next exam)",
     "dashboard.pending_receipt_title": "Payment receipt is being verified",
     "dashboard.pending_receipt_desc": "plan confirmation is pending.",
-    "dashboard.view_status": "View status"
+    "dashboard.view_status": "View status",
+    "app_motto_badge": "National Certificate & AI Essay LMS",
+    "dashboard.criteria_checked": "12 criteria evaluated",
+    "dashboard.default_student_name": "Dear Student",
+    "dashboard.subject_english": "English (CEFR / IELTS)",
+    "dashboard.essay_rubric_en": "IELTS Task 2 · Band 9.0 Rubric",
+    "dashboard.today_topic_en": "Some people believe that university education should be free for everyone. Discuss both views and give your opinion."
   }
 }
