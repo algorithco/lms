@@ -2202,6 +2202,16 @@ export default function Landing() {
               >
                 Minglab talabalar, o'quvchilar va pedagoglar GRAND EDUCATION bilan o'z orzularidagi natijalarga erishdilar
               </p>
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setLandingFeedbackOpen(true)}
+                  className="inline-flex items-center gap-2 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow transition-all cursor-pointer"
+                >
+                  <span>💬</span>
+                  <span>Fikr bildirish</span>
+                </button>
+              </div>
             </div>
 
             {feedbacks.length > 0 ? (
@@ -2308,7 +2318,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="mt-4 px-6 py-3 bg-[#24A1DE] hover:bg-[#208bbf] text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 cursor-pointer mx-auto"
+                  className="mt-4 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow flex items-center gap-2 cursor-pointer mx-auto transition-all"
                 >
                   <span>💬</span>
                   <span>Fikr bildirish</span>
@@ -2322,7 +2332,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#24A1DE] hover:bg-[#208bbf] text-white font-medium rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+                  className="inline-flex items-center gap-2 bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow transition-all cursor-pointer"
                 >
                   <span>💬</span>
                   <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>

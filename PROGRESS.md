@@ -9,6 +9,23 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.79. Rasmiy Versiya v1.88.0: Dashboard Sarlavhasi Padding-Top Kengaytirildi, Referal Kartasi Bitta Komponentga Biriktirildi, Landing CTA Tugmalari Mukammallashtirildi va NGINX Kesh Sozlamalari To'g'rilandi (9.1.3-Bosqich)
+- [x] 1-Vazifa: Dashboard Sarlavhasi Ustma-ust Tushishi Butunlay Yo'qotildi (`frontend/src/pages/Dashboard.tsx`):
+  * `"Xush kelibsiz, ..."` sarlavhasi tepadagi oq navigatsiya panelining tagiga kirib qolishi bartaraf etildi.
+  * Asosiy konteynerga `pt-24 sm:pt-28` keng padding-top berildi, navigatsiya paneli va dashboard mazmuni o'rtasida toza va erkin bo'sh joy kafolatlandi.
+- [x] 2-Vazifa: Referal Kartasidagi Ortiqcha Ramkalar Yo'qotildi (`frontend/src/components/ReferralCard.tsx`, `frontend/src/pages/Dashboard.tsx`):
+  * `Dashboard.tsx` dagi eski dublikat kod to'liq olib tashlanib, yagona toza `<ReferralCard />` komponentiga ulandi.
+  * O'ng tomondagi keraksiz ramka va osilib turgan elementlar butunlay olib tashlandi: faqat chapda 🎁 va tushuntirish matni, o'ngda ixcham input, interaktiv nusxalash tugmasi (`✓`/`📋`) va Telegramga ulashish tugmasi qoldirildi.
+- [x] 3-Vazifa: Landing Sahifasidagi Fikr Bildirish CTA Tugmalari Mukammallashtirildi (`frontend/src/pages/Landing.tsx`):
+  * Barcha fikr bildirish tugmalari zamonaviy va yuqori kontrastli CTA uslubiga keltirildi: `bg-[#24A1DE] hover:bg-[#208bbf] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:shadow transition-all cursor-pointer`.
+  * Sharhlar bo'limi sarlavhasi tagiga ham to'g'ridan-to'g'ri "Fikr bildirish" tugmasi qo'shildi.
+- [x] 4-Vazifa: Brauzer Keshi va Vite Build Hash Sozlamalari (`frontend/vite.config.ts`, `deploy/nginx/nginx-ssl.conf`, `deploy/nginx/nginx.conf`):
+  * `vite.config.ts` ga explicit hash-based chunk/asset nomlash qo'shildi (`entryFileNames`, `chunkFileNames`, `assetFileNames`).
+  * Nginx konfiguratsiyasida `/index.html` va `/` uchun `add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"` va `add_header Pragma "no-cache"` o'rnatildi.
+- [x] 5-Vazifa: Frontend Build va Contabo VPS (`169.58.58.229`) Zero-Downtime Deploy:
+  * `npm --prefix frontend run build` 3.39 soniyada 0 ta xato bilan muvaffaqiyatli qurildi.
+  * Git commit: `style(ui): fix dashboard title top overlap, completely remove ugly referral box frame, and polish landing buttons`.
+
 ### 2.78. Rasmiy Versiya v1.87.0: Ustoz Ballarini Tahrirlash API, Avtomatlashgan PDF Vedomost Generatori va Telegram Guruhga Natijalarni Efirga Uzatish Tizimi (9.3.0-Bosqich)
 - [x] 1-Vazifa: Ustoz va Adminlar Uchun Test Ballarini Tahrirlash API (`apps/tests/views_teacher_inspector.py`, `apps/tests/models.py`, `apps/tests/urls.py`, `apps/webapi/urls.py`):
   * `TestAttempt` modeliga `teacher_comment` (ustoz izohi), `teacher_overridden` (tahrirlanganlik belgisi) va `graded_by` (FK to User) maydonlari qo'shildi (`0015` migratsiyasi).

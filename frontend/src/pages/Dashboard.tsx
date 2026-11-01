@@ -10,14 +10,12 @@ import {
   Tests,
   Tuition,
   isPlatformAdmin,
-  ReferralApi,
   type PaymentReceiptItem,
   type StreakInfoResponse,
   type TuitionOverview,
 } from '../lib/api';
 import { num, TestsApi, type ResultListItem, type TestListItem } from '../lib/testing';
 import { Bell, CheckCircle2 } from 'lucide-react';
-import { useToast } from '../context/ToastContext';
 import {
   AwardIcon,
   BookOpenIcon,
@@ -35,6 +33,7 @@ import {
 import OnboardingModal from '../components/OnboardingModal';
 import CardPaymentModal from '../components/CardPaymentModal';
 import FeedbackModal from '../components/FeedbackModal';
+import ReferralCard from '../components/ReferralCard';
 
 interface Stats {
   total_tests_taken?: number;
@@ -73,36 +72,6 @@ export default function Dashboard() {
     Boolean(user?.is_staff) ||
     Boolean(user?.is_superuser);
   const isStudent = !isTeacherOrAdmin;
-
-  const toast = useToast();
-  const [referralLink, setReferralLink] = useState('');
-  const [copiedReferral, setCopiedReferral] = useState(false);
-
-  useEffect(() => {
-    ReferralApi.getMyCode()
-      .then((data) => {
-        if (data.referral_link) {
-          setReferralLink(data.referral_link);
-        } else if (data.referral_code) {
-          setReferralLink(`https://grandec.uz/r/${data.referral_code}`);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const activeReferralLink = referralLink || (user?.referral_code ? `https://grandec.uz/r/${user.referral_code}` : 'https://grandec.uz/r/join');
-
-  const handleCopyReferral = () => {
-    navigator.clipboard.writeText(activeReferralLink);
-    setCopiedReferral(true);
-    toast.success("Taklif havolasi nusxalandi!");
-    setTimeout(() => setCopiedReferral(false), 2000);
-  };
-
-  const handleShareTelegram = () => {
-    const text = `🎁 Do'stim, sizga 1 ta bepul rasmiy Mock Test va AI Esse tekshiruvi sovg'a qilaman! grandec.uz da o'z bilimingizni sinab ko'ring: ${activeReferralLink}`;
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(activeReferralLink)}&text=${encodeURIComponent(text)}`, '_blank');
-  };
 
   useEffect(() => {
     if (!isStudent) {
@@ -186,7 +155,7 @@ export default function Dashboard() {
   const isEnglishSubject = user?.active_subject === 'english' || (typeof window !== 'undefined' && localStorage.getItem('lms_subject') === 'english');
 
   return (
-    <div className="dash-container pt-2 md:pt-4" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
+    <div className="dash-container pt-24 sm:pt-28" style={{ maxWidth: 1240, margin: '0 auto', overflowX: 'hidden' }}>
       {/* 1. YUQORI SARLAVHA (HEADER) */}
       <header
         style={{
@@ -904,48 +873,7 @@ export default function Dashboard() {
       </section>
 
       {/* 3.1 REFERAL VA MUKOFOT BLOKI (IXCHAM KARTA) */}
-      <div className="w-full my-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0 shadow-sm">
-            🎁
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
-              {t('dashboard.referral_title', "Do'stingizga 1 ta bepul test sovg'a qiling va bonus oling!")}
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {t('dashboard.referral_desc', "Do'stingiz ro'yxatdan o'tsa unga +1 ta test/esse, sizga ham +1 ta rasmiy Mock Test beriladi.")}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-          <div className="relative flex-1 md:w-72">
-            <input
-              type="text"
-              readOnly
-              value={activeReferralLink}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 rounded-xl py-2.5 px-3.5 pr-9 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono shadow-inner"
-            />
-            <button
-              type="button"
-              onClick={handleCopyReferral}
-              title={t('dashboard.referral_copy', 'Nusxalash')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm transition-colors cursor-pointer"
-            >
-              {copiedReferral ? '✓' : '📋'}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={handleShareTelegram}
-            className="bg-[#24A1DE] hover:bg-[#208bbf] text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-sm hover:shadow cursor-pointer"
-          >
-            <span>✈️</span>
-            <span>{t('dashboard.referral_share', 'Ulashish')}</span>
-          </button>
-        </div>
-      </div>
+      <ReferralCard />
 
       {/* 4. ASOSIY ISHCHI OYNA (1-col on Mobile, 2-col on Desktop) */}
       <div className="dash-main-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>

@@ -7,6 +7,7 @@ export default function ReferralCard() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -25,7 +26,9 @@ export default function ReferralCard() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
     toast.success('Taklif havolasi nusxalandi!');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const shareViaTelegram = () => {
@@ -63,7 +66,7 @@ export default function ReferralCard() {
             title={t('dashboard.referral_copy', 'Nusxalash')}
             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 text-sm transition-colors cursor-pointer"
           >
-            📋
+            {copied ? '✓' : '📋'}
           </button>
         </div>
         <button

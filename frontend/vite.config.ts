@@ -8,6 +8,15 @@ const DJANGO = 'http://127.0.0.1:8000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
+  },
   server: {
     // 0.0.0.0: reachable via localhost AND 127.0.0.1 (avoids ::1-only
     // binding that made the UI unreachable for some browsers).
