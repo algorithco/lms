@@ -1171,12 +1171,29 @@ class CertificateCardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        score_info = convert_test_score_to_english_band(attempt)
         student_name = (
             attempt.student.get_full_name()
             or attempt.student.username
             or attempt.student.email
         )
+
+        if attempt.test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
+            # Multi-level: per-section 0–75 estimate, never an IELTS band.
+            from apps.tests import cefr_multilevel
+
+            summary = cefr_multilevel.to_json(
+                cefr_multilevel.summarize(attempt.section_scores or {})
+            )
+            summary.update(
+                candidate_name=student_name,
+                exam_title=attempt.test.title,
+                exam_type=attempt.test.get_exam_type_display(),
+                issue_date=(attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
+                is_valid=summary["has_certificate"],
+            )
+            return Response(summary, status=status.HTTP_200_OK)
+
+        score_info = convert_test_score_to_english_band(attempt)
         exam_type_str = getattr(
             attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR"
         )()

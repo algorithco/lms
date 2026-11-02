@@ -1284,10 +1284,23 @@ class SubmitAttemptService:
             RaschEngine.evaluate_attempt_rasch(attempt, all_questions, answers_by_qid)
         )
 
-        band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
-        cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
+        extra_fields: dict[str, Any] = {}
+        if test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
+            # Multi-level has its own per-section 0–75 scale; no IELTS band.
+            from apps.tests import cefr_multilevel
+
+            names = {s.section_code.upper(): s.section_name for s in agg.sections if s.section_code}
+            section_map = cefr_multilevel.score_sections(question_scores, names)
+            overall = cefr_multilevel.summarize(section_map)["overall"]
+            band_val = None
+            cefr_val = overall["level"] if overall else ""
+            extra_fields["section_scores"] = cefr_multilevel.to_json(section_map)
+        else:
+            band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
+            cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
 
         TestAttempt.objects.filter(id=attempt.id).update(
+            **extra_fields,
             status=new_status,
             completed_at=now,
             score=total_score,
