@@ -153,6 +153,9 @@ async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             or getattr(current_lms_user, "role", "") in ("admin", "superadmin")
         )
 
+        if not (is_teacher or is_admin):
+            return None, "Faqat shu guruh ustozi yoki admin guruhni bog'lay oladi."
+
         # Bind group
         group.telegram_chat_id = chat.id
         group.save(update_fields=["telegram_chat_id"])
@@ -165,6 +168,9 @@ async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         }, None
 
     res, err = await _run_db(_link_db)
+    if err and err != "Guruh topilmadi":
+        await update.message.reply_text(f"⛔️ {err}")
+        return
     if err or not res:
         await update.message.reply_text(
             f"❌ <b>{code_input}</b> kodi bo'yicha guruh topilmadi!\n"

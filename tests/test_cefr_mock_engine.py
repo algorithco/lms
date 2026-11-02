@@ -145,7 +145,7 @@ class TestCefrMockEngine:
         assert c_false in ans25.selected_choices.all()
 
         # Submit attempt
-        result = SubmitAttemptService.execute(
+        SubmitAttemptService.execute(
             attempt_id=attempt.id,
             student=student,
         )
@@ -228,7 +228,7 @@ class TestCefrMockEngine:
         force_authenticate(req_admin, user=admin)
         res_admin = StartAttemptView.as_view()(req_admin, test_id=test.id)
         assert res_admin.status_code == 201
-        admin_attempt_id = res_admin.data["id"]
+        assert res_admin.data["id"]
 
         # 2. Teacher can start attempt
         req_teacher = factory.post(f"/api/tests/{test.id}/start/", {}, format="json")

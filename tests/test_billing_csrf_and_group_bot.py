@@ -127,6 +127,25 @@ class TelegramGroupBotAssistantTests(TestCase):
         group.refresh_from_db()
         self.assertEqual(group.telegram_chat_id, -1001234567890)
 
+    def test_link_group_refuses_non_teacher(self):
+        """A student who knows the code cannot hijack the group's chat binding."""
+        group = StudentGroup.objects.create(teacher=self.teacher, name="11-B", invite_code="GR-11B")
+
+        update = MagicMock()
+        update.effective_chat.id = -1009999999999
+        update.effective_chat.type = "supergroup"
+        update.effective_user.id = 555666777  # the student's Telegram id
+        update.effective_user.username = "diyorbek"
+        update.message.reply_text = AsyncMock()
+        context = MagicMock()
+        context.args = ["GR-11B"]
+
+        async_to_sync(link_group_command)(update, context)
+
+        self.assertIn("Faqat shu guruh ustozi", update.message.reply_text.call_args[0][0])
+        group.refresh_from_db()
+        self.assertIsNone(group.telegram_chat_id)
+
     def test_telegram_bot_davomat_and_yakun(self):
         """Verify /davomat and /davomat_yakun attendance flow and LMS DB synchronization."""
         group = StudentGroup.objects.create(
