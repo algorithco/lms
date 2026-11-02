@@ -118,7 +118,7 @@ function AnimatedRoutes() {
           <Route
             path="/english-exam/:attemptId"
             element={
-              <ErrorBoundary fallbackTitle="Ingliz tili imtihonini yuklashda xatolik">
+              <ErrorBoundary titleKey="error_boundary_exam_title">
                 <EnglishExamInterface />
               </ErrorBoundary>
             }
@@ -141,7 +141,7 @@ function AnimatedRoutes() {
             <Route
               path="/take/:attemptId"
               element={
-                <ErrorBoundary fallbackTitle="Testni yuklashda xatolik">
+                <ErrorBoundary titleKey="error_boundary_test_title">
                   <TakeTest />
                 </ErrorBoundary>
               }

@@ -672,14 +672,26 @@ export default function EnglishExamInterface() {
 
   if (err && !attempt) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white p-6">
-        <div className="max-w-md bg-slate-900 p-8 rounded-2xl border border-red-500/30 text-center">
-          <AlertTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-red-200">Xatolik</h2>
-          <p className="text-slate-300 mt-2 mb-6">{err}</p>
-          <Link to="/tests" className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium">
-            Testlar ro'yxatiga qaytish
-          </Link>
+      <div className="error-boundary" role="alert">
+        <div className="card error-boundary-card">
+          <div className="error-boundary-icon" aria-hidden="true">⚠️</div>
+          <h2>{_t('error_boundary_exam_title')}</h2>
+          <p className="muted">{err}</p>
+          <div className="error-boundary-actions">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => {
+                setErr(null);
+                void fetchAttempt();
+              }}
+            >
+              {_t('error_retry')}
+            </button>
+            <Link to="/tests" className="btn">
+              {_t('error_boundary_back')}
+            </Link>
+          </div>
         </div>
       </div>
     );

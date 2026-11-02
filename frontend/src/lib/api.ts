@@ -6,6 +6,8 @@
  * same-origin (Vite proxy in dev, nginx in prod) so no CORS is needed.
  */
 
+import { translate, type AppLang } from '../i18n/LangContext';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 const ACCESS_KEY = 'lms_access';
@@ -92,6 +94,24 @@ export interface ApiError extends Error {
   detail: string;
 }
 
+/** ApiError for transport-level failures, translated into the UI language. */
+function networkError(status: number, key: string): ApiError {
+  const err = new Error(translate(key, currentLang())) as ApiError;
+  err.status = status;
+  err.detail = err.message;
+  return err;
+}
+
+function currentLang(): AppLang {
+  try {
+    const v = localStorage.getItem('i18nextLng') || localStorage.getItem('lms_lang');
+    if (v === 'ru' || v === 'en') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'uz';
+}
+
 export function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -116,7 +136,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!headers.has('Accept-Language')) {
       headers.set('Accept-Language', currentLang);
     }
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    const method = (init.method || 'GET').toUpperCase();
+    try {
+      return await fetch(`${API_BASE}${path}`, { ...init, headers });
+    } catch (e) {
+      if (init.signal?.aborted) throw e;
+      // "Failed to fetch": the request never got a response (offline, proxy
+      // reset, server restarting). Reads are idempotent — retry them once.
+      if (method === 'GET' || method === 'HEAD') {
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          return await fetch(`${API_BASE}${path}`, { ...init, headers });
+        } catch {
+          /* fall through to the friendly error */
+        }
+      }
+      throw networkError(0, 'error_network');
+    }
   };
 
   let res = await doFetch(getTokens().access);
@@ -134,6 +170,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new AuthExpiredError();
   }
   if (!res.ok) {
+    // Gateway errors come from nginx as HTML, not a DRF body worth parsing.
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw networkError(res.status, 'error_server_unavailable');
+    }
     let detail = `Request failed (${res.status})`;
     try {
       const body = (await res.json()) as any;

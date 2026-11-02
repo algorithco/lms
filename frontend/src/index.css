@@ -2163,3 +2163,56 @@ html.dark .results-xp-desc { color: #FCD34D !important; }
 .cta-banner-box p { color: #475569; }
 [data-theme='dark'] .cta-banner-title, .dark .cta-banner-title { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
 [data-theme='dark'] .cta-banner-box p, .dark .cta-banner-box p { color: #CBD5E1; }
+
+/* Error boundary — shown instead of a white screen when a page crashes */
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: var(--bg);
+  color: var(--ink);
+}
+.error-boundary-card {
+  width: 100%;
+  max-width: 32rem;
+  text-align: center;
+}
+.error-boundary-card h2 { margin: 0.75rem 0 0.5rem; font-size: 1.35rem; color: var(--ink); }
+.error-boundary-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.error-boundary-detail {
+  margin: 1rem 0 0;
+  padding: 0.75rem;
+  max-height: 8rem;
+  overflow-y: auto;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  color: var(--danger);
+}
+.error-boundary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+@media (max-width: 480px) {
+  .error-boundary-actions .btn { width: 100%; }
+}
