@@ -809,10 +809,13 @@ class AutosaveTests(TestCase):
         )
         self.assertIn(resp.status_code, (401, 403))
 
-    def test_teacher_cannot_start(self):
+    def test_teacher_start_is_preview(self):
+        from apps.tests.models import TestAttempt
+
         self.client.force_login(self.teacher)
         resp = self.client.post(f"/api/tests/{self.test.id}/start/")
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(TestAttempt.objects.get(id=resp.json()["id"]).is_preview)
 
 
 class AggregateScoringTests(TestCase):

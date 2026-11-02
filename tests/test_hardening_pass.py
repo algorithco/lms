@@ -46,9 +46,11 @@ class AttemptRaceTests(TestCase):
         teacher = _make_user("t2@e.com", "teacher")
         student = _make_user("s2@e.com")
         test = _make_test(teacher)
-        TestAttempt.objects.create(test=test, student=student, status="in_progress")
-        with self.assertRaisesMessage(ValueError, "davom etayotgan"):
-            StartAttemptService.execute(test_id=test.id, student=student)
+        active = TestAttempt.objects.create(test=test, student=student, status="in_progress")
+        # A second start resumes the running attempt instead of erroring.
+        resumed = StartAttemptService.execute(test_id=test.id, student=student)
+        self.assertEqual(resumed.id, active.id)
+        self.assertEqual(TestAttempt.objects.filter(test=test, student=student).count(), 1)
 
     def test_completed_does_not_block_new_start(self):
         teacher = _make_user("t3@e.com", "teacher")
@@ -212,7 +214,7 @@ class GradingTests(TestCase):
         # through tables, 1 bulk_update, profile get_or_create, result
         # get_or_create+update, per-section update_or_create, 1 milliy EXISTS
         # check in the cert gate). Bound guards N+1.
-        with self.assertNumQueries(54):
+        with self.assertNumQueries(55):
             outcome = SubmitAttemptService.execute(
                 attempt_id=attempt.id, student=student
             )

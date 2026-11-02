@@ -923,7 +923,7 @@ def _authenticate_or_provision_tg_user(auth_token_str: str, tg_user_data: dict):
         auth_token.user = user
         auth_token.telegram_chat_id = tg_id
         auth_token.full_name = full_name
-        auth_token.phone_verified = True
+        auth_token.phone_verified = False  # 1-click: no phone was shared
         auth_token.is_verified = True
         auth_token.verified_at = timezone.now()
         auth_token.conversation_state = "verified"
