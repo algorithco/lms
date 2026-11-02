@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -147,6 +148,20 @@ class ScoreConverterUnitTests(APITestCase):
         self.assertEqual(cert["overall_cefr"], "C1")
         self.assertTrue(cert["is_valid"])
         self.assertIn("verify-certificate", cert["qr_verification_url"])
+
+    def test_attempt_scored_against_real_question_count(self):
+        # TestAttempt has no total_questions; the test's count must be used,
+        # not a 40-question default.
+        attempt = SimpleNamespace(score=0, percentage=0, test=SimpleNamespace(total_questions=77))
+        info = convert_test_score_to_english_band(attempt)
+        self.assertEqual(info["total_questions"], 77)
+        self.assertEqual(info["cefr_level"], "A2")
+        self.assertFalse(info["has_certificate"])
+
+        attempt = SimpleNamespace(score=70, percentage=90.9, test=SimpleNamespace(total_questions=77))
+        info = convert_test_score_to_english_band(attempt)
+        self.assertEqual(info["cefr_level"], "C1")
+        self.assertTrue(info["has_certificate"])
 
 
 class EvidenceFeedbackUnitTests(APITestCase):

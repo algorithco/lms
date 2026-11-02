@@ -14,7 +14,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   RefreshCwIcon,
-  ExternalLinkIcon,
   LogOutIcon,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -699,6 +698,13 @@ export default function EnglishExamInterface() {
 
   // POST-EXAM RESULTS VIEW
   if (resultData) {
+    // Scores come from the certificate-card endpoint (computed after submit);
+    // `attempt` was loaded before submit, so its band/CEFR are still empty.
+    const overallBand: number | null = certificateData?.overall_band ?? attempt?.band_score ?? null;
+    const overallCefr: string | null = certificateData?.overall_cefr ?? attempt?.cefr_level ?? null;
+    const sectionScores = Object.entries(
+      (certificateData?.sections ?? {}) as Record<string, { name: string; band: number; cefr: string }>,
+    );
     return (
       <div className="min-h-screen w-screen bg-slate-950 text-slate-100 p-4 md:p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -719,13 +725,13 @@ export default function EnglishExamInterface() {
               <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
                 <span className="text-xs text-slate-400 uppercase tracking-wider block">IELTS Band</span>
                 <span className="text-2xl font-bold text-amber-400 mt-1 block">
-                  {attempt?.band_score ? `Band ${attempt.band_score}` : 'Band 6.5'}
+                  {overallBand != null ? `Band ${overallBand}` : '—'}
                 </span>
               </div>
               <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <span className="text-xs text-slate-400 uppercase tracking-wider block">CEFR Darajasi</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wider block">{_t('exam_result_cefr_level')}</span>
                 <span className="text-2xl font-bold text-indigo-400 mt-1 block">
-                  {attempt?.cefr_level || 'B2'}
+                  {overallCefr || '—'}
                 </span>
               </div>
               <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
@@ -737,72 +743,46 @@ export default function EnglishExamInterface() {
             </div>
           </div>
 
-          {/* Digital Certificate Card */}
-          {certificateData && (
+          {/* Result card — only when the backend says the score earns one (B1+).
+              The card number is not persisted or verifiable yet, so no ID/QR. */}
+          {certificateData?.is_valid === true && (
             <div className="bg-gradient-to-b from-white to-amber-50 text-slate-900 rounded-3xl p-8 border-4 border-amber-400/80 shadow-2xl relative print:p-0">
-              <div className="flex justify-between items-center border-b border-amber-200 pb-4 mb-6">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-amber-700">Official Cambridge / CEFR Standard</span>
-                  <h2 className="text-2xl font-black tracking-tight">{certificateData.title}</h2>
-                  <p className="text-xs text-slate-600">{certificateData.subtitle}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-500 block">Sertifikat ID</span>
-                  <span className="font-mono font-bold text-emerald-800">{certificateData.certificate_number}</span>
-                </div>
+              <div className="border-b border-amber-200 pb-4 mb-6">
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-700">{certificateData.exam_type}</span>
+                <h2 className="text-2xl font-black tracking-tight">{certificateData.title}</h2>
+                <p className="text-xs text-slate-600">{certificateData.subtitle}</p>
               </div>
 
               <div className="text-center my-6">
-                <p className="text-xs uppercase text-slate-500 tracking-wider">Ushbu hujjat tasdiqlaydi:</p>
                 <h3 className="text-3xl font-extrabold text-slate-900 mt-1 underline decoration-amber-400 underline-offset-8">
                   {certificateData.candidate_name}
                 </h3>
                 <p className="text-sm text-slate-600 mt-4 max-w-xl mx-auto">
-                  {certificateData.exam_title} imtihonini muvaffaqiyatli topshirib, quyidagi rasmiy ko'rsatkichlarga ega bo'ldi:
+                  {certificateData.exam_title} — {_t('exam_result_certificate_summary')}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 text-center">
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Listening</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
-                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
+              {sectionScores.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 text-center">
+                  {sectionScores.map(([code, sec]) => (
+                    <div key={code} className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
+                      <span className="text-xs font-bold text-slate-600 uppercase">{sec.name}</span>
+                      <p className="text-xl font-black text-slate-900 mt-1">Band {sec.band}</p>
+                      <span className="text-xs text-emerald-700 font-semibold">{sec.cefr}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Reading</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
-                  <span className="text-xs text-amber-700 font-semibold">B2</span>
-                </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Writing</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 6.5</p>
-                  <span className="text-xs text-amber-700 font-semibold">B2</span>
-                </div>
-                <div className="p-4 bg-amber-100/60 rounded-xl border border-amber-300">
-                  <span className="text-xs font-bold text-slate-600 uppercase">Speaking</span>
-                  <p className="text-xl font-black text-slate-900 mt-1">Band 7.0</p>
-                  <span className="text-xs text-emerald-700 font-semibold">C1</span>
-                </div>
-              </div>
+              )}
 
-              <div className="flex flex-col sm:flex-row justify-between items-center border-t border-amber-200 pt-6 mt-6 text-xs text-slate-600 gap-4">
-                <div>
-                  <p className="font-semibold">{certificateData.issuer}</p>
-                  <p>Berilgan sana: {certificateData.issue_date}</p>
-                </div>
-                <div className="text-center sm:text-right">
-                  <a
-                    href={certificateData.qr_verification_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-indigo-700 hover:underline font-semibold"
-                  >
-                    <span>Haqiqiyligini tekshirish (QR)</span>
-                    <ExternalLinkIcon className="h-3.5 w-3.5" />
-                  </a>
-                  <p className="text-[10px] text-slate-400">grandec.uz/verify-certificate</p>
-                </div>
+              <div className="border-t border-amber-200 pt-6 mt-6 text-xs text-slate-600">
+                <p className="font-semibold">{certificateData.issuer}</p>
+                <p>{_t('exam_result_issue_date')}: {certificateData.issue_date}</p>
               </div>
+            </div>
+          )}
+          {certificateData?.is_valid === false && (
+            <div className="card">
+              <p className="muted" style={{ margin: 0 }}>{_t('exam_result_no_certificate')}</p>
             </div>
           )}
 
