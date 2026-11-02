@@ -63,6 +63,7 @@ urlpatterns = [
     path("<path:resource>", serve_spa_shell, name="spa-shell-deep"),
 ]
 
-# Serve media files in development
+# Serve media files in development (prepended: the SPA catch-all above
+# would otherwise swallow /media/ requests)
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + urlpatterns
