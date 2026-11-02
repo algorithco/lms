@@ -460,16 +460,11 @@ export default function Landing() {
 
             {/* Mobile-only right controls: Faqat Profil Avatari (NJ / KR) va Gamburger menyu (☰) */}
             <div className="flex md:hidden items-center gap-2">
+              {user ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (user) {
-                    setProfileDrawerOpen(true);
-                  } else {
-                    openAuthModal('login');
-                  }
-                }}
-                aria-label="Profil"
+                onClick={() => setProfileDrawerOpen(true)}
+                aria-label={t('my_profile')}
                 style={{
                   width: 32,
                   height: 32,
@@ -486,16 +481,40 @@ export default function Landing() {
                   justifyContent: 'center',
                 }}
               >
-                {user?.avatar ? (
+                {user.avatar ? (
                   <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: 11, fontWeight: 900 }}>
-                    {user
-                      ? (user.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'KR'
-                      : 'KR'}
+                    {(user.full_name || user.email || '?')
+                      .trim()
+                      .split(/\s+/)
+                      .map((p) => p[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </span>
                 )}
               </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  style={{
+                    height: 32,
+                    padding: '0 14px',
+                    borderRadius: 10,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: '#FFFFFF',
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                  }}
+                >
+                  {t('login')}
+                </button>
+              )}
 
               <button
                 type="button"
