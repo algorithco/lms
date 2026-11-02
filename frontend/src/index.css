@@ -2216,3 +2216,29 @@ html.dark .results-xp-desc { color: #FCD34D !important; }
 @media (max-width: 480px) {
   .error-boundary-actions .btn { width: 100%; }
 }
+
+/* CEFR Multi-level estimated result */
+.cefr-result { display: flex; flex-direction: column; gap: 1rem; }
+.cefr-result table.data { min-width: 0; }
+.cefr-result-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.cefr-result-overall { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1rem; margin: 0; }
+.cefr-result-overall strong { font-size: 1.25rem; color: var(--ink); }
+.cefr-result-overall p { flex-basis: 100%; margin: 0; }
+.cefr-result-page {
+  min-height: 100vh;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cefr-result-page h1 { margin: 0; font-size: 1.5rem; color: var(--ink); }

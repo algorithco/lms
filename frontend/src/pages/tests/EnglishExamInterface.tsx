@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Tests as TestsApi } from '../../lib/api';
+import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
 import { useLang } from '../../i18n/LangContext';
 import {
   ClockIcon,
@@ -224,14 +225,13 @@ export default function EnglishExamInterface() {
     setSubmitting(true);
     try {
       const res = (await TestsApi.submit(attemptId)) as any;
+      // Load the score card before showing results so the view never flashes
+      // the wrong exam layout (CEFR vs IELTS is decided from this payload).
+      try {
+        setCertificateData(await TestsApi.certificateCard(attemptId));
+      } catch {}
       setResultData(res.result || res);
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-
-      // Fetch digital certificate
-      try {
-        const cert = await TestsApi.certificateCard(attemptId);
-        setCertificateData(cert);
-      } catch {}
     } catch (e: any) {
       setErr(e.message || 'Javoblarni topshirishda xatolik yuz berdi.');
       submittedRef.current = false;
@@ -702,6 +702,18 @@ export default function EnglishExamInterface() {
     // `attempt` was loaded before submit, so its band/CEFR are still empty.
     const overallBand: number | null = certificateData?.overall_band ?? attempt?.band_score ?? null;
     const overallCefr: string | null = certificateData?.overall_cefr ?? attempt?.cefr_level ?? null;
+    if (certificateData?.scale === 'cefr_multilevel') {
+      return (
+        <div className="cefr-result-page">
+          <h1>{attempt?.test_title}</h1>
+          <CefrResultSummary data={certificateData as CefrSummary} />
+          <div className="error-boundary-actions">
+            <Link to="/results" className="btn">{_t('my_results')}</Link>
+            <Link to="/tests" className="btn primary">{_t('error_boundary_back')}</Link>
+          </div>
+        </div>
+      );
+    }
     const sectionScores = Object.entries(
       (certificateData?.sections ?? {}) as Record<string, { name: string; band: number; cefr: string }>,
     );
