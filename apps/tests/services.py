@@ -1014,6 +1014,22 @@ class SubmitAttemptService:
             case_sensitive = bool(cfg.get("case_sensitive", False))
             partial_credit = bool(cfg.get("partial_credit", False))
 
+            # Speaking is assessed outside the CBT (AI Speaking / examiner):
+            # never auto-graded here and never weighs on the percentage.
+            if question.question_type == Question.QuestionType.SPEAKING_PROMPT:
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        maximum=Decimal("0"),
+                        is_correct=False,
+                        answered=False,
+                        section_code=section_code,
+                        section_id=section_id,
+                        kind="written",
+                    )
+                )
+                continue
+
             student_answer = answers_by_qid.get(question.id)
             if student_answer is None:
                 # Javob berilmagan
