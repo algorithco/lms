@@ -164,6 +164,7 @@ def _student_question_payload(
         "points": getattr(q, "points", 1) or 1,
         "position": getattr(q, "position", 1) or 1,
         "section_id": getattr(q, "section_id", None),
+        "group_id": getattr(q, "group_id", None),
         "passage": _passage_payload(passage_obj),
         "choices": [
             {
@@ -260,6 +261,51 @@ def _sections_payload(test) -> list[dict[str, Any]]:
     except Exception as exc:
         logger.warning("Error serializing sections: %s", exc)
         return []
+
+
+def _structure_payload(test) -> list[dict[str, Any]]:
+    """CD-format layout (section → part → group) without any answer data.
+
+    Empty for legacy tests that have no parts.
+    """
+    out = []
+    sections = test.sections.order_by("order").prefetch_related("parts__groups")
+    for s in sections:
+        parts = list(s.parts.all())
+        if not parts:
+            continue
+        out.append(
+            {
+                "section_id": s.id,
+                "code": s.code,
+                "name": s.name,
+                "duration_minutes": s.duration_minutes,
+                "parts": [
+                    {
+                        "id": p.id,
+                        "number": p.number,
+                        "title": p.title,
+                        "instructions": p.instructions,
+                        "audio_url": p.audio.url if p.audio else "",
+                        "groups": [
+                            {
+                                "id": g.id,
+                                "title": g.title,
+                                "instructions": g.instructions,
+                                "answer_rule": g.answer_rule,
+                                "passage_id": g.passage_id,
+                                "image_url": g.image.url if g.image else "",
+                                "options_label": g.options_label,
+                                "each_option_once": g.each_option_once,
+                            }
+                            for g in p.groups.all()
+                        ],
+                    }
+                    for p in parts
+                ],
+            }
+        )
+    return out
 
 
 def _passages_payload(test) -> list[dict[str, Any]]:
@@ -567,6 +613,8 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     sections = serializers.SerializerMethodField()
     passages = serializers.SerializerMethodField()
     section_progress = serializers.SerializerMethodField()
+    exam_type = serializers.SerializerMethodField()
+    structure = serializers.SerializerMethodField()
 
     class Meta:
         model = TestAttempt
@@ -574,6 +622,10 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
             "id",
             "test",
             "test_title",
+            "exam_type",
+            "mode",
+            "is_preview",
+            "structure",
             "subject",
             "audio_url",
             "is_strict_mode",
@@ -597,6 +649,12 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     def get_test_title(self, obj: TestAttempt) -> str:
         test = getattr(obj, "test", None)
         return getattr(test, "title", "") if test else ""
+
+    def get_exam_type(self, obj: TestAttempt) -> str:
+        return getattr(obj.test, "exam_type", "") or ""
+
+    def get_structure(self, obj: TestAttempt) -> list[dict[str, Any]]:
+        return _structure_payload(obj.test)
 
     def get_subject(self, obj: TestAttempt) -> str:
         test = getattr(obj, "test", None)

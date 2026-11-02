@@ -1306,6 +1306,7 @@ class TestGradebookView(APIView):
         attempts = (
             TestAttempt.objects.filter(
                 test=test,
+                is_preview=False,
                 status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT],
             )
             .select_related("student")

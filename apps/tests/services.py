@@ -259,6 +259,8 @@ class StartAttemptService:
                 student=student,
                 status=TestAttempt.Status.IN_PROGRESS,
                 mode=selected_mode,
+                # Teachers/admins only preview: kept out of stats and ratings.
+                is_preview=is_admin_or_teacher,
             )
         except IntegrityError:
             active = TestAttempt.objects.filter(
@@ -1496,6 +1498,8 @@ class SubmitAttemptService:
                 "Result %d pending written grading — dispatch deferred.",
                 result.id,
             )
+        elif attempt.is_preview:
+            logger.info("Result %d is a staff preview — no XP/notifications.", result.id)
         elif settings.CELERY_TASK_ALWAYS_EAGER:
             dispatch_result_task()
         else:

@@ -165,3 +165,32 @@ class GapNormalisationTests(SimpleTestCase):
         self.assertTrue(answers_match("twenty-one", "21"))
         self.assertTrue(answers_match("twenty one", "21"))
         self.assertFalse(answers_match("7", "six"))
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="cd-mock-preview-"))
+class PreviewModeTests(APITestCase):
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.teacher = User.objects.create_superuser(email="preview_admin@example.com", password="x-Pass-123!")
+        call_command("import_cd_mock", "record_mock_1", "--publish", stdout=StringIO())
+        self.test = Test.objects.get(mock_code="CEFR-RECORD-1-CD")
+
+    def test_staff_attempt_is_preview_and_stays_out_of_stats(self):
+        attempt = StartAttemptService.execute(test_id=self.test.id, student=self.teacher, mode="strict")
+        self.assertTrue(attempt.is_preview)
+        q = Question.objects.filter(test=self.test, section__code="LISTENING").order_by("position").first()
+        right = Choice.objects.get(question=q, is_correct=True)
+        SaveAnswerService.execute(attempt_id=attempt.id, question_id=q.id, student=self.teacher, choice_ids=[right.id])
+        self.client.force_authenticate(self.teacher)
+        self.client.post(f"/api/tests/attempts/{attempt.id}/submit/", format="json")
+
+        q.refresh_from_db()
+        self.assertEqual(q.total_attempts, 0)  # item statistics untouched
+        gradebook = self.client.get(f"/api/tests/{self.test.id}/gradebook/").json()
+        self.assertEqual(gradebook.get("ranking", []), [])
+        card = self.client.get(f"/api/tests/attempts/{attempt.id}/certificate-card/").json()
+        self.assertEqual(card["sections"][0]["status"], "scored")  # preview still sees its own result

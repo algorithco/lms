@@ -528,6 +528,7 @@ def generate_group_vedomost_pdf(group_id: int, test_id: int | None = None) -> st
 
     attempts_qs = TestAttempt.objects.filter(
         student__in=group_students,
+        is_preview=False,
         status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT],
     )
     if test:
