@@ -1,0 +1,368 @@
+{
+  "mock_code": "CEFR-RECORD-1-CD",
+  "title": "Record Mock – Test 1 (CEFR Multi-level)",
+  "description": "Multi-level (BMB) formatidagi to'liq mock: Listening, Reading, Writing va Speaking.",
+  "subject": "english",
+  "exam_type": "cefr_multilevel",
+  "sections": [
+    {
+      "code": "LISTENING",
+      "name": "Listening",
+      "minutes": 45,
+      "parts": [
+        {
+          "number": "1",
+          "instructions": "You will hear some sentences. You will hear each sentence twice. Choose the correct reply to each sentence (A, B or C).",
+          "groups": [
+            {
+              "questions": [
+                {"number": 1, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["Me too.", "Can you?", "Sure, you can."], "answer": "C"},
+                {"number": 2, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["Take bus 6.", "It starts at 9 a.m. tomorrow.", "It’s in the center."], "answer": "A"},
+                {"number": 3, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["OK, here it is.", "No, that doesn’t suit you.", "Sure, I’ll wait here."], "answer": "C"},
+                {"number": 4, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["In the school library.", "Since 1997.", "Before I was born."], "answer": "B"},
+                {"number": 5, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["You should take a short break.", "Let’s get to work right now!", "Don’t worry, they haven’t."], "answer": "A"},
+                {"number": 6, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["How about an ice-cream?", "You need to wear your sweater.", "Let’s eat some fresh pizza and chips."], "answer": "A"},
+                {"number": 7, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["When does it happen?", "Where did you see that?", "Who told you that?"], "answer": "C"},
+                {"number": 8, "type": "MULTIPLE_CHOICE", "text": "Choose the correct reply.", "options": ["My hands are also firm.", "Sounds like a boring person.", "Can you expect anything?"], "answer": "B"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "instructions": "You will hear someone giving a talk. For each question, fill in the missing information in the numbered space.",
+          "groups": [
+            {
+              "title": "School Trip",
+              "answer_rule": "ONE WORD and / or A NUMBER",
+              "passage": {"title": "SCHOOL TRIP", "content": "Teacher’s name: Turner"},
+              "questions": [
+                {"number": 9, "type": "INLINE_GAP_FILL", "text": "They will travel by (9) ________ .", "answer": ["coach"]},
+                {"number": 10, "type": "INLINE_GAP_FILL", "text": "First activity: they walk around the (10) ________ .", "answer": ["lake"]},
+                {"number": 11, "type": "INLINE_GAP_FILL", "text": "Students spend their free time in the (11) ________ .", "answer": ["park"]},
+                {"number": 12, "type": "INLINE_GAP_FILL", "text": "Lunch will be a (12) ________ together.", "answer": ["picnic"]},
+                {"number": 13, "type": "INLINE_GAP_FILL", "text": "They will visit a (13) ________ .", "answer": ["museum"]},
+                {"number": 14, "type": "INLINE_GAP_FILL", "text": "They should bring a (14) ________ .", "answer": ["raincoat"]}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "3",
+          "instructions": "You will hear people speaking in different situations. Match each speaker (15–18) to the place where they are (A–F). There are TWO extra options which you do not need to use.",
+          "groups": [
+            {
+              "options_label": "Places A–F",
+              "each_option_once": true,
+              "options": ["In a swimming pool", "At home", "In a shopping centre", "In a garden", "In a restaurant", "In a classroom"],
+              "questions": [
+                {"number": 15, "type": "MATCHING", "text": "Speaker 1", "answer": "A"},
+                {"number": 16, "type": "MATCHING", "text": "Speaker 2", "answer": "F"},
+                {"number": 17, "type": "MATCHING", "text": "Speaker 3", "answer": "B"},
+                {"number": 18, "type": "MATCHING", "text": "Speaker 4", "answer": "D"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "4",
+          "instructions": "You will hear someone giving a talk. Label the places (19–23) on the map (A–H). There are THREE extra options which you do not need to use.",
+          "groups": [
+            {
+              "title": "Community Centre Plan",
+              "image": "images/listening-map.svg",
+              "options_label": "Map A–H",
+              "each_option_once": true,
+              "options": ["A", "B", "C", "D", "E", "F", "G", "H"],
+              "questions": [
+                {"number": 19, "type": "MAP_LABELING", "text": "Bike racks", "answer": "D"},
+                {"number": 20, "type": "MAP_LABELING", "text": "Kitchen room", "answer": "C"},
+                {"number": 21, "type": "MAP_LABELING", "text": "Music room", "answer": "A"},
+                {"number": 22, "type": "MAP_LABELING", "text": "Shower room", "answer": "E"},
+                {"number": 23, "type": "MAP_LABELING", "text": "Restroom", "answer": "H"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "5",
+          "instructions": "You will hear three extracts. Choose the correct answer (A, B or C) for each question (24–29). There are TWO questions for each extract.",
+          "groups": [
+            {
+              "title": "Extract One",
+              "instructions": "You hear a man and a woman discussing a new facility in their neighbourhood.",
+              "questions": [
+                {"number": 24, "type": "MULTIPLE_CHOICE", "text": "What is the main conversation about?", "options": ["A new library and its features", "A recent community event", "Renovations at the local museum"], "answer": "A"},
+                {"number": 25, "type": "MULTIPLE_CHOICE", "text": "What is the woman concerned about?", "options": ["The lack of seating", "There are too many people in the evenings", "The opening hours are too short"], "answer": "B"}
+              ]
+            },
+            {
+              "title": "Extract Two",
+              "instructions": "You hear two friends talking about a coffee shop they visited.",
+              "questions": [
+                {"number": 26, "type": "MULTIPLE_CHOICE", "text": "What is the main conversation about?", "options": ["The menu options at a café", "The location of a popular café", "The size and atmosphere of a new coffee shop"], "answer": "C"},
+                {"number": 27, "type": "MULTIPLE_CHOICE", "text": "What did the man say about the new coffee shop?", "options": ["The service was slower", "The prices were higher", "The staff weren’t friendlier"], "answer": "A"}
+              ]
+            },
+            {
+              "title": "Extract Three",
+              "instructions": "You hear a conversation between two people discussing pets.",
+              "questions": [
+                {"number": 28, "type": "MULTIPLE_CHOICE", "text": "What is the main conversation about?", "options": ["The difficulty of taking care of a pet animal", "Choosing the right breed for a family", "Training a dog to behave indoors"], "answer": "B"},
+                {"number": 29, "type": "MULTIPLE_CHOICE", "text": "What was the woman’s recommendation?", "options": ["Going for a smaller one", "Buying a pet from a shelter", "Hiring a professional trainer"], "answer": "A"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "6",
+          "instructions": "You will hear a part of a lecture. For each question, fill in the missing information in the numbered space.",
+          "groups": [
+            {
+              "title": "Marketing and Branding",
+              "answer_rule": "NO MORE THAN ONE WORD",
+              "questions": [
+                {"number": 30, "type": "INLINE_GAP_FILL", "text": "A strong brand can help a company dominate its (30) ________ .", "answer": ["market"]},
+                {"number": 31, "type": "INLINE_GAP_FILL", "text": "Apple products are considered more valuable because of their high (31) ________ .", "answer": ["quality"]},
+                {"number": 32, "type": "INLINE_GAP_FILL", "text": "Many brands focus less on selling logic and more on selling (32) ________ .", "answer": ["feelings"]},
+                {"number": 33, "type": "INLINE_GAP_FILL", "text": "After drinking Coca-Cola, customers don’t notice the ingredients but experience a feeling of (33) ________ .", "answer": ["happiness"]},
+                {"number": 34, "type": "INLINE_GAP_FILL", "text": "Online businesses track customer preferences using (34) ________ history.", "answer": ["cookies"]},
+                {"number": 35, "type": "INLINE_GAP_FILL", "text": "This data helps improve both the customer experience and overall (35) ________ .", "answer": ["sales"]}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "READING",
+      "name": "Reading",
+      "minutes": 60,
+      "parts": [
+        {
+          "number": "1",
+          "instructions": "Read the text. Fill in each gap with ONE word. You must use a word which is somewhere in the rest of the text.",
+          "groups": [
+            {
+              "title": "Honey",
+              "answer_rule": "ONE WORD from the text",
+              "passage": {
+                "title": "HONEY",
+                "content": "Honey is a sweet and natural food made by bees. (1) ________ collect nectar from flowers and bring it back to their hive. Inside the (2) ________ , the bees change the nectar into thick, golden honey. This process is fascinating, and many scientists study how bees work together. A group of (3) ________ recently discovered that each bee in the colony has a special job. Some bees fly out to find flowers, while others protect the hive or store the (4) ________ . To make a small jar of honey, thousands of bees must visit millions of (5) ________ . The (6) ________ they collect is carried in their tiny bodies. Once they return, they pass it from one bee to another, slowly turning it into honey."
+              },
+              "questions": [
+                {"number": 1, "type": "INLINE_GAP_FILL", "text": "Gap (1)", "answer": ["bees"]},
+                {"number": 2, "type": "INLINE_GAP_FILL", "text": "Gap (2)", "answer": ["hive"]},
+                {"number": 3, "type": "INLINE_GAP_FILL", "text": "Gap (3)", "answer": ["scientists"]},
+                {"number": 4, "type": "INLINE_GAP_FILL", "text": "Gap (4)", "answer": ["honey"]},
+                {"number": 5, "type": "INLINE_GAP_FILL", "text": "Gap (5)", "answer": ["flowers"]},
+                {"number": 6, "type": "INLINE_GAP_FILL", "text": "Gap (6)", "answer": ["nectar"]}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "instructions": "Read the texts 7–14 and the statements A–J. Decide which text matches the situation described in each statement. Each statement can be used ONCE only. There are TWO extra statements which you do not need to use.",
+          "groups": [
+            {
+              "options_label": "Statements A–J",
+              "each_option_once": true,
+              "options": [
+                "A cozy spot near a fireplace, perfect for enjoying a warm drink and a good book.",
+                "A unique dining experience with breathtaking city views, a cool breeze, and a touch of romance.",
+                "A breathtaking experience with panoramic views, fresh mountain air, and a feeling of accomplishment.",
+                "A bustling marketplace with vibrant stalls, delicious street food, and a lively atmosphere.",
+                "A tranquil spot by a lake, perfect for a relaxing afternoon with loved ones.",
+                "A peaceful escape surrounded by towering trees and lush greenery, offering a magical atmosphere.",
+                "A casual and convenient option, ideal for a quick bite and people-watching in the city.",
+                "A leisurely picnic with a scenic backdrop, featuring a flowing river and the sound of water.",
+                "A tranquil escape surrounded by blooming flowers and fragrant herbs, perfect for a romantic date.",
+                "A quintessential summer experience with the sound of waves crashing and the warmth of the sun."
+              ],
+              "questions": [
+                {"number": 7, "type": "MATCHING", "text": "This picnic spot next to a quiet lake is peaceful and beautiful. You can lay out your blanket on soft grass, listen to calm waves, and enjoy the clean air. It’s the perfect place to relax and spend quality time with your loved ones.", "answer": "E"},
+                {"number": 8, "type": "MATCHING", "text": "This forest picnic area is calm and full of tall trees and greenery. Sunlight shines through the leaves, making it feel magical. You can enjoy nature’s beauty, hear birds singing, and have a quiet meal in a peaceful place.", "answer": "F"},
+                {"number": 9, "type": "MATCHING", "text": "If you want a simple and quick picnic, this park bench is perfect. Grab some snacks or a takeaway sandwich and enjoy your food while watching people and the park. It’s a nice spot in the middle of the city to rest and unwind.", "answer": "G"},
+                {"number": 10, "type": "MATCHING", "text": "A picnic on the beach gives you the full summer feeling. You can hear the waves, feel the warm sun, and smell the sea. Enjoy your food with a view of the ocean, build sandcastles, and relax under the sun.", "answer": "J"},
+                {"number": 11, "type": "MATCHING", "text": "Take your picnic to the top of a mountain for amazing views. After a good hike, enjoy the fresh mountain air and feel proud of reaching the top. It’s a perfect place for a picnic with a view you won’t forget.", "answer": "C"},
+                {"number": 12, "type": "MATCHING", "text": "Hidden in a quiet garden, this picnic spot is peaceful and surrounded by flowers and nice smells. It’s great for a calm afternoon with friends or a sweet date in a relaxing garden setting.", "answer": "I"},
+                {"number": 13, "type": "MATCHING", "text": "Have a picnic by a flowing river, sitting on soft grass. You can relax while listening to the water, watch boats pass by, and enjoy the lovely view. It’s perfect for a calm picnic in nature.", "answer": "H"},
+                {"number": 14, "type": "MATCHING", "text": "Try something different with a picnic on a rooftop. Enjoy amazing views of the city, feel the cool wind, and have a special meal. It’s great for a romantic night or celebrating a special event under the stars.", "answer": "B"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "3",
+          "instructions": "Read the text and choose the correct heading for each paragraph (15–20) from the list of headings below. There are more headings than paragraphs, so you will not use all of them. You cannot use any heading more than once.",
+          "groups": [
+            {
+              "title": "Canada’s Must-Visit Tourist Destinations",
+              "options_label": "List of Headings",
+              "each_option_once": true,
+              "options": ["For adventurous skiers", "Especially good in autumn", "For the rich and lazy", "Not just for gamblers", "Like an island in heaven", "Film-makers like it", "Looking down from up there", "Probably the best one of five"],
+              "passage": {
+                "title": "CANADA’S MUST-VISIT TOURIST DESTINATIONS",
+                "content": "15. If you go to the Insular Mountain Range of Vancouver Island and face the open Pacific Ocean, be ready to experience the magnificent natural and cultural heritage of Canada’s west coast. If you decide to go deeper into the island, you will find a lush coastal rainforest that gives way to bountiful and diverse intertidal and subtidal areas. And to top it all off, there are breathtaking beaches that make this an island paradise.\n\n16. The resort town of Whistler is about a two-hour drive from Vancouver. Whistler offers visitors fine food and spas, but mostly it is popular among tourists for the opportunities it offers for adventure. Whistler and Blackcomb Mountains make Whistler one of the best destinations in the world for first-class skiing. The passage between the two mountains creates a unique terrain one mile above the village, providing a year-round skiable territory.\n\n17. A prized national treasure, Banff National Park is one of five national parks in the Canadian Rocky Mountains. It attracts millions of visitors each year for camping, hiking, biking, skiing, fishing or just relaxing. A full range of accommodation, restaurants and shops can be found in the resort. Two of the most famous and historic Canadian hotels, the Fairmont Banff Springs and the Chateau Lake Louise, are located in these towns as well.\n\n18. Niagara Falls is maybe the most famous in the world, attracting millions of tourists each year. However, it has a certain reputation for being partly a small-scale Las Vegas and a theme park, because in addition to Niagara Falls the tourists can visit a casino resort with fine hotels and restaurants. Although this area is improving very quickly and everyone can easily find what they like, the Niagara region as a whole is worth deeper exploration.\n\n19. Tourists are naturally drawn to tall buildings where they can get a bird’s eye view of a city. The CN Tower, located in downtown Toronto, is the tallest free-standing structure in the world. Unfortunately, elevated observation usually comes at an equally elevated price, and the CN Tower is no different. However, tourists love it, and the glass elevator takes them to the glass-floored outdoor observation deck, which is a real thrill for both kids and grown-ups.\n\n20. The 300 km long Cabot Trail is famous for its panorama views of the Atlantic Ocean. The trail is especially popular in the fall when the views are the most spectacular. Even though the drive into this area usually takes a few hours, once there, tourists can spend a day or two stopping in at one or two of the towns along the trail, relaxing and enjoying the magnificent nature all around."
+              },
+              "questions": [
+                {"number": 15, "type": "HEADING_MATCHING", "text": "Paragraph 15", "answer": "E"},
+                {"number": 16, "type": "HEADING_MATCHING", "text": "Paragraph 16", "answer": "A"},
+                {"number": 17, "type": "HEADING_MATCHING", "text": "Paragraph 17", "answer": "H"},
+                {"number": 18, "type": "HEADING_MATCHING", "text": "Paragraph 18", "answer": "D"},
+                {"number": 19, "type": "HEADING_MATCHING", "text": "Paragraph 19", "answer": "G"},
+                {"number": 20, "type": "HEADING_MATCHING", "text": "Paragraph 20", "answer": "B"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "4",
+          "instructions": "Read the following text for questions 21–29.",
+          "passage": {
+            "title": "A STRANGE MORNING",
+            "content": "Emily woke up before her alarm went off and knew instantly something wasn’t quite right in the house. Bailey, her chocolate-coloured pet Labrador, should have been there at the bedroom door demanding food, but there was no sound of him. She decided to get up and go and see where he was. It felt cold in the hall, but she knew she had left the heating on last night. As she walked down the stairs, she heard a noise in the kitchen; the strange feeling that something was wrong was getting stronger. What was going on? She got to the bottom of the stairs and opened the door to the living room, which led to the kitchen. Why was the door closed? She always left it open. Bailey was nowhere to be seen, and his toys, which were usually all over the living room floor, were in a neat pile in the corner next to his basket. Had they been there when she had gone to bed last night? She couldn’t remember.\n\nShe walked into the kitchen and turned the light on; it didn’t work, nothing happened. She stood very still and listened: nothing. There wasn’t a sound. That was really strange; she lived in the middle of a busy city, and there were always people around. She woke up to the sound of traffic, car horns, police cars and her neighbours shouting in the house next door. How could there be silence at 8 o’clock on a Friday morning? She went back into the living room and turned the TV on, but again nothing happened. She went back into the kitchen and looked out of the window; it was a bright, clear day. The back door was shut, but when she tried the handle, she realised it was unlocked. She walked out into the tiny back garden and opened the back gate; still nothing, not a sound and no sign of Bailey. She called him, but he didn’t come.\n\nShe went back into the house and did what she realised she should have done as soon as she got up: she called her mother. But there was no answer. She called her boyfriend, but his mobile was switched off and she got the answerphone message. She tried a couple of other numbers, but with equal success. She sat down on the sofa and thought about what she could do. She couldn’t decide if she should stay at home or go out and find someone. Just as she decided the best thing would be to stay at home and wait, there was a loud banging on the front door. She jumped up and ran to the door. “Who is it?” she shouted through the door. “It’s me,” came the reply. But she had no idea who “me” was.\n\nShe didn’t want to open the door until she was sure she knew who it was, not with all the other strange things that were happening this morning, and she didn’t want to shout through the thick front door, so she walked back into the living room and tried to look through the front window to see who was standing at the front door. It was a man, but she couldn’t make out who he was; he didn’t look familiar. He was tall and was wearing a big coat with a hood over his head. Just as she was thinking of running out of the back door, she saw that the man had Bailey with him, and Bailey seemed quite happy, which meant that the man had to be someone he knew and liked; he would have been barking otherwise.\n\nShe still wasn’t taking any chances, though; she put the safety latch on the door and opened it just enough to see who was there. She was instantly relieved; it was her brother, who lived just a few streets away. She opened the door all the way and let him in. As he walked through the door, he was almost knocked over by Bailey jumping up and looking more pleased than ever to see her. “So, what’s going on?” she asked her brother. He looked at her as if she was stupid. “Haven’t you heard?”"
+          },
+          "groups": [
+            {
+              "instructions": "For questions 21–24, choose the correct answer A, B, C or D.",
+              "questions": [
+                {"number": 21, "type": "MULTIPLE_CHOICE", "text": "What was the first thing Emily noticed that made her feel something was wrong that morning?", "options": ["The living room door was wide open.", "Bailey wasn’t waiting outside her room asking for food.", "She heard loud music coming from the kitchen.", "The heating system wasn’t working."], "answer": "B"},
+                {"number": 22, "type": "MULTIPLE_CHOICE", "text": "Which part of the story shows that Emily was shocked by how quiet everything was?", "options": ["She lives in a quiet place in the countryside.", "She expected it to be noisier since it was a busy Friday morning.", "That time of day is always quiet with no people or cars.", "She got up much earlier than she usually does."], "answer": "B"},
+                {"number": 23, "type": "MULTIPLE_CHOICE", "text": "How did Emily realise that the power might be out?", "options": ["She tried to turn on the heat but it didn’t work.", "The kitchen lights wouldn’t come on.", "She switched on the TV but only saw static.", "The home phone had no signal."], "answer": "B"},
+                {"number": 24, "type": "MULTIPLE_CHOICE", "text": "What made Emily finally open the front door?", "options": ["She clearly heard her brother calling her.", "She saw that Bailey was calmly standing beside the man.", "The man outside said he would break the door.", "She remembered someone was supposed to visit."], "answer": "B"}
+              ]
+            },
+            {
+              "instructions": "For questions 25–29, decide if the following statements agree with the information given in the text.",
+              "options": ["True", "False", "No Information"],
+              "questions": [
+                {"number": 25, "type": "TRUE_FALSE_NOT_GIVEN", "text": "Emily finds Bailey’s toys lying scattered around the living room floor.", "answer": "False"},
+                {"number": 26, "type": "TRUE_FALSE_NOT_GIVEN", "text": "Emily attempts several phone calls but cannot get through to anyone.", "answer": "True"},
+                {"number": 27, "type": "TRUE_FALSE_NOT_GIVEN", "text": "The text states that Emily’s mother left her a message on the voicemail.", "answer": "No Information"},
+                {"number": 28, "type": "TRUE_FALSE_NOT_GIVEN", "text": "The stranger at the door turns out to be Emily’s brother.", "answer": "True"},
+                {"number": 29, "type": "TRUE_FALSE_NOT_GIVEN", "text": "Emily had locked the back door before going to bed.", "answer": "No Information"}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "5",
+          "instructions": "Read the following text for questions 30–35.",
+          "passage": {
+            "title": "THE NOMADIC WAY OF LIFE",
+            "content": "Out of a world population of 7.5 billion, around 30 million people currently lead a migratory lifestyle. Every continent has nomadic groups, leading a life very different from the sedentary communities they come into contact with. Almost all migratory communities are in steady decline for a wide range of reasons: climate change, political unrest, forced resettlement and armed conflict have all impacted on these traditional communities, diminishing their numbers year on year.\n\nHowever, the lure of the travelling lifestyle is as strong as ever. The ‘gypsy lifestyle’ continues to inspire people – especially the young – who crave the freedom of unstructured movement. Backpacking has become almost a rite of passage for the young. ‘Gap years’ between school and university often stretch to two years, or even more, as young people become addicted to the culture of travelling light and moving on.\n\nTraditional nomads may be seen as ‘wanderers’, but their movement is not as unstructured as it may appear. Most nomadic communities are, or were, herdsmen, leading their animals across fixed routes based on pastures. Their societies were based on strong bonds of kinship. According to 14th-century social historian Ibn Khaldun, the Bedouin community owed their success in battle to asabiyya or ‘group feeling’, which enhanced their ability to protect the group from outsiders. This, along with excellent horsemanship and the rigours of a harsh lifestyle, based around the constant alertness needed to protect livestock, made them formidable adversaries in war when compared to their more settled counterparts.\n\nFar from the desert-dwelling Bedouin live a different kind of nomad: the Moken, or sea gypsies, of the Mergui Archipelago between Myanmar and the islands of Thailand’s North Andaman coast. During the dry season, they live on traditional houseboats, and during the monsoon season they build temporary villages on sheltered stretches of beach. Theirs is a culture of sharing and giving, to the extent that their language contains no words for individual possessions. These indigenous people have a great understanding of and respect for their environment, making use of over 80 plant species for food and more than 100 for shelter, handicrafts and other purposes. However, the Moken’s lifestyle has more recently been affected by government restrictions on their hunter-gathering activities, and legal disputes over ownership of their traditional lands. Somewhat inevitably, they have become a focus for tourism in the area, which they have embraced to some extent as they try to adapt to the modern world.\n\nNomadic communities exist in Europe too. In the tundras and taigas of northern Scandinavia live a reindeer-herding community, the Sami. Originally travelling freely across the areas which now belong to Norway, Sweden, Finland and Russia, this subculture has had its traditional lifestyle curtailed by the creation of national borders."
+          },
+          "groups": [
+            {
+              "instructions": "For questions 30–33, fill in the missing information in the numbered spaces.",
+              "answer_rule": "NO MORE THAN ONE WORD and / or A NUMBER",
+              "questions": [
+                {"number": 30, "type": "INLINE_GAP_FILL", "text": "Migratory lifestyles (30) ________ the youth who are eager to have unplanned travel.", "answer": ["inspire"]},
+                {"number": 31, "type": "INLINE_GAP_FILL", "text": "Nomadic herders tend to choose their way taking (31) ________ into account.", "answer": ["pastures"]},
+                {"number": 32, "type": "INLINE_GAP_FILL", "text": "The Bedouin community had to be cautious all the time to (32) ________ their farm animals.", "answer": ["protect"]},
+                {"number": 33, "type": "INLINE_GAP_FILL", "text": "The Moken have no words for (33) ________ property.", "answer": ["individual"]}
+              ]
+            },
+            {
+              "instructions": "For questions 34–35, choose the correct answer A, B, C or D.",
+              "questions": [
+                {"number": 34, "type": "MULTIPLE_CHOICE", "text": "According to the passage, the Moken …", "options": ["hardly share their own possessions.", "live on the sea during the rainy season.", "changed their lifestyle because of restrictions.", "escaped to become accustomed to the modern world."], "answer": "C"},
+                {"number": 35, "type": "MULTIPLE_CHOICE", "text": "What is the writer’s purpose in the reading passage?", "options": ["to explain the future of backpacking culture", "to compare the success of different nomadic groups", "to criticise the lack of tolerance for travelling communities", "to highlight the current state of traditional travelling cultures"], "answer": "D"}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "WRITING",
+      "name": "Writing",
+      "minutes": 60,
+      "parts": [
+        {
+          "number": "1",
+          "title": "Science Centre Trip Rescheduled",
+          "instructions": "You planned a school trip to the Science Centre to see robotic displays. However, the trip has been cancelled and rescheduled for next week. Students can either get their money back or keep their place for the new date.",
+          "groups": [
+            {
+              "questions": [
+                {"number": 1, "type": "written", "text": "TASK 1.1 · INFORMAL — Write about 50 words.\nWrite a short email to your friend.\n• Explain that the trip to the Science Centre has been cancelled.\n• Tell your friend that it will take place next week instead.", "config": {"task": "1.1", "target_words": 50, "min_words": 40, "max_words": 75}},
+                {"number": 2, "type": "written", "text": "TASK 1.2 · FORMAL — Write 120–150 words.\nWrite an email to the students who registered for the trip.\n• Inform them that the trip has been cancelled for now.\n• Explain that it has been rescheduled for next week.\n• Ask them whether they want a refund or prefer to keep their place for the new date.", "config": {"task": "1.2", "min_words": 120, "max_words": 150}}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "title": "Blog post",
+          "groups": [
+            {
+              "questions": [
+                {"number": 3, "type": "written", "text": "PART 2 · BLOG POST — Write 180–200 words.\nYou are participating in an online discussion for language learners. The question is:\n“Some people say school trips are a waste of time, while others believe students learn more outside the classroom. What is your opinion?”\nPost your response, giving reasons and examples.", "config": {"task": "2", "min_words": 180, "max_words": 200}}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SPEAKING",
+      "name": "Speaking",
+      "minutes": 0,
+      "parts": [
+        {
+          "number": "1.1",
+          "instructions": "Answer the questions about yourself. 30 seconds each, no preparation.",
+          "groups": [
+            {
+              "questions": [
+                {"number": 1, "type": "SPEAKING_PROMPT", "text": "What is your favourite food?", "config": {"prep_seconds": 0, "answer_seconds": 30}},
+                {"number": 2, "type": "SPEAKING_PROMPT", "text": "Do you have any pets?", "config": {"prep_seconds": 0, "answer_seconds": 30}},
+                {"number": 3, "type": "SPEAKING_PROMPT", "text": "What do you like to do at the weekend?", "config": {"prep_seconds": 0, "answer_seconds": 30}}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "1.2",
+          "instructions": "Look at the pictures and answer the questions. Q1: 45 seconds, Q2–Q3: 30 seconds, no preparation.",
+          "groups": [
+            {
+              "image": "images/speaking-1-2.jpg",
+              "questions": [
+                {"number": 4, "type": "SPEAKING_PROMPT", "text": "What are the people in these photos doing?", "config": {"prep_seconds": 0, "answer_seconds": 45}},
+                {"number": 5, "type": "SPEAKING_PROMPT", "text": "What are the benefits of doing sport?", "config": {"prep_seconds": 0, "answer_seconds": 30}},
+                {"number": 6, "type": "SPEAKING_PROMPT", "text": "What sports are popular in your country?", "config": {"prep_seconds": 0, "answer_seconds": 30}}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "instructions": "Look at the picture and answer the questions. 1 minute preparation, 2 minutes speaking.",
+          "groups": [
+            {
+              "image": "images/speaking-2.jpg",
+              "questions": [
+                {"number": 7, "type": "SPEAKING_PROMPT", "text": "Describe a significant educational experience you have had.\nHow has this experience shaped your career or personal development?\nWhat do you believe are the key components of a good education?", "config": {"prep_seconds": 60, "answer_seconds": 120}}
+              ]
+            }
+          ]
+        },
+        {
+          "number": "3",
+          "instructions": "Discuss the statement. Talk about both sides. 1 minute preparation, 2 minutes speaking.",
+          "groups": [
+            {
+              "questions": [
+                {"number": 8, "type": "SPEAKING_PROMPT", "text": "Social media has a negative impact on mental health.", "config": {"prep_seconds": 60, "answer_seconds": 120, "for": ["Contributes to anxiety, depression and addiction", "Promotes unrealistic standards and cyberbullying", "Distracts from real-life relationships and responsibilities"], "against": ["Increases social connectivity and awareness", "Provides platforms for self-expression and support", "Facilitates access to information and global communities"]}}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
