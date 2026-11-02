@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Tests as TestsApi } from '../../lib/api';
 import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
+import CdExamInterface, { type CdAttempt } from './CdExamInterface';
 import { useLang } from '../../i18n/LangContext';
 import {
   ClockIcon,
@@ -656,6 +657,11 @@ export default function EnglishExamInterface() {
         currentQ.config?.subtype === 'inline_gap_fill' ||
         /(?:\(\d+\)\s*_{2,}|_{3,})/.test(currentQ.text))
   );
+
+  // CD-format tests (section → part → group) use the dedicated engine.
+  if (attempt && !loading && (attempt as unknown as CdAttempt).structure?.length) {
+    return <CdExamInterface attempt={attempt as unknown as CdAttempt} />;
+  }
 
   if (loading) {
     return (
