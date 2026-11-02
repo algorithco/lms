@@ -9,6 +9,37 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.82. Rasmiy Versiya v1.91.0: Admin Control Hub, 1-Click Telegram SSO, 100% i18n, Sleek Referal Kartasi va 5 Kunlik PRO Obuna Ogohlantirish Tizimi (9.5.0-Bosqich)
+- [x] 1-Vazifa: Admin (ADMIN_UNLIMITED) Uchun Profil va Obuna Mantiqsizligi Butunlay Yo'qotildi (`frontend/src/pages/Profile.tsx`):
+  * `Profile.tsx` sahifasida foydalanuvchi `admin`, `center_admin` yoki `is_superuser` bo'lsa, "Tariflar va Obuna (PRO)" hamda `UsageLimits` bloklari butunlay yashirildi.
+  * O'rniga zamonaviy oltin gardishli **"Platforma Boshqaruv Markazi (Admin Control Hub)"** kartasi o'rnatildi:
+    - 👑 "Siz tizimning to‘liq huquqli boshqaruvchisisiz. Barcha resurslar va imkoniyatlar siz uchun cheksiz."
+    - ⭐ `UNLIMITED ACCESS` nishoni.
+    - 3 ta tezkor operativ boshqaruv tugmasi:
+      * `[👥 O'quvchilarni Boshqarish va PRO Ulashish]` -> `/panel/users`
+      * `[👨‍🏫 Ustozlarga Limit va Ruxsat Qo'yish]` -> `/panel/teachers`
+      * `[🧾 Yangi To'lov Cheklarini Tekshirish]` -> `/panel/tuition`
+- [x] 2-Vazifa: Telegram Bot 1-Click Kirish Asl Maqsadiga Qaytarildi (`apps/notifications/bot/handlers.py`, `apps/notifications/telegram_auth.py`, `frontend/src/components/AuthModal.tsx`, `frontend/src/pages/Login.tsx`):
+  * Botdagi noqulay va ortiqcha kontakt so'rash (`awaiting_phone`) va 6 xonali kod berib saytga kiritish majburiyati olib tashlandi.
+  * `_authenticate_or_provision_tg_user`: foydalanuvchi `/start auth_<token>` ni bosishi bilanoq, Telegram `tg_user.id`, `username`, `first_name` orqali bir zumda aniqlanadi yoki yangi talaba hisobi avtomatik ochiladi (`is_active=True`, `is_verified=True`, `telegram_identity_verified_at=now()`).
+  * Token botda darhol tasdiqlanadi (`is_verified=True`, `phone_verified=True`).
+  * Brauzerdagi `AuthModal` va `Login.tsx` orqa fondagi polling orqali tasdiqlanganini ko'radi va hech qanday kod kiritishni talab qilmasdan AVTOMATIK TARZDA `/dashboard` ga kirib ketadi.
+  * Bot foydalanuvchiga inline tugmali tabrik yuboradi: "🎉 Xush kelibsiz! Grand Education tizimiga 1-klikda muvaffaqiyatli kirdingiz!" (`🚀 Saytga o'tish (Dashboard)`).
+- [x] 3-Vazifa: 100% i18n Internatsionalizatsiya (O'zbekcha / Inglizcha / Ruscha) va Sleek Referal Kartasi (`frontend/src/components/ReferralCard.tsx`, `frontend/src/pages/Landing.tsx`, `frontend/src/i18n/translations.json`):
+  * `ReferralCard.tsx` butunlay yangilandi: zamonaviy gradient karta, statistika pillari (`Taklif qilingan do'stlar`, `Olingan bonuslar`), mobil uchun chiroyli moslashuvchan stack, bir klikda nusxalash va Telegram ulashish tugmasi.
+  * `Landing.tsx` dagi qolib ketgan barcha hardcoded o'zbekcha so'zlar ("Qaysi imtihonga tayyorlanasiz?", "BMB Milliy Sertifikat", "Attestatsiya 2026", "AI Esse Studiyasi", "Cambridge CBT") `t('landing....')` dinamik tarjimalariga o'tkazildi.
+  * `translations.json` ga 36 ta yangi to'liq va sifatli tarjima kalitlari (uz, en, ru) kiritildi. Ingliz tili tanlanganda bittagina ham o'zbekcha so'z qolmasligi kafolatlandi.
+- [x] 4-Vazifa: PRO Obuna Tugashiga 5 Kun Qolganda Avtomatik Ogohlantirish va Frontend Banner (`apps/billing/tasks.py`, `apps/accounts/serializers.py`, `frontend/src/pages/Dashboard.tsx`, `config/settings/base.py`):
+  * `UserProfileSerializer`: `subscription_expires_at`, `days_until_expiration`, `is_expiring_soon` (math.ceil aniqligida) maydonlari qo'shildi. Adminlar uchun `is_expiring_soon=False`.
+  * `Dashboard.tsx`: foydalanuvchining obunasi tugashiga 1-5 kun qolganda sahifaning eng yuqori qismida ko'zni qamashtiruvchi qizil-oltin ogohlantiruvchi banner paydo bo'ladi: "⚠️ Diqqat: Sizning PRO obunangiz tugashiga X kun qoldi!" va to'g'ridan-to'g'ri `[💳 Obunani yangilash]` CTA tugmasi.
+  * `apps/billing/tasks.py`: `check_and_notify_expiring_subscriptions` Celery periodik vazifasi yaratildi. Har kuni soat 10:30 da ishga tushib, 5 kun ichida tugaydigan obuna egalariga Telegram bot orqali avtomatik ogohlantirish xabari va yangilash tugmasini yuboradi.
+- [x] 5-Vazifa: Verifikatsiya va Zero-Downtime VPS Deploy:
+  * Backend Pytest: `pytest tests/test_admin_privileges_and_subscription_grant.py tests/test_sso_and_expiry_warning.py -v`: 7/7 test 100% PASS RATE.
+  * Frontend Build: `npm --prefix frontend run build` (tsc -b && vite build) 0 xatolik bilan muvaffaqiyatli yakunlandi.
+  * Zero-Downtime VPS Sync: Contabo VPS (`169.58.58.229`) `/opt/lms` ga sinxronizatsiya qilindi.
+  * Xizmatlar (`web`, `celery-worker`, `bot`, `celery-beat`) uzilishsiz yangilandi, nginx qayta yuklandi. Serverdagi `bestway` loyihasiga mutlaqo teginilmadi.
+  * Public Endpoint Test: `https://grandec.uz/` -> `HTTP/2 200 OK`, `https://grandec.uz/healthz/` -> `HTTP/2 200 OK`, Telegram auth start -> `HTTP 200 OK` tasdiqlandi.
+
 ### 2.81. Rasmiy Versiya v1.90.0: Administrator Uchun Cheksiz Huquqlar (Unlimited Access), Bepul PRO/Premium Obuna Biriktirish Tizimi va PanelUsers Interfeysi (9.4.0-Bosqich)
 - [x] 1-Vazifa: Administratorlar Uchun Barcha Limitlar va To'lov Cheklovlari Bekor Qilindi (Unlimited Access):
   * `apps/billing/services.py`: `check_user_limits`, `has_active_subscription`, `can_take_test`, `can_submit_essay` funksiyalari joriy etildi. Har bir funksiyaning boshida `user.is_superuser or user.is_staff or user.role in ('admin', 'center_admin')` tekshiruvi o'rnatilib, platforma ma'murlariga to'lov, test soni yoki esse topshirish limitlaridan 100% cheksiz (unlimited) immunitet berildi.
