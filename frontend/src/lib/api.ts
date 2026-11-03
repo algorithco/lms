@@ -314,15 +314,7 @@ export function canReviewEssays(u: AuthUser | null | undefined): boolean {
   return u.role === 'teacher' || isPlatformAdmin(u);
 }
 
-/** Cleanly format and auto-capitalize user display names (e.g. "komiljon roziyev" -> "Komiljon Roziyev"). */
-export function formatDisplayName(name?: string | null, email?: string | null): string {
-  const raw = (name || email?.split('@')[0] || '').trim();
-  if (!raw) return 'Foydalanuvchi';
-  return raw
-    .split(/\s+/)
-    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
-    .join(' ');
-}
+export { formatDisplayName, initialsOf } from './displayName';
 
 /** Parent portal access (mirrors school parent_overview_view). */
 export function canViewParent(u: AuthUser | null | undefined): boolean {
@@ -1065,6 +1057,19 @@ export interface AdminFeedbackList {
   };
 }
 
+export interface QuestionIssueGroup {
+  question_id: number;
+  test_id: number;
+  test: string;
+  text: string;
+  total: number;
+  active: number;
+  needs_review: boolean;
+  reasons: Record<string, number>;
+  latest: string | null;
+  edit_path: string;
+}
+
 export interface PublicFeedbackItem {
   id: number;
   name: string;
@@ -1084,6 +1089,13 @@ export const FeedbackApi = {
     }),
   listPublic: () =>
     api<{ results: PublicFeedbackItem[]; count: number }>('/api/v1/feedback/public/'),
+  questionIssue: (payload: { question_id: number; reason: string; comment?: string; given?: string }) =>
+    api<{ success: boolean; id: number; duplicate?: boolean; needs_review?: boolean }>(
+      '/api/v1/feedback/question-issue/',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  adminQuestionIssues: () =>
+    api<{ results: QuestionIssueGroup[]; threshold: number }>('/api/v1/panel/feedback/questions/'),
   mine: () => api<{ results: MyFeedbackItem[] }>('/api/v1/feedback/mine/'),
   adminList: (params: Record<string, string>) =>
     api<AdminFeedbackList>(`/api/v1/panel/feedback/?${new URLSearchParams(params).toString()}`),

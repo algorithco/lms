@@ -633,7 +633,7 @@ export default function Landing() {
                     textDecoration: 'none',
                   }}
                 >
-                  {formatDisplayName(user.full_name, user.email)} →
+                  {formatDisplayName(user.full_name, user.email) || t('user_default')} →
                 </Link>
               ) : (
                 <button

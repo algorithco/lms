@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { Tests as TestsApi } from '../lib/api';
+import { TestsApi } from '../lib/testing';
 import { formatDisplayName } from '../lib/displayName';
 import type { ReviewQuestion } from '../lib/review';
 import ScoreCardModal from './ScoreCardModal';
@@ -166,7 +166,7 @@ export default function TestAddictiveResults({
         isOpen={showScoreCard}
         onClose={() => setShowScoreCard(false)}
         title={courseTitle || ''}
-        studentName={user ? formatDisplayName(user) : ''}
+        studentName={user ? formatDisplayName(user.full_name, user.email) : ''}
         scorePercentage={pct}
         gradeBadge={grade}
         correctCount={correctCount}

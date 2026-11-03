@@ -1,3 +1,4 @@
+import { initialsOf } from '../lib/displayName';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -19,20 +20,6 @@ import {
 interface MobileProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-function getInitials(name?: string, email?: string): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  if (email && email.trim()) {
-    return email.slice(0, 2).toUpperCase();
-  }
-  return 'U';
 }
 
 function getRoleBadge(role?: string): { label: string; bg: string; color: string } {
@@ -62,7 +49,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
     navigate('/login');
   };
 
-  const initials = getInitials(user?.full_name, user?.email);
+  const initials = initialsOf(user?.full_name, user?.email);
   const roleBadge = getRoleBadge(user?.role);
   const isAdmin = user ? isPlatformAdmin(user) : false;
 
@@ -218,7 +205,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                       color: isDark ? '#F8FAFC' : '#0F172A',
                     }}
                   >
-                    {formatDisplayName(user.full_name, user.email)}
+                    {formatDisplayName(user.full_name, user.email) || t('user_default')}
                   </h3>
 
                   {/* Synthetic Email / Telegram Badge */}

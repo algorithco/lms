@@ -597,7 +597,7 @@ export default function EssayResult() {
               <p>{res.summary}</p>
             </div>
           )}
-          <h2>{isEnglish ? 'IELTS 4 criteria (estimated band 1.0 – 9.0)' : t('essay_12_criteria')}</h2>
+          <h2>{isEnglish ? 'IELTS 4 criteria (band 1.0 – 9.0)' : t('essay_12_criteria')}</h2>
           {radarItems.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 28px' }}>
               <HologramRadar3D

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useLang } from '../../i18n/LangContext';
 import { Tests as TestsApi } from '../../lib/api';
 import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
@@ -114,6 +114,8 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<CefrSummary | null | 'done'>(null);
   const [ielts, setIelts] = useState<IeltsSummary | null>(null);
+  const [resultId, setResultId] = useState<number | null>(null);
+  const [showNotice, setShowNotice] = useState(false);
   const textTimers = useRef<Record<number, number>>({});
   const submittedRef = useRef(false);
 
@@ -154,10 +156,11 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
     setSubmitError(null);
     try {
       const submitted = (await TestsApi.submit(attemptId)) as unknown as {
-        result?: { correct_answers?: number; total_questions?: number };
+        result?: { correct_answers?: number; total_questions?: number; result_id?: number | null };
       };
+      setResultId(submitted?.result?.result_id ?? null);
       if (attempt.is_trial) {
-        // One free part has no 0–75 estimate; its review is on /results.
+        // One free part has no 0–75 score; its answer review is on the results page.
         setResult('done');
         return;
       }
@@ -165,7 +168,9 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
         const card = (await TestsApi.certificateCard(attemptId)) as unknown as CefrSummary & {
           exam_type?: string;
           overall_band?: number | null;
+          show_estimate_notice?: boolean;
         };
+        setShowNotice(Boolean(card.show_estimate_notice));
         if (card.scale === 'cefr_multilevel') {
           setResult(card);
         } else if (/ielts/i.test(card.exam_type ?? '') && submitted?.result?.total_questions) {
@@ -225,6 +230,7 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
 
   /* ---------------------------------------------------------- result view */
   if (result) {
+    if (attempt.is_trial && resultId) return <Navigate to={`/results/${resultId}`} replace />;
     return (
       <div className="cefr-result-page">
         <h1>{attempt.test_title}</h1>
@@ -234,15 +240,18 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
           attempt.is_preview && <p className="cd-preview-badge">{t('cd_preview_badge')}</p>
         )}
         {result !== 'done' ? (
-          <CefrResultSummary data={result} />
+          <CefrResultSummary data={result} showEstimateNotice={showNotice} />
         ) : ielts ? (
-          <IeltsResultSummary data={ielts} />
+          <IeltsResultSummary data={ielts} showEstimateNotice={showNotice} />
         ) : (
           <div className="card">{t(attempt.is_trial ? 'cd_trial_done' : 'cd_submitted')}</div>
         )}
         <div className="error-boundary-actions">
+          {resultId && (
+            <Link to={`/results/${resultId}`} className="btn primary">{t('cd_view_review')}</Link>
+          )}
           <Link to="/results" className="btn">{t('my_results')}</Link>
-          <Link to="/tests" className="btn primary">{t('error_boundary_back')}</Link>
+          <Link to="/tests" className="btn">{t('error_boundary_back')}</Link>
         </div>
       </div>
     );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -12,9 +12,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
-import TestAddictiveResults from '../components/TestAddictiveResults';
 import FeedbackPrompt from '../components/FeedbackPrompt';
-import { TestsApi as RetestApi } from '../lib/testing';
 import { Tests as TestsApi } from '../lib/api';
 import AudioPlayerBar from '../components/AudioPlayerBar';
 import {
@@ -131,6 +129,7 @@ interface AttemptDetail {
 }
 
 interface SubmitResult {
+  result_id?: number | null;
   attempt_id: number;
   total_questions: number;
   correct_answers: number;
@@ -1659,68 +1658,19 @@ export default function TakeTest() {
               </div>
             </div>
           ) : (
-            <TestAddictiveResults
-              score={num(result.score, 0)}
-              maxScore={num(result.max_score, 0)}
-              percentage={num(result.percentage, 0)}
-              correctCount={num(result.correct_answers, 0)}
-              wrongCount={num(result.wrong_answers, 0)}
-              unansweredCount={num(result.unanswered, 0)}
-              timeSpentSeconds={num(result.time_taken_seconds, 0)}
-              raschScore={result.rasch_score}
-              raschGrade={result.rasch_grade}
-              bmbGrade={result.bmb_grade}
-              courseTitle={attempt?.test_title}
-              subject={(attempt as any)?.subject || ((attempt?.test_title || '').toLowerCase().includes('english') || (attempt?.test_title || '').toLowerCase().includes('cefr') || (attempt?.test_title || '').toLowerCase().includes('ielts') ? 'english' : 'uzbek')}
-              attemptId={attemptId}
-              onRetest={async () => {
-                try {
-                  const res = await RetestApi.generateRetest(attemptId);
-                  if (res.has_mistakes && res.attempt_id) {
-                    window.location.href = `/take/${res.attempt_id}`;
-                  } else {
-                    alert(res.message || "Barcha savollar to'g'ri yechilgan!");
-                  }
-                } catch (e) {
-                  alert(e instanceof Error ? e.message : "Qayta test yaratishda xatolik yuz berdi.");
-                }
-              }}
-            >
-              {result.is_passed &&
-                result.certificate_status !== 'rules_unverified' &&
-                result.certificate_status !== 'pending_writing' && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: '14px 18px',
-                      borderRadius: 14,
-                      background: 'rgba(16, 185, 129, 0.08)',
-                      border: '1.5px solid rgba(16, 185, 129, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 10,
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: '#059669', fontSize: '0.95rem' }}>
-                        🎉 Tabriklaymiz! Siz o&apos;tish balini muvaffaqiyatli to&apos;pladingiz!
-                      </strong>
-                      <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
-                        Rasmiy BMB va Attestatsiya sertifikatingizni kabinetingizda yuklab oling.
-                      </p>
-                    </div>
-                    <button
-                      className="btn primary sm"
-                      onClick={() => navigate('/certificates')}
-                      style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 800, borderRadius: 10 }}
-                    >
-                      {t('my_certificates')} →
-                    </button>
-                  </div>
-                )}
-            </TestAddictiveResults>
+            result.result_id ? (
+              // The full analysis (every question, why it was wrong, explanations) lives on the results page.
+              <Navigate to={`/results/${result.result_id}`} replace />
+            ) : (
+              <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+                <h2>{t('take_submitted_title')}</h2>
+                <div className="toolbar" style={{ marginTop: 16, justifyContent: 'center' }}>
+                  <button className="btn primary" onClick={() => navigate('/results')}>
+                    {t('take_view_results')}
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </div>
       )}
