@@ -2067,7 +2067,6 @@ export default function Landing() {
                     'Barcha CBT testlar',
                     '1v1 Arena',
                     'Ustoz tekshiruvi',
-                    'Rasmiy PDF sertifikat',
                   ].map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <CheckIcon size={15} style={{ color: '#10B981', flexShrink: 0 }} />
