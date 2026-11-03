@@ -181,7 +181,13 @@ def convert_test_score_to_english_band(result_or_attempt: Any) -> dict[str, Any]
     and returns comprehensive IELTS and CEFR conversions.
     """
     # Extract total questions and correct answers
-    total_q = getattr(result_or_attempt, "total_questions", 40) or 40
+    # TestAttempt has no total_questions of its own — fall back to the test's
+    # real question count, otherwise a 77-question mock is scored out of 40.
+    total_q = (
+        getattr(result_or_attempt, "total_questions", None)
+        or getattr(getattr(result_or_attempt, "test", None), "total_questions", None)
+        or 40
+    )
     correct_q = getattr(result_or_attempt, "correct_answers", None)
     if correct_q is None:
         correct_q = getattr(result_or_attempt, "score", 0) or 0

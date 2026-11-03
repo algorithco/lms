@@ -557,7 +557,6 @@ def essay_submit_view(request: HttpRequest, submission_id: int) -> HttpResponse:
 
     is_admin_user = (
         getattr(request.user, "is_superuser", False)
-        or getattr(request.user, "is_staff", False)
         or getattr(request.user, "role", "") in ("admin", "center_admin")
     )
 

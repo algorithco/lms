@@ -6,6 +6,8 @@
  * same-origin (Vite proxy in dev, nginx in prod) so no CORS is needed.
  */
 
+import { translate, type AppLang } from '../i18n/LangContext';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 const ACCESS_KEY = 'lms_access';
@@ -92,6 +94,24 @@ export interface ApiError extends Error {
   detail: string;
 }
 
+/** ApiError for transport-level failures, translated into the UI language. */
+function networkError(status: number, key: string): ApiError {
+  const err = new Error(translate(key, currentLang())) as ApiError;
+  err.status = status;
+  err.detail = err.message;
+  return err;
+}
+
+function currentLang(): AppLang {
+  try {
+    const v = localStorage.getItem('i18nextLng') || localStorage.getItem('lms_lang');
+    if (v === 'ru' || v === 'en') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'uz';
+}
+
 export function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -116,7 +136,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!headers.has('Accept-Language')) {
       headers.set('Accept-Language', currentLang);
     }
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    const method = (init.method || 'GET').toUpperCase();
+    try {
+      return await fetch(`${API_BASE}${path}`, { ...init, headers });
+    } catch (e) {
+      if (init.signal?.aborted) throw e;
+      // "Failed to fetch": the request never got a response (offline, proxy
+      // reset, server restarting). Reads are idempotent — retry them once.
+      if (method === 'GET' || method === 'HEAD') {
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          return await fetch(`${API_BASE}${path}`, { ...init, headers });
+        } catch {
+          /* fall through to the friendly error */
+        }
+      }
+      throw networkError(0, 'error_network');
+    }
   };
 
   let res = await doFetch(getTokens().access);
@@ -134,6 +170,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new AuthExpiredError();
   }
   if (!res.ok) {
+    // Gateway errors come from nginx as HTML, not a DRF body worth parsing.
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw networkError(res.status, 'error_server_unavailable');
+    }
     let detail = `Request failed (${res.status})`;
     try {
       const body = (await res.json()) as any;
@@ -227,15 +267,23 @@ export interface AuthUser {
   is_expiring_soon?: boolean;
 }
 
-/** Platform admin = active + (superuser or role==admin or center_admin or staff) (mirrors apps/accounts/access.py). */
+/**
+ * Platform admin = active + (superuser or role==admin or center_admin)
+ * (mirrors apps/accounts/access.py). is_staff alone is NOT admin: it only
+ * opens Django /admin/.
+ */
 export function isPlatformAdmin(u: AuthUser | null | undefined): boolean {
   if (!u || u.is_active === false) return false;
+  return u.is_platform_admin === true || adminShape(u);
+}
+
+/** Admin by raw account fields (works on API payloads before normalizing). */
+function adminShape(raw: { is_superuser?: unknown; is_platform_admin?: unknown; role?: unknown }): boolean {
   return (
-    u.is_platform_admin === true ||
-    u.is_superuser === true ||
-    u.role === 'admin' ||
-    u.role === 'center_admin' ||
-    u.is_staff === true
+    raw.is_superuser === true ||
+    raw.is_platform_admin === true ||
+    raw.role === 'admin' ||
+    raw.role === 'center_admin'
   );
 }
 
@@ -244,10 +292,10 @@ export function landingFor(u: AuthUser | null | undefined): string {
   return isPlatformAdmin(u) ? '/panel' : '/dashboard';
 }
 
-/** School/teacher area access (mirrors webapi IsTeacherOrAdmin: teacher/staff/platform-admin). */
+/** School/teacher area access (mirrors webapi IsTeacherOrAdmin: teacher/platform-admin). */
 export function canTeach(u: AuthUser | null | undefined): boolean {
   if (!u) return false;
-  return u.role === 'teacher' || u.is_staff === true || isPlatformAdmin(u);
+  return u.role === 'teacher' || isPlatformAdmin(u);
 }
 
 /** Essay review access (mirrors essays teacher_required: teacher/platform-admin only). */
@@ -291,6 +339,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     raw.active_subject === 'english' || raw.active_subject === 'uzbek'
       ? (raw.active_subject as 'uzbek' | 'english')
       : 'uzbek';
+  const isAdmin = adminShape(raw);
   return {
     id: Number(raw.id),
     email: typeof raw.email === 'string' ? raw.email : '',
@@ -321,7 +370,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     telegram_identity_verified_at:
       typeof raw.telegram_identity_verified_at === 'string' ? raw.telegram_identity_verified_at : null,
     plan:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? 'ADMIN_UNLIMITED'
         : typeof raw.plan === 'string' && raw.plan
         ? raw.plan.toUpperCase()
@@ -329,7 +378,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.tariff.toUpperCase()
         : 'FREE',
     tariff:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? 'ADMIN'
         : typeof raw.tariff === 'string' && raw.tariff
         ? raw.tariff.toUpperCase()
@@ -337,7 +386,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.plan.toUpperCase()
         : 'FREE',
     is_paid:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : typeof raw.is_paid === 'boolean'
         ? raw.is_paid
@@ -345,7 +394,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.is_premium
         : false,
     is_premium:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : typeof raw.is_premium === 'boolean'
         ? raw.is_premium
@@ -353,7 +402,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.is_paid
         : false,
     has_pro_access:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : Boolean(raw.has_pro_access || raw.is_paid || raw.is_premium),
   };

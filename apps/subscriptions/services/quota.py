@@ -41,7 +41,6 @@ class QuotaService:
         """
         if user and (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
         ):
             return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
@@ -199,7 +198,6 @@ class QuotaService:
             return False
         if (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
         ):
             return True
@@ -246,7 +244,6 @@ class QuotaService:
         """Check test quota for user (Free tier: exactly 1 test trial, locked mocks require plan)."""
         if user and (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
         ):
             return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
@@ -358,7 +355,6 @@ class QuotaService:
         """Check 1v1 Arena match quota (Free users: max 3 matches / day)."""
         if user and (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
         ):
             return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}

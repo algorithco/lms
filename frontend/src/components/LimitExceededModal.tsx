@@ -22,7 +22,7 @@ export default function LimitExceededModal({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Root Admin Immunity: Admins never encounter paywalls or limit exceeded modals
-  if (isPlatformAdmin(user) || user?.is_staff || user?.role === 'admin' || user?.role === 'center_admin') {
+  if (isPlatformAdmin(user)) {
     return null;
   }
 

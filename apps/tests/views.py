@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 """
 Tests views — test-taking endpoints.
 
@@ -113,7 +114,7 @@ class TestListView(generics.ListAPIView):
 
             if not user or not user.is_authenticated:
                 return qs.filter(is_active=True)
-            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False):
                 return qs
             role = getattr(user, "role", "student")
             if role == "student":
@@ -147,7 +148,7 @@ class TestDetailView(generics.RetrieveAPIView):
             user = getattr(self.request, "user", None)
             if not user or not user.is_authenticated:
                 return Test.objects.filter(is_active=True)
-            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False):
                 return Test.objects.all()
             role = getattr(user, "role", "student")
             if role == "student":
@@ -1171,12 +1172,29 @@ class CertificateCardView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        score_info = convert_test_score_to_english_band(attempt)
         student_name = (
             attempt.student.get_full_name()
             or attempt.student.username
             or attempt.student.email
         )
+
+        if attempt.test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
+            # Multi-level: per-section 0–75 estimate, never an IELTS band.
+            from apps.tests import cefr_multilevel
+
+            summary = cefr_multilevel.to_json(
+                cefr_multilevel.summarize(attempt.section_scores or {})
+            )
+            summary.update(
+                candidate_name=student_name,
+                exam_title=attempt.test.title,
+                exam_type=attempt.test.get_exam_type_display(),
+                issue_date=(attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
+                is_valid=summary["has_certificate"],
+            )
+            return Response(summary, status=status.HTTP_200_OK)
+
+        score_info = convert_test_score_to_english_band(attempt)
         exam_type_str = getattr(
             attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR"
         )()
@@ -1224,7 +1242,7 @@ class RecalculateRaschView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") == "teacher" and bool(
             test.course and test.course.teacher_id == user.id
         )
@@ -1273,7 +1291,7 @@ class TestGradebookView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
             test.course and test.course.teacher_id == user.id
         )
@@ -1289,6 +1307,7 @@ class TestGradebookView(APIView):
         attempts = (
             TestAttempt.objects.filter(
                 test=test,
+                is_preview=False,
                 status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT],
             )
             .select_related("student")
@@ -1440,7 +1459,7 @@ class TestItemAnalysisView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
             test.course and test.course.teacher_id == user.id
         )

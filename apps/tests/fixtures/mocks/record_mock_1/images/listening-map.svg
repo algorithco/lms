@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 503 264" font-family="Arial, Helvetica, sans-serif">
+<rect x="0" y="0" width="503" height="264" fill="#ffffff"/>
+<rect x="12" y="12" width="479" height="240" fill="none" stroke="#111827" stroke-width="2"/>
+<rect x="12" y="12" width="62" height="76" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="43.0" y="44.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Medical</text>
+<text x="43.0" y="56.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Centre</text>
+<rect x="107" y="12" width="62" height="76" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="138.0" y="50.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">C</text>
+<rect x="169" y="12" width="63" height="46" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="200.5" y="29.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Computer</text>
+<text x="200.5" y="41.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">room</text>
+<rect x="303" y="12" width="63" height="46" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="334.5" y="35.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">E</text>
+<rect x="366" y="12" width="62" height="46" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="397.0" y="35.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Gym</text>
+<rect x="428" y="12" width="62" height="57" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="459.0" y="34.5" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Baby</text>
+<text x="459.0" y="46.5" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Care room</text>
+<rect x="243" y="88" width="63" height="29" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="274.5" y="102.5" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Games room</text>
+<rect x="243" y="117" width="63" height="29" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="274.5" y="131.5" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">A</text>
+<rect x="306" y="88" width="62" height="58" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="337.0" y="117.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">F</text>
+<rect x="428" y="117" width="62" height="58" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="459.0" y="146.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">B</text>
+<rect x="428" y="175" width="62" height="77" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="459.0" y="207.5" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Sports</text>
+<text x="459.0" y="219.5" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Hall</text>
+<rect x="12" y="175" width="62" height="77" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="43.0" y="213.5" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">D</text>
+<rect x="141" y="180" width="30" height="72" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="156.0" y="216.0" font-size="10" text-anchor="middle" dominant-baseline="middle" fill="#111827" transform="rotate(-90 156.0 216.0)">Reception</text>
+<rect x="171" y="180" width="132" height="72" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="237.0" y="216.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">G</text>
+<rect x="303" y="210" width="63" height="42" fill="#fef3c7" stroke="#111827" stroke-width="1.5"/>
+<text x="334.5" y="231.0" font-size="20" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#111827">H</text>
+<rect x="366" y="210" width="62" height="42" fill="#f3f4f6" stroke="#111827" stroke-width="1.5"/>
+<text x="397.0" y="231.0" font-size="10" font-weight="400" text-anchor="middle" dominant-baseline="middle" fill="#111827">Library</text>
+</svg>

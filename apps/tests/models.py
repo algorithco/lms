@@ -421,6 +421,72 @@ class ReadingPassage(models.Model):
 # ---------------------------------------------------------------------------
 # Question
 # ---------------------------------------------------------------------------
+class ExamPart(models.Model):
+    """One part of a CD-format section (e.g. Listening Part 4).
+
+    Optional layer: legacy tests have no parts and keep working unchanged.
+    """
+
+    section = models.ForeignKey(
+        ExamSection,
+        on_delete=models.CASCADE,
+        related_name="parts",
+        verbose_name=_("bo'lim"),
+    )
+    number = models.CharField(_("qism raqami"), max_length=10, help_text=_("Masalan: 1, 2, 1.1"))
+    title = models.CharField(_("sarlavha"), max_length=255, blank=True)
+    instructions = models.TextField(_("ko'rsatma"), blank=True)
+    audio = models.FileField(_("audio"), upload_to="exams/audio/", blank=True)
+    order = models.PositiveIntegerField(_("tartib"), default=0)
+
+    class Meta:
+        verbose_name = _("Imtihon qismi")
+        verbose_name_plural = _("Imtihon qismlari")
+        ordering = ["section", "order"]
+
+    def __str__(self) -> str:
+        return f"{self.section.code} Part {self.number}"
+
+
+class QuestionGroup(models.Model):
+    """Questions sharing one instruction, answer rule, text or picture."""
+
+    part = models.ForeignKey(
+        ExamPart,
+        on_delete=models.CASCADE,
+        related_name="groups",
+        verbose_name=_("qism"),
+    )
+    title = models.CharField(_("sarlavha"), max_length=255, blank=True)
+    instructions = models.TextField(_("ko'rsatma"), blank=True)
+    answer_rule = models.CharField(
+        _("javob qoidasi"),
+        max_length=120,
+        blank=True,
+        help_text=_("Masalan: ONE WORD and/or A NUMBER"),
+    )
+    passage = models.ForeignKey(
+        ReadingPassage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="groups",
+        verbose_name=_("matn"),
+    )
+    image = models.FileField(_("rasm"), upload_to="exams/images/", blank=True, help_text=_("PNG, JPG yoki SVG"))
+    options_label = models.CharField(_("variantlar sarlavhasi"), max_length=120, blank=True)
+    each_option_once = models.BooleanField(_("har variant bir marta"), default=False)
+    order = models.PositiveIntegerField(_("tartib"), default=0)
+
+    class Meta:
+        verbose_name = _("Savollar guruhi")
+        verbose_name_plural = _("Savollar guruhlari")
+        ordering = ["part", "order"]
+
+    def __str__(self) -> str:
+        return f"{self.part} · {self.title or self.order}"
+
+
 class Question(models.Model):
     """
     A single question inside a test.
@@ -444,6 +510,7 @@ class Question(models.Model):
         MATCHING = "MATCHING", _("Statements Matching (Matnlarga moslashtirish)")
         TRUE_FALSE_NOT_GIVEN = "TRUE_FALSE_NOT_GIVEN", _("True / False / No Information")
         SHORT_ANSWER = "SHORT_ANSWER", _("Short Answer (Qisqa javob)")
+        SPEAKING_PROMPT = "SPEAKING_PROMPT", _("Speaking prompt (og'zaki javob)")
 
         # Backward compatibility / legacy types
         SINGLE_CHOICE = "single", _("Bitta to'g'ri javob (Legacy)")
@@ -467,6 +534,15 @@ class Question(models.Model):
         related_name="questions",
         verbose_name=_("bo'lim"),
         help_text=_("Bo'sh bo'lsa — bo'limsiz oddiy test savoli (backward compat)."),
+    )
+    group = models.ForeignKey(
+        QuestionGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="questions",
+        verbose_name=_("guruh"),
+        help_text=_("CD-format: qism ichidagi savollar guruhi. Eski testlarda bo'sh."),
     )
     reading_passage = models.ForeignKey(
         "ReadingPassage",
@@ -692,6 +768,12 @@ class TestAttempt(models.Model):
         STRICT = "strict", _("Strict Exam Mode (Rasmiy Imtihon)")
         PRACTICE = "practice", _("Practice / Study Mode (O'rganish)")
 
+    is_preview = models.BooleanField(
+        _("preview (sinov) rejimi"),
+        default=False,
+        db_index=True,
+        help_text=_("Admin/ustoz sinovi: statistika, reyting va vedomostga tushmaydi."),
+    )
     mode = models.CharField(
         _("rejim"),
         max_length=20,

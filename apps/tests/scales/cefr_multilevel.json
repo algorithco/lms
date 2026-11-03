@@ -1,0 +1,28 @@
+{
+  "_comment": "CEFR Multi-level (BMB) taxminiy shkalasi. Rasmiy imtihon Rash modelidan foydalanadi; bu jadval taxminiy. Rasmiy jadval chiqsa, faqat shu faylni almashtiring.",
+  "scale_max": 75,
+  "levels": [
+    {"level": "C1", "min": 65},
+    {"level": "B2", "min": 51},
+    {"level": "B1", "min": 38}
+  ],
+  "below_level": "BELOW_B1",
+  "certificate_levels": ["B1", "B2", "C1"],
+  "sections": {
+    "LISTENING": {"kind": "objective", "questions": 35, "minutes": 45},
+    "READING": {"kind": "objective", "questions": 35, "minutes": 60},
+    "WRITING": {"kind": "rated", "minutes": 60},
+    "SPEAKING": {"kind": "rated"}
+  },
+  "required_sections": ["LISTENING", "READING", "WRITING", "SPEAKING"],
+  "raw_to_scaled": [
+    [0, 0],
+    [9, 37],
+    [10, 38],
+    [17, 50],
+    [18, 51],
+    [27, 64],
+    [28, 65],
+    [35, 75]
+  ]
+}

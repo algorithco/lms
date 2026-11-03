@@ -210,7 +210,7 @@ def tournament_finalize_view(request, pk):
     """
     Admin: Finalize tournament and grant awards.
     """
-    if not (request.user.role == "admin" or request.user.is_staff):
+    if not (request.user.role == "admin" or request.user.is_superuser):
         return Response(
             {"error": "Faqat admin turnirni yakunlashi mumkin."},
             status=status.HTTP_403_FORBIDDEN,

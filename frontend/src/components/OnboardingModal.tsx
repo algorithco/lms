@@ -28,7 +28,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
   const { user, updateUserLocal, refreshUser } = useAuth();
 
   const role = (user?.role || '').toLowerCase();
-  const isStaffOrTeacher = role === 'admin' || role === 'teacher' || role === 'superadmin' || Boolean(user?.is_staff) || Boolean(user?.is_superuser);
+  const isStaffOrTeacher = role === 'admin' || role === 'teacher' || role === 'superadmin' || Boolean(user?.is_superuser);
   const isStudent = role === 'student' && !isStaffOrTeacher;
 
   const isDismissed = typeof window !== 'undefined' && (

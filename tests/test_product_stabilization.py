@@ -588,7 +588,7 @@ class TelegramBotLoginUXTests(TestCase):
         self.assertFalse(token.phone_verified)
         self.assertEqual(token.phone_number, "")
         reply = message.reply_text.await_args.args[0]
-        self.assertIn("Telegram hisobingiz tasdiqlandi", reply)
+        self.assertIn("1-klikda muvaffaqiyatli kirdingiz", reply)
         self.assertNotIn("Telefonni yuborish", reply)
 
 

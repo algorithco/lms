@@ -18,7 +18,6 @@ def is_admin_user(user: Any) -> bool:
         return False
     return bool(
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     )
 

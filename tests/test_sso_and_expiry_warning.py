@@ -34,7 +34,8 @@ def test_1click_telegram_sso_user_provisioning():
 
     auth_token.refresh_from_db()
     assert auth_token.is_verified is True
-    assert auth_token.phone_verified is True
+    assert auth_token.phone_verified is False  # 1-click shares no phone number
+    assert auth_token.phone_number == ""
     assert auth_token.user == user
     assert auth_token.telegram_chat_id == 9988776655
 

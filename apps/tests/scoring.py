@@ -70,8 +70,8 @@ def evaluate_text_answer(
     if not norm_keys:
         return False
 
-    # 1. To'g'ridan-to'g'ri moslik
-    if any(given == k for k in norm_keys):
+    # 1. To'g'ridan-to'g'ri moslik (raqamlar: "6" = "six")
+    if any(answers_match(given, k, case_sensitive=case_sensitive) for k in norm_keys):
         return True
 
     # 2. Apostroflarni birlashtirib tekshirish
@@ -111,15 +111,47 @@ def evaluate_text_answer(
     return False
 
 
+_UNITS = (
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen "
+    "fourteen fifteen sixteen seventeen eighteen nineteen"
+).split()
+_TENS = "twenty thirty forty fifty sixty seventy eighty ninety".split()
+NUMBER_WORDS: dict[str, int] = {w: i for i, w in enumerate(_UNITS)}
+for _i, _t in enumerate(_TENS, start=2):
+    NUMBER_WORDS[_t] = _i * 10
+    for _u in range(1, 10):
+        NUMBER_WORDS[f"{_t}-{_UNITS[_u]}"] = _i * 10 + _u
+        NUMBER_WORDS[f"{_t} {_UNITS[_u]}"] = _i * 10 + _u
+NUMBER_WORDS["one hundred"] = NUMBER_WORDS["a hundred"] = NUMBER_WORDS["hundred"] = 100
+
+
+def as_number(text: str) -> int | None:
+    """'6' / 'six' / 'twenty-one' → int (0–100); anything else → None."""
+    text = text.strip().lower()
+    if text.isdigit():
+        return int(text)
+    return NUMBER_WORDS.get(text)
+
+
+def answers_match(given: str, key: str, *, case_sensitive: bool = False) -> bool:
+    """Normalized equality; numbers match across digits and words (6 = six)."""
+    g = normalize_text(given, case_sensitive=case_sensitive)
+    k = normalize_text(key, case_sensitive=case_sensitive)
+    if not g or not k:
+        return False
+    if g == k:
+        return True
+    gn, kn = as_number(g), as_number(k)
+    return gn is not None and gn == kn
+
+
 def blank_is_correct(
     response_text: Any, accepted: list[str], *, case_sensitive: bool = False
 ) -> bool:
     """True when the response matches ANY accepted answer for the blank."""
-    given = normalize_text(response_text, case_sensitive=case_sensitive)
-    if not given:
-        return False
     return any(
-        given == normalize_text(a, case_sensitive=case_sensitive) for a in accepted
+        answers_match(str(response_text or ""), str(a), case_sensitive=case_sensitive)
+        for a in accepted
     )
 
 

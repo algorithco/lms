@@ -365,7 +365,6 @@ def generate_student_vedomost_pdf(attempt_id: int) -> str:
                 name = code
 
             pct = round((earned / maximum * 100.0), 1) if maximum > 0 else 0.0
-            sec_passed = pct >= float(test.pass_percentage or 60)
             sec_status = "A'lo" if pct >= 85 else ("Yaxshi" if pct >= 60 else "Qoniqarsiz")
 
             section_table_data.append([
@@ -528,6 +527,7 @@ def generate_group_vedomost_pdf(group_id: int, test_id: int | None = None) -> st
 
     attempts_qs = TestAttempt.objects.filter(
         student__in=group_students,
+        is_preview=False,
         status__in=[TestAttempt.Status.COMPLETED, TestAttempt.Status.TIMEOUT],
     )
     if test:

@@ -15,7 +15,6 @@ def check_user_limits(user: Any) -> bool:
         return False
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return True  # Adminlarga hamma narsa cheksiz va bepul
@@ -31,7 +30,6 @@ def has_active_subscription(user: Any) -> bool:
         return False
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return True  # Adminlarga hamma narsa cheksiz va bepul
@@ -57,7 +55,6 @@ class CanSubmitEssay(BasePermission):
             return False
         if (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
             or is_platform_admin(user)
         ):
@@ -84,7 +81,6 @@ class IsEssayOwnerOrStaff(BasePermission):
             return False
         if (
             getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
             or getattr(user, "role", "") in ("admin", "center_admin")
             or is_platform_admin(user)
         ):

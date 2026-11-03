@@ -55,7 +55,7 @@ class GenerateRetestView(APIView):
         # Xavfsizlik: faqat o'quvchining o'zi yoki admin
         if (
             attempt.student_id != request.user.id
-            and not request.user.is_staff
+            and not request.user.is_superuser
             and getattr(request.user, "role", None) != "admin"
         ):
             return Response(

@@ -3,7 +3,7 @@ import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { Tests as TestsApi } from '../lib/api';
+import { Tests as TestsApi, canTeach } from '../lib/api';
 import { Results as ResultsApi } from '../lib/api';
 import { num } from '../lib/testing';
 import { CheckIcon, ClockIcon, HashIcon, StarIcon } from '../components/icons';
@@ -127,8 +127,13 @@ export default function TestDetail() {
   if (!detail && !err) return <p className="muted">{t('loading')}</p>;
 
   const maxAttempts = detail ? num(detail.max_attempts, 1) : 1;
+  // Teachers/admins are exempt from max_attempts on the backend
+  // (StartAttemptService), so never block them here.
+  const unlimitedForStaff = canTeach(user);
   const attemptsLeft =
-    myAttempts === null || maxAttempts === 0 ? null : Math.max(0, maxAttempts - myAttempts);
+    unlimitedForStaff || myAttempts === null || maxAttempts === 0
+      ? null
+      : Math.max(0, maxAttempts - myAttempts);
 
   return (
     <div>
@@ -185,7 +190,8 @@ export default function TestDetail() {
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <p className="muted small">
-              {t('th_attempts')}: {maxAttempts === 0 ? '∞' : maxAttempts}
+              {t('th_attempts')}: {maxAttempts === 0 || unlimitedForStaff ? '∞' : maxAttempts}
+              {unlimitedForStaff && maxAttempts > 0 && ` (${t('test_attempts_unlimited_staff')})`}
               {attemptsLeft !== null && ` · ${t('test_attempts_left')}: ${attemptsLeft}`}
               {myAttempts !== null && myAttempts > 0 && ` · ${t('test_my_attempts')}: ${myAttempts}`}
             </p>

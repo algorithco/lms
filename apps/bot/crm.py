@@ -182,7 +182,6 @@ async def davomat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if (
         user.role not in (User.Role.TEACHER, User.Role.ADMIN)
-        and not user.is_staff
         and not user.is_superuser
     ):
         await update.message.reply_text(
@@ -266,7 +265,6 @@ async def tolovlar_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     if (
         user.role not in (User.Role.TEACHER, User.Role.ADMIN)
-        and not user.is_staff
         and not user.is_superuser
     ):
         await update.message.reply_text(

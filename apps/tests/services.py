@@ -159,7 +159,6 @@ class StartAttemptService:
         is_admin = (
             is_platform_admin(student)
             or getattr(student, "is_superuser", False)
-            or getattr(student, "is_staff", False)
             or getattr(student, "role", "") in ["admin", "center_admin"]
         )
         is_teacher = getattr(student, "role", "") == "teacher"
@@ -259,6 +258,8 @@ class StartAttemptService:
                 student=student,
                 status=TestAttempt.Status.IN_PROGRESS,
                 mode=selected_mode,
+                # Teachers/admins only preview: kept out of stats and ratings.
+                is_preview=is_admin_or_teacher,
             )
         except IntegrityError:
             active = TestAttempt.objects.filter(
@@ -1014,6 +1015,22 @@ class SubmitAttemptService:
             case_sensitive = bool(cfg.get("case_sensitive", False))
             partial_credit = bool(cfg.get("partial_credit", False))
 
+            # Speaking is assessed outside the CBT (AI Speaking / examiner):
+            # never auto-graded here and never weighs on the percentage.
+            if question.question_type == Question.QuestionType.SPEAKING_PROMPT:
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        maximum=Decimal("0"),
+                        is_correct=False,
+                        answered=False,
+                        section_code=section_code,
+                        section_id=section_id,
+                        kind="written",
+                    )
+                )
+                continue
+
             student_answer = answers_by_qid.get(question.id)
             if student_answer is None:
                 # Javob berilmagan
@@ -1284,10 +1301,23 @@ class SubmitAttemptService:
             RaschEngine.evaluate_attempt_rasch(attempt, all_questions, answers_by_qid)
         )
 
-        band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
-        cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
+        extra_fields: dict[str, Any] = {}
+        if test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
+            # Multi-level has its own per-section 0–75 scale; no IELTS band.
+            from apps.tests import cefr_multilevel
+
+            names = {s.section_code.upper(): s.section_name for s in agg.sections if s.section_code}
+            section_map = cefr_multilevel.score_sections(question_scores, names)
+            overall = cefr_multilevel.summarize(section_map)["overall"]
+            band_val = None
+            cefr_val = overall["level"] if overall else ""
+            extra_fields["section_scores"] = cefr_multilevel.to_json(section_map)
+        else:
+            band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
+            cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)
 
         TestAttempt.objects.filter(id=attempt.id).update(
+            **extra_fields,
             status=new_status,
             completed_at=now,
             score=total_score,
@@ -1467,6 +1497,8 @@ class SubmitAttemptService:
                 "Result %d pending written grading — dispatch deferred.",
                 result.id,
             )
+        elif attempt.is_preview:
+            logger.info("Result %d is a staff preview — no XP/notifications.", result.id)
         elif settings.CELERY_TASK_ALWAYS_EAGER:
             dispatch_result_task()
         else:

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -38,6 +38,8 @@ class BillingReceiptCSRFTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+    # The admin alert is skipped without a bot token; don't depend on .env.
+    @override_settings(TELEGRAM_BOT_TOKEN="test-bot-token")
     def test_receipt_upload_csrf_exempt_and_instant_trial(self):
         """Verify that uploading a receipt succeeds without CSRF token and activates 24h trial."""
         buf = BytesIO()
@@ -126,6 +128,25 @@ class TelegramGroupBotAssistantTests(TestCase):
         # Verify group updated
         group.refresh_from_db()
         self.assertEqual(group.telegram_chat_id, -1001234567890)
+
+    def test_link_group_refuses_non_teacher(self):
+        """A student who knows the code cannot hijack the group's chat binding."""
+        group = StudentGroup.objects.create(teacher=self.teacher, name="11-B", invite_code="GR-11B")
+
+        update = MagicMock()
+        update.effective_chat.id = -1009999999999
+        update.effective_chat.type = "supergroup"
+        update.effective_user.id = 555666777  # the student's Telegram id
+        update.effective_user.username = "diyorbek"
+        update.message.reply_text = AsyncMock()
+        context = MagicMock()
+        context.args = ["GR-11B"]
+
+        async_to_sync(link_group_command)(update, context)
+
+        self.assertIn("Faqat shu guruh ustozi", update.message.reply_text.call_args[0][0])
+        group.refresh_from_db()
+        self.assertIsNone(group.telegram_chat_id)
 
     def test_telegram_bot_davomat_and_yakun(self):
         """Verify /davomat and /davomat_yakun attendance flow and LMS DB synchronization."""

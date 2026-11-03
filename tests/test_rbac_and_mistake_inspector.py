@@ -129,7 +129,7 @@ class TestTeacherMistakeInspector:
             position=1,
         )
         c1_1 = Choice.objects.create(question=q1, text="Harakat va holat", is_correct=True, position=1)
-        c1_2 = Choice.objects.create(question=q1, text="Narsaning belgisini", is_correct=False, position=2)
+        Choice.objects.create(question=q1, text="Narsaning belgisini", is_correct=False, position=2)
 
         q2 = Question.objects.create(
             test=test,
@@ -140,7 +140,7 @@ class TestTeacherMistakeInspector:
             current_rasch_weight=3.0,
             position=2,
         )
-        c2_1 = Choice.objects.create(question=q2, text="Qizil olma", is_correct=True, position=1)
+        Choice.objects.create(question=q2, text="Qizil olma", is_correct=True, position=1)
         c2_2 = Choice.objects.create(question=q2, text="Tez yugurdi", is_correct=False, position=2)
 
         # Attempt for student1: answered q1 correctly, q2 incorrectly

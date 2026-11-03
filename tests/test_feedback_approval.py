@@ -62,7 +62,7 @@ class TestFeedbackApprovalFlow:
             message="Tasdiqlangan ajoyib sharh!",
             is_published=True,
         )
-        unpublished = UserFeedback.objects.create(
+        UserFeedback.objects.create(
             user=self.user,
             user_name="Bekzod Aliyev",
             rating=3,

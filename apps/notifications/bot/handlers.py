@@ -206,7 +206,6 @@ def _get_user_role(user: "User | None", tg_id: int | None = None) -> str:
         return "admin"
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or (getattr(user, "role", "") or "").lower() == "admin"
         or is_platform_admin(user)
     ):
@@ -556,7 +555,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 role_label = (
                     "O'qituvchi / Ustoz"
                     if user.is_teacher
-                    else ("Admin" if user.is_staff or user.is_superuser else "O'quvchi")
+                    else ("Admin" if user.is_superuser else "O'quvchi")
                 )
                 plan_label = (
                     "PRO"
@@ -923,7 +922,7 @@ def _authenticate_or_provision_tg_user(auth_token_str: str, tg_user_data: dict):
         auth_token.user = user
         auth_token.telegram_chat_id = tg_id
         auth_token.full_name = full_name
-        auth_token.phone_verified = True
+        auth_token.phone_verified = False  # 1-click: no phone was shared
         auth_token.is_verified = True
         auth_token.verified_at = timezone.now()
         auth_token.conversation_state = "verified"
@@ -6598,8 +6597,7 @@ async def approve_receipt_callback(
     is_authorized = tg_uid == admin_id or (
         admin_user
         and (
-            admin_user.is_staff
-            or admin_user.is_superuser
+            admin_user.is_superuser
             or getattr(admin_user, "role", "") == "admin"
             or can_manage_payments(admin_user)
         )
@@ -6689,8 +6687,7 @@ async def reject_receipt_callback(
     is_authorized = tg_uid == admin_id or (
         admin_user
         and (
-            admin_user.is_staff
-            or admin_user.is_superuser
+            admin_user.is_superuser
             or getattr(admin_user, "role", "") == "admin"
             or can_manage_payments(admin_user)
         )
@@ -9850,7 +9847,7 @@ async def finance_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     # Ustoz yoki admin bo'lishi kerak
-    if user.role not in (User.Role.TEACHER, User.Role.ADMIN) and not user.is_staff:
+    if user.role not in (User.Role.TEACHER, User.Role.ADMIN) and not user.is_superuser:
         await update.message.reply_text(
             "ℹ️ <b>/finance</b> buyrug'i faqat ustozlar va markaz ma'murlari uchun mo'ljallangan.\n\n"
             "O'quvchi sifatida to'lovingizni tekshirish uchun: <b>/mytuition</b> buyrug'idan foydalaning.",

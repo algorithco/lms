@@ -248,7 +248,7 @@ def get_mock_leaderboard(test_id: int) -> dict[str, Any]:
 
     test = Test.objects.filter(id=test_id).first()
     results = (
-        Result.objects.filter(test_id=test_id)
+        Result.objects.filter(test_id=test_id, attempt__is_preview=False)
         .select_related("student", "attempt")
         .order_by("-percentage", "time_taken_seconds")
     )

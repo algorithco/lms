@@ -200,11 +200,12 @@ class TestStartTests(LMSBaseTestCase):
         response = client.post(f"/api/tests/{self.test.id}/start/", format="json")
         self.assertIn(response.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN))
 
-    def test_teacher_cannot_start_test(self):
-        """O'qituvchi test topshira olmaydi."""
+    def test_teacher_start_is_preview(self):
+        """O'qituvchi testni faqat preview rejimida ochadi (statistikaga tushmaydi)."""
         client = self.get_authenticated_client(email="teacher@test.com")
         response = client.post(f"/api/tests/{self.test.id}/start/", format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(TestAttempt.objects.get(id=response.data["id"]).is_preview)
 
     def test_max_attempts_enforcement(self):
         """Max attempts chegarasini bosmaslik."""

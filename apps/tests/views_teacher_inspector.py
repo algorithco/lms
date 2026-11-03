@@ -38,7 +38,7 @@ def _can_inspect_test_or_attempt(user: Any, test: Test, attempt: TestAttempt | N
         return False
 
     # Platform Admins, Superusers, and Staff have global root inspection rights
-    if is_platform_admin(user) or user.is_staff or user.is_superuser or getattr(user, "role", "") in ("admin", "center_admin"):
+    if is_platform_admin(user) or user.is_superuser or getattr(user, "role", "") in ("admin", "center_admin"):
         return True
 
     # Teachers can inspect tests they authored or tests linked to their courses/groups
@@ -309,13 +309,13 @@ class TeacherUpdateAttemptScoreView(APIView):
         user = request.user
 
         # Permission check: must be teacher or admin/staff; student cannot grade own attempt!
-        if attempt.student_id == user.id and not (user.is_staff or user.is_superuser or is_platform_admin(user)):
+        if attempt.student_id == user.id and not (user.is_superuser or is_platform_admin(user)):
             return Response(
                 {"error": "O'quvchi o'z ballini tahrirlay olmaydi."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if not _can_inspect_test_or_attempt(user, test, attempt) or (not user.is_staff and not user.is_superuser and getattr(user, "role", "") not in ("teacher", "admin", "center_admin")):
+        if not _can_inspect_test_or_attempt(user, test, attempt) or (not user.is_superuser and getattr(user, "role", "") not in ("teacher", "admin", "center_admin")):
             return Response(
                 {"error": "Ushbu urinish ballini tahrirlash uchun o'qituvchi yoki admin huquqi talab qilinadi."},
                 status=status.HTTP_403_FORBIDDEN,

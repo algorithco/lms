@@ -177,6 +177,7 @@ class RaschEngine:
         agg_rows = (
             StudentAnswer.objects.filter(
                 question_id__in=q_ids,
+                attempt__is_preview=False,
                 attempt__status__in=[
                     TestAttempt.Status.COMPLETED,
                     TestAttempt.Status.TIMEOUT,
@@ -374,11 +375,11 @@ class RaschEngine:
                 earned_rasch += weight_i
                 correct_questions.append((q.position, weight_i, logit_i))
 
-        # Bulk update questions with new weights
+        # Bulk update questions with new weights (previews never calibrate items)
         from apps.tests.models import Question
 
         Question.objects.bulk_update(
-            questions_to_update,
+            [] if getattr(attempt, "is_preview", False) else questions_to_update,
             [
                 "total_attempts",
                 "correct_attempts",

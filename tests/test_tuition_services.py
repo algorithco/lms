@@ -265,7 +265,9 @@ class InvoiceGenerationTests(_TuitionFixture):
             effective_from=date(MONTH_START.year, 1, 1),
             mid_month_policy=MidMonthPolicy.FULL,
         )
-        first = services.generate_period_invoices(MONTH_START, policy=policy)
+        # Quarterly invoices are only generated in quarter-opening months, so
+        # pin the run to October instead of whatever month the suite runs in.
+        first = services.generate_period_invoices(date(MONTH_START.year, 10, 1), policy=policy)
         self.assertEqual(first["created"], 2)
         invoice = CourseInvoice.objects.get(student=self.ali, policy=policy)
         self.assertEqual(invoice.billing_period_start, date(MONTH_START.year, 10, 1))

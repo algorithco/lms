@@ -787,7 +787,7 @@ def panel_groups_view(request):
 def panel_teachers_view(request):
     """GET /api/v1/panel/teachers/ — List active teachers for group assignment."""
     teachers = User.objects.filter(
-        Q(role="teacher") | Q(role="admin") | Q(is_staff=True) | Q(is_superuser=True),
+        Q(role="teacher") | Q(role="admin") | Q(is_superuser=True),
         is_active=True,
     ).order_by("first_name", "last_name", "email")
     return Response(
@@ -1062,7 +1062,6 @@ def activate_student_quota_view(request, group_id=None, student_id=None):
     # Ruxsat tekshiruvi: faqat guruh egasi (ustoz) yoki admin
     if (
         group.teacher != request.user
-        and not request.user.is_staff
         and not request.user.is_superuser
     ):
         return Response(
