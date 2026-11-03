@@ -278,21 +278,9 @@ class User(AbstractUser):
             or self.role in (self.Role.TEACHER, self.Role.ADMIN, "center_admin")
         ):
             return True
-        if hasattr(self, "student_groups") and self.student_groups.exists():
-            return True
-        sub = getattr(self, "subscription", None)
-        if sub and getattr(sub, "is_active", False):
-            plan_type = getattr(sub.plan, "plan_type", "").lower()
-            if plan_type in ("pro", "premium", "family"):
-                return True
-        profile = getattr(self, "profile", None)
-        if profile and getattr(profile, "plan", "").lower() in (
-            "pro",
-            "premium",
-            "family",
-        ):
-            return True
-        return False
+        from apps.payments.ai_quota import get_user_plan_tier
+
+        return get_user_plan_tier(self) in ("pro", "premium")
 
     @property
     def teacher_profile_obj(self):

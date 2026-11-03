@@ -188,45 +188,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     has_pro_access = serializers.SerializerMethodField()
 
     def get_plan(self, obj) -> str:
+        """Plan code from the one canonical tier (no stale receipts/profile)."""
         if obj and (
             getattr(obj, "is_superuser", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return "ADMIN_UNLIMITED"
-        try:
-            from django.utils import timezone
-            from apps.payments.models import UserSubscription, PaymentReceipt
-            # 1. Check active unexpired UserSubscription
-            sub = UserSubscription.objects.filter(
-                user=obj,
-                status=UserSubscription.Status.ACTIVE,
-                expires_at__gt=timezone.now(),
-            ).select_related("plan").first()
-            if sub and sub.plan:
-                return str(sub.plan.plan_type).upper()
+        from apps.payments.ai_quota import get_user_plan_tier
 
-            # 2. Check approved PaymentReceipt
-            rcpt = PaymentReceipt.objects.filter(
-                user=obj,
-                status=PaymentReceipt.Status.APPROVED,
-            ).order_by("-id").first()
-            if rcpt:
-                return str(rcpt.plan).upper()
-
-            # 3. Check effective entitlement
-            from apps.payments.entitlements import get_effective_entitlement
-            ent = get_effective_entitlement(obj)
-            is_p = getattr(ent, "is_paid", False)
-            if callable(is_p):
-                is_p = is_p()
-            if is_p:
-                code = getattr(ent, "plan_type", None) or getattr(ent, "plan_name", None)
-                if code:
-                    return str(code).upper()
-                return "PRO"
-        except Exception:
-            pass
-        return "FREE"
+        return get_user_plan_tier(obj).upper()
 
     def get_is_paid(self, obj) -> bool:
         if obj and (
@@ -261,7 +231,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return True
-        return getattr(obj, "has_pro_access", False) or self.get_is_paid(obj)
+        return getattr(obj, "has_pro_access", False)
     active_subject = serializers.CharField(
         source="profile.active_subject",
         read_only=True,

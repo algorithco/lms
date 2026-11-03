@@ -235,12 +235,10 @@ class UserAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ["email", "date_joined"]
 
     def get_plan(self, obj) -> str:
-        sub = getattr(obj, "subscription", None)
-        if sub and getattr(sub, "is_active", False) and getattr(sub, "plan", None):
-            return str(sub.plan.plan_type)
-        if hasattr(obj, "profile") and getattr(obj.profile, "plan", None):
-            return str(obj.profile.plan)
-        return "free"
+        # Same single tier as /me and quotas — never a stale Profile.plan.
+        from apps.payments.ai_quota import get_user_plan_tier
+
+        return get_user_plan_tier(obj)
 
     def get_has_pro(self, obj) -> bool:
         return getattr(obj, "has_pro_access", False)
@@ -299,6 +297,8 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     plan = SubscriptionPlanSerializer(read_only=True)
     days_remaining = serializers.IntegerField(read_only=True)
+    # status can still say "active" until the expiry job runs; this cannot.
+    is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = UserSubscription
@@ -308,9 +308,12 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
             "status",
             "expires_at",
             "days_remaining",
+            "is_active",
             "is_trial",
             "created_at",
             "purchase_source",
+            "payment_method",
+            "grant_source",
         ]
 
 

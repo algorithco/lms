@@ -265,107 +265,41 @@ class QuotaService:
         ):
             return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
 
+        # One rule for display and enforcement: the effective entitlement
+        # (plan row limit per period; free tier = lifetime limit + bonus).
+        from apps.payments.entitlements import can_start_test
+
         tier = cls.get_user_tier(user)
-        if tier in ("premium", "pro"):
-            return True, "", {"tier": tier, "allowed": True, "remaining": 999}
+        allowed, _reason, remaining = can_start_test(user)
+        bucket = remaining["test"]
+        details = {
+            "tier": tier,
+            "limit": bucket["limit"],
+            "used": bucket["used"],
+            "remaining": bucket["remaining"],
+            "allowed": allowed,
+        }
+        if not allowed:
+            if tier == "free":
+                msg = f"⚠️ Bepul sinov test limitingiz tugadi. Boshqa to'liq testlar uchun {_plans_text()} tarifiga o'ting."
+            else:
+                msg = f"{tier.capitalize()} tarifi bo'yicha {bucket['limit']} ta test limitingiz tugadi."
+            return False, msg, details
 
-        if tier == "starter":
-            from apps.tests.models import TestAttempt
+        # Locked mocks stay paid-only for free users without referral bonus tests.
+        if tier == "free" and test_id and not getattr(user, "bonus_tests", 0):
+            from apps.tests.models import Test
 
-            today = timezone.localdate()
-            used_tests = TestAttempt.objects.filter(
-                student=user,
-                started_at__date__gte=today - timezone.timedelta(days=30),
-                status__in=[
-                    TestAttempt.Status.COMPLETED,
-                    TestAttempt.Status.IN_PROGRESS,
-                    TestAttempt.Status.TIMEOUT,
-                ],
-            ).count()
-            if used_tests >= cls.STARTER_TEST_LIMIT:
+            t_obj = Test.objects.filter(id=test_id).only("title").first()
+            title_lower = (getattr(t_obj, "title", "") or "").lower()
+            if "#mock" in title_lower and not ("diagnostic" in title_lower or "bepul" in title_lower):
                 return (
                     False,
-                    f"Starter tarifi bo'yicha {cls.STARTER_TEST_LIMIT} ta test limitingiz tugadi. Cheksiz testlar uchun PRO tarifiga o'ting!",
-                    {
-                        "tier": "starter",
-                        "limit": cls.STARTER_TEST_LIMIT,
-                        "used": used_tests,
-                        "remaining": 0,
-                        "allowed": False,
-                    },
+                    f"🔒 Ushbu to'liq mock test tarif bilan ochiladi: {_plans_text()}.",
+                    {**details, "allowed": False, "is_locked_mock": True},
                 )
-            return (
-                True,
-                "",
-                {
-                    "tier": "starter",
-                    "limit": cls.STARTER_TEST_LIMIT,
-                    "used": used_tests,
-                    "remaining": cls.STARTER_TEST_LIMIT - used_tests,
-                    "allowed": True,
-                },
-            )
 
-        # Free tier: 1 test total (+ bonus tests from referrals)
-        from apps.tests.models import TestAttempt, Test
-        used_tests = TestAttempt.objects.filter(
-            student=user,
-            status__in=[
-                TestAttempt.Status.COMPLETED,
-                TestAttempt.Status.IN_PROGRESS,
-                TestAttempt.Status.TIMEOUT,
-            ],
-        ).count()
-
-        bonus_tests = getattr(user, "bonus_tests", 0)
-        effective_limit = cls.FREE_TEST_LIMIT + bonus_tests
-
-        if used_tests >= effective_limit:
-            return (
-                False,
-                f"⚠️ Bepul sinov test limitingiz tugadi. Boshqa to'liq testlar uchun {_plans_text()} tarifiga o'ting.",
-                {
-                    "tier": "free",
-                    "limit": effective_limit,
-                    "used": used_tests,
-                    "remaining": 0,
-                    "allowed": False,
-                },
-            )
-
-        # Check if test is a locked mock (if user has bonus tests, allow taking locked mock)
-        if test_id and bonus_tests == 0:
-            try:
-                t_obj = Test.objects.filter(id=test_id).first()
-                if t_obj:
-                    title_lower = (t_obj.title or "").lower()
-                    if "#mock" in title_lower and not ("diagnostic" in title_lower or "bepul" in title_lower):
-                        return (
-                            False,
-                            f"🔒 Ushbu to'liq mock test tarif bilan ochiladi: {_plans_text()}.",
-                            {
-                                "tier": "free",
-                                "limit": cls.FREE_TEST_LIMIT,
-                                "used": used_tests,
-                                "remaining": 0,
-                                "allowed": False,
-                                "is_locked_mock": True,
-                            },
-                        )
-            except Exception:
-                pass
-
-        return (
-            True,
-            "",
-            {
-                "tier": "free",
-                "limit": effective_limit,
-                "used": used_tests,
-                "remaining": max(0, effective_limit - used_tests),
-                "allowed": True,
-            },
-        )
+        return True, "", details
 
     @classmethod
     def check_arena_quota(cls, user: Any) -> tuple[bool, str, dict[str, Any]]:

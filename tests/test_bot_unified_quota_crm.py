@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 from django.core.cache import cache
@@ -89,6 +90,12 @@ class BotQuotaEnforcementTests(TestCase):
         )
         Profile.objects.get_or_create(user=self.free_user, defaults={"plan": "free"})
 
+        from apps.payments.models import SubscriptionPlan, UserSubscription
+
+        pro_plan, _ = SubscriptionPlan.objects.get_or_create(
+            plan_type="pro",
+            defaults={"name": "Pro", "price_monthly": 15000, "is_active": True},
+        )
         self.pro_user = User.objects.create_user(
             email="pro_student@grandec.uz",
             first_name="Pro",
@@ -97,7 +104,17 @@ class BotQuotaEnforcementTests(TestCase):
         )
         self.pro_user.profile.plan = "pro"
         self.pro_user.profile.save(update_fields=["plan"])
+        UserSubscription.objects.create(
+            user=self.pro_user,
+            plan=pro_plan,
+            status=UserSubscription.Status.ACTIVE,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
 
+        starter_plan, _ = SubscriptionPlan.objects.get_or_create(
+            plan_type="starter",
+            defaults={"name": "Starter", "price_monthly": 7000, "is_active": True},
+        )
         self.starter_user = User.objects.create_user(
             email="starter_student@grandec.uz",
             first_name="Starter",
@@ -106,6 +123,12 @@ class BotQuotaEnforcementTests(TestCase):
         )
         self.starter_user.profile.plan = "starter"
         self.starter_user.profile.save(update_fields=["plan"])
+        UserSubscription.objects.create(
+            user=self.starter_user,
+            plan=starter_plan,
+            status=UserSubscription.Status.ACTIVE,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
 
     def test_free_user_first_essay_allowed(self):
         allowed, msg, details = QuotaService.check_essay_quota(self.free_user)
