@@ -2075,7 +2075,11 @@
     "pricing_upload_title": "To'lov chekini yuklash",
     "pricing_sending": "Chek yuborilmoqda...",
     "pricing_submit": "Chekni yuborish",
-    "plan_feat_mocks": "To'liq mock testlar"
+    "plan_feat_mocks": "To'liq mock testlar",
+    "subject_label": "Fan",
+    "subject_uzbek": "Ona tili",
+    "subject_english": "Ingliz tili",
+    "app_motto_badge_english": "CEFR, IELTS va AI Writing platformasi"
   },
   "ru": {
     "main": "Главное",
@@ -4153,7 +4157,11 @@
     "pricing_upload_title": "Загрузка чека об оплате",
     "pricing_sending": "Чек отправляется...",
     "pricing_submit": "Отправить чек",
-    "plan_feat_mocks": "Полные пробные тесты"
+    "plan_feat_mocks": "Полные пробные тесты",
+    "subject_label": "Предмет",
+    "subject_uzbek": "Родной язык",
+    "subject_english": "Английский",
+    "app_motto_badge_english": "Платформа CEFR, IELTS и AI Writing"
   },
   "en": {
     "main": "Main",
@@ -6231,6 +6239,10 @@
     "pricing_upload_title": "Upload payment receipt",
     "pricing_sending": "Sending receipt...",
     "pricing_submit": "Send receipt",
-    "plan_feat_mocks": "Full mock tests"
+    "plan_feat_mocks": "Full mock tests",
+    "subject_label": "Subject",
+    "subject_uzbek": "Uzbek",
+    "subject_english": "English",
+    "app_motto_badge_english": "CEFR, IELTS & AI Writing platform"
   }
 }

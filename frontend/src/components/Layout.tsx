@@ -8,6 +8,7 @@ import MobileBottomBar from './MobileBottomBar';
 import MobileNavDrawer from './MobileNavDrawer';
 import MobileProfileDrawer from './MobileProfileDrawer';
 import SubjectSwitcher from './SubjectSwitcher';
+import LanguageSwitcher from './LanguageSwitcher';
 import {
   BarChartIcon,
   CameraIcon,
@@ -272,7 +273,7 @@ export default function Layout() {
                 }}
               >
                 <span>🏛️</span>
-                <span>{t('app_motto_badge', 'Milliy Sertifikat & AI Esse LMS')}</span>
+                <span>{t(activeSubject === 'english' ? 'app_motto_badge_english' : 'app_motto_badge')}</span>
               </span>
             </div>
             <div className="spacer" />
@@ -301,6 +302,7 @@ export default function Layout() {
                 </div>
               )}
               <SubjectSwitcher size="sm" />
+              <LanguageSwitcher />
               <div className="hidden md:flex items-center gap-2">
                 {isAdmin && (
                   <Link

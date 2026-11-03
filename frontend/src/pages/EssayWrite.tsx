@@ -404,8 +404,8 @@ export default function EssayWrite() {
               {isEnglish ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: '1.1rem' }}>🇬🇧</span>
-                    <strong>Official IELTS Writing Assessment (Band 1.0 – 9.0)</strong>
+                    <span style={{ fontSize: '1.1rem' }}>🎓</span>
+                    <strong>IELTS Writing assessment (estimated band 1.0 – 9.0)</strong>
                   </div>
                   <p className="muted small">
                     Your essay will be evaluated across the 4 official IELTS criteria:

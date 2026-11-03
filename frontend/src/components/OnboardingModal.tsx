@@ -500,7 +500,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         </div>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
-                            🇬🇧 IELTS Academic & General
+                            IELTS Academic & General
                           </div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
                             Writing Task 1/2 (Band 1.0–9.0) va Listening/Reading CBT simulyatori

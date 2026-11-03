@@ -247,7 +247,7 @@ export default function TeacherAiConverter() {
                 onClick={() => setSubject('uzbek')}
                 style={{ borderRadius: 8 }}
               >
-                🇺🇿 Ona tili va Adabiyot (Milliy sertifikat)
+                Ona tili va Adabiyot (Milliy sertifikat)
               </button>
               <button
                 type="button"
@@ -255,7 +255,7 @@ export default function TeacherAiConverter() {
                 onClick={() => setSubject('english')}
                 style={{ borderRadius: 8 }}
               >
-                🇬🇧 English (IELTS & CEFR)
+                English (IELTS & CEFR)
               </button>
             </div>
           </div>

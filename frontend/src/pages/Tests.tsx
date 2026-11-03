@@ -381,7 +381,7 @@ export default function Tests() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 30 }}>🇺🇿</span>
+              <span style={{ fontSize: 30 }}>📖</span>
               <span
                 style={{
                   fontSize: 10,
@@ -479,7 +479,7 @@ export default function Tests() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 30 }}>🇬🇧</span>
+              <span style={{ fontSize: 30 }}>🎓</span>
               <span
                 style={{
                   fontSize: 10,
@@ -1104,7 +1104,7 @@ export default function Tests() {
                     borderRadius: '999px',
                   }}
                 >
-                  {item.subject === 'english' ? '🇬🇧 Ingliz tili' : '🇺🇿 Ona tili va Adabiyot'}
+                  {item.subject === 'english' ? 'Ingliz tili' : 'Ona tili va Adabiyot'}
                 </span>
 
                 {isAttest ? (

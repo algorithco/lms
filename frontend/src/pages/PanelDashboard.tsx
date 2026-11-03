@@ -498,7 +498,7 @@ export default function PanelDashboard() {
                       </td>
                       <td>
                         <span className={`badge ${isEng ? 'blue' : 'amber'}`}>
-                          {isEng ? '🇬🇧 English' : '🇺🇿 Ona tili'}
+                          {isEng ? 'English' : 'Ona tili'}
                         </span>
                       </td>
                       <td>
@@ -725,7 +725,7 @@ export default function PanelDashboard() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>🇺🇿</span>
+                    <span>📖</span>
                     <span>Ona tili</span>
                   </button>
                   <button
@@ -746,7 +746,7 @@ export default function PanelDashboard() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>🇬🇧</span>
+                    <span>🎓</span>
                     <span>English (IELTS)</span>
                   </button>
                 </div>

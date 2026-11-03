@@ -1096,7 +1096,7 @@ export default function Landing() {
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>🇬🇧</span>
+                    <span style={{ fontSize: 40 }}>🎓</span>
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(2, 132, 199, 0.15)', color: '#0284C7' }}>
                       Cambridge CBT
                     </span>
