@@ -102,6 +102,26 @@ class FullEssayReachesGraderTests(TestCase):
         )
 
 
+    def test_autosave_saves_draft_without_templates(self) -> None:
+        """Production has no essays/*_partial.html: autosave must answer 200
+        (JSON fallback), not 500, and the draft text must be stored."""
+        sub = EssaySubmission.objects.create(
+            student=self.student,
+            topic=self.topic,
+            status=EssaySubmission.Status.DRAFT,
+            essay_text="",
+        )
+        self.client.force_login(self.student)
+        response = self.client.post(
+            "/essays/api/autosave/",
+            {"submission_id": str(sub.pk), "essay_text": "Bu qoralama matni saqlanishi kerak."},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        sub.refresh_from_db()
+        self.assertEqual(sub.essay_text, "Bu qoralama matni saqlanishi kerak.")
+
+
 MOCK_GRADE = {
     "criteria": [
         {"id": i, "name": f"Criterion {i}", "score": 1.5, "reason": "OK"}

@@ -366,7 +366,9 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
                 f"Vaqt tugadi. Baholashda xatolik: {result['error']}",
             )
 
-        return render(
+        # The HTML partials are gone in the SPA deployment; degrade to JSON
+        # instead of a 500 (the essay is already saved/submitted above).
+        return _safe_render_partial(
             request,
             "essays/autosave_result_partial.html",
             {
@@ -385,7 +387,7 @@ def essay_autosave_view(request: HttpRequest) -> HttpResponse:
 
     word_info = WordCounter.get_word_status(essay_text, submission.topic)
 
-    return render(
+    return _safe_render_partial(
         request,
         "essays/word_counter_partial.html",
         {
