@@ -82,3 +82,6 @@ deploy/logs/*.log
 
 # Raw design assets
 thumbanial/
+
+# Local tooling state
+.claude/
