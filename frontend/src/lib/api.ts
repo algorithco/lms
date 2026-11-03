@@ -92,6 +92,8 @@ async function refreshTokens(): Promise<string> {
 export interface ApiError extends Error {
   status: number;
   detail: string;
+  /** Machine-readable error code when the endpoint sends one ({"code": ...}). */
+  code?: string;
 }
 
 /** ApiError for transport-level failures, translated into the UI language. */
@@ -175,9 +177,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       throw networkError(res.status, 'error_server_unavailable');
     }
     let detail = `Request failed (${res.status})`;
+    let code: string | undefined;
     try {
       const body = (await res.json()) as any;
       if (typeof body === 'object' && body !== null) {
+        if (typeof body.code === 'string') code = body.code;
         if ('detail' in body && body.detail) {
           detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         } else if ('message' in body && body.message) {
@@ -194,6 +198,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const err = new Error(detail) as ApiError;
     err.status = res.status;
     err.detail = detail;
+    err.code = code;
     throw err;
   }
   if (res.status === 204) return undefined as T;
@@ -2518,15 +2523,18 @@ export const ArenaLobby = {
 };
 
 // -- OMR Answer Sheet Scanner -----------------------------------------------
-export interface OmrScanBreakdown {
-  question_number: number;
-  question_text: string;
-  selected_answer: string;
-  correct_answer: string;
-  is_correct: boolean;
-  is_blank: boolean;
-  points: number;
-  max_points: number;
+export type OmrMarkStatus = 'clear' | 'multiple' | 'blank' | 'unread';
+
+/** One objective question as read from the sheet, before grading. */
+export interface OmrReviewItem {
+  question_id: number;
+  key: string; // "L1" … "R35" for CEFR, "1" … "N" otherwise
+  number: number;
+  section_code: string;
+  kind: 'choice' | 'text';
+  options: string[];
+  status: OmrMarkStatus;
+  value: string;
 }
 
 export interface OmrAvailableTest {
@@ -2540,37 +2548,39 @@ export interface OmrAvailableTest {
   time_limit_minutes: number;
 }
 
-export interface OmrScanResponse {
-  ok: boolean;
-  code_not_found?: boolean;
-  detected_code?: string;
-  test_id?: number;
-  test_title?: string;
-  mock_code?: string;
-  subject?: string;
-  total_questions?: number;
-  correct_count?: number;
-  incorrect_count?: number;
-  blank_count?: number;
-  total_score?: number;
-  max_score?: number;
-  percentage?: number;
-  grade?: string;
-  is_passed?: boolean;
-  pass_percentage?: number;
-  attempt_id?: number | null;
-  xp_earned?: number;
-  breakdown?: OmrScanBreakdown[];
-  error?: string;
+export interface OmrScanReview {
+  ok: true;
+  test_id: number;
+  test_title: string;
+  exam_type: string;
+  subject: string;
+  detected_code: string;
+  total_questions: number;
+  counts: Record<OmrMarkStatus, number>;
+  items: OmrReviewItem[];
+}
+
+export interface OmrConfirmResponse {
+  ok: true;
+  attempt_id: number;
+  result_id: number | null;
+  is_preview: boolean;
+  exam_type: string;
+  xp_earned: number;
 }
 
 export const OmrApi = {
   getAvailableTests: () =>
     api<{ ok: boolean; count: number; tests: OmrAvailableTest[] }>('/api/v1/tests/scan-omr/'),
   scan: (formData: FormData) =>
-    api<OmrScanResponse>('/api/v1/tests/scan-omr/', {
+    api<OmrScanReview>('/api/v1/tests/scan-omr/', {
       method: 'POST',
       body: formData,
+    }),
+  confirm: (testId: number, answers: Record<number, string>) =>
+    api<OmrConfirmResponse>('/api/v1/tests/scan-omr/confirm/', {
+      method: 'POST',
+      body: JSON.stringify({ test_id: testId, answers }),
     }),
 };
 

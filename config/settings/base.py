@@ -258,6 +258,8 @@ REST_FRAMEWORK = {
         "essay-improve": "10/hour",
         "tma-essay-submit": "10/hour",
         "login": "5/min",
+        "omr-scan": "10/hour",  # Each scan is a paid vision call
+        "omr-confirm": "10/hour",
     },
 }
 
@@ -553,6 +555,20 @@ ESSAY_IMAGE_MAX_BYTES = env.int("ESSAY_IMAGE_MAX_BYTES", default=10 * 1024 * 102
 ESSAY_OCR_PROVIDER = env("ESSAY_OCR_PROVIDER", default="")
 ESSAY_OCR_VISION_MODEL = env("ESSAY_OCR_VISION_MODEL", default="")
 ESSAY_OCR_TIMEOUT = env.int("ESSAY_OCR_TIMEOUT", default=120)
+
+# ---------------------------------------------------------------------------
+# OMR answer sheet scanner (see apps/tests/omr_service.py)
+# ---------------------------------------------------------------------------
+OMR_VISION_MODEL = env("OMR_VISION_MODEL", default="google/gemini-2.5-flash")
+OMR_VISION_TIMEOUT = env.int("OMR_VISION_TIMEOUT", default=60)
+OMR_MAX_UPLOAD_BYTES = env.int("OMR_MAX_UPLOAD_BYTES", default=8 * 1024 * 1024)
+OMR_MIN_SHORT_SIDE = env.int("OMR_MIN_SHORT_SIDE", default=600)
+# A4 is 1.41, phone photos 1.33–1.78; 16:9+ screen grabs and panoramas fail.
+OMR_MAX_ASPECT_RATIO = env.float("OMR_MAX_ASPECT_RATIO", default=1.9)
+# Share of light (paper) pixels a sheet photo must have.
+OMR_MIN_PAPER_RATIO = env.float("OMR_MIN_PAPER_RATIO", default=0.4)
+# More unread rows than this share → no result, ask for a new photo.
+OMR_MAX_UNREAD_RATIO = env.float("OMR_MAX_UNREAD_RATIO", default=0.2)
 
 # Secret token for webhook mode. When set, the /telegram/webhook/ endpoint
 # rejects requests without the X-Telegram-Bot-Api-Secret-Token header.
