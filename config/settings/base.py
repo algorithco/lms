@@ -263,6 +263,7 @@ REST_FRAMEWORK = {
         "omr-scan": "10/hour",  # Each scan is a paid vision call
         "omr-confirm": "10/hour",
         "feedback-submit": "5/hour",  # per user, or per IP for guests
+        "question-issue": "30/hour",  # "Problem with this question?" reports, per user
     },
 }
 

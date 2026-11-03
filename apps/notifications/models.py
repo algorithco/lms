@@ -326,6 +326,13 @@ class UserFeedback(models.Model):
         SUGGESTION = "suggestion", _("Taklif")
         BUG = "bug", _("Xatolik/Muammo")
         PRAISE = "praise", _("Tashakkur")
+        QUESTION_ISSUE = "question_issue", _("Savolda xato")
+
+    class IssueReason(models.TextChoices):
+        WRONG_KEY = "wrong_key", _("Javob kaliti xato")
+        UNCLEAR = "unclear", _("Savol noaniq")
+        MEDIA = "media", _("Matn yoki audio muammosi")
+        OTHER = "other", _("Boshqa")
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -334,6 +341,18 @@ class UserFeedback(models.Model):
         blank=True,
         related_name="feedbacks",
         verbose_name=_("foydalanuvchi"),
+    )
+    question = models.ForeignKey(
+        "tests.Question",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="issue_reports",
+        verbose_name=_("savol"),
+        help_text=_("Faqat 'Savolda xato' kategoriyasi uchun."),
+    )
+    reason = models.CharField(
+        _("sabab"), max_length=16, choices=IssueReason.choices, blank=True, default=""
     )
     user_name = models.CharField(_("ism"), max_length=150, blank=True, default="")
     user_phone = models.CharField(_("telefon"), max_length=32, blank=True, default="")

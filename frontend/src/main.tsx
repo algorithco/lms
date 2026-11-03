@@ -4,6 +4,7 @@ import { installErrorCapture } from './lib/feedbackContext'
 import './index.css'
 import './theme.css'
 import './styles/ui.css'
+import './styles/review.css'
 import App from './App.tsx'
 import { LangProvider } from './i18n/LangContext.tsx'
 

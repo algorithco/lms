@@ -17,6 +17,7 @@ from . import (
     views_school,
     views_tournaments,
     views_feedback,
+    views_question_issues,
     views_referral,
 )
 from apps.organizations import views as views_enterprise
@@ -59,6 +60,8 @@ urlpatterns = [
     path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
     path("feedback/public/", views_feedback.PublicFeedbackListView.as_view(), name="public-feedback-list"),
     path("feedback/mine/", views_feedback.MyFeedbackView.as_view(), name="my-feedback"),
+    path("feedback/question-issue/", views_question_issues.QuestionIssueView.as_view(), name="question-issue"),
+    path("panel/feedback/questions/", views_question_issues.AdminQuestionIssueGroupsView.as_view(), name="panel-question-issues"),
     path("panel/feedback/", views_feedback.AdminFeedbackListView.as_view(), name="panel-feedback-list"),
     path("panel/feedback/<int:pk>/", views_feedback.AdminFeedbackDetailView.as_view(), name="panel-feedback-detail"),
     path(

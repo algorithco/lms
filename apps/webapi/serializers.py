@@ -143,6 +143,7 @@ class QuestionAdminSerializer(serializers.ModelSerializer):
             "explanation",
             "evidence",
             "explanation_status",
+            "needs_review",
             "position",
             "config",
             "choices",

@@ -615,6 +615,11 @@ class Question(models.Model):
         default=ExplanationStatus.APPROVED,
         help_text=_("Qoralama tushuntirish admin tasdiqlamaguncha o'quvchiga 'AI tayyorlagan' belgisi bilan ko'rsatiladi."),
     )
+    needs_review = models.BooleanField(
+        _("ko'rib chiqish kerak"),
+        default=False,
+        help_text=_("Foydalanuvchilardan 3 va undan ko'p shikoyat tushganda avtomatik belgilanadi."),
+    )
     total_attempts = models.PositiveIntegerField(
         _("jami urinishlar soni"),
         default=0,

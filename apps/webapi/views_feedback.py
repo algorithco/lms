@@ -5,6 +5,7 @@
 - GET  /api/v1/feedback/mine/       the signed-in user's own feedback + admin replies
 - GET  /api/v1/panel/feedback/      admin inbox (filters, search, stats)
 - PATCH /api/v1/panel/feedback/<id>/  status / reply / publish (consent required)
+- question issues ("Problem with this question?") live in views_question_issues.py
 
 Nothing here stores or forwards passwords, tokens, e-mail or phone numbers.
 """
@@ -33,6 +34,8 @@ from .permissions import IsPanelAdmin
 
 logger = logging.getLogger(__name__)
 
+# Question issues have their own endpoint (they need a question and a signed-in user).
+GENERAL_CATEGORIES = {c.value for c in UserFeedback.Category} - {UserFeedback.Category.QUESTION_ISSUE.value}
 MIN_MESSAGE = 3
 MAX_MESSAGE = 2000
 MAX_NAME = 80
@@ -104,7 +107,7 @@ class FeedbackView(APIView):
             return Response({"error": "rating_required", "field": "rating"}, status=status.HTTP_400_BAD_REQUEST)
 
         category = str(data.get("category") or UserFeedback.Category.FEEDBACK).strip().lower()
-        if category not in {c.value for c in UserFeedback.Category}:
+        if category not in GENERAL_CATEGORIES:
             return Response({"error": "bad_category", "field": "category"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user if request.user and request.user.is_authenticated else None
@@ -149,6 +152,7 @@ class PublicFeedbackListView(APIView):
     def get(self, request: Request) -> Response:
         rows = (
             UserFeedback.objects.filter(is_published=True, consent_public=True)
+            .exclude(category=UserFeedback.Category.QUESTION_ISSUE)
             .select_related("user")
             .order_by("-created_at")[:30]
         )
@@ -180,6 +184,7 @@ class MyFeedbackView(APIView):
                         "id": fb.pk,
                         "rating": fb.rating,
                         "category": fb.category,
+                        "reason": fb.reason,
                         "message": fb.message,
                         "status": fb.status,
                         "admin_reply": fb.admin_reply,
@@ -199,6 +204,8 @@ def _admin_row(fb: UserFeedback) -> dict:
         "name": fb.name,
         "rating": fb.rating,
         "category": fb.category,
+        "reason": fb.reason,
+        "question_id": fb.question_id,
         "message": fb.message,
         "status": fb.status,
         "context": fb.context or {},
@@ -239,7 +246,9 @@ class AdminFeedbackListView(APIView):
         all_rows = UserFeedback.objects
         stats = {
             "total": all_rows.count(),
-            "average_rating": round(all_rows.aggregate(a=Avg("rating"))["a"] or 0, 2),
+            "average_rating": round(
+                all_rows.exclude(category=UserFeedback.Category.QUESTION_ISSUE).aggregate(a=Avg("rating"))["a"] or 0, 2
+            ),
             "by_status": dict(all_rows.values_list("status").annotate(n=Count("id"))),
             "by_category": dict(all_rows.values_list("category").annotate(n=Count("id"))),
         }

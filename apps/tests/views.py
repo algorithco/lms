@@ -621,10 +621,14 @@ class SubmitAttemptView(APIView):
         except Exception:
             pass
 
+        from apps.results.models import Result as ResultRow
+
+        result_id = ResultRow.objects.filter(attempt_id=attempt_id).values_list("id", flat=True).first()
         return Response(
             {
                 "message": "Test muvaffaqiyatli yakunlandi!",
                 "result": {
+                    "result_id": result_id,
                     "attempt_id": result.attempt_id,
                     "total_questions": result.total_questions,
                     "correct_answers": result.correct_answers,

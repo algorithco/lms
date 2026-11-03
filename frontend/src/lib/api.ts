@@ -699,6 +699,12 @@ export const Tests = {
       method: 'POST',
       body: JSON.stringify({ type }),
     }),
+  /** On-demand AI explanation for one question of a finished attempt (paid tiers, daily cap). */
+  explainResultQuestion: (resultId: number, questionId: number, lang: string) =>
+    api<{ text?: string; code?: string; cached?: boolean; used?: number; limit?: number; remaining?: number }>(
+      `/api/tests/results/${resultId}/questions/${questionId}/explain/`,
+      { method: 'POST', body: JSON.stringify({ lang }) },
+    ),
   explainMistake: (questionId: number, selectedChoiceId?: number, attemptId?: number) =>
     api<Record<string, unknown>>(`/api/tests/questions/${questionId}/explain-mistake/`, {
       method: 'POST',
