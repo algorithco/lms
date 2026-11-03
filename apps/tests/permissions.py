@@ -26,7 +26,7 @@ class IsAttemptOwner(BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-        if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+        if is_platform_admin(user) or getattr(user, "is_superuser", False):
             return True
         # Attempt egasi (student, o'qituvchi yoki admin preview)
         if getattr(obj, "student_id", None) == user.id or getattr(obj, "student", None) == user:
@@ -58,7 +58,7 @@ class IsTestOwnerOrStudent(BasePermission):
         user = request.user
         # Safe methods — authenticated har kim
         if request.method in SAFE_METHODS:
-            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False):
                 return True
             # Student — faqat active testlarni ko'radi
             if getattr(user, "role", "") == "student":
@@ -73,7 +73,6 @@ class IsTestOwnerOrStudent(BasePermission):
             or getattr(obj, "created_by", None) == user
             or is_platform_admin(user)
             or getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
         )
 
 
@@ -91,7 +90,6 @@ class CanStartAttempt(BasePermission):
         if (
             is_platform_admin(u)
             or getattr(u, "is_superuser", False)
-            or getattr(u, "is_staff", False)
             or getattr(u, "role", "") in ("admin", "center_admin")
         ):
             return True
@@ -105,7 +103,6 @@ def check_user_limits(user) -> bool:
         return False
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
         or is_platform_admin(user)
     ):
@@ -122,7 +119,6 @@ def has_active_subscription(user) -> bool:
         return False
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
         or is_platform_admin(user)
     ):

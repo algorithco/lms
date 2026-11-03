@@ -34,7 +34,7 @@ def _get_user_center(user) -> LearningCenter | None:
         return user.owned_centers.first()
     if getattr(user, "learning_center", None):
         return user.learning_center
-    if user.is_staff or user.role == "admin":
+    if user.is_superuser or user.role == "admin":
         return LearningCenter.objects.first()
     return None
 
@@ -49,14 +49,14 @@ def enterprise_dashboard_view(request):
     - Filiallararo raqobat statistikasi.
     """
     user = request.user
-    if getattr(user, "role", None) == "student" and not user.is_staff:
+    if getattr(user, "role", None) == "student" and not user.is_superuser:
         return Response(
             {"error": "O'quvchilar uchun markaz boshqaruvi ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
     # All centers accessible to this user
-    if user.is_staff or user.role == "admin":
+    if user.is_superuser or user.role == "admin":
         centers_qs = LearningCenter.objects.all().order_by("-created_at")
     elif hasattr(user, "owned_centers"):
         centers_qs = user.owned_centers.all().order_by("-created_at")
@@ -237,7 +237,7 @@ def enterprise_create_center_view(request):
     """
     user = request.user
     if request.method == "GET":
-        if user.is_staff or user.role == "admin":
+        if user.is_superuser or user.role == "admin":
             qs = LearningCenter.objects.all().order_by("-created_at")
         elif hasattr(user, "owned_centers"):
             qs = user.owned_centers.all().order_by("-created_at")
@@ -311,7 +311,7 @@ def enterprise_create_center_view(request):
                 address=address,
             )
 
-        if getattr(user, "role", None) == "student" and not user.is_staff:
+        if getattr(user, "role", None) == "student" and not user.is_superuser:
             user.role = "center_admin"
         if not user.learning_center:
             user.learning_center = center
@@ -343,7 +343,7 @@ def enterprise_bulk_import_view(request):
     O'quvchilarni ommaviy yuklash (Bulk Import via CSV / Excel / JSON).
     Bir vaqtning o'zida 500 tagacha o'quvchini bazaga kiritish.
     """
-    if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
+    if getattr(request.user, "role", None) == "student" and not request.user.is_superuser:
         return Response(
             {"error": "O'quvchilar uchun ommaviy yuklash ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
@@ -474,7 +474,7 @@ def enterprise_report_export_view(request):
     """
     Markaz logotipi va imzosi tushirilgan umumiy oylik tahliliy hisobotni eksport qilish.
     """
-    if getattr(request.user, "role", None) == "student" and not request.user.is_staff:
+    if getattr(request.user, "role", None) == "student" and not request.user.is_superuser:
         return Response(
             {"error": "O'quvchilar uchun hisobot eksporti ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
@@ -540,14 +540,14 @@ def branding_update_view(request):
       - stamp_signature: file
     """
     user = request.user
-    if getattr(user, "role", None) == "student" and not user.is_staff:
+    if getattr(user, "role", None) == "student" and not user.is_superuser:
         return Response(
             {"error": "O'quvchilar uchun brending sozlamalari ruxsat etilmagan."},
             status=status.HTTP_403_FORBIDDEN,
         )
     center = _get_user_center(user)
     if not center and (
-        user.role in ("teacher", "admin", "center_admin") or user.is_staff
+        user.role in ("teacher", "admin", "center_admin") or user.is_superuser
     ):
         center = LearningCenter.objects.create(
             name=f"{user.get_full_name() or user.first_name or 'Grand'} Ta'lim Markazi",
@@ -623,7 +623,7 @@ def monthly_report_pdf_view(request, group_id: int):
     from .reports_pdf import generate_monthly_group_report_pdf
 
     group = get_object_or_404(StudentGroup, pk=group_id)
-    is_admin = getattr(request.user, "role", None) == "admin" or request.user.is_staff
+    is_admin = getattr(request.user, "role", None) == "admin" or request.user.is_superuser
     if not (is_admin or group.teacher_id == request.user.id):
         return Response(
             {"error": "Sizda ushbu guruh hisobotini yuklash huquqi yo'q."},

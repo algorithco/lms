@@ -157,7 +157,7 @@ class SpeakingSubmissionDetailView(APIView):
         sub = SpeakingSubmission.objects.filter(pk=pk, user=request.user).first()
         if not sub:
             is_admin = (
-                getattr(request.user, "role", None) == "admin" or request.user.is_staff
+                getattr(request.user, "role", None) == "admin" or request.user.is_superuser
             )
             if is_admin:
                 sub = SpeakingSubmission.objects.filter(pk=pk).first()

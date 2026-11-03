@@ -267,15 +267,23 @@ export interface AuthUser {
   is_expiring_soon?: boolean;
 }
 
-/** Platform admin = active + (superuser or role==admin or center_admin or staff) (mirrors apps/accounts/access.py). */
+/**
+ * Platform admin = active + (superuser or role==admin or center_admin)
+ * (mirrors apps/accounts/access.py). is_staff alone is NOT admin: it only
+ * opens Django /admin/.
+ */
 export function isPlatformAdmin(u: AuthUser | null | undefined): boolean {
   if (!u || u.is_active === false) return false;
+  return u.is_platform_admin === true || adminShape(u);
+}
+
+/** Admin by raw account fields (works on API payloads before normalizing). */
+function adminShape(raw: { is_superuser?: unknown; is_platform_admin?: unknown; role?: unknown }): boolean {
   return (
-    u.is_platform_admin === true ||
-    u.is_superuser === true ||
-    u.role === 'admin' ||
-    u.role === 'center_admin' ||
-    u.is_staff === true
+    raw.is_superuser === true ||
+    raw.is_platform_admin === true ||
+    raw.role === 'admin' ||
+    raw.role === 'center_admin'
   );
 }
 
@@ -284,10 +292,10 @@ export function landingFor(u: AuthUser | null | undefined): string {
   return isPlatformAdmin(u) ? '/panel' : '/dashboard';
 }
 
-/** School/teacher area access (mirrors webapi IsTeacherOrAdmin: teacher/staff/platform-admin). */
+/** School/teacher area access (mirrors webapi IsTeacherOrAdmin: teacher/platform-admin). */
 export function canTeach(u: AuthUser | null | undefined): boolean {
   if (!u) return false;
-  return u.role === 'teacher' || u.is_staff === true || isPlatformAdmin(u);
+  return u.role === 'teacher' || isPlatformAdmin(u);
 }
 
 /** Essay review access (mirrors essays teacher_required: teacher/platform-admin only). */
@@ -331,6 +339,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     raw.active_subject === 'english' || raw.active_subject === 'uzbek'
       ? (raw.active_subject as 'uzbek' | 'english')
       : 'uzbek';
+  const isAdmin = adminShape(raw);
   return {
     id: Number(raw.id),
     email: typeof raw.email === 'string' ? raw.email : '',
@@ -361,7 +370,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     telegram_identity_verified_at:
       typeof raw.telegram_identity_verified_at === 'string' ? raw.telegram_identity_verified_at : null,
     plan:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? 'ADMIN_UNLIMITED'
         : typeof raw.plan === 'string' && raw.plan
         ? raw.plan.toUpperCase()
@@ -369,7 +378,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.tariff.toUpperCase()
         : 'FREE',
     tariff:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? 'ADMIN'
         : typeof raw.tariff === 'string' && raw.tariff
         ? raw.tariff.toUpperCase()
@@ -377,7 +386,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.plan.toUpperCase()
         : 'FREE',
     is_paid:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : typeof raw.is_paid === 'boolean'
         ? raw.is_paid
@@ -385,7 +394,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.is_premium
         : false,
     is_premium:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : typeof raw.is_premium === 'boolean'
         ? raw.is_premium
@@ -393,7 +402,7 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
         ? raw.is_paid
         : false,
     has_pro_access:
-      raw.is_superuser === true || raw.is_platform_admin === true || raw.role === 'admin' || raw.role === 'center_admin' || raw.is_staff === true
+      isAdmin
         ? true
         : Boolean(raw.has_pro_access || raw.is_paid || raw.is_premium),
   };

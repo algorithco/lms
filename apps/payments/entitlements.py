@@ -311,7 +311,6 @@ def get_effective_entitlement(user) -> Entitlement:
     # --- 0. Root Administrator / Staff Immunity (Absolute Highest Priority) ---
     if (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return Entitlement(
@@ -624,7 +623,6 @@ def can_submit_essay(user, kind: str) -> tuple[bool, str | None, dict]:
     """Non-mutating eligibility check. Returns ``(ok, reason, remaining)``."""
     if user and (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return True, None, get_remaining_limits(user)
@@ -653,7 +651,6 @@ def can_start_test(user) -> tuple[bool, str | None, dict]:
     """Non-mutating check for starting a practice test."""
     if user and (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return True, None, get_remaining_limits(user)
@@ -908,7 +905,6 @@ def enforce_essay_quota(
     """Reserve an essay allowance or raise :class:`QuotaDenied`."""
     if user and (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return Reservation(
@@ -940,7 +936,6 @@ def enforce_test_quota(
     """Reserve a test allowance or raise :class:`QuotaDenied`."""
     if user and (
         getattr(user, "is_superuser", False)
-        or getattr(user, "is_staff", False)
         or getattr(user, "role", "") in ("admin", "center_admin")
     ):
         return Reservation(

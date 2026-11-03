@@ -20,7 +20,7 @@ def _is_teacher_or_admin(user) -> bool:
     """Tekshiruv: faqat o'qituvchi va administratorlar test yarata oladi."""
     if not user or not user.is_authenticated:
         return False
-    if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+    if getattr(user, "is_superuser", False):
         return True
     role = getattr(user, "role", "")
     return role in ("teacher", "admin", "center_admin")

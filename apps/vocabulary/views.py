@@ -66,7 +66,7 @@ def generate_vocabulary_view(request):
 def vocabulary_packs_list_view(request):
     """Mavjud lug'at to'plamlari ro'yxati."""
     user = request.user
-    if user.is_teacher or user.is_staff:
+    if user.is_teacher or user.is_superuser:
         qs = VocabularyPack.objects.filter(teacher=user)
     else:
         # Student: uning guruhlaridagi to'plamlar
@@ -88,7 +88,7 @@ def assign_vocabulary_homework_view(request):
     pack = get_object_or_404(VocabularyPack, id=pack_id)
     group = get_object_or_404(StudentGroup, id=group_id)
 
-    if group.teacher != request.user and not request.user.is_staff:
+    if group.teacher != request.user and not request.user.is_superuser:
         return Response(
             {"error": "Faqat guruh ustozi vazifa biriktira oladi."}, status=403
         )

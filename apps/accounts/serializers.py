@@ -190,7 +190,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_plan(self, obj) -> str:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return "ADMIN_UNLIMITED"
@@ -232,7 +231,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_is_paid(self, obj) -> bool:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return True
@@ -244,7 +242,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_tariff(self, obj) -> str:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return "ADMIN"
@@ -253,7 +250,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_is_premium(self, obj) -> bool:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return True
@@ -262,7 +258,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_has_pro_access(self, obj) -> bool:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return True
@@ -354,7 +349,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_subscription_expires_at(self, obj: Any) -> str | None:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return None
@@ -375,7 +369,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_days_until_expiration(self, obj: Any) -> int | None:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return None
@@ -399,7 +392,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_is_expiring_soon(self, obj: Any) -> bool:
         if obj and (
             getattr(obj, "is_superuser", False)
-            or getattr(obj, "is_staff", False)
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return False

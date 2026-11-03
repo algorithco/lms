@@ -114,7 +114,7 @@ class TestListView(generics.ListAPIView):
 
             if not user or not user.is_authenticated:
                 return qs.filter(is_active=True)
-            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False):
                 return qs
             role = getattr(user, "role", "student")
             if role == "student":
@@ -148,7 +148,7 @@ class TestDetailView(generics.RetrieveAPIView):
             user = getattr(self.request, "user", None)
             if not user or not user.is_authenticated:
                 return Test.objects.filter(is_active=True)
-            if is_platform_admin(user) or getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+            if is_platform_admin(user) or getattr(user, "is_superuser", False):
                 return Test.objects.all()
             role = getattr(user, "role", "student")
             if role == "student":
@@ -1242,7 +1242,7 @@ class RecalculateRaschView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") == "teacher" and bool(
             test.course and test.course.teacher_id == user.id
         )
@@ -1291,7 +1291,7 @@ class TestGradebookView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
             test.course and test.course.teacher_id == user.id
         )
@@ -1459,7 +1459,7 @@ class TestItemAnalysisView(APIView):
         user = request.user
         from apps.accounts.access import is_platform_admin
 
-        is_admin = is_platform_admin(user) or user.is_staff or user.is_superuser
+        is_admin = is_platform_admin(user) or user.is_superuser
         is_teacher = getattr(user, "role", "") in ("teacher", "admin", "center_admin") or bool(
             test.course and test.course.teacher_id == user.id
         )

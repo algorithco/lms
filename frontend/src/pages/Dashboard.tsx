@@ -69,7 +69,6 @@ export default function Dashboard() {
     role === 'admin' ||
     role === 'superadmin' ||
     role === 'center_admin' ||
-    Boolean(user?.is_staff) ||
     Boolean(user?.is_superuser);
   const isStudent = !isTeacherOrAdmin;
 

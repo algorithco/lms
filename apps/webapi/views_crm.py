@@ -81,7 +81,6 @@ def group_finance_summary_view(request, group_id):
     # Ruxsat: guruh ustozi yoki platform admin
     if (
         group.teacher != request.user
-        and not request.user.is_staff
         and not request.user.is_superuser
     ):
         return Response(
@@ -178,7 +177,7 @@ def record_group_payment_view(request, group_id):
     POST /api/v1/courses/groups/<group_id>/record-payment/
     """
     group = get_object_or_404(StudentGroup, id=group_id)
-    if group.teacher != request.user and not request.user.is_staff:
+    if group.teacher != request.user and not request.user.is_superuser:
         return Response({"error": "Ruxsat etilmagan."}, status=403)
 
     student_id = request.data.get("student_id")
@@ -206,7 +205,7 @@ def send_group_payment_reminders_view(request, group_id):
     POST /api/v1/courses/groups/<group_id>/send-payment-reminders/
     """
     group = get_object_or_404(StudentGroup, id=group_id)
-    if group.teacher != request.user and not request.user.is_staff:
+    if group.teacher != request.user and not request.user.is_superuser:
         return Response(
             {"error": "Faqat guruh ustozi eslatma yubora oladi."}, status=403
         )

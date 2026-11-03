@@ -159,7 +159,6 @@ class StartAttemptService:
         is_admin = (
             is_platform_admin(student)
             or getattr(student, "is_superuser", False)
-            or getattr(student, "is_staff", False)
             or getattr(student, "role", "") in ["admin", "center_admin"]
         )
         is_teacher = getattr(student, "role", "") == "teacher"

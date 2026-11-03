@@ -148,8 +148,7 @@ async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Allow if user is group's teacher or admin, or if group has no conflicting binding
         is_teacher = current_lms_user and (group.teacher_id == current_lms_user.id)
         is_admin = current_lms_user and (
-            getattr(current_lms_user, "is_staff", False)
-            or getattr(current_lms_user, "is_superuser", False)
+            getattr(current_lms_user, "is_superuser", False)
             or getattr(current_lms_user, "role", "") in ("admin", "superadmin")
         )
 
@@ -683,7 +682,6 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         is_teacher_role = teacher and (
             getattr(teacher, "role", "") in ("teacher", "admin", "superadmin")
-            or getattr(teacher, "is_staff", False)
             or getattr(teacher, "is_superuser", False)
         )
         if not teacher or not is_teacher_role:

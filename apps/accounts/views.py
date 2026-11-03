@@ -374,7 +374,6 @@ class DirectTelegramLinkView(APIView):
         if existing:
             if (
                 request.user.is_superuser
-                or request.user.is_staff
                 or getattr(request.user, "role", "") == "admin"
             ):
                 existing.telegram_chat_id = None
