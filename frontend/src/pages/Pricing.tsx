@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { FormEvent, DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { PaymentsApi } from '../lib/api';
 import { CreditCardIcon, CheckIcon, CopyIcon, ZapIcon } from '../components/icons';
 import CardPaymentModal from '../components/CardPaymentModal';
+import CardGate from '../components/CardGate';
+import { useCardInfo } from '../lib/useCardInfo';
 
 export const PLAN_PRICES = {
   starter: 7000,
@@ -16,13 +18,9 @@ export default function Pricing() {
   const { t } = useLang();
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [cardInfo, setCardInfo] = useState<{
-    card_number: string;
-    card_holder: string;
-  }>({
-    card_number: '9860 **** **** ****',
-    card_holder: 'KOMILJON R',
-  });
+  const card = useCardInfo();
+  const cardReady = card.status === 'ready';
+  const cardInfo = card.info ?? { card_number: '', card_holder: '' };
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,19 +31,6 @@ export default function Pricing() {
   const [isBanned, setIsBanned] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    PaymentsApi.cardInfo()
-      .then((data) => {
-        if (data) {
-          setCardInfo({
-            card_number: data.card_number || '9860 **** **** ****',
-            card_holder: data.card_holder || 'KOMILJON R',
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text.replace(/\s+/g, ''));
@@ -299,11 +284,12 @@ export default function Pricing() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 24, fontFamily: 'monospace', letterSpacing: 2, fontWeight: 700 }}>
-            {cardInfo.card_number}
+            {cardReady ? cardInfo.card_number : <CardGate status={card.status} onRetry={card.reload} />}
           </span>
           <button
             type="button"
             className="btn sm"
+            disabled={!cardReady}
             onClick={() => handleCopy(cardInfo.card_number)}
             style={{
               background: copied ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
@@ -318,7 +304,7 @@ export default function Pricing() {
         <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12, marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>Karta egasi:</span>
-            <strong>{cardInfo.card_holder}</strong>
+            <strong>{cardReady ? cardInfo.card_holder : '—'}</strong>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>To'lov summasi:</span>
