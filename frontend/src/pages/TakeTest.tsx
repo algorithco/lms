@@ -692,6 +692,39 @@ export default function TakeTest() {
     }
   };
 
+  // Connection loss: say so, keep the answers, and resend the failed ones when it returns.
+  const retryRef = useRef(retryFailed);
+  retryRef.current = retryFailed;
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false);
+      void retryRef.current();
+    };
+    const goOffline = () => setOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // A reload or an accidental back/close asks first; answers are already saved on the server.
+  const inProgress =
+    !!attempt &&
+    !result &&
+    !['completed', 'timeout', 'cancelled', 'pending_grading'].includes(attempt.status);
+  useEffect(() => {
+    if (!inProgress) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [inProgress]);
+
   if (loadError && !attempt) {
     const isNetworkOr502 =
       loadError.includes('502') ||
@@ -1159,9 +1192,17 @@ export default function TakeTest() {
   return (
     <div className="take-test-page-container">
       <p className="muted small">
-        <Link to="/tests">← {t('tests')}</Link>
+        <Link
+          to="/tests"
+          onClick={(e) => {
+            if (inProgress && !window.confirm(t('take_leave_confirm'))) e.preventDefault();
+          }}
+        >
+          ← {t('tests')}
+        </Link>
       </p>
-      <h1>{attempt.test_title}</h1>
+      <h1 className="take-test-title">{attempt.test_title}</h1>
+      {offline && <p className="cd-alert" role="alert">{t('cd_offline_banner')}</p>}
       {err && <p className="error">{err}</p>}
 
       {finished && !result && (
@@ -1254,7 +1295,7 @@ export default function TakeTest() {
         </div>
 
         {singleMode && (
-          <div className="hotkey-hint-pill">
+          <div className="hotkey-hint-pill hide-on-phone">
             <Keyboard size={13} style={{ color: '#f59e0b' }} />
             <span>
               <kbd className="hotkey-kbd">←</kbd> <kbd className="hotkey-kbd">→</kbd> {t('hotkey_questions')} ·{' '}
@@ -1265,18 +1306,18 @@ export default function TakeTest() {
         )}
 
         {!finished && !result && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="hide-on-phone" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               className="btn sm ghost"
               onClick={() => {
-                if (window.confirm("Testdan chiqishni xohlaysizmi? Javoblaringiz saqlanadi.")) {
+                if (window.confirm(t('take_leave_confirm'))) {
                   navigate('/tests');
                 }
               }}
               title="Testdan chiqish"
             >
-              🚪 {t('exit') || 'Chiqish'}
+              🚪 {t('exit')}
             </button>
             <button
               type="button"
