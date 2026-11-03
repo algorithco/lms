@@ -33,8 +33,8 @@ def test_seed_qa_accounts_local_only_and_audited(tmp_path):
 
 
 @pytest.mark.django_db
-def test_seed_qa_accounts_refuses_non_local_database(tmp_path, settings):
-    settings.DEBUG = False
-    settings.DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
+def test_seed_qa_accounts_refuses_non_local_database(tmp_path, monkeypatch):
+    # Patch the guard itself: mutating settings.DATABASES in place would leak into later tests.
+    monkeypatch.setattr("apps.accounts.management.commands.seed_qa_accounts._is_local_dev", lambda: False)
     with pytest.raises(CommandError):
         call_command("seed_qa_accounts", "--out", str(tmp_path / "x.json"), stdout=StringIO())
