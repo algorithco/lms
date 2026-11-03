@@ -2197,7 +2197,7 @@ export default function Landing() {
                   marginBottom: 8,
                 }}
               >
-                💬 REAL NATIJALAR VA ISHONCH
+                💬 {t('landing.testimonials_tag')}
               </span>
               <h2
                 style={{
@@ -2208,7 +2208,7 @@ export default function Landing() {
                   letterSpacing: '-0.02em',
                 }}
               >
-                O'quvchilarimiz va Ustozlar Fikrlari
+                {t('landing.testimonials_title')}
               </h2>
               <p
                 style={{
@@ -2218,7 +2218,7 @@ export default function Landing() {
                   margin: 0,
                 }}
               >
-                Minglab talabalar, o'quvchilar va pedagoglar GRAND EDUCATION bilan o'z orzularidagi natijalarga erishdilar
+                {t('landing.testimonials_sub')}
               </p>
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <button
@@ -2227,7 +2227,7 @@ export default function Landing() {
                   className="inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                 >
                   <span>💬</span>
-                  <span>Fikr bildirish</span>
+                  <span>{t('feedback_open_btn')}</span>
                 </button>
               </div>
             </div>
@@ -2333,30 +2333,9 @@ export default function Landing() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto leading-relaxed">
                   Platformamiz haqida fikr yoki taklifingiz bormi? Har bir fikr sinchkovlik bilan ko'rib chiqiladi va eng yaxshi sharhlar shu yerda e'lon qilinadi.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setLandingFeedbackOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0 mx-auto"
-                >
-                  <span>💬</span>
-                  <span>Fikr bildirish</span>
-                </button>
               </div>
             ) : null}
 
-            {/* Leave feedback CTA */}
-            {feedbacks.length > 0 && (
-              <div style={{ textAlign: 'center', marginTop: 32 }}>
-                <button
-                  type="button"
-                  onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  <span>💬</span>
-                  <span>Siz ham platforma bo'yicha fikr yoki taklif qoldiring</span>
-                </button>
-              </div>
-            )}
           </div>
         </section>
 
