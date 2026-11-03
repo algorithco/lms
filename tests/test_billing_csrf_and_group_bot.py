@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -38,6 +38,8 @@ class BillingReceiptCSRFTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
+    # The admin alert is skipped without a bot token; don't depend on .env.
+    @override_settings(TELEGRAM_BOT_TOKEN="test-bot-token")
     def test_receipt_upload_csrf_exempt_and_instant_trial(self):
         """Verify that uploading a receipt succeeds without CSRF token and activates 24h trial."""
         buf = BytesIO()
