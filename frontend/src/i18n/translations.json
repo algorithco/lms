@@ -2064,7 +2064,10 @@
     "sub_pm_teacher_quota": "Ustoz kvotasi",
     "sub_pm_free": "To'lovsiz",
     "pay_receipt_pending_note": "Chek administratorga yuborildi. Tasdiqlangach tarifingiz faollashadi.",
-    "pay_receipt_pending_status": "Tekshirilmoqda"
+    "pay_receipt_pending_status": "Tekshirilmoqda",
+    "res_topic_title": "Mavzular bo'yicha tahlil",
+    "res_topic_hint_title": "Eslatma",
+    "res_topic_hint": "Eng past natija «{topic}» mavzusida ({pct}%). Shu mavzudagi savollarni qayta ko'rib chiqing."
   },
   "ru": {
     "main": "Главное",
@@ -4131,7 +4134,10 @@
     "sub_pm_teacher_quota": "Квота учителя",
     "sub_pm_free": "Без оплаты",
     "pay_receipt_pending_note": "Чек отправлен администратору. Тариф включится после подтверждения.",
-    "pay_receipt_pending_status": "На проверке"
+    "pay_receipt_pending_status": "На проверке",
+    "res_topic_title": "Анализ по темам",
+    "res_topic_hint_title": "Подсказка",
+    "res_topic_hint": "Самый низкий результат по теме «{topic}» ({pct}%). Повторите вопросы по этой теме."
   },
   "en": {
     "main": "Main",
@@ -6198,6 +6204,9 @@
     "sub_pm_teacher_quota": "Teacher quota",
     "sub_pm_free": "No payment",
     "pay_receipt_pending_note": "Your receipt was sent to the admin. Your plan starts once it is approved.",
-    "pay_receipt_pending_status": "Under review"
+    "pay_receipt_pending_status": "Under review",
+    "res_topic_title": "Topic breakdown",
+    "res_topic_hint_title": "Tip",
+    "res_topic_hint": "Your lowest result is on “{topic}” ({pct}%). Review the questions on that topic."
   }
 }

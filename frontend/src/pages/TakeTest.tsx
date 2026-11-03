@@ -1173,6 +1173,9 @@ export default function TakeTest() {
         </div>
       )}
 
+      {/* The exam itself disappears once the result is in: no questions under the score. */}
+      {!result && (
+      <>
       {failedCount > 0 && (
         <p className="error">
           {t('take_save_failed')} ({failedCount}){' '}
@@ -1606,6 +1609,9 @@ export default function TakeTest() {
             </button>
           </div>
         </div>
+      )}
+
+      </>
       )}
 
       {result && (

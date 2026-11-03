@@ -4,6 +4,7 @@ import { RefreshIcon, ZapIcon } from './icons';
 import { TestsApi } from '../lib/testing';
 import ScoreCardModal from './ScoreCardModal';
 import { useAuth } from '../auth/AuthContext';
+import { useLang } from '../i18n/LangContext';
 
 export interface QuestionReviewItem {
   id: number;
@@ -55,6 +56,7 @@ export default function TestAddictiveResults({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [retesting, setRetesting] = useState(false);
+  const { t } = useLang();
   const [retestMsg, setRetestMsg] = useState<string | null>(null);
   const [showScoreCard, setShowScoreCard] = useState(false);
 
@@ -87,66 +89,19 @@ export default function TestAddictiveResults({
     return `${m} daq ${s}s`;
   };
 
-  // Group Questions by Topic / Subject for Topic Breakdown
+  // Topic breakdown: only topics the server attached to the questions. Nothing is
+  // invented from question order or from the totals; no topics → no block.
   const topicStats: Record<string, { correct: number; total: number }> = {};
-  if (questions.length > 0) {
-    questions.forEach((q, idx) => {
-      let topicName = q.topic;
-      const isUzbekTopicInEnglish = isEnglish && topicName && (
-        topicName.includes('Adabiyot') ||
-        topicName.includes('Mumtoz') ||
-        topicName.includes('Ona tili') ||
-        topicName.includes('Morfologiya') ||
-        topicName.includes('Fonetika') ||
-        topicName.includes('Sintaksis') ||
-        topicName.includes('Leksika') ||
-        topicName.includes('Qoidalar')
-      );
-      if (!topicName || isUzbekTopicInEnglish) {
-        if (isEnglish) {
-          topicName = idx < 10 ? 'Listening' : idx < 25 ? 'Reading Comprehension' : idx < 35 ? 'Grammar' : 'Vocabulary';
-        } else {
-          topicName = idx < 15 ? 'Grammatika va Morfologiya' : idx < 30 ? 'Matn tushunish va Leksika' : 'Mumtoz va Zamonaviy Adabiyot';
-        }
-      }
-      if (!topicStats[topicName]) {
-        topicStats[topicName] = { correct: 0, total: 0 };
-      }
-      topicStats[topicName].total += 1;
-      if (q.is_correct) {
-        topicStats[topicName].correct += 1;
-      }
-    });
-  } else {
-    // Fallback topic distribution if question details not passed
-    if (isEnglish) {
-      topicStats['Listening'] = {
-        correct: Math.round(correctCount * 0.35),
-        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.35)),
-      };
-      topicStats['Reading Comprehension'] = {
-        correct: Math.round(correctCount * 0.35),
-        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.35)),
-      };
-      topicStats['Grammar'] = {
-        correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
-        total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
-      };
-    } else {
-      topicStats['Grammatika va Morfologiya'] = {
-        correct: Math.round(correctCount * 0.4),
-        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.4)),
-      };
-      topicStats['Leksika va Ma\'nodosh so\'zlar'] = {
-        correct: Math.round(correctCount * 0.3),
-        total: Math.max(1, Math.round((correctCount + wrongCount) * 0.3)),
-      };
-      topicStats['Adabiyot va Badiiy tahlil'] = {
-        correct: Math.max(0, correctCount - Math.round(correctCount * 0.7)),
-        total: Math.max(1, (correctCount + wrongCount) - Math.round((correctCount + wrongCount) * 0.7)),
-      };
-    }
-  }
+  questions.forEach((q) => {
+    const topicName = q.topic;
+    if (!topicName) return;
+    // A Uzbek-language topic on an English test is a labelling error, not data.
+    if (isEnglish && /Adabiyot|Mumtoz|Ona tili|Morfologiya|Fonetika|Sintaksis|Leksika|Qoidalar/.test(topicName)) return;
+    if (!topicStats[topicName]) topicStats[topicName] = { correct: 0, total: 0 };
+    topicStats[topicName].total += 1;
+    if (q.is_correct) topicStats[topicName].correct += 1;
+  });
+  const hasTopics = Object.keys(topicStats).length > 0;
 
   // Find lowest performing topic for AI recommendation
   let lowestTopic = '';
@@ -478,7 +433,8 @@ export default function TestAddictiveResults({
         </div>
       </div>
 
-      {/* 3. MAVZULAR BO'YICHA CHUQUR TAHLIL (TOPIC BREAKDOWN + AI TAVSIYA) */}
+      {/* 3. MAVZULAR BO'YICHA TAHLIL — only with real, server-provided topics */}
+      {hasTopics && (
       <div
         style={{
           background: 'var(--card)',
@@ -500,7 +456,7 @@ export default function TestAddictiveResults({
             color: 'var(--ink)',
           }}
         >
-          <span>📊</span> Mavzular Bo&apos;yicha Chuqur Tahlil
+          <span>📊</span> {t('res_topic_title')}
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -578,16 +534,16 @@ export default function TestAddictiveResults({
             <span style={{ fontSize: 24, lineHeight: 1 }}>🤖</span>
             <div>
               <strong style={{ fontSize: 13.5, color: '#D97706', display: 'block', marginBottom: 3 }}>
-                Sun&apos;iy Intellekt Shaxsiy Tavsiyasi:
+                {t('res_topic_hint_title')}
               </strong>
               <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.5 }}>
-                Siz <strong>&ldquo;{lowestTopic}&rdquo;</strong> mavzusida eng ko&apos;p xatolikka yo&apos;l qo&apos;ydingiz ({lowestPct}%).
-                AI mentor siz uchun aynan shu mavzudan 3 kunlik maqsadli mashq rejasini shakllantirdi.
+                {t('res_topic_hint').replace('{topic}', lowestTopic).replace('{pct}', String(lowestPct))}
               </p>
             </div>
           </div>
         )}
       </div>
+      )}
 
       {children && <div style={{ marginBottom: 24 }}>{children}</div>}
 
