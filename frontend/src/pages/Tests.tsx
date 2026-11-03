@@ -1,3 +1,4 @@
+import MockCodeCard from '../components/MockCodeCard';
 import { useEffect, useMemo, useState } from 'react';
 import LimitExceededModal from '../components/LimitExceededModal';
 import { useAuth } from '../auth/AuthContext';
@@ -50,7 +51,6 @@ export default function Tests() {
   const [loading, setLoading] = useState(true);
 
   // Quick Mock Join
-  const [mockCode, setMockCode] = useState('');
   const [mockBusy, setMockBusy] = useState(false);
   const [mockErr, setMockErr] = useState<string | null>(null);
 
@@ -65,13 +65,13 @@ export default function Tests() {
       }
       return e2.message;
     }
-    return 'Mock test topilmadi yoki kod noto‘g‘ri.';
+    return t('mockcode_not_found');
   };
 
-  const executeJoin = async (overrideCode?: string) => {
-    const raw = (overrideCode ?? mockCode).trim();
+  const executeJoin = async (code: string) => {
+    const raw = code.trim();
     if (!raw) {
-      setMockErr("Iltimos, Mock test kodini kiriting (masalan: #MOCK-ATTEST2026)");
+      setMockErr(t('mockcode_empty'));
       return;
     }
     setMockBusy(true);
@@ -88,11 +88,6 @@ export default function Tests() {
     } finally {
       setMockBusy(false);
     }
-  };
-
-  const joinMock = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeJoin();
   };
 
   const [subjectTick, setSubjectTick] = useState(0);
@@ -555,213 +550,13 @@ export default function Tests() {
         </div>
       </div>
 
-      {/* 🎯 Mock Testga Kod Bilan Qo'shilish */}
-      {activeSub === 'english' ? (
-        <div
-          className="card"
-          style={{
-            margin: '16px 0 20px',
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--card-shadow)',
-            borderRadius: '16px',
-            padding: '18px 22px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#38bdf8' }}>
-                <span>🎯</span> English CBT Mock & Exam Access
-              </strong>
-              <p className="muted small" style={{ margin: '4px 0 0' }}>
-                Enter your instructor's test code or practice code to begin:
-              </p>
-            </div>
-            <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                value={mockCode}
-                onChange={(e) => {
-                  setMockCode(e.target.value);
-                  if (mockErr) setMockErr(null);
-                }}
-                placeholder="#IELTS-CBT-01"
-                required
-                style={{
-                  width: '180px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              />
-              <button className="btn primary sm" disabled={mockBusy}>
-                {mockBusy ? 'Connecting…' : '🚀 Start Exam'}
-              </button>
-            </form>
-          </div>
-          {mockErr && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: '10px 14px',
-                borderRadius: 8,
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: 13,
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>⚠️</span>
-              <span>{mockErr}</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div
-          className="card"
-          style={{
-            margin: '16px 0 20px',
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--card-shadow)',
-            borderRadius: '16px',
-            padding: '18px 22px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <strong style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1rem', color: '#059669' }}>
-                <span>🎯</span> Rasmiy Mock Testga Qo‘shilish
-              </strong>
-              <p className="muted small" style={{ margin: '4px 0 0' }}>
-                Ustozingiz bergan maxsus test kodini kiriting yoki rasmiy imtihonga 1-klikda kiring:
-              </p>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn sm"
-                  style={{
-                    background: 'rgba(139, 92, 246, 0.08)',
-                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                    color: '#6D28D9',
-                    fontWeight: 800,
-                    fontSize: '0.82rem',
-                    padding: '6px 14px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.2s ease',
-                  }}
-                  disabled={mockBusy}
-                  onClick={() => {
-                    setMockCode('#MOCK-ATTEST2026');
-                    executeJoin('#MOCK-ATTEST2026');
-                  }}
-                >
-                  🎓 Attestatsiya Diagnostika 2026 →
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  style={{
-                    background: 'rgba(217, 119, 6, 0.08)',
-                    border: '1px solid rgba(217, 119, 6, 0.3)',
-                    color: '#B45309',
-                    fontWeight: 800,
-                    fontSize: '0.82rem',
-                    padding: '6px 14px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.2s ease',
-                  }}
-                  disabled={mockBusy}
-                  onClick={() => {
-                    setMockCode('#MOCK-BMB-DIAGNOSTIC');
-                    executeJoin('#MOCK-BMB-DIAGNOSTIC');
-                  }}
-                >
-                  🔥 Ona tili va Adabiyot — Rasmiy BMB Diagnostika →
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  style={{
-                    background: 'rgba(5, 150, 105, 0.08)',
-                    border: '1px solid rgba(5, 150, 105, 0.3)',
-                    color: '#059669',
-                    fontWeight: 800,
-                    fontSize: '0.82rem',
-                    padding: '6px 14px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.2s ease',
-                  }}
-                  disabled={mockBusy}
-                  onClick={() => {
-                    setMockCode('#MOCK-BMB04');
-                    executeJoin('#MOCK-BMB04');
-                  }}
-                >
-                  ⭐️ BMB Rasmiy 3 soatlik Mock Test →
-                </button>
-              </div>
-            </div>
-            <form onSubmit={joinMock} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                value={mockCode}
-                onChange={(e) => {
-                  setMockCode(e.target.value);
-                  if (mockErr) setMockErr(null);
-                }}
-                placeholder="#MOCK-BMB-DIAGNOSTIC"
-                required
-                style={{
-                  width: '180px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                }}
-              />
-              <button className="btn primary sm" disabled={mockBusy}>
-                {mockBusy ? 'Ulanmoqda…' : '🚀 Testni boshlash'}
-              </button>
-            </form>
-          </div>
-          {mockErr && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: '10px 14px',
-                borderRadius: 8,
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: 13,
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>⚠️</span>
-              <span>{mockErr}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <MockCodeCard
+        subject={activeSub}
+        busy={mockBusy}
+        error={mockErr}
+        onJoin={(code) => void executeJoin(code)}
+        onEdit={() => mockErr && setMockErr(null)}
+      />
 
       {/* 🏷 Toifalar Bo'limi (Category Filter) */}
       <div

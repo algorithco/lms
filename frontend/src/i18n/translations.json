@@ -2160,7 +2160,16 @@
     "feedback_empty_desc": "Platforma haqida fikr yoki taklifingiz bormi? Har bir fikr ko'rib chiqiladi; tasdiqlangan va rozilik berilganlari shu yerda e'lon qilinadi.",
     "feedback_role_default": "Foydalanuvchi",
     "exam_loading": "Imtihon yuklanmoqda…",
-    "exam_no_questions": "Bu urinishda savollar topilmadi."
+    "exam_no_questions": "Bu urinishda savollar topilmadi.",
+    "mockcode_title": "Test kodi bilan qo'shilish",
+    "mockcode_title_english": "Ingliz tili mock imtihoniga kod bilan kirish",
+    "mockcode_desc": "Ustozingiz bergan test kodini kiriting.",
+    "mockcode_placeholder": "Test kodi",
+    "mockcode_label": "Test kodi",
+    "mockcode_start": "Boshlash",
+    "mockcode_connecting": "Ulanmoqda…",
+    "mockcode_empty": "Iltimos, test kodini kiriting.",
+    "mockcode_not_found": "Test topilmadi yoki kod noto'g'ri."
   },
   "ru": {
     "main": "Главное",
@@ -4323,7 +4332,16 @@
     "feedback_empty_desc": "Есть мнение или предложение о платформе? Каждый отзыв рассматривается; одобренные и разрешённые к публикации появляются здесь.",
     "feedback_role_default": "Пользователь",
     "exam_loading": "Загрузка экзамена…",
-    "exam_no_questions": "В этой попытке нет вопросов."
+    "exam_no_questions": "В этой попытке нет вопросов.",
+    "mockcode_title": "Войти по коду теста",
+    "mockcode_title_english": "Вход на пробный экзамен по коду",
+    "mockcode_desc": "Введите код теста, который дал преподаватель.",
+    "mockcode_placeholder": "Код теста",
+    "mockcode_label": "Код теста",
+    "mockcode_start": "Начать",
+    "mockcode_connecting": "Подключение…",
+    "mockcode_empty": "Пожалуйста, введите код теста.",
+    "mockcode_not_found": "Тест не найден или код неверный."
   },
   "en": {
     "main": "Main",
@@ -6486,6 +6504,15 @@
     "feedback_empty_desc": "Have a thought or suggestion about the platform? Every message is read; approved ones with consent are shown here.",
     "feedback_role_default": "User",
     "exam_loading": "Loading the exam…",
-    "exam_no_questions": "This attempt has no questions."
+    "exam_no_questions": "This attempt has no questions.",
+    "mockcode_title": "Join with a test code",
+    "mockcode_title_english": "Enter an English mock exam with a code",
+    "mockcode_desc": "Enter the test code your teacher gave you.",
+    "mockcode_placeholder": "Test code",
+    "mockcode_label": "Test code",
+    "mockcode_start": "Start",
+    "mockcode_connecting": "Connecting…",
+    "mockcode_empty": "Please enter a test code.",
+    "mockcode_not_found": "Test not found or the code is wrong."
   }
 }
