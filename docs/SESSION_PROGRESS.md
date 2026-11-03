@@ -1,24 +1,25 @@
-# Session progress — feat/ui-qa-real-exams
+# Session progress — feat/results-dashboard-mobile
 
-Branch: `feat/ui-qa-real-exams` (from `main` @ `ec34526`). **Never merge it to `main` directly: a merge auto-deploys to production** (CI → Build → Deploy, no database backup in the pipeline). Finish with a PR and stop.
+Branch: `feat/results-dashboard-mobile` (from `origin/main` @ `9f11a10`, v1.78.0). **Never merge it to `main` directly: a merge auto-deploys to production** (CI → Build → Deploy, no database backup in the pipeline). Finish with a PR and stop. The server is not touched in this session.
 
-## Stage 0 — start: done
-- #116 is in `main` and deployed (see `docs/DEPLOY_LOG.md`). Still open from #116: a real FREE-account check on production (receipt stays pending, group join grants nothing, `/my-subscription` = `/profile` limits) — needs a test account from the owner.
-- Decisions: (a) exam priority CEFR → IELTS → BMB → Attestatsiya; (b) no official IELTS table → public table labelled "taxminiy" in a JSON scale; (c) listening audio comes later (upload + player + "audio not uploaded" state); (d) QA accounts only in the LOCAL DB via `seed_qa_accounts`.
-- Server access needs the owner's permission each time; `bestway-vps` may be used read-only inside `/opt/lms`.
+Previous branch (`feat/ui-qa-real-exams`, merged as #117) is described in the git history; its open items are carried in `docs/QA_REPORT.md`.
 
-## Stage 1 — real QA: done for what could be run
-`docs/QA_REPORT.md` has the table. 8 bugs fixed with commits (IELTS unusable, invented topic analysis, result under exam, false pricing promise, teacher endpoints, flags/subject switcher, landing claims, audit command). Not tested: Telegram, AI (essay/speaking/vision), audio, arena, external payment.
+## Decision taken with the owner
+- Section 1 inventory found 21 files on dead Tailwind classes (> 15). Owner chose: migrate what users see; delete the unreachable legacy English exam screen; leave teacher pages (`TeacherFinanceDashboard`, `TeacherVocabGenerator`, `JoinGroup`, `ReferralRedirect`) listed as open in `DESIGN_AUDIT.md`.
 
-## Stage 2 — real exams: partly done
-- Done: answer keys never leave the server (test); autosave + server timer + reload survive (BMB checked in the browser); confirm dialog with unanswered count; IELTS and plain CEFR run on the CD screen via `cdAdapter`; IELTS result = raw score + **estimated** band (no certificate wording).
-- Not done: IELTS band table → JSON scale per section (existing tests pin the old values; needs its own change); audio upload + once-only player; JSON/Excel bulk import with preview; `Attestatsiya` walkthrough (no local content); tab-switch warning and offline retry were not exercised; CEFR-301 L/R split needs sections in the content; removing the dead legacy English screen.
+## Section 1 — unstyled components: done (user-facing part)
+`styles/ui.css` (tokens only) now styles: toasts (were rendered inline at the page bottom), referral card (full + compact), score-card modal, public feedback list/empty state, "join with code" card, bottom sheet, buttons/inputs. Onboarding modal had a hard-coded dark background with `var(--ink)` text (dark on dark in light mode) → tokens. `EnglishExamInterface.tsx` (1 800 lines, unreachable, with placeholder questions) → 80-line loader; `CefrExamComponents.tsx` deleted.
 
-## Stage 3 — design: partly done
-`docs/DESIGN_AUDIT.md` (15 items). Fixed: flags, subject vs language switchers, header tag by subject, landing claims/buttons, pricing copy, typo. Open: Tailwind remnants, 44 px targets on legacy pages, referral card, onboarding contrast, header overlap, hard-coded strings.
+## Section 2 — result page: backend + UI done, browser check pending
+- `Question.evidence`, `Question.explanation_status` (AddField, migration `tests.0019`); `question_review.py` (hints, source text, AI explain), `explanation_drafts.py` + `manage.py draft_explanations`.
+- Result detail now returns per question: `status`, option letters, `hint`, `explanation`/`evidence`/`explanation_status`, part/group info, `can_ai_explain`; CD gap-fill keys come from `GapBlank`.
+- `POST /api/tests/results/<id>/questions/<qid>/explain/` — paid tiers only, `ai_quota` + daily cap `AI_EXPLAIN_DAILY_LIMIT`, cached per question and answer.
+- Legacy `explain-mistake` returned the key to any signed-in user → now needs a finished attempt of the caller.
+- `SHOW_ESTIMATE_NOTICE` (default off) controls the old banner; the word "taxminiy" is gone from UI strings.
+- `TestAddictiveResults` rewritten (i18n, no invented XP/topic analysis); BMB submit redirects to `/results/<id>`.
 
-## Stage 4 — feedback: done (except screenshot)
-Extended `UserFeedback` (migration `notifications.0013`, columns only). Modal, admin inbox, my feedback, landing block (consent + approval only), one-tap result prompt, Celery alerts/replies, 14 backend tests. Not built: optional screenshot attachment (needs file storage and a privacy decision).
+## Section 6 — feedback `question_issue`: backend + UI done
+`UserFeedback.question/reason`, `Question.needs_review` (AddField, `notifications.0014`, `tests.0020`; the `category` choices change is a no-op in SQL). Endpoint `POST /api/v1/feedback/question-issue/`, grouping `GET /api/v1/panel/feedback/questions/`, Celery `notify_admin_question_needs_review` (one message at 3 active reports).
 
-## Stage 5 — final
-See the PR description for checks, migrations and open questions.
+## Next
+Section 3 (dashboard), Section 4 (mobile exam), admin inbox UI for grouped question issues, final checks, docs, PR.
