@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { installErrorCapture } from './lib/feedbackContext'
 import './index.css'
 import './theme.css'
 import App from './App.tsx'
@@ -25,6 +26,8 @@ function initPushNotifications(): void {
 initPushNotifications()
 
 import { ThemeProvider } from './theme/ThemeContext.tsx'
+
+installErrorCapture()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
