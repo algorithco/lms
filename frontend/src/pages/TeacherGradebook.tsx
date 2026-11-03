@@ -297,7 +297,7 @@ export default function TeacherGradebook() {
 
       {/* 4 SUMMARY STATS CARDS */}
       <div
-        className="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="no-print grid grid-cols-1 lg:grid-cols-4"
         style={{ marginBottom: 24 }}
       >
         {/* Card 1: Jami topshirganlar */}

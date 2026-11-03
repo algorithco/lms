@@ -22,7 +22,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how"
-      className="bg-slate-50 dark:bg-slate-900/60 border-t border-b border-slate-200 dark:border-slate-800 transition-colors duration-200"
+     
       style={{
         padding: '70px 20px',
         background: isDark ? 'rgba(15, 23, 42, 0.7)' : '#f8fafc',
@@ -35,7 +35,7 @@ export default function HowItWorks() {
       <div style={{ margin: '0 auto', maxWidth: 1000, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto 48px' }}>
           <span
-            className="text-amber-500 font-extrabold uppercase tracking-widest text-xs inline-block mb-2"
+            className="inline-block"
             style={{
               fontSize: 11,
               fontWeight: 900,
@@ -49,7 +49,7 @@ export default function HowItWorks() {
             {t('how_eyebrow')}
           </span>
           <h2
-            className="text-slate-900 dark:text-white font-black"
+           
             style={{
               fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
               fontWeight: 900,
@@ -72,7 +72,7 @@ export default function HowItWorks() {
           {steps.map((st, i) => (
             <div
               key={i}
-              className="step-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-9 text-center transition-all duration-300 flex flex-col items-center"
+              className="step-card flex"
               style={{
                 background: isDark ? '#0F172A' : '#FFFFFF',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
@@ -126,7 +126,7 @@ export default function HowItWorks() {
                 {st.num}
               </div>
               <h3
-                className="text-slate-900 dark:text-white font-extrabold tracking-tight"
+               
                 style={{
                   fontSize: 19,
                   fontWeight: 800,
@@ -138,7 +138,7 @@ export default function HowItWorks() {
                 {st.title}
               </h3>
               <p
-                className="text-slate-600 dark:text-slate-300 leading-relaxed"
+               
                 style={{
                   fontSize: 14,
                   color: isDark ? '#CBD5E1' : '#475569',

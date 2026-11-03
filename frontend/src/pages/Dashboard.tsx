@@ -955,7 +955,7 @@ export default function Dashboard() {
       </section>
 
       {/* 3.1 REFERAL VA MUKOFOT BLOKI (IXCHAM KARTA) */}
-      <ReferralCard />
+      <ReferralCard variant="compact" />
 
       {/* 4. ASOSIY ISHCHI OYNA (1-col on Mobile, 2-col on Desktop) */}
       <div className="dash-main-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>

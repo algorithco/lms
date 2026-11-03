@@ -205,7 +205,7 @@ export default function TestAddictiveResults({
             maxWidth: 520,
             margin: '0 auto 16px',
           }}
-          className="grid grid-cols-2 sm:grid-cols-4"
+          className="grid"
         >
           <div style={{ background: 'rgba(255, 255, 255, 0.18)', backdropFilter: 'blur(8px)', padding: '10px 8px', borderRadius: 16 }}>
             <span style={{ fontSize: 18, display: 'block' }}>✅</span>

@@ -355,7 +355,7 @@ export default function Tests() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: 12,
           }}
-          className="grid grid-cols-2 md:grid-cols-4"
+          className="grid"
         >
           {/* Card 1: Ona tili */}
           <div

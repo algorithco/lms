@@ -32,7 +32,7 @@ export default function MobileBottomBar({ onOpenProfile }: MobileBottomBarProps)
 
   return (
     <nav
-      className="testmakon-bottom-bar md:hidden fixed bottom-0 left-0 right-0 z-50"
+      className="testmakon-bottom-bar md:hidden"
       aria-label="Mobil pastki navigatsiya"
       style={{
         position: 'fixed',

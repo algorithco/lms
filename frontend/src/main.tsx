@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { installErrorCapture } from './lib/feedbackContext'
 import './index.css'
 import './theme.css'
+import './styles/ui.css'
 import App from './App.tsx'
 import { LangProvider } from './i18n/LangContext.tsx'
 

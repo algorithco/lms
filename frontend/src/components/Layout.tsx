@@ -243,10 +243,10 @@ export default function Layout() {
       {open && <div className="overlay" onClick={close} aria-hidden="true" />}
 
       <div className="main">
-        <header className="topbar app-topbar backdrop-blur-md" aria-label="Yuqori panel">
+        <header className="topbar app-topbar" aria-label="Yuqori panel">
           <div className="topbar-inner">
             {/* Mobile-only brand logo (Desktop uses left sidebar brand exclusively) */}
-            <div className="topbar-mobile-brand flex md:hidden items-center gap-2">
+            <div className="topbar-mobile-brand flex md:hidden">
               <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
                 <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
@@ -257,7 +257,7 @@ export default function Layout() {
             </div>
 
             {/* Desktop Context Badge */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex">
               <span
                 style={{
                   display: 'inline-flex',
@@ -303,7 +303,7 @@ export default function Layout() {
               )}
               <SubjectSwitcher size="sm" />
               <LanguageSwitcher />
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden md:flex">
                 {isAdmin && (
                   <Link
                     to="/panel"
@@ -332,7 +332,7 @@ export default function Layout() {
               </div>
 
               {/* Mobile Right Controls: Compact Avatar Icon + Hamburger Menu (☰) */}
-              <div className="flex md:hidden items-center gap-2">
+              <div className="flex md:hidden">
                 <button
                   type="button"
                   onClick={() => setProfileDrawerOpen(true)}
@@ -385,7 +385,7 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content pt-20 sm:pt-24 pb-28 md:pb-8">
+        <main className="content">
           <Outlet />
         </main>
       </div>

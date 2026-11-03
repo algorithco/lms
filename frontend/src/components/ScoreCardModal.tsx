@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Download, Share2, Award } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface ScoreCardModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export default function ScoreCardModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -330,45 +332,29 @@ export default function ScoreCardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-5 flex flex-col items-center">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-        >
-          <X className="w-5 h-5" />
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t('scorecard_title')}>
+      <div className="modal-card scorecard">
+        <button type="button" onClick={onClose} className="modal-close" aria-label={t('common_close')}>
+          <X size={20} />
         </button>
 
-        <div className="flex items-center gap-2 mb-3 text-amber-400 font-bold text-sm">
-          <Award className="w-4 h-4" />
-          <span>Instagram & Telegram Stories (9:16)</span>
+        <div className="scorecard__title">
+          <Award size={16} />
+          <span>{t('scorecard_title')}</span>
         </div>
 
-        {/* 9:16 Canvas / Image Preview */}
-        <div className="w-[270px] h-[480px] rounded-2xl overflow-hidden border-2 border-amber-500/30 shadow-2xl relative bg-slate-950">
-          <canvas ref={canvasRef} className="w-full h-full object-contain" />
+        <div className="scorecard__preview">
+          <canvas ref={canvasRef} />
         </div>
 
-        {/* Actions */}
-        <div className="w-full mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all"
-          >
-            <Download className="w-4 h-4" />
-            <span>📥 Rasmni saqlash (.png)</span>
+        <div className="scorecard__actions">
+          <button type="button" onClick={handleDownload} className="ui-btn ui-btn--primary">
+            <Download size={16} />
+            <span>{t('scorecard_save')}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={handleShare}
-            className="flex-1 py-3 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1E8CC2] text-white font-bold text-xs shadow-lg shadow-[#229ED9]/20 flex items-center justify-center gap-2 transition-all"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>✈️ Stories'ga ulashish</span>
+          <button type="button" onClick={handleShare} className="ui-btn">
+            <Share2 size={16} />
+            <span>{t('scorecard_share')}</span>
           </button>
         </div>
       </div>
