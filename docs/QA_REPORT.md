@@ -52,7 +52,7 @@ Method: local database, 5 roles (guest, FREE student, paid student, teacher, adm
 
 ## Open items (not fixed here)
 - Card details: now signed-in only (guests get 401; fixed). The server still has a hard-coded **default** card number/holder in `views_billing.card_info_view` (used when `PAYMENT_CARD_NUMBER` / `PAYMENT_CARD_HOLDER` are unset). Check those variables on the server, then remove the default.
-- `seed_accounts.py` no longer contains passwords and refuses non-local databases (fixed). Whether it was ever run on production is **unknown**; if it was, the accounts `admin.grandec@gmail.com` and `ustoz.grandec@gmail.com` may carry the old fixed passwords and should be checked and rotated. `seed_official_omr_tests` names local tests "Cambridge Official …".
+- `seed_accounts.py` no longer contains passwords and refuses non-local databases (fixed). Whether it was ever run on production is **unknown**; if it was, the admin and teacher accounts it creates may carry the old fixed passwords (see the git history of that file) and should be checked and rotated. `seed_official_omr_tests` names local tests "Cambridge Official …".
 - IELTS band table is one function for Listening and Reading and is labelled "Official IELTS scale" in code; per decision (b) it should move to a JSON scale labelled "taxminiy" and be split per section. Existing tests pin the current values, so it needs its own change.
 - Legacy `EnglishExamInterface` (≈1 800 lines of Tailwind markup) is now unreachable for real attempts and should be removed.
 - Every page still has controls smaller than 44 px on desktop; mobile spot checks only.

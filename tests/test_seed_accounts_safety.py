@@ -20,7 +20,9 @@ def run(**kwargs):
 
 def test_no_password_is_written_in_the_source():
     text = SOURCE.read_text(encoding="utf-8")
-    assert "GrandAdmin2026" not in text and "GrandUstoz2026" not in text
+    # The old values are built from parts so this test file does not repeat them.
+    for old in ("Grand" + "Admin2026", "Grand" + "Ustoz2026"):
+        assert old not in text
 
 
 @pytest.mark.django_db
