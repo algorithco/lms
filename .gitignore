@@ -88,3 +88,4 @@ thumbanial/
 
 # Local QA credentials (written by seed_qa_accounts)
 .qa_accounts.local.json
+frontend/public/__qa/
