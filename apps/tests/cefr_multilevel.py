@@ -80,6 +80,16 @@ def level_for(score: Decimal | float) -> str:
     return scale["below_level"]
 
 
+def pass_rule() -> dict[str, Any]:
+    """Lowest certificate level and its threshold, for "B1: ≥ 38/75" labels."""
+    scale = load_scale()
+    lowest = min(
+        (b for b in scale["levels"] if b["level"] in scale["certificate_levels"]),
+        key=lambda b: b["min"],
+    )
+    return {"scale_max": scale["scale_max"], "level": lowest["level"], "min": lowest["min"]}
+
+
 def score_sections(
     question_scores: Iterable[Any], section_names: dict[str, str] | None = None
 ) -> dict[str, dict[str, Any]]:

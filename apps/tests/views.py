@@ -93,7 +93,7 @@ class TestListView(generics.ListAPIView):
 
             user = getattr(self.request, "user", None)
             qs = Test.objects.select_related("course").annotate(
-                total_questions=Count("questions"),
+                total_questions=Count("questions", filter=Test.counted_questions_q()),
             )
             subject = (self.request.query_params.get("subject") or "").strip().lower()
             if subject == "uzbek":
@@ -227,7 +227,11 @@ class StartAttemptView(APIView):
             or getattr(request.user, "role", "") in ["admin", "teacher"]
         )
 
-        if not is_admin_or_teacher:
+        # A free trial of one part is the answer to a used-up quota, so it
+        # skips the quota check; StartAttemptService allows it once per test.
+        trial = str(request.data.get("trial", "")).lower() in ("1", "true")
+
+        if not is_admin_or_teacher and not trial:
             allowed, quota_msg, quota_details = QuotaService.check_test_quota(request.user, test_id=test_id)
             if not allowed:
                 return Response(
@@ -251,6 +255,7 @@ class StartAttemptView(APIView):
                     student=request.user,
                     mode=mode,
                     pin=pin,
+                    trial=trial and not is_admin_or_teacher,
                 )
         except TestPinRequiredError as e:
             return Response(
@@ -608,8 +613,10 @@ class SubmitAttemptView(APIView):
         try:
             from apps.accounts.gamification import record_user_activity
 
-            xp = 25 if getattr(result, "is_passed", False) else 15
-            record_user_activity(request.user, xp_amount=xp, activity_type="test")
+            # Staff previews and free trials are not real results: no XP.
+            if not TestAttempt.objects.filter(pk=attempt_id, is_preview=True).exists():
+                xp = 25 if getattr(result, "is_passed", False) else 15
+                record_user_activity(request.user, xp_amount=xp, activity_type="test")
         except Exception:
             pass
 

@@ -44,6 +44,7 @@ export interface CdAttempt {
   id: number;
   test_title: string;
   is_preview?: boolean;
+  is_trial?: boolean;
   remaining_seconds: number | null;
   structure: CdSection[];
   questions: CdQuestion[];
@@ -151,6 +152,11 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
     setSubmitError(null);
     try {
       await TestsApi.submit(attemptId);
+      if (attempt.is_trial) {
+        // One free part has no 0–75 estimate; its review is on /results.
+        setResult('done');
+        return;
+      }
       try {
         const card = (await TestsApi.certificateCard(attemptId)) as unknown as CefrSummary;
         setResult(card.scale === 'cefr_multilevel' ? card : 'done');
@@ -164,7 +170,7 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
       setSubmitting(false);
       setConfirming(false);
     }
-  }, [attemptId]);
+  }, [attemptId, attempt.is_trial]);
 
   // Whole-exam time limit (enforced by the backend too).
   useEffect(() => {
@@ -204,8 +210,16 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
     return (
       <div className="cefr-result-page">
         <h1>{attempt.test_title}</h1>
-        {attempt.is_preview && <p className="cd-preview-badge">{t('cd_preview_badge')}</p>}
-        {result !== 'done' ? <CefrResultSummary data={result} /> : <div className="card">{t('cd_submitted')}</div>}
+        {attempt.is_trial ? (
+          <p className="cd-preview-badge">{t('cd_trial_badge')}</p>
+        ) : (
+          attempt.is_preview && <p className="cd-preview-badge">{t('cd_preview_badge')}</p>
+        )}
+        {result !== 'done' ? (
+          <CefrResultSummary data={result} />
+        ) : (
+          <div className="card">{t(attempt.is_trial ? 'cd_trial_done' : 'cd_submitted')}</div>
+        )}
         <div className="error-boundary-actions">
           <Link to="/results" className="btn">{t('my_results')}</Link>
           <Link to="/tests" className="btn primary">{t('error_boundary_back')}</Link>
@@ -358,7 +372,11 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
       <header className="cd-header">
         <div className="cd-title">
           <strong>{attempt.test_title}</strong>
-          {attempt.is_preview && <span className="cd-preview-badge">{t('cd_preview_badge')}</span>}
+          {attempt.is_trial ? (
+            <span className="cd-preview-badge">{t('cd_trial_badge')}</span>
+          ) : (
+            attempt.is_preview && <span className="cd-preview-badge">{t('cd_preview_badge')}</span>
+          )}
         </div>
         <div className="cd-timers">
           {sectionLeft != null && (

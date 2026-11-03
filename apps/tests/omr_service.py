@@ -393,6 +393,13 @@ def confirm_sheet(test_id: int, answers: dict[str, Any], user) -> dict[str, Any]
             http_status=409,
         )
 
+    # Same plan limits as starting the test online (admins/teachers exempt).
+    from apps.subscriptions.services.quota import QuotaService
+
+    allowed, quota_msg, _details = QuotaService.check_test_quota(user, test_id=test.id)
+    if not allowed:
+        raise OmrError("LIMIT_EXCEEDED", quota_msg, http_status=403)
+
     numbered = {nq.question.id: nq for nq in number_questions(test)}
     clean: dict[int, str] = {}
     for raw_id, raw_value in (answers or {}).items():

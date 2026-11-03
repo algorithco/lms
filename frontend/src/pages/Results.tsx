@@ -83,6 +83,7 @@ interface SectionScoreItem {
 interface ResultDetailData extends ResultListItem {
   exam_type?: string;
   cefr_summary?: CefrSummary | null;
+  trial_part?: { section_code: string; section_name: string; part: string } | null;
   bmb_grade?: string;
   rasch_score?: string | number;
   max_rasch_score?: string | number;
@@ -279,6 +280,8 @@ export default function Results() {
         {results.map((r) => {
           const pct = num(r.percentage, 0);
           const open = openId === r.id;
+          // BMB grade, Rasch and "Milliy Sertifikat" labels belong to Ona tili only.
+          const bmbScale = r.test_subject !== 'english' && r.exam_type !== 'cefr_multilevel';
           return (
             <div key={r.id} className="card">
               <div
@@ -293,7 +296,7 @@ export default function Results() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <strong>{String(r.test_title ?? `Test #${r.test ?? r.id}`)}</strong>
-                    {r.rasch_score !== undefined && r.rasch_score !== null && Number(r.rasch_score) > 0 && (
+                    {bmbScale && r.rasch_score !== undefined && r.rasch_score !== null && Number(r.rasch_score) > 0 && (
                       <span
                         style={{
                           padding: '2px 8px',
@@ -309,7 +312,7 @@ export default function Results() {
                         ⚡️ Rash: {Number(r.rasch_score).toFixed(1)}
                       </span>
                     )}
-                    {(() => {
+                    {bmbScale && (() => {
                       const bmb = getBmbBadge(r.bmb_grade as string | undefined, pct, t);
                       return (
                         <span
@@ -339,18 +342,18 @@ export default function Results() {
                 <div style={{ textAlign: 'right' }}>
                   <p
                     className="stat-value small"
-                    style={{ color: r.is_passed ? undefined : 'var(--danger)' }}
+                    style={{ color: r.is_passed || !bmbScale ? undefined : 'var(--danger)' }}
                   >
                     {pct}%
-                    {r.certificate_status === 'rules_unverified' && (
+                    {bmbScale && r.certificate_status === 'rules_unverified' && (
                       <span className="muted small"> {t('raw_score_not_official')}</span>
                     )}
                   </p>
                   {r.grading_status === 'pending_grading' ? (
                     <span className="badge blue">{t('take_pending_title')}</span>
-                  ) : r.certificate_status === 'rules_unverified' ? (
+                  ) : bmbScale && r.certificate_status === 'rules_unverified' ? (
                     <span className="badge blue">{t('raw_score_not_official')}</span>
-                  ) : (
+                  ) : r.exam_type === 'cefr_multilevel' ? null : (
                     <span className={`badge ${r.is_passed ? 'green' : 'rose'}`}>
                       {r.is_passed ? t('status_passed') : t('status_failed')}
                     </span>
@@ -498,6 +501,27 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       explanation: explanationClean,
     };
   });
+
+  // Free trial of one part: right answers of that part only, no estimate.
+  if (detail.trial_part) {
+    return (
+      <div className="cefr-result-detail">
+        <h2 className="cefr-result-title">{detail.test_title}</h2>
+        <div className="card cefr-result">
+          <p className="cefr-result-note">{t('trial_result_note')}</p>
+          <p className="cefr-result-overall">
+            <span className="muted">
+              {detail.trial_part.section_name} · {t('cd_part')} {detail.trial_part.part}
+            </span>
+            <strong>
+              {detail.correct_answers ?? 0} / {detail.total_questions ?? 0}
+            </strong>
+          </p>
+        </div>
+        <CefrQuestionReview questions={detail.question_details ?? []} />
+      </div>
+    );
+  }
 
   // CEFR Multi-level has its own 0–75 scale per section: no percentage hero,
   // BMB grade or IELTS band — the same summary the exam screen shows.

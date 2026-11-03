@@ -261,9 +261,7 @@ export default function EssayWrite() {
           errorText.includes('Bepul sinov') ||
           errorText.includes('Kvotangiz tugadi')
         ) {
-          setLimitModalMsg(
-            "Bepul sinov limiti tugadi. Davom ettirish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!"
-          );
+          setLimitModalMsg(t('paywall_reason_essay'));
           setLimitModalOpen(true);
         } else {
           setErr(errorText);
@@ -508,9 +506,9 @@ export default function EssayWrite() {
       <LimitExceededModal
         isOpen={limitModalOpen}
         onClose={() => setLimitModalOpen(false)}
-        title="⚠️ Bepul Sinov Limiti Tugadi"
         message={limitModalMsg}
         feature="essay"
+        subject={isEnglish ? 'english' : 'uzbek'}
       />
     </div>
   );

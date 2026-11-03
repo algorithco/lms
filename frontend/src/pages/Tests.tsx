@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { api, MockTests, Billing, type BillingEntitlement, type Paginated } from '../lib/api';
 import { listTestsPage, num, type TestListItem } from '../lib/testing';
+import { paywallSubject, type PaywallSubject } from '../lib/paywall';
 import { ClockIcon, HashIcon } from '../components/icons';
 
 const PAGE_SIZE = 20;
@@ -25,6 +26,7 @@ export default function Tests() {
   const [entitlement, setEntitlement] = useState<BillingEntitlement | null>(null);
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [limitModalMsg, setLimitModalMsg] = useState<string | undefined>();
+  const [limitSubject, setLimitSubject] = useState<PaywallSubject | undefined>();
 
   useEffect(() => {
     Billing.entitlement().then(setEntitlement).catch(() => setEntitlement(null));
@@ -1062,7 +1064,8 @@ export default function Tests() {
               onClick={(e) => {
                 if (isLocked) {
                   e.preventDefault();
-                  setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (7 000 so'm), PRO (15 000 so'm) yoki PREMIUM (27 000 so'm) tarifiga o'ting!");
+                  setLimitModalMsg(t('paywall_reason_mock_locked'));
+                  setLimitSubject(paywallSubject(item));
                   setLimitModalOpen(true);
                 }
               }}
@@ -1212,7 +1215,7 @@ export default function Tests() {
                     borderRadius: '8px',
                   }}
                 >
-                  <HashIcon size={12} /> {questionsCount} ta savol
+                  <HashIcon size={12} /> {t('omr_questions_count').replace('{n}', String(questionsCount))}
                 </span>
 
                 <span
@@ -1228,7 +1231,13 @@ export default function Tests() {
                     borderRadius: '8px',
                   }}
                 >
-                  🎯 O\'tish bali: {passPct}%
+                  🎯{' '}
+                  {item.cefr_scale
+                    ? t('cefr_pass_rule')
+                        .replace('{level}', item.cefr_scale.level)
+                        .replace('{min}', String(item.cefr_scale.min))
+                        .replace('{max}', String(item.cefr_scale.scale_max))
+                    : `${t('test_pass_mark')}: ${passPct}%`}
                 </span>
               </div>
 
@@ -1290,9 +1299,9 @@ export default function Tests() {
       <LimitExceededModal
         isOpen={limitModalOpen}
         onClose={() => setLimitModalOpen(false)}
-        title="🔒 To'liq Mock Test Qulflangan"
         message={limitModalMsg}
         feature="test"
+        subject={limitSubject}
       />
 
       {(hasNext || hasPrev) && (

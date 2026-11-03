@@ -15,6 +15,7 @@
     "SPEAKING": {"kind": "rated"}
   },
   "required_sections": ["LISTENING", "READING", "WRITING", "SPEAKING"],
+  "free_trial_part": {"section": "READING", "part": "1"},
   "raw_to_scaled": [
     [0, 0],
     [9, 37],

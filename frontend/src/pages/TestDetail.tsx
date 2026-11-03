@@ -3,7 +3,8 @@ import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
-import { Tests as TestsApi, canTeach } from '../lib/api';
+import { Tests as TestsApi, canTeach, type ApiError } from '../lib/api';
+import { paywallSubject, type CefrScaleRule } from '../lib/paywall';
 import { Results as ResultsApi } from '../lib/api';
 import { num } from '../lib/testing';
 import { CheckIcon, ClockIcon, HashIcon, StarIcon } from '../components/icons';
@@ -32,6 +33,8 @@ interface Detail {
   strict_anti_cheat?: boolean;
   is_strict_mode?: boolean;
   auto_archive_on_completion?: boolean;
+  cefr_scale?: CefrScaleRule | null;
+  free_trial?: { section_code: string; section_name: string; part: string; questions: number; used: boolean } | null;
   questions?: { id: number; text: string; points: number }[];
 }
 
@@ -78,7 +81,7 @@ export default function TestDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const startWithMode = async (mode: 'strict' | 'practice') => {
+  const startWithMode = async (mode: 'strict' | 'practice', trial = false) => {
     if ((detail?.has_pin || detail?.requires_pin) && !pin.trim()) {
       setPinError('Iltimos, testga kirish PIN kodini kiriting.');
       return;
@@ -87,7 +90,7 @@ export default function TestDetail() {
     setErr(null);
     setPinError(null);
     try {
-      const res = await TestsApi.start(id, mode, pin.trim());
+      const res = await TestsApi.start(id, mode, pin.trim(), trial);
       const attemptId =
         'id' in res && typeof res.id === 'number'
           ? res.id
@@ -97,6 +100,7 @@ export default function TestDetail() {
         throw new Error("Test attempt ID yaratilmadi yoki olinmadi. Qayta urinib ko'ring.");
       }
       setModeModalOpen(false);
+      setLimitModalOpen(false);
 
       const isEnglish = detail?.subject === 'english' ||
         detail?.exam_type?.includes('ielts') ||
@@ -109,9 +113,10 @@ export default function TestDetail() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('err_retry_js');
-      if (msg.includes('LIMIT_EXCEEDED') || msg.includes('limitingiz tugadi') || msg.includes('obunachilar') || msg.includes('Qulflangan')) {
+      const code = (e as ApiError)?.code;
+      if (code === 'LIMIT_EXCEEDED' || (code === 'ACCESS_DENIED' && msg.includes('PRO'))) {
         setModeModalOpen(false);
-        setLimitModalMsg("Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalMsg(t(code === 'LIMIT_EXCEEDED' ? 'paywall_reason_test_limit' : 'paywall_reason_pro_only'));
         setLimitModalOpen(true);
       } else if (msg.includes('PIN_REQUIRED') || msg.includes('PIN') || msg.includes('PIN kodni kiritishingiz shart')) {
         setModeModalOpen(true);
@@ -157,7 +162,10 @@ export default function TestDetail() {
               <HashIcon size={12} className="ico" /> {detail.total_questions} {t('questions_suffix')}
             </span>
             <span className="badge">
-              <StarIcon size={12} className="ico" /> {detail.total_points} {t('points')}
+              <StarIcon size={12} className="ico" />{' '}
+              {detail.cefr_scale
+                ? t('cefr_scale_badge').replace('{max}', String(detail.cefr_scale.scale_max))
+                : `${detail.total_points} ${t('points')}`}
             </span>
             {detail.has_time_limit && (
               <span className="badge amber">
@@ -165,7 +173,13 @@ export default function TestDetail() {
               </span>
             )}
             <span className="badge green">
-              <CheckIcon size={12} className="ico" /> {t('pass_suffix')}: {detail.pass_percentage}%
+              <CheckIcon size={12} className="ico" />{' '}
+              {detail.cefr_scale
+                ? t('cefr_pass_rule')
+                    .replace('{level}', detail.cefr_scale.level)
+                    .replace('{min}', String(detail.cefr_scale.min))
+                    .replace('{max}', String(detail.cefr_scale.scale_max))
+                : `${t('pass_suffix')}: ${detail.pass_percentage}%`}
             </span>
             {detail.access_type === 'PRO_ONLY' && (
               <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800 }}>
@@ -190,7 +204,7 @@ export default function TestDetail() {
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <p className="muted small">
-              {t('th_attempts')}: {maxAttempts === 0 || unlimitedForStaff ? '∞' : maxAttempts}
+              {t('test_attempts_label')}: {maxAttempts === 0 || unlimitedForStaff ? t('test_attempts_unlimited') : maxAttempts}
               {unlimitedForStaff && maxAttempts > 0 && ` (${t('test_attempts_unlimited_staff')})`}
               {attemptsLeft !== null && ` · ${t('test_attempts_left')}: ${attemptsLeft}`}
               {myAttempts !== null && myAttempts > 0 && ` · ${t('test_my_attempts')}: ${myAttempts}`}
@@ -236,9 +250,21 @@ export default function TestDetail() {
       <LimitExceededModal
         isOpen={limitModalOpen}
         onClose={() => setLimitModalOpen(false)}
-        title="🔒 To'liq Test Qulflangan"
         message={limitModalMsg}
         feature="test"
+        subject={detail ? paywallSubject(detail) : undefined}
+        trial={
+          detail?.free_trial
+            ? {
+                label: t('paywall_trial_part')
+                  .replace('{section}', detail.free_trial.section_name)
+                  .replace('{part}', detail.free_trial.part)
+                  .replace('{n}', String(detail.free_trial.questions)),
+                used: detail.free_trial.used,
+                onStart: () => void startWithMode('practice', true),
+              }
+            : null
+        }
       />
 
       {/* Mode Selection Modal */}

@@ -648,10 +648,10 @@ export const Tests = {
     return api<Paginated<TestSummary>>(`/api/tests/${query}`);
   },
   detail: (id: string) => api<Record<string, unknown>>(`/api/tests/${id}/`),
-  start: (id: string, mode: 'strict' | 'practice' = 'strict', pin?: string) =>
+  start: (id: string, mode: 'strict' | 'practice' = 'strict', pin?: string, trial = false) =>
     api<Attempt | { attempt_id: number }>(`/api/tests/${id}/start/`, {
       method: 'POST',
-      body: JSON.stringify({ mode, pin: pin || undefined }),
+      body: JSON.stringify({ mode, pin: pin || undefined, trial: trial || undefined }),
     }),
   attempt: (id: string) => api<Attempt>(`/api/tests/attempts/${id}/`),
   saveAnswer: (

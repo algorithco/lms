@@ -286,13 +286,24 @@ export default function ScanOMR() {
                           </button>
                         </div>
                       ) : (
-                        <input
-                          className="omr-input omr-text"
-                          value={value}
-                          placeholder={t('omr_text_placeholder')}
-                          aria-label={t('omr_question_n').replace('{n}', item.key)}
-                          onChange={(e) => setAnswer(item, e.target.value)}
-                        />
+                        <>
+                          <input
+                            className="omr-input omr-text"
+                            value={value}
+                            placeholder={t('omr_text_placeholder')}
+                            aria-label={t('omr_question_n').replace('{n}', item.key)}
+                            onChange={(e) => setAnswer(item, e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className={`omr-opt${value === '' && !flagged ? ' on' : ''}`}
+                            aria-pressed={value === '' && !flagged}
+                            title={t('omr_mark_blank')}
+                            onClick={() => setAnswer(item, '')}
+                          >
+                            —
+                          </button>
+                        </>
                       )}
                       {item.status !== 'clear' && (
                         <span className={`badge ${STATUS_BADGE[item.status]}`}>{t(`omr_status_${item.status}`)}</span>

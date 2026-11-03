@@ -19,6 +19,19 @@ from apps.payments.ai_quota import get_user_plan_tier
 logger = logging.getLogger(__name__)
 
 
+
+def _plans_text() -> str:
+    """'Starter (7 000 so'm) yoki PRO (15 000 so'm)' from the configured prices."""
+    from django.conf import settings
+
+    def fmt(n: int) -> str:
+        return f"{int(n):,}".replace(",", " ")
+
+    return (
+        f"Starter ({fmt(settings.PLAN_STARTER_PRICE)} so'm) yoki "
+        f"PRO ({fmt(settings.PLAN_PRO_PRICE)} so'm)"
+    )
+
 class QuotaService:
     """Unified quota enforcement service for Web and Telegram Bot."""
 
@@ -48,7 +61,7 @@ class QuotaService:
         if not user or not getattr(user, "is_authenticated", False):
             msg = (
                 "⚠️ <b>Kvotangiz tugadi!</b> Siz bugungi 1 ta bepul esse tekshirish imkoniyatingizdan foydalandingiz.\n\n"
-                "Cheklovlarsiz ishlash uchun 5 000 so'mlik <b>Starter</b> yoki <b>PRO</b> tarifiga o'ting!"
+                f"Cheklovlarsiz ishlash uchun {_plans_text()} tarifiga o'ting!"
             )
             return (
                 False,
@@ -108,7 +121,7 @@ class QuotaService:
             if used >= effective_limit:
                 msg = (
                     "⚠️ Kvotangiz tugadi! Siz 1 ta bepul esse sinovidan foydalandingiz. "
-                    "Davom ettirish uchun Starter (7 000 so'm) yoki PRO (15 000 so'm) tarifiga o'ting!"
+                    f"Davom ettirish uchun {_plans_text()} tarifiga o'ting!"
                 )
                 return (
                     False,
@@ -241,10 +254,14 @@ class QuotaService:
 
     @classmethod
     def check_test_quota(cls, user: Any, test_id: int | None = None) -> tuple[bool, str, dict[str, Any]]:
-        """Check test quota for user (Free tier: exactly 1 test trial, locked mocks require plan)."""
+        """Check test quota for user (Free tier: exactly 1 test trial, locked mocks require plan).
+
+        Admins and teachers are never limited: StartAttemptService runs
+        their attempts as previews that stay out of stats and ratings.
+        """
         if user and (
             getattr(user, "is_superuser", False)
-            or getattr(user, "role", "") in ("admin", "center_admin")
+            or getattr(user, "role", "") in ("admin", "center_admin", "teacher")
         ):
             return True, "", {"tier": "admin", "allowed": True, "remaining": 999999, "limit": None}
 
@@ -306,7 +323,7 @@ class QuotaService:
         if used_tests >= effective_limit:
             return (
                 False,
-                "⚠️ Bepul sinov test limitingiz tugadi. Barcha to'liq Mock testlar va cheksiz mashqlardan foydalanish uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
+                f"⚠️ Bepul sinov test limitingiz tugadi. Boshqa to'liq testlar uchun {_plans_text()} tarifiga o'ting.",
                 {
                     "tier": "free",
                     "limit": effective_limit,
@@ -325,7 +342,7 @@ class QuotaService:
                     if "#mock" in title_lower and not ("diagnostic" in title_lower or "bepul" in title_lower):
                         return (
                             False,
-                            "🔒 Ushbu to'liq Mock test faqat obunachilar uchun ochiq. Barcha rasmiy testlarni yechish uchun STARTER yoki PRO tarifiga o'ting!",
+                            f"🔒 Ushbu to'liq mock test tarif bilan ochiladi: {_plans_text()}.",
                             {
                                 "tier": "free",
                                 "limit": cls.FREE_TEST_LIMIT,
@@ -374,7 +391,7 @@ class QuotaService:
         if tier == "free" and played_today >= cls.FREE_ARENA_DAILY_LIMIT:
             return (
                 False,
-                "⚠️ Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!",
+                f"⚠️ Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun {_plans_text()} tarifiga o'ting!",
                 {
                     "tier": "free",
                     "limit": cls.FREE_ARENA_DAILY_LIMIT,

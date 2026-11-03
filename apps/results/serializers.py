@@ -107,6 +107,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     test_subject = serializers.CharField(source="test.subject", read_only=True, default="uzbek")
     exam_type = serializers.CharField(source="test.exam_type", read_only=True, default="general")
     cefr_summary = serializers.SerializerMethodField()
+    trial_part = serializers.SerializerMethodField()
 
     class Meta:
         model = Result
@@ -118,6 +119,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             "test_subject",
             "exam_type",
             "cefr_summary",
+            "trial_part",
             "course",
             "course_title",
             "student_name",
@@ -164,11 +166,19 @@ class ResultDetailSerializer(serializers.ModelSerializer):
         """CEFR Multi-level 0–75 estimate — same source as certificate-card."""
         if obj.test.exam_type != "cefr_multilevel" or not obj.attempt_id:
             return None
+        if obj.attempt.trial_part_id:
+            return None  # one part is not a section score
         from apps.tests import cefr_multilevel
 
         return cefr_multilevel.to_json(
             cefr_multilevel.summarize(obj.attempt.section_scores or {})
         )
+
+    def get_trial_part(self, obj: Result) -> dict[str, Any] | None:
+        part = obj.attempt.trial_part if obj.attempt_id and obj.attempt.trial_part_id else None
+        if part is None:
+            return None
+        return {"section_code": part.section.code, "section_name": part.section.name, "part": part.number}
 
     def get_certificate_status(self, obj: Result) -> str:
         """Canonical eligibility state (eligible only with verified rules)."""
@@ -225,6 +235,8 @@ class ResultDetailSerializer(serializers.ModelSerializer):
 
         from apps.tests.numbering import number_map
 
+        if attempt.trial_part_id:
+            questions = questions.filter(group__part_id=attempt.trial_part_id)
         questions = list(questions)
         numbers = number_map(obj.test, questions)
 

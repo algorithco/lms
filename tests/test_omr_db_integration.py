@@ -175,8 +175,16 @@ def test_confirm_grades_reviewed_answers_without_xp(client, mc_test, student):
     result = Result.objects.get(pk=body["result_id"])
     assert (result.correct_answers, result.wrong_answers, result.unanswered) == (2, 1, 2)
 
-    # A second sheet is a second attempt, still without XP.
+    # A FREE student's one free test is now used: a second sheet hits the
+    # same plan limit as starting the test online.
     res = client.post(CONFIRM_URL, {"test_id": mc_test.id, "answers": answers}, format="json")
+    assert res.status_code == 403
+    assert res.json()["code"] == "LIMIT_EXCEEDED"
+
+    # With a plan, a second sheet is a second attempt — still without XP.
+    unlimited = (True, "", {"tier": "pro", "allowed": True})
+    with patch("apps.subscriptions.services.quota.QuotaService.check_test_quota", return_value=unlimited):
+        res = client.post(CONFIRM_URL, {"test_id": mc_test.id, "answers": answers}, format="json")
     assert res.status_code == 200
     assert Profile.objects.get(user=student).xp_points == 0
 

@@ -265,6 +265,17 @@ class Test(models.Model):
     def __str__(self) -> str:
         return self.title
 
+    @staticmethod
+    def counted_questions_q() -> models.Q:
+        """Questions a student sees as "N savol" (for Count(filter=...)).
+
+        Speaking prompts are never counted; in CEFR Multi-level the Writing
+        tasks are not counted either — "70 savol" means the L/R items.
+        """
+        return ~models.Q(questions__question_type="SPEAKING_PROMPT") & ~(
+            models.Q(exam_type="cefr_multilevel") & models.Q(questions__question_type="written")
+        )
+
     @property
     def total_questions(self) -> int:
         # When the queryset annotates total_questions (TestListView),
@@ -272,7 +283,10 @@ class Test(models.Model):
         # annotated value instead of firing an extra COUNT query.
         if hasattr(self, "_annotated_total_questions"):
             return self._annotated_total_questions  # type: ignore[attr-defined]
-        return self.questions.count()
+        excluded = ["SPEAKING_PROMPT"]
+        if self.exam_type == self.ExamType.CEFR_MULTILEVEL:
+            excluded.append("written")
+        return self.questions.exclude(question_type__in=excluded).count()
 
     @total_questions.setter
     def total_questions(self, value: int) -> None:
@@ -768,6 +782,15 @@ class TestAttempt(models.Model):
         STRICT = "strict", _("Strict Exam Mode (Rasmiy Imtihon)")
         PRACTICE = "practice", _("Practice / Study Mode (O'rganish)")
 
+    trial_part = models.ForeignKey(
+        "ExamPart",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trial_attempts",
+        verbose_name=_("bepul sinov qismi"),
+        help_text=_("Bepul sinov: faqat shu qism ochiladi va baholanadi."),
+    )
     is_preview = models.BooleanField(
         _("preview (sinov) rejimi"),
         default=False,
