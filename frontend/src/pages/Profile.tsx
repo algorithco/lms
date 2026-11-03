@@ -14,6 +14,7 @@ import {
 import UsageLimits from '../components/UsageLimits';
 import ParentMonitoringCard from '../components/ParentMonitoringCard';
 import ReferralCard from '../components/ReferralCard';
+import MyFeedback from '../components/MyFeedback';
 
 function getInitials(name?: string, email?: string): string {
   if (name && name.trim()) {
@@ -598,6 +599,9 @@ export default function Profile() {
             <Link to="/subscribe" className="btn primary sm btn-glow" style={{ textDecoration: 'none' }}>
               {t('profile_view_plans_btn')}
             </Link>
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <MyFeedback />
           </div>
         </>
       )}

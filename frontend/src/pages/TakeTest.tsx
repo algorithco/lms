@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
 import TestAddictiveResults from '../components/TestAddictiveResults';
+import FeedbackPrompt from '../components/FeedbackPrompt';
 import { TestsApi as RetestApi } from '../lib/testing';
 import { Tests as TestsApi } from '../lib/api';
 import AudioPlayerBar from '../components/AudioPlayerBar';
@@ -1616,6 +1617,7 @@ export default function TakeTest() {
 
       {result && (
         <div style={{ marginTop: 24 }}>
+          <FeedbackPrompt />
           {result.grading_status === 'pending_grading' ? (
             <div className="card" style={{ padding: 24, textAlign: 'center' }}>
               <h2>{t('take_pending_title')}</h2>

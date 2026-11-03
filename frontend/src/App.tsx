@@ -33,6 +33,7 @@ const PanelQuestions = lazyPage(() => import('./pages/PanelQuestions'));
 const PanelTestForm = lazyPage(() => import('./pages/PanelTestForm'));
 const PanelTests = lazyPage(() => import('./pages/PanelTests'));
 const PanelTopics = lazyPage(() => import('./pages/PanelTopics'));
+const PanelFeedback = lazyPage(() => import('./pages/PanelFeedback'));
 const PanelTuition = lazyPage(() => import('./pages/PanelTuition'));
 const PanelUsers = lazyPage(() => import('./pages/PanelUsers'));
 const ParentPortal = lazyPage(() => import('./pages/ParentPortal'));
@@ -249,6 +250,7 @@ function AnimatedRoutes() {
               <Route path="/panel/tests/:id/edit" element={<PanelTestForm />} />
               <Route path="/panel/tests/:id/questions" element={<PanelQuestions />} />
               <Route path="/panel/topics" element={<PanelTopics />} />
+              <Route path="/panel/feedback" element={<PanelFeedback />} />
               <Route path="/panel/tuition" element={<PanelTuition />} />
               <Route path="/panel/users" element={<PanelUsers />} />
             </Route>

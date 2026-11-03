@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import TestAddictiveResults, { type QuestionReviewItem } from '../components/TestAddictiveResults';
 import CefrResultSummary, { type CefrSummary } from './tests/CefrResultSummary';
 import CefrQuestionReview from './tests/CefrQuestionReview';
+import FeedbackPrompt from '../components/FeedbackPrompt';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import {
@@ -559,6 +560,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
         </div>
       )}
 
+      <FeedbackPrompt />
       <TestAddictiveResults
         score={Number(detail.score ?? 0)}
         maxScore={Number(detail.max_score ?? 0)}

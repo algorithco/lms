@@ -180,6 +180,10 @@ export default function PanelDashboard() {
           <span className="stat-label"><PenLineIcon size={15} className="ico" /> {t('panel_action_new_topic')}</span>
           <span className="muted small">{t('panel_action_new_topic_hint')}</span>
         </Link>
+        <Link className="card stat admin-action" to="/panel/feedback">
+          <span className="stat-label"><PenLineIcon size={15} className="ico" /> {t('fbi_title')}</span>
+          <span className="muted small">{t('fbi_hint')}</span>
+        </Link>
         <Link className="card stat admin-action" to="/teacher/essays">
           <span className="stat-label"><ScrollTextIcon size={15} className="ico" /> {t('panel_action_review_essays')}</span>
           <span className="muted small">
