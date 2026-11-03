@@ -216,7 +216,8 @@ export async function autosaveEssay(
       essay_text: essayText,
     });
     if (!r.ok) return { saved: false, autoSubmitted: false };
-    if (r.text.includes('auto-submit-notice')) {
+    // JSON fallback (no Django partial templates): {"ok": true, "auto_submitted": true, ...}
+    if (/"auto_submitted"\s*:\s*true/.test(r.text) || r.text.includes('auto-submit-notice')) {
       return { saved: true, autoSubmitted: true };
     }
     if (/<input[^>]*password/i.test(r.text)) {
