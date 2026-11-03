@@ -20,4 +20,4 @@ Evidence is what was actually seen or measured in the browser (375 px / 1366 px)
 | 14 | A completed near-empty test awards XP | `/take/:id` | Open (product decision) |
 | 15 | Display names such as "komiljon Roziyev" / initials "kR" | header, profile | Reported; `formatDisplayName` exists, not re-checked per page |
 
-New components follow the existing tokens (`--card`, `--ink`, `--accent`, `--border`) so both themes work; they were visually checked in light mode only.
+New components follow the existing tokens (`--card`, `--ink`, `--accent`, `--border`) so both themes work; they were visually checked in light mode; the feedback modal's dark colours were checked by computed values only.

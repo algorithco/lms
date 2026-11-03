@@ -23,6 +23,7 @@ Method: local database, 5 roles (guest, FREE student, paid student, teacher, adm
 | CEFR-301 (35 "single" L/R, no sections) | paid | partly | now takeable; its result has no L/R split because the seed has no sections (content issue) |
 | Results list / detail | paid | works | CEFR result shows 0–75 per section and no Band; English results no longer carry BMB/Rasch labels |
 | Paywall modal, free trial | FREE | works | verified in the previous PR |
+| `/tests` when the API fails (429 / 500 / 502 / network) | FREE | **fixed** | showed the right error and a retry button, but the heading said "Testlar (0)" and 429/500 printed raw English text; now a friendly message, no count, retry recovers |
 | `/pricing` receipt page | FREE | **fixed** | claimed "Vision AI activates the plan in 3 seconds" — false since #116 |
 | `/my-subscription`, `/profile` limits | paid | works | both read the same entitlement |
 | Receipt upload and admin approval | FREE, admin | partly | upload path covered by tests (`test_free_pro_leak`); admin approval click-through **not tested in the browser** |
@@ -37,7 +38,7 @@ Method: local database, 5 roles (guest, FREE student, paid student, teacher, adm
 | AI Speaking, AI essay grading | — | **not tested** | need audio and an AI key |
 | OMR scanner | — | covered in the previous PR; **not re-tested** here (instruction: do not touch) |
 | Telegram bot flows (feedback alerts, replies) | — | **not tested** | no bot locally; the Celery tasks are unit-tested with Telegram mocked |
-| Dark mode, mobile menu | all | partly | result and paywall pages checked in the previous PR; the new modal and inbox were checked in light mode only |
+| Dark mode, mobile menu | all | partly | result and paywall pages checked visually in the previous PR; the new feedback modal was checked by computed colours in dark mode (card `#131B2E`, text `#F8FAFC`, selected chip dark-on-amber ≈ 8:1), not by screenshot; the inbox was seen in light mode only |
 
 ## Bugs found and fixed here
 1. IELTS / plain CEFR attempts unusable (unstyled Tailwind-only layout).
@@ -50,8 +51,8 @@ Method: local database, 5 roles (guest, FREE student, paid student, teacher, adm
 8. `audit_unpaid_subscriptions` crashed on production (wrong essay date field).
 
 ## Open items (not fixed here)
-- `/api/v1/billing/card-details/` is public: any visitor can read the card number and holder. Decision needed (require login?).
-- `seed_accounts.py` contains fixed passwords (`GrandAdmin2026!`, `GrandUstoz2026!`); never run it on production. `seed_official_omr_tests` names local tests "Cambridge Official …".
+- Card details: now signed-in only (guests get 401; fixed). The server still has a hard-coded **default** card number/holder in `views_billing.card_info_view` (used when `PAYMENT_CARD_NUMBER` / `PAYMENT_CARD_HOLDER` are unset). Check those variables on the server, then remove the default.
+- `seed_accounts.py` no longer contains passwords and refuses non-local databases (fixed). Whether it was ever run on production is **unknown**; if it was, the accounts `admin.grandec@gmail.com` and `ustoz.grandec@gmail.com` may carry the old fixed passwords and should be checked and rotated. `seed_official_omr_tests` names local tests "Cambridge Official …".
 - IELTS band table is one function for Listening and Reading and is labelled "Official IELTS scale" in code; per decision (b) it should move to a JSON scale labelled "taxminiy" and be split per section. Existing tests pin the current values, so it needs its own change.
 - Legacy `EnglishExamInterface` (≈1 800 lines of Tailwind markup) is now unreachable for real attempts and should be removed.
 - Every page still has controls smaller than 44 px on desktop; mobile spot checks only.
