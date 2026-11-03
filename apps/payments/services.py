@@ -125,7 +125,7 @@ def notify_admin_new_receipt(receipt: PaymentReceipt) -> None:
         f"👤 <b>Foydalanuvchi:</b> {user_name} ({tg_handle})\n"
         f"📦 <b>Tanlangan tarif:</b> {plan_name} ({int(receipt.amount):,} so'm)\n"
         f"📅 <b>Sana:</b> {created_str}\n"
-        f"⚡️ <b>Holat:</b> 24 soatlik PRO TRIAL yoqildi (tekshirish kutilmoqda)"
+        f"⏳ <b>Holat:</b> admin tasdig'i kutilmoqda (tarif hali yoqilmagan)"
     )
 
     reply_markup = {
@@ -218,13 +218,13 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
             "is_unlimited_text_essays": False,
             "is_unlimited_tests": False,
             "detailed_analytics": True,
-            "pdf_certificate": True,
+            "pdf_certificate": False,
         }
     else:
         canonical_type = SubscriptionPlan.PlanType.PREMIUM
         name = "Premium"
         price_uzs = getattr(settings, "PLAN_PREMIUM_PRICE", 27000)
-        desc = "Cheksiz esse 12 mezon, cheksiz Mock testlar va 1v1 Arena, ustoz tekshiruvi va rasmiy PDF sertifikat."
+        desc = "Cheksiz esse 12 mezon, cheksiz Mock testlar va 1v1 Arena, ustoz tekshiruvi."
         kwargs = {
             "image_essay_weekly_limit": None,
             "text_essay_weekly_limit": None,
@@ -234,7 +234,7 @@ def _get_or_create_plan_for_receipt(plan_key: str) -> SubscriptionPlan:
             "is_unlimited_text_essays": True,
             "is_unlimited_tests": True,
             "detailed_analytics": True,
-            "pdf_certificate": True,
+            "pdf_certificate": False,
             "priority_support": True,
         }
 
@@ -292,6 +292,7 @@ def approve_payment_receipt(
     sub = grant_subscription(
         user=receipt.user,
         plan=plan,
+        kind="approved_payment",
         source=source,
         payment_method="card",
         payment_reference=f"receipt:{receipt.id}",
@@ -370,9 +371,13 @@ def reject_payment_receipt(
         or getattr(sub, "grant_source", "") == "receipt_trial"
         or getattr(sub, "payment_reference", "") == f"receipt_trial:{receipt.id}"
     ):
-        sub.status = UserSubscription.Status.REVOKED
-        sub.is_trial = False
-        sub.save(update_fields=["status", "is_trial", "updated_at"])
+        from .subscriptions import revoke_subscription
+
+        revoke_subscription(
+            user,
+            actor=admin_user if getattr(admin_user, "is_authenticated", False) else None,
+            reason=f"Receipt #{receipt.id} rejected: trial revoked",
+        )
         if hasattr(user, "profile"):
             user.profile.plan = "free"
             user.profile.save(update_fields=["plan"])

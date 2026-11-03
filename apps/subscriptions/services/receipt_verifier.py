@@ -518,58 +518,51 @@ class ReceiptVerifier:
             transaction_id=transaction_id,
             receipt_image=content_file,
             receipt_hash=receipt_hash,
-            is_verified=True,
-            admin_note="Avtomatik Vision AI tekshiruvidan muvaffaqiyatli o'tdi",
+            # The AI check is a hint for the administrator, never an approval:
+            # access is granted only when an admin approves the payment.
+            is_verified=False,
+            admin_note="Vision AI: chek haqiqiyga o'xshaydi — admin tasdig'i kutilmoqda",
         )
+        cls._notify_admins(receipt)
 
-        # 7. Activate plan
-        cls._activate_user_plan(user, clean_plan, receipt)
-
-        plan_display = clean_plan.upper()
         return {
             "success": True,
+            "pending_admin": True,
             "receipt_id": receipt.id,
             "plan_type": clean_plan,
             "amount": float(amount),
             "transaction_id": transaction_id,
             "is_banned": False,
             "message": (
-                f"🎉 <b>To'lovingiz qabul qilindi!</b>\n\n"
-                f"Sizning <b>{plan_display}</b> tarifingiz muvaffaqiyatli faollashtirildi.\n"
-                "Imkoniyatlaringiz yangilandi. Bilim olishda omad tilaymiz!"
+                "✅ <b>Chekingiz qabul qilindi.</b>\n\n"
+                "Administrator tekshirib tasdiqlagach, tarifingiz faollashadi."
             ),
         }
 
     @classmethod
-    def _activate_user_plan(
-        cls, user: Any, plan_type: str, receipt: PaymentReceipt
-    ) -> None:
-        """Activates Starter, PRO, or PREMIUM plan for user."""
-        try:
-            from apps.payments.services import _get_or_create_plan_for_receipt
-            from apps.payments.subscriptions import grant_subscription
-            from apps.payments.models import UserSubscription
+    def _notify_admins(cls, ai_receipt: PaymentReceipt) -> None:
+        """Queue the AI-checked receipt for an administrator's decision.
 
-            plan_obj = _get_or_create_plan_for_receipt(plan_type)
-            grant_subscription(
-                user=user,
-                plan=plan_obj,
-                source=UserSubscription.Source.WEBSITE,
-                payment_method="card",
-                payment_reference=f"verified_receipt:{receipt.id}:{receipt.transaction_id}",
-                grant_source="automated_receipt_verification",
-                days=30,
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to grant subscription for receipt #%s: %s", receipt.id, e
-            )
+        The admin-reviewed ``payments.PaymentReceipt`` is the only queue whose
+        approval grants access (``approve_receipt`` → ``grant_subscription``).
+        """
+        from apps.payments.models import PaymentReceipt as ReviewReceipt
+        from apps.payments.services import notify_admin_new_receipt
 
-        # Update profile plan field
         try:
-            profile = getattr(user, "profile", None)
-            if profile:
-                profile.plan = plan_type
-                profile.save(update_fields=["plan"])
+            review = ReviewReceipt.objects.create(
+                user=ai_receipt.user,
+                plan=ai_receipt.plan_type,
+                amount=ai_receipt.amount,
+                receipt_image=ai_receipt.receipt_image,
+                image_hash=ai_receipt.receipt_hash,
+                source=ReviewReceipt.Source.BOT,
+                status=ReviewReceipt.Status.PENDING,
+                admin_note=(
+                    f"Vision AI tekshiruvi: haqiqiyga o'xshaydi "
+                    f"({ai_receipt.payment_system}, {ai_receipt.transaction_id}). Admin tasdig'i kerak."
+                ),
+            )
+            notify_admin_new_receipt(review)
         except Exception as e:
-            logger.warning("Failed to update profile plan for user #%s: %s", user.id, e)
+            logger.error("Failed to queue AI-checked receipt #%s for admin: %s", ai_receipt.id, e)

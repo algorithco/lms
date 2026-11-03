@@ -557,10 +557,10 @@ class TelegramBotFeaturesTests(TestCase):
             .first()
         )
         self.assertIsNotNone(receipt)
-        self.assertTrue(receipt.is_verified)
+        self.assertFalse(receipt.is_verified)
         self.assertTrue(self.message.reply_text.called)
         reply_text = self.message.reply_text.await_args.args[0]
-        self.assertIn("To'lovingiz qabul qilindi!", reply_text)
+        self.assertIn("Chekingiz qabul qilindi", reply_text)
 
     # 15. Telegram Login Widget (1-Click Auth)
     @override_settings(TELEGRAM_BOT_TOKEN="test_bot_token_12345")

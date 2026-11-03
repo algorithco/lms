@@ -229,10 +229,12 @@ def activate_from_successful_payment(
         subscription = grant_subscription(
             order.user,
             order.plan,
+            kind="provider_payment",
             source=UserSubscription.Source.TELEGRAM_BOT,
             payment_method="stars",
             payment_reference=telegram_payment_charge_id,
             actor=None,
+            reason=f"Telegram Stars order #{order.pk}",
             log_action=EntitlementAuditLog.Action.ACTIVATE_SUBSCRIPTION,
         )
 

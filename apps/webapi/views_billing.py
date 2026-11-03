@@ -125,9 +125,9 @@ def cancel_view(request):
     sub = getattr(request.user, "subscription", None)
     if not sub or not sub.is_active:
         return Response({"detail": "No active subscription."}, status=400)
-    sub.status = UserSubscription.Status.CANCELLED
-    sub.cancelled_at = timezone.now()
-    sub.save(update_fields=["status", "cancelled_at", "updated_at"])
+    from apps.payments.subscriptions import cancel_subscription
+
+    cancel_subscription(sub, actor=request.user)
     return Response(UserSubscriptionSerializer(sub).data)
 
 
@@ -277,29 +277,8 @@ def payment_receipt_upload_view(request):
         status=PaymentReceipt.Status.PENDING,
     )
 
-    # Instantly grant 24-hour PRO trial upon receipt upload
-    try:
-        from apps.payments.models import UserSubscription
-        from apps.payments.services import _get_or_create_plan_for_receipt
-        from apps.payments.subscriptions import grant_subscription
-
-        pro_plan = _get_or_create_plan_for_receipt("pro")
-        grant_subscription(
-            user=request.user,
-            plan=pro_plan,
-            source=UserSubscription.Source.WEBSITE,
-            payment_method="card",
-            payment_reference=f"receipt_trial:{receipt.id}",
-            grant_source="receipt_trial",
-            hours=24,
-            is_trial=True,
-            reason=f"Instant 24h Pro Trial for receipt #{receipt.id}",
-        )
-        if hasattr(request.user, "profile"):
-            request.user.profile.plan = "pro"
-            request.user.profile.save(update_fields=["plan"])
-    except Exception as exc:
-        logger.warning("Failed to grant instant trial on receipt #%s: %s", receipt.id, exc)
+    # No access is granted here: an uploaded image proves nothing until an
+    # administrator approves the receipt (approve_receipt → grant_subscription).
 
     try:
         notify_admin_new_receipt(receipt)
@@ -307,11 +286,9 @@ def payment_receipt_upload_view(request):
         logger.warning("Failed to notify admin of receipt #%s: %s", receipt.id, exc)
 
     data = PaymentReceiptSerializer(receipt).data
-    data["trial_granted"] = True
-    data["trial_hours"] = 24
+    data["trial_granted"] = False
     data["message"] = (
-        "🎉 Chekingiz qabul qilindi! Administrator tekshirguniga qadar sizga 24 SOATLIK PRO TRIAL taqdim etildi. "
-        "Hozirdanoq barcha test va AI esselardan cheklovlarsiz foydalanishingiz mumkin!"
+        "Chekingiz qabul qilindi. Administrator tekshirib tasdiqlagach, tarifingiz faollashadi."
     )
     return Response(data, status=201)
 

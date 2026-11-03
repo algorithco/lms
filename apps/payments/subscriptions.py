@@ -1,8 +1,15 @@
 """Canonical subscription lifecycle: activation, upgrade, expiry, revocation.
 
-Every activation path — Telegram Stars, the admin-verified card receipt flow and
-a direct administrator grant — funnels through :func:`grant_subscription`, so
-upgrade/expiry/idempotency rules exist in exactly one place.
+Every activation path funnels through :func:`grant_subscription`, and only
+these kinds are accepted (anything else raises :class:`SubscriptionGrantDenied`):
+
+- ``approved_payment`` — a card receipt / payment request approved by an admin;
+- ``provider_payment`` — a verified payment provider callback (Telegram Stars);
+- ``admin`` — a platform administrator's manual grant;
+- ``teacher_quota`` — a teacher spending one unit of their PRO/PREMIUM quota.
+
+There is no automatic, reward, trial or self-service path. Every grant writes
+an :class:`EntitlementAuditLog` row: who, what, when, why.
 """
 
 from __future__ import annotations
@@ -20,6 +27,30 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class SubscriptionGrantDenied(PermissionError):
+    """A subscription grant that does not come from an allowed source."""
+
+
+GRANT_KINDS = ("approved_payment", "provider_payment", "admin", "teacher_quota")
+
+
+def _check_grant(kind: str, actor, payment_reference: str, reason: str) -> None:
+    from apps.accounts.access import is_platform_admin
+
+    if kind not in GRANT_KINDS:
+        raise SubscriptionGrantDenied(f"Unknown subscription grant kind: {kind!r}")
+    if not (reason or "").strip():
+        raise SubscriptionGrantDenied("A subscription grant needs a reason.")
+    if kind in ("admin", "approved_payment") and not is_platform_admin(actor):
+        raise SubscriptionGrantDenied(f"{kind} grants need a platform admin actor.")
+    if kind in ("approved_payment", "provider_payment") and not payment_reference:
+        raise SubscriptionGrantDenied(f"{kind} grants need a payment reference.")
+    if kind == "teacher_quota" and not (
+        is_platform_admin(actor) or getattr(actor, "role", "") == "teacher"
+    ):
+        raise SubscriptionGrantDenied("teacher_quota grants need a teacher actor.")
 
 #: Ordering used to decide whether a purchase is an upgrade or a renewal.
 #: A renewal of a cheaper plan must never silently downgrade a richer one.
@@ -45,8 +76,9 @@ def grant_subscription(
     user,
     plan: SubscriptionPlan,
     *,
+    kind: str,
     source: str = UserSubscription.Source.ADMIN,
-    payment_method: str = "free",
+    payment_method: str = "",
     payment_reference: str = "",
     grant_source: str = "",
     days: int | None = None,
@@ -68,6 +100,7 @@ def grant_subscription(
     * The plan configuration and the effective entitlement are snapshotted onto
       the row, so a later plan edit cannot retroactively change what was bought.
     """
+    _check_grant(kind, actor, payment_reference, reason)
     if hours is not None:
         duration = timedelta(hours=int(hours))
     else:
@@ -126,21 +159,27 @@ def grant_subscription(
         subscription = existing
         outcome = "downgrade_blocked" if downgrade_blocked else "extended"
 
-    if log_action:
-        EntitlementAuditLog.objects.create(
-            actor=actor,
-            student=user,
-            action=log_action,
-            details={
-                "plan": plan.plan_type,
-                "source": source,
-                "outcome": outcome,
-                "expires_at": subscription.expires_at.isoformat()
-                if subscription.expires_at
-                else None,
-                "reason": reason,
-            },
-        )
+    # Always audited — there is no silent grant.
+    EntitlementAuditLog.objects.create(
+        actor=actor,
+        student=user,
+        action=log_action or EntitlementAuditLog.Action.ACTIVATE_SUBSCRIPTION,
+        details={
+            "kind": kind,
+            "plan": plan.plan_type,
+            "source": source,
+            "grant_source": grant_source,
+            "payment_method": payment_method,
+            "payment_reference": payment_reference,
+            "actor_id": getattr(actor, "pk", None),
+            "is_trial": is_trial,
+            "outcome": outcome,
+            "expires_at": subscription.expires_at.isoformat()
+            if subscription.expires_at
+            else None,
+            "reason": reason,
+        },
+    )
     logger.info(
         "Subscription %s for user=%s plan=%s source=%s expires=%s",
         outcome,
@@ -178,14 +217,57 @@ def revoke_subscription(
     return True
 
 
+@transaction.atomic
 def expire_overdue_subscriptions() -> int:
-    """Flip ACTIVE subscriptions whose expiry has passed to EXPIRED."""
+    """Flip ACTIVE subscriptions whose expiry has passed to EXPIRED (audited)."""
     now = timezone.now()
-    return UserSubscription.objects.filter(
-        status=UserSubscription.Status.ACTIVE,
-        expires_at__isnull=False,
-        expires_at__lte=now,
-    ).update(status=UserSubscription.Status.EXPIRED, updated_at=now)
+    overdue = list(
+        UserSubscription.objects.select_for_update()
+        .filter(
+            status=UserSubscription.Status.ACTIVE,
+            expires_at__isnull=False,
+            expires_at__lte=now,
+        )
+        .select_related("plan")
+    )
+    if not overdue:
+        return 0
+    UserSubscription.objects.filter(pk__in=[s.pk for s in overdue]).update(
+        status=UserSubscription.Status.EXPIRED, updated_at=now
+    )
+    EntitlementAuditLog.objects.bulk_create(
+        [
+            EntitlementAuditLog(
+                actor=None,
+                student_id=s.user_id,
+                action=EntitlementAuditLog.Action.EXPIRE_SUBSCRIPTION,
+                details={
+                    "plan": s.plan.plan_type if s.plan else None,
+                    "expires_at": s.expires_at.isoformat(),
+                    "reason": "expiry job",
+                },
+            )
+            for s in overdue
+        ]
+    )
+    return len(overdue)
+
+
+def cancel_subscription(subscription: UserSubscription, *, actor=None) -> None:
+    """User-initiated cancellation (access stays until expiry), audited."""
+    subscription.status = UserSubscription.Status.CANCELLED
+    subscription.cancelled_at = timezone.now()
+    subscription.save(update_fields=["status", "cancelled_at", "updated_at"])
+    EntitlementAuditLog.objects.create(
+        actor=actor,
+        student_id=subscription.user_id,
+        action=EntitlementAuditLog.Action.CANCEL_SUBSCRIPTION,
+        details={
+            "plan": subscription.plan.plan_type if subscription.plan else None,
+            "expires_at": subscription.expires_at.isoformat() if subscription.expires_at else None,
+            "reason": "cancelled by user",
+        },
+    )
 
 
 def subscription_expiring_between(delta: timedelta) -> list[UserSubscription]:
