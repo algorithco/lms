@@ -2346,3 +2346,24 @@ html.dark .results-xp-desc { color: #FCD34D !important; }
   .cd-select select { grid-column: 2; justify-self: start; }
   .cd-for-against { grid-template-columns: 1fr; }
 }
+
+/* CEFR result on /results/:id */
+.cefr-result-detail { display: flex; flex-direction: column; gap: 1rem; }
+.cefr-result-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--ink); }
+.cefr-review { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.cefr-review h3 { margin: 0; font-size: 1rem; color: var(--ink); }
+.cefr-review h4 { margin: 0 0 0.5rem; font-size: 0.92rem; color: var(--ink-soft); }
+.cefr-review-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 0.4rem;
+}
+.cefr-review-item {
+  display: flex; gap: 0.5rem; align-items: baseline; padding: 0.45rem 0.6rem;
+  border-radius: 0.6rem; border: 1px solid var(--border); background: var(--card-2); color: var(--ink); font-size: 0.86rem;
+}
+.cefr-review-item.right { border-color: color-mix(in srgb, var(--emerald) 45%, transparent); }
+.cefr-review-item.wrong { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.cefr-review-num { min-width: 1.6rem; font-weight: 800; text-align: right; }
+.cefr-review-item.right .cefr-review-num { color: var(--emerald); }
+.cefr-review-item.wrong .cefr-review-num { color: var(--danger); }
+.cefr-review-answer { overflow-wrap: anywhere; }

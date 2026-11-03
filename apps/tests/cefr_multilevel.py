@@ -28,6 +28,9 @@ SCORED = "scored"
 PENDING = "pending"  # submitted, waiting for writing/speaking grading
 MISSING = "missing"  # section absent from the test or left completely blank
 
+# Sections scored from right/wrong answers; the rest are rated (W/S).
+OBJECTIVE_SECTIONS = ("LISTENING", "READING")
+
 
 @lru_cache(maxsize=1)
 def load_scale() -> dict[str, Any]:

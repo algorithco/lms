@@ -1308,10 +1308,31 @@ class SubmitAttemptService:
 
             names = {s.section_code.upper(): s.section_name for s in agg.sections if s.section_code}
             section_map = cefr_multilevel.score_sections(question_scores, names)
-            overall = cefr_multilevel.summarize(section_map)["overall"]
+            summary = cefr_multilevel.summarize(section_map)
+            overall = summary["overall"]
             band_val = None
             cefr_val = overall["level"] if overall else ""
             extra_fields["section_scores"] = cefr_multilevel.to_json(section_map)
+            # Counts and raw score cover only the objective L/R items: the
+            # 3 Writing tasks and 8 Speaking prompts are not "questions" and
+            # their points must not be added to the raw L/R score.
+            objective = [
+                q for q in question_scores
+                if (q.section_code or "").upper() in cefr_multilevel.OBJECTIVE_SECTIONS
+            ]
+            total_questions = len(objective)
+            correct_count = sum(1 for q in objective if q.is_correct is True)
+            wrong_count = sum(1 for q in objective if q.answered and q.is_correct is False)
+            unanswered_count = sum(1 for q in objective if not q.answered)
+            total_score = Decimal(correct_count)
+            max_score = Decimal(total_questions)
+            percentage = (
+                (total_score / max_score * 100).quantize(Decimal("0.01"))
+                if max_score
+                else Decimal("0")
+            )
+            # "Passed" for Multi-level means at least B1 overall, not 60%.
+            is_passed = summary["has_certificate"]
         else:
             band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
             cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)

@@ -1978,7 +1978,12 @@
     "landing.cambridge_tag": "Cambridge CBT",
     "landing.cefr_title": "CEFR & IELTS",
     "landing.cefr_desc": "Reading & Listening mock sinovlari va interaktiv AI Speaking trenajyori.",
-    "landing.english_cbt_btn": "Ingliz tili CBT"
+    "landing.english_cbt_btn": "Ingliz tili CBT",
+    "cefr_review_title": "Savollar bo'yicha tahlil",
+    "cefr_review_blank": "Javob berilmagan",
+    "cefr_review_correct": "To'g'ri javob",
+    "omr_section_LISTENING": "Listening",
+    "omr_section_READING": "Reading"
   },
   "ru": {
     "main": "Главное",
@@ -3959,7 +3964,12 @@
     "landing.cambridge_tag": "Cambridge CBT",
     "landing.cefr_title": "CEFR & IELTS",
     "landing.cefr_desc": "Пробные тесты Reading & Listening и интерактивный тренажер AI Speaking.",
-    "landing.english_cbt_btn": "Английский язык CBT"
+    "landing.english_cbt_btn": "Английский язык CBT",
+    "cefr_review_title": "Разбор по вопросам",
+    "cefr_review_blank": "Нет ответа",
+    "cefr_review_correct": "Верный ответ",
+    "omr_section_LISTENING": "Listening",
+    "omr_section_READING": "Reading"
   },
   "en": {
     "main": "Main",
@@ -5940,6 +5950,11 @@
     "landing.cambridge_tag": "Cambridge CBT",
     "landing.cefr_title": "CEFR & IELTS",
     "landing.cefr_desc": "Reading & Listening mock exams and interactive AI Speaking trainer.",
-    "landing.english_cbt_btn": "English CBT"
+    "landing.english_cbt_btn": "English CBT",
+    "cefr_review_title": "Question review",
+    "cefr_review_blank": "No answer",
+    "cefr_review_correct": "Correct",
+    "omr_section_LISTENING": "Listening",
+    "omr_section_READING": "Reading"
   }
 }

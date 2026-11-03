@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import TestAddictiveResults, { type QuestionReviewItem } from '../components/TestAddictiveResults';
+import CefrResultSummary, { type CefrSummary } from './tests/CefrResultSummary';
+import CefrQuestionReview from './tests/CefrQuestionReview';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import {
@@ -52,6 +54,9 @@ export function getBmbBadge(grade?: string, pct?: number, t?: (k: string) => str
 
 interface QuestionDetail {
   question_id: number;
+  number: number | null;
+  number_key: string;
+  section_code: string;
   question_text: string;
   question_type: string;
   points: number;
@@ -76,6 +81,8 @@ interface SectionScoreItem {
 }
 
 interface ResultDetailData extends ResultListItem {
+  exam_type?: string;
+  cefr_summary?: CefrSummary | null;
   bmb_grade?: string;
   rasch_score?: string | number;
   max_rasch_score?: string | number;
@@ -491,6 +498,24 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
       explanation: explanationClean,
     };
   });
+
+  // CEFR Multi-level has its own 0–75 scale per section: no percentage hero,
+  // BMB grade or IELTS band — the same summary the exam screen shows.
+  if (detail.exam_type === 'cefr_multilevel' && detail.cefr_summary) {
+    return (
+      <div className="cefr-result-detail">
+        {pending && (
+          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+            <h3>{t('take_pending_title')}</h3>
+            <p className="muted">{t('take_pending_msg')}</p>
+          </div>
+        )}
+        <h2 className="cefr-result-title">{detail.test_title}</h2>
+        <CefrResultSummary data={detail.cefr_summary} />
+        <CefrQuestionReview questions={detail.question_details ?? []} />
+      </div>
+    );
+  }
 
   return (
     <div>
