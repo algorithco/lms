@@ -8,7 +8,8 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {},
+    # Only the explicitly throttled scopes; cache is cleared per test where it matters.
+    "DEFAULT_THROTTLE_RATES": {"feedback-submit": "5/hour"},
 }
 STORAGES = {
     **STORAGES,
