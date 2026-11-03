@@ -8133,16 +8133,16 @@ async def admin_publish_feedback_callback(
         from apps.notifications.models import UserFeedback
 
         fb = UserFeedback.objects.filter(id=feedback_id).first()
-        if fb:
+        if fb and fb.consent_public:
             fb.is_published = True
             fb.save(update_fields=["is_published"])
             return fb
-        return None
+        return None  # missing, or the author did not agree to a public display
 
     feedback = await _run_db(_do_publish)
     if not feedback:
         if query:
-            await query.answer("Sharh topilmadi.", show_alert=True)
+            await query.answer("Sharh topilmadi yoki muallif ommaviy ko'rsatishga rozilik bermagan.", show_alert=True)
         return
 
     if query:

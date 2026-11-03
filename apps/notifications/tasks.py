@@ -391,3 +391,89 @@ def _send_group_result_and_vedomost(result: Any) -> None:
 
 # Import parent notification tasks so Celery discovers them
 from apps.notifications import tasks_parent  # noqa: F401
+
+
+# ---------------------------------------------------------------------------
+# Feedback: admin alert and reply delivery (Celery, never inside the request)
+# ---------------------------------------------------------------------------
+
+
+def _html(value: object) -> str:
+    from django.utils.html import escape
+
+    return escape(str(value or ""))
+
+
+@shared_task(
+    bind=True,
+    name="notifications.notify_admin_new_feedback",
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+    time_limit=60,
+)
+def notify_admin_new_feedback(self: Any, feedback_id: int) -> dict[str, Any]:
+    """Telegram alert for a new feedback. User text is HTML-escaped; no phone/e-mail."""
+    from django.conf import settings
+
+    from apps.notifications.models import UserFeedback
+    from apps.notifications.services.telegram_service import TelegramService
+
+    fb = UserFeedback.objects.filter(pk=feedback_id).first()
+    admin_id = getattr(settings, "ADMIN_TELEGRAM_ID", None)
+    if fb is None or not admin_id:
+        return {"status": "skipped"}
+    urgent = fb.category == UserFeedback.Category.BUG or fb.rating <= 2
+    ctx = fb.context or {}
+    text = (
+        f"{'🚨' if urgent else '📬'} <b>Yangi fikr #{fb.pk}</b>\n"
+        f"🏷 {_html(dict(UserFeedback.Category.choices).get(fb.category, fb.category))}"
+        f" · {'⭐' * fb.rating} ({fb.rating}/5)\n"
+        f"👤 {_html(fb.short_name or 'Mehmon')} [{_html(ctx.get('role', ''))}/{_html(ctx.get('plan', ''))}]\n"
+        f"📍 {_html(ctx.get('path', '-'))}\n\n"
+        f"<i>{_html(fb.message[:700])}</i>"
+    )
+    buttons = []
+    if fb.consent_public:
+        buttons = [[
+            {"text": "✅ Saytda chiqarish", "callback_data": f"publish_feedback_{fb.pk}"},
+            {"text": "❌ Rad etish", "callback_data": f"reject_feedback_{fb.pk}"},
+        ]]
+    try:
+        TelegramService.send_message_with_keyboard(
+            chat_id=int(admin_id), text=text, buttons=buttons or None, parse_mode="HTML"
+        )
+    except Exception as exc:
+        logger.warning("Feedback #%s admin alert failed: %s", feedback_id, exc)
+        raise self.retry(exc=exc)
+    return {"status": "sent", "urgent": urgent}
+
+
+@shared_task(
+    bind=True,
+    name="notifications.send_feedback_reply",
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+    time_limit=60,
+)
+def send_feedback_reply(self: Any, feedback_id: int) -> dict[str, Any]:
+    """Deliver the admin's reply to the author in the bot, if the account is linked."""
+    from apps.notifications.models import UserFeedback
+    from apps.notifications.services.telegram_service import TelegramService
+
+    fb = UserFeedback.objects.select_related("user").filter(pk=feedback_id).first()
+    chat_id = getattr(getattr(fb, "user", None), "telegram_chat_id", None) if fb else None
+    if fb is None or not chat_id or not fb.admin_reply:
+        return {"status": "skipped"}
+    text = (
+        f"💬 <b>Fikringizga javob</b>\n\n"
+        f"<i>{_html(fb.message[:300])}</i>\n\n"
+        f"{_html(fb.admin_reply)}"
+    )
+    try:
+        TelegramService.send_message(chat_id=int(chat_id), text=text, parse_mode="HTML", recipient=fb.user)
+    except Exception as exc:
+        logger.warning("Feedback #%s reply delivery failed: %s", feedback_id, exc)
+        raise self.retry(exc=exc)
+    return {"status": "sent"}

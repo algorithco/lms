@@ -73,7 +73,7 @@ class Command(BaseCommand):
                     "payment_method": sub.payment_method or "",
                     "payment_reference": sub.payment_reference or "",
                     "is_trial": sub.is_trial,
-                    "essays_since": EssaySubmission.objects.filter(student_id=sub.user_id, created_at__gte=since).count(),
+                    "essays_since": EssaySubmission.objects.filter(student_id=sub.user_id, submitted_at__gte=since).count(),
                     "speaking_since": SpeakingSubmission.objects.filter(user_id=sub.user_id, created_at__gte=since).count(),
                     "proposal": "revoke (no approved payment)",
                 }

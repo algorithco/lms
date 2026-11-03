@@ -1,28 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useLang } from '../i18n/LangContext';
 import { ProfileApi } from '../lib/api';
+
+type Subject = 'uzbek' | 'english';
 
 interface SubjectSwitcherProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
-  onSwitch?: (subject: 'uzbek' | 'english') => void;
+  onSwitch?: (subject: Subject) => void;
 }
 
-export default function SubjectSwitcher({
-  className = '',
-  size = 'md',
-  onSwitch,
-}: SubjectSwitcherProps) {
+/**
+ * Subject (what you study) — NOT the interface language. The interface
+ * language has its own switcher; the two states are stored separately.
+ */
+export default function SubjectSwitcher({ className = '', size = 'md', onSwitch }: SubjectSwitcherProps) {
   const { user, updateUserLocal } = useAuth();
+  const { t } = useLang();
   const [loading, setLoading] = useState(false);
 
   // Active subject from user profile or local fallback
-  const currentSubject: 'uzbek' | 'english' =
+  const currentSubject: Subject =
     user?.active_subject === 'english'
       ? 'english'
-      : (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
+      : (localStorage.getItem('lms_subject') as Subject) || 'uzbek';
 
-  const handleSelect = async (nextSubject: 'uzbek' | 'english') => {
+  const handleSelect = async (nextSubject: Subject) => {
     if (nextSubject === currentSubject || loading) return;
 
     setLoading(true);
@@ -36,7 +40,7 @@ export default function SubjectSwitcher({
       try {
         const res = await ProfileApi.switchSubject(nextSubject, nextTarget);
         updateUserLocal({
-          active_subject: (res.active_subject as 'uzbek' | 'english') || nextSubject,
+          active_subject: (res.active_subject as Subject) || nextSubject,
           exam_target: res.exam_target || nextTarget,
           target_grade: res.target_grade || nextGrade,
           daily_plan_summary: res.daily_plan_summary || undefined,
@@ -57,50 +61,23 @@ export default function SubjectSwitcher({
     setLoading(false);
   };
 
-  const isSelected = (sub: 'uzbek' | 'english') => currentSubject === sub;
   const sizeClass = size === 'sm' ? 'size-sm' : size === 'lg' ? 'size-lg' : '';
+  const option = (subject: Subject, label: string) => (
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => handleSelect(subject)}
+      aria-pressed={currentSubject === subject}
+      className={`subject-switcher-btn ${sizeClass}${currentSubject === subject ? ' active' : ''}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <div
-      role="group"
-      aria-label="Fan tanlash"
-      className={`subject-switcher-container bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 inline-flex items-center gap-1 ${className}`}
-    >
-      {/* Uzbek: Ona tili */}
-      <button
-        type="button"
-        disabled={loading}
-        onClick={() => handleSelect('uzbek')}
-        aria-pressed={isSelected('uzbek')}
-        className={`subject-switcher-btn ${sizeClass} ${
-          isSelected('uzbek')
-            ? 'active bg-amber-500 text-slate-950 font-semibold shadow-sm rounded-lg py-1.5 px-3.5 transition-all'
-            : 'text-slate-400 hover:text-white py-1.5 px-3.5 transition-all'
-        }`}
-      >
-        <span className="subject-switcher-flag" role="img" aria-label="O'zbekiston">
-          🇺🇿
-        </span>
-        <span>Ona tili</span>
-      </button>
-
-      {/* English */}
-      <button
-        type="button"
-        disabled={loading}
-        onClick={() => handleSelect('english')}
-        aria-pressed={isSelected('english')}
-        className={`subject-switcher-btn ${sizeClass} ${
-          isSelected('english')
-            ? 'active bg-amber-500 text-slate-950 font-semibold shadow-sm rounded-lg py-1.5 px-3.5 transition-all'
-            : 'text-slate-400 hover:text-white py-1.5 px-3.5 transition-all'
-        }`}
-      >
-        <span className="subject-switcher-flag" role="img" aria-label="English">
-          🇬🇧
-        </span>
-        <span>English</span>
-      </button>
+    <div role="group" aria-label={t('subject_label')} className={`subject-switcher-container ${className}`}>
+      {option('uzbek', t('subject_uzbek'))}
+      {option('english', t('subject_english'))}
     </div>
   );
 }

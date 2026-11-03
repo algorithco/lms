@@ -260,3 +260,30 @@ def test_tournament_win_and_referrals_grant_nothing(student, teacher, pro_plan):
         newcomer = User.objects.create_user(email=f"ref{i}@example.test", password="x-Pass-123!", role="student")
         apply_referral_reward(newcomer, student.referral_code)
     assert_free(student)
+
+
+@pytest.mark.django_db
+def test_audit_unpaid_report_runs_and_changes_nothing(student, pro_plan):
+    """Read-only report: runs with essays present (prod crashed on a wrong field name)."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.essays.models import EssaySubmission, EssayTopic
+
+    sub = UserSubscription.objects.create(
+        user=student, plan=pro_plan, status=UserSubscription.Status.ACTIVE,
+        started_at=timezone.now() - timedelta(hours=1),
+        expires_at=timezone.now() + timedelta(days=1), grant_source="receipt_trial", is_trial=True,
+    )
+    topic = EssayTopic.objects.create(title="Report topic", description="d")
+    EssaySubmission.objects.create(
+        student=student, topic=topic, essay_text="word " * 10, submitted_at=timezone.now()
+    )
+    out = StringIO()
+    call_command("audit_unpaid_subscriptions", stdout=out)
+    text = out.getvalue()
+    assert f"user={student.id}" in text and "essays=1" in text and "DRY RUN" in text
+    assert "@" not in text  # no emails
+    sub.refresh_from_db()
+    assert sub.status == UserSubscription.Status.ACTIVE

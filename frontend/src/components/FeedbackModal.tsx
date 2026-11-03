@@ -1,286 +1,241 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { FeedbackApi, type FeedbackPayload } from '../lib/api';
-import { StarIcon, XIcon, CheckCircle2Icon, MessageSquareHeartIcon } from 'lucide-react';
+import { useLang } from '../i18n/LangContext';
+import { FeedbackApi, type ApiError, type FeedbackPayload } from '../lib/api';
+import { buildFeedbackContext } from '../lib/feedbackContext';
+
+type Category = FeedbackPayload['category'];
+
+const CATEGORIES: { id: Category; key: string }[] = [
+  { id: 'feedback', key: 'feedback_cat_feedback' },
+  { id: 'suggestion', key: 'feedback_cat_suggestion' },
+  { id: 'bug', key: 'feedback_cat_bug' },
+  { id: 'praise', key: 'feedback_cat_praise' },
+];
+const MAX = 2000;
 
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Where the form was opened from (e.g. "result"); stored in the context. */
+  source?: string;
 }
 
-export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+export default function FeedbackModal({ isOpen, onClose, source }: FeedbackModalProps) {
   const { user } = useAuth();
-  const [rating, setRating] = useState<number>(5);
-  const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const [category, setCategory] = useState<'feedback' | 'suggestion' | 'bug' | 'praise'>('feedback');
+  const { t, lang } = useLang();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [category, setCategory] = useState<Category>('feedback');
   const [message, setMessage] = useState('');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [trap, setTrap] = useState(''); // honeypot: real users never see it
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Close on Escape key
+  const reset = useCallback(() => {
+    setRating(0);
+    setHover(0);
+    setCategory('feedback');
+    setMessage('');
+    setName('');
+    setConsent(false);
+    setDone(false);
+    setError(null);
+  }, []);
+
+  // Escape closes; Tab stays inside; focus returns to where it was.
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLElement>('[role=radio]')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex="0"]')].filter(
+        (el) => !el.hasAttribute('disabled') && el.offsetParent !== null,
+      );
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      previous?.focus?.();
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || message.trim().length < 3) {
-      setErr("Iltimos, fikr yoki taklifingizni to'liqroq yozing (kamida 3 ta belgi).");
-      return;
+  const shown = hover || rating;
+  const displayName = user ? user.full_name || '' : name.trim();
+  const canConsent = Boolean(displayName) && (rating >= 4 || category === 'praise');
+
+  const onStarKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setRating((r) => Math.min(5, r + 1));
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setRating((r) => Math.max(1, r - 1));
     }
+  };
 
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rating) return setError(t('feedback_err_rating'));
+    if (message.trim().length < 3) return setError(t('feedback_err_short'));
     setSubmitting(true);
-    setErr(null);
-
-    const payload: FeedbackPayload = {
-      rating,
-      category,
-      message: message.trim(),
-      name: name.trim() || undefined,
-      phone: phone.trim() || undefined,
-    };
-
+    setError(null);
     try {
-      await FeedbackApi.submit(payload);
-      setSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        setMessage('');
-        onClose();
-      }, 2000);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Xatolik yuz berdi. Qayta urinib ko'ring.");
+      await FeedbackApi.submit({
+        rating,
+        category,
+        message: message.trim(),
+        name: user ? undefined : name.trim() || undefined,
+        consent_public: canConsent && consent,
+        website: trap,
+        context: { ...buildFeedbackContext({ category, lang, source }) },
+      });
+      setDone(true);
+    } catch (err) {
+      const e2 = err as ApiError;
+      setError(e2.status === 429 ? t('feedback_err_limit') : t('feedback_err_failed'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="feedback-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl transition-all"
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: '440px',
-          borderRadius: '20px',
-          background: 'var(--card, #ffffff)',
-          border: '1px solid var(--border, rgba(148, 163, 184, 0.2))',
-          padding: '24px 26px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={submitting}
-          className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Yopish"
-        >
-          <XIcon className="h-5 w-5" />
-        </button>
+  const close = () => {
+    onClose();
+    // keep the success screen visible until the dialog is gone
+    window.setTimeout(reset, 200);
+  };
 
-        {submitted ? (
-          <div className="py-6 text-center space-y-3 animate-scale-up">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
-              <CheckCircle2Icon className="h-8 w-8" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Katta rahmat!
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xs mx-auto leading-relaxed">
-              Sizning fikringiz GRAND EDUCATION platformasini yanada mukammal qilishga yordam beradi.
-            </p>
+  return (
+    <div className="fb-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+      <div ref={dialogRef} className="fb-dialog card" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        {done ? (
+          <div className="fb-done">
+            <h2 id={titleId}>{t('feedback_thanks_title')}</h2>
+            <p className="muted">{t('feedback_thanks_text')}</p>
+            <button type="button" className="btn primary" onClick={close}>
+              {t('feedback_close')}
+            </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center gap-3 pr-8">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30 shrink-0">
-                <MessageSquareHeartIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 id="feedback-modal-title" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                  Fikr yoki taklif qoldirish
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Platformani yaxshilash bo'yicha fikringizni ulashing
-                </p>
-              </div>
-            </div>
+          <form onSubmit={submit} noValidate>
+            <h2 id={titleId}>{t('feedback_title')}</h2>
 
-            {/* Error banner */}
-            {err && (
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs font-medium">
-                {err}
-              </div>
-            )}
-
-            {/* 1. Star Rating with Golden Hover */}
-            <div className="text-center py-3 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-inner">
-              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
-                Bahongizni belgilang:
-              </span>
-              <div className="flex items-center justify-center gap-3">
-                {[1, 2, 3, 4, 5].map((star) => {
-                  const activeStar = (hoverRating !== null ? hoverRating : rating) >= star;
-                  return (
-                    <button
-                      key={star}
-                      type="button"
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(null)}
-                      onClick={() => setRating(star)}
-                      className="p-1.5 transition-transform hover:scale-130 active:scale-110 focus:outline-none cursor-pointer"
-                      title={`${star} ball`}
-                    >
-                      <StarIcon
-                        className={`h-7 w-7 transition-all duration-150 ${
-                          activeStar
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_2px_10px_rgba(245,158,11,0.7)]'
-                            : 'text-slate-300 dark:text-slate-600 hover:text-amber-300'
-                        }`}
-                        style={{
-                          color: activeStar ? '#f59e0b' : '#cbd5e1',
-                          fill: activeStar ? '#f59e0b' : 'none',
-                        }}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="text-xs font-extrabold text-amber-500 dark:text-amber-400 mt-1.5 inline-block">
-                {rating === 5
-                  ? 'Ajoyib! (5/5) ⭐'
-                  : rating === 4
-                  ? 'Yaxshi (4/5) 👍'
-                  : rating === 3
-                  ? 'O\'rtacha (3/5) 👌'
-                  : rating === 2
-                  ? 'Kamchiliklar bor (2/5) ⚠️'
-                  : 'Qoniqarsiz (1/5) ❌'}
-              </span>
-            </div>
-
-            {/* 2. Category Selector (Pills) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Kategoriya:
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'feedback', label: '💬 Fikr' },
-                  { id: 'suggestion', label: '💡 Taklif' },
-                  { id: 'bug', label: '🚨 Xatolik' },
-                  { id: 'praise', label: '❤️ Tashakkur' },
-                ].map((item) => (
+            <div className="fb-field">
+              <span className="fb-label" id={`${titleId}-r`}>{t('feedback_rating')}</span>
+              <div className="fb-stars" role="radiogroup" aria-labelledby={`${titleId}-r`} onKeyDown={onStarKey}>
+                {[1, 2, 3, 4, 5].map((n) => (
                   <button
-                    key={item.id}
+                    key={n}
                     type="button"
-                    onClick={() => setCategory(item.id as any)}
-                    className={`py-2 px-3.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      category === item.id
-                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm shadow-amber-500/30'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400/50'
-                    }`}
+                    role="radio"
+                    aria-checked={rating === n}
+                    aria-label={`${n} / 5`}
+                    tabIndex={rating === n || (!rating && n === 1) ? 0 : -1}
+                    className={`fb-star${n <= shown ? ' on' : ''}`}
+                    onMouseEnter={() => setHover(n)}
+                    onMouseLeave={() => setHover(0)}
+                    onClick={() => setRating(n)}
                   >
-                    {item.label}
+                    ★
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* 3. Message Textarea */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Xabaringiz / Fikringiz:
-              </label>
-              <textarea
-                rows={3}
-                required
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Platforma bo'yicha fikr, savol yoki taklifingizni qoldiring..."
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950/70 p-3.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed resize-none transition-all shadow-inner"
-              />
+            <div className="fb-field">
+              <span className="fb-label" id={`${titleId}-c`}>{t('feedback_category')}</span>
+              <div className="fb-chips" role="radiogroup" aria-labelledby={`${titleId}-c`}>
+                {CATEGORIES.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={category === c.id}
+                    className={`fb-chip${category === c.id ? ' on' : ''}`}
+                    onClick={() => setCategory(c.id)}
+                  >
+                    {t(c.key)}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* 4. Guest info if not logged in */}
             {!user && (
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Ismingiz:
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Sardor"
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Telefon raqam:
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+998 90..."
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/50 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                  />
-                </div>
+              <div className="fb-field">
+                <label className="fb-label" htmlFor={`${titleId}-n`}>{t('feedback_name')}</label>
+                <input id={`${titleId}-n`} className="fb-input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={submitting}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
-              >
-                Bekor qilish
+            <div className="fb-field">
+              <label className="fb-label" htmlFor={`${titleId}-m`}>{t('feedback_message')}</label>
+              <textarea
+                id={`${titleId}-m`}
+                className="fb-input"
+                rows={5}
+                maxLength={MAX}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={t(category === 'bug' ? 'feedback_ph_bug' : 'feedback_ph')}
+              />
+              <span className={`fb-count${message.length > MAX - 100 ? ' warn' : ''}`}>
+                {message.length} / {MAX}
+              </span>
+            </div>
+
+            {/* honeypot */}
+            <input
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="fb-trap"
+              name="website"
+              value={trap}
+              onChange={(e) => setTrap(e.target.value)}
+            />
+
+            {canConsent && (
+              <label className="fb-consent">
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                <span>{t('feedback_consent').replace('{name}', shortName(displayName))}</span>
+              </label>
+            )}
+
+            {category === 'bug' && <p className="muted small">{t('feedback_bug_hint')}</p>}
+            {error && (
+              <p className="fb-error" role="alert">
+                {error}
+              </p>
+            )}
+
+            <div className="fb-actions">
+              <button type="button" className="btn ghost" onClick={close}>
+                {t('feedback_cancel')}
               </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-amber-500/25 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {submitting ? "Yuborilmoqda..." : "Yuborish 🚀"}
+              <button type="submit" className="btn primary" disabled={submitting}>
+                {submitting ? t('feedback_sending') : t('feedback_send')}
               </button>
             </div>
           </form>
@@ -288,4 +243,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       </div>
     </div>
   );
+}
+
+/** "Komiljon Roziyev" → "Komiljon R." (same rule as the server). */
+function shortName(full: string): string {
+  const [first = '', second = ''] = full.trim().split(/\s+/);
+  const f = first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  return second ? `${f} ${second.charAt(0).toUpperCase()}.` : f;
 }

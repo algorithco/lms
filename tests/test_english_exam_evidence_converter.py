@@ -377,6 +377,17 @@ class EnglishExamIntegrationTests(APITestCase):
 
         resp = self.client.get(f"/api/tests/attempts/{attempt.id}/certificate-card/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertIn("certificate_number", resp.data)
+        # Honest result card: raw score and an estimated band — not a certificate.
         self.assertIn("overall_band", resp.data)
-        self.assertIn("overall_cefr", resp.data)
+        self.assertEqual(resp.data["scale"], "ielts_estimate")
+        self.assertTrue(resp.data["is_estimate"])
+        self.assertIn("correct_answers", resp.data)
+        self.assertIn("total_questions", resp.data)
+        for forged in (
+            "certificate_number", "qr_verification_url", "issuer", "title", "subtitle", "overall_cefr", "grade_description",
+        ):
+            self.assertNotIn(forged, resp.data)
+        self.assertFalse(resp.data["is_valid"])
+        blob = str(resp.data).lower()
+        self.assertNotIn("official", blob)
+        self.assertNotIn("grandec.uz/verify", blob)

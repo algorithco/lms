@@ -738,10 +738,10 @@ export default function SmartTestCreate() {
                 background: '#F8FAFC',
               }}
             >
-              <option value="uzbek">🇺🇿 Ona tili (Grammatika va amaliyot)</option>
+              <option value="uzbek">Ona tili (Grammatika va amaliyot)</option>
               <option value="adabiyot">📚 Adabiyot (Tarixiy va badiiy asarlar)</option>
               <option value="milliy">🏛️ Milliy sertifikat (BMB Davlat standarti)</option>
-              <option value="english">🇬🇧 Ingliz tili (IELTS / CEFR Multi-level)</option>
+              <option value="english">Ingliz tili (IELTS / CEFR Multi-level)</option>
             </select>
           </div>
 

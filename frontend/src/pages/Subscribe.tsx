@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { Billing, PaymentsApi, type PaymentReceiptItem } from '../lib/api';
+import { useCardInfo } from '../lib/useCardInfo';
+import CardGate from '../components/CardGate';
 import { CopyIcon, CreditCardIcon, CheckIcon } from '../components/icons';
 
 // Strictly 3 commercial subscription plans: START / STARTER (7 000), PRO (15 000 - recommended), PREMIUM (27 000)
@@ -66,7 +68,7 @@ const plans: {
     badgeEn: '⭐ Most Popular / Recommended',
     featuresUz: [
       'Haftasiga 15 ta esse',
-      'Kunlik rasmiy Mock testlar',
+      "To'liq mock testlar",
       'AI repetitor izohlari',
       'Barcha CBT testlar va tahlil',
     ],
@@ -125,13 +127,15 @@ export default function Subscribe() {
 
   // Selected plan slug: 'starter' | 'pro' | 'premium'
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
-  const [cardInfo, setCardInfo] = useState({
-    card_number: '9860 **** **** ****',
-    card_holder: 'KOMILJON R',
+  const card = useCardInfo();
+  const cardReady = card.status === 'ready';
+  const cardInfo = {
+    card_number: card.info?.card_number ?? '',
+    card_holder: card.info?.card_holder ?? '',
     starter_price: PLAN_PRICES.starter,
     pro_price: PLAN_PRICES.pro,
     premium_price: PLAN_PRICES.premium,
-  });
+  };
   const [copied, setCopied] = useState(false);
 
   // Upload state
@@ -149,20 +153,6 @@ export default function Subscribe() {
 
   // Fetch initial card info and user receipts
   useEffect(() => {
-    PaymentsApi.cardInfo()
-      .then((data) => {
-        if (data.card_number) {
-          setCardInfo({
-            card_number: data.card_number,
-            card_holder: data.card_holder,
-            starter_price: PLAN_PRICES.starter,
-            pro_price: PLAN_PRICES.pro,
-            premium_price: PLAN_PRICES.premium,
-          });
-        }
-      })
-      .catch(() => {});
-
     loadReceipts();
 
     if (planQuery === 'pro' || planQuery === 'premium' || planQuery === 'starter') {
@@ -451,11 +441,12 @@ export default function Subscribe() {
                 userSelect: 'all',
               }}
             >
-              {cardInfo.card_number}
+              {cardReady ? cardInfo.card_number : <CardGate status={card.status} onRetry={card.reload} />}
             </span>
             <button
               type="button"
               className="btn sm"
+              disabled={!cardReady}
               onClick={() => handleCopy(cardInfo.card_number)}
               style={{
                 display: 'inline-flex',
@@ -482,7 +473,7 @@ export default function Subscribe() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <div>
               <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>{t('sub_card_holder')}</span>
-              <strong style={{ fontSize: 14, color: '#f8fafc' }}>{cardInfo.card_holder}</strong>
+              <strong style={{ fontSize: 14, color: '#f8fafc' }}>{cardReady ? cardInfo.card_holder : '—'}</strong>
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: 11, color: '#94a3b8', display: 'block', textTransform: 'uppercase' }}>{t('sub_transfer_amount')}</span>

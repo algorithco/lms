@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLang } from '../../i18n/LangContext';
 import { Tests as TestsApi } from '../../lib/api';
 import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
+import IeltsResultSummary, { type IeltsSummary } from './IeltsResultSummary';
 
 /* ------------------------------------------------------------------ types */
 
@@ -112,6 +113,7 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<CefrSummary | null | 'done'>(null);
+  const [ielts, setIelts] = useState<IeltsSummary | null>(null);
   const textTimers = useRef<Record<number, number>>({});
   const submittedRef = useRef(false);
 
@@ -151,15 +153,31 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await TestsApi.submit(attemptId);
+      const submitted = (await TestsApi.submit(attemptId)) as unknown as {
+        result?: { correct_answers?: number; total_questions?: number };
+      };
       if (attempt.is_trial) {
         // One free part has no 0–75 estimate; its review is on /results.
         setResult('done');
         return;
       }
       try {
-        const card = (await TestsApi.certificateCard(attemptId)) as unknown as CefrSummary;
-        setResult(card.scale === 'cefr_multilevel' ? card : 'done');
+        const card = (await TestsApi.certificateCard(attemptId)) as unknown as CefrSummary & {
+          exam_type?: string;
+          overall_band?: number | null;
+        };
+        if (card.scale === 'cefr_multilevel') {
+          setResult(card);
+        } else if (/ielts/i.test(card.exam_type ?? '') && submitted?.result?.total_questions) {
+          setIelts({
+            correct: Number(submitted.result.correct_answers ?? 0),
+            total: Number(submitted.result.total_questions),
+            band: typeof card.overall_band === 'number' ? card.overall_band : null,
+          });
+          setResult('done');
+        } else {
+          setResult('done');
+        }
       } catch {
         setResult('done');
       }
@@ -217,6 +235,8 @@ export default function CdExamInterface({ attempt }: { attempt: CdAttempt }) {
         )}
         {result !== 'done' ? (
           <CefrResultSummary data={result} />
+        ) : ielts ? (
+          <IeltsResultSummary data={ielts} />
         ) : (
           <div className="card">{t(attempt.is_trial ? 'cd_trial_done' : 'cd_submitted')}</div>
         )}

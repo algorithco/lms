@@ -223,7 +223,7 @@ export default function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProp
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  🇺🇿 Milliy
+                  Milliy
                 </button>
 
                 <button
@@ -261,7 +261,7 @@ export default function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProp
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  🇬🇧 IELTS/CEFR
+                  IELTS/CEFR
                 </button>
               </div>
             </div>

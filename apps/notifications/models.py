@@ -351,6 +351,34 @@ class UserFeedback(models.Model):
         db_index=True,
         help_text=_("Admin Telegram bot orqali tasdiqlasa, saytning bosh sahifasida ko'rinadi."),
     )
+    class Status(models.TextChoices):
+        NEW = "new", _("Yangi")
+        SEEN = "seen", _("Ko'rildi")
+        IN_PROGRESS = "in_progress", _("Ishlanmoqda")
+        RESOLVED = "resolved", _("Hal qilindi")
+
+    status = models.CharField(
+        _("holat"), max_length=16, choices=Status.choices, default=Status.NEW, db_index=True
+    )
+    consent_public = models.BooleanField(
+        _("saytda ko'rsatishga rozilik"),
+        default=False,
+        help_text=_("Foydalanuvchi fikrini ismi (qisqartirilgan) bilan ommaga ko'rsatishga rozi."),
+    )
+    context = models.JSONField(
+        _("kontekst"), default=dict, blank=True,
+        help_text=_("Sahifa, fan, rol/tarif, qurilma — parol va tokenlarsiz."),
+    )
+    admin_reply = models.TextField(_("admin javobi"), blank=True, default="")
+    replied_at = models.DateTimeField(_("javob vaqti"), null=True, blank=True)
+    replied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback_replies",
+        verbose_name=_("javob bergan admin"),
+    )
     created_at = models.DateTimeField(_("yaratilgan vaqti"), auto_now_add=True)
 
     class Meta:
@@ -367,6 +395,15 @@ class UserFeedback(models.Model):
     @property
     def feedback_type(self) -> str:
         return self.category
+
+    @property
+    def short_name(self) -> str:
+        """'Komiljon Roziyev' -> 'Komiljon R.' — the only form shown publicly."""
+        parts = (self.name or "").split()
+        if not parts:
+            return ""
+        first = parts[0].capitalize()
+        return f"{first} {parts[1][0].upper()}." if len(parts) > 1 else first
 
     def __str__(self) -> str:
         author = self.user_name or (self.user and getattr(self.user, "username", "")) or "Anonim"

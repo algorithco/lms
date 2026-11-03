@@ -55,8 +55,8 @@ export default function TeacherVocabGenerator() {
   useEffect(() => {
     async function fetchGroups() {
       try {
-        const res = await apiFetch<any>('/api/v1/school/overview/');
-        const groupsList = (res?.groups || []).map((g: any) => ({
+        const res = await apiFetch<any[]>('/api/v1/school/groups/');
+        const groupsList = (Array.isArray(res) ? res : []).map((g: any) => ({
           id: g.id,
           name: g.name,
         }));

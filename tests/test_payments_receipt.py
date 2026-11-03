@@ -5,6 +5,7 @@ from PIL import Image
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from rest_framework.test import APIClient
 from django.urls import reverse
 
 from apps.accounts.models import Profile
@@ -27,11 +28,26 @@ def _create_test_image(color="blue", filename="receipt.jpg"):
     return SimpleUploadedFile(filename, file.read(), content_type="image/jpeg")
 
 
+CARD_URLS = ("webapi:payments-card-info", "webapi:billing-card-details")
+
+
 @pytest.mark.django_db
-def test_card_info_view():
-    client = Client()
-    url = reverse("webapi:payments-card-info")
-    response = client.get(url)
+@pytest.mark.parametrize("url_name", CARD_URLS)
+def test_card_info_is_hidden_from_guests(url_name):
+    response = Client().get(reverse(url_name))
+    assert response.status_code == 401
+    body = response.content.decode()
+    assert "card_number" not in body and "card_holder" not in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url_name", CARD_URLS)
+def test_card_info_view(url_name):
+    user = User.objects.create_user(email="card_viewer@grandec.uz", password="ValidPassword123!", role="student")
+    Profile.objects.get_or_create(user=user)
+    client = APIClient()
+    client.force_authenticate(user)
+    response = client.get(reverse(url_name))
     assert response.status_code == 200
     data = response.json()
     assert "card_number" in data

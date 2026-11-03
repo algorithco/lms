@@ -14,7 +14,7 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -162,9 +162,12 @@ def entitlement_view(request):
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def card_info_view(request):
-    """GET /api/v1/payments/card-info/ & /api/v1/billing/card-details/ — Public card and plan price settings."""
+    """GET /api/v1/payments/card-info/ & /api/v1/billing/card-details/ — card and plan prices.
+
+    Signed-in users only: guests get 401, so a visitor can never read the card number.
+    """
     card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
     card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
     card_bank = getattr(settings, "PAYMENT_CARD_BANK", "") or "Visa"

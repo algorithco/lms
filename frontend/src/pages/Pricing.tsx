@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { FormEvent, DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
 import { PaymentsApi } from '../lib/api';
 import { CreditCardIcon, CheckIcon, CopyIcon, ZapIcon } from '../components/icons';
 import CardPaymentModal from '../components/CardPaymentModal';
+import CardGate from '../components/CardGate';
+import { useCardInfo } from '../lib/useCardInfo';
 
 export const PLAN_PRICES = {
   starter: 7000,
@@ -16,13 +18,9 @@ export default function Pricing() {
   const { t } = useLang();
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'pro' | 'premium'>('pro');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [cardInfo, setCardInfo] = useState<{
-    card_number: string;
-    card_holder: string;
-  }>({
-    card_number: '9860 **** **** ****',
-    card_holder: 'KOMILJON R',
-  });
+  const card = useCardInfo();
+  const cardReady = card.status === 'ready';
+  const cardInfo = card.info ?? { card_number: '', card_holder: '' };
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,19 +31,6 @@ export default function Pricing() {
   const [isBanned, setIsBanned] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    PaymentsApi.cardInfo()
-      .then((data) => {
-        if (data) {
-          setCardInfo({
-            card_number: data.card_number || '9860 **** **** ****',
-            card_holder: data.card_holder || 'KOMILJON R',
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text.replace(/\s+/g, ''));
@@ -136,9 +121,9 @@ export default function Pricing() {
           <CreditCardIcon size={24} className="ico" />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800 }}>Tariflar & To'lov (Vision AI Skaner)</h1>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800 }}>{t('pricing_title')}</h1>
           <p className="muted small" style={{ margin: 0 }}>
-            To'lov chekini yuboring — Vision AI 3 soniyada tekshirib tarifni avtomatik faollashtiradi
+            {t('pricing_subtitle')}
           </p>
         </div>
       </div>
@@ -217,7 +202,7 @@ export default function Pricing() {
           </p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: '0 0 16px' }}>
             <li>Haftasiga 15 ta esse</li>
-            <li>Kunlik rasmiy Mock testlar</li>
+            <li>{t('plan_feat_mocks')}</li>
             <li>AI repetitor izohlari</li>
           </ul>
           <button
@@ -299,11 +284,12 @@ export default function Pricing() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 24, fontFamily: 'monospace', letterSpacing: 2, fontWeight: 700 }}>
-            {cardInfo.card_number}
+            {cardReady ? cardInfo.card_number : <CardGate status={card.status} onRetry={card.reload} />}
           </span>
           <button
             type="button"
             className="btn sm"
+            disabled={!cardReady}
             onClick={() => handleCopy(cardInfo.card_number)}
             style={{
               background: copied ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
@@ -318,7 +304,7 @@ export default function Pricing() {
         <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12, marginBottom: 16 }}>
           <div>
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>Karta egasi:</span>
-            <strong>{cardInfo.card_holder}</strong>
+            <strong>{cardReady ? cardInfo.card_holder : '—'}</strong>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>To'lov summasi:</span>
@@ -338,7 +324,7 @@ export default function Pricing() {
 
       {/* Drag & Drop Receipt Verification Form */}
       <div className="card" style={{ padding: 24, borderRadius: 16 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>📸 To'lov chekini yuklash (Vision AI OCR)</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>📸 {t('pricing_upload_title')}</h2>
         <p className="muted small" style={{ marginBottom: 16 }}>
           Click, Payme yoki Uzum ilovasidan to'lov muvaffaqiyatli o'tgan kvitansiyani yuklang.
         </p>
@@ -425,7 +411,7 @@ export default function Pricing() {
             disabled={uploading || !selectedFile}
             style={{ width: '100%', justifyContent: 'center', fontWeight: 700, padding: '12px 20px' }}
           >
-            {uploading ? "Vision AI chekni tekshirmoqda..." : "🚀 Chekni tasdiqlash va tarifni faollashtirish"}
+            {uploading ? t('pricing_sending') : t('pricing_submit')}
           </button>
         </form>
       </div>

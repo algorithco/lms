@@ -73,7 +73,7 @@ export default function PassingScoresModal({ isOpen, onClose }: PassingScoresMod
         {/* 1. BMB Milliy Sertifikat Table */}
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 800, color: '#D97706', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>🇺🇿</span> Milliy Sertifikat (Ona tili va adabiyot)
+            <span>📖</span> Milliy Sertifikat (Ona tili va adabiyot)
           </h3>
           <div style={{ borderRadius: 14, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>

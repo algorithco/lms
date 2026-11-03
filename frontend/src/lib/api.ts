@@ -176,7 +176,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 502 || res.status === 503 || res.status === 504) {
       throw networkError(res.status, 'error_server_unavailable');
     }
-    let detail = `Request failed (${res.status})`;
+    // DRF's throttle text is English and says nothing useful to a student.
+    if (res.status === 429) throw networkError(429, 'error_too_many_requests');
+    const fallbackDetail = `Request failed (${res.status})`;
+    let detail = fallbackDetail;
     let code: string | undefined;
     try {
       const body = (await res.json()) as any;
@@ -195,6 +198,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* keep default */
     }
+    // A 5xx without a JSON message (an HTML error page) is not something to show verbatim.
+    if (res.status >= 500 && detail === fallbackDetail) throw networkError(res.status, 'error_server_failed');
     const err = new Error(detail) as ApiError;
     err.status = res.status;
     err.detail = detail;
@@ -1015,7 +1020,43 @@ export interface FeedbackPayload {
   category: 'feedback' | 'suggestion' | 'bug' | 'praise';
   message: string;
   name?: string;
-  phone?: string;
+  /** The author agrees to be shown publicly as "Komiljon R." once an admin approves. */
+  consent_public?: boolean;
+  /** Honeypot: must stay empty. */
+  website?: string;
+  context?: Record<string, string | undefined>;
+}
+
+export interface MyFeedbackItem {
+  id: number;
+  rating: number;
+  category: string;
+  message: string;
+  status: 'new' | 'seen' | 'in_progress' | 'resolved';
+  admin_reply: string;
+  replied_at: string | null;
+  created_at: string;
+}
+
+export interface AdminFeedbackItem extends MyFeedbackItem {
+  user_id: number | null;
+  name: string;
+  context: Record<string, string>;
+  consent_public: boolean;
+  is_published: boolean;
+}
+
+export interface AdminFeedbackList {
+  count: number;
+  page: number;
+  page_size: number;
+  results: AdminFeedbackItem[];
+  stats: {
+    total: number;
+    average_rating: number;
+    by_status: Record<string, number>;
+    by_category: Record<string, number>;
+  };
 }
 
 export interface PublicFeedbackItem {
@@ -1024,7 +1065,7 @@ export interface PublicFeedbackItem {
   role: string;
   rating: number;
   category: string;
-  category_display: string;
+  category_display?: string;
   message: string;
   created_at: string;
 }
@@ -1037,6 +1078,11 @@ export const FeedbackApi = {
     }),
   listPublic: () =>
     api<{ results: PublicFeedbackItem[]; count: number }>('/api/v1/feedback/public/'),
+  mine: () => api<{ results: MyFeedbackItem[] }>('/api/v1/feedback/mine/'),
+  adminList: (params: Record<string, string>) =>
+    api<AdminFeedbackList>(`/api/v1/panel/feedback/?${new URLSearchParams(params).toString()}`),
+  adminUpdate: (id: number, patch: { status?: string; admin_reply?: string; is_published?: boolean }) =>
+    api<AdminFeedbackItem>(`/api/v1/panel/feedback/${id}/`, { method: 'PATCH', body: JSON.stringify(patch) }),
 };
 
 export const Push = {

@@ -250,8 +250,10 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "30/minute",  # Anonymous: 30 requests per minute
-        "user": "100/minute",  # Authenticated: 100 requests per minute
+        # Anonymous 30/min, authenticated 100/min by default; overridable per
+        # environment (e.g. a local QA run that crawls many pages quickly).
+        "anon": env("DRF_THROTTLE_ANON", default="30/minute"),
+        "user": env("DRF_THROTTLE_USER", default="100/minute"),
         "test-start": "5/hour",  # Test start: 5 per hour
         "test-submit": "10/hour",  # Test submit: 10 per hour
         "essay-submit": "5/minute",
@@ -260,6 +262,7 @@ REST_FRAMEWORK = {
         "login": "5/min",
         "omr-scan": "10/hour",  # Each scan is a paid vision call
         "omr-confirm": "10/hour",
+        "feedback-submit": "5/hour",  # per user, or per IP for guests
     },
 }
 

@@ -180,6 +180,10 @@ export default function PanelDashboard() {
           <span className="stat-label"><PenLineIcon size={15} className="ico" /> {t('panel_action_new_topic')}</span>
           <span className="muted small">{t('panel_action_new_topic_hint')}</span>
         </Link>
+        <Link className="card stat admin-action" to="/panel/feedback">
+          <span className="stat-label"><PenLineIcon size={15} className="ico" /> {t('fbi_title')}</span>
+          <span className="muted small">{t('fbi_hint')}</span>
+        </Link>
         <Link className="card stat admin-action" to="/teacher/essays">
           <span className="stat-label"><ScrollTextIcon size={15} className="ico" /> {t('panel_action_review_essays')}</span>
           <span className="muted small">
@@ -498,7 +502,7 @@ export default function PanelDashboard() {
                       </td>
                       <td>
                         <span className={`badge ${isEng ? 'blue' : 'amber'}`}>
-                          {isEng ? '🇬🇧 English' : '🇺🇿 Ona tili'}
+                          {isEng ? 'English' : 'Ona tili'}
                         </span>
                       </td>
                       <td>
@@ -725,7 +729,7 @@ export default function PanelDashboard() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>🇺🇿</span>
+                    <span>📖</span>
                     <span>Ona tili</span>
                   </button>
                   <button
@@ -746,7 +750,7 @@ export default function PanelDashboard() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>🇬🇧</span>
+                    <span>🎓</span>
                     <span>English (IELTS)</span>
                   </button>
                 </div>

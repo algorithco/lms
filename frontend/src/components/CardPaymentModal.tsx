@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { CheckIcon, CopyIcon, CreditCardIcon, XIcon, ZapIcon } from './icons';
-import { BillingApi, type CardDetailsResponse, type PaymentReceiptItem } from '../lib/api';
+import { BillingApi, type PaymentReceiptItem } from '../lib/api';
+import { useCardInfo } from '../lib/useCardInfo';
+import CardGate from './CardGate';
 import { useLang } from '../i18n/LangContext';
 
 export interface CardPaymentModalProps {
@@ -45,19 +47,10 @@ export default function CardPaymentModal({
 }: CardPaymentModalProps) {
   const { t } = useLang();
   const [selectedTariff, setSelectedTariff] = useState<'STARTER' | 'PRO' | 'PREMIUM'>(initialTariff);
-  const [cardInfo, setCardInfo] = useState<{
-    card_number: string;
-    card_holder: string;
-    starter_price: number;
-    pro_price: number;
-    premium_price: number;
-  }>({
-    card_number: '4916 9903 6325 9166',
-    card_holder: 'Ro\'ziyev K.',
-    starter_price: 7000,
-    pro_price: 15000,
-    premium_price: 27000,
-  });
+  const card = useCardInfo(isOpen);
+  const cardReady = card.status === 'ready';
+  // Prices fall back to the plan list while the card details load; the number and holder never do.
+  const cardInfo = card.info ?? { card_number: '', card_holder: '', starter_price: 7000, pro_price: 15000, premium_price: 27000 };
 
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -81,22 +74,6 @@ export default function CardPaymentModal({
     setSubmittedReceipt(null);
     setSelectedFile(null);
     setPreviewUrl(null);
-
-    BillingApi.cardDetails()
-      .then((data: CardDetailsResponse) => {
-        if (data) {
-          setCardInfo({
-            card_number: data.card_number || '4916 9903 6325 9166',
-            card_holder: data.card_holder || 'Ro\'ziyev K.',
-            starter_price: data.starter_price || 7000,
-            pro_price: data.pro_price || 15000,
-            premium_price: data.premium_price || 27000,
-          });
-        }
-      })
-      .catch(() => {
-        // Fallback default info is already loaded
-      });
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -488,7 +465,7 @@ export default function CardPaymentModal({
                     color: '#F8FAFC',
                   }}
                 >
-                  {cardInfo.card_number}
+                  {cardReady ? cardInfo.card_number : <CardGate status={card.status} onRetry={card.reload} />}
                 </span>
 
                 <button
@@ -531,7 +508,7 @@ export default function CardPaymentModal({
                     Karta egasi
                   </div>
                   <div style={{ fontWeight: 800, color: '#F1F5F9', marginTop: 2 }}>
-                    {cardInfo.card_holder}
+                    {cardReady ? cardInfo.card_holder : '—'}
                   </div>
                 </div>
 

@@ -281,7 +281,7 @@ export default function EssayTopics() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 6px' }}>
-            <span>{activeSubject === 'english' ? '🇬🇧' : '🇺🇿'}</span>
+            <span>{activeSubject === 'english' ? '🎓' : '📖'}</span>
             <span>
               {activeSubject === 'english'
                 ? 'English Writing Tasks & Essays'
@@ -290,7 +290,7 @@ export default function EssayTopics() {
           </h1>
           <p className="muted small" style={{ margin: 0 }}>
             {activeSubject === 'english'
-              ? 'Official IELTS Writing (Task 1 & 2) and CEFR Multi-level criteria with instant AI evaluation.'
+              ? 'IELTS Writing (Task 1 & 2) and CEFR Multi-level criteria with instant AI evaluation.'
               : 'BMB (DTM) 12-mezonli rasmiy baholash tizimi bo‘yicha esse yozing va AI hamda ustozdan aniq ball oling.'}
           </p>
         </div>
