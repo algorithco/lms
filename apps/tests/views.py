@@ -1154,10 +1154,7 @@ class CertificateCardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, attempt_id: int) -> Response:
-        from apps.tests.score_converter import (
-            convert_test_score_to_english_band,
-            generate_digital_certificate_payload,
-        )
+        from apps.tests.score_converter import convert_test_score_to_english_band
 
         attempt = (
             TestAttempt.objects.select_related("test", "student")
@@ -1206,15 +1203,25 @@ class CertificateCardView(APIView):
             attempt.test, "get_exam_type_display", lambda: "IELTS / CEFR"
         )()
 
-        payload = generate_digital_certificate_payload(
-            student_name=student_name,
-            exam_title=attempt.test.title,
-            exam_type=exam_type_str,
-            score_info=score_info,
-            completion_date=(attempt.completed_at or attempt.started_at).strftime(
-                "%d.%m.%Y"
-            ),
-        )
+        # IELTS / other English tests: the raw score and an ESTIMATED band, nothing
+        # that looks like a certificate (no number, QR code, issuer or "official" title).
+        from apps.results.models import Result
+
+        result = Result.objects.filter(attempt=attempt).only("correct_answers", "total_questions").first()
+        correct = result.correct_answers if result else score_info["raw_score"]
+        total = result.total_questions if result else score_info["total_questions"]
+        payload = {
+            "scale": "ielts_estimate",
+            "is_estimate": True,
+            "candidate_name": student_name,
+            "exam_title": attempt.test.title,
+            "exam_type": exam_type_str,
+            "issue_date": (attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
+            "correct_answers": correct,
+            "total_questions": total,
+            "overall_band": score_info["ielts_band"],
+            "is_valid": False,
+        }
         return Response(payload, status=status.HTTP_200_OK)
 
 
