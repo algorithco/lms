@@ -15,7 +15,7 @@ factory-boy>=3.3,<4.0              # Test fixtures
 # Code quality
 ruff>=0.16.7,<1.0                     # Linter + formatter
 mypy>=1.10,<2.0                    # Type checking
-django-stubs>=6.1.0,<7.0             # Type stubs for Django
+django-stubs>=6.1.1,<7.0             # Type stubs for Django
 
 # Reload
 django-livereload-server>=0.5.1,<1.0
