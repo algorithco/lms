@@ -2067,7 +2067,10 @@
     "pay_receipt_pending_status": "Tekshirilmoqda",
     "res_topic_title": "Mavzular bo'yicha tahlil",
     "res_topic_hint_title": "Eslatma",
-    "res_topic_hint": "Eng past natija «{topic}» mavzusida ({pct}%). Shu mavzudagi savollarni qayta ko'rib chiqing."
+    "res_topic_hint": "Eng past natija «{topic}» mavzusida ({pct}%). Shu mavzudagi savollarni qayta ko'rib chiqing.",
+    "ielts_result_estimate_note": "Bu taxminiy natija: band ommaviy xom-ball jadvali bo'yicha hisoblangan va rasmiy IELTS bandi emas.",
+    "ielts_result_raw": "To'g'ri javoblar",
+    "ielts_result_band": "Taxminiy band"
   },
   "ru": {
     "main": "Главное",
@@ -4137,7 +4140,10 @@
     "pay_receipt_pending_status": "На проверке",
     "res_topic_title": "Анализ по темам",
     "res_topic_hint_title": "Подсказка",
-    "res_topic_hint": "Самый низкий результат по теме «{topic}» ({pct}%). Повторите вопросы по этой теме."
+    "res_topic_hint": "Самый низкий результат по теме «{topic}» ({pct}%). Повторите вопросы по этой теме.",
+    "ielts_result_estimate_note": "Это ориентировочный результат: band рассчитан по общедоступной таблице и не является официальным IELTS.",
+    "ielts_result_raw": "Правильных ответов",
+    "ielts_result_band": "Ориентировочный band"
   },
   "en": {
     "main": "Main",
@@ -6207,6 +6213,9 @@
     "pay_receipt_pending_status": "Under review",
     "res_topic_title": "Topic breakdown",
     "res_topic_hint_title": "Tip",
-    "res_topic_hint": "Your lowest result is on “{topic}” ({pct}%). Review the questions on that topic."
+    "res_topic_hint": "Your lowest result is on “{topic}” ({pct}%). Review the questions on that topic.",
+    "ielts_result_estimate_note": "This is an estimate: the band uses a public raw-score table and is not an official IELTS band.",
+    "ielts_result_raw": "Correct answers",
+    "ielts_result_band": "Estimated band"
   }
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Tests as TestsApi } from '../../lib/api';
 import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
 import CdExamInterface, { type CdAttempt } from './CdExamInterface';
+import { withSyntheticStructure } from './cdAdapter';
 import { useLang } from '../../i18n/LangContext';
 import {
   ClockIcon,
@@ -658,9 +659,12 @@ export default function EnglishExamInterface() {
         /(?:\(\d+\)\s*_{2,}|_{3,})/.test(currentQ.text))
   );
 
-  // CD-format tests (section → part → group) use the dedicated engine.
-  if (attempt && !loading && (attempt as unknown as CdAttempt).structure?.length) {
-    return <CdExamInterface attempt={attempt as unknown as CdAttempt} />;
+  // Every English exam runs on the CD engine: CD-format tests bring their own
+  // section → part → group structure, older ones get one built from their
+  // reading passages. (The Tailwind-styled layout below renders unstyled — the
+  // project has no Tailwind — so it is no longer reachable for a real attempt.)
+  if (attempt && !loading && (attempt as unknown as CdAttempt).questions?.length) {
+    return <CdExamInterface attempt={withSyntheticStructure(attempt as unknown as CdAttempt)} />;
   }
 
   if (loading) {
