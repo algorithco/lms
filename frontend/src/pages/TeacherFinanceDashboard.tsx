@@ -59,11 +59,11 @@ export default function TeacherFinanceDashboard() {
   useEffect(() => {
     async function fetchGroups() {
       try {
-        const res = await apiFetch<any>('/api/v1/school/overview/');
-        const groupsList: TeacherGroup[] = (res?.groups || []).map((g: any) => ({
+        const res = await apiFetch<any[]>('/api/v1/school/groups/');
+        const groupsList: TeacherGroup[] = (Array.isArray(res) ? res : []).map((g: any) => ({
           id: g.id,
           name: g.name,
-          monthly_fee: g.monthly_fee || 400000,
+          monthly_fee: Number(g.monthly_fee) || 0,
         }));
         setGroups(groupsList);
         if (groupsList.length > 0) {
