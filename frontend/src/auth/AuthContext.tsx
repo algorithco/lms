@@ -72,6 +72,11 @@ function adoptServerLang(language: unknown): void {
   }
 }
 
+/** Login and register payloads can lack the plan and subject; /me is the single source for both. */
+function syncFromMe(set: (u: AuthUser) => void): void {
+  Auth.me().then(set).catch(() => undefined);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -148,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user } = await apiLogin(email, password);
       adoptServerLang(user.language);
       setUser(user);
+      syncFromMe(setUser);
       return user;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login failed.');
@@ -167,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       adoptServerLang(resolvedUser.language);
       setUser(resolvedUser);
+      syncFromMe(setUser);
       return resolvedUser;
     },
     [],
@@ -181,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = normalizeUser(data.user);
         adoptServerLang(user.language);
         setUser(user);
+        syncFromMe(setUser);
         return user;
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Google login failed.');
@@ -250,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { user } = await apiRegister(payload);
         adoptServerLang(user.language);
         setUser(user);
+        syncFromMe(setUser);
         return user;
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Registration failed.');
@@ -270,6 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = normalizeUser(rawUser);
     adoptServerLang(user.language);
     setUser(user);
+    syncFromMe(setUser);
     return user;
   }, []);
 

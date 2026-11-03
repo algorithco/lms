@@ -2818,3 +2818,58 @@ export const ReferralApi = {
 };
 
 export const apiFetch = api;
+
+// -- Student dashboard (GET /api/v1/dashboard/) ------------------------------
+export interface DashboardSection {
+  code: string;
+  name: string;
+  score: number;
+  max: number;
+  level: string | null;
+}
+
+export interface DashboardRecent {
+  result_id: number;
+  test_id: number;
+  title: string;
+  kind: 'cefr' | 'ielts' | 'attestation' | 'bmb' | 'general';
+  trial: boolean;
+  finished_at: string | null;
+  percentage: number;
+  correct: number;
+  total: number;
+  grade: string;
+  sections: DashboardSection[];
+}
+
+export interface DashboardWeakPart {
+  section_code: string;
+  section_name: string;
+  part: string;
+  question_type: string;
+  correct: number;
+  total: number;
+}
+
+export interface DashboardData {
+  subject: 'uzbek' | 'english';
+  tier: string;
+  resume: { attempt_id: number; test_id: number; title: string; route: string; started_at: string } | null;
+  indicators: {
+    tests_taken: number;
+    average_percentage: number | null;
+    best_percentage: number | null;
+    best_grade: string | null;
+    best_sections: Record<string, number>;
+    best_overall: { score: number; level: string } | null;
+    essays: { count: number; last_score: number | null; last_max: number | null };
+    streak: number;
+  };
+  recent: DashboardRecent[];
+  weak_parts: DashboardWeakPart[];
+  goal: { exam_target: string; target: string; months: number; current: string | null; reached: boolean | null } | null;
+}
+
+export const DashboardApi = {
+  get: (subject: string) => api<DashboardData>(`/api/v1/dashboard/?subject=${encodeURIComponent(subject)}`),
+};
