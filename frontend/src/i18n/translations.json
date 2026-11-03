@@ -597,7 +597,7 @@
     "how_title_1": "3 qadamda",
     "how_title_2": "boshlang",
     "page_title_home": "GRANDEC - Milliy sertifikatga tayyorlanish platformasi",
-    "pay_plans_title": "Obuna rejaları",
+    "pay_plans_title": "Obuna rejalari",
     "pay_plans_subtitle": "O'z darajangizga mos rejani tanlang. Premium obuna bilan barcha imkoniyatlar ochiladi!",
     "usage_plan": "Tarif",
     "usage_image_essay": "Rasmli esse",
@@ -1589,7 +1589,7 @@
     "pricing_eyebrow": "HAMYONBOP TARIFLAR",
     "pricing_title_1": "Hamyonbop va qulay",
     "pricing_title_2": "tariflar",
-    "pricing_subtitle": "O'z darajangiz va maqsadingizga mos tarifni tanlang",
+    "pricing_subtitle": "To'lov chekini yuboring — administrator tekshirib tasdiqlagach, tarifingiz faollashadi (odatda 5–15 daqiqa).",
     "plan_free_name": "Bepul",
     "plan_free_desc": "Platforma bilan tanishish uchun asosiy sinov imkoniyatlari",
     "plan_free_f1": "Kuniga 1 ta matnli esse",
@@ -2070,7 +2070,12 @@
     "res_topic_hint": "Eng past natija «{topic}» mavzusida ({pct}%). Shu mavzudagi savollarni qayta ko'rib chiqing.",
     "ielts_result_estimate_note": "Bu taxminiy natija: band ommaviy xom-ball jadvali bo'yicha hisoblangan va rasmiy IELTS bandi emas.",
     "ielts_result_raw": "To'g'ri javoblar",
-    "ielts_result_band": "Taxminiy band"
+    "ielts_result_band": "Taxminiy band",
+    "pricing_title": "Tariflar va to'lov",
+    "pricing_upload_title": "To'lov chekini yuklash",
+    "pricing_sending": "Chek yuborilmoqda...",
+    "pricing_submit": "Chekni yuborish",
+    "plan_feat_mocks": "To'liq mock testlar"
   },
   "ru": {
     "main": "Главное",
@@ -3662,7 +3667,7 @@
     "pricing_eyebrow": "ТАРИФНЫЕ ПЛАНЫ",
     "pricing_title_1": "Доступные и выгодные",
     "pricing_title_2": "тарифные планы",
-    "pricing_subtitle": "Выберите тариф под ваши цели и уровень подготовки",
+    "pricing_subtitle": "Отправьте чек — тариф включится после проверки и подтверждения администратором (обычно 5–15 минут).",
     "plan_free_name": "Бесплатный",
     "plan_free_desc": "Базовые возможности для знакомства с платформой",
     "plan_free_f1": "1 текстовое эссе в день",
@@ -4143,7 +4148,12 @@
     "res_topic_hint": "Самый низкий результат по теме «{topic}» ({pct}%). Повторите вопросы по этой теме.",
     "ielts_result_estimate_note": "Это ориентировочный результат: band рассчитан по общедоступной таблице и не является официальным IELTS.",
     "ielts_result_raw": "Правильных ответов",
-    "ielts_result_band": "Ориентировочный band"
+    "ielts_result_band": "Ориентировочный band",
+    "pricing_title": "Тарифы и оплата",
+    "pricing_upload_title": "Загрузка чека об оплате",
+    "pricing_sending": "Чек отправляется...",
+    "pricing_submit": "Отправить чек",
+    "plan_feat_mocks": "Полные пробные тесты"
   },
   "en": {
     "main": "Main",
@@ -5735,7 +5745,7 @@
     "pricing_eyebrow": "PRICING PLANS",
     "pricing_title_1": "Affordable & flexible",
     "pricing_title_2": "pricing plans",
-    "pricing_subtitle": "Choose the best plan tailored to your goals",
+    "pricing_subtitle": "Send your payment receipt — your plan starts once an administrator checks and approves it (usually 5–15 minutes).",
     "plan_free_name": "Free",
     "plan_free_desc": "Basic features to explore the platform",
     "plan_free_f1": "1 text essay per day",
@@ -6216,6 +6226,11 @@
     "res_topic_hint": "Your lowest result is on “{topic}” ({pct}%). Review the questions on that topic.",
     "ielts_result_estimate_note": "This is an estimate: the band uses a public raw-score table and is not an official IELTS band.",
     "ielts_result_raw": "Correct answers",
-    "ielts_result_band": "Estimated band"
+    "ielts_result_band": "Estimated band",
+    "pricing_title": "Plans and payment",
+    "pricing_upload_title": "Upload payment receipt",
+    "pricing_sending": "Sending receipt...",
+    "pricing_submit": "Send receipt",
+    "plan_feat_mocks": "Full mock tests"
   }
 }

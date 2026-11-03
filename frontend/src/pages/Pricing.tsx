@@ -136,9 +136,9 @@ export default function Pricing() {
           <CreditCardIcon size={24} className="ico" />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800 }}>Tariflar & To'lov (Vision AI Skaner)</h1>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800 }}>{t('pricing_title')}</h1>
           <p className="muted small" style={{ margin: 0 }}>
-            To'lov chekini yuboring — Vision AI 3 soniyada tekshirib tarifni avtomatik faollashtiradi
+            {t('pricing_subtitle')}
           </p>
         </div>
       </div>
@@ -217,7 +217,7 @@ export default function Pricing() {
           </p>
           <ul className="muted small" style={{ paddingLeft: 18, lineHeight: 1.7, margin: '0 0 16px' }}>
             <li>Haftasiga 15 ta esse</li>
-            <li>Kunlik rasmiy Mock testlar</li>
+            <li>{t('plan_feat_mocks')}</li>
             <li>AI repetitor izohlari</li>
           </ul>
           <button
@@ -338,7 +338,7 @@ export default function Pricing() {
 
       {/* Drag & Drop Receipt Verification Form */}
       <div className="card" style={{ padding: 24, borderRadius: 16 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 8 }}>📸 To'lov chekini yuklash (Vision AI OCR)</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>📸 {t('pricing_upload_title')}</h2>
         <p className="muted small" style={{ marginBottom: 16 }}>
           Click, Payme yoki Uzum ilovasidan to'lov muvaffaqiyatli o'tgan kvitansiyani yuklang.
         </p>
@@ -425,7 +425,7 @@ export default function Pricing() {
             disabled={uploading || !selectedFile}
             style={{ width: '100%', justifyContent: 'center', fontWeight: 700, padding: '12px 20px' }}
           >
-            {uploading ? "Vision AI chekni tekshirmoqda..." : "🚀 Chekni tasdiqlash va tarifni faollashtirish"}
+            {uploading ? t('pricing_sending') : t('pricing_submit')}
           </button>
         </form>
       </div>

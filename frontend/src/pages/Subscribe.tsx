@@ -66,7 +66,7 @@ const plans: {
     badgeEn: '⭐ Most Popular / Recommended',
     featuresUz: [
       'Haftasiga 15 ta esse',
-      'Kunlik rasmiy Mock testlar',
+      "To'liq mock testlar",
       'AI repetitor izohlari',
       'Barcha CBT testlar va tahlil',
     ],
