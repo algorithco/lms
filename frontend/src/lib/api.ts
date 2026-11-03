@@ -176,7 +176,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 502 || res.status === 503 || res.status === 504) {
       throw networkError(res.status, 'error_server_unavailable');
     }
-    let detail = `Request failed (${res.status})`;
+    // DRF's throttle text is English and says nothing useful to a student.
+    if (res.status === 429) throw networkError(429, 'error_too_many_requests');
+    const fallbackDetail = `Request failed (${res.status})`;
+    let detail = fallbackDetail;
     let code: string | undefined;
     try {
       const body = (await res.json()) as any;
@@ -195,6 +198,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* keep default */
     }
+    // A 5xx without a JSON message (an HTML error page) is not something to show verbatim.
+    if (res.status >= 500 && detail === fallbackDetail) throw networkError(res.status, 'error_server_failed');
     const err = new Error(detail) as ApiError;
     err.status = res.status;
     err.detail = detail;

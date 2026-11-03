@@ -294,7 +294,7 @@ export default function Tests() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
         <div>
           <h1 style={{ margin: 0 }}>
-            {t('tests')} ({count})
+            {t('tests')}{err ? '' : ` (${count})`}
           </h1>
           <p className="muted" style={{ margin: '4px 0 0' }}>{t('available_tests_hint')}</p>
         </div>

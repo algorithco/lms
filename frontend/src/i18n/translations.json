@@ -2141,7 +2141,11 @@
     "myfb_reply": "Javob:",
     "feedback_prompt_q": "Bu test qanday bo'ldi?",
     "feedback_prompt_later": "Keyinroq",
-    "feedback_quick_message": "Test natijasidan keyingi tezkor baho: {n}/5"
+    "feedback_quick_message": "Test natijasidan keyingi tezkor baho: {n}/5",
+    "pay_card_login": "To'lov rekvizitlarini ko'rish uchun kiring:",
+    "pay_card_error": "Rekvizitlarni yuklab bo'lmadi.",
+    "error_too_many_requests": "Juda ko'p so'rov yuborildi. Bir daqiqa kutib, qayta urinib ko'ring.",
+    "error_server_failed": "Serverda xatolik yuz berdi. Qayta urinib ko'ring; takrorlansa, bizga xabar bering."
   },
   "ru": {
     "main": "Главное",
@@ -4285,7 +4289,11 @@
     "myfb_reply": "Ответ:",
     "feedback_prompt_q": "Как вам этот тест?",
     "feedback_prompt_later": "Позже",
-    "feedback_quick_message": "Быстрая оценка после теста: {n}/5"
+    "feedback_quick_message": "Быстрая оценка после теста: {n}/5",
+    "pay_card_login": "Войдите, чтобы увидеть реквизиты для оплаты:",
+    "pay_card_error": "Не удалось загрузить реквизиты.",
+    "error_too_many_requests": "Слишком много запросов. Подождите минуту и попробуйте снова.",
+    "error_server_failed": "Ошибка на сервере. Попробуйте ещё раз; если повторится, сообщите нам."
   },
   "en": {
     "main": "Main",
@@ -6429,6 +6437,10 @@
     "myfb_reply": "Reply:",
     "feedback_prompt_q": "How was this test?",
     "feedback_prompt_later": "Later",
-    "feedback_quick_message": "Quick rating after the test: {n}/5"
+    "feedback_quick_message": "Quick rating after the test: {n}/5",
+    "pay_card_login": "Sign in to see the payment details:",
+    "pay_card_error": "Could not load the payment details.",
+    "error_too_many_requests": "Too many requests. Wait a minute and try again.",
+    "error_server_failed": "A server error occurred. Try again; if it keeps happening, let us know."
   }
 }
