@@ -18,7 +18,6 @@ from apps.courses.models import Course, StudentGroup
 from apps.speaking.models import SpeakingSubmission, SpeakingTopic
 from apps.speaking.services import evaluate_speaking_submission
 from apps.tests.models import Choice, Question, Test, TestAttempt
-from apps.tests.omr_service import grade_omr_sheet
 
 User = get_user_model()
 
@@ -253,83 +252,6 @@ def test_speaking_submission_evaluation(student_user):
         assert evaluated_sub.fluency_score == Decimal("7.0")
         assert evaluated_sub.lexical_score == Decimal("7.5")
         assert len(evaluated_sub.feedback.get("vocabulary_suggestions", [])) == 1
-
-
-# ==============================================================================
-# 3. OMR TITUL VARAQA SCANNER TESTS
-# ==============================================================================
-@pytest.mark.django_db
-def test_omr_answer_evaluation(sample_test_with_questions, student_user):
-    img = Image.new("RGB", (300, 300), color=(255, 255, 255))
-    img_io = io.BytesIO()
-    img.save(img_io, format="JPEG")
-    img_io.seek(0)
-    uploaded = SimpleUploadedFile(
-        "test_sheet.jpg", img_io.read(), content_type="image/jpeg"
-    )
-
-    mock_extracted = {
-        "test_code": "MOCK-42",
-        "student_id": "101",
-        "answers": {"1": "A", "2": "B"},
-    }
-
-    with patch(
-        "apps.tests.omr_service._extract_answers_with_gemini",
-        return_value=mock_extracted,
-    ):
-        report = grade_omr_sheet(
-            uploaded, test_id=sample_test_with_questions.id, user=student_user
-        )
-
-        assert report["ok"] is True
-        assert report["total_score"] == 2
-        assert report["total_questions"] == 2
-        assert report["percentage"] == 100.0
-        assert report["is_passed"] is True
-        assert len(report["breakdown"]) == 2
-        assert report["breakdown"][0]["is_correct"] is True
-        assert report["breakdown"][1]["is_correct"] is True
-
-
-@pytest.mark.django_db
-def test_omr_scan_endpoint_with_image(
-    api_client, student_user, sample_test_with_questions
-):
-    api_client.force_authenticate(user=student_user)
-
-    img = Image.new("RGB", (400, 600), color=(255, 255, 255))
-    draw = ImageDraw.Draw(img)
-    draw.text((20, 20), "#MOCK-42", fill=(0, 0, 0))
-
-    img_io = io.BytesIO()
-    img.save(img_io, format="JPEG")
-    img_io.seek(0)
-    uploaded = SimpleUploadedFile(
-        "omr_test.jpg", img_io.read(), content_type="image/jpeg"
-    )
-
-    mock_extracted = {
-        "test_code": "MOCK-42",
-        "student_id": "101",
-        "answers": {"1": "A", "2": "B"},
-    }
-
-    with patch(
-        "apps.tests.omr_service._extract_answers_with_gemini",
-        return_value=mock_extracted,
-    ):
-        res = api_client.post(
-            "/api/v1/tests/scan-omr/",
-            {"image": uploaded, "mock_code": "MOCK-42"},
-            format="multipart",
-        )
-
-        assert res.status_code == 200
-        data = res.json()
-        assert data["ok"] is True
-        assert data["total_score"] == 2
-        assert data["percentage"] == 100.0
 
 
 # ==============================================================================

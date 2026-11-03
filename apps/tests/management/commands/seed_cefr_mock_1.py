@@ -66,18 +66,18 @@ class Command(BaseCommand):
         category, _ = Category.objects.get_or_create(
             slug="cefr-ielts-authentic",
             defaults={
-                "name": "CEFR & IELTS Official Mocks",
-                "description": "Authentic British Council & BMB Multi-Level Computer Delivered Exams",
+                "name": "CEFR & IELTS Mocks",
+                "description": "CEFR Multi-level va IELTS formatidagi mashq testlari.",
             },
         )
 
         course, _ = Course.objects.get_or_create(
             slug="cefr-multilevel-record-course",
             defaults={
-                "title": "CEFR Multi-Level & IELTS Authentic Exam Series",
+                "title": "CEFR Multi-Level & IELTS Practice Series",
                 "category": category,
                 "teacher": admin_user,
-                "description": "Rasmiy BMB va British Council andozasidagi Multi-Level va CD-IELTS sinov imtihonlari to'plami.",
+                "description": "Multi-level va IELTS formatidagi mashq testlari to'plami.",
                 "status": "published",
             },
         )
@@ -92,7 +92,7 @@ class Command(BaseCommand):
             defaults={
                 "title": "Record Mock – Test 1 (Multi-Level CEFR & IELTS)",
                 "description": (
-                    "BMB va British Council CD-IELTS rasmiy kompyuter imtihoni nusxasi. "
+                    "Multi-level formatidagi mashq testi (eski versiya). "
                     "Listening (35 ta), Reading (35 ta), Writing (3 ta) va Speaking (4 qism)."
                 ),
                 "course": course,

@@ -28,6 +28,9 @@ SCORED = "scored"
 PENDING = "pending"  # submitted, waiting for writing/speaking grading
 MISSING = "missing"  # section absent from the test or left completely blank
 
+# Sections scored from right/wrong answers; the rest are rated (W/S).
+OBJECTIVE_SECTIONS = ("LISTENING", "READING")
+
 
 @lru_cache(maxsize=1)
 def load_scale() -> dict[str, Any]:
@@ -75,6 +78,16 @@ def level_for(score: Decimal | float) -> str:
         if value >= Decimal(str(band["min"])):
             return band["level"]
     return scale["below_level"]
+
+
+def pass_rule() -> dict[str, Any]:
+    """Lowest certificate level and its threshold, for "B1: ≥ 38/75" labels."""
+    scale = load_scale()
+    lowest = min(
+        (b for b in scale["levels"] if b["level"] in scale["certificate_levels"]),
+        key=lambda b: b["min"],
+    )
+    return {"scale_max": scale["scale_max"], "level": lowest["level"], "min": lowest["min"]}
 
 
 def score_sections(

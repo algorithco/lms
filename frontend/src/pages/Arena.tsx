@@ -138,7 +138,7 @@ export default function Arena() {
       } else if (data.type === 'error') {
         const errStr = String(data.message ?? 'Error');
         if (errStr.includes('LIMIT_EXCEEDED') || errStr.includes('limitingiz tugadi')) {
-          setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+          setLimitModalMsg(t('paywall_reason_arena'));
           setLimitModalOpen(true);
         } else {
           setMsg(errStr);
@@ -176,7 +176,7 @@ export default function Arena() {
     } catch (e) {
       const errorText = e instanceof Error ? e.message : 'Failed.';
       if (errorText.includes('LIMIT_EXCEEDED') || errorText.includes('limitingiz tugadi')) {
-        setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalMsg(t('paywall_reason_arena'));
         setLimitModalOpen(true);
       } else {
         setMsg(errorText);
@@ -200,7 +200,7 @@ export default function Arena() {
     } catch (e) {
       const errorText = e instanceof Error ? e.message : 'Failed.';
       if (errorText.includes('LIMIT_EXCEEDED') || errorText.includes('limitingiz tugadi')) {
-        setLimitModalMsg("Bugungi bepul 1v1 Arena limitingiz tugadi (kuniga 3 ta o'yin). Cheksiz janglar uchun STARTER (15 000 so'm) yoki PRO (49 000 so'm) tarifiga o'ting!");
+        setLimitModalMsg(t('paywall_reason_arena'));
         setLimitModalOpen(true);
       } else {
         setMsg(errorText);
@@ -372,7 +372,6 @@ export default function Arena() {
       <LimitExceededModal
         isOpen={limitModalOpen}
         onClose={() => setLimitModalOpen(false)}
-        title="⚔️ 1v1 Arena Limiti Tugadi"
         message={limitModalMsg}
         feature="arena"
       />

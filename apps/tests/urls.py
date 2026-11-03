@@ -152,6 +152,11 @@ urlpatterns = [
         views_omr.ScanOMRView.as_view(),
         name="scan-omr",
     ),
+    path(
+        "scan-omr/confirm/",
+        views_omr.ConfirmOMRView.as_view(),
+        name="scan-omr-confirm",
+    ),
     # -- AI Document-to-Test Converter & Adaptive Re-test --------------------
     path(
         "ai-convert-document/",

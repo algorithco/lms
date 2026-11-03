@@ -242,10 +242,13 @@ def _student_question_payload(
     return payload
 
 
-def _sections_payload(test) -> list[dict[str, Any]]:
+def _sections_payload(test, only_section_id: int | None = None) -> list[dict[str, Any]]:
     if not test or not hasattr(test, "sections"):
         return []
     try:
+        sections = test.sections.order_by("order")
+        if only_section_id:
+            sections = sections.filter(id=only_section_id)
         return [
             {
                 "id": getattr(s, "id", 0),
@@ -256,22 +259,23 @@ def _sections_payload(test) -> list[dict[str, Any]]:
                 "duration_minutes": getattr(s, "duration_minutes", 0) or 0,
                 "weight": str(getattr(s, "weight", 1)),
             }
-            for s in test.sections.order_by("order")
+            for s in sections
         ]
     except Exception as exc:
         logger.warning("Error serializing sections: %s", exc)
         return []
 
 
-def _structure_payload(test) -> list[dict[str, Any]]:
+def _structure_payload(test, only_part_id: int | None = None) -> list[dict[str, Any]]:
     """CD-format layout (section → part → group) without any answer data.
 
-    Empty for legacy tests that have no parts.
+    Empty for legacy tests that have no parts. ``only_part_id`` keeps a
+    single part (free trial attempts).
     """
     out = []
     sections = test.sections.order_by("order").prefetch_related("parts__groups")
     for s in sections:
-        parts = list(s.parts.all())
+        parts = [p for p in s.parts.all() if not only_part_id or p.id == only_part_id]
         if not parts:
             continue
         out.append(
@@ -322,8 +326,19 @@ def _passages_payload(test) -> list[dict[str, Any]]:
         return []
 
 
+def _cefr_scale(test) -> dict[str, Any] | None:
+    """Multi-level pass rule for cards ("B1: average ≥ 38/75"); None otherwise."""
+    if getattr(test, "exam_type", "") != "cefr_multilevel":
+        return None
+    from apps.tests import cefr_multilevel
+
+    return cefr_multilevel.pass_rule()
+
+
 class TestListSerializer(serializers.ModelSerializer):
     """Test list serializer — lightweight, serveralarda ishlatiladi."""
+
+    cefr_scale = serializers.SerializerMethodField()
 
     total_questions = serializers.IntegerField(read_only=True)
     course_title = serializers.CharField(
@@ -362,6 +377,7 @@ class TestListSerializer(serializers.ModelSerializer):
             "max_attempts",
             "pass_percentage",
             "total_questions",
+            "cefr_scale",
             "access_type",
             "has_pin",
             "strict_anti_cheat",
@@ -369,6 +385,9 @@ class TestListSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
         ]
+
+    def get_cefr_scale(self, obj: Test) -> dict[str, Any] | None:
+        return _cefr_scale(obj)
 
     def get_subject(self, obj: Test) -> str:
         return getattr(obj, "subject", "uzbek") or "uzbek"
@@ -405,12 +424,17 @@ class TestDetailSerializer(serializers.ModelSerializer):
     requires_pin = serializers.SerializerMethodField()
     strict_anti_cheat = serializers.SerializerMethodField()
     assigned_group_name = serializers.SerializerMethodField()
+    cefr_scale = serializers.SerializerMethodField()
+    free_trial = serializers.SerializerMethodField()
 
     class Meta:
         model = Test
         fields = [
             "id",
             "subject",
+            "exam_type",
+            "cefr_scale",
+            "free_trial",
             "title",
             "description",
             "course",
@@ -458,6 +482,15 @@ class TestDetailSerializer(serializers.ModelSerializer):
 
     def get_assigned_group_name(self, obj: Test) -> str:
         return obj.assigned_group.name if obj.assigned_group else ""
+
+    def get_cefr_scale(self, obj: Test) -> dict[str, Any] | None:
+        return _cefr_scale(obj)
+
+    def get_free_trial(self, obj: Test) -> dict[str, Any] | None:
+        from apps.tests.trial import trial_info
+
+        request = self.context.get("request")
+        return trial_info(getattr(request, "user", None), obj)
 
     def get_questions(self, obj: Test) -> list[dict[str, Any]]:
         """
@@ -615,6 +648,10 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
     section_progress = serializers.SerializerMethodField()
     exam_type = serializers.SerializerMethodField()
     structure = serializers.SerializerMethodField()
+    is_trial = serializers.SerializerMethodField()
+
+    def get_is_trial(self, obj: TestAttempt) -> bool:
+        return bool(obj.trial_part_id)
 
     class Meta:
         model = TestAttempt
@@ -625,6 +662,7 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
             "exam_type",
             "mode",
             "is_preview",
+            "is_trial",
             "structure",
             "subject",
             "audio_url",
@@ -654,7 +692,7 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
         return getattr(obj.test, "exam_type", "") or ""
 
     def get_structure(self, obj: TestAttempt) -> list[dict[str, Any]]:
-        return _structure_payload(obj.test)
+        return _structure_payload(obj.test, only_part_id=obj.trial_part_id)
 
     def get_subject(self, obj: TestAttempt) -> str:
         test = getattr(obj, "test", None)
@@ -676,7 +714,10 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
 
     def get_sections(self, obj: TestAttempt) -> list[dict[str, Any]]:
         test = getattr(obj, "test", None)
-        return _sections_payload(test) if test else []
+        if not test:
+            return []
+        only = obj.trial_part.section_id if obj.trial_part_id else None
+        return _sections_payload(test, only_section_id=only)
 
     def get_passages(self, obj: TestAttempt) -> list[dict[str, Any]]:
         test = getattr(obj, "test", None)
@@ -731,6 +772,8 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
                 )
                 .order_by("position")
             )
+            if obj.trial_part_id:
+                questions = questions.filter(group__part_id=obj.trial_part_id)
             questions_list = _order_questions(
                 questions, bool(getattr(test, "shuffle_questions", False))
             )

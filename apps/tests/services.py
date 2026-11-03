@@ -143,8 +143,14 @@ class StartAttemptService:
 
     @staticmethod
     @transaction.atomic
-    def execute(test_id: int, student: Any, mode: str = "strict", pin: str = "") -> TestAttempt:
-        """Yangi attempt yaratish."""
+    def execute(
+        test_id: int, student: Any, mode: str = "strict", pin: str = "", trial: bool = False
+    ) -> TestAttempt:
+        """Yangi attempt yaratish.
+
+        ``trial=True`` opens only the free trial part (apps.tests.trial):
+        once per test, as a preview, bypassing the PRO-only lock.
+        """
         from apps.accounts.access import is_platform_admin
 
         # -- Test mavjudligini tekshirish ---------------------------------
@@ -185,8 +191,18 @@ class StartAttemptService:
             if has_pin and provided_pin != str(access_pin).strip():
                 raise TestInvalidPinError("Kiritilgan PIN-kod noto'g'ri.")
 
+        trial_part = None
+        if trial:
+            from apps.tests.trial import trial_part_for, trial_used
+
+            trial_part = trial_part_for(test)
+            if trial_part is None:
+                raise TestAccessDeniedError("Bu testda bepul sinov qismi yo'q.")
+            if trial_used(student, test):
+                raise TestAccessDeniedError("Bu test bo'yicha bepul sinovdan foydalangansiz.")
+
         # -- Ruxsat turi (Access Type) tekshirish -------------------------
-        if access_type == Test.AccessType.PRO_ONLY and not is_admin_or_teacher:
+        if access_type == Test.AccessType.PRO_ONLY and not is_admin_or_teacher and not trial:
             if not getattr(student, "has_pro_access", False):
                 raise TestAccessDeniedError("Ushbu test faqat PRO va PREMIUM obunachilar uchun mo'ljallangan.")
         elif access_type == Test.AccessType.STUDENTS_ONLY and not is_admin_or_teacher:
@@ -210,6 +226,11 @@ class StartAttemptService:
             status=TestAttempt.Status.IN_PROGRESS,
         ).first()
 
+        if active_attempt and bool(active_attempt.trial_part_id) != bool(trial_part):
+            raise ValueError(
+                "Sizda bu test bo'yicha davom etayotgan boshqa urinish bor. "
+                "Avval uni yakunlang."
+            )
         if active_attempt:
             if getattr(active_attempt, "is_expired", False):
                 active_attempt.status = TestAttempt.Status.TIMEOUT
@@ -223,7 +244,7 @@ class StartAttemptService:
                 return active_attempt
 
         # -- Max attempts tekshirish ---------------------------------------
-        if test.max_attempts > 0 and not is_admin_or_teacher:
+        if test.max_attempts > 0 and not is_admin_or_teacher and not trial_part:
             completed_count = TestAttempt.objects.filter(
                 test=test,
                 student=student,
@@ -258,8 +279,10 @@ class StartAttemptService:
                 student=student,
                 status=TestAttempt.Status.IN_PROGRESS,
                 mode=selected_mode,
-                # Teachers/admins only preview: kept out of stats and ratings.
-                is_preview=is_admin_or_teacher,
+                # Teachers/admins only preview: kept out of stats and ratings;
+                # a free trial of one part is never a real result either.
+                is_preview=is_admin_or_teacher or trial_part is not None,
+                trial_part=trial_part,
             )
         except IntegrityError:
             active = TestAttempt.objects.filter(
@@ -282,7 +305,7 @@ class StartAttemptService:
         # -- Bo'lim taymerlari (faqat mustaqil vaqtli bo'limlar uchun) -------
         try:
             timed_sections = test.sections.filter(duration_minutes__gt=0)
-            if timed_sections.exists():
+            if trial_part is None and timed_sections.exists():
                 AttemptSectionProgress.objects.bulk_create(
                     [
                         AttemptSectionProgress(attempt=attempt, section=section)
@@ -422,6 +445,11 @@ class SaveAnswerService:
                 attempt.test.id,
             )
             raise ValueError("Savol topilmadi yoki bu testga tegishli emas.")
+
+        from apps.tests.trial import question_in_trial
+
+        if not question_in_trial(attempt, question):
+            raise ValueError("Bepul sinovda faqat ochiq qism savollariga javob berish mumkin.")
 
         # -- Bo'lim vaqti (server authority) --------------------------------
         if question.section_id and question.section.duration_minutes:
@@ -917,15 +945,17 @@ class SubmitAttemptService:
             time_taken = int(delta.total_seconds())
 
         # -- Barcha savollarni olish (prefetch: choices, gaps, matching) ----
+        question_qs = test.questions.select_related("section", "reading_passage")
+        if attempt.trial_part_id:
+            # Free trial: only the opened part exists for this attempt.
+            question_qs = question_qs.filter(group__part_id=attempt.trial_part_id)
         all_questions = list(
-            test.questions.select_related("section", "reading_passage")
-            .prefetch_related(
+            question_qs.prefetch_related(
                 "choices",
                 "gap_blanks",
                 "matching_prompts__correct_pair",
                 "matching_options",
-            )
-            .order_by("position")
+            ).order_by("position")
         )
 
         # -- Javoblarni bir marta olish (queries: answers, M2M, gap, match) --
@@ -1302,16 +1332,41 @@ class SubmitAttemptService:
         )
 
         extra_fields: dict[str, Any] = {}
-        if test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
+        if attempt.trial_part_id:
+            # One part is not a section: no 0–75 estimate, level or band.
+            band_val, cefr_val = None, ""
+            is_passed = False
+        elif test.exam_type == Test.ExamType.CEFR_MULTILEVEL:
             # Multi-level has its own per-section 0–75 scale; no IELTS band.
             from apps.tests import cefr_multilevel
 
             names = {s.section_code.upper(): s.section_name for s in agg.sections if s.section_code}
             section_map = cefr_multilevel.score_sections(question_scores, names)
-            overall = cefr_multilevel.summarize(section_map)["overall"]
+            summary = cefr_multilevel.summarize(section_map)
+            overall = summary["overall"]
             band_val = None
             cefr_val = overall["level"] if overall else ""
             extra_fields["section_scores"] = cefr_multilevel.to_json(section_map)
+            # Counts and raw score cover only the objective L/R items: the
+            # 3 Writing tasks and 8 Speaking prompts are not "questions" and
+            # their points must not be added to the raw L/R score.
+            objective = [
+                q for q in question_scores
+                if (q.section_code or "").upper() in cefr_multilevel.OBJECTIVE_SECTIONS
+            ]
+            total_questions = len(objective)
+            correct_count = sum(1 for q in objective if q.is_correct is True)
+            wrong_count = sum(1 for q in objective if q.answered and q.is_correct is False)
+            unanswered_count = sum(1 for q in objective if not q.answered)
+            total_score = Decimal(correct_count)
+            max_score = Decimal(total_questions)
+            percentage = (
+                (total_score / max_score * 100).quantize(Decimal("0.01"))
+                if max_score
+                else Decimal("0")
+            )
+            # "Passed" for Multi-level means at least B1 overall, not 60%.
+            is_passed = summary["has_certificate"]
         else:
             band_val = raw_to_ielts_band(correct_count, total_questions=total_questions)
             cefr_val, _ = raw_to_cefr_multilevel(correct_count, max_score=total_questions)

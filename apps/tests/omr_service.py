@@ -1,327 +1,456 @@
 """
 OMR Answer Sheet Scanner Service (apps/tests/omr_service.py).
 
-Provides automated Optical Mark Recognition for photographed paper answer sheets
-(Mock and Attestatsiya tests) using Vision AI with robust local CV fallback.
+Two steps, so nothing is graded from a guess:
+
+1. ``scan_sheet`` — validate the photo, read the marks with a vision model
+   and return a per-question review (clear / multiple / blank / unread).
+   No attempt is created and no XP is given.
+2. ``confirm_sheet`` — the student checks and corrects the answers, then
+   they are saved and graded through the same services as an online
+   attempt (``StartAttemptService`` → ``SaveAnswerService`` →
+   ``SubmitAttemptService``). CEFR tests therefore get exactly the same
+   0–75 estimate as when taken online.
+
+An unread or ambiguous mark is never turned into a default letter.
 """
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+import urllib.request
+from typing import Any
 
 from django.conf import settings
-from django.utils import timezone
-from PIL import Image
+from django.utils.translation import gettext as _
+from PIL import Image, ImageStat, UnidentifiedImageError
+
+from apps.tests.numbering import NumberedQuestion, number_questions
 
 logger = logging.getLogger(__name__)
 
-CHOICE_LETTERS = ["A", "B", "C", "D", "E"]
+CHOICE_LETTERS = "ABCDEFGHIJ"
+ALLOWED_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+
+CLEAR = "clear"
+MULTIPLE = "multiple"
+BLANK = "blank"
+UNREAD = "unread"
+
+TFNG_ALIASES = {
+    "T": "TRUE",
+    "F": "FALSE",
+    "NG": "NOT GIVEN",
+    "Y": "YES",
+    "N": "NO",
+}
 
 
-def _get_choice_letter(choice, all_choices) -> str:
-    """Determine the letter (A, B, C, D) corresponding to a choice."""
-    all_sorted = sorted(all_choices, key=lambda c: (c.position, c.id))
-    for idx, c in enumerate(all_sorted):
-        if c.id == choice.id:
-            return CHOICE_LETTERS[idx] if idx < len(CHOICE_LETTERS) else "A"
-    return "A"
+class OmrError(Exception):
+    """User-facing scan failure (bad image, not a sheet, unreadable)."""
+
+    def __init__(self, code: str, message: str, http_status: int = 400):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.http_status = http_status
 
 
-def _extract_answers_with_gemini(image_file) -> Optional[Dict[str, Any]]:
-    """Use Gemini Vision to read test code and filled bubbles from sheet photo."""
-    api_key = getattr(settings, "GEMINI_API_KEY", "") or getattr(
-        settings, "GOOGLE_API_KEY", ""
-    )
-    if not api_key:
-        return None
+# ---------------------------------------------------------------------------
+# Image validation
+# ---------------------------------------------------------------------------
+
+
+def validate_image(image_file) -> tuple[bytes, str]:
+    """Reject anything that cannot be a photographed paper sheet.
+
+    Checks: file size, real image format (not just the extension), minimum
+    resolution, aspect ratio of a page, and that the picture is mostly light
+    paper rather than a dark screen or a uniform blank frame.
+    """
+    max_bytes = settings.OMR_MAX_UPLOAD_BYTES
+    if image_file.size and image_file.size > max_bytes:
+        raise OmrError(
+            "file_too_large",
+            _("Rasm hajmi %(mb)s MB dan oshmasligi kerak.") % {"mb": max_bytes // (1024 * 1024)},
+        )
+    image_file.seek(0)
+    data = image_file.read()
+    image_file.seek(0)
+    if len(data) > max_bytes:
+        raise OmrError(
+            "file_too_large",
+            _("Rasm hajmi %(mb)s MB dan oshmasligi kerak.") % {"mb": max_bytes // (1024 * 1024)},
+        )
 
     try:
-        from google import genai
+        probe = Image.open(io.BytesIO(data))
+        fmt = probe.format
+        probe.verify()
+        img = Image.open(io.BytesIO(data))
+        img.load()
+    except (UnidentifiedImageError, OSError, SyntaxError):
+        raise OmrError("bad_format", _("Faqat JPG, PNG yoki WEBP rasm yuklang."))
+    if fmt not in ALLOWED_FORMATS:
+        raise OmrError("bad_format", _("Faqat JPG, PNG yoki WEBP rasm yuklang."))
 
-        client = genai.Client(api_key=api_key)
+    w, h = img.size
+    short, long_ = sorted((w, h))
+    if short < settings.OMR_MIN_SHORT_SIDE:
+        raise OmrError("not_a_sheet", _("Rasm juda kichik. Javoblar varaqasini yaqinroqdan aniq suratga oling."))
+    if long_ / short > settings.OMR_MAX_ASPECT_RATIO:
+        raise OmrError("not_a_sheet", _("Bu javoblar varaqasi emas, aniq suratga oling."))
 
-        image_file.seek(0)
-        image_bytes = image_file.read()
-        image_file.seek(0)
+    gray = img.convert("L")
+    gray.thumbnail((400, 400))
+    stat = ImageStat.Stat(gray)
+    if stat.stddev[0] < 8:
+        raise OmrError("not_a_sheet", _("Bu javoblar varaqasi emas, aniq suratga oling."))
+    hist = gray.histogram()
+    bright = sum(hist[150:]) / max(1, sum(hist))
+    if bright < settings.OMR_MIN_PAPER_RATIO:
+        raise OmrError("not_a_sheet", _("Bu javoblar varaqasi emas, aniq suratga oling."))
 
-        prompt = (
-            "You are an expert Optical Mark Recognition (OMR) system for Uzbekistan national BMB / Attestatsiya and IELTS tests.\n"
-            "Examine this photographed answer sheet (titul varaq).\n"
-            "1. Read the Test Code or Mock Code (e.g. MOCK-101, MOCK-2026, or numeric digits in the test code box).\n"
-            "2. Read the Student ID if shaded or written in the ID box.\n"
-            "3. For every question row (1, 2, 3... up to 50), identify which bubble circle (A, B, C, D) is shaded/filled in with a pen/pencil.\n"
-            "Return strictly valid JSON with no markdown wrapping, in this format:\n"
-            "{\n"
-            '  "test_code": "MOCK-...",\n'
-            '  "student_id": "...",\n'
-            '  "answers": {\n'
-            '    "1": "A",\n'
-            '    "2": "B",\n'
-            '    "3": "C"\n'
-            "  }\n"
-            "}"
+    return data, ALLOWED_FORMATS[fmt]
+
+
+# ---------------------------------------------------------------------------
+# Vision reading
+# ---------------------------------------------------------------------------
+
+
+def _prompt(keys: list[str]) -> str:
+    return (
+        "You are an Optical Mark Recognition reader for paper answer sheets.\n"
+        "First decide whether the image is a photographed paper answer sheet with "
+        "numbered rows of answer bubbles/boxes. Screenshots, video calls, slides, "
+        "selfies, documents without answer rows are NOT answer sheets.\n"
+        f"The expected answer rows are: {', '.join(keys)}.\n"
+        "For every expected row report exactly what is marked:\n"
+        '- a list with one letter, e.g. ["B"], when exactly one bubble is filled;\n'
+        '- a list with several letters, e.g. ["A","C"], when more than one is filled;\n'
+        "- an empty list [] when nothing is filled;\n"
+        "- null when the row is missing, cut off, blurred or you are not sure.\n"
+        "If a row holds handwritten words instead of bubbles, return them as one string in a list.\n"
+        "Never guess. Never fill a default letter.\n"
+        "Return only JSON, no markdown:\n"
+        '{"is_answer_sheet": true, "test_code": "", "answers": {"<row>": ["A"]}}'
+    )
+
+
+def _call_vision(image_bytes: bytes, mime_type: str, prompt: str) -> str:
+    api_key = getattr(settings, "OPENROUTER_API_KEY", "")
+    if not api_key:
+        raise OmrError(
+            "scanner_unavailable",
+            _("Skaner hozircha ishlamayapti. Javoblarni onlayn kiriting yoki keyinroq urinib ko'ring."),
+            http_status=422,
+        )
+    base_url = getattr(settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    payload = {
+        "model": settings.OMR_VISION_MODEL,
+        "temperature": 0,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+    req = urllib.request.Request(
+        f"{base_url.rstrip('/')}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=settings.OMR_VISION_TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data["choices"][0]["message"]["content"] or ""
+    except Exception as exc:
+        logger.warning("OMR vision request failed: %s", exc)
+        raise OmrError(
+            "scanner_unavailable",
+            _("Skaner hozircha ishlamayapti. Javoblarni onlayn kiriting yoki keyinroq urinib ko'ring."),
+            http_status=422,
         )
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                genai.types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                prompt,
-            ],
-        )
 
-        text = response.text or ""
-        # Clean potential markdown fences
-        clean_json = re.sub(
-            r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE
-        )
-        data = json.loads(clean_json)
-        if isinstance(data, dict) and "answers" in data:
-            return data
-    except Exception as e:
-        logger.warning("Gemini OMR vision scan fallback triggered: %s", e)
+def _parse_json(text: str) -> dict[str, Any]:
+    clean = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip(), flags=re.MULTILINE)
+    match = re.search(r"\{.*\}", clean, flags=re.DOTALL)
+    try:
+        data = json.loads(match.group(0) if match else clean)
+    except (ValueError, AttributeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
+
+def read_marks(image_bytes: bytes, mime_type: str, keys: list[str]) -> dict[str, Any]:
+    """Vision model → {"is_answer_sheet", "test_code", "answers"}; separate for mocking."""
+    return _parse_json(_call_vision(image_bytes, mime_type, _prompt(keys)))
+
+
+def _mark_status(raw: Any) -> tuple[str, str]:
+    """Raw model value for one row → (status, value). Value only when clear."""
+    if raw is None:
+        return UNREAD, ""
+    if isinstance(raw, str):
+        raw = [raw] if raw.strip() else []
+    if not isinstance(raw, list):
+        return UNREAD, ""
+    marks = [str(m).strip() for m in raw if str(m).strip() and str(m).strip() not in {"?", "-"}]
+    if len(raw) and not marks:
+        return UNREAD, ""
+    if not marks:
+        return BLANK, ""
+    if len(marks) > 1:
+        return MULTIPLE, ""
+    return CLEAR, marks[0]
+
+
+# ---------------------------------------------------------------------------
+# Answer ↔ question mapping
+# ---------------------------------------------------------------------------
+
+
+def _answer_kind(q) -> str:
+    if q.question_type in ("INLINE_GAP_FILL", "gap_fill", "SHORT_ANSWER", "text"):
+        return "text"
+    return "choice"
+
+
+def _sorted_choices(q) -> list:
+    return sorted(q.choices.all(), key=lambda c: (c.position, c.id))
+
+
+def resolve_choice(q, value: str):
+    """Sheet value ("B", "TRUE", "NG") → Choice of ``q``, or None."""
+    v = (value or "").strip().upper().rstrip(".)")
+    if not v:
+        return None
+    choices = _sorted_choices(q)
+    # Exact option text first, then T/F/NG shorthand, then the letter index —
+    # so "F" is option F in a matching task but FALSE in a T/F/NG task.
+    for candidate in dict.fromkeys((v, TFNG_ALIASES.get(v, v))):
+        for c in choices:
+            text = (c.text or "").strip().upper()
+            if text == candidate or re.match(rf"^{re.escape(candidate)}[\s.)\-:]", text):
+                return c
+    if len(v) == 1 and v in CHOICE_LETTERS:
+        idx = CHOICE_LETTERS.index(v)
+        if idx < len(choices):
+            return choices[idx]
     return None
 
 
-def _local_cv_extract(image_file, questions_count: int = 30) -> Dict[str, Any]:
-    """Local algorithmic fallback to read/simulate bubble grid from sheet image."""
-    detected: Dict[str, str] = {}
-    try:
-        image_file.seek(0)
-        img = Image.open(image_file).convert("L")
-        w, h = img.size
-        # Sample luminance variations across the page to generate deterministic bubble reads
-        step = max(1, h // (questions_count + 2))
-        for q_num in range(1, questions_count + 1):
-            y = min(h - 5, (q_num + 1) * step)
-            # Sample 4 horizontal bubble coordinates (A, B, C, D)
-            darkest_idx = 0
-            darkest_val = 256
-            for idx, factor in enumerate([0.25, 0.40, 0.55, 0.70]):
-                x = int(w * factor)
-                pixel_val = img.getpixel((min(w - 1, x), y))
-                if pixel_val < darkest_val:
-                    darkest_val = pixel_val
-                    darkest_idx = idx
-            detected[str(q_num)] = CHOICE_LETTERS[darkest_idx]
-    except Exception as e:
-        logger.warning("Local CV extraction error: %s", e)
-        for q_num in range(1, questions_count + 1):
-            detected[str(q_num)] = CHOICE_LETTERS[(q_num % 4)]
+def correct_display(q) -> str:
+    """Answer key as the student would write it on the sheet."""
+    if _answer_kind(q) == "text":
+        blank = q.gap_blanks.order_by("position", "id").first()
+        if blank:
+            return blank.answer_text
+        return (q.correct_text or "").split("|")[0].strip()
+    choices = _sorted_choices(q)
+    for idx, c in enumerate(choices):
+        if c.is_correct:
+            return CHOICE_LETTERS[idx] if idx < len(CHOICE_LETTERS) else c.text
+    return ""
 
+
+def _review_item(nq: NumberedQuestion, status: str, value: str) -> dict[str, Any]:
+    q = nq.question
+    kind = _answer_kind(q)
+    options: list[str] = []
+    if kind == "choice":
+        options = [CHOICE_LETTERS[i] for i in range(min(len(_sorted_choices(q)), len(CHOICE_LETTERS)))]
+        if status == CLEAR and resolve_choice(q, value) is None:
+            # A letter the question does not have — treat as unread, not as "A".
+            status, value = UNREAD, ""
+        elif status == CLEAR:
+            value = CHOICE_LETTERS[_sorted_choices(q).index(resolve_choice(q, value))]
     return {
-        "test_code": "",
-        "student_id": "",
-        "answers": detected,
+        "question_id": q.id,
+        "key": nq.key,
+        "number": nq.number,
+        "section_code": nq.section_code,
+        "kind": kind,
+        "options": options,
+        "status": status,
+        "value": value,
     }
 
 
-def grade_omr_sheet(
-    image_file,
-    test_id: Optional[int] = None,
-    mock_code: Optional[str] = None,
-    user=None,
-) -> Dict[str, Any]:
-    """Scan and grade an OMR paper sheet against tests in database."""
-    from apps.tests.models import Test, TestAttempt, StudentAnswer
-    from apps.accounts.gamification import record_user_activity
+# ---------------------------------------------------------------------------
+# Test lookup
+# ---------------------------------------------------------------------------
 
-    # 1. Resolve test
-    test = None
+
+def omr_tests_queryset():
+    from apps.tests.models import Test
+
+    return Test.objects.filter(is_active=True).exclude(status=Test.Status.ARCHIVED)
+
+
+def resolve_test(test_id: int | None, mock_code: str | None, detected_code: str = ""):
+    qs = omr_tests_queryset()
     if test_id:
-        test = Test.objects.filter(pk=test_id).first()
-    elif mock_code:
-        test = Test.objects.filter(mock_code__iexact=mock_code.strip()).first()
-        if not test:
-            test = Test.objects.filter(title__icontains=mock_code.strip()).first()
+        return qs.filter(pk=test_id).first()
+    for code in (mock_code, detected_code):
+        code = (code or "").strip()
+        if code:
+            test = qs.filter(mock_code__iexact=code).first()
+            if test:
+                return test
+    return None
 
-    # 2. Extract answers using Gemini Vision with local CV fallback
-    extracted = _extract_answers_with_gemini(image_file)
-    if not extracted or not extracted.get("answers"):
-        q_count = test.questions.count() if test else 30
-        extracted = _local_cv_extract(image_file, questions_count=max(5, q_count))
 
-    detected_code = extracted.get("test_code") or ""
-    detected_answers: Dict[str, str] = extracted.get("answers", {})
+# ---------------------------------------------------------------------------
+# Step 1: scan
+# ---------------------------------------------------------------------------
 
-    # If test is still not resolved, try looking up detected test_code
-    if not test and detected_code:
-        test = Test.objects.filter(mock_code__iexact=detected_code).first()
-        if not test:
-            clean_digits = re.sub(r"\D", "", detected_code)
-            if clean_digits:
-                test = Test.objects.filter(pk=int(clean_digits)).first()
-        if not test:
-            # Code was detected but not found in DB -> signal frontend to let user select
-            return {
-                "ok": False,
-                "code_not_found": True,
-                "detected_code": detected_code,
-                "error": f"⚠️ Tituldan o'qilgan '{detected_code}' kodi bo'yicha test bazada topilmadi. Iltimos, pastdagi ro'yxatdan qaysi testga javob berganingizni tanlang.",
-            }
 
-    # If neither test_id nor mock_code provided and no code detected:
+def scan_sheet(image_file, test_id: int | None = None, mock_code: str | None = None) -> dict[str, Any]:
+    image_bytes, mime = validate_image(image_file)
+
+    test = resolve_test(test_id, mock_code)
+    if test_id and not test:
+        raise OmrError("test_not_found", _("Test topilmadi yoki faol emas."), http_status=404)
     if not test:
-        return {
-            "ok": False,
-            "code_not_found": True,
-            "detected_code": "",
-            "error": "Tituldan test kodi aniqlanmadi yoki bazada mos test topilmadi. Iltimos, ro'yxatdan kerakli testni tanlang.",
-        }
+        raise OmrError("test_required", _("Iltimos, ro'yxatdan qaysi testga javob berganingizni tanlang."))
 
-    questions = list(
-        test.questions.prefetch_related("choices").order_by("position", "id")
-    )
-    total_questions = len(questions)
+    numbered = number_questions(test)
+    if not numbered:
+        raise OmrError("no_objective_questions", _("Bu testda javoblar varaqasi bilan tekshiriladigan savollar yo'q."))
 
-    correct_count = 0
-    incorrect_count = 0
-    blank_count = 0
-    total_score = 0
-    max_score = 0
-    breakdown: List[Dict[str, Any]] = []
+    extracted = read_marks(image_bytes, mime, [nq.key for nq in numbered])
+    if extracted.get("is_answer_sheet") is not True:
+        raise OmrError("not_a_sheet", _("Bu javoblar varaqasi emas, aniq suratga oling."))
 
-    # Prepare attempt if user is authenticated
-    attempt = None
-    if user and user.is_authenticated:
-        attempt = TestAttempt.objects.create(
-            test=test,
-            student=user,
-            status=TestAttempt.Status.COMPLETED,
-            completed_at=timezone.now(),
+    answers = extracted.get("answers") if isinstance(extracted.get("answers"), dict) else {}
+    items = []
+    for nq in numbered:
+        status, value = _mark_status(answers.get(nq.key))
+        items.append(_review_item(nq, status, value))
+
+    unread = sum(1 for i in items if i["status"] == UNREAD)
+    ratio = unread / len(items)
+    if ratio > settings.OMR_MAX_UNREAD_RATIO:
+        raise OmrError(
+            "unreadable",
+            _("Varaqdagi %(n)s ta savol o'qilmadi. Varaqni yorug' joyda, to'liq va aniq suratga oling.")
+            % {"n": unread},
         )
 
-    for idx, q in enumerate(questions, start=1):
-        q_pos = q.position or idx
-        points = q.points or 1
-        max_score += points
-
-        # Find correct choice letter
-        all_choices = list(q.choices.all())
-        correct_choice = next((c for c in all_choices if c.is_correct), None)
-        correct_letter = (
-            _get_choice_letter(correct_choice, all_choices) if correct_choice else "A"
-        )
-
-        # What did the scanner detect?
-        chosen_letter = (
-            (detected_answers.get(str(q_pos)) or detected_answers.get(str(idx)) or "")
-            .upper()
-            .strip()
-        )
-
-        is_correct = False
-        is_blank = not chosen_letter
-
-        if is_blank:
-            blank_count += 1
-            chosen_display = "—"
-        else:
-            chosen_display = chosen_letter
-            if chosen_letter == correct_letter:
-                is_correct = True
-                correct_count += 1
-                total_score += points
-            else:
-                incorrect_count += 1
-
-        # Save student answer if attempt exists
-        if attempt:
-            # Match chosen letter back to choice object
-            sorted_choices = sorted(all_choices, key=lambda c: (c.position, c.id))
-            chosen_choice_obj = None
-            if chosen_letter in CHOICE_LETTERS:
-                c_idx = CHOICE_LETTERS.index(chosen_letter)
-                if c_idx < len(sorted_choices):
-                    chosen_choice_obj = sorted_choices[c_idx]
-
-            ans_obj = StudentAnswer.objects.create(
-                attempt=attempt,
-                question=q,
-                is_correct=is_correct,
-            )
-            if chosen_choice_obj:
-                ans_obj.selected_choices.add(chosen_choice_obj)
-
-        breakdown.append(
-            {
-                "question_number": q_pos,
-                "question_text": q.text[:80] + ("…" if len(q.text) > 80 else ""),
-                "selected_answer": chosen_display,
-                "correct_answer": correct_letter,
-                "is_correct": is_correct,
-                "is_blank": is_blank,
-                "points": points if is_correct else 0,
-                "max_points": points,
-            }
-        )
-
-    percentage = round((total_score / max_score * 100), 1) if max_score > 0 else 0.0
-
-    # Calculate Official Grade / Tier
-    is_english = getattr(test, "subject", "uzbek") == "english"
-    if is_english:
-        if percentage >= 86:
-            grade = "Band 8.0+"
-        elif percentage >= 75:
-            grade = "Band 7.5"
-        elif percentage >= 65:
-            grade = "Band 7.0"
-        elif percentage >= 55:
-            grade = "Band 6.5"
-        elif percentage >= 45:
-            grade = "Band 6.0"
-        else:
-            grade = "Band 5.5"
-    else:
-        # BMB / Attestatsiya standard
-        if percentage >= 86:
-            grade = "Oliy toifa / A+"
-        elif percentage >= 71:
-            grade = "1-toifa / A"
-        elif percentage >= 56:
-            grade = "2-toifa / B+"
-        elif percentage >= 40:
-            grade = "Mutaxassis / B"
-        else:
-            grade = "Yetarli emas (C)"
-
-    pass_threshold = test.pass_percentage or 60
-    is_passed = percentage >= pass_threshold
-
-    if attempt:
-        attempt.score = total_score
-        attempt.percentage = percentage
-        attempt.is_passed = is_passed
-        attempt.save(update_fields=["score", "percentage", "is_passed"])
-
-    # Record streak & gamification XP
-    xp_earned = 0
-    if user and user.is_authenticated:
-        xp_earned = 25 if is_passed else 15
-        record_user_activity(user, xp_amount=xp_earned, activity_type="omr_scan")
-
+    counts = {s: sum(1 for i in items if i["status"] == s) for s in (CLEAR, MULTIPLE, BLANK, UNREAD)}
     return {
         "ok": True,
         "test_id": test.id,
         "test_title": test.title,
-        "mock_code": getattr(test, "mock_code", None) or f"MOCK-{test.id}",
-        "subject": getattr(test, "subject", "uzbek"),
-        "total_questions": total_questions,
-        "correct_count": correct_count,
-        "incorrect_count": incorrect_count,
-        "blank_count": blank_count,
-        "total_score": total_score,
-        "max_score": max_score,
-        "percentage": percentage,
-        "grade": grade,
-        "is_passed": is_passed,
-        "pass_percentage": pass_threshold,
-        "attempt_id": attempt.id if attempt else None,
-        "xp_earned": xp_earned,
-        "breakdown": breakdown,
+        "exam_type": test.exam_type,
+        "subject": test.subject,
+        "detected_code": str(extracted.get("test_code") or ""),
+        "total_questions": len(items),
+        "counts": counts,
+        "items": items,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Step 2: confirm → grade with the online pipeline
+# ---------------------------------------------------------------------------
+
+
+def confirm_sheet(test_id: int, answers: dict[str, Any], user) -> dict[str, Any]:
+    """Save the student-confirmed answers as a normal attempt and grade it.
+
+    ``answers`` maps question_id → value ("B", "NG", "library", or "" for
+    blank). No XP is awarded for OMR results.
+    """
+    from apps.tests.models import TestAttempt
+    from apps.tests.services import SaveAnswerService, StartAttemptService, SubmitAttemptService
+
+    test = omr_tests_queryset().filter(pk=test_id).first()
+    if not test:
+        raise OmrError("test_not_found", _("Test topilmadi yoki faol emas."), http_status=404)
+
+    if TestAttempt.objects.filter(test=test, student=user, status=TestAttempt.Status.IN_PROGRESS).exists():
+        raise OmrError(
+            "attempt_in_progress",
+            _("Bu test bo'yicha davom etayotgan onlayn urinishingiz bor. Avval uni yakunlang."),
+            http_status=409,
+        )
+
+    # Same plan limits as starting the test online (admins/teachers exempt).
+    from apps.subscriptions.services.quota import QuotaService
+
+    allowed, quota_msg, _details = QuotaService.check_test_quota(user, test_id=test.id)
+    if not allowed:
+        raise OmrError("LIMIT_EXCEEDED", quota_msg, http_status=403)
+
+    numbered = {nq.question.id: nq for nq in number_questions(test)}
+    clean: dict[int, str] = {}
+    for raw_id, raw_value in (answers or {}).items():
+        try:
+            qid = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if qid not in numbered:
+            raise OmrError("bad_answers", _("Javoblar ro'yxati bu testga mos emas."))
+        value = str(raw_value or "").strip()[:200]
+        if not value:
+            continue
+        q = numbered[qid].question
+        if _answer_kind(q) == "choice" and resolve_choice(q, value) is None:
+            raise OmrError(
+                "bad_answers",
+                _("%(key)s-savol uchun javob noto'g'ri: %(value)s") % {"key": numbered[qid].key, "value": value},
+            )
+        clean[qid] = value
+
+    try:
+        attempt = StartAttemptService.execute(test_id=test.id, student=user)
+    except ValueError as exc:
+        raise OmrError("start_denied", str(exc), http_status=403)
+
+    for qid, value in clean.items():
+        q = numbered[qid].question
+        if _answer_kind(q) == "choice":
+            SaveAnswerService.execute(
+                attempt_id=attempt.id, question_id=qid, student=user,
+                choice_ids=[resolve_choice(q, value).id],
+            )
+        else:
+            blank = q.gap_blanks.order_by("position").first()
+            SaveAnswerService.execute(
+                attempt_id=attempt.id, question_id=qid, student=user,
+                text_answer=value,
+                gap_answers={blank.position: value} if blank else None,
+            )
+
+    result = SubmitAttemptService.execute(attempt_id=attempt.id, student=user)
+    attempt.refresh_from_db()
+    from apps.results.models import Result
+
+    result_row = Result.objects.filter(attempt=attempt).only("id").first()
+    return {
+        "ok": True,
+        "attempt_id": attempt.id,
+        "result_id": result_row.id if result_row else None,
+        "is_preview": attempt.is_preview,
+        "exam_type": test.exam_type,
+        "percentage": float(getattr(result, "percentage", 0) or 0),
+        "xp_earned": 0,
     }

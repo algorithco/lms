@@ -163,6 +163,7 @@ urlpatterns = [
     ),
     # -- OMR Answer Sheet Auto-Scanner -----------------------------------
     path("tests/scan-omr/", views_omr.ScanOMRView.as_view(), name="tests-scan-omr"),
+    path("tests/scan-omr/confirm/", views_omr.ConfirmOMRView.as_view(), name="tests-scan-omr-confirm"),
     # -- AI Speaking Simulator -------------------------------------------
     path("speaking/", include("apps.speaking.urls")),
     # -- Gamification, Daily Goals & Streak ------------------------------

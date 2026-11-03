@@ -6,6 +6,7 @@
  * 1v1-duel surface and is NOT used by the solo test-taking flow.
  */
 import { api, type Paginated } from './api';
+import type { CefrScaleRule } from './paywall';
 
 export interface TestListItem {
   id: number;
@@ -26,6 +27,8 @@ export interface TestListItem {
   category_name?: string;
   mock_code?: string;
   created_at?: string;
+  exam_type?: string;
+  cefr_scale?: CefrScaleRule | null;
   [key: string]: unknown;
 }
 

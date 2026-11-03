@@ -104,6 +104,10 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     certificate_status = serializers.SerializerMethodField()
     bmb_grade = serializers.CharField(read_only=True)
     bmb_info = serializers.DictField(read_only=True)
+    test_subject = serializers.CharField(source="test.subject", read_only=True, default="uzbek")
+    exam_type = serializers.CharField(source="test.exam_type", read_only=True, default="general")
+    cefr_summary = serializers.SerializerMethodField()
+    trial_part = serializers.SerializerMethodField()
 
     class Meta:
         model = Result
@@ -112,6 +116,10 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             "attempt_id",
             "test",
             "test_title",
+            "test_subject",
+            "exam_type",
+            "cefr_summary",
+            "trial_part",
             "course",
             "course_title",
             "student_name",
@@ -153,6 +161,24 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             }
             for s in obj.section_scores.order_by("id")
         ]
+
+    def get_cefr_summary(self, obj: Result) -> dict[str, Any] | None:
+        """CEFR Multi-level 0–75 estimate — same source as certificate-card."""
+        if obj.test.exam_type != "cefr_multilevel" or not obj.attempt_id:
+            return None
+        if obj.attempt.trial_part_id:
+            return None  # one part is not a section score
+        from apps.tests import cefr_multilevel
+
+        return cefr_multilevel.to_json(
+            cefr_multilevel.summarize(obj.attempt.section_scores or {})
+        )
+
+    def get_trial_part(self, obj: Result) -> dict[str, Any] | None:
+        part = obj.attempt.trial_part if obj.attempt_id and obj.attempt.trial_part_id else None
+        if part is None:
+            return None
+        return {"section_code": part.section.code, "section_name": part.section.name, "part": part.number}
 
     def get_certificate_status(self, obj: Result) -> str:
         """Canonical eligibility state (eligible only with verified rules)."""
@@ -206,6 +232,13 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             "matching_responses",
         ):
             answers_map[answer.question_id] = answer
+
+        from apps.tests.numbering import number_map
+
+        if attempt.trial_part_id:
+            questions = questions.filter(group__part_id=attempt.trial_part_id)
+        questions = list(questions)
+        numbers = number_map(obj.test, questions)
 
         result = []
         for q in questions:
@@ -307,6 +340,9 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             result.append(
                 {
                     "question_id": q.id,
+                    # Number shown to students (never the internal position).
+                    "number": numbers[q.id].number if q.id in numbers else None,
+                    "number_key": numbers[q.id].key if q.id in numbers else "",
                     "section_name": sec_name,
                     "section_code": sec_code,
                     "topic": q_topic,
