@@ -63,15 +63,18 @@ class BillingReceiptCSRFTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertTrue(data.get("trial_granted"))
-        self.assertEqual(data.get("trial_hours"), 24)
-        self.assertIn("24 SOATLIK PRO TRIAL", data.get("message", ""))
+        self.assertFalse(data.get("trial_granted"))
+        self.assertIn("Chekingiz qabul qilindi", data.get("message", ""))
 
-        # Verify receipt saved in DB
+        # Verify receipt saved in DB as PENDING
         receipt = PaymentReceipt.objects.filter(user=self.user).first()
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt.plan, "pro")
         self.assertEqual(receipt.amount, Decimal("15000"))
+        self.assertEqual(receipt.status, PaymentReceipt.Status.PENDING)
+
+        # Verify no instant trial or subscription was granted
+        self.assertFalse(self.user.has_pro_access)
 
         # Verify Telegram notification was sent to superadmin 5582178765
         self.assertTrue(mock_tg_post.called)

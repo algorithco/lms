@@ -194,68 +194,6 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
     }
 
 
-def _activate_student_pro_for_group(student: User, group: StudentGroup) -> None:
-    """O'quvchi ustoz guruhiga qo'shilganda unga avtomatik PRO tarifini faollashtiradi."""
-    from apps.payments.models import (
-        SubscriptionPlan,
-        UserSubscription,
-        TeacherSponsorship,
-    )
-    from apps.payments.subscriptions import grant_subscription
-    from django.utils import timezone
-
-    # 1. Update Profile plan
-    try:
-        profile = getattr(student, "profile", None)
-        if profile:
-            profile.plan = "pro"
-            profile.save(update_fields=["plan"])
-    except Exception as e:
-        logger.warning(
-            "Could not update profile plan for student %s: %s", student.id, e
-        )
-
-    # 2. Grant 365-day PRO subscription
-    pro_plan = SubscriptionPlan.objects.filter(
-        plan_type=SubscriptionPlan.PlanType.PRO
-    ).first()
-    if pro_plan:
-        try:
-            grant_subscription(
-                user=student,
-                plan=pro_plan,
-                source=UserSubscription.Source.TEACHER_SPONSORED,
-                grant_source=f"group:{group.id}",
-                days=365,
-                reason=f"Ustoz guruhi orqali avtomatik PRO: {group.name} (#{group.invite_code})",
-            )
-        except Exception as e:
-            logger.warning(
-                "Could not grant PRO subscription to student %s: %s", student.id, e
-            )
-
-    # 3. Create or update approved TeacherSponsorship
-    try:
-        now = timezone.now()
-        TeacherSponsorship.objects.update_or_create(
-            student=student,
-            group=group,
-            defaults={
-                "is_active": True,
-                "approved_at": now,
-                "expires_at": now + timezone.timedelta(days=365),
-                "is_unlimited_tests": True,
-                "is_unlimited_image_essays": True,
-                "is_unlimited_text_essays": True,
-                "note": f"Ustoz {group.teacher.get_full_name()} guruhi orqali avtomatik berilgan PRO",
-            },
-        )
-    except Exception as e:
-        logger.warning(
-            "Could not create teacher sponsorship for student %s: %s", student.id, e
-        )
-
-
 def find_group_by_token_or_code(token_or_code: str) -> StudentGroup | None:
     """Finds a StudentGroup by invite_token or invite_code."""
     if not token_or_code:
@@ -274,7 +212,7 @@ def join_group_by_token(student: User, token_or_code: str) -> tuple[str, Student
     Joins student to group using invite token or code.
     Returns:
       ("ALREADY_MEMBER", group) if student is already in the group
-      ("SUCCESS", group) on successful addition with auto PRO activation.
+      ("SUCCESS", group) on successful addition (no subscription change).
     Raises ValueError if group is not found.
     """
     group = find_group_by_token_or_code(token_or_code)
@@ -285,13 +223,12 @@ def join_group_by_token(student: User, token_or_code: str) -> tuple[str, Student
         return ("ALREADY_MEMBER", group)
 
     group.students.add(student)
-    _activate_student_pro_for_group(student, group)
     logger.info("Student %s joined group %s via token %s", student.id, group.id, token_or_code)
     return ("SUCCESS", group)
 
 
 def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
-    """O'quvchini taklif kodi orqali guruhga qo'shadi va avtomatik PRO tarifini yoqadi."""
+    """O'quvchini taklif kodi orqali guruhga qo'shadi (obuna o'zgarmaydi)."""
     raw = (invite_code or "").strip().upper()
     if raw.startswith("#"):
         raw = raw[1:]
@@ -307,9 +244,6 @@ def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
     if not group.students.filter(id=student.id).exists():
         group.students.add(student)
         logger.info("Student %s joined group %s via code %s", student.id, group.id, raw)
-
-    # Avtomatik PRO tarifini faollashtirish
-    _activate_student_pro_for_group(student, group)
 
     return group
 

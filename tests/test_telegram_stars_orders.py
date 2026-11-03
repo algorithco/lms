@@ -75,6 +75,10 @@ def make_plan(plan_type: str, **overrides) -> SubscriptionPlan:
 
 class _StarsFixture(TestCase):
     def setUp(self):
+        self.admin = User.objects.create_superuser(
+            email="stars-admin@example.test",
+            password="StrongPass123!",
+        )
         self.student = User.objects.create_user(
             email="stars-student@example.test",
             password="StrongPass123!",
@@ -87,6 +91,12 @@ class _StarsFixture(TestCase):
             is_public=True,
             duration_days=30,
         )
+
+    def _grant(self, user, plan, **kwargs):
+        kwargs.setdefault("kind", "admin")
+        kwargs.setdefault("actor", self.admin)
+        kwargs.setdefault("reason", "test stars fixture grant")
+        return grant_subscription(user, plan, **kwargs)
 
     def _activate(self, order, *, charge_id="tg-charge-1", **overrides):
         payload = {
@@ -376,6 +386,10 @@ class PaymentActivationTests(_StarsFixture):
 
 class SubscriptionLifecycleTests(TestCase):
     def setUp(self):
+        self.admin = User.objects.create_superuser(
+            email="lifecycle-admin@example.test",
+            password="StrongPass123!",
+        )
         self.student = User.objects.create_user(
             email="lifecycle-student@example.test",
             password="StrongPass123!",
@@ -395,9 +409,15 @@ class SubscriptionLifecycleTests(TestCase):
             duration_days=30,
         )
 
+    def _grant(self, user, plan, **kwargs):
+        kwargs.setdefault("kind", "admin")
+        kwargs.setdefault("actor", self.admin)
+        kwargs.setdefault("reason", "test lifecycle grant")
+        return grant_subscription(user, plan, **kwargs)
+
     def test_first_activation_starts_now_for_the_full_duration(self):
         before = timezone.now()
-        subscription = grant_subscription(
+        subscription = self._grant(
             self.student,
             self.start_plan,
             source=UserSubscription.Source.WEBSITE,
@@ -411,10 +431,10 @@ class SubscriptionLifecycleTests(TestCase):
         self.assertIsNotNone(subscription.started_at)
 
     def test_upgrading_to_pro_extends_from_the_later_expiry(self):
-        basic = grant_subscription(self.student, self.start_plan)
+        basic = self._grant(self.student, self.start_plan)
         original_expiry = basic.expires_at
 
-        upgraded = grant_subscription(self.student, self.pro_plan)
+        upgraded = self._grant(self.student, self.pro_plan)
         self.assertEqual(upgraded.pk, basic.pk)
         self.assertEqual(upgraded.plan_id, self.pro_plan.pk)
         # Extended from the existing expiry, not restarted from now.
@@ -425,10 +445,10 @@ class SubscriptionLifecycleTests(TestCase):
         self.assertEqual(UserSubscription.objects.count(), 1)
 
     def test_buying_start_while_pro_is_active_does_not_downgrade(self):
-        pro = grant_subscription(self.student, self.pro_plan)
+        pro = self._grant(self.student, self.pro_plan)
         original_expiry = pro.expires_at
 
-        renewed = grant_subscription(self.student, self.start_plan)
+        renewed = self._grant(self.student, self.start_plan)
         self.assertEqual(renewed.pk, pro.pk)
         self.assertEqual(renewed.plan_id, self.pro_plan.pk)
         renewed.refresh_from_db()
@@ -438,22 +458,22 @@ class SubscriptionLifecycleTests(TestCase):
         self.assertTrue(renewed.plan_snapshot.get("is_unlimited_text_essays"))
 
     def test_expired_subscription_is_restarted_not_extended(self):
-        subscription = grant_subscription(self.student, self.start_plan)
+        subscription = self._grant(self.student, self.start_plan)
         UserSubscription.objects.filter(pk=subscription.pk).update(
             expires_at=timezone.now() - timedelta(days=10),
         )
         before = timezone.now()
-        renewed = grant_subscription(self.student, self.start_plan)
+        renewed = self._grant(self.student, self.start_plan)
         self.assertGreaterEqual(renewed.expires_at, before + timedelta(days=29))
 
     def test_expire_overdue_flips_only_past_due_subscriptions(self):
-        active = grant_subscription(self.student, self.start_plan)
+        active = self._grant(self.student, self.start_plan)
         other = User.objects.create_user(
             email="lifecycle-other@example.test",
             password="StrongPass123!",
             role="student",
         )
-        stale = grant_subscription(other, self.start_plan)
+        stale = self._grant(other, self.start_plan)
         UserSubscription.objects.filter(pk=stale.pk).update(
             expires_at=timezone.now() - timedelta(minutes=1),
         )
@@ -465,7 +485,7 @@ class SubscriptionLifecycleTests(TestCase):
         self.assertEqual(stale.status, UserSubscription.Status.EXPIRED)
 
     def test_administrative_revocation_is_audited(self):
-        grant_subscription(self.student, self.pro_plan)
+        self._grant(self.student, self.pro_plan)
         self.assertTrue(revoke_subscription(self.student, reason="chargeback"))
         subscription = UserSubscription.objects.get(user=self.student)
         self.assertEqual(subscription.status, UserSubscription.Status.REVOKED)
@@ -493,8 +513,8 @@ class SubscriptionLifecycleTests(TestCase):
         as it stands at that moment, and it is never re-derived from a plan that
         an administrator edits afterwards.
         """
-        subscription = grant_subscription(self.student, self.start_plan)
-        renewed = grant_subscription(self.student, self.start_plan)
+        subscription = self._grant(self.student, self.start_plan)
+        renewed = self._grant(self.student, self.start_plan)
         self.assertEqual(
             renewed.plan_snapshot.get("text_essay_weekly_limit"),
             3,
@@ -559,7 +579,7 @@ class ActivationDurabilityTests(_StarsFixture):
             ]
         )
 
-        subscription = grant_subscription(self.student, self.plan)
+        subscription = self._grant(self.student, self.plan)
         self.assertEqual(
             subscription.plan_snapshot.get("text_essay_weekly_limit"),
             3,
@@ -577,7 +597,7 @@ class ActivationDurabilityTests(_StarsFixture):
         """Editing a plan must not retroactively change what was bought."""
         self.plan.text_essay_weekly_limit = 3
         self.plan.save(update_fields=["text_essay_weekly_limit", "updated_at"])
-        grant_subscription(self.student, self.plan)
+        self._grant(self.student, self.plan)
 
         self.plan.text_essay_weekly_limit = 99
         self.plan.save(update_fields=["text_essay_weekly_limit", "updated_at"])

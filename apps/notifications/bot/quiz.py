@@ -603,7 +603,7 @@ async def _show_final_results(
     if passed:
         text += (
             f"\n🎉 *Tabriklaymiz!*\n"
-            f"Siz Milliy sertifikat talablarini bajardingiz! Rasmiy PDF sertifikatingiz quyida yuklanmoqda... 👇\n"
+            f"Testdan muvaffaqiyatli o'tdingiz! Platforma PDF sertifikatingiz quyida yuklanmoqda... 👇\n"
         )
     else:
         text += f"\n💡 *Tavsiya:*\nKo'proq mashq qiling va qayta urinib ko'ring!\n"
@@ -688,7 +688,7 @@ async def _show_final_results(
                         or f"Sertifikat_{cert_num}.pdf",
                         caption=(
                             f"📜 *Tabriklaymiz, {user.first_name}!* 🎉\n\n"
-                            f"Testdan muvaffaqiyatli o'tganingiz uchun rasmiy sertifikatingiz taqdim etiladi.\n"
+                            f"Testdan muvaffaqiyatli o'tganingiz uchun platforma sertifikati taqdim etiladi.\n"
                             f"📋 Sertifikat raqami: *{cert_num}*"
                         ),
                         parse_mode="Markdown",

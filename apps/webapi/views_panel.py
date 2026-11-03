@@ -600,6 +600,7 @@ def user_grant_subscription_view(request, user_id: int):
         user=target,
         plan=plan,
         days=days,
+        kind="admin",
         source=UserSubscription.Source.ADMIN,
         payment_method="admin_grant",
         grant_source="admin_panel",
@@ -1067,6 +1068,8 @@ def activate_student_quota_view(request, group_id=None, student_id=None):
         return Response(
             {"error": "Faqat guruh ustozi talabaga kvota biriktira oladi."}, status=403
         )
+    if not group.students.filter(id=student.id).exists():
+        return Response({"error": "Bu o'quvchi guruhda emas."}, status=400)
 
     from django.db import transaction
 
@@ -1104,16 +1107,20 @@ def activate_student_quota_view(request, group_id=None, student_id=None):
         plan_obj = SubscriptionPlan.objects.filter(plan_type=plan_type).first()
 
         # UserSubscription aktivlashtirish
-        UserSubscription.objects.update_or_create(
+        from apps.payments.subscriptions import grant_subscription
+
+        sub = grant_subscription(
             user=student,
-            defaults={
-                "plan": plan_obj,
-                "status": UserSubscription.Status.ACTIVE,
-                "started_at": now,
-                "expires_at": expires_at,
-                "grant_source": "teacher_quota",
-            },
+            plan=plan_obj,
+            days=30,
+            kind="teacher_quota",
+            source=UserSubscription.Source.TEACHER_SPONSORED,
+            payment_method="teacher_quota",
+            grant_source=f"teacher_quota:group:{group.id}",
+            actor=request.user,
+            reason=f"Ustoz kvotasi ({plan_type}) — guruh #{group.id}",
         )
+        expires_at = sub.expires_at
 
         # Profil tarifini yangilash
         if hasattr(student, "profile"):

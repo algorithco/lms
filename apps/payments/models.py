@@ -641,6 +641,8 @@ class EntitlementAuditLog(models.Model):
         ACTIVATE_SUBSCRIPTION = "activate_subscription", _("Obuna faollashtirildi")
         REVOKE_SUBSCRIPTION = "revoke_subscription", _("Obuna bekor qilindi")
         REFUND_SUBSCRIPTION = "refund_subscription", _("Obuna qaytarildi")
+        EXPIRE_SUBSCRIPTION = "expire_subscription", _("Obuna muddati tugadi")
+        CANCEL_SUBSCRIPTION = "cancel_subscription", _("Obuna foydalanuvchi tomonidan bekor qilindi")
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,

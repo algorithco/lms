@@ -474,6 +474,39 @@ def _used_in_window(user, kind: str, period_start: datetime) -> int:
     ).count()
 
 
+def _used_tests(user, period_start: datetime | None) -> int:
+    """Real (non-preview) attempts — the same count the test start enforces.
+
+    ``period_start=None`` counts the whole history (the free tier's tests are
+    a lifetime allowance, not a monthly one).
+    """
+    from apps.tests.models import TestAttempt
+
+    qs = TestAttempt.objects.filter(
+        student=user,
+        is_preview=False,
+        status__in=[
+            TestAttempt.Status.IN_PROGRESS,
+            TestAttempt.Status.COMPLETED,
+            TestAttempt.Status.TIMEOUT,
+            TestAttempt.Status.PENDING_GRADING,
+        ],
+    )
+    if period_start is not None:
+        qs = qs.filter(started_at__gte=period_start)
+    return qs.count()
+
+
+def test_allowance(user, entitlement: Entitlement, period_start: datetime) -> tuple[int | None, int]:
+    """(limit, used) for tests. Free tier: lifetime limit + referral bonus."""
+    free_tier = entitlement.source == SOURCE_DEFAULT
+    used = _used_tests(user, None if free_tier else period_start)
+    limit = entitlement.test_limit
+    if free_tier and limit is not None:
+        limit = int(limit) + int(getattr(user, "bonus_tests", 0) or 0)
+    return limit, used
+
+
 def last_text_essay_at(user) -> datetime | None:
     """Timestamp of the most recent quota-consuming text essay (rolling)."""
     row = (
@@ -547,6 +580,17 @@ def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
             "remaining": remaining,
         }
 
+    def test_bucket() -> dict:
+        if entitlement.is_unlimited_tests:
+            return {"unlimited": True, "limit": None, "used": 0, "remaining": None}
+        limit, used = test_allowance(user, entitlement, period_start)
+        return {
+            "unlimited": False,
+            "limit": limit,
+            "used": used,
+            "remaining": None if limit is None else max(0, int(limit) - used),
+        }
+
     cooldown = cooldown_seconds_remaining(user, entitlement)
     return {
         "source": entitlement.source,
@@ -571,11 +615,7 @@ def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
             entitlement.text_essay_weekly_limit,
             entitlement.is_unlimited_text_essays,
         ),
-        "test": bucket(
-            SubscriptionUsage.Kind.TEST,
-            entitlement.test_limit,
-            entitlement.is_unlimited_tests,
-        ),
+        "test": test_bucket(),
         "text_cooldown_seconds": cooldown,
         "text_cooldown_until": (
             (now + timedelta(seconds=cooldown)).isoformat() if cooldown else None
@@ -659,7 +699,7 @@ def can_start_test(user) -> tuple[bool, str | None, dict]:
     remaining = get_remaining_limits(user, entitlement)
     if entitlement.is_unlimited_tests:
         return True, None, remaining
-    limit = entitlement.test_limit
+    limit = remaining["test"]["limit"]
     if limit is not None and remaining["test"]["used"] >= int(limit):
         return False, "limit_exceeded", remaining
     return True, None, remaining

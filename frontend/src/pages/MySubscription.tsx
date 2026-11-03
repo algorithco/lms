@@ -6,16 +6,14 @@ import { formatDateTime, num, paymentStatusKey, str } from '../lib/billingPanelG
 import UsageLimits from '../components/UsageLimits';
 
 /**
- * My subscription — parity with templates/payments/my_subscription.html.
- * Backend: GET /api/v1/billing/my/ → { subscription, history[:10] }
- * plus session GET /subscribe/api/status/ → { has_subscription, plan,
- * plan_name, expires_at, days_remaining, features }.
+ * My subscription. Backend: GET /api/v1/billing/my/ → { subscription, history[:10] }.
+ * Limits come only from <UsageLimits /> (GET /api/v1/billing/entitlement/),
+ * the same numbers the server enforces — never from plan marketing fields.
  */
 export default function MySubscription() {
   const { t } = useLang();
   const [sub, setSub] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<Record<string, unknown>[]>([]);
-  const [session, setSession] = useState<Record<string, unknown> | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -31,10 +29,6 @@ export default function MySubscription() {
 
   useEffect(() => {
     load();
-    // Best-effort session bridge (JWT-only logins have no session cookie).
-    Billing.status()
-      .then((s) => setSession(s as unknown as Record<string, unknown>))
-      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -49,9 +43,10 @@ export default function MySubscription() {
   };
 
   const plan = (sub?.plan ?? {}) as Record<string, unknown>;
-  const active = str(sub?.status) === 'active';
+  // is_active also checks the expiry date; status alone may lag until the expiry job.
+  const active = sub?.is_active === true;
   const days = num(sub?.days_remaining, 0);
-  const sessionFeatures = (session?.features ?? {}) as Record<string, unknown>;
+  const method = str(sub?.payment_method);
 
   if (loading) return <p className="muted">{t('loading')}</p>;
 
@@ -80,36 +75,18 @@ export default function MySubscription() {
             <p className="muted small">{t('sub_current')}</p>
             <p>
               <strong>{str(plan.name)}</strong>{' '}
-              <span className={`badge ${active ? 'green' : ''}`}>{str(sub.status)}</span>
+              <span className={`badge ${active ? 'green' : ''}`}>
+                {t(active ? 'sub_status_active' : 'sub_status_inactive')}
+              </span>
+              {sub.is_trial ? <span className="badge amber">{t('sub_status_trial')}</span> : null}
             </p>
             <p className="muted small">
-              {days > 0 ? `${days} ${t('sub_days_left')}` : t('sub_expired')}
+              {active && days > 0 ? `${days} ${t('sub_days_left')}` : active ? '' : t('sub_expired')}
               {sub.expires_at ? ` · ${t('sub_expires_at')}: ${formatDateTime(sub.expires_at)}` : ''}
             </p>
             <p className="muted small">
-              {t('sub_payment_method')}: <b>{str(sub.payment_method) || t('sub_free')}</b>
+              {t('sub_payment_method')}: <b>{method ? t(`sub_pm_${method}`, method) : '—'}</b>
             </p>
-            {/* Feature breakdown — mirrors my_subscription.html feature grid. */}
-            <p className="muted small" style={{ marginTop: 8 }}>
-              {t('sub_your_features')}
-            </p>
-            <ul className="muted small">
-              <li>
-                ✅{' '}
-                {plan.unlimited_tests
-                  ? t('sub_unlimited_tests')
-                  : `${t('sub_per_day_pre')} ${str(plan.max_tests_per_day ?? '—')} ${t('sub_tests_unit')}`}
-              </li>
-              <li>
-                ✅{' '}
-                {plan.unlimited_essays
-                  ? t('sub_unlimited_essays')
-                  : `${t('sub_per_week_pre')} ${str(plan.max_essays_per_week ?? '—')} ${t('sub_essays_unit')}`}
-              </li>
-              {plan.detailed_analytics ? <li>✅ {t('detailed_analytics')}</li> : null}
-              {plan.pdf_certificate ? <li>✅ {t('sub_pdf_cert')}</li> : null}
-              {plan.priority_support ? <li>✅ {t('sub_priority_support')}</li> : null}
-            </ul>
             {active ? (
               !confirming ? (
                 <button className="btn danger sm" onClick={() => setConfirming(true)}>
@@ -131,29 +108,6 @@ export default function MySubscription() {
             ) : null}
           </div>
 
-          {/* Session bridge status — GET /subscribe/api/status/. */}
-          <div className="card" style={{ marginTop: 12 }}>
-            <p className="muted small">{t('billing_session_title')}</p>
-            {session ? (
-              <p className="muted small">
-                {session.has_subscription ? t('billing_session_active') : t('billing_session_free')}
-                {session.plan_name ? ` · ${str(session.plan_name)}` : ''}
-                {session.days_remaining !== undefined
-                  ? ` · ${str(session.days_remaining)} ${t('sub_days_left')}`
-                  : ''}
-                {Object.keys(sessionFeatures).length > 0 && (
-                  <>
-                    {' · '}
-                    {str(sessionFeatures.unlimited_tests)
-                      ? t('sub_unlimited_tests')
-                      : `${t('sub_per_day_pre')} ${str(sessionFeatures.max_tests_per_day ?? '—')} ${t('sub_tests_unit')}`}
-                  </>
-                )}
-              </p>
-            ) : (
-              <p className="muted small">{t('sub_session_unavailable')}</p>
-            )}
-          </div>
         </>
       )}
 

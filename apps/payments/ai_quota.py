@@ -36,33 +36,19 @@ def get_user_plan_tier(user: Any) -> str:
     ):
         return "premium"
 
-    sub = getattr(user, "subscription", None)
-    if sub and getattr(sub, "is_active", False):
-        plan_type = getattr(sub.plan, "plan_type", "").lower()
-        if plan_type in ("premium", "family"):
-            return "premium"
-        if plan_type == "pro":
-            return "pro"
-        if plan_type in ("starter", "start"):
-            return "starter"
+    # Single source: the effective entitlement (an active, unexpired
+    # subscription or an approved teacher sponsorship). Profile.plan strings,
+    # group membership and old receipts never grant a tier.
+    from apps.payments.entitlements import SOURCE_SPONSORED, get_effective_entitlement
 
-    profile = getattr(user, "profile", None)
-    if profile:
-        profile_plan = getattr(profile, "plan", "").lower()
-        if profile_plan in ("premium", "family"):
-            return "premium"
-        if profile_plan == "pro":
-            return "pro"
-        if profile_plan in ("starter", "start"):
-            return "starter"
-
-    # Enrolled in teacher group -> auto-delegated PRO (50 AI requests/day)
-    if hasattr(user, "student_groups") and user.student_groups.exists():
+    entitlement = get_effective_entitlement(user)
+    plan_type = (entitlement.plan_type or "").lower()
+    if plan_type in ("premium", "family"):
+        return "premium"
+    if plan_type == "pro" or entitlement.source == SOURCE_SPONSORED:
         return "pro"
-
-    if getattr(user, "has_pro_access", False):
-        return "pro"
-
+    if plan_type in ("starter", "start"):
+        return "starter"
     return "free"
 
 

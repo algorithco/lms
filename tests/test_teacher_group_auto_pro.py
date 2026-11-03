@@ -89,25 +89,18 @@ def test_student_auto_pro_on_group_join():
     assert joined_group.id == group.id
     assert group.students.filter(id=student.id).exists()
 
-    # Re-fetch student to verify PRO status
+    # Re-fetch student to verify that NO PRO status or auto-subscription is granted
     student.refresh_from_db()
-    assert student.has_pro_access is True
-    assert student.profile.plan == "pro"
+    assert student.has_pro_access is False
+    assert student.profile.plan in ("free", "", None)
 
-    # Effective entitlement must be sponsored
+    # Effective entitlement remains non-sponsored free
     ent = get_effective_entitlement(student)
-    assert ent.plan_name in (
-        "PRO (Ustoz guruhi orqali)",
-        "Ustoz guruhi (homiylik)",
-        "Ustoz homiyligi",
-        "PRO",
-    )
-    assert ent.is_sponsored is True
-    assert ent.is_unlimited_tests is True
+    assert ent.is_sponsored is False
 
-    # AI Quota tier must be "pro" (50 requests/day)
+    # AI Quota tier remains "free"
     tier = get_user_plan_tier(student)
-    assert tier == "pro"
+    assert tier == "free"
 
     # Group analytics must report PRO status
     analytics = get_group_full_analytics(group)

@@ -321,12 +321,23 @@ def test_ai_daily_quota_and_rate_limiting():
         in msg2
     )
 
+    from apps.payments.models import SubscriptionPlan, UserSubscription
+    from datetime import timedelta
+    from django.utils import timezone
+
     # Starter user: 10 requests per day
     starter_user = User.objects.create_user(
         email="starter_student@grandec.uz", password="ValidPassword123!"
     )
     starter_user.profile.plan = "starter"
     starter_user.profile.save()
+    starter_plan, _ = SubscriptionPlan.objects.get_or_create(
+        plan_type="starter", defaults={"name": "Starter", "price_monthly": 7000, "is_active": True}
+    )
+    UserSubscription.objects.create(
+        user=starter_user, plan=starter_plan, status=UserSubscription.Status.ACTIVE,
+        expires_at=timezone.now() + timedelta(days=30),
+    )
     assert get_user_plan_tier(starter_user) == "starter"
 
     for i in range(10):
@@ -344,6 +355,13 @@ def test_ai_daily_quota_and_rate_limiting():
     )
     pro_user.profile.plan = "pro"
     pro_user.profile.save()
+    pro_plan, _ = SubscriptionPlan.objects.get_or_create(
+        plan_type="pro", defaults={"name": "Pro", "price_monthly": 15000, "is_active": True}
+    )
+    UserSubscription.objects.create(
+        user=pro_user, plan=pro_plan, status=UserSubscription.Status.ACTIVE,
+        expires_at=timezone.now() + timedelta(days=30),
+    )
     assert get_user_plan_tier(pro_user) == "pro"
 
     for i in range(50):
@@ -360,6 +378,13 @@ def test_ai_daily_quota_and_rate_limiting():
     )
     prem_user.profile.plan = "premium"
     prem_user.profile.save()
+    premium_plan, _ = SubscriptionPlan.objects.get_or_create(
+        plan_type="premium", defaults={"name": "Premium", "price_monthly": 27000, "is_active": True}
+    )
+    UserSubscription.objects.create(
+        user=prem_user, plan=premium_plan, status=UserSubscription.Status.ACTIVE,
+        expires_at=timezone.now() + timedelta(days=30),
+    )
     assert get_user_plan_tier(prem_user) == "premium"
 
     for _ in range(30):

@@ -72,19 +72,19 @@ class ReceiptVerifierAntiFraudTests(TestCase):
         self.assertEqual(res["plan_type"], "starter")
         self.assertEqual(res["transaction_id"], "CLICK-STARTER-9901")
 
-        # Verify PaymentReceipt saved
+        # Verify PaymentReceipt saved as pending verification
         receipt = PaymentReceipt.objects.get(transaction_id="CLICK-STARTER-9901")
-        self.assertTrue(receipt.is_verified)
+        self.assertFalse(receipt.is_verified)
         self.assertEqual(receipt.amount, Decimal("7000"))
         self.assertEqual(receipt.receipt_hash, compute_receipt_hash(fake_bytes))
 
-        # Verify plan activated
+        # Verify plan is NOT automatically activated (remains free until admin approval)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.profile.plan, "starter")
+        self.assertEqual(self.user.profile.plan, "free")
 
     @patch("apps.subscriptions.services.receipt_verifier.scan_receipt_vision")
     def test_valid_pro_receipt_activates_pro_subscription(self, mock_scan):
-        """Authentic 49,000 UZS receipt activates PRO 30-day subscription."""
+        """Authentic 49,000 UZS receipt queues for admin verification without self-grant."""
         fake_bytes = b"sample_pro_receipt_image_data_67890"
         mock_scan.return_value = {
             "is_valid": True,
@@ -103,13 +103,12 @@ class ReceiptVerifierAntiFraudTests(TestCase):
         )
 
         self.assertTrue(res["success"])
+        self.assertTrue(res.get("pending_admin"))
         self.assertEqual(res["plan_type"], "pro")
 
         self.user.refresh_from_db()
-        self.assertEqual(self.user.profile.plan, "pro")
-        sub = UserSubscription.objects.get(user=self.user)
-        self.assertEqual(sub.status, UserSubscription.Status.ACTIVE)
-        self.assertEqual(sub.plan.plan_type, SubscriptionPlan.PlanType.PRO)
+        self.assertEqual(self.user.profile.plan, "free")
+        self.assertFalse(UserSubscription.objects.filter(user=self.user, status=UserSubscription.Status.ACTIVE).exists())
 
     @patch("apps.subscriptions.services.receipt_verifier.scan_receipt_vision")
     def test_duplicate_transaction_id_triggers_immediate_ban(self, mock_scan):

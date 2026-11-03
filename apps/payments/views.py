@@ -62,9 +62,9 @@ def cancel_subscription_view(request: HttpRequest) -> HttpResponse:
         messages.error(request, "Faol obuna topilmadi.")
         return redirect("payments:my-subscription")
 
-    user_sub.status = UserSubscription.Status.CANCELLED
-    user_sub.cancelled_at = timezone.now()
-    user_sub.save(update_fields=["status", "cancelled_at", "updated_at"])
+    from apps.payments.subscriptions import cancel_subscription
+
+    cancel_subscription(user_sub, actor=request.user)
 
     messages.success(
         request, "Obuna bekor qilindi. Muddati tugaguncha foydalanishingiz mumkin."

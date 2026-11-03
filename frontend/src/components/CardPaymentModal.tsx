@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { CheckIcon, CopyIcon, CreditCardIcon, XIcon, ZapIcon } from './icons';
 import { BillingApi, type CardDetailsResponse, type PaymentReceiptItem } from '../lib/api';
+import { useLang } from '../i18n/LangContext';
 
 export interface CardPaymentModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export default function CardPaymentModal({
   initialTariff = 'PRO',
   onSuccess,
 }: CardPaymentModalProps) {
+  const { t } = useLang();
   const [selectedTariff, setSelectedTariff] = useState<'STARTER' | 'PRO' | 'PREMIUM'>(initialTariff);
   const [cardInfo, setCardInfo] = useState<{
     card_number: string;
@@ -263,7 +265,7 @@ export default function CardPaymentModal({
                 maxWidth: 460,
               }}
             >
-              Admin tasdiqlaguncha <strong>24 soatlik PRO TRIAL</strong> faollashtirildi.
+              {t('pay_receipt_pending_note')}
             </p>
 
             {/* Status Card */}
@@ -297,7 +299,7 @@ export default function CardPaymentModal({
                     fontSize: 12,
                   }}
                 >
-                  ⚡️ 24 soatlik PRO Trial faollashdi (Tekshirilmoqda)
+                  {t('pay_receipt_pending_status')}
                 </span>
               </div>
             </div>

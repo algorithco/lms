@@ -265,7 +265,6 @@ export default function Pricing() {
             <li>Cheksiz rasmli va matnli esse</li>
             <li>Barcha CBT testlar va 1v1 Arena</li>
             <li>Ustoz tekshiruvi</li>
-            <li>Rasmiy PDF sertifikat</li>
           </ul>
           <button
             type="button"

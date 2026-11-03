@@ -162,7 +162,7 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
         .order_by("rank", "-score", "time_taken_seconds")[:3]
     )
 
-    from apps.payments.models import SubscriptionPlan, UserSubscription
+    from apps.payments.models import SubscriptionPlan
     from apps.notifications.services.telegram_service import TelegramService
 
     premium_plan = (
@@ -173,30 +173,13 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
         SubscriptionPlan.objects.filter(plan_type="starter").first()
         or SubscriptionPlan.objects.filter(plan_type="start").first()
     )
-    now = timezone.now()
     awarded = []
 
     for p in top_participants:
         u = p.user
         plan_to_give = premium_plan if p.rank == 1 else starter_plan
-        if plan_to_give:
-            sub, _ = UserSubscription.objects.get_or_create(
-                user=u,
-                defaults={
-                    "plan": plan_to_give,
-                    "status": UserSubscription.Status.ACTIVE,
-                },
-            )
-            sub.plan = plan_to_give
-            sub.status = UserSubscription.Status.ACTIVE
-            sub.started_at = now
-            sub.expires_at = now + timedelta(days=30)
-            sub.save()
-
-        # Update profile plan string as well
-        if hasattr(u, "profile"):
-            u.profile.plan = "premium" if p.rank == 1 else "starter"
-            u.profile.save(update_fields=["plan"])
+        # No automatic subscription: the prize is granted by an admin from the
+        # panel (audited). Winners are listed for the admin and notified.
 
         # Send congratulation telegram message
         if u.telegram_chat_id:
@@ -215,7 +198,7 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
                 f"📌 <b>Turnir:</b> {tournament.title}\n"
                 f"🏅 <b>O'rningiz:</b> {p.rank}-o'rin ({badge_icon})\n"
                 f"📊 <b>To'plagan ballingiz:</b> {p.score} ball ({p.time_taken_seconds} sek)\n"
-                f"🎁 <b>Mukofotingiz:</b> {prize_name} hisobingizga avtomatik biriktirildi!\n\n"
+                f"🎁 <b>Mukofotingiz:</b> {prize_name} administrator tasdiqlagach hisobingizga biriktiriladi.\n\n"
                 f"<i>GRAND EDUCATION e-Sport ligasida qatnashganingiz uchun tashakkur!</i>"
             )
             try:
@@ -234,6 +217,7 @@ def finalize_tournament_awards(tournament_id: int) -> dict[str, Any]:
                 "name": u.get_full_name(),
                 "rank": p.rank,
                 "score": float(p.score),
+                "prize_plan": plan_to_give.plan_type if plan_to_give else None,
             }
         )
 

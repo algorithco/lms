@@ -248,14 +248,15 @@ def test_tournament_e_sport_flow(student_user, test_instance):
     final_res = finalize_tournament_awards(tournament.id)
     assert final_res["status"] == "finished"
     assert len(final_res["awarded"]) == 2
+    assert final_res["awarded"][0]["prize_plan"] == "premium"
+    assert final_res["awarded"][1]["prize_plan"] == "starter"
 
-    # 1st place should have premium plan
+    # Winners are queued for admin grant; no automatic plan change occurs
     student_user.profile.refresh_from_db()
-    assert student_user.profile.plan == "premium"
+    assert student_user.profile.plan in ("free", "", None)
 
-    # 2nd place should have starter plan
     user2.profile.refresh_from_db()
-    assert user2.profile.plan == "starter"
+    assert user2.profile.plan in ("free", "", None)
 
 
 # ==============================================================================

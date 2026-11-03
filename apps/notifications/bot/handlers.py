@@ -3237,7 +3237,7 @@ async def plans_and_payment_handler(
         f"3️⃣ 👑 *PREMIUM — {premium_price:,} so'm / oy*\n"
         f"• ✍️ Cheksiz esse baholash (12 mezon)\n"
         f"• 📚 Cheksiz Mock testlar va 1v1 Arena\n"
-        f"• 👨‍🏫 Ustoz tekshiruvi va rasmiy PDF sertifikat\n\n"
+        f"• 👨‍🏫 Ustoz tekshiruvi\n\n"
 
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💳 *KARTA ORQALI TO'LOV:*\n"
@@ -4656,7 +4656,7 @@ async def certificates_handler(
         await send_reply(
             update,
             "📜 *Sizda hali sertifikatlar yo'q.*\n\n"
-            "Testlarni muvaffaqiyatli topshiring va rasmiy PDF sertifikatlarga ega bo'ling! 🎓",
+            "Testlarni muvaffaqiyatli topshiring va platforma PDF sertifikatlariga ega bo'ling! 🎓",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(
                 [
@@ -6394,27 +6394,21 @@ async def approve_payment_callback(
             pr.reviewed_at = timezone.now()
             pr.save(update_fields=["status", "reviewed_by", "reviewed_at"])
 
-            # Activate subscription
-            existing_sub = getattr(pr.user, "subscription", None)
-            if existing_sub and existing_sub.is_active:
-                # Extend current subscription
-                if existing_sub.expires_at:
-                    existing_sub.expires_at += timedelta(days=30)
-                else:
-                    existing_sub.expires_at = timezone.now() + timedelta(days=30)
-                existing_sub.plan = pr.plan
-                existing_sub.payment_method = "card"
-                existing_sub.save()
-            else:
-                UserSubscription.objects.create(
-                    user=pr.user,
-                    plan=pr.plan,
-                    status="active",
-                    started_at=timezone.now(),
-                    expires_at=timezone.now() + timedelta(days=30),
-                    is_trial=False,
-                    payment_method="card",
-                )
+            # Activate / extend through the audited grant gate.
+            from apps.payments.subscriptions import grant_subscription
+
+            grant_subscription(
+                pr.user,
+                pr.plan,
+                kind="approved_payment",
+                source=UserSubscription.Source.TELEGRAM_BOT,
+                payment_method="card",
+                payment_reference=f"payment_request:{pr.id}",
+                grant_source="bot_payment_request",
+                days=30,
+                actor=admin_user,
+                reason=f"To'lov so'rovi #{pr.id} admin tomonidan tasdiqlandi",
+            )
 
             # Log payment
             PaymentHistory.objects.create(
@@ -9744,7 +9738,7 @@ async def post_init(app) -> None:
             BotCommand("streak", "Kunlik streak"),
             BotCommand("daily", "Kunlik vazifalar"),
             BotCommand("essay", "Esse topshirish (matn/rasm)"),
-            BotCommand("certificates", "📜 Rasmiy PDF sertifikatlar"),
+            BotCommand("certificates", "📜 Mening sertifikatlarim"),
             BotCommand("plans", "Tariflar va narxlar"),
             BotCommand("buy", "Tarif sotib olish (Telegram Stars)"),
             BotCommand("myplan", "Mening platforma tarifim"),

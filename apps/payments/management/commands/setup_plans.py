@@ -74,14 +74,14 @@ class Command(BaseCommand):
             {
                 "name": "Premium",
                 "plan_type": "premium",
-                "description": "To'liq imkoniyatlar — cheksiz test va esse, PDF sertifikat",
+                "description": "To'liq imkoniyatlar — cheksiz test va esse",
                 "price_monthly": Decimal("27000"),
                 "price_yearly": Decimal("270000"),
                 "max_tests_per_day": 0,  # unlimited
                 "max_essays_per_week": 0,  # unlimited
                 "max_ai_grading": True,
                 "detailed_analytics": True,
-                "pdf_certificate": True,
+                "pdf_certificate": False,
                 "priority_support": True,
                 "unlimited_tests": True,
                 "unlimited_essays": True,
