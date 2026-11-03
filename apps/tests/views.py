@@ -799,10 +799,10 @@ def _given_and_correct(question, attempt) -> tuple[str, str]:
     given = ""
     if answer:
         given = ", ".join(answer.selected_choices.values_list("text", flat=True)) or (answer.text_answer or "")
-    correct = ", ".join(question.choices.filter(is_correct=True).values_list("text", flat=True))
-    if not correct and question.correct_text:
-        correct = question.correct_text.split("|")[0].strip()
-    return given.strip(), correct.strip()
+    from apps.tests.explanation_drafts import correct_texts
+
+    keys = correct_texts(question)
+    return given.strip(), (", ".join(keys[:1]) if question.choices.count() == 0 else ", ".join(keys)).strip()
 
 
 class ResultQuestionExplainView(APIView):
