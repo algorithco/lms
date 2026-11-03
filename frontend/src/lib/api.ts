@@ -1038,6 +1038,8 @@ export interface MyFeedbackItem {
 
 export interface AdminFeedbackItem extends MyFeedbackItem {
   user_id: number | null;
+  reason?: string;
+  question_id?: number | null;
   name: string;
   context: Record<string, string>;
   consent_public: boolean;

@@ -1,3 +1,4 @@
+import { formatDisplayName } from '../lib/displayName';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
@@ -1179,9 +1180,7 @@ export default function EssayResult() {
           onClose={() => setShowScoreCard(false)}
           title={res.topic_title || 'AI Esse Studiyasi'}
           studentName={
-            user?.first_name
-              ? `${user.first_name} ${user.last_name || ''}`.trim()
-              : user?.email || "O'quvchi"
+            formatDisplayName(user?.full_name, user?.email)
           }
           scorePercentage={
             res.score_percentage ||

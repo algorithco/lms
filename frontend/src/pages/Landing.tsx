@@ -5,7 +5,7 @@ import { Mic, Headphones } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { landingFor, formatDisplayName, FeedbackApi, type PublicFeedbackItem } from '../lib/api';
+import { landingFor, formatDisplayName, initialsOf, FeedbackApi, type PublicFeedbackItem } from '../lib/api';
 import HeroCarousel from '../components/HeroCarousel';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
@@ -485,13 +485,7 @@ export default function Landing() {
                   <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: 11, fontWeight: 900 }}>
-                    {(user.full_name || user.email || '?')
-                      .trim()
-                      .split(/\s+/)
-                      .map((p) => p[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase()}
+                    {initialsOf(user.full_name, user.email)}
                   </span>
                 )}
               </button>
@@ -758,6 +752,8 @@ export default function Landing() {
                       color: '#FFFFFF',
                       background: 'linear-gradient(135deg, #F59E0B, #D97706)',
                       boxShadow: '0 8px 25px -4px rgba(217, 119, 6, 0.4)',
+                      border: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     <span>⚡️ {t('landing.start_free', 'Bepul boshlash')}</span>

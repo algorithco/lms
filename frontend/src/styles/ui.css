@@ -267,3 +267,26 @@ html.dark .fb-card__avatar { color: #0A0E17; }
 
 /* Phone top bar: the streak chip yields room so the menu button is never clipped. */
 @media (max-width: 460px) { .topbar-streak { display: none !important; } }
+
+/* ── Admin inbox: tabs and phone filter sheet ───────── */
+.fbi-tabs { display: flex; gap: 6px; }
+.fbi-tabs button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.fbi-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+html.dark .fbi-tabs button.on { color: #0A0E17; }
+.fbi-filter-btn { display: none; align-self: flex-start; }
+.fbi-filter-count { margin-left: 6px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.fbi-filters-inline { display: block; }
+.fbi-filters-inline .fbi-filters { display: grid; }
+.fbi-sheet-fields { display: grid; gap: 10px; }
+.fbi-sheet-fields select, .fbi-sheet-fields input { width: 100%; min-height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); color: var(--ink); font: inherit; font-size: 16px; }
+@media (max-width: 639px) {
+  .fbi-filter-btn { display: inline-flex; }
+  .fbi-filters-inline { display: none; }
+  .fbi-item { padding: 14px; }
+  .fbi-reply textarea { font-size: 16px; }
+}
+
+.exam-state--padded { min-height: 60vh; padding: 24px; text-align: center; }
+.exam-state h2 { margin: 0; font-size: 18px; color: var(--ink); }
+.exam-state p { margin: 0; max-width: 420px; font-size: 14px; color: var(--muted); }
+.exam-state__actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }

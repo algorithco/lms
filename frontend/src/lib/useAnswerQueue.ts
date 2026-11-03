@@ -24,9 +24,9 @@ const readQueue = (key: string): Record<number, SavePayload> => {
  */
 export function useAnswerQueue(attemptId: string, send: (payload: SavePayload) => Promise<unknown>) {
   const key = `cd-queue:${attemptId}`;
-  const queue = useRef<Record<number, SavePayload>>(readQueue(key));
-  const [initial] = useState(() => ({ ...queue.current }));
-  const [state, setState] = useState<SaveState>(Object.keys(queue.current).length ? 'saving' : 'saved');
+  const [initial] = useState(() => readQueue(key));
+  const queue = useRef<Record<number, SavePayload>>({ ...initial });
+  const [state, setState] = useState<SaveState>(Object.keys(initial).length ? 'saving' : 'saved');
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [justRestored, setJustRestored] = useState(false);
   const flushing = useRef(false);

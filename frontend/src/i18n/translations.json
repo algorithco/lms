@@ -2335,7 +2335,17 @@
     "cd_leave_text": "Javoblaringiz saqlangan, vaqt esa ketmoqda. Qaytib kirsangiz davom ettira olasiz.",
     "cd_leave_stay": "Imtihonda qolish",
     "cd_leave_exit": "Chiqish",
-    "take_leave_confirm": "Testdan chiqishni xohlaysizmi? Javoblaringiz saqlanadi, lekin vaqt ketaveradi."
+    "take_leave_confirm": "Testdan chiqishni xohlaysizmi? Javoblaringiz saqlanadi, lekin vaqt ketaveradi.",
+    "fbi_tab_all": "Barcha xabarlar",
+    "fbi_tab_questions": "Savollar bo'yicha",
+    "fbi_filters": "Filtr",
+    "fbi_apply": "Qo'llash",
+    "fbi_q_empty": "Savollar bo'yicha shikoyat yo'q.",
+    "fbi_q_reports": "Faol shikoyat: {n}",
+    "fbi_needs_review": "Ko'rib chiqish kerak",
+    "fbi_edit_question": "Savolni tahrirlash",
+    "fbi_show_reports": "Shikoyatlarni ko'rish",
+    "take_reconnecting": "Server bilan aloqa yangilanmoqda. Javoblaringiz xavfsiz saqlangan."
   },
   "ru": {
     "main": "Главное",
@@ -4673,7 +4683,17 @@
     "cd_leave_text": "Ответы сохранены, но время идёт. Вернувшись, вы сможете продолжить.",
     "cd_leave_stay": "Остаться",
     "cd_leave_exit": "Выйти",
-    "take_leave_confirm": "Выйти из теста? Ответы сохранены, но время продолжает идти."
+    "take_leave_confirm": "Выйти из теста? Ответы сохранены, но время продолжает идти.",
+    "fbi_tab_all": "Все сообщения",
+    "fbi_tab_questions": "По вопросам",
+    "fbi_filters": "Фильтр",
+    "fbi_apply": "Применить",
+    "fbi_q_empty": "Жалоб на вопросы нет.",
+    "fbi_q_reports": "Активных жалоб: {n}",
+    "fbi_needs_review": "Нужна проверка",
+    "fbi_edit_question": "Редактировать вопрос",
+    "fbi_show_reports": "Показать жалобы",
+    "take_reconnecting": "Связь с сервером восстанавливается. Ваши ответы сохранены."
   },
   "en": {
     "main": "Main",
@@ -7011,6 +7031,16 @@
     "cd_leave_text": "Your answers are saved, but the clock keeps running. You can come back and continue.",
     "cd_leave_stay": "Stay in the exam",
     "cd_leave_exit": "Leave",
-    "take_leave_confirm": "Leave the test? Your answers are saved, but the clock keeps running."
+    "take_leave_confirm": "Leave the test? Your answers are saved, but the clock keeps running.",
+    "fbi_tab_all": "All messages",
+    "fbi_tab_questions": "By question",
+    "fbi_filters": "Filters",
+    "fbi_apply": "Apply",
+    "fbi_q_empty": "No question reports.",
+    "fbi_q_reports": "Active reports: {n}",
+    "fbi_needs_review": "Needs review",
+    "fbi_edit_question": "Edit question",
+    "fbi_show_reports": "Show reports",
+    "take_reconnecting": "Reconnecting to the server. Your answers are safe."
   }
 }

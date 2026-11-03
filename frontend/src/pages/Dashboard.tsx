@@ -200,9 +200,6 @@ export default function Dashboard() {
         <section className="dsh-card dsh-empty">
           <h2>{t('dsh_empty_title')}</h2>
           <p>{t(subject === 'english' ? 'dsh_empty_english' : 'dsh_empty_uzbek')}</p>
-          <Link to="/tests" className="ui-btn ui-btn--primary">
-            {t('dsh_start_mock')}
-          </Link>
         </section>
       )}
 

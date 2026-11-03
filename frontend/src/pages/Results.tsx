@@ -346,7 +346,7 @@ export default function Results() {
                     <span className="badge blue">{t('take_pending_title')}</span>
                   ) : bmbScale && r.certificate_status === 'rules_unverified' ? (
                     <span className="badge blue">{t('raw_score_not_official')}</span>
-                  ) : r.exam_type === 'cefr_multilevel' ? null : (
+                  ) : !bmbScale ? null : (
                     <span className={`badge ${r.is_passed ? 'green' : 'rose'}`}>
                       {r.is_passed ? t('status_passed') : t('status_failed')}
                     </span>
@@ -463,6 +463,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
   if (detail.trial_part) {
     return (
       <div className="cefr-result-detail">
+        <FeedbackPrompt />
         <h2 className="cefr-result-title">{detail.test_title}</h2>
         <div className="card cefr-result">
           <p className="cefr-result-overall">
@@ -496,6 +497,7 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
             <p className="muted">{t('take_pending_msg')}</p>
           </div>
         )}
+        <FeedbackPrompt />
         <h2 className="cefr-result-title">{detail.test_title}</h2>
         <CefrResultSummary data={detail.cefr_summary} showEstimateNotice={detail.show_estimate_notice} />
         <QuestionReview

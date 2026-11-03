@@ -733,19 +733,11 @@ export default function TakeTest() {
       loadError.includes('NetworkError');
 
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
-          <ClockIcon className="w-8 h-8 animate-spin" />
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">
-          {isNetworkOr502 ? "Test ma'lumotlari yuklanmoqda, iltimos kuting..." : t('take_title')}
-        </h2>
-        <p className="text-slate-400 max-w-md mb-6 text-sm">
-          {isNetworkOr502
-            ? "Server bilan aloqa yangilanmoqda. Sizning javoblaringiz xavfsiz saqlangan."
-            : loadError}
-        </p>
-        <div className="flex items-center justify-center gap-3">
+      <div className="exam-state exam-state--padded" role={isNetworkOr502 ? 'status' : 'alert'}>
+        {isNetworkOr502 && <div className="exam-state__spinner" aria-hidden="true" />}
+        <h2>{isNetworkOr502 ? t('exam_loading') : t('take_title')}</h2>
+        <p>{isNetworkOr502 ? t('take_reconnecting') : loadError}</p>
+        <div className="exam-state__actions">
           <button className="btn primary" onClick={load}>
             {t('essay_error_retry')}
           </button>
@@ -759,16 +751,9 @@ export default function TakeTest() {
 
   if (!attempt) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
-        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
-          <ClockIcon className="w-7 h-7 animate-spin" />
-        </div>
-        <h3 className="text-lg font-semibold text-white mb-1">
-          Test ma'lumotlari yuklanmoqda, iltimos kuting...
-        </h3>
-        <p className="text-slate-400 text-sm max-w-sm">
-          Savollar va bo'limlar tayyorlanmoqda...
-        </p>
+      <div className="exam-state exam-state--padded" role="status">
+        <div className="exam-state__spinner" aria-hidden="true" />
+        <h2>{t('exam_loading')}</h2>
       </div>
     );
   }

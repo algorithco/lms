@@ -1,4 +1,4 @@
-import { initialsOf } from '../lib/displayName';
+import { formatDisplayName, initialsOf } from '../lib/displayName';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -111,7 +111,7 @@ export default function Profile() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
-              {user.full_name || 'Foydalanuvchi'}
+              {formatDisplayName(user.full_name, user.email) || t('user_default')}
             </h1>
             {isPlatformAdmin(user) ? (
               <span
@@ -199,7 +199,7 @@ export default function Profile() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_full_name')}</span>
-              <strong style={{ fontSize: 15 }}>{user.full_name || '—'}</strong>
+              <strong style={{ fontSize: 15 }}>{formatDisplayName(user.full_name, user.email) || '—'}</strong>
             </div>
             <div>
               <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_email')}</span>

@@ -2,24 +2,22 @@
 
 Branch: `feat/results-dashboard-mobile` (from `origin/main` @ `9f11a10`, v1.78.0). **Never merge it to `main` directly: a merge auto-deploys to production** (CI → Build → Deploy, no database backup in the pipeline). Finish with a PR and stop. The server is not touched in this session.
 
-Previous branch (`feat/ui-qa-real-exams`, merged as #117) is described in the git history; its open items are carried in `docs/QA_REPORT.md`.
+If this session is interrupted, continue from the first unchecked item below. Details of what was tested: `docs/QA_REPORT.md`; design inventory: `docs/DESIGN_AUDIT.md`.
 
 ## Decision taken with the owner
-- Section 1 inventory found 21 files on dead Tailwind classes (> 15). Owner chose: migrate what users see; delete the unreachable legacy English exam screen; leave teacher pages (`TeacherFinanceDashboard`, `TeacherVocabGenerator`, `JoinGroup`, `ReferralRedirect`) listed as open in `DESIGN_AUDIT.md`.
+- Section 1 inventory found 21 files on dead Tailwind classes (> 15 → asked). Owner chose: migrate what users see; delete the unreachable legacy English exam screen; leave teacher pages (`TeacherFinanceDashboard`, `TeacherVocabGenerator`, `JoinGroup`, `ReferralRedirect`) listed as open.
 
-## Section 1 — unstyled components: done (user-facing part)
-`styles/ui.css` (tokens only) now styles: toasts (were rendered inline at the page bottom), referral card (full + compact), score-card modal, public feedback list/empty state, "join with code" card, bottom sheet, buttons/inputs. Onboarding modal had a hard-coded dark background with `var(--ink)` text (dark on dark in light mode) → tokens. `EnglishExamInterface.tsx` (1 800 lines, unreachable, with placeholder questions) → 80-line loader; `CefrExamComponents.tsx` deleted.
+## Checklist
+- [x] 0. Branch from `origin/main`; docs read
+- [x] 1. Unstyled components → tokens (`styles/ui.css`): toasts, referral, score card, landing feedback, code card, onboarding contrast, legacy English screen deleted
+- [x] 2. Result page: per-question review (`QuestionReview`), hints, stored explanations + evidence (`Question.evidence`, `explanation_status`), `draft_explanations`, AI explain endpoint (paid, quota, daily cap, cache), key-leak closed in `explain-mistake`, estimate banner behind `SHOW_ESTIMATE_NOTICE`, BMB submit → `/results/<id>`
+- [x] 3. Dashboard on `/api/v1/dashboard/` (real data, per subject), single plan source (`useTier`, `PlanBadge`), name helper, catalog without invented numbers, referral compact
+- [x] 4. Exam on phones: CD screen rebuilt (header/timer, picker, text|questions, bottom bar, palette sheet, offline queue, leave guard, text size); BMB screen: leave/offline guard, readable timer
+- [x] 6. Feedback: `question_issue` (one active report per user and question, flag at 3, one Telegram summary), admin grouping tab, phone filter sheet, bottom-sheet modals
+- [x] 5. Checks: backend suite, `makemigrations --check`, ruff, tsc, build, oxlint — see QA report
+- [x] Docs: QA report, design audit, this file
+- [ ] PR opened by the session; **stop** (owner merges; take a `pg_dump` first, two migrations touch `tests_question` and `notifications_userfeedback`)
 
-## Section 2 — result page: backend + UI done, browser check pending
-- `Question.evidence`, `Question.explanation_status` (AddField, migration `tests.0019`); `question_review.py` (hints, source text, AI explain), `explanation_drafts.py` + `manage.py draft_explanations`.
-- Result detail now returns per question: `status`, option letters, `hint`, `explanation`/`evidence`/`explanation_status`, part/group info, `can_ai_explain`; CD gap-fill keys come from `GapBlank`.
-- `POST /api/tests/results/<id>/questions/<qid>/explain/` — paid tiers only, `ai_quota` + daily cap `AI_EXPLAIN_DAILY_LIMIT`, cached per question and answer.
-- Legacy `explain-mistake` returned the key to any signed-in user → now needs a finished attempt of the caller.
-- `SHOW_ESTIMATE_NOTICE` (default off) controls the old banner; the word "taxminiy" is gone from UI strings.
-- `TestAddictiveResults` rewritten (i18n, no invented XP/topic analysis); BMB submit redirects to `/results/<id>`.
-
-## Section 6 — feedback `question_issue`: backend + UI done
-`UserFeedback.question/reason`, `Question.needs_review` (AddField, `notifications.0014`, `tests.0020`; the `category` choices change is a no-op in SQL). Endpoint `POST /api/v1/feedback/question-issue/`, grouping `GET /api/v1/panel/feedback/questions/`, Celery `notify_admin_question_needs_review` (one message at 3 active reports).
-
-## Next
-Section 3 (dashboard), Section 4 (mobile exam), admin inbox UI for grouped question issues, final checks, docs, PR.
+## After deploy (owner, not done here)
+- `python manage.py draft_explanations --exam-type cefr_multilevel` (fills empty explanations with passage-based drafts, marked "AI-prepared"; safe to re-run, never overwrites staff text).
+- Optional env: `SHOW_ESTIMATE_NOTICE=true` to bring the "estimate" banner back; `AI_EXPLAIN_DAILY_LIMIT` (default 20).

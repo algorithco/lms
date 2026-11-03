@@ -333,15 +333,17 @@ class EnglishExamIntegrationTests(APITestCase):
             mode="practice",
         )
         self.client.force_authenticate(user=self.user)
+        url = f"/api/tests/questions/{self.q1.id}/explain-mistake/"
+        body = {"selected_choice_id": self.c2.id, "attempt_id": attempt.id}
 
-        resp = self.client.post(
-            f"/api/tests/questions/{self.q1.id}/explain-mistake/",
-            {
-                "selected_choice_id": self.c2.id,
-                "attempt_id": attempt.id,
-            },
-            format="json",
-        )
+        # While the attempt is running the explanation (which names the key) is not available.
+        self.assertEqual(self.client.post(url, body, format="json").status_code, status.HTTP_403_FORBIDDEN)
+
+        # After submitting, the owner gets it.
+        from apps.tests.services import SubmitAttemptService
+
+        SubmitAttemptService.execute(attempt_id=attempt.id, student=self.user)
+        resp = self.client.post(url, body, format="json")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertIn("direct_quote", resp.data)
         self.assertIn("why_wrong", resp.data)

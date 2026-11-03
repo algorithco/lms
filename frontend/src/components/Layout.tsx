@@ -306,7 +306,7 @@ export default function Layout() {
                     <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <span style={{ fontSize: 11, fontWeight: 900 }}>
-                      {(user?.full_name || '?').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                      {initialsOf(user?.full_name, user?.email)}
                     </span>
                   )}
                 </button>
