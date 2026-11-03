@@ -141,10 +141,23 @@ class QuestionAdminSerializer(serializers.ModelSerializer):
             "correct_text",
             "points",
             "explanation",
+            "evidence",
+            "explanation_status",
             "position",
             "config",
             "choices",
         ]
+
+    def update(self, instance, validated_data):
+        # A staff member who edits the explanation reviewed it: it stops being a
+        # draft unless they set the status themselves.
+        edited = any(
+            f in validated_data and validated_data[f] != getattr(instance, f)
+            for f in ("explanation", "evidence")
+        )
+        if edited and "explanation_status" not in validated_data:
+            validated_data["explanation_status"] = Question.ExplanationStatus.APPROVED
+        return super().update(instance, validated_data)
 
 
 class ExamSectionSerializer(serializers.ModelSerializer):

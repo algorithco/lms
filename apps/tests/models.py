@@ -599,6 +599,22 @@ class Question(models.Model):
         blank=True,
         help_text=_("Javob topshirilgandan keyin ko'rsatiladi."),
     )
+    evidence = models.TextField(
+        _("matndan dalil"),
+        blank=True,
+        help_text=_("Ixtiyoriy: javobni isbotlovchi matndagi jumla (natija sahifasida ko'rsatiladi)."),
+    )
+    class ExplanationStatus(models.TextChoices):
+        APPROVED = "approved", _("Tasdiqlangan")
+        DRAFT = "draft", _("Qoralama (AI tayyorlagan)")
+
+    explanation_status = models.CharField(
+        _("tushuntirish holati"),
+        max_length=16,
+        choices=ExplanationStatus.choices,
+        default=ExplanationStatus.APPROVED,
+        help_text=_("Qoralama tushuntirish admin tasdiqlamaguncha o'quvchiga 'AI tayyorlagan' belgisi bilan ko'rsatiladi."),
+    )
     total_attempts = models.PositiveIntegerField(
         _("jami urinishlar soni"),
         default=0,

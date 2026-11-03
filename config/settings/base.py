@@ -653,6 +653,11 @@ GROQ_BASE_URL = env("GROQ_BASE_URL", default="https://api.groq.com/openai/v1")
 OPENROUTER_SITE_URL = env("OPENROUTER_SITE_URL", default="http://localhost:8000")
 OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="LMS Platform")
 
+# Result page: show the "estimate, not the official result" banner (off by default).
+SHOW_ESTIMATE_NOTICE = env.bool("SHOW_ESTIMATE_NOTICE", default=False)
+# On-demand "Explain" button on the result page: per user, per day (paid tiers only).
+AI_EXPLAIN_DAILY_LIMIT = env.int("AI_EXPLAIN_DAILY_LIMIT", default=20)
+
 # Mock mode for development (only used when ESSAY_AI_MOCK_MODE=True AND no API key)
 ESSAY_AI_MOCK_MODE = env.bool("ESSAY_AI_MOCK_MODE", default=False)
 

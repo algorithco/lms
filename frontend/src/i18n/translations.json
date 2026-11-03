@@ -2169,7 +2169,11 @@
     "mockcode_start": "Boshlash",
     "mockcode_connecting": "Ulanmoqda…",
     "mockcode_empty": "Iltimos, test kodini kiriting.",
-    "mockcode_not_found": "Test topilmadi yoki kod noto'g'ri."
+    "mockcode_not_found": "Test topilmadi yoki kod noto'g'ri.",
+    "panel_evidence": "Matndan dalil (ixtiyoriy)",
+    "panel_explanation_status": "Tushuntirish holati",
+    "panel_expl_approved": "Tasdiqlangan",
+    "panel_expl_draft": "Qoralama (o'quvchiga \"AI tayyorlagan\" belgisi bilan ko'rinadi)"
   },
   "ru": {
     "main": "Главное",
@@ -4341,7 +4345,11 @@
     "mockcode_start": "Начать",
     "mockcode_connecting": "Подключение…",
     "mockcode_empty": "Пожалуйста, введите код теста.",
-    "mockcode_not_found": "Тест не найден или код неверный."
+    "mockcode_not_found": "Тест не найден или код неверный.",
+    "panel_evidence": "Доказательство из текста (необязательно)",
+    "panel_explanation_status": "Статус пояснения",
+    "panel_expl_approved": "Подтверждено",
+    "panel_expl_draft": "Черновик (ученик видит пометку «подготовлено AI»)"
   },
   "en": {
     "main": "Main",
@@ -6513,6 +6521,10 @@
     "mockcode_start": "Start",
     "mockcode_connecting": "Connecting…",
     "mockcode_empty": "Please enter a test code.",
-    "mockcode_not_found": "Test not found or the code is wrong."
+    "mockcode_not_found": "Test not found or the code is wrong.",
+    "panel_evidence": "Evidence from the text (optional)",
+    "panel_explanation_status": "Explanation status",
+    "panel_expl_approved": "Approved",
+    "panel_expl_draft": "Draft (students see an \"AI-prepared\" label)"
   }
 }
