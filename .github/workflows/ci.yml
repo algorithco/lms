@@ -47,6 +47,15 @@ jobs:
       - name: Lint frontend with oxlint
         run: npm --prefix frontend run lint
 
+      # UI logic tests use Node's built-in runner on .ts files (type stripping needs Node >= 22.18).
+      - name: Set up Node.js for UI tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Frontend UI logic tests
+        run: npm --prefix frontend test
+
   test:
     name: Test (Pytest & Django)
     needs: [lint]
