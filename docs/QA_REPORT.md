@@ -1,3 +1,40 @@
+# QA report — branch `fix/responsive-audit`
+
+Method: live grandec.uz (guest pages) and the local dev servers with the seeded QA accounts (paid student, teacher, admin), in the in-app browser. Each page was loaded in an iframe of the given width and **measured**: document `scrollWidth` vs `clientWidth`, visible elements past the viewport edge (outside scroll containers), interactive elements under 44 px on phones, overlapping controls. Screenshots at 768, 1366 and 390 px; dark mode on the plans page. Bestway was not in scope.
+
+## Found (before this branch)
+| Page | Width | Problem |
+|---|---|---|
+| every signed-in page (student, teacher, admin) | 768 | top bar wider than the screen: the user menu ran 120 px (admin: 250 px) past the right edge and could not be reached |
+| `/tests/create` (teacher) | 360, 390 | the "raw test text" column had a 420 px minimum and was cut off |
+| grids with 320–360 px minimum columns (profile, groups, speaking, tournaments, landing, panel) | 360 | would overflow a 360 px phone (no overflow at 390) |
+| `/plans`, `/subscribe` | all | prices and limits written in the page, disagreeing with the plan rows and between languages; debug line "Subscription Status (session): pro"; Uzbek banner on EN/RU screens; emoji icons |
+| sidebar and drawer plan badge | all | **FREE shown next to an active PRO plan** for users restored from the Django session cookie (Telegram / Google): the session payload had no plan, subject or onboarding state and `/me` was never read |
+| landing footer | all | Terms / Privacy / Public offer links lead to routes that do not exist (open the home page) |
+| sidebar | all | "Tests" lit together with "OMR scanner" and "Create test" |
+| phones | 360, 390 | `.btn.sm` 32 px, `.ui-btn--sm` 36 px, inputs 38–41 px, sidebar links 35 px, landing "Kirish" 32 px and menu 34 px, FAQ rows 38 px, footer links 16 px, login "back" link 16 px, "see all" links 16–21 px, test-creator time chips 24 px |
+| guest pages `/`, `/login`, `/register` | 1920, 1366, 768, 390 | no horizontal scroll (live site) |
+
+## Fixed and re-measured
+| Check | Result |
+|---|---|
+| paid: dashboard, tests, essays, results, profile, subscribe, my-subscription, arena, checkout, OMR | 768, 390, 360: no overflow, no element past the edge |
+| teacher: dashboard, groups, finance, analytics, create test | 768, 390, 360: no overflow |
+| admin: panel, users, tests, tuition | 1366, 768, 390: no overflow |
+| guest: `/`, `/login`, `/register` (local) | 390, 360: no overflow; header buttons, FAQ rows, footer links ≥ 44 px |
+| cookie-restored PRO user (session cookie, no JWT) | sidebar shows "Tarif: PRO, 29 kun qoldi"; backend test `test_session_status_plan` |
+| plans page | cards from the plan rows (Starter 5 tests / 3 text / no photo essays a week, Pro 30 / 15 / 15, Premium unlimited), cheapest first, light and dark |
+| `manage.py check`, `ruff`, `makemigrations --check`, `tsc -b`, `vite build`, `npm test` (13), `oxlint` (0 errors, 79 warnings as on `main`) | pass |
+
+## Still open
+- Phones, legacy pages: segmented controls are 38–40 px inside a 44 px track (as in the design spec); native checkboxes 13 px; the test creator's template chips (25 px), its inline colours and hard-coded Uzbek text; admin table title links 34 px; the landing logo link 32 px.
+- Legal pages (terms, privacy, public offer) need real texts from the owner before the footer links come back.
+- `Pricing.tsx` / `Subscribe.tsx` (checkout) still have fixed prices and Uzbek strings; the cards there were not rebuilt.
+- An active admin `SubscriptionOverride` reports tier FREE (`plan_type` is empty) even when the user also has a paid subscription; not changed here, needs a decision on what an override should show.
+- Real devices (iOS Safari, Android Chrome, Telegram in-app browser): not tested; widths were emulated.
+
+---
+
 # QA report — branch `feat/mobile-pro-ui`
 
 Method: local database (sqlite) with the seeded QA accounts (guest, FREE, paid, teacher, admin); both dev servers; the in-app browser. Each page was loaded in an iframe of the given width and **measured** (document `scrollWidth` vs `clientWidth`, leftover raw i18n keys, Uzbek words left on EN/RU screens, buttons under 32 px, whether the dark class is applied), plus screenshots at 375 px. "Works" means it was run; everything else is **sinalmadi** (not tested).
