@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import ParentRoute from './components/ParentRoute';
 import TeacherRoute from './components/TeacherRoute';
+import NotForAdminRoute from './components/NotForAdminRoute';
 import type { ComponentType } from 'react';
 
 // Keep the public/auth shell small. Feature pages load only when visited,
@@ -186,17 +187,19 @@ function AnimatedRoutes() {
             <Route path="/games/lugat-match" element={<Navigate to="/games/lugat_match" replace />} />
             <Route path="/games/:slug" element={<PlayGame />} />
             {/* Billing (legacy /subscribe/* shapes) */}
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/plans" element={<Plans />} />
-            <Route path="/premium" element={<Plans />} />
-            <Route path="/subscribe" element={<Plans />} />
-            <Route path="/subscribe/my" element={<Navigate to="/my-subscription" replace />} />
-            <Route path="/subscribe/success" element={<Navigate to="/my-subscription" replace />} />
-            <Route path="/subscribe/cancel" element={<Navigate to="/subscribe" replace />} />
-            <Route path="/subscribe/:planId/subscribe" element={<SubscribeRedirect />} />
-            <Route path="/subscribe/:planId" element={<Subscribe />} />
-            <Route path="/subscribe/pay" element={<Subscribe />} />
-            <Route path="/checkout" element={<Subscribe />} />
+            <Route element={<NotForAdminRoute />}>
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/plans" element={<Plans />} />
+              <Route path="/premium" element={<Plans />} />
+              <Route path="/subscribe" element={<Plans />} />
+              <Route path="/subscribe/my" element={<Navigate to="/my-subscription" replace />} />
+              <Route path="/subscribe/success" element={<Navigate to="/my-subscription" replace />} />
+              <Route path="/subscribe/cancel" element={<Navigate to="/subscribe" replace />} />
+              <Route path="/subscribe/:planId/subscribe" element={<SubscribeRedirect />} />
+              <Route path="/subscribe/:planId" element={<Subscribe />} />
+              <Route path="/subscribe/pay" element={<Subscribe />} />
+              <Route path="/checkout" element={<Subscribe />} />
+            </Route>
             <Route path="/my-subscription" element={<MySubscription />} />
             {/* School */}
             <Route element={<TeacherRoute />}>
