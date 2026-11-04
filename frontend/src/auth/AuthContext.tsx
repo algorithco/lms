@@ -119,17 +119,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((st) => {
           if (st.authenticated && st.tokens) {
             setTokens(st.tokens.access, st.tokens.refresh);
-            if (st.user) {
-              const u = normalizeUser(st.user);
-              setUser(u);
-              adoptServerLang(u.language);
-              setLoading(false);
-              return;
-            }
+            // The session payload has no plan, subject or onboarding state, so a
+            // cookie-restored user (Telegram / Google) showed "FREE" next to an
+            // active PRO subscription. /me is the single source for those.
+            const fallback = st.user ? normalizeUser(st.user) : null;
+            return Auth.me()
+              .catch(() => fallback)
+              .then((u) => {
+                if (u) {
+                  setUser(u);
+                  adoptServerLang(u.language);
+                }
+              });
           }
-          setLoading(false);
+          return undefined;
         })
-        .catch(() => setLoading(false));
+        .catch(() => undefined)
+        .finally(() => setLoading(false));
       return;
     }
 

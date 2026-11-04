@@ -501,6 +501,9 @@ class SessionStatusView(APIView):
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
                 "is_platform_admin": is_platform_admin(user),
+                # Same canonical tier as /me and the login payload; without it a
+                # cookie-restored SPA showed FREE next to an active subscription.
+                "plan": UserProfileSerializer(user).get_plan(user),
             }
 
         return Response(
