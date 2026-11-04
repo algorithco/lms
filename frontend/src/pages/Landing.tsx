@@ -17,6 +17,7 @@ import MobileProfileDrawer from '../components/MobileProfileDrawer';
 import PwaInstallButton from '../components/PwaInstallButton';
 import PassingScoresModal from '../components/PassingScoresModal';
 import PublicFeedbackList from '../components/PublicFeedbackList';
+import ExamTracks from '../components/ExamTracks';
 import FeedbackModal from '../components/FeedbackModal';
 import {
   CheckIcon,
@@ -170,11 +171,11 @@ export default function Landing() {
         }
         description={
           selectedTrack === 'ielts'
-            ? "IELTS Band 1.0–9.0 bo'yicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va Cambridge CBT Listening/Reading — GRAND EDUCATION."
+            ? "IELTS Band 1.0–9.0 bo'yicha Writing Task 1 & 2 AI baholash, interaktiv Speaking trenajyori va IELTS formatidagi Listening/Reading — GRAND EDUCATION."
             : selectedTrack === 'multilevel'
-            ? "Davlat CEFR Multi-level (B2/C1) imtihoniga tayyorlovchi rasmiy CBT testlar va AI Writing insho tahlili."
+            ? "CEFR Multi-level (B2/C1) formatidagi CBT testlar va AI Writing insho tahlili."
             : selectedTrack === 'attestation'
-            ? "O'qituvchilar attestatsiyasi 2026: 50 talik rasmiy sinov (mutaxassislik, kasbiy standart, pedagogik mahorat) va toifa diagnostikasi."
+            ? "O'qituvchilar attestatsiyasi 2026: 50 talik sinov (mutaxassislik, kasbiy standart, pedagogik mahorat) va toifa diagnostikasi."
             : "BMB Davlat standarti bo'yicha 12 ta mezonli AI Esse tahlili, 45 talik testlar va 1v1 intellektual Arena."
         }
         jsonLd={jsonLdData}
@@ -684,7 +685,7 @@ export default function Landing() {
                 {/* 1 Single Elegant Badge */}
                 <div style={{ marginBottom: 20 }}>
                   <span className="inline-block">
-                    {t('landing.bmb_badge', '✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli')}
+                    {t('landing.bmb_badge', '2026: BMB Milliy Sertifikat va Attestatsiya formatida mashq')}
                   </span>
                 </div>
 
@@ -791,7 +792,7 @@ export default function Landing() {
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} style={{ color: '#059669' }} />
-                    {t('landing.trust_bmb', 'BMB 12 mezonli rasmiy standart')}
+                    {t('landing.trust_bmb', 'BMB 12 mezoni asosida')}
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} style={{ color: '#D97706' }} />
@@ -829,7 +830,7 @@ export default function Landing() {
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E' }}>{t('landing.card_ai_essay', 'AI Esse')}</h4>
                       <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B45309' }}>
-                        {t('landing.card_ai_essay_sub', 'BMB rasmiy tahlil')}
+                        {t('landing.card_ai_essay_sub', 'BMB standarti asosida')}
                       </p>
                     </div>
                   </button>
@@ -933,202 +934,7 @@ export default function Landing() {
             </div>
           </div>
         </section>
-        {/* QAYSI IMTIHONGA TAYYORLANASIZ? (TESTMAKON 3D TOIFALAR KARTALARI) */}
-        <section style={{ padding: '20px 20px 60px' }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, color: 'var(--ink)', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
-                {t('landing.which_exam_title', 'Qaysi imtihonga tayyorlanasiz?')}
-              </h2>
-              <p style={{ fontSize: 15, color: '#64748B', margin: 0, fontWeight: 600 }}>
-                {t('landing.which_exam_desc', "Rasmiy BMB va xalqaro standartlar asosida ishlab chiqilgan yo'nalishni tanlang.")}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4">
-              {/* 1. BMB Milliy Sertifikat */}
-              <div
-                onClick={() => handleAction('/tests')}
-                className="flex"
-                style={{
-                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
-                  minHeight: 240,
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>🥇</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(245, 158, 11, 0.15)', color: '#D97706' }}>
-                      {t('landing.bmb_tag', 'BMB Standart')}
-                    </span>
-                  </div>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    BMB Milliy Sertifikat
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    {t('landing.bmb_desc', 'A+ dan C gacha rasmiy darajalar, 45 talik test formati va maksimal OTM imtiyozi.')}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#D97706' }}>{t('landing.start_test_btn', 'Testga kirish')}</span>
-                  <span
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 16,
-                      fontWeight: 900,
-                      boxShadow: '0 4px 12px rgba(217, 119, 6, 0.35)',
-                    }}
-                  >
-                    →
-                  </span>
-                </div>
-              </div>
-
-              {/* 2. Pedagoglar Attestatsiyasi 2026 */}
-              <div
-                onClick={() => handleAction('/tests')}
-                className="flex"
-                style={{
-                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
-                  minHeight: 240,
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>🎓</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(139, 92, 246, 0.15)', color: '#7C3AED' }}>
-                      70% Ustama
-                    </span>
-                  </div>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    {t('landing.attestation_title', 'Attestatsiya 2026')}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    {t('landing.attestation_desc', "O'qituvchilar toifa sinovlari, 50 talik yangi namuna va oylik ustama kafolati.")}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#7C3AED' }}>Toifani oshirish</span>
-                  <span
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 16,
-                      fontWeight: 900,
-                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
-                    }}
-                  >
-                    →
-                  </span>
-                </div>
-              </div>
-
-              {/* 3. AI Esse Studiyasi (12 Mezon) */}
-              <div
-                onClick={() => handleAction('/essays')}
-                className="flex"
-                style={{
-                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
-                  minHeight: 240,
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>✍️</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
-                      {t('landing.ai_rubric_tag', '12 Mezon')}
-                    </span>
-                  </div>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    {t('landing.ai_essay_title', 'AI Esse Studiyasi')}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    {t('landing.ai_essay_desc', "15 soniyada to'liq grammatik va uslubiy tahlil, A daraja bo'yicha professional tavsiyalar.")}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#059669' }}>{t('landing.write_essay_btn', 'Insho yozish')}</span>
-                  <span
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #10B981, #059669)',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 16,
-                      fontWeight: 900,
-                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                    }}
-                  >
-                    →
-                  </span>
-                </div>
-              </div>
-
-              {/* 4. {t('landing.cefr_title', 'CEFR & IELTS')} (Ingliz tili) */}
-              <div
-                onClick={() => handleAction('/tests')}
-                className="flex"
-                style={{
-                  boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
-                  minHeight: 240,
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <span style={{ fontSize: 40 }}>🎓</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: 'rgba(2, 132, 199, 0.15)', color: '#0284C7' }}>
-                      Cambridge CBT
-                    </span>
-                  </div>
-                  <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
-                    CEFR & IELTS
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5, fontWeight: 500 }}>
-                    {t('landing.cefr_desc', 'Reading & Listening mock sinovlari va interaktiv AI Speaking trenajyori.')}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: '#0284C7' }}>{t('landing.english_cbt_btn', 'Ingliz tili CBT')}</span>
-                  <span
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #0284C7, #0369A1)',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 16,
-                      fontWeight: 900,
-                      boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)',
-                    }}
-                  >
-                    →
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
+        <ExamTracks onOpen={handleAction} />
 
         {/* 3 CORE DIRECTIONS SECTION ("IMKONIYATLAR") */}
         <section
@@ -1190,11 +996,11 @@ export default function Landing() {
               </h2>
               <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
                 {selectedTrack === 'ielts'
-                  ? 'Writing Task 1 & 2, real-vaqt Speaking simulyatori va Cambridge CBT testlari.'
+                  ? 'Writing Task 1 & 2, real-vaqt Speaking simulyatori va IELTS formatidagi CBT testlari.'
                   : selectedTrack === 'multilevel'
                   ? 'DTM/BMB formati boʻyicha yozma insho, 35 talik CBT testlar va leksik trenajyorlar.'
                   : selectedTrack === 'attestation'
-                  ? '50 talik rasmiy sinov formati, pedagogik mahorat va toifa ehtimolligi kalkulyatori.'
+                  ? '50 talik sinov formati, pedagogik mahorat va toifa ehtimolligi kalkulyatori.'
                   : t('features_main_subtitle')}
               </p>
             </div>
@@ -1229,7 +1035,7 @@ export default function Landing() {
                         IELTS Writing AI Grader
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Cambridge 4 ta mezoni (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq baholash, xatolar tuzatmasi va Band prognozi.
+                        IELTS 4 ta mezoni (TR, CC, LR, GRA) boʻyicha 15 soniyada toʻliq baholash, xatolar tuzatmasi va Band prognozi.
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1302,7 +1108,7 @@ export default function Landing() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#818CF8' }} />
-                          <span>Cambridge 10–19 rasmiy test savollari</span>
+                          <span>IELTS formatidagi test savollari</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <CheckIcon size={16} style={{ color: '#818CF8' }} />
@@ -1336,7 +1142,7 @@ export default function Landing() {
                         CEFR Writing AI Tahlili
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Davlat BMB standarti boʻyicha rasmiy insho va rasmiy xatlar tekshiruvi, leksik boylik va grammatik aniqlik.
+                        BMB standarti boʻyicha insho va xatlar tekshiruvi, leksik boylik va grammatik aniqlik.
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1550,7 +1356,7 @@ export default function Landing() {
                         Attestatsiya Simulyatori
                       </h3>
                       <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.65, margin: '0 0 20px', flex: 1 }}>
-                        Mutaxassislik fani (35), Kasbiy standart (5) va Pedagogik mahorat (10) savollarini oʻz ichiga olgan rasmiy sinov formati.
+                        Mutaxassislik fani (35), Kasbiy standart (5) va Pedagogik mahorat (10) savollarini oʻz ichiga olgan sinov formati.
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, fontSize: 13, color: 'var(--ink)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1980,7 +1786,7 @@ export default function Landing() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 26, flex: 1, fontSize: 12.5 }}>
                   {[
                     'Haftasiga 15 ta esse',
-                    'Kunlik rasmiy Mock testlar',
+                    'Kunlik Mock testlar',
                     'Barcha CBT testlar va tahlil',
                     'AI repetitor izohlari',
                     'Xatolar ustida chuqur ishlash',
@@ -2296,7 +2102,7 @@ export default function Landing() {
       </main>
       <PassingScoresModal isOpen={scoresModalOpen} onClose={() => setScoresModalOpen(false)} />
       <FeedbackModal isOpen={landingFeedbackOpen} onClose={() => setLandingFeedbackOpen(false)} />
-      <div className="md:hidden"><MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} /></div>
+      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
       <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
 

@@ -322,6 +322,13 @@ class EssaySubmission(models.Model):
         related_name="submissions",
         verbose_name=_("esse mavzusi"),
     )
+    custom_title = models.CharField(
+        _("o'quvchi mavzusi"),
+        max_length=200,
+        blank=True,
+        default="",
+        help_text=_("Mavzu tanlanmagan esse uchun o'quvchi yozgan sarlavha."),
+    )
     essay_text = models.TextField(
         _("esse matni"),
         blank=True,

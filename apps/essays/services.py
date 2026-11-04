@@ -3180,7 +3180,7 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     if not essay_text:
         return _send_to_teacher(submission, "empty")
 
-    topic_title = submission.topic.title if submission.topic else ""
+    topic_title = submission.topic.title if submission.topic else (submission.custom_title or "")
     word_count = WordCounter.count(essay_text)
     ielts_mode = is_ielts_submission(submission)
 

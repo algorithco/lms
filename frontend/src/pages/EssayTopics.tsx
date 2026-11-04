@@ -1,23 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AlertTriangle, Camera, Clock, FileText, Lock, PenLine, RotateCcw, Search } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
-import { useAuth } from '../auth/AuthContext';
 import { AuthExpiredError, Essays } from '../lib/api';
-import { LockIcon } from '../components/icons';
-
-/**
- * Essay topics — mirrors apps/telegram_app/views.py tma_essay_topics_view
- * (GET /tma/api/essays/topics/, JWT) + tma_essay_submissions_view
- * (GET /tma/api/essays/, JWT).
- *
- * Per-status CTA parity with templates/essays/topic_list.html:
- *   graded/ai_evaluated/teacher_reviewed → view result (+score)
- *   pending                             → result page (polling spinner)
- *   draft                               → continue writing
- *   pending_teacher                     → teacher-reviewing state → result
- *   error                               → retry (write page)
- *   none                                → start writing
- */
+import { essayKind, essayStatus, filterMyEssays, filterTopics, scoreLabel, type EssayKind, type MineFilter } from '../lib/essays';
+import { useSubject } from '../lib/useSubject';
 
 interface UserStatus {
   submission_id: number;
@@ -41,486 +28,294 @@ interface Topic {
 
 interface Submission {
   id: number;
+  topic_id: number | null;
   topic_title: string;
   subject?: string;
   category?: string;
   rubric_type?: string;
   status: string;
   total_score: number | null;
-  converted_score: number | null;
+  max_score?: number | null;
   overall_band?: number | null;
-  cefr_level?: string | null;
-  word_count: number;
+  updated_at?: string | null;
+  graded_at?: string | null;
 }
 
-const DONE = new Set(['graded', 'ai_evaluated', 'teacher_reviewed']);
+type Tab = 'topics' | 'mine';
 
-function TopicAction({ topic }: { topic: Topic }) {
-  const { t } = useLang();
-  const st = topic.user_status;
-  if (!st) {
-    return (
-      <Link className="btn primary sm" to={`/essays/write/${topic.id}`}>
-        {t('write_essay')}
-      </Link>
-    );
-  }
-  if (DONE.has(st.status)) {
-    return (
-      <Link className="btn sm" to={`/essays/result/${st.submission_id}`}>
-        {t('essay_view_result')}
-        {st.total_score !== null && st.total_score !== undefined
-          ? ` — ${st.total_score}`
-          : ''}
-      </Link>
-    );
-  }
-  if (st.status === 'pending') {
-    return (
-      <Link className="btn sm" to={`/essays/result/${st.submission_id}`}>
-        {t('essay_ai_grading_progress')}
-      </Link>
-    );
-  }
-  if (st.status === 'draft') {
-    return (
-      <Link className="btn primary sm" to={`/essays/write/${topic.id}`}>
-        {t('essay_continue_writing')}
-      </Link>
-    );
-  }
-  if (st.status === 'pending_teacher') {
-    return (
-      <Link className="btn sm" to={`/essays/result/${st.submission_id}`}>
-        {t('essay_teacher_reviewing')}
-      </Link>
-    );
-  }
-  if (st.status === 'error') {
-    return (
-      <Link className="btn primary sm" to={`/essays/write/${topic.id}`}>
-        {t('essay_error_retry')}
-      </Link>
-    );
-  }
+const TYPE_FILTERS: Record<'uzbek' | 'english', ('all' | EssayKind)[]> = {
+  uzbek: ['all', 'ona_tili', 'adabiyot'],
+  english: ['all', 'ielts_task1', 'ielts_task2', 'multilevel'],
+};
+
+function Skeleton() {
   return (
-    <Link className="btn sm" to={`/essays/result/${st.submission_id}`}>
-      {t('essay_continue_writing')} ({st.status})
-    </Link>
+    <div className="ui-card es-card" aria-hidden="true">
+      <div className="ui-skel ui-skel-line" style={{ width: '75%', height: 16 }} />
+      <div className="ui-skel ui-skel-line" style={{ width: '40%' }} />
+      <div className="ui-skel" style={{ height: 44, borderRadius: 12, marginTop: 8 }} />
+    </div>
   );
 }
 
-function getTopicBadge(topic: { category?: string; rubric_type?: string; title: string }) {
-  const cat = (topic.category || '').toLowerCase();
-  const rubric = (topic.rubric_type || '').toLowerCase();
-  const title = (topic.title || '').toLowerCase();
-
-  if (cat === 'ielts_task1' || rubric === 'ielts_task1' || title.includes('task 1')) {
-    return {
-      label: '🎓 IELTS Task 1',
-      bg: 'rgba(59, 130, 246, 0.15)',
-      color: '#60a5fa',
-      border: 'rgba(59, 130, 246, 0.35)',
-    };
-  }
-  if (cat === 'ielts_task2' || rubric === 'ielts_task2' || title.includes('task 2')) {
-    return {
-      label: '🎓 IELTS Task 2',
-      bg: 'rgba(245, 158, 11, 0.15)',
-      color: '#fbbf24',
-      border: 'rgba(245, 158, 11, 0.35)',
-    };
-  }
-  if (cat === 'multilevel' || title.includes('multi-level') || title.includes('cefr')) {
-    return {
-      label: '🎯 CEFR Multi-level',
-      bg: 'rgba(16, 185, 129, 0.15)',
-      color: '#34d399',
-      border: 'rgba(16, 185, 129, 0.35)',
-    };
-  }
-  if (cat === 'adabiyot') {
-    return {
-      label: '📚 Adabiyot',
-      bg: 'rgba(168, 85, 247, 0.15)',
-      color: '#c084fc',
-      border: 'rgba(168, 85, 247, 0.35)',
-    };
-  }
-  return {
-    label: '📜 Milliy sertifikat',
-    bg: 'rgba(14, 165, 233, 0.15)',
-    color: '#38bdf8',
-    border: 'rgba(14, 165, 233, 0.35)',
-  };
-}
-
+/** Essay studio: topics for the chosen subject, own topic / photo upload, and "my essays". */
 export default function EssayTopics() {
-  const { t } = useLang();
-  const { user } = useAuth();
+  const { t, lang } = useLang();
   const navigate = useNavigate();
-
-  const [activeSubject, setActiveSubject] = useState<'uzbek' | 'english'>(() => {
-    if (user?.active_subject === 'english') return 'english';
-    const saved = localStorage.getItem('lms_subject');
-    return saved === 'english' ? 'english' : 'uzbek';
-  });
-
-  const [englishTab, setEnglishTab] = useState<'ielts' | 'multilevel'>('ielts');
+  const subject = useSubject();
+  const [tab, setTab] = useState<Tab>('topics');
+  const [type, setType] = useState<'all' | EssayKind>('all');
+  const [query, setQuery] = useState('');
+  const [mineFilter, setMineFilter] = useState<MineFilter>('all');
   const [topics, setTopics] = useState<Topic[]>([]);
   const [subs, setSubs] = useState<Submission[]>([]);
-  const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
-  // Sync when subject switches globally
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const customEvent = e as CustomEvent<'uzbek' | 'english'>;
-      const next = customEvent.detail || (localStorage.getItem('lms_subject') as 'uzbek' | 'english') || 'uzbek';
-      setActiveSubject(next);
-    };
-    window.addEventListener('subject-changed', handler);
-    return () => window.removeEventListener('subject-changed', handler);
-  }, []);
+  useEffect(() => setType('all'), [subject]);
 
-  // Fetch topics and submissions for current subject and subcategory
   useEffect(() => {
-    let cancelled = false;
+    let alive = true;
     setLoading(true);
     setErr(null);
-
-    const categoryParam = activeSubject === 'english' ? englishTab : undefined;
-
-    Promise.all([
-      Essays.topics({ subject: activeSubject, category: categoryParam }),
-      Essays.submissions({ subject: activeSubject }),
-    ])
+    Promise.all([Essays.topics({ subject }), Essays.submissions({ subject })])
       .then(([tj, sj]) => {
-        if (cancelled) return;
-        setTopics(((tj.topics as Topic[]) || []));
-        setSubs((((sj.submissions as Submission[]) || []).slice(0, 15)));
+        if (!alive) return;
+        setTopics((tj.topics as Topic[]) || []);
+        setSubs((sj.submissions as Submission[]) || []);
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (!alive) return;
         if (e instanceof AuthExpiredError) {
           navigate('/login');
           return;
         }
-        setErr(e instanceof Error ? e.message : 'Failed to load essay topics.');
+        setErr(e instanceof Error ? e.message : t('err_retry_js'));
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
+      .finally(() => alive && setLoading(false));
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [activeSubject, englishTab, navigate]);
+  }, [subject, reload, navigate, t]);
 
-  // Strict client-side filter fallback
-  const visibleTopics = useMemo(() => {
-    return topics.filter((t) => {
-      const title = (t.title || '').toLowerCase();
-      const cat = (t.category || '').toLowerCase();
-      const rubric = (t.rubric_type || '').toLowerCase();
-      const isEnglish =
-        t.subject === 'english' ||
-        cat.includes('ielts') ||
-        cat === 'multilevel' ||
-        rubric.includes('ielts') ||
-        title.includes('ielts') ||
-        title.includes('multi-level') ||
-        title.includes('cefr');
+  const visibleTopics = useMemo(() => filterTopics(topics, type, query), [topics, query, type]);
 
-      if (activeSubject === 'uzbek') {
-        return !isEnglish;
-      }
+  const visibleSubs = useMemo(() => filterMyEssays(subs, mineFilter), [subs, mineFilter]);
 
-      if (englishTab === 'ielts') {
-        return (
-          cat === 'ielts_task1' ||
-          cat === 'ielts_task2' ||
-          rubric.includes('ielts') ||
-          title.includes('ielts') ||
-          title.includes('task 1') ||
-          title.includes('task 2')
-        );
-      }
+  const dateOf = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(lang) : '');
 
-      if (englishTab === 'multilevel') {
-        return (
-          cat === 'multilevel' ||
-          title.includes('multi-level') ||
-          title.includes('cefr')
-        );
-      }
+  const topicAction = (tp: Topic) => {
+    const st = tp.user_status;
+    const state = st ? essayStatus(st.status) : 'none';
+    if (state === 'graded' && st) {
+      return (
+        <Link className="ui-btn ui-btn--block" to={`/essays/result/${st.submission_id}`}>
+          {t('es_view_result')}
+        </Link>
+      );
+    }
+    if ((state === 'pending' || state === 'teacher') && st) {
+      return (
+        <Link className="ui-btn ui-btn--block" to={`/essays/result/${st.submission_id}`}>
+          {t('es_status_pending')}
+        </Link>
+      );
+    }
+    return (
+      <Link className="ui-btn ui-btn--primary ui-btn--block" to={`/essays/write/${tp.id}`}>
+        {state === 'draft' ? t('es_continue') : state === 'error' ? t('es_retry') : t('es_write')}
+      </Link>
+    );
+  };
 
-      return true;
-    });
-  }, [topics, activeSubject, englishTab]);
+  const statusChip = (raw: string) => {
+    const st = essayStatus(raw);
+    return <span className={`es-status is-${st}`}>{t(`es_status_${st}`)}</span>;
+  };
 
-  const visibleSubs = useMemo(() => {
-    return subs.filter((s) => {
-      const isEng =
-        s.subject === 'english' ||
-        (s.category && (s.category.includes('ielts') || s.category === 'multilevel')) ||
-        (s.topic_title && (s.topic_title.toLowerCase().includes('ielts') || s.topic_title.toLowerCase().includes('cefr')));
-      if (activeSubject === 'uzbek') return !isEng;
-      if (englishTab === 'ielts') {
-        return !s.category?.includes('multilevel') && !s.topic_title.toLowerCase().includes('multi-level');
-      }
-      if (englishTab === 'multilevel') {
-        return s.category === 'multilevel' || s.topic_title.toLowerCase().includes('multi-level') || s.topic_title.toLowerCase().includes('cefr');
-      }
-      return true;
-    });
-  }, [subs, activeSubject, englishTab]);
+  const showCefrNote = subject === 'english' && type === 'multilevel' && visibleTopics.length === 0;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 6px' }}>
-            <span>{activeSubject === 'english' ? '🎓' : '📖'}</span>
-            <span>
-              {activeSubject === 'english'
-                ? 'English Writing Tasks & Essays'
-                : 'Ona tili va adabiyot — Esse mavzulari'}
-            </span>
-          </h1>
-          <p className="muted small" style={{ margin: 0 }}>
-            {activeSubject === 'english'
-              ? 'IELTS Writing (Task 1 & 2) and CEFR Multi-level criteria with instant AI evaluation.'
-              : 'BMB (DTM) 12-mezonli rasmiy baholash tizimi bo‘yicha esse yozing va AI hamda ustozdan aniq ball oling.'}
-          </p>
-        </div>
+    <div className="es">
+      <div className="es-head">
+        <h1>{t('tb_title_essays')}</h1>
+        <p>{t(subject === 'english' ? 'es_sub_english' : 'es_sub_uzbek')}</p>
       </div>
 
-      {/* English Category Sub-tabs: IELTS & Multi-level */}
-      {activeSubject === 'english' && (
-        <div
-          role="tablist"
-          aria-label="English Exam Categories"
-          style={{
-            display: 'inline-flex',
-            gap: '8px',
-            margin: '20px 0 16px',
-            background: 'rgba(15, 23, 42, 0.85)',
-            padding: '4px',
-            borderRadius: '14px',
-            border: '1px solid rgba(51, 65, 85, 0.7)',
-          }}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={englishTab === 'ielts'}
-            onClick={() => setEnglishTab('ielts')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 18px',
-              borderRadius: '10px',
-              fontWeight: 700,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              background: englishTab === 'ielts' ? '#f59e0b' : 'transparent',
-              color: englishTab === 'ielts' ? '#0f172a' : '#94a3b8',
-              border: 'none',
-              boxShadow: englishTab === 'ielts' ? '0 2px 8px rgba(245, 158, 11, 0.35)' : 'none',
-            }}
-          >
-            <span>🎓</span> IELTS (Academic & General)
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={englishTab === 'multilevel'}
-            onClick={() => setEnglishTab('multilevel')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 18px',
-              borderRadius: '10px',
-              fontWeight: 700,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              background: englishTab === 'multilevel' ? '#10b981' : 'transparent',
-              color: englishTab === 'multilevel' ? '#0f172a' : '#94a3b8',
-              border: 'none',
-              boxShadow: englishTab === 'multilevel' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
-            }}
-          >
-            <span>🎯</span> CEFR Multi-level (B2/C1)
+      <div className={`es-actions${subject === 'english' ? ' es-actions--one' : ''}`}>
+        {subject === 'uzbek' && (
+          <Link to="/essays/new" className="ui-btn ui-btn--lg">
+            <PenLine size={18} aria-hidden="true" /> {t('es_new')}
+          </Link>
+        )}
+        <Link to={`/essays/upload?subject=${subject}`} className="ui-btn ui-btn--lg">
+          <Camera size={18} aria-hidden="true" /> {t('es_upload')}
+        </Link>
+      </div>
+
+      <div className="ui-seg" role="tablist" aria-label={t('tb_title_essays')}>
+        <button type="button" role="tab" aria-selected={tab === 'topics'} onClick={() => setTab('topics')}>
+          {t('es_tab_topics')}
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'mine'} onClick={() => setTab('mine')}>
+          {t('es_tab_mine')}
+          {subs.length > 0 && ` (${subs.length})`}
+        </button>
+      </div>
+
+      {loading && (
+        <div className="es-grid" aria-busy="true" aria-label={t('loading')}>
+          <Skeleton />
+          <Skeleton />
+        </div>
+      )}
+
+      {!loading && err && (
+        <div className="ui-state ui-state--error" role="alert">
+          <span className="ic-chip ic-chip--danger">
+            <AlertTriangle size={24} aria-hidden="true" />
+          </span>
+          <h3>{t('es_error_title')}</h3>
+          <p>{err}</p>
+          <button type="button" className="ui-btn ui-btn--primary" onClick={() => setReload((n) => n + 1)}>
+            <RotateCcw size={16} aria-hidden="true" /> {t('error_retry')}
           </button>
         </div>
       )}
 
-      {loading && <p className="muted" style={{ marginTop: 20 }}>{t('loading')}</p>}
-      {err && <p className="error" style={{ marginTop: 20 }}>{err}</p>}
+      {!loading && !err && tab === 'topics' && (
+        <>
+          <div className="ui-chip-row" role="group" aria-label={t('es_type')}>
+            {TYPE_FILTERS[subject].map((k) => (
+              <button key={k} type="button" className={`ui-chip${type === k ? ' is-on' : ''}`} aria-pressed={type === k} onClick={() => setType(k)}>
+                {t(`es_kind_${k}`)}
+              </button>
+            ))}
+          </div>
+          <div className="es-tools">
+            <label className="ui-search">
+              <Search size={18} aria-hidden="true" />
+              <input
+                type="search"
+                className="ui-input"
+                placeholder={t('es_search')}
+                aria-label={t('search')}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                enterKeyHint="search"
+              />
+            </label>
+          </div>
 
-      {!loading && (
-        <div className="grid" style={{ marginTop: activeSubject === 'english' ? 8 : 20 }}>
-          {visibleTopics.map((topic) => {
-            const badge = getTopicBadge(topic);
-            return (
-              <div key={topic.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: badge.bg,
-                        color: badge.color,
-                        border: `1px solid ${badge.border}`,
-                        display: 'inline-block',
-                      }}
-                    >
-                      {badge.label}
-                    </span>
-                    {topic.has_password && (
-                      <span className="muted small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <LockIcon size={12} className="ico" /> {t('essay_password_protected')}
+          {showCefrNote ? (
+            <div className="ui-state">
+              <span className="ic-chip ic-chip--info">
+                <FileText size={24} aria-hidden="true" />
+              </span>
+              <h3>{t('es_cefr_title')}</h3>
+              <p>{t('es_cefr_text')}</p>
+              <Link to="/tests" className="ui-btn ui-btn--primary">
+                {t('es_cefr_btn')}
+              </Link>
+            </div>
+          ) : visibleTopics.length === 0 ? (
+            <div className="ui-state">
+              <span className="ic-chip ic-chip--muted">
+                <FileText size={24} aria-hidden="true" />
+              </span>
+              <h3>{t(query || type !== 'all' ? 'es_nomatch' : 'es_no_topics')}</h3>
+              {(query || type !== 'all') && (
+                <button
+                  type="button"
+                  className="ui-btn"
+                  onClick={() => {
+                    setQuery('');
+                    setType('all');
+                  }}
+                >
+                  {t('tl_clear_filters')}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="es-grid">
+              {visibleTopics.map((tp) => {
+                const kind = essayKind(tp);
+                return (
+                  <article key={tp.id} className="ui-card es-card">
+                    <div className="es-card__top">
+                      <span className="ic-chip">
+                        <PenLine size={18} aria-hidden="true" />
                       </span>
-                    )}
-                  </div>
-                  <strong style={{ fontSize: '1.05rem', lineHeight: 1.4, display: 'block', marginBottom: 6 }}>
-                    {topic.title}
-                  </strong>
-                  <p className="muted small" style={{ marginBottom: 12 }}>
-                    {topic.description}
-                  </p>
-                </div>
-                <div>
-                  <p className="muted small" style={{ marginBottom: 12 }}>
-                    {topic.word_limit_min}–{topic.word_limit_max} {t('words_suffix')}
-                    {' · '}
-                    {topic.time_limit_minutes} {t('minutes_suffix')}
-                  </p>
-                  <TopicAction topic={topic} />
-                </div>
-              </div>
-            );
-          })}
-
-          {visibleTopics.length === 0 && !err && (
-            <div className="card" style={{ gridColumn: '1 / -1', padding: '32px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 8 }}>
-                {activeSubject === 'english' ? '📝' : '📖'}
-              </div>
-              <strong style={{ fontSize: '1.1rem' }}>
-                {activeSubject === 'english'
-                  ? englishTab === 'ielts'
-                    ? 'No IELTS writing topics added yet'
-                    : 'No CEFR Multi-level topics added yet'
-                  : 'Hozircha faol esse mavzulari mavjud emas'}
-              </strong>
-              <p className="muted small" style={{ margin: '8px auto 0', maxWidth: 480 }}>
-                {activeSubject === 'english'
-                  ? 'Your instructor will create writing prompts here. Once added, you can practice under timed exam conditions.'
-                  : 'Ustoz tomonidan yangi mavzular kiritilgach, ular bu yerda paydo bo‘ladi.'}
-              </p>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <span className="es-card__type">{t(`es_kind_${kind}`)}</span>
+                        <h3 className="es-card__title clamp-2">{tp.title}</h3>
+                      </div>
+                      {tp.has_password && <Lock size={16} aria-label={t('es_locked')} />}
+                    </div>
+                    <p className="es-card__meta">
+                      <span>{t('es_words').replace('{min}', String(tp.word_limit_min)).replace('{max}', String(tp.word_limit_max))}</span>
+                      {tp.time_limit_minutes > 0 && (
+                        <span>
+                          <Clock size={14} aria-hidden="true" /> {t('tl_minutes').replace('{n}', String(tp.time_limit_minutes))}
+                        </span>
+                      )}
+                    </p>
+                    <div className="es-card__actions">{topicAction(tp)}</div>
+                  </article>
+                );
+              })}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      <h2 style={{ marginTop: 36, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>📊</span>
-        <span>
-          {activeSubject === 'english'
-            ? 'My Writing Submissions'
-            : t('my_essays')}
-        </span>
-      </h2>
-
-      <div className="table-wrap">
-        <table className="data">
-          <thead>
-            <tr>
-              <th>{t('th_topic')}</th>
-              <th>Toifa</th>
-              <th>{t('status')}</th>
-              <th>{activeSubject === 'english' ? 'Band / Score' : t('score')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleSubs.map((s) => {
-              const badge = getTopicBadge({
-                category: s.category,
-                rubric_type: s.rubric_type,
-                title: s.topic_title,
-              });
-              return (
-                <tr key={s.id}>
-                  <td>
-                    <Link to={`/essays/result/${s.id}`} style={{ fontWeight: 600 }}>
-                      {s.topic_title || 'Nomsiz esse'}
-                    </Link>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        padding: '2px 7px',
-                        borderRadius: '5px',
-                        background: badge.bg,
-                        color: badge.color,
-                        border: `1px solid ${badge.border}`,
-                        display: 'inline-block',
-                      }}
-                    >
-                      {badge.label}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="badge">{s.status}</span>
-                  </td>
-                  <td>
-                    {s.subject === 'english' || activeSubject === 'english' ? (
-                      s.overall_band !== null && s.overall_band !== undefined ? (
-                        <strong>
-                          Band {s.overall_band}{' '}
-                          {s.cefr_level ? (
-                            <span className="muted small">({s.cefr_level})</span>
-                          ) : (
-                            ''
-                          )}
-                        </strong>
-                      ) : (
-                        s.total_score !== null && s.total_score !== undefined ? (
-                          `Band ${s.total_score}`
-                        ) : (
-                          '—'
-                        )
-                      )
-                    ) : (
-                      s.converted_score ?? s.total_score ?? '—'
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {visibleSubs.length === 0 && (
-              <tr>
-                <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                  {activeSubject === 'english'
-                    ? 'No submissions yet for this category.'
-                    : 'Hozircha topshirilgan esselar yo‘q.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {!loading && !err && tab === 'mine' && (
+        <>
+          <div className="ui-chip-row" role="group" aria-label={t('es_tab_mine')}>
+            {(['all', 'draft', 'graded'] as MineFilter[]).map((f) => (
+              <button key={f} type="button" className={`ui-chip${mineFilter === f ? ' is-on' : ''}`} aria-pressed={mineFilter === f} onClick={() => setMineFilter(f)}>
+                {t(`es_mine_${f}`)}
+              </button>
+            ))}
+          </div>
+          {visibleSubs.length === 0 ? (
+            <div className="ui-state">
+              <span className="ic-chip ic-chip--muted">
+                <PenLine size={24} aria-hidden="true" />
+              </span>
+              <h3>{t(subs.length ? 'es_nomatch' : 'es_mine_empty')}</h3>
+              <button type="button" className="ui-btn ui-btn--primary" onClick={() => setTab('topics')}>
+                {t('es_pick_topic')}
+              </button>
+            </div>
+          ) : (
+            <div className="es-grid">
+              {visibleSubs.map((s) => {
+                const st = essayStatus(s.status);
+                const href = st === 'draft' && s.topic_id ? `/essays/write/${s.topic_id}` : `/essays/result/${s.id}`;
+                const score = st === 'graded' ? scoreLabel(s, t) : '';
+                return (
+                  <Link key={s.id} to={href} className="ui-card es-card" style={{ textDecoration: 'none' }}>
+                    <div className="es-card__top">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <span className="es-card__type">{t(`es_kind_${essayKind(s)}`)}</span>
+                        <h3 className="es-card__title clamp-2">{s.topic_title || t('es_untitled')}</h3>
+                      </div>
+                      {statusChip(s.status)}
+                    </div>
+                    <p className="es-card__meta">
+                      <span>{dateOf(s.graded_at || s.updated_at)}</span>
+                      {score && <span className="es-score">{score}</span>}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

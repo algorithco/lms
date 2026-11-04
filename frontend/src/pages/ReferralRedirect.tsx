@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ReferralApi } from '../lib/api';
+import { useLang } from '../i18n/LangContext';
 
 export default function ReferralRedirect() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useLang();
 
   useEffect(() => {
     if (!code) {
@@ -23,7 +25,7 @@ export default function ReferralRedirect() {
       // If user is already logged in, apply the referral code right away
       ReferralApi.apply(code)
         .then((res) => {
-          toast.success(res.message || 'Do\'stingizning taklif bonusi hisobingizga qo\'shildi!');
+          toast.success(res.message || t('rr_applied'));
         })
         .catch((err) => {
           if (err.message) toast.info(err.message);
@@ -35,12 +37,12 @@ export default function ReferralRedirect() {
       // If guest, send to registration with referral query param
       navigate(`/register?ref=${encodeURIComponent(code)}`);
     }
-  }, [code, user, navigate, toast]);
+  }, [code, user, navigate, toast, t]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 p-4">
-      <div className="w-10 h-10 border-4 border-amber-500/30 border-t-amber-400 rounded-full animate-spin mb-4" />
-      <p className="text-slate-400 text-sm font-medium">Taklif havolasi tekshirilmoqda...</p>
+    <div className="exam-state" role="status">
+      <div className="exam-state__spinner" aria-hidden="true" />
+      <p>{t('rr_checking')}</p>
     </div>
   );
 }

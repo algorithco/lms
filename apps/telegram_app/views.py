@@ -573,8 +573,9 @@ def tma_essay_submissions_view(request: Request) -> Response:
                 {
                     "id": s.id,
                     "topic_id": s.topic_id,
-                    "topic_title": s.topic.title if s.topic else "",
+                    "topic_title": s.topic.title if s.topic else (s.custom_title or ""),
                     "subject": s.topic.subject if s.topic else "uzbek",
+                    "updated_at": s.updated_at.isoformat() if s.updated_at else None,
                     "category": s.topic.category if s.topic else "",
                     "rubric_type": s.topic.rubric_type if s.topic else "bmb_12",
                     "status": s.status,

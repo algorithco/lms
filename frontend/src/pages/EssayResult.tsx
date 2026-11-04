@@ -2,6 +2,7 @@ import { formatDisplayName } from '../lib/displayName';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
+import { essayStatus } from '../lib/essays';
 import { useAuth } from '../auth/AuthContext';
 import { Essays } from '../lib/api';
 import HologramRadar3D from '../components/HologramRadar3D';
@@ -381,7 +382,10 @@ export default function EssayResult() {
     <div>
       <h1>{res.topic_title || t('essay_results')}</h1>
       <p>
-        <span className={`badge ${done ? 'green' : 'amber'}`}>{res.status}</span>
+        <span className={`es-status is-${essayStatus(res.status)}`}>{t(`es_status_${essayStatus(res.status)}`)}</span>
+        {done && (res.final_score === null || res.final_score === undefined) && res.grading_source !== 'mock' && (
+          <span className="es-status" style={{ marginLeft: 8 }}>{t('er_ai_graded')}</span>
+        )}
         {res.final_score !== null && res.final_score !== undefined && (
           <span className="badge green" style={{ marginLeft: 8 }}>
             {t('essay_teacher_done')}
@@ -390,11 +394,12 @@ export default function EssayResult() {
       </p>
 
       {pending && res.status !== 'draft' && (
-        <div className="card">
-          <p>{t('essay_grading_pending')}</p>
-          <div className="progress">
-            <div style={{ width: '45%' }} />
+        <div className="ui-card" role="status" style={{ display: 'grid', gap: 8 }}>
+          <strong>{t('essay_grading_pending')}</strong>
+          <div className="er-progress" aria-hidden="true">
+            <i />
           </div>
+          <p className="muted small" style={{ margin: 0 }}>{t('er_can_leave')}</p>
         </div>
       )}
 

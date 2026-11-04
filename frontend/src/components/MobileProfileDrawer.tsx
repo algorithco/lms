@@ -4,11 +4,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang, type AppLang } from '../i18n/LangContext';
+import { LayoutGrid } from 'lucide-react';
 import { useTheme } from '../theme/ThemeContext';
 import { isPlatformAdmin, formatDisplayName } from '../lib/api';
 import {
   CrownIcon,
-  GlobeIcon,
   LogOutIcon,
   MoonIcon,
   ShieldCheckIcon,
@@ -21,22 +21,27 @@ import {
 interface MobileProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Opens the full section menu (all modules); the top bar has no hamburger on phones. */
+  onOpenMenu?: () => void;
 }
 
-function getRoleBadge(role?: string): { label: string; bg: string; color: string } {
+/** Each language in its own name, so it is findable whatever the current language is. */
+const LANG_NAMES: Record<AppLang, string> = { uz: "O'zbekcha", en: 'English', ru: 'Русский' };
+
+function getRoleBadge(role?: string): { key: string; bg: string; color: string } {
   if (role === 'admin' || role === 'superadmin') {
-    return { label: '🛡 Administrator', bg: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' };
+    return { key: 'drawer_role_admin', bg: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' };
   }
   if (role === 'teacher') {
-    return { label: "👨‍🏫 O'qituvchi / Ustoz", bg: 'rgba(16, 185, 129, 0.12)', color: '#10B981' };
+    return { key: 'drawer_role_teacher', bg: 'rgba(16, 185, 129, 0.12)', color: '#10B981' };
   }
   if (role === 'parent') {
-    return { label: '👨‍👩‍👧 Ota-ona', bg: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' };
+    return { key: 'drawer_role_parent', bg: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' };
   }
-  return { label: "🎓 O'quvchi", bg: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' };
+  return { key: 'drawer_role_student', bg: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' };
 }
 
-export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDrawerProps) {
+export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: MobileProfileDrawerProps) {
   const { user, logout, openAuthModal } = useAuth();
   const { lang, setLang, t } = useLang();
   const { resolvedTheme, setTheme } = useTheme();
@@ -120,14 +125,11 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                 marginBottom: 16,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 18 }}>👤</span>
-                <strong style={{ fontSize: 16, fontWeight: 900 }}>Mening Profilim</strong>
-              </div>
+              <strong style={{ fontSize: 16, fontWeight: 900 }}>{t('drawer_title')}</strong>
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Yopish"
+                aria-label={t('common_close')}
                 style={{
                   width: 34,
                   height: 34,
@@ -144,6 +146,13 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                 <XIcon size={18} />
               </button>
             </div>
+
+            {onOpenMenu && (
+              <button type="button" className="ui-btn ui-btn--block" style={{ marginBottom: 16 }} onClick={onOpenMenu}>
+                <LayoutGrid size={18} aria-hidden="true" />
+                {t('drawer_all_sections')}
+              </button>
+            )}
 
             {user ? (
               <>
@@ -166,7 +175,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                     {user.avatar ? (
                       <img
                         src={user.avatar}
-                        alt={user.full_name || 'Profil'}
+                        alt={user.full_name || t('drawer_profile')}
                         style={{
                           width: 64,
                           height: 64,
@@ -247,7 +256,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                         color: roleBadge.color,
                       }}
                     >
-                      {roleBadge.label}
+                      {t(roleBadge.key)}
                     </span>
 
                     <PlanBadge variant="chip" onNavigate={onClose} />
@@ -262,7 +271,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                         color: isDark ? '#94A3B8' : '#475569',
                       }}
                     >
-                      #ID-{user.id || '2026'}
+                      ID {user.id}
                     </span>
                   </div>
                 </div>
@@ -287,7 +296,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                     }}
                   >
                     <span style={{ color: '#F59E0B' }}><UserIcon size={18} /></span>
-                    <span>Shaxsiy Kabinet va Ma&apos;lumotlar</span>
+                    <span>{t('drawer_profile')}</span>
                   </Link>
 
                   <Link
@@ -307,9 +316,10 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                     }}
                   >
                     <span style={{ color: '#10B981' }}><TrophyIcon size={18} /></span>
-                    <span>Mening Sertifikatlarim</span>
+                    <span>{t('drawer_certificates')}</span>
                   </Link>
 
+                  {!isAdmin && (
                   <Link
                     to="/subscribe"
                     onClick={onClose}
@@ -327,8 +337,9 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                     }}
                   >
                     <span style={{ color: '#D97706' }}><CrownIcon size={18} /></span>
-                    <span>Tariflar va Obuna (PRO)</span>
+                    <span>{t('drawer_plans')}</span>
                   </Link>
+                  )}
 
                   {isAdmin && (
                     <Link
@@ -348,7 +359,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                       }}
                     >
                       <ShieldCheckIcon size={18} />
-                      <span>Admin Boshqaruv Paneli</span>
+                      <span>{t('drawer_admin_panel')}</span>
                     </Link>
                   )}
                 </div>
@@ -415,30 +426,13 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                 gap: 12,
               }}
             >
-              {/* Language Switcher */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <GlobeIcon size={16} style={{ color: '#0284C7' }} />
-                  <span>Til:</span>
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
+              {/* Interface language: names, not codes or a globe */}
+              <div style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{t('interface_language')}</span>
+                <div className="ui-seg" role="group" aria-label={t('interface_language')}>
                   {(['uz', 'en', 'ru'] as AppLang[]).map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => setLang(l)}
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: 8,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: lang === l ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9',
-                        color: lang === l ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
-                      }}
-                    >
-                      {l.toUpperCase()}
+                    <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}>
+                      {LANG_NAMES[l]}
                     </button>
                   ))}
                 </div>
@@ -448,7 +442,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {isDark ? <MoonIcon size={16} style={{ color: '#F59E0B' }} /> : <SunIcon size={16} style={{ color: '#F59E0B' }} />}
-                  <span>Rejim:</span>
+                  <span>{t('drawer_theme')}</span>
                 </span>
                 <button
                   type="button"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AutoGrow from '../components/AutoGrow';
 import LimitExceededModal from '../components/LimitExceededModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
@@ -315,41 +316,67 @@ export default function EssayWrite() {
     setSaveState(r.saved ? 'saved' : 'error');
   };
 
+  useEffect(() => {
+    if (!topic || timeUp || busy || !text.trim() || saveState === 'saved') return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [topic, timeUp, busy, text, saveState]);
+
   const mm = remaining !== null ? Math.floor(Math.max(remaining, 0) / 60) : null;
   const ss =
     remaining !== null ? String(Math.max(remaining, 0) % 60).padStart(2, '0') : null;
-  const pct = maxWords > 0 ? Math.min(100, Math.round((words / maxWords) * 100)) : 0;
+  const saveLabel =
+    saveState === 'saving'
+      ? t('essay_js_saving')
+      : saveState === 'saved'
+        ? t('ew_saved')
+        : saveState === 'error'
+          ? t('essay_js_save_error')
+          : t('essay_js_not_saved');
 
   return (
-    <div>
-      <h1>{topic ? String(topic.title ?? t('write_essay')) : t('write_essay')}</h1>
-      {err && <p className="error">{err}</p>}
+    <div className="ew">
+      <header className="ew-head">
+        <h1 className="clamp-2">{topic ? String(topic.title ?? t('write_essay')) : t('write_essay')}</h1>
+        {topic && hasLimit && remaining !== null && !timeUp && (
+          <span className={`ew-timer${remaining < 300 ? ' is-low' : ''}`} aria-label={t('ew_time_left')}>
+            <ClockIcon size={14} /> {mm}:{ss}
+          </span>
+        )}
+      </header>
+
+      {err && (
+        <p className="ew-alert" role="alert">
+          {err}
+        </p>
+      )}
 
       {needPassword && submissionId === null && (
-        <div className="card narrow" style={{ margin: '1rem 0' }}>
+        <div className="ui-card ew-gate">
           <h2>{t('essay_enter_password')}</h2>
-          <p className="muted small">{t('essay_password_hint')}</p>
-          <div className="form">
-            <label>
-              {t('password')}
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <button className="btn primary" onClick={() => void start(startedTopicId ?? id, password, true)}>
-              {t('essay_confirm_start')}
-            </button>
-          </div>
+          <p>{t('essay_password_hint')}</p>
+          <input
+            type="password"
+            className="ui-input"
+            aria-label={t('password')}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button className="ui-btn ui-btn--primary" onClick={() => void start(startedTopicId ?? id, password, true)}>
+            {t('essay_confirm_start')}
+          </button>
         </div>
       )}
 
       {timeUp && submissionId !== null && (
-        <div className="card" style={{ margin: '1rem 0' }}>
-          <strong>{t('essay_time_up')}</strong>
-          <p className="muted small">{t('essay_time_up_text')}</p>
-          <Link className="btn primary sm" to={`/essays/result/${submissionId}`}>
+        <div className="ui-state">
+          <h3>{t('essay_time_up')}</h3>
+          <p>{t('essay_time_up_text')}</p>
+          <Link className="ui-btn ui-btn--primary" to={`/essays/result/${submissionId}`}>
             {t('essay_view_result')}
           </Link>
         </div>
@@ -357,149 +384,46 @@ export default function EssayWrite() {
 
       {topic && !timeUp && (
         <>
-          <div className="toolbar">
-            {hasLimit && remaining !== null && (
-              <span className={`timer${remaining < 300 ? ' low' : ''}`}>
-                <ClockIcon size={14} className="ico" /> {mm}:{ss}
+          <details className="ui-card ew-task">
+            <summary>{t('ew_task')}</summary>
+            {String(topic.description ?? '') && <p className="ew-task__text">{String(topic.description ?? '')}</p>}
+            <p className="ew-task__rule">{t('ew_range').replace('{range}', `${minWords}–${maxWords}`)}</p>
+            {isEnglish ? (
+              <p className="ew-task__crit">{t(isTask1 ? 'ew_criteria_ielts_t1' : 'ew_criteria_ielts_t2')}</p>
+            ) : (
+              <ol className="ew-task__list">
+                {CRIT_KEYS.map((k) => (
+                  <li key={k}>{t(k)}</li>
+                ))}
+              </ol>
+            )}
+          </details>
+          {restored && <p className="ew-note">{t('essay_draft_restored')}</p>}
+
+          <AutoGrow
+            className="ew-text"
+            value={text}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={t('essay_write_ph')}
+            aria-label={t('cd_writing_area')}
+            rows={12}
+            autoCapitalize="sentences"
+            spellCheck
+          />
+
+          <div className="ew-bar">
+            <div className="ew-bar__info">
+              <span className={`ew-count is-${zone}`} aria-live="polite">
+                {words} / {minWords}–{maxWords} {t('cd_words')}
               </span>
-            )}
-            <span
-              className="badge"
-              style={{
-                background:
-                  words < minWords
-                    ? 'rgba(245, 158, 11, 0.16)'
-                    : words <= maxWords
-                    ? 'rgba(16, 185, 129, 0.16)'
-                    : 'rgba(239, 68, 68, 0.18)',
-                color:
-                  words < minWords
-                    ? '#f59e0b'
-                    : words <= maxWords
-                    ? '#10b981'
-                    : '#ef4444',
-                borderColor:
-                  words < minWords
-                    ? 'rgba(245, 158, 11, 0.4)'
-                    : words <= maxWords
-                    ? 'rgba(16, 185, 129, 0.45)'
-                    : 'rgba(239, 68, 68, 0.5)',
-                fontWeight: 700,
-              }}
-            >
-              {words < minWords ? '⚠️ ' : words <= maxWords ? '✓ ' : '❌ '}
-              {t('words')}: {words} / {minWords}–{maxWords} so'z
-            </span>
-            <span className="muted small">
-              {saveState === 'saving' && t('essay_js_saving')}
-              {saveState === 'saved' && t('essay_js_saved')}
-              {saveState === 'error' && t('essay_js_save_error')}
-              {saveState === 'idle' && t('essay_js_not_saved')}
-            </span>
-          </div>
-          {restored && <p className="muted small">{t('essay_draft_restored')}</p>}
-          <p className="muted">{String(topic.description ?? '')}</p>
-          <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
-            <div className="card">
-              {isEnglish ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: '1.1rem' }}>🎓</span>
-                    <strong>IELTS Writing assessment (band 1.0 – 9.0)</strong>
-                  </div>
-                  <p className="muted small">
-                    Your essay will be evaluated across the 4 official IELTS criteria:
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, margin: '0.6rem 0' }}>
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#60a5fa', display: 'block' }}>1. {isTask1 ? 'Task Achievement' : 'Task Response'}</strong>
-                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Clear overview, key features, or fully developed position</span>
-                    </div>
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#34d399', display: 'block' }}>2. Coherence & Cohesion</strong>
-                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Logical sequencing, clear paragraphing, cohesive devices</span>
-                    </div>
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#fbbf24', display: 'block' }}>3. Lexical Resource</strong>
-                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Academic vocabulary, precise collocations, rare errors</span>
-                    </div>
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#c084fc', display: 'block' }}>4. Grammatical Range & Accuracy</strong>
-                      <span className="muted small" style={{ fontSize: '0.74rem' }}>Complex sentence structures, punctuation, error-free sentences</span>
-                    </div>
-                  </div>
-                  <p className="muted small" style={{ fontSize: '0.76rem' }}>
-                    💡 Min requirement: {minWords} words ({isTask1 ? 'Task 1: ~150-200' : 'Task 2: ~250-320'} words recommended).
-                  </p>
-                </>
-              ) : (
-                <>
-                  <strong>{t('essay_12_criteria')}</strong>{' '}
-                  <span className="muted small">{t('essay_0_2')}</span>
-                  <p className="muted small">{t('essay_criteria_hint')}</p>
-                  <ul className="muted small" style={{ margin: '0.5rem 0', paddingLeft: '1.2rem' }}>
-                    {CRIT_KEYS.map((k, i) => (
-                      <li key={k}>
-                        {String(i + 1).padStart(2, '0')} · {t(k)}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="muted small">{t('essay_watch_tip')}</p>
-                </>
-              )}
+              <span className={`ew-save is-${saveState}`}>{saveLabel}</span>
             </div>
-          </div>
-          <div className="form" style={{ maxWidth: '100%' }}>
-            <textarea
-              rows={14}
-              value={text}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={t('essay_write_ph')}
-            />
-            <div className="progress" style={{ marginTop: 8 }}>
-              <div
-                style={{
-                  width: `${pct}%`,
-                  background: zone === 'ok' ? undefined : zone === 'under' ? '#F59E0B' : '#F43F5E',
-                }}
-              />
-            </div>
-            {zone === 'under' && (
-              <p className="error small" style={{ color: '#f59e0b', fontWeight: 600 }}>
-                ⚠️ Yetarli emas: {words}/{minWords} soʻz ({minWords - words} ta soʻz qoldi)
-              </p>
-            )}
-            {zone === 'over' && (
-              <p className="error small" style={{ color: '#ef4444', fontWeight: 600 }}>
-                ❌ Hajm oshib ketdi: {words}/{maxWords} soʻz
-              </p>
-            )}
-            {zone === 'ok' && (
-              <p className="muted small" style={{ color: '#10b981', fontWeight: 600 }}>
-                ✓ Ideal hajm: {words} soʻz
-              </p>
-            )}
-            <p className="muted small">{t('essay_autosave_note')}</p>
-            <div className="toolbar">
-              <button className="btn sm" disabled={busy} onClick={saveNow}>
-                {t('essay_save_draft')}
-              </button>
-              <button
-                className="btn primary"
-                disabled={busy || words < minWords}
-                onClick={submit}
-              >
-                {busy ? t('loading') : t('essay_submit_btn')}
-              </button>
-            </div>
-            {words < minWords && (
-              <p className="muted small">
-                {t('essay_js_need_min')} ({minWords})
-              </p>
-            )}
-            <p className="muted small">
-              {t('essay_gate_prefix')} {minWords} {t('essay_gate_suffix')}
-            </p>
+            <button className="ui-btn ui-btn--sm" disabled={busy} onClick={saveNow}>
+              {t('essay_save_draft')}
+            </button>
+            <button className="ui-btn ui-btn--primary" disabled={busy || words < minWords} onClick={submit}>
+              {busy ? t('loading') : t('ew_submit')}
+            </button>
           </div>
         </>
       )}

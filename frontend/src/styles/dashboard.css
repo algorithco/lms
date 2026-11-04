@@ -45,3 +45,5 @@
 .dsh-goal { margin: 0; display: grid; gap: 4px; font-size: 14px; color: var(--ink-soft); }
 .dsh-goal b { color: var(--ink); font-size: 16px; }
 .dsh-goal__ok { color: var(--emerald); font-weight: 800; }
+.dsh-empty-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.dsh-empty-row p { margin: 0; font-size: var(--fs-sm); color: var(--muted); }

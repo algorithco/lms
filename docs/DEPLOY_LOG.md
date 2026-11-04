@@ -3,6 +3,23 @@
 Each entry: what changed, which commit/tag is live, backups, checks, open items.
 Merging to `main` auto-deploys (CI → Build → Deploy, `deploy/remote-deploy.sh`); that pipeline takes **no** database backup, so a manual `pg_dump` must be taken before merging anything that migrates.
 
+## 2026-11-04 — PR #118 result review, dashboard, mobile exam, question issues (`2eae701`, release `9b9f174` v1.79.0)
+
+**Live tag:** `sha-2eae701` (web, bot, celery-worker, celery-beat). Previous tag / rollback point: `sha-b532bb0` (#117). Rollback = `Deploy` workflow `workflow_dispatch` with `tag=sha-b532bb0`; the three migrations only add columns, so the old image runs on the new schema.
+
+**Backup (taken right before merge):** `~/backups/lms_predeploy_pr118_20261104_032728.sql.gz` — 166 136 bytes, `gzip -t` OK, 117 tables (lms database only; an earlier one at 03:04 is superseded).
+
+**Migrations applied:** `tests.0019_question_evidence_explanation_status`, `tests.0020_question_needs_review`, `notifications.0014_userfeedback_question_userfeedback_reason_and_more` (AddField ×5 + a choices-only change on `category`, no SQL). Table sizes before: `tests_question` 158 rows / 280 kB, `notifications_userfeedback` 1 row / 112 kB.
+
+**Verified on production (read only):**
+- CI, Security, CodeQL, Build, Release, Deploy all `success`; web/bot/celery-worker/celery-beat on `sha-2eae701`, all `healthy`; nginx/db/redis unchanged.
+- Bestway / education containers: same names and images before and after (uptime unchanged).
+- 0 tracebacks in web/bot/worker/beat since the deploy; `https://grandec.uz/healthz/` → 200.
+- `showmigrations`: the three migrations are `[X]`.
+- `draft_explanations --test-id 14 --dry-run` (Record Mock, published): 14 drafts, 67 left without explanation, **nothing written**. Not run for real yet (waiting for the owner's review).
+
+**Not yet verified (needs a test FREE account from the owner):** explain-mistake / result endpoint return no key during an exam or for another user's attempt; #116 checks (receipt upload stays pending, group join grants nothing).
+
 ## 2026-11-03 — PR #116 free→PRO leak hotfix (`a39529a`, release `ec34526` v1.77.0)
 
 **Live tag:** `sha-a39529a` (web, bot, celery-worker, celery-beat). Previous tag / rollback point: `sha-73e2a1f` (#115). Rollback = `Deploy` workflow `workflow_dispatch` with `tag=sha-73e2a1f`; the two migrations are schema-neutral / data-only, so an image rollback is safe.

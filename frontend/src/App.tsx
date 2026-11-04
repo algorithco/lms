@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import ParentRoute from './components/ParentRoute';
 import TeacherRoute from './components/TeacherRoute';
+import NotForAdminRoute from './components/NotForAdminRoute';
 import type { ComponentType } from 'react';
 
 // Keep the public/auth shell small. Feature pages load only when visited,
@@ -21,6 +22,8 @@ const EssayTeacherQueue = lazyPage(() => import('./pages/EssayTeacherQueue'));
 const EssayTeacherReview = lazyPage(() => import('./pages/EssayTeacherReview'));
 const EssayTopics = lazyPage(() => import('./pages/EssayTopics'));
 const EssayWrite = lazyPage(() => import('./pages/EssayWrite'));
+const EssayNew = lazyPage(() => import('./pages/EssayNew'));
+const EssayUpload = lazyPage(() => import('./pages/EssayUpload'));
 const Games = lazyPage(() => import('./pages/Games'));
 const PlayGame = lazyPage(() => import('./pages/PlayGame'));
 const Groups = lazyPage(() => import('./pages/Groups'));
@@ -163,6 +166,8 @@ function AnimatedRoutes() {
             {/* Legacy password-gate page → topics (gate is inline in write flow) */}
             <Route path="/essays/:topicId/start" element={<Navigate to="/essays" replace />} />
             <Route path="/essays/write/:id" element={<EssayWrite />} />
+            <Route path="/essays/new" element={<EssayNew />} />
+            <Route path="/essays/upload" element={<EssayUpload />} />
             <Route path="/essays/result/:id" element={<EssayResult />} />
             {/* Arena */}
             <Route path="/arena" element={<Arena />} />
@@ -182,17 +187,19 @@ function AnimatedRoutes() {
             <Route path="/games/lugat-match" element={<Navigate to="/games/lugat_match" replace />} />
             <Route path="/games/:slug" element={<PlayGame />} />
             {/* Billing (legacy /subscribe/* shapes) */}
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/plans" element={<Plans />} />
-            <Route path="/premium" element={<Plans />} />
-            <Route path="/subscribe" element={<Plans />} />
-            <Route path="/subscribe/my" element={<Navigate to="/my-subscription" replace />} />
-            <Route path="/subscribe/success" element={<Navigate to="/my-subscription" replace />} />
-            <Route path="/subscribe/cancel" element={<Navigate to="/subscribe" replace />} />
-            <Route path="/subscribe/:planId/subscribe" element={<SubscribeRedirect />} />
-            <Route path="/subscribe/:planId" element={<Subscribe />} />
-            <Route path="/subscribe/pay" element={<Subscribe />} />
-            <Route path="/checkout" element={<Subscribe />} />
+            <Route element={<NotForAdminRoute />}>
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/plans" element={<Plans />} />
+              <Route path="/premium" element={<Plans />} />
+              <Route path="/subscribe" element={<Plans />} />
+              <Route path="/subscribe/my" element={<Navigate to="/my-subscription" replace />} />
+              <Route path="/subscribe/success" element={<Navigate to="/my-subscription" replace />} />
+              <Route path="/subscribe/cancel" element={<Navigate to="/subscribe" replace />} />
+              <Route path="/subscribe/:planId/subscribe" element={<SubscribeRedirect />} />
+              <Route path="/subscribe/:planId" element={<Subscribe />} />
+              <Route path="/subscribe/pay" element={<Subscribe />} />
+              <Route path="/checkout" element={<Subscribe />} />
+            </Route>
             <Route path="/my-subscription" element={<MySubscription />} />
             {/* School */}
             <Route element={<TeacherRoute />}>

@@ -24,7 +24,7 @@ export default function Profile() {
   const { t } = useTranslation();
 
   const [telegramId, setTelegramId] = useState(
-    user?.telegram_chat_id ? String(user.telegram_chat_id) : (isPlatformAdmin(user) ? '5582178765' : '')
+    user?.telegram_chat_id ? String(user.telegram_chat_id) : ''
   );
   const [tgLoading, setTgLoading] = useState(false);
   const [tgSuccess, setTgSuccess] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export default function Profile() {
     }
     const parsedId = Number(telegramId.trim());
     if (!Number.isFinite(parsedId) || parsedId <= 0) {
-      setTgError('Telegram ID musbat son bo‘lishi kerak.');
+      setTgError(t('pf_tg_bad_id'));
       return;
     }
     setTgLoading(true);
@@ -46,10 +46,10 @@ export default function Profile() {
     setTgSuccess(null);
     try {
       const res = await ProfileApi.linkTelegram(parsedId);
-      setTgSuccess(res.message || 'Telegram hisobi muvaffaqiyatli bog‘landi!');
+      setTgSuccess(res.message || t('pf_tg_linked'));
       updateUserLocal({ telegram_chat_id: res.telegram_chat_id });
     } catch (err) {
-      setTgError(err instanceof Error ? err.message : 'Bog‘lashda server xatoligi yuz berdi.');
+      setTgError(err instanceof Error && err.message ? err.message : t('pf_tg_failed'));
     } finally {
       setTgLoading(false);
     }
@@ -332,9 +332,9 @@ export default function Profile() {
               ✈️
             </div>
             <div>
-              <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800 }}>Telegram Hisobini Bog'lash</h2>
+              <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800 }}>{t('pf_tg_title')}</h2>
               <p className="muted small" style={{ margin: '2px 0 0' }}>
-                To'lov kvitansiyalari, davomat hisobotlari va platforma yangiliklari to'g'ridan-to'g'ri Telegramingizga keladi.
+                {t('pf_tg_sub')}
               </p>
             </div>
           </div>
@@ -350,7 +350,7 @@ export default function Profile() {
                 border: '1px solid rgba(16, 185, 129, 0.4)',
               }}
             >
-              🟢 Faol bog'langan: #{user.telegram_chat_id}
+              {t('pf_tg_active').replace('{id}', String(user.telegram_chat_id))}
             </span>
           ) : (
             <span
@@ -364,7 +364,7 @@ export default function Profile() {
                 border: '1px solid rgba(245, 158, 11, 0.3)',
               }}
             >
-              ⚠️ Hali bog'lanmagan
+              {t('pf_tg_not_linked')}
             </span>
           )}
         </div>
@@ -409,7 +409,8 @@ export default function Profile() {
               type="text"
               value={telegramId}
               onChange={(e) => setTelegramId(e.target.value)}
-              placeholder="Masalan: 5582178765"
+              placeholder={t('pf_tg_ph')}
+              inputMode="numeric"
               required
               style={{ width: '100%', fontWeight: 700, letterSpacing: '0.5px' }}
             />
@@ -418,13 +419,13 @@ export default function Profile() {
             type="submit"
             disabled={tgLoading}
             className="btn primary sm"
-            style={{ fontWeight: 800, minWidth: 160 }}
+            style={{ fontWeight: 800, minWidth: 160, minHeight: 44 }}
           >
-            {tgLoading ? 'Bog‘lanmoqda…' : user.telegram_chat_id ? '🔄 ID ni Yangilash' : '🔗 Telegramni Bog‘lash'}
+            {tgLoading ? t('pf_tg_linking') : user.telegram_chat_id ? t('pf_tg_update') : t('pf_tg_link')}
           </button>
         </form>
         <span className="muted small" style={{ display: 'block', marginTop: 8 }}>
-          💡 Telegram chat ID raqamingizni <strong>@userinfobot</strong> yoki <strong>@getmyid_bot</strong> orqali bilib olishingiz mumkin.
+          {t('pf_tg_hint')} <strong>@userinfobot</strong>, <strong>@getmyid_bot</strong>
         </span>
       </div>
 

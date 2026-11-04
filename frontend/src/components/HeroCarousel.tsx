@@ -34,10 +34,10 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
     // 1-Slayd: AI Esse Baholash
     {
       id: 1,
-      badge: t('carousel.slide1_badge', 'BMB 12 Mezon Rasmiy Tahlili'),
+      badge: t('carousel.slide1_badge', 'BMB 12 mezoni asosida tahlil'),
       badgeIcon: '✍️',
       badgeColor: '#D97706',
-      title: t('carousel.slide1_title', 'Inshongizni 15 soniyada rasmiy BMB mezonlari asosida tekshiring'),
+      title: t('carousel.slide1_title', 'Inshongizni BMB mezonlari asosida tekshiring'),
       subtitle: t(
         'carousel.slide1_subtitle',
         'Sunʼiy intellekt har bir jumla, leksika va fikriy mantiqni Davlat BMB komissiyasi standartida baholaydi.'
@@ -188,7 +188,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
       title: t('carousel.slide2_title', 'Haqiqiy davlat imtihoni muhiti va vaqt nazorati'),
       subtitle: t(
         'carousel.slide2_subtitle',
-        'Kompensatsiyalangan qatʼiy taymer, rasmiy 45 talik savollar va test yakunlanishi bilan bir zumda batafsil tahlil.'
+        'Kompensatsiyalangan qatʼiy taymer, 45 talik savollar va test yakunlanishi bilan bir zumda batafsil tahlil.'
       ),
       ctaText: t('carousel.slide2_cta', 'Testni boshlash →'),
       ctaPath: '/tests',
@@ -315,7 +315,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
           >
             <span>{t('carousel.slide2_stat_correct', '🎯 42/45 to‘g‘ri (93.3%)')}</span>
             <span style={{ fontSize: 11, color: isDark ? '#34D399' : '#047857', fontWeight: 800 }}>
-              {t('carousel.slide2_grade_guarantee', 'A Daraja kafolatlangan')}
+              {t('carousel.slide2_grade_guarantee', 'A+ dan C gacha daraja shkalasi')}
             </span>
           </div>
         </div>

@@ -2506,6 +2506,24 @@ export const Essays = {
         body: JSON.stringify({ reason: reason || '' }),
       },
     ),
+  /** Own-topic Ona tili essay (TEXT quota). 202 → grading started. */
+  custom: (title: string, text: string) =>
+    api<{ status: string; submission_id: number }>('/api/v1/essays/custom/', {
+      method: 'POST',
+      body: JSON.stringify({ title, text }),
+    }),
+  /** Handwritten pages → text for the student to check. Free; never grades. */
+  ocr: (pages: File[]) => {
+    const fd = new FormData();
+    pages.forEach((p) => fd.append('pages', p));
+    return api<{ text: string; incomplete: boolean; warnings: string[] }>('/api/v1/essays/ocr/', { method: 'POST', body: fd });
+  },
+  /** The checked OCR text, graded as a photo essay (IMAGE quota). */
+  imageSubmit: (text: string, topicId: number | null, subject: string) =>
+    api<{ status: string; submission_id: number }>('/api/v1/essays/image-submit/', {
+      method: 'POST',
+      body: JSON.stringify({ text, topic_id: topicId, subject }),
+    }),
   ieltsGrade: (payload: IeltsGradePayload) =>
     api<IeltsGradeResponse>('/api/v1/essays/ielts/grade/', {
       method: 'POST',
@@ -2864,7 +2882,23 @@ export interface DashboardData {
     best_grade: string | null;
     best_sections: Record<string, number>;
     best_overall: { score: number; level: string } | null;
-    essays: { count: number; last_score: number | null; last_max: number | null };
+    essays: {
+      count: number;
+      last_score: number | null;
+      last_max: number | null;
+      recent: {
+        id: number;
+        topic_id: number | null;
+        title: string;
+        category: string;
+        rubric_type: string;
+        status: string;
+        total_score: number | null;
+        max_score: number | null;
+        overall_band: number | null;
+        updated_at: string | null;
+      }[];
+    };
     streak: number;
   };
   recent: DashboardRecent[];

@@ -1,4 +1,72 @@
-# QA report — branch `feat/results-dashboard-mobile`
+# QA report — branch `feat/mobile-pro-ui`
+
+Method: local database (sqlite) with the seeded QA accounts (guest, FREE, paid, teacher, admin); both dev servers; the in-app browser. Each page was loaded in an iframe of the given width and **measured** (document `scrollWidth` vs `clientWidth`, leftover raw i18n keys, Uzbek words left on EN/RU screens, buttons under 32 px, whether the dark class is applied), plus screenshots at 375 px. "Works" means it was run; everything else is **sinalmadi** (not tested).
+
+## Checks
+| Check | Result |
+|---|---|
+| `pytest` (full) | **1 492 passed, 2 skipped** (both PostgreSQL-only); new: `test_essay_studio` (10), `test_tests_list_status` (3), dashboard recent essays (1) |
+| `manage.py makemigrations --check` | no changes; one new migration on this branch: `essays.0022_essaysubmission_custom_title` (AddField, blank default; no data touched) |
+| `manage.py check` | no issues |
+| `ruff check .` | all checks passed |
+| `tsc -b` | clean |
+| `vite build` | built |
+| `oxlint` | 0 errors, 79 warnings (pre-existing kinds: `set-state-in-effect`, `only-export-components`) |
+| `npm test` (new, Node built-in runner) | **11 passed**: tests-page state (error / empty / no-match / list, never "(0)" on failure), word counter (letter tokens only, same rule as the server), word zones, the five essay states, essay kind per subject, score label, "My essays" filter, topic filter, every `t('key')` in `src` exists in uz/ru/en, the three languages have the same keys. Added to CI (lint job, Node 24) |
+
+## Width sweep (no horizontal scroll, no raw keys)
+| Role | Pages | Widths | Language / theme | Result |
+|---|---|---|---|---|
+| guest | `/`, `/login`, `/register`, `/join/<bad>`, `/r/<code>` | 360, 375, 390, 412, 768 | UZ light | 25 / 25 clean; `/r/<code>` goes to `/register?ref=…` as designed |
+| FREE | dashboard, tests, essays, new essay, photo essay, results, profile, plans | 360, 390, 412, 768 | UZ light | 32 / 32 clean |
+| paid | dashboard, tests, essays, photo essay, results, profile | 360, 375, 412 | UZ light | 18 / 18 clean |
+| teacher | dashboard, tests, groups, finance, vocab generator, profile | 360, 390, 768 | UZ light | 18 / 18 clean |
+| FREE | dashboard, tests, essays, profile, photo essay | 360, 412 | **EN dark** | 10 / 10: no overflow, dark applied (`body` `#0B0F17`); Uzbek left only in the **onboarding modal** (open item) |
+| FREE | dashboard, tests, essays, new essay, profile | 360, 390 | **RU light** | 10 / 10 clean after the profile Telegram block was moved to i18n |
+| admin | panel, profile, `/subscribe`, `/plans` | 375 | UZ light | plans and checkout routes now redirect to `/panel`; drawers show no plans link |
+
+Screens looked at (375 px): teacher finance (dark): KPI cards in two columns, student cards with status chip, facts and actions, no table scroll. Group invite (light, guest): group card, 44 px "Kirish va qo'shilish" + "Yangi hisob yaratish", no scroll in either direction. Earlier sections: tests page, essay studio and write screen, dashboard, drawers (see the commits).
+
+## Modules
+| Module | Role | Status | Evidence |
+|---|---|---|---|
+| Top bar, subject switcher, bottom nav | all | works | 52 px bar (logo + page title, XP, avatar), segmented subject switch under it, 5 items with one active colour; no overflow at 360–412 |
+| Interface language | all | works | text picker (O'zbekcha / English / Русский) in the profile drawer; subject is a separate state |
+| Tests page | FREE, paid | works | skeleton → list; error state with retry when the API fails (no "(0)"); empty and no-match states; resume card; one code field; status per card from `my_status` |
+| Essay studio | FREE, paid | works | type chips + search; "My essays" with filters; CEFR shown as a note pointing to the mock writing section (its grader has no real AI locally) |
+| Write screen | paid | works | collapsible task, sticky counter `words / min–max` with colour zone, "Saqlandi ✓" via the new JWT autosave, leave guard |
+| Own-topic essay (Ona tili) | paid | works by test | charges TEXT quota once; too short / duplicate cost nothing |
+| Photo essay | FREE, paid | works by test | OCR free, submit charges IMAGE once; FREE refused (tariff has 0 photo essays); **real OCR sinalmadi** (no OCR key) |
+| Result page | paid | works | translated status, "AI tomonidan baholandi" chip, indeterminate progress while grading |
+| Dashboard essay block | FREE, paid | works | two latest real essays per subject, empty row otherwise |
+| Referral card | FREE | works | full-width link + 2 buttons, two stats |
+| Landing | guest | works | tighter sections on phones; exam tracks as one card set; no "rasmiy" / "Cambridge" / "kafolat" claims |
+| JoinGroup | guest, FREE | works | preview, login/register links keep `next`; the false "automatic 365-day PRO" banner is gone (#116: joining a group grants nothing) |
+| ReferralRedirect | guest | works | spinner on tokens, i18n |
+| Teacher finance | teacher | works | KPIs, reminders banner, student cards, actions call the same endpoints as before; the "400 000" fallback fee is gone |
+| Vocab generator | teacher | loads | form + four format tabs; **AI generation sinalmadi** (no key); the pre-filled demo word list is gone |
+
+## Bugs found and fixed here
+1. JoinGroup promised "365 kunlik PRO tarifi avtomatik yoqiladi"; joining grants nothing (#116).
+2. Essay autosave from the SPA never worked (session endpoint, JWT client); new JWT endpoint.
+3. Test list was paginated without an order (pages could repeat or skip a test); now newest first when no order is given.
+4. The "All sections" drawer had its own subject tabs that wrote only localStorage; the profile subject won, so they could silently do nothing. Removed (the segmented switcher is the one place).
+5. Admins saw "Tariflar va obuna" in both drawers and could open the plans and checkout routes.
+6. Profile pre-filled a fixed Telegram chat ID for every admin.
+7. Profile drawer showed "#ID-2026" when the user id was missing.
+8. Landing "Qaysi imtihon" cards squeezed by a stray `flex` class.
+9. "Loading session…" was hard-coded English.
+
+## Open / sinalmadi
+- **Telegram** in-app browser: sinalmadi. **Real phone keyboards** (iOS Safari, Android Chrome): sinalmadi; the write screen uses `visualViewport` and 16 px inputs, exercised only in an emulated viewport. **AI answers** (essay grading, vocab generation, explain): sinalmadi, no provider key locally. **Real OCR**: sinalmadi.
+- `OnboardingModal` (1 074 lines, ≈ 60 hard-coded Uzbek strings, inline styles; some values such as "Oliy toifa" are stored in the profile) still shows Uzbek on EN/RU screens; needs its own pass.
+- Admin panel group list shows the raw subject code (`ona_tili`); panel pages were not part of this branch.
+- Legacy pages still have controls under 44 px (panel tables, `#GR-…` group code chips, some profile buttons).
+- CEFR essays: the multilevel grader returns invented scores when no AI is configured, so CEFR topics are not offered in the studio until that is fixed.
+
+---
+
+# Previous report — branch `feat/results-dashboard-mobile` (merged as #118)
 
 Method: local database (sqlite), seeded QA accounts (guest, FREE, paid, teacher, admin), the dev servers in the in-app browser at 375 px, 360 px and 1366 px (light; dark only partly), plus the full backend suite. "Works" means it was run; everything else is listed as **not tested**.
 

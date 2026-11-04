@@ -1,23 +1,20 @@
-# Session progress — feat/results-dashboard-mobile
+# Session progress — feat/mobile-pro-ui
 
-Branch: `feat/results-dashboard-mobile` (from `origin/main` @ `9f11a10`, v1.78.0). **Never merge it to `main` directly: a merge auto-deploys to production** (CI → Build → Deploy, no database backup in the pipeline). Finish with a PR and stop. The server is not touched in this session.
+Branch: `feat/mobile-pro-ui` (from `main` after #118 was merged and deployed, live `sha-2eae701`). **Never merge it to `main` directly: a merge auto-deploys to production.** Finish with a PR and stop. The server is not touched in this session.
 
-If this session is interrupted, continue from the first unchecked item below. Details of what was tested: `docs/QA_REPORT.md`; design inventory: `docs/DESIGN_AUDIT.md`.
-
-## Decision taken with the owner
-- Section 1 inventory found 21 files on dead Tailwind classes (> 15 → asked). Owner chose: migrate what users see; delete the unreachable legacy English exam screen; leave teacher pages (`TeacherFinanceDashboard`, `TeacherVocabGenerator`, `JoinGroup`, `ReferralRedirect`) listed as open.
+If this session is interrupted, continue from the first unchecked item below. What was tested: `docs/QA_REPORT.md` (section "feat/mobile-pro-ui"); design rules: `docs/MOBILE_DESIGN_SPEC.md`; inventory: `docs/DESIGN_AUDIT.md`.
 
 ## Checklist
-- [x] 0. Branch from `origin/main`; docs read
-- [x] 1. Unstyled components → tokens (`styles/ui.css`): toasts, referral, score card, landing feedback, code card, onboarding contrast, legacy English screen deleted
-- [x] 2. Result page: per-question review (`QuestionReview`), hints, stored explanations + evidence (`Question.evidence`, `explanation_status`), `draft_explanations`, AI explain endpoint (paid, quota, daily cap, cache), key-leak closed in `explain-mistake`, estimate banner behind `SHOW_ESTIMATE_NOTICE`, BMB submit → `/results/<id>`
-- [x] 3. Dashboard on `/api/v1/dashboard/` (real data, per subject), single plan source (`useTier`, `PlanBadge`), name helper, catalog without invented numbers, referral compact
-- [x] 4. Exam on phones: CD screen rebuilt (header/timer, picker, text|questions, bottom bar, palette sheet, offline queue, leave guard, text size); BMB screen: leave/offline guard, readable timer
-- [x] 6. Feedback: `question_issue` (one active report per user and question, flag at 3, one Telegram summary), admin grouping tab, phone filter sheet, bottom-sheet modals
-- [x] 5. Checks: backend suite, `makemigrations --check`, ruff, tsc, build, oxlint — see QA report
+- [x] 0. Docs read; #118 confirmed merged and deployed (`docs/DEPLOY_LOG.md`, 2026-11-04 entry); branch from `main`
+- [x] 1. Design spec (`docs/MOBILE_DESIGN_SPEC.md`) + tokens and shared components in `styles/ui.css` (`--sp-*`, `--r-*`, `--fs-*`, `--tap`; `ui-card`, `ui-chip`, `ui-seg`, `ui-btn`, `ui-input`, `ui-search`, `sheet`, `ui-skel`, `ui-state`)
+- [x] 2. Foundation: compact top bar (logo + page title, XP chip, avatar), segmented subject switcher under it, interface language as text in the profile drawer, flat 5-item bottom nav with one active colour, no horizontal scroll at 360–412 px
+- [x] 3. Tests page: error / empty / no-match states (no "(0)" on failure), resume card, one code field, subject chips, search + filter sheet, real per-card status (`my_status`), skeletons
+- [x] 4. Essay studio: topics with type chips and search, own-topic (Ona tili) and photo essays through the existing quota system, write screen (collapsible task, sticky word counter, leave guard, JWT autosave), result page states, "My essays" with filters, dashboard essay block; CEFR shown as an honest note
+- [x] 5. Other pages: referral card, landing (spacing, exam tracks, neutral wording), JoinGroup, ReferralRedirect, teacher finance, vocab generator; profile and nav drawers through i18n, no plans link for admins
+- [x] 6. Checks: backend suite, `makemigrations --check`, ruff, `tsc -b`, vite build, oxlint, `npm test`; browser pass at 360/375/390/412/768 for guest, FREE, paid, teacher, UZ/EN/RU, light/dark — see QA report
 - [x] Docs: QA report, design audit, this file
-- [ ] PR opened by the session; **stop** (owner merges; take a `pg_dump` first, two migrations touch `tests_question` and `notifications_userfeedback`)
+- [ ] PR opened by the session; **stop** (owner merges; one additive migration `essays.0022_essaysubmission_custom_title`)
 
-## After deploy (owner, not done here)
-- `python manage.py draft_explanations --exam-type cefr_multilevel` (fills empty explanations with passage-based drafts, marked "AI-prepared"; safe to re-run, never overwrites staff text).
-- Optional env: `SHOW_ESTIMATE_NOTICE=true` to bring the "estimate" banner back; `AI_EXPLAIN_DAILY_LIMIT` (default 20).
+## Still pending from #118 (needs the owner's FREE test account)
+- explain-mistake / result key checks and the #116 checks on production with a real FREE account.
+- `draft_explanations` for real only after the owner reviews the dry-run output.
