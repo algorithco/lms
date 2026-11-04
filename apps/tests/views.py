@@ -64,6 +64,51 @@ def _own_attempt_or_404(request: Request, attempt_id: int):
 # ---------------------------------------------------------------------------
 # Test List (Student: only active tests, Teacher/Admin: all)
 # ---------------------------------------------------------------------------
+def _my_status_map(user, tests) -> dict[int, dict[str, Any]]:
+    """
+    Per test on this page: an attempt in progress, else the latest finished
+    result, else nothing. Two queries for the whole page; staff previews and
+    free-trial parts are not "taken".
+    """
+    if not user or not user.is_authenticated or not tests:
+        return {}
+    from apps.results.models import Result
+
+    ids = [t.pk for t in tests]
+    english = {t.pk for t in tests if t.subject == "english" or str(t.exam_type).startswith(("ielts", "cefr"))}
+    out: dict[int, dict[str, Any]] = {}
+    for r in (
+        Result.objects.filter(student=user, test_id__in=ids, attempt__is_preview=False, attempt__trial_part__isnull=True)
+        .order_by("test_id", "-calculated_at", "-id")
+        .values("test_id", "id", "percentage", "correct_answers", "total_questions")
+    ):
+        out.setdefault(
+            r["test_id"],
+            {
+                "state": "done",
+                "result_id": r["id"],
+                "percentage": float(r["percentage"]),
+                "correct": r["correct_answers"],
+                "total": r["total_questions"],
+            },
+        )
+    for a in (
+        TestAttempt.objects.filter(student=user, test_id__in=ids, status=TestAttempt.Status.IN_PROGRESS, is_preview=False)
+        .select_related("test")
+        .order_by("-started_at")
+    ):
+        if a.test_id in out and out[a.test_id]["state"] == "in_progress":
+            continue
+        if a.is_time_expired:
+            continue
+        out[a.test_id] = {
+            "state": "in_progress",
+            "attempt_id": a.id,
+            "route": f"/english-exam/{a.id}" if a.test_id in english else f"/take/{a.id}",
+        }
+    return out
+
+
 @extend_schema_view(
     list=extend_schema(
         summary="Testlar ro'yxati",
@@ -81,6 +126,14 @@ class TestListView(generics.ListAPIView):
 
     serializer_class = TestListSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        queryset = self.filter_queryset(self.get_queryset()).prefetch_related("sections")
+        page = self.paginate_queryset(queryset)
+        items = list(page if page is not None else queryset)
+        context = {**self.get_serializer_context(), "my_status": _my_status_map(request.user, items)}
+        data = self.get_serializer(items, many=True, context=context).data
+        return self.get_paginated_response(data) if page is not None else Response(data)
 
     def get_queryset(self):
         try:

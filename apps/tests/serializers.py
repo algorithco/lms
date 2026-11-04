@@ -356,12 +356,16 @@ class TestListSerializer(serializers.ModelSerializer):
     is_strict_mode = serializers.SerializerMethodField()
     has_pin = serializers.SerializerMethodField()
     strict_anti_cheat = serializers.SerializerMethodField()
+    section_names = serializers.SerializerMethodField()
+    my_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Test
         fields = [
             "id",
             "subject",
+            "section_names",
+            "my_status",
             "title",
             "description",
             "course",
@@ -403,6 +407,13 @@ class TestListSerializer(serializers.ModelSerializer):
 
     def get_strict_anti_cheat(self, obj: Test) -> bool:
         return bool(getattr(obj, "strict_anti_cheat", False) or getattr(obj, "is_strict_mode", False))
+
+    def get_section_names(self, obj: Test) -> list[str]:
+        return [s.name for s in obj.sections.all()]
+
+    def get_my_status(self, obj: Test) -> dict[str, Any]:
+        """The caller's own state for this test (filled per page by TestListView)."""
+        return (self.context.get("my_status") or {}).get(obj.pk, {"state": "none"})
 
 
 class TestDetailSerializer(serializers.ModelSerializer):
