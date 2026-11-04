@@ -2567,7 +2567,20 @@
     "nav_admin": "Boshqaruv",
     "nav_theme_dark": "Tungi",
     "nav_theme_light": "Kunduzgi",
-    "nav_tg_bot": "Telegram yordam boti"
+    "nav_tg_bot": "Telegram yordam boti",
+    "pf_tg_title": "Telegram hisobini bog'lash",
+    "pf_tg_sub": "To'lov kvitansiyalari, davomat hisobotlari va yangiliklar Telegramingizga keladi.",
+    "pf_tg_active": "Bog'langan: {id}",
+    "pf_tg_not_linked": "Hali bog'lanmagan",
+    "pf_tg_ph": "Masalan: 5582178765",
+    "pf_tg_link": "Telegramni bog'lash",
+    "pf_tg_update": "ID ni yangilash",
+    "pf_tg_linking": "Bog'lanmoqda…",
+    "pf_tg_hint": "Telegram chat ID raqamingizni shu botlardan bilib olishingiz mumkin:",
+    "pf_tg_bad_id": "Telegram ID musbat son bo'lishi kerak.",
+    "pf_tg_linked": "Telegram hisobi bog'landi.",
+    "pf_tg_failed": "Bog'lab bo'lmadi. Qayta urinib ko'ring.",
+    "session_loading": "Sessiya yuklanmoqda…"
   },
   "ru": {
     "main": "Главное",
@@ -5137,7 +5150,20 @@
     "nav_admin": "Управление",
     "nav_theme_dark": "Тёмная",
     "nav_theme_light": "Светлая",
-    "nav_tg_bot": "Telegram-бот поддержки"
+    "nav_tg_bot": "Telegram-бот поддержки",
+    "pf_tg_title": "Привязать Telegram",
+    "pf_tg_sub": "Квитанции об оплате, отчёты о посещаемости и новости будут приходить в Telegram.",
+    "pf_tg_active": "Привязан: {id}",
+    "pf_tg_not_linked": "Ещё не привязан",
+    "pf_tg_ph": "Например: 5582178765",
+    "pf_tg_link": "Привязать",
+    "pf_tg_update": "Обновить ID",
+    "pf_tg_linking": "Привязываем…",
+    "pf_tg_hint": "Узнать свой chat ID в Telegram можно у этих ботов:",
+    "pf_tg_bad_id": "Telegram ID должен быть положительным числом.",
+    "pf_tg_linked": "Telegram привязан.",
+    "pf_tg_failed": "Не удалось привязать. Попробуйте ещё раз.",
+    "session_loading": "Загружаем сессию…"
   },
   "en": {
     "main": "Main",
@@ -7707,6 +7733,19 @@
     "nav_admin": "Administration",
     "nav_theme_dark": "Dark",
     "nav_theme_light": "Light",
-    "nav_tg_bot": "Telegram help bot"
+    "nav_tg_bot": "Telegram help bot",
+    "pf_tg_title": "Link Telegram",
+    "pf_tg_sub": "Payment receipts, attendance reports and news arrive in your Telegram.",
+    "pf_tg_active": "Linked: {id}",
+    "pf_tg_not_linked": "Not linked yet",
+    "pf_tg_ph": "For example: 5582178765",
+    "pf_tg_link": "Link",
+    "pf_tg_update": "Update ID",
+    "pf_tg_linking": "Linking…",
+    "pf_tg_hint": "You can get your Telegram chat ID from these bots:",
+    "pf_tg_bad_id": "Telegram ID must be a positive number.",
+    "pf_tg_linked": "Telegram linked.",
+    "pf_tg_failed": "Could not link. Please try again.",
+    "session_loading": "Loading your session…"
   }
 }
