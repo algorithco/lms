@@ -888,7 +888,7 @@ export default function EssayResult() {
               <h3 style={{ margin: '0 0 12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.05rem' }}>
                 <span>✍️</span> Aniqlangan imlo va grammatika xatoliklari ({res.spelling_errors.length} ta)
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 10 }}>
                 {res.spelling_errors.map((err, idx) => {
                   const isFixed = Boolean(fixedErrors[err.word.toLowerCase()]);
                   return (
@@ -1003,7 +1003,7 @@ export default function EssayResult() {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
                       gap: 16,
                     }}
                   >

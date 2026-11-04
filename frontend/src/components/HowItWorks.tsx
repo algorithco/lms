@@ -65,7 +65,7 @@ export default function HowItWorks() {
           className="grid grid-cols-1 md:grid-cols-3 gap-6"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
             gap: 24,
           }}
         >

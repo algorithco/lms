@@ -35,6 +35,11 @@ import {
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `nav-link side-link${isActive ? ' active' : ''}`;
 
+/** /tests/create and /tests/scan-omr have their own menu items: "Tests" is not lit on them as well. */
+const OWN_TEST_ITEMS = ['/tests/create', '/tests/scan-omr'];
+const testsLinkClass = (pathname: string) => ({ isActive }: { isActive: boolean }) =>
+  linkClass({ isActive: isActive && !OWN_TEST_ITEMS.some((p) => pathname.startsWith(p)) });
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <>
@@ -47,6 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /** Phone top bar title per route (first match wins). */
 const PAGE_TITLES: [string, string][] = [
   ['/dashboard', 'tb_title_home'],
+  ['/tests/scan-omr', 'titul_scanner'],
   ['/tests', 'tests'],
   ['/take', 'tests'],
   ['/essays', 'tb_title_essays'],
@@ -55,6 +61,14 @@ const PAGE_TITLES: [string, string][] = [
   ['/profile', 'tb_title_profile'],
   ['/groups', 'groups'],
   ['/speaking', 'tb_title_speaking'],
+  ['/subscribe', 'pay_plans_title'],
+  ['/plans', 'pay_plans_title'],
+  ['/checkout', 'pay_plans_title'],
+  ['/my-subscription', 'pay_current_sub'],
+  ['/certificates', 'certificates'],
+  ['/games', 'games'],
+  ['/teacher', 'teacher_cabinet'],
+  ['/panel', 'tb_admin_panel'],
 ];
 
 export default function Layout() {
@@ -132,7 +146,7 @@ export default function Layout() {
               <NavLink to="/tests/create" className={linkClass} onClick={close}>
                 <SparklesIcon size={16} className="ico" /> {t('create_smart_test', 'Yangi Test Yaratish')}
               </NavLink>
-              <NavLink to="/tests" className={linkClass} onClick={close}>
+              <NavLink to="/tests" className={testsLinkClass(pathname)} onClick={close}>
                 <FileTextIcon size={16} className="ico" /> {t('my_tests', 'Mening Testlarim')}
               </NavLink>
               <NavLink to="/teacher" end className={linkClass} onClick={close}>
@@ -162,7 +176,7 @@ export default function Layout() {
                 <LayoutDashboardIcon size={16} className="ico" /> {t('dashboard', 'Boshqaruv paneli')}
               </NavLink>
             )}
-            <NavLink to="/tests" className={linkClass} onClick={close}>
+            <NavLink to="/tests" className={testsLinkClass(pathname)} onClick={close}>
               <FileTextIcon size={16} className="ico" /> {t('cbt_tests', 'Testlar (CBT)')}
             </NavLink>
             <NavLink to="/essays" className={linkClass} onClick={close}>

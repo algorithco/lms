@@ -467,8 +467,8 @@ export default function Landing() {
                 onClick={() => setProfileDrawerOpen(true)}
                 aria-label={t('my_profile')}
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 44,
+                  height: 44,
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                   color: '#FFFFFF',
@@ -495,7 +495,7 @@ export default function Landing() {
                   type="button"
                   onClick={() => openAuthModal('login')}
                   style={{
-                    height: 32,
+                    height: 44,
                     padding: '0 14px',
                     borderRadius: 10,
                     fontSize: 13,
@@ -514,10 +514,10 @@ export default function Landing() {
               <button
                 type="button"
                 onClick={() => setNavDrawerOpen(true)}
-                aria-label="Menyu ochish"
+                aria-label={t('lp_menu_open')}
                 style={{
-                  width: 34,
-                  height: 34,
+                  width: 44,
+                  height: 44,
                   borderRadius: 10,
                   background: 'var(--card-2)',
                   border: '1px solid var(--border)',
@@ -674,7 +674,7 @@ export default function Landing() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
                 gap: 48,
                 alignItems: 'center',
               }}
@@ -1015,7 +1015,7 @@ export default function Landing() {
                 transition={{ duration: 0.22 }}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
                   gap: 24,
                 }}
               >
@@ -1956,6 +1956,7 @@ export default function Landing() {
                 >
                   <summary
                     style={{
+                      minHeight: 44,
                       fontSize: 15,
                       fontWeight: 700,
                       color: 'var(--ink)',
@@ -2141,21 +2142,10 @@ export default function Landing() {
                 {t('foot_col_platform')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                <Link to="/essays" style={{ color: '#64748B', textDecoration: 'none' }}>AI Esse Grader</Link>
-                <Link to="/tests" style={{ color: '#64748B', textDecoration: 'none' }}>CBT Testlar</Link>
-                <Link to="/speaking" style={{ color: '#64748B', textDecoration: 'none' }}>AI Speaking</Link>
-                <Link to="/arena" style={{ color: '#64748B', textDecoration: 'none' }}>1v1 Arena</Link>
-              </div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
-                {t('foot_col_legal')}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                <Link to="/terms" style={{ color: '#64748B', textDecoration: 'none' }}>{t('foot_terms')}</Link>
-                <Link to="/privacy" style={{ color: '#64748B', textDecoration: 'none' }}>{t('foot_privacy')}</Link>
-                <Link to="/public-offer" style={{ color: '#64748B', textDecoration: 'none' }}>{t('foot_offer')}</Link>
+                <Link to="/essays" className="lp-foot-link">AI Esse Grader</Link>
+                <Link to="/tests" className="lp-foot-link">CBT Testlar</Link>
+                <Link to="/speaking" className="lp-foot-link">AI Speaking</Link>
+                <Link to="/arena" className="lp-foot-link">1v1 Arena</Link>
               </div>
             </div>
 
@@ -2164,7 +2154,7 @@ export default function Landing() {
                 {t('foot_col_contact')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#64748B' }}>
-                <a href="https://t.me/uz_essaygrader_bot" target="_blank" rel="noreferrer" style={{ color: '#F59E0B', textDecoration: 'none' }}>
+                <a href="https://t.me/uz_essaygrader_bot" target="_blank" rel="noreferrer" className="lp-foot-link lp-foot-link--accent">
                   @uz_essaygrader_bot
                 </a>
                 <span>Toshkent, Oʻzbekiston</span>

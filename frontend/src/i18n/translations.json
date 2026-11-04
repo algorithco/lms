@@ -2581,6 +2581,10 @@
     "pf_tg_linked": "Telegram hisobi bog'landi.",
     "pf_tg_failed": "Bog'lab bo'lmadi. Qayta urinib ko'ring.",
     "session_loading": "Sessiya yuklanmoqda…",
+    "und_menu_label": "Foydalanuvchi menyusi",
+    "und_menu_title": "Profil parametrlari",
+    "und_role_admin": "Administrator",
+    "und_role_superadmin": "Bosh administrator",
     "pl_subtitle": "Tarifni tanlang: narx va limitlar quyida ko'rsatilgan.",
     "pl_days_left": "{n} kun qoldi",
     "pl_load_error": "Tariflarni yuklab bo'lmadi.",
@@ -2602,7 +2606,8 @@
     "pl_your_plan": "Sizning tarifingiz",
     "pl_pay_cta": "To'lash va chek yuklash",
     "pl_switch_cta": "Shu tarifga o'tish",
-    "pl_pay_note": "To'lov kartaga o'tkazma orqali: chekni yuklaysiz, chek tekshirilgach obuna yoqiladi."
+    "pl_pay_note": "To'lov kartaga o'tkazma orqali: chekni yuklaysiz, chek tekshirilgach obuna yoqiladi.",
+    "lp_menu_open": "Menyuni ochish"
   },
   "ru": {
     "main": "Главное",
@@ -5186,6 +5191,10 @@
     "pf_tg_linked": "Telegram привязан.",
     "pf_tg_failed": "Не удалось привязать. Попробуйте ещё раз.",
     "session_loading": "Загружаем сессию…",
+    "und_menu_label": "Меню пользователя",
+    "und_menu_title": "Параметры профиля",
+    "und_role_admin": "Администратор",
+    "und_role_superadmin": "Главный администратор",
     "pl_subtitle": "Выберите тариф: цены и лимиты указаны ниже.",
     "pl_days_left": "Осталось дней: {n}",
     "pl_load_error": "Не удалось загрузить тарифы.",
@@ -5207,7 +5216,8 @@
     "pl_your_plan": "Ваш тариф",
     "pl_pay_cta": "Оплатить и загрузить чек",
     "pl_switch_cta": "Перейти на этот тариф",
-    "pl_pay_note": "Оплата переводом на карту: вы загружаете чек, подписка включается после его проверки."
+    "pl_pay_note": "Оплата переводом на карту: вы загружаете чек, подписка включается после его проверки.",
+    "lp_menu_open": "Открыть меню"
   },
   "en": {
     "main": "Main",
@@ -7791,6 +7801,10 @@
     "pf_tg_linked": "Telegram linked.",
     "pf_tg_failed": "Could not link. Please try again.",
     "session_loading": "Loading your session…",
+    "und_menu_label": "User menu",
+    "und_menu_title": "Profile options",
+    "und_role_admin": "Administrator",
+    "und_role_superadmin": "Super administrator",
     "pl_subtitle": "Choose a plan: prices and limits are shown below.",
     "pl_days_left": "{n} days left",
     "pl_load_error": "Could not load the plans.",
@@ -7812,6 +7826,7 @@
     "pl_your_plan": "Your plan",
     "pl_pay_cta": "Pay and upload receipt",
     "pl_switch_cta": "Switch to this plan",
-    "pl_pay_note": "Payment is a card transfer: you upload the receipt, and the plan is switched on once it has been checked."
+    "pl_pay_note": "Payment is a card transfer: you upload the receipt, and the plan is switched on once it has been checked.",
+    "lp_menu_open": "Open menu"
   }
 }

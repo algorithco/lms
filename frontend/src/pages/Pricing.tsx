@@ -129,7 +129,7 @@ export default function Pricing() {
       </div>
 
       {/* Pricing Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 16, marginBottom: 24 }}>
         {/* Starter */}
         <div
           onClick={() => setSelectedPlan('starter')}

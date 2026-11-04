@@ -319,7 +319,7 @@ export default function Login() {
         />
       </div>
       <div className="auth-card" style={{ position: 'relative', zIndex: 1 }}>
-        <Link to="/" className="muted small" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', marginBottom: 12 }}>
+        <Link to="/" className="muted small" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, textDecoration: 'none', marginBottom: 4 }}>
           <ArrowLeftIcon size={14} className="ico" /> {t('back_home')}
         </Link>
         <img src="/logo-mark.png" alt="GRANDEC" className="auth-logo" />

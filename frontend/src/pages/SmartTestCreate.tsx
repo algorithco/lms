@@ -481,7 +481,7 @@ export default function SmartTestCreate() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
               gap: 16,
               maxWidth: 760,
               margin: '0 auto 28px',
@@ -694,7 +694,7 @@ export default function SmartTestCreate() {
           <span>Moslashuvchan Test Sozlamalari</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: 18 }}>
           {/* Test Nomi */}
           <div>
             <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
@@ -757,6 +757,8 @@ export default function SmartTestCreate() {
                   type="button"
                   onClick={() => setTimeLimit(mins)}
                   style={{
+                    minHeight: 44,
+                    minWidth: 44,
                     padding: '6px 10px',
                     borderRadius: 8,
                     fontSize: 11.5,
@@ -800,7 +802,7 @@ export default function SmartTestCreate() {
         </div>
 
         {/* Permissions, Privacy & Security Settings */}
-        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px dashed #E2E8F0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px dashed #E2E8F0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 18 }}>
           {/* Access Type Selection */}
           <div>
             <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
@@ -956,7 +958,7 @@ export default function SmartTestCreate() {
       </div>
 
       {/* Main 2-Column Split: Paste Input (Left) vs Live Preview (Right) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: 24, alignItems: 'start' }}>
         {/* LEFT COLUMN: SMART PASTE INPUT */}
         <div
           style={{
@@ -1351,7 +1353,7 @@ export default function SmartTestCreate() {
                     )}
 
                     {/* Options (Clickable to select correct answer) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 8 }}>
                       {q.choices.map((c) => {
                         const isCorrect = q.correctAnswer === c.code;
                         return (
