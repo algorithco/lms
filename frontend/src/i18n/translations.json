@@ -2461,7 +2461,12 @@
     "eu_err_image": "Rasm qabul qilinmadi: boshqa rasm tanlang.",
     "eu_err_failed": "Rasmdan matn aniqlanmadi. Yorug'roq joyda qayta rasmga oling.",
     "eu_err_topic": "Ingliz tili essesi uchun mavzuni tanlang.",
-    "eu_err_short": "Matn juda qisqa."
+    "eu_err_short": "Matn juda qisqa.",
+    "dsh_essays_title": "Esselar",
+    "dsh_essays_all": "Barcha esselar",
+    "dsh_essays_empty": "Hali esse yozmagansiz.",
+    "er_ai_graded": "AI tomonidan baholandi",
+    "er_can_leave": "Xohlasangiz sahifadan chiqib ketishingiz mumkin: natija «Esselarim» bo'limida saqlanadi."
   },
   "ru": {
     "main": "Главное",
@@ -4925,7 +4930,12 @@
     "eu_err_image": "Фото не принято: выберите другое.",
     "eu_err_failed": "Текст не распознан. Сфотографируйте при лучшем освещении.",
     "eu_err_topic": "Для эссе на английском выберите тему.",
-    "eu_err_short": "Текст слишком короткий."
+    "eu_err_short": "Текст слишком короткий.",
+    "dsh_essays_title": "Эссе",
+    "dsh_essays_all": "Все эссе",
+    "dsh_essays_empty": "Вы ещё не писали эссе.",
+    "er_ai_graded": "Оценено AI",
+    "er_can_leave": "Можно уйти со страницы: результат сохранится в «Моих эссе»."
   },
   "en": {
     "main": "Main",
@@ -7389,6 +7399,11 @@
     "eu_err_image": "The photo was not accepted: choose another one.",
     "eu_err_failed": "No text was recognised. Take the photo again in better light.",
     "eu_err_topic": "Choose a topic for an English essay.",
-    "eu_err_short": "The text is too short."
+    "eu_err_short": "The text is too short.",
+    "dsh_essays_title": "Essays",
+    "dsh_essays_all": "All essays",
+    "dsh_essays_empty": "You have not written an essay yet.",
+    "er_ai_graded": "Graded by AI",
+    "er_can_leave": "You can leave this page: the result will be saved in My essays."
   }
 }

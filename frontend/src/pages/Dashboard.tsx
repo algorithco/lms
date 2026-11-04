@@ -12,6 +12,7 @@ import {
   type PaymentReceiptItem,
 } from '../lib/api';
 import { formatDisplayName } from '../lib/displayName';
+import { essayKind, essayStatus, scoreLabel } from '../lib/essays';
 import { useSubject } from '../lib/useSubject';
 import { daysLeft, useEntitlement, useTier } from '../lib/useTier';
 import OnboardingModal from '../components/OnboardingModal';
@@ -280,6 +281,44 @@ export default function Dashboard() {
             </section>
           )}
         </>
+      )}
+
+      {data && isStudent && (
+        <section className="dsh-card">
+          <div className="dsh-card__head">
+            <h2>{t('dsh_essays_title')}</h2>
+            <Link to="/essays">{t('dsh_essays_all')}</Link>
+          </div>
+          {data.indicators.essays.recent.length === 0 ? (
+            <div className="dsh-empty-row">
+              <p>{t('dsh_essays_empty')}</p>
+              <Link to="/essays" className="ui-btn ui-btn--sm">
+                {t('es_write')}
+              </Link>
+            </div>
+          ) : (
+            <ul className="dsh-list">
+              {data.indicators.essays.recent.map((e) => {
+                const st = essayStatus(e.status);
+                const href = st === 'draft' && e.topic_id ? `/essays/write/${e.topic_id}` : `/essays/result/${e.id}`;
+                return (
+                  <li key={e.id}>
+                    <div className="dsh-list__main">
+                      <strong className="clamp-2">{e.title || t('es_untitled')}</strong>
+                      <span>
+                        {t(`es_kind_${essayKind(e)}`)} · {t(`es_status_${st}`)}
+                        {st === 'graded' && scoreLabel(e, t) ? ` · ${scoreLabel(e, t)}` : ''}
+                      </span>
+                    </div>
+                    <Link to={href} className="ui-btn ui-btn--sm">
+                      {t('details')}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
 
       {isStudent && <ReferralCard variant="compact" />}

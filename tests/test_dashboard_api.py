@@ -69,7 +69,7 @@ def test_new_user_gets_empty_data_not_demo_numbers(world):
     assert ind["tests_taken"] == 0
     assert ind["average_percentage"] is None and ind["best_percentage"] is None and ind["best_grade"] is None
     assert ind["best_sections"] == {} and ind["best_overall"] is None
-    assert ind["essays"] == {"count": 0, "last_score": None, "last_max": None}
+    assert ind["essays"] == {"count": 0, "last_score": None, "last_max": None, "recent": []}
 
 
 @pytest.mark.django_db
@@ -186,3 +186,24 @@ def test_goal_only_for_the_goal_subject_and_compared_with_results(world):
 @pytest.mark.django_db
 def test_invalid_subject_falls_back_instead_of_failing(world):
     assert client(world["student"]).get(URL, {"subject": "klingon"}).json()["subject"] == "uzbek"
+
+
+@pytest.mark.django_db
+def test_recent_essays_are_real_per_subject_and_pending_has_no_score(world):
+    from apps.essays.models import EssaySubmission, EssayTopic
+
+    uz_topic = EssayTopic.objects.create(title="Kitob", description="d", subject="uzbek")
+    en_topic = EssayTopic.objects.create(title="IELTS T2", description="d", subject="english", category="ielts_task2", rubric_type="ielts_task2")
+    EssaySubmission.objects.create(student=world["student"], topic=uz_topic, status="graded", total_score=48, max_score=60)
+    EssaySubmission.objects.create(student=world["student"], topic=None, custom_title="O'z mavzum", status="pending")
+    EssaySubmission.objects.create(student=world["student"], topic=en_topic, status="graded", total_score=6.5, max_score=9)
+    EssaySubmission.objects.create(student=world["other"], topic=uz_topic, status="graded", total_score=60, max_score=60)
+
+    uz = client(world["student"]).get(URL, {"subject": "uzbek"}).json()["indicators"]["essays"]
+    titles = [e["title"] for e in uz["recent"]]
+    assert sorted(titles) == ["Kitob", "O'z mavzum"]  # max two, own essays only, no English
+    pending = next(e for e in uz["recent"] if e["title"] == "O'z mavzum")
+    assert pending["total_score"] is None and pending["max_score"] is None  # nothing invented while grading
+
+    en = client(world["student"]).get(URL, {"subject": "english"}).json()["indicators"]["essays"]
+    assert [e["title"] for e in en["recent"]] == ["IELTS T2"] and en["recent"][0]["overall_band"] == 6.5

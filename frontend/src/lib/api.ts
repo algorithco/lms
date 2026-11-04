@@ -2882,7 +2882,23 @@ export interface DashboardData {
     best_grade: string | null;
     best_sections: Record<string, number>;
     best_overall: { score: number; level: string } | null;
-    essays: { count: number; last_score: number | null; last_max: number | null };
+    essays: {
+      count: number;
+      last_score: number | null;
+      last_max: number | null;
+      recent: {
+        id: number;
+        topic_id: number | null;
+        title: string;
+        category: string;
+        rubric_type: string;
+        status: string;
+        total_score: number | null;
+        max_score: number | null;
+        overall_band: number | null;
+        updated_at: string | null;
+      }[];
+    };
     streak: number;
   };
   recent: DashboardRecent[];

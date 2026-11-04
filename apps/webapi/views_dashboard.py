@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -116,20 +117,42 @@ def _best_cefr(results: list[Result]) -> dict[str, Any]:
 def _essays(user, subject: str) -> dict[str, Any]:
     from apps.essays.models import EssaySubmission
 
-    graded = EssaySubmission.objects.filter(
-        student=user,
-        topic__subject=subject,
-        status__in=(
-            EssaySubmission.Status.GRADED,
-            EssaySubmission.Status.AI_EVALUATED,
-            EssaySubmission.Status.TEACHER_REVIEWED,
-        ),
-    ).order_by("-id")
+    GRADED = (
+        EssaySubmission.Status.GRADED,
+        EssaySubmission.Status.AI_EVALUATED,
+        EssaySubmission.Status.TEACHER_REVIEWED,
+    )
+    graded = EssaySubmission.objects.filter(student=user, topic__subject=subject, status__in=GRADED).order_by("-id")
     last = graded.first()
+    recent = (
+        EssaySubmission.objects.filter(student=user)
+        .filter(Q(topic__subject=subject) | Q(topic__isnull=True) if subject == "uzbek" else Q(topic__subject=subject))
+        .select_related("topic")
+        .order_by("-updated_at")[:2]
+    )
     return {
         "count": graded.count(),
         "last_score": float(last.total_score) if last and last.total_score is not None else None,
         "last_max": last.max_score if last else None,
+        "recent": [
+            {
+                "id": e.id,
+                "topic_id": e.topic_id,
+                "title": e.topic.title if e.topic else e.custom_title,
+                "category": e.topic.category if e.topic else "",
+                "rubric_type": e.topic.rubric_type if e.topic else "bmb_12",
+                "status": e.status,
+                "total_score": float(e.total_score) if e.total_score is not None and e.status in GRADED else None,
+                "max_score": e.max_score if e.status in GRADED else None,
+                "overall_band": (
+                    float(e.total_score)
+                    if e.topic and e.topic.subject == "english" and e.total_score is not None and e.status in GRADED
+                    else None
+                ),
+                "updated_at": e.updated_at.isoformat() if e.updated_at else None,
+            }
+            for e in recent
+        ],
     }
 
 
