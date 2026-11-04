@@ -180,3 +180,25 @@ def essay_custom_view(request: Request) -> Response:
         kind=SubscriptionUsage.Kind.TEXT_ESSAY,
         custom_title=title,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def essay_autosave_view(request: Request, submission_id: int) -> Response:
+    """{essay_text} — save a draft's text for its owner. Never submits and never charges."""
+    from apps.essays.services import WordCounter
+    from apps.essays.views import MAX_ESSAY_LENGTH
+
+    submission = EssaySubmission.objects.filter(pk=submission_id, student=request.user).first()
+    if submission is None:
+        return Response({"error": "not_found"}, status=status.HTTP_404_NOT_FOUND)
+    if submission.status != EssaySubmission.Status.DRAFT:
+        return Response({"saved": False, "status": submission.status}, status=status.HTTP_409_CONFLICT)
+    text = str(request.data.get("essay_text") or "")
+    if len(text) > MAX_ESSAY_LENGTH:
+        return Response({"error": "too_long", "max": MAX_ESSAY_LENGTH}, status=status.HTTP_400_BAD_REQUEST)
+    submission.essay_text = text
+    submission.word_count = WordCounter.count(text)
+    submission.save(update_fields=["essay_text", "word_count", "updated_at"])
+    expired = bool(submission.password_verified_at and submission.is_expired)
+    return Response({"saved": True, "word_count": submission.word_count, "expired": expired})

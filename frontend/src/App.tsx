@@ -21,6 +21,8 @@ const EssayTeacherQueue = lazyPage(() => import('./pages/EssayTeacherQueue'));
 const EssayTeacherReview = lazyPage(() => import('./pages/EssayTeacherReview'));
 const EssayTopics = lazyPage(() => import('./pages/EssayTopics'));
 const EssayWrite = lazyPage(() => import('./pages/EssayWrite'));
+const EssayNew = lazyPage(() => import('./pages/EssayNew'));
+const EssayUpload = lazyPage(() => import('./pages/EssayUpload'));
 const Games = lazyPage(() => import('./pages/Games'));
 const PlayGame = lazyPage(() => import('./pages/PlayGame'));
 const Groups = lazyPage(() => import('./pages/Groups'));
@@ -163,6 +165,8 @@ function AnimatedRoutes() {
             {/* Legacy password-gate page → topics (gate is inline in write flow) */}
             <Route path="/essays/:topicId/start" element={<Navigate to="/essays" replace />} />
             <Route path="/essays/write/:id" element={<EssayWrite />} />
+            <Route path="/essays/new" element={<EssayNew />} />
+            <Route path="/essays/upload" element={<EssayUpload />} />
             <Route path="/essays/result/:id" element={<EssayResult />} />
             {/* Arena */}
             <Route path="/arena" element={<Arena />} />

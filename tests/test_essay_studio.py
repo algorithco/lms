@@ -170,3 +170,20 @@ def test_failed_dispatch_releases_the_allowance(student):
     assert res.status_code == 503
     usage = SubscriptionUsage.objects.get(user=student)
     assert usage.status == SubscriptionUsage.Status.RELEASED
+
+
+@pytest.mark.django_db
+def test_autosave_saves_only_own_drafts(student):
+    topic = EssayTopic.objects.create(title="Mavzu", description="d", word_limit_min=10, word_limit_max=400)
+    draft = EssaySubmission.objects.create(student=student, topic=topic, status=EssaySubmission.Status.DRAFT)
+    ok = client(student).post(f"/api/v1/essays/{draft.id}/autosave/", {"essay_text": "Bir ikki uch"}, format="json")
+    assert ok.status_code == 200 and ok.json()["saved"] is True and ok.json()["word_count"] == 3
+    draft.refresh_from_db()
+    assert draft.essay_text == "Bir ikki uch" and draft.status == EssaySubmission.Status.DRAFT
+    assert SubscriptionUsage.objects.count() == 0  # saving never charges
+
+    other = User.objects.create_user(email="es_other@example.test", password="x-Pass-123!", role="student")
+    assert client(other).post(f"/api/v1/essays/{draft.id}/autosave/", {"essay_text": "x"}, format="json").status_code == 404
+
+    EssaySubmission.objects.filter(pk=draft.pk).update(status=EssaySubmission.Status.PENDING)
+    assert client(student).post(f"/api/v1/essays/{draft.id}/autosave/", {"essay_text": "y"}, format="json").status_code == 409

@@ -63,6 +63,7 @@ urlpatterns = [
     path("essays/ocr/", views_essay_studio.essay_ocr_view, name="essays-ocr"),
     path("essays/image-submit/", views_essay_studio.essay_image_submit_view, name="essays-image-submit"),
     path("essays/custom/", views_essay_studio.essay_custom_view, name="essays-custom"),
+    path("essays/<int:submission_id>/autosave/", views_essay_studio.essay_autosave_view, name="essays-autosave"),
     path("feedback/", views_feedback.FeedbackView.as_view(), name="user-feedback"),
     path("feedback/public/", views_feedback.PublicFeedbackListView.as_view(), name="public-feedback-list"),
     path("feedback/mine/", views_feedback.MyFeedbackView.as_view(), name="my-feedback"),

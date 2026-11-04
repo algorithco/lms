@@ -2506,6 +2506,24 @@ export const Essays = {
         body: JSON.stringify({ reason: reason || '' }),
       },
     ),
+  /** Own-topic Ona tili essay (TEXT quota). 202 → grading started. */
+  custom: (title: string, text: string) =>
+    api<{ status: string; submission_id: number }>('/api/v1/essays/custom/', {
+      method: 'POST',
+      body: JSON.stringify({ title, text }),
+    }),
+  /** Handwritten pages → text for the student to check. Free; never grades. */
+  ocr: (pages: File[]) => {
+    const fd = new FormData();
+    pages.forEach((p) => fd.append('pages', p));
+    return api<{ text: string; incomplete: boolean; warnings: string[] }>('/api/v1/essays/ocr/', { method: 'POST', body: fd });
+  },
+  /** The checked OCR text, graded as a photo essay (IMAGE quota). */
+  imageSubmit: (text: string, topicId: number | null, subject: string) =>
+    api<{ status: string; submission_id: number }>('/api/v1/essays/image-submit/', {
+      method: 'POST',
+      body: JSON.stringify({ text, topic_id: topicId, subject }),
+    }),
   ieltsGrade: (payload: IeltsGradePayload) =>
     api<IeltsGradeResponse>('/api/v1/essays/ielts/grade/', {
       method: 'POST',

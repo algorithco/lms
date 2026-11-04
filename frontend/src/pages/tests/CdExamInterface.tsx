@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Flag, LayoutGrid, MoreVertical } from 'lucide-react';
 import { useLang } from '../../i18n/LangContext';
 import { Tests as TestsApi } from '../../lib/api';
+import AutoGrow from '../../components/AutoGrow';
 import { useAnswerQueue, type SavePayload } from '../../lib/useAnswerQueue';
 import { revealOnFocus, useIsNarrow, useKeyboardOpen, useVisualViewport } from '../../lib/useVisualViewport';
 import CefrResultSummary, { type CefrSummary } from './CefrResultSummary';
@@ -96,18 +97,6 @@ function sectionDeadline(attemptId: number, section: CdSection): number | null {
   const deadline = Date.now() + section.duration_minutes * 60_000;
   write(sessionStorage, key, String(deadline));
   return deadline;
-}
-
-/** Textarea that grows with its content. */
-function AutoGrow(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [props.value]);
-  return <textarea ref={ref} {...props} />;
 }
 
 /* -------------------------------------------------------------- component */
