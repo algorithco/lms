@@ -614,7 +614,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="hero-carousel-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-6"
+      className="hero-carousel-card"
       style={{
         position: 'relative',
         borderRadius: 24,
@@ -725,7 +725,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
           {/* Slide Heading */}
           <div>
             <h3
-              className="text-slate-900 dark:text-white font-black"
+             
               style={{
                 fontSize: 'clamp(1.15rem, 2vw, 1.35rem)',
                 fontWeight: 900,
@@ -738,7 +738,7 @@ export default function HeroCarousel({ onAction }: HeroCarouselProps) {
               {activeSlide.title}
             </h3>
             <p
-              className="text-slate-600 dark:text-slate-300"
+             
               style={{
                 fontSize: 12.5,
                 color: isDark ? '#CBD5E1' : '#64748B',

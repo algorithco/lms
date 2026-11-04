@@ -108,12 +108,14 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     exam_type = serializers.CharField(source="test.exam_type", read_only=True, default="general")
     cefr_summary = serializers.SerializerMethodField()
     trial_part = serializers.SerializerMethodField()
+    show_estimate_notice = serializers.SerializerMethodField()
 
     class Meta:
         model = Result
         fields = [
             "id",
             "attempt_id",
+            "show_estimate_notice",
             "test",
             "test_title",
             "test_subject",
@@ -174,6 +176,11 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             cefr_multilevel.summarize(obj.attempt.section_scores or {})
         )
 
+    def get_show_estimate_notice(self, obj: Result) -> bool:
+        from django.conf import settings
+
+        return bool(getattr(settings, "SHOW_ESTIMATE_NOTICE", False))
+
     def get_trial_part(self, obj: Result) -> dict[str, Any] | None:
         part = obj.attempt.trial_part if obj.attempt_id and obj.attempt.trial_part_id else None
         if part is None:
@@ -187,6 +194,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
         return certificate_status(obj)
 
     def get_question_details(self, obj: Result) -> list[dict[str, Any]]:
+        from apps.tests import question_review
         from apps.tests.ai_tutor import _detect_question_topic
         """
         Har bir savol uchun batafsil ma'lumot:
@@ -211,6 +219,11 @@ class ResultDetailSerializer(serializers.ModelSerializer):
         questions = (
             obj.test.questions.select_related(
                 "section",
+                "test",
+                "group",
+                "group__part",
+                "group__passage",
+                "reading_passage",
             )
             .prefetch_related(
                 "choices",
@@ -262,9 +275,16 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             student_text_answer = ""
             correct_text_answer = ""
 
-            if reveal_answers and q.correct_text:
-                raw_keys = [k.strip() for k in q.correct_text.split("|") if k.strip()]
-                correct_text_answer = raw_keys[0] if raw_keys else q.correct_text
+            accepted_keys: list[str] = []
+            if reveal_answers:
+                accepted_keys = [k.strip() for k in q.correct_text.split("|") if k.strip()]
+                if not accepted_keys and q.question_type != "gap_fill":
+                    # CD gap-fills keep their key in the blanks, not in correct_text.
+                    accepted_keys = [
+                        b.answer_text.strip() for b in q.gap_blanks.all() if (b.answer_text or "").strip()
+                    ]
+            if accepted_keys:
+                correct_text_answer = accepted_keys[0]
                 if not correct_choices:
                     correct_choices = [{"id": 0, "text": correct_text_answer}]
 
@@ -330,6 +350,42 @@ class ResultDetailSerializer(serializers.ModelSerializer):
 
             sec_code = getattr(q.section, "code", "") if q.section else ""
             sec_name = getattr(q.section, "name", "") if q.section else ""
+
+            written = q.question_type in ("written", "SPEAKING_PROMPT")
+            has_answer = bool(
+                answer
+                and (
+                    selected
+                    or student_text_answer
+                    or (written and (answer.written_text or "").strip())
+                    or (gap_review and any(g["response"] for g in gap_review))
+                    or (matching_review and any(m["selected_option_id"] for m in matching_review))
+                )
+            )
+            status = question_review.answer_status(
+                revealed=reveal_answers,
+                has_answer=has_answer,
+                is_correct=is_correct,
+                written=written,
+            )
+            group = q.group
+            hint = (
+                question_review.build_hint(
+                    question_type=q.question_type,
+                    status=status,
+                    given_text=student_text_answer,
+                    accepted_keys=accepted_keys,
+                    answer_rule=getattr(group, "answer_rule", "") or "",
+                    source_text=question_review.source_text_for(q),
+                )
+                if reveal_answers
+                else None
+            )
+            show_explanation = reveal_answers and status in ("wrong", "blank")
+            for c in selected:
+                c["letter"] = question_review.choice_letter(q, c["id"]) if c.get("id") else ""
+            for c in correct_choices:
+                c["letter"] = question_review.choice_letter(q, c["id"]) if c.get("id") else ""
             q_topic = _detect_question_topic(
                 q.text,
                 q.explanation or "",
@@ -362,8 +418,22 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                     "matching_review": matching_review,
                     "written_review": written_review,
                     "is_correct": is_correct,
-                    "explanation": (
-                        q.explanation if reveal_answers and is_correct is False else ""
+                    "status": status,
+                    "hint": hint,
+                    "explanation": q.explanation if show_explanation else "",
+                    "evidence": q.evidence if show_explanation else "",
+                    "explanation_status": q.explanation_status if show_explanation and q.explanation else "",
+                    "part_id": group.part_id if group else None,
+                    "part_number": group.part.number if group else "",
+                    "part_title": group.part.title if group else "",
+                    "group_title": group.title if group else "",
+                    "can_ai_explain": bool(
+                        reveal_answers
+                        and status in ("wrong", "blank")
+                        and (
+                            question_review.source_text_for(q)
+                            or question_review.is_self_contained(q)
+                        )
                     ),
                 }
             )

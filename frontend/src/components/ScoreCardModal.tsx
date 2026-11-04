@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Download, Share2, Award } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface ScoreCardModalProps {
   isOpen: boolean;
@@ -22,16 +23,17 @@ export default function ScoreCardModal({
   title,
   studentName,
   scorePercentage,
-  gradeBadge = 'A+ DARAJA',
+  gradeBadge = '',
   correctCount,
   incorrectCount,
   totalQuestions,
-  timeSpent = '42 daqiqa',
-  date = new Date().toLocaleDateString('uz-UZ'),
+  timeSpent = '',
+  date = new Date().toLocaleDateString(),
 }: ScoreCardModalProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,7 +103,7 @@ export default function ScoreCardModal({
     ctx.font = '700 22px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#FBBF24';
     ctx.letterSpacing = '6px';
-    ctx.fillText('ACADEMIC EDTECH • RASMIY NATIJA', width / 2, 315);
+    ctx.fillText(t('scorecard_tagline'), width / 2, 315);
     ctx.letterSpacing = '0px';
 
     // Divider line
@@ -162,9 +164,10 @@ export default function ScoreCardModal({
 
     ctx.font = '700 24px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#94A3B8';
-    ctx.fillText('UMUMIY NATIJA', centerX, centerY + 105);
+    ctx.fillText(t('scorecard_overall').toUpperCase(), centerX, centerY + 105);
 
-    // 8. Grade Badge Pill
+    // 8. Grade Badge Pill (only when the result has a grade)
+    if (gradeBadge) {
     const pillY = 1130;
     const pillW = 460;
     const pillH = 76;
@@ -184,6 +187,7 @@ export default function ScoreCardModal({
     ctx.font = '900 34px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#0F172A';
     ctx.fillText(gradeBadge, centerX, pillY + 50);
+    }
 
     // 9. Stats Grid
     const statY = 1270;
@@ -194,9 +198,9 @@ export default function ScoreCardModal({
     const startX = (width - totalW) / 2;
 
     const stats = [
-      { label: "TO'G'RI", value: `${correctCount} ta`, color: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
-      { label: "NOTO'G'RI", value: `${incorrectCount} ta`, color: '#F43F5E', border: 'rgba(244, 63, 94, 0.3)' },
-      { label: 'SARFLANGAN VAQT', value: timeSpent, color: '#38BDF8', border: 'rgba(56, 189, 248, 0.3)' },
+      { label: t('rv_status_correct').toUpperCase(), value: String(correctCount), color: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
+      { label: t('rv_status_wrong').toUpperCase(), value: String(incorrectCount), color: '#F43F5E', border: 'rgba(244, 63, 94, 0.3)' },
+      { label: t('res_time').toUpperCase(), value: timeSpent || '—', color: '#38BDF8', border: 'rgba(56, 189, 248, 0.3)' },
     ];
 
     stats.forEach((s, idx) => {
@@ -226,60 +230,29 @@ export default function ScoreCardModal({
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Stylized QR code mockup
     const qrX = 140;
     const qrY = 1560;
-    const qrSize = 180;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.roundRect(qrX, qrY, qrSize, qrSize, 20);
-    ctx.fill();
-
-    // QR pattern simulation
-    ctx.fillStyle = '#0F172A';
-    // 3 Corner squares
-    ctx.fillRect(qrX + 15, qrY + 15, 45, 45);
-    ctx.fillRect(qrX + qrSize - 60, qrY + 15, 45, 45);
-    ctx.fillRect(qrX + 15, qrY + qrSize - 60, 45, 45);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(qrX + 25, qrY + 25, 25, 25);
-    ctx.fillRect(qrX + qrSize - 50, qrY + 25, 25, 25);
-    ctx.fillRect(qrX + 25, qrY + qrSize - 50, 25, 25);
-
-    ctx.fillStyle = '#0F172A';
-    ctx.fillRect(qrX + 32, qrY + 32, 11, 11);
-    ctx.fillRect(qrX + qrSize - 43, qrY + 32, 11, 11);
-    ctx.fillRect(qrX + 32, qrY + qrSize - 43, 11, 11);
-
-    // Random QR matrix dots in center
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 5; c++) {
-        if ((r + c) % 2 === 0) {
-          ctx.fillRect(qrX + 75 + c * 15, qrY + 75 + r * 15, 10, 10);
-        }
-      }
-    }
+    const qrSize = 0;
 
     // CTA Text alongside QR
     ctx.textAlign = 'left';
     ctx.font = '700 32px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('Siz ham o\'z bilimingizni', qrX + qrSize + 40, qrY + 55);
-    ctx.fillText('sinab ko\'ring!', qrX + qrSize + 40, qrY + 98);
+    ctx.fillText(t('scorecard_cta_1'), qrX + qrSize + 40, qrY + 55);
+    ctx.fillText(t('scorecard_cta_2'), qrX + qrSize + 40, qrY + 98);
 
     ctx.font = '900 36px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#F59E0B';
-    ctx.fillText('👉 grandec.uz', qrX + qrSize + 40, qrY + 152);
+    ctx.fillText('grandec.uz', qrX + qrSize + 40, qrY + 152);
 
     // Date
     ctx.textAlign = 'center';
     ctx.font = '500 20px Inter, system-ui, sans-serif';
     ctx.fillStyle = '#64748B';
-    ctx.fillText(`Sana: ${date} • Rasmiy autentifikatsiyalangan natija`, width / 2, 1830);
+    ctx.fillText(`${t('scorecard_date')}: ${date}`, width / 2, 1830);
 
     setDataUrl(canvas.toDataURL('image/png'));
-  }, [isOpen, title, studentName, scorePercentage, gradeBadge, correctCount, incorrectCount, totalQuestions, timeSpent, date]);
+  }, [isOpen, title, studentName, scorePercentage, gradeBadge, correctCount, incorrectCount, totalQuestions, timeSpent, date, t]);
 
   if (!isOpen) return null;
 
@@ -330,45 +303,29 @@ export default function ScoreCardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-5 flex flex-col items-center">
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-        >
-          <X className="w-5 h-5" />
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t('scorecard_title')}>
+      <div className="modal-card scorecard">
+        <button type="button" onClick={onClose} className="modal-close" aria-label={t('common_close')}>
+          <X size={20} />
         </button>
 
-        <div className="flex items-center gap-2 mb-3 text-amber-400 font-bold text-sm">
-          <Award className="w-4 h-4" />
-          <span>Instagram & Telegram Stories (9:16)</span>
+        <div className="scorecard__title">
+          <Award size={16} />
+          <span>{t('scorecard_title')}</span>
         </div>
 
-        {/* 9:16 Canvas / Image Preview */}
-        <div className="w-[270px] h-[480px] rounded-2xl overflow-hidden border-2 border-amber-500/30 shadow-2xl relative bg-slate-950">
-          <canvas ref={canvasRef} className="w-full h-full object-contain" />
+        <div className="scorecard__preview">
+          <canvas ref={canvasRef} />
         </div>
 
-        {/* Actions */}
-        <div className="w-full mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all"
-          >
-            <Download className="w-4 h-4" />
-            <span>📥 Rasmni saqlash (.png)</span>
+        <div className="scorecard__actions">
+          <button type="button" onClick={handleDownload} className="ui-btn ui-btn--primary">
+            <Download size={16} />
+            <span>{t('scorecard_save')}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={handleShare}
-            className="flex-1 py-3 px-4 rounded-xl bg-[#229ED9] hover:bg-[#1E8CC2] text-white font-bold text-xs shadow-lg shadow-[#229ED9]/20 flex items-center justify-center gap-2 transition-all"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>✈️ Stories'ga ulashish</span>
+          <button type="button" onClick={handleShare} className="ui-btn">
+            <Share2 size={16} />
+            <span>{t('scorecard_share')}</span>
           </button>
         </div>
       </div>

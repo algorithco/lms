@@ -1,3 +1,4 @@
+import { formatDisplayName, initialsOf } from '../lib/displayName';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -15,20 +16,6 @@ import UsageLimits from '../components/UsageLimits';
 import ParentMonitoringCard from '../components/ParentMonitoringCard';
 import ReferralCard from '../components/ReferralCard';
 import MyFeedback from '../components/MyFeedback';
-
-function getInitials(name?: string, email?: string): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  if (email && email.trim()) {
-    return email.slice(0, 2).toUpperCase();
-  }
-  return 'U';
-}
 
 export default function Profile() {
   const { user, updateUserLocal } = useAuth();
@@ -70,7 +57,7 @@ export default function Profile() {
 
   if (!user) return null;
 
-  const initials = getInitials(user.full_name, user.email);
+  const initials = initialsOf(user.full_name, user.email);
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', paddingBottom: 60 }}>
@@ -124,7 +111,7 @@ export default function Profile() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
-              {user.full_name || 'Foydalanuvchi'}
+              {formatDisplayName(user.full_name, user.email) || t('user_default')}
             </h1>
             {isPlatformAdmin(user) ? (
               <span
@@ -212,7 +199,7 @@ export default function Profile() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_full_name')}</span>
-              <strong style={{ fontSize: 15 }}>{user.full_name || '—'}</strong>
+              <strong style={{ fontSize: 15 }}>{formatDisplayName(user.full_name, user.email) || '—'}</strong>
             </div>
             <div>
               <span className="muted small" style={{ display: 'block', marginBottom: 2 }}>{t('profile_email')}</span>

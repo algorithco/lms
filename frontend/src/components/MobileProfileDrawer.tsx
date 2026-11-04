@@ -1,3 +1,5 @@
+import { initialsOf } from '../lib/displayName';
+import PlanBadge from './PlanBadge';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -19,20 +21,6 @@ import {
 interface MobileProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-function getInitials(name?: string, email?: string): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  if (email && email.trim()) {
-    return email.slice(0, 2).toUpperCase();
-  }
-  return 'U';
 }
 
 function getRoleBadge(role?: string): { label: string; bg: string; color: string } {
@@ -62,7 +50,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
     navigate('/login');
   };
 
-  const initials = getInitials(user?.full_name, user?.email);
+  const initials = initialsOf(user?.full_name, user?.email);
   const roleBadge = getRoleBadge(user?.role);
   const isAdmin = user ? isPlatformAdmin(user) : false;
 
@@ -218,7 +206,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                       color: isDark ? '#F8FAFC' : '#0F172A',
                     }}
                   >
-                    {formatDisplayName(user.full_name, user.email)}
+                    {formatDisplayName(user.full_name, user.email) || t('user_default')}
                   </h3>
 
                   {/* Synthetic Email / Telegram Badge */}
@@ -262,40 +250,7 @@ export default function MobileProfileDrawer({ isOpen, onClose }: MobileProfileDr
                       {roleBadge.label}
                     </span>
 
-                    {user.is_paid && user.plan && user.plan.toUpperCase() !== 'FREE' ? (
-                      <span
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 800,
-                          background: 'rgba(245, 158, 11, 0.15)',
-                          color: '#D97706',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <CrownIcon size={12} />
-                        {user.plan.toUpperCase()}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          background: 'rgba(148, 163, 184, 0.15)',
-                          color: isDark ? '#94A3B8' : '#64748B',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        BEPUL
-                      </span>
-                    )}
+                    <PlanBadge variant="chip" onNavigate={onClose} />
 
                     <span
                       style={{

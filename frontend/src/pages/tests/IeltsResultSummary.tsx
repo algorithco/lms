@@ -11,11 +11,11 @@ export interface IeltsSummary {
  * raw-score conversion, not from IELTS itself, so it is always labelled as an
  * estimate. No certificate number, QR code or "official" wording.
  */
-export default function IeltsResultSummary({ data }: { data: IeltsSummary }) {
+export default function IeltsResultSummary({ data, showEstimateNotice = false }: { data: IeltsSummary; showEstimateNotice?: boolean }) {
   const { t } = useLang();
   return (
     <div className="card cefr-result">
-      <p className="cefr-result-note">{t('ielts_result_estimate_note')}</p>
+      {showEstimateNotice && <p className="cefr-result-note">{t('ielts_result_estimate_note')}</p>}
       <p className="cefr-result-overall">
         <span className="muted">{t('ielts_result_raw')}</span>
         <strong>

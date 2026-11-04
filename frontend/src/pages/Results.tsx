@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import TestAddictiveResults, { type QuestionReviewItem } from '../components/TestAddictiveResults';
+import TestAddictiveResults from '../components/TestAddictiveResults';
 import CefrResultSummary, { type CefrSummary } from './tests/CefrResultSummary';
-import CefrQuestionReview from './tests/CefrQuestionReview';
+import QuestionReview from '../components/QuestionReview';
+import QuestionIssueButton from '../components/QuestionIssueButton';
+import type { ReviewQuestion } from '../lib/review';
 import FeedbackPrompt from '../components/FeedbackPrompt';
 import { Link, useParams } from 'react-router-dom';
 import { useLang } from '../i18n/LangContext';
@@ -53,25 +55,13 @@ export function getBmbBadge(grade?: string, pct?: number, t?: (k: string) => str
   }
 }
 
-interface QuestionDetail {
-  question_id: number;
-  number: number | null;
-  number_key: string;
-  section_code: string;
-  question_text: string;
-  question_type: string;
+type QuestionDetail = ReviewQuestion & {
   points: number;
   current_rasch_weight?: number;
   difficulty_logit?: number;
   total_attempts?: number;
   correct_attempts?: number;
-  correct_choices: { id: number; text: string }[];
-  selected_choices: { id: number; text: string }[];
-  correct_text?: string;
-  student_answer_text?: string;
-  is_correct: boolean | null;
-  explanation?: string;
-}
+};
 
 interface SectionScoreItem {
   section_code: string;
@@ -83,6 +73,8 @@ interface SectionScoreItem {
 
 interface ResultDetailData extends ResultListItem {
   exam_type?: string;
+  show_estimate_notice?: boolean;
+  test?: number;
   cefr_summary?: CefrSummary | null;
   trial_part?: { section_code: string; section_name: string; part: string } | null;
   bmb_grade?: string;
@@ -354,7 +346,7 @@ export default function Results() {
                     <span className="badge blue">{t('take_pending_title')}</span>
                   ) : bmbScale && r.certificate_status === 'rules_unverified' ? (
                     <span className="badge blue">{t('raw_score_not_official')}</span>
-                  ) : r.exam_type === 'cefr_multilevel' ? null : (
+                  ) : !bmbScale ? null : (
                     <span className={`badge ${r.is_passed ? 'green' : 'rose'}`}>
                       {r.is_passed ? t('status_passed') : t('status_failed')}
                     </span>
@@ -467,49 +459,13 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
     }
   };
 
-  // Map questions for TestAddictiveResults
-  const mappedQuestions: QuestionReviewItem[] = (detail.question_details ?? []).map((qd) => {
-    const isWrong = qd.is_correct === false;
-    const studentAnswerDisplay =
-      (qd.selected_choices ?? []).length > 0
-        ? qd.selected_choices.map((c) => c.text).filter(Boolean).join(', ')
-        : (qd.student_answer_text || '').trim() || 'Javob berilmagan';
-
-    let correctAnswerDisplay =
-      (qd.correct_choices ?? []).length > 0
-        ? qd.correct_choices.map((c) => c.text).filter(Boolean).join(', ')
-        : (qd.correct_text || '').trim();
-
-    if (!correctAnswerDisplay && qd.explanation) {
-      const m = qd.explanation.match(/To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?(.*?)['"»]?(?:\.|\n|$)/i);
-      if (m && m[1]) {
-        correctAnswerDisplay = m[1].trim();
-      }
-    }
-
-    const explanationClean = qd.explanation
-      ? qd.explanation.replace(/^To['`’ʻʼ]g['`’ʻʼ]ri javob[:\s—]+['"«]?[^.'"]+['"»]?[.]?\s*/i, '').trim() || qd.explanation
-      : '';
-
-    return {
-      id: qd.question_id,
-      question_text: qd.question_text,
-      topic: (qd as any).topic || (qd as any).section_name || undefined,
-      points: qd.current_rasch_weight ?? qd.points ?? 2,
-      is_correct: qd.is_correct,
-      selected_choice_text: isWrong ? studentAnswerDisplay : undefined,
-      correct_choice_text: correctAnswerDisplay || '—',
-      explanation: explanationClean,
-    };
-  });
-
-  // Free trial of one part: right answers of that part only, no estimate.
+  // Free trial of one part: one short line + the plans button, then the same per-question review.
   if (detail.trial_part) {
     return (
       <div className="cefr-result-detail">
+        <FeedbackPrompt />
         <h2 className="cefr-result-title">{detail.test_title}</h2>
         <div className="card cefr-result">
-          <p className="cefr-result-note">{t('trial_result_note')}</p>
           <p className="cefr-result-overall">
             <span className="muted">
               {detail.trial_part.section_name} · {t('cd_part')} {detail.trial_part.part}
@@ -518,8 +474,14 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
               {detail.correct_answers ?? 0} / {detail.total_questions ?? 0}
             </strong>
           </p>
+          <p className="muted trial-line">{t('trial_result_note')}</p>
+          <Link to="/pricing" className="ui-btn ui-btn--primary">{t('trial_see_plans')}</Link>
         </div>
-        <CefrQuestionReview questions={detail.question_details ?? []} />
+        <QuestionReview
+          questions={detail.question_details ?? []}
+          resultId={detail.id}
+          renderIssue={(q) => <QuestionIssueButton testId={detail.test} question={q} />}
+        />
       </div>
     );
   }
@@ -535,9 +497,14 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
             <p className="muted">{t('take_pending_msg')}</p>
           </div>
         )}
+        <FeedbackPrompt />
         <h2 className="cefr-result-title">{detail.test_title}</h2>
-        <CefrResultSummary data={detail.cefr_summary} />
-        <CefrQuestionReview questions={detail.question_details ?? []} />
+        <CefrResultSummary data={detail.cefr_summary} showEstimateNotice={detail.show_estimate_notice} />
+        <QuestionReview
+          questions={detail.question_details ?? []}
+          resultId={detail.id}
+          renderIssue={(q) => <QuestionIssueButton testId={detail.test} question={q} />}
+        />
       </div>
     );
   }
@@ -575,7 +542,10 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
         courseTitle={detail.test_title}
         subject={(detail as any).test_subject || ((detail.test_title || '').toLowerCase().includes('english') || (detail.test_title || '').toLowerCase().includes('cefr') || (detail.test_title || '').toLowerCase().includes('ielts') ? 'english' : 'uzbek')}
         attemptId={String((detail as any).attempt_id || detail.id)}
-        questions={mappedQuestions}
+        questions={detail.question_details ?? []}
+        resultId={detail.id}
+        testId={detail.test}
+        showEstimateNotice={detail.show_estimate_notice}
         onRetest={handleStartRetest}
       >
         {/* Certificate info */}

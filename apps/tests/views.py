@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 """
@@ -620,10 +621,14 @@ class SubmitAttemptView(APIView):
         except Exception:
             pass
 
+        from apps.results.models import Result as ResultRow
+
+        result_id = ResultRow.objects.filter(attempt_id=attempt_id).values_list("id", flat=True).first()
         return Response(
             {
                 "message": "Test muvaffaqiyatli yakunlandi!",
                 "result": {
+                    "result_id": result_id,
                     "attempt_id": result.attempt_id,
                     "total_questions": result.total_questions,
                     "correct_answers": result.correct_answers,
@@ -781,11 +786,79 @@ class ResultDiagnosticsView(APIView):
         return self.get_or_post(request, result_id)
 
 
+def _can_review_answers(user, result) -> bool:
+    """Owner, the course's teacher or an admin — and only when answers are released."""
+    is_owner = result.student_id == user.id
+    is_staff = is_platform_admin(user) or (
+        getattr(user, "role", None) == "teacher" and result.course.teacher_id == user.id
+    )
+    if not (is_owner or is_staff):
+        return False
+    return bool(result.test.show_results_immediately) or is_staff
+
+
+def _given_and_correct(question, attempt) -> tuple[str, str]:
+    """Plain-text student answer and correct answer for one question."""
+    answer = attempt.answers.filter(question=question).first()
+    given = ""
+    if answer:
+        given = ", ".join(answer.selected_choices.values_list("text", flat=True)) or (answer.text_answer or "")
+    from apps.tests.explanation_drafts import correct_texts
+
+    keys = correct_texts(question)
+    return given.strip(), (", ".join(keys[:1]) if question.choices.count() == 0 else ", ".join(keys)).strip()
+
+
+class ResultQuestionExplainView(APIView):
+    """
+    POST /api/tests/results/<result_id>/questions/<question_id>/explain/
+
+    On-demand AI explanation for one question of a finished attempt. Paid tiers
+    only, counted in the AI quota, capped per day and cached per question and
+    answer. The answer and explanation are returned only to people who may
+    already see them on the result page.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, result_id: int, question_id: int) -> Response:
+        from apps.results.models import Result
+        from apps.tests import question_review
+
+        result = (
+            Result.objects.filter(id=result_id)
+            .select_related("test", "course", "attempt")
+            .first()
+        )
+        if not result or not _can_review_answers(request.user, result):
+            return Response({"error": "Ruxsat etilmagan.", "code": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        question = (
+            result.test.questions.filter(id=question_id)
+            .select_related("test", "section", "group", "group__passage", "reading_passage")
+            .first()
+        )
+        if not question:
+            return Response({"error": "Savol topilmadi.", "code": "not_found"}, status=status.HTTP_404_NOT_FOUND)
+
+        lang = str(request.data.get("lang") or "uz")[:2]
+        given, correct = _given_and_correct(question, result.attempt)
+        try:
+            data = question_review.ai_explain(
+                user=request.user, question=question, given=given, correct=correct, lang=lang
+            )
+        except question_review.ExplainError as exc:
+            return Response({"code": exc.code, **exc.extra}, status=exc.status)
+        return Response(data, status=status.HTTP_200_OK)
+
+
 class QuestionExplainMistakeView(APIView):
     """
     POST /api/tests/questions/<int:question_id>/explain-mistake/
 
-    Xato ishlangan savol uchun interaktiv 24/7 repetitor tushuntirishi.
+    Legacy tutor explanation. It returns the correct answer, so it is only
+    available for a finished attempt of the caller (or their course's teacher /
+    an admin) whose test releases answers — never while an attempt is running.
     Body: {"selected_choice_id": 12, "attempt_id": 34}
     """
 
@@ -793,7 +866,21 @@ class QuestionExplainMistakeView(APIView):
 
     def post(self, request: Request, question_id: int) -> Response:
         from apps.payments.ai_quota import check_and_consume_ai_quota
+        from apps.results.models import Result
         from apps.tests.ai_tutor import explain_question_mistake
+
+        try:
+            attempt_id = int(request.data.get("attempt_id"))
+        except (ValueError, TypeError):
+            return Response({"error": "attempt_id kerak.", "code": "attempt_required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = (
+            Result.objects.filter(attempt_id=attempt_id, test__questions__id=question_id)
+            .select_related("test", "course")
+            .first()
+        )
+        if not result or not _can_review_answers(request.user, result):
+            return Response({"error": "Ruxsat etilmagan.", "code": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
         allowed, quota_err = check_and_consume_ai_quota(request.user)
         if not allowed:
@@ -807,19 +894,11 @@ class QuestionExplainMistakeView(APIView):
             )
 
         selected_choice_id = request.data.get("selected_choice_id")
-        attempt_id = request.data.get("attempt_id")
-
         if selected_choice_id is not None:
             try:
                 selected_choice_id = int(selected_choice_id)
             except (ValueError, TypeError):
                 selected_choice_id = None
-
-        if attempt_id is not None:
-            try:
-                attempt_id = int(attempt_id)
-            except (ValueError, TypeError):
-                attempt_id = None
 
         data = explain_question_mistake(
             question_id=question_id,
@@ -1195,6 +1274,7 @@ class CertificateCardView(APIView):
                 exam_type=attempt.test.get_exam_type_display(),
                 issue_date=(attempt.completed_at or attempt.started_at).strftime("%d.%m.%Y"),
                 is_valid=summary["has_certificate"],
+                show_estimate_notice=bool(getattr(settings, "SHOW_ESTIMATE_NOTICE", False)),
             )
             return Response(summary, status=status.HTTP_200_OK)
 
@@ -1221,6 +1301,7 @@ class CertificateCardView(APIView):
             "total_questions": total,
             "overall_band": score_info["ielts_band"],
             "is_valid": False,
+            "show_estimate_notice": bool(getattr(settings, "SHOW_ESTIMATE_NOTICE", False)),
         }
         return Response(payload, status=status.HTTP_200_OK)
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -12,9 +12,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
-import TestAddictiveResults from '../components/TestAddictiveResults';
 import FeedbackPrompt from '../components/FeedbackPrompt';
-import { TestsApi as RetestApi } from '../lib/testing';
 import { Tests as TestsApi } from '../lib/api';
 import AudioPlayerBar from '../components/AudioPlayerBar';
 import {
@@ -131,6 +129,7 @@ interface AttemptDetail {
 }
 
 interface SubmitResult {
+  result_id?: number | null;
   attempt_id: number;
   total_questions: number;
   correct_answers: number;
@@ -693,6 +692,39 @@ export default function TakeTest() {
     }
   };
 
+  // Connection loss: say so, keep the answers, and resend the failed ones when it returns.
+  const retryRef = useRef(retryFailed);
+  retryRef.current = retryFailed;
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false);
+      void retryRef.current();
+    };
+    const goOffline = () => setOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // A reload or an accidental back/close asks first; answers are already saved on the server.
+  const inProgress =
+    !!attempt &&
+    !result &&
+    !['completed', 'timeout', 'cancelled', 'pending_grading'].includes(attempt.status);
+  useEffect(() => {
+    if (!inProgress) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [inProgress]);
+
   if (loadError && !attempt) {
     const isNetworkOr502 =
       loadError.includes('502') ||
@@ -701,19 +733,11 @@ export default function TakeTest() {
       loadError.includes('NetworkError');
 
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
-          <ClockIcon className="w-8 h-8 animate-spin" />
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">
-          {isNetworkOr502 ? "Test ma'lumotlari yuklanmoqda, iltimos kuting..." : t('take_title')}
-        </h2>
-        <p className="text-slate-400 max-w-md mb-6 text-sm">
-          {isNetworkOr502
-            ? "Server bilan aloqa yangilanmoqda. Sizning javoblaringiz xavfsiz saqlangan."
-            : loadError}
-        </p>
-        <div className="flex items-center justify-center gap-3">
+      <div className="exam-state exam-state--padded" role={isNetworkOr502 ? 'status' : 'alert'}>
+        {isNetworkOr502 && <div className="exam-state__spinner" aria-hidden="true" />}
+        <h2>{isNetworkOr502 ? t('exam_loading') : t('take_title')}</h2>
+        <p>{isNetworkOr502 ? t('take_reconnecting') : loadError}</p>
+        <div className="exam-state__actions">
           <button className="btn primary" onClick={load}>
             {t('essay_error_retry')}
           </button>
@@ -727,16 +751,9 @@ export default function TakeTest() {
 
   if (!attempt) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6">
-        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
-          <ClockIcon className="w-7 h-7 animate-spin" />
-        </div>
-        <h3 className="text-lg font-semibold text-white mb-1">
-          Test ma'lumotlari yuklanmoqda, iltimos kuting...
-        </h3>
-        <p className="text-slate-400 text-sm max-w-sm">
-          Savollar va bo'limlar tayyorlanmoqda...
-        </p>
+      <div className="exam-state exam-state--padded" role="status">
+        <div className="exam-state__spinner" aria-hidden="true" />
+        <h2>{t('exam_loading')}</h2>
       </div>
     );
   }
@@ -1160,9 +1177,17 @@ export default function TakeTest() {
   return (
     <div className="take-test-page-container">
       <p className="muted small">
-        <Link to="/tests">← {t('tests')}</Link>
+        <Link
+          to="/tests"
+          onClick={(e) => {
+            if (inProgress && !window.confirm(t('take_leave_confirm'))) e.preventDefault();
+          }}
+        >
+          ← {t('tests')}
+        </Link>
       </p>
-      <h1>{attempt.test_title}</h1>
+      <h1 className="take-test-title">{attempt.test_title}</h1>
+      {offline && <p className="cd-alert" role="alert">{t('cd_offline_banner')}</p>}
       {err && <p className="error">{err}</p>}
 
       {finished && !result && (
@@ -1255,7 +1280,7 @@ export default function TakeTest() {
         </div>
 
         {singleMode && (
-          <div className="hotkey-hint-pill">
+          <div className="hotkey-hint-pill hide-on-phone">
             <Keyboard size={13} style={{ color: '#f59e0b' }} />
             <span>
               <kbd className="hotkey-kbd">←</kbd> <kbd className="hotkey-kbd">→</kbd> {t('hotkey_questions')} ·{' '}
@@ -1266,18 +1291,18 @@ export default function TakeTest() {
         )}
 
         {!finished && !result && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="hide-on-phone" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               className="btn sm ghost"
               onClick={() => {
-                if (window.confirm("Testdan chiqishni xohlaysizmi? Javoblaringiz saqlanadi.")) {
+                if (window.confirm(t('take_leave_confirm'))) {
                   navigate('/tests');
                 }
               }}
               title="Testdan chiqish"
             >
-              🚪 {t('exit') || 'Chiqish'}
+              🚪 {t('exit')}
             </button>
             <button
               type="button"
@@ -1659,68 +1684,19 @@ export default function TakeTest() {
               </div>
             </div>
           ) : (
-            <TestAddictiveResults
-              score={num(result.score, 0)}
-              maxScore={num(result.max_score, 0)}
-              percentage={num(result.percentage, 0)}
-              correctCount={num(result.correct_answers, 0)}
-              wrongCount={num(result.wrong_answers, 0)}
-              unansweredCount={num(result.unanswered, 0)}
-              timeSpentSeconds={num(result.time_taken_seconds, 0)}
-              raschScore={result.rasch_score}
-              raschGrade={result.rasch_grade}
-              bmbGrade={result.bmb_grade}
-              courseTitle={attempt?.test_title}
-              subject={(attempt as any)?.subject || ((attempt?.test_title || '').toLowerCase().includes('english') || (attempt?.test_title || '').toLowerCase().includes('cefr') || (attempt?.test_title || '').toLowerCase().includes('ielts') ? 'english' : 'uzbek')}
-              attemptId={attemptId}
-              onRetest={async () => {
-                try {
-                  const res = await RetestApi.generateRetest(attemptId);
-                  if (res.has_mistakes && res.attempt_id) {
-                    window.location.href = `/take/${res.attempt_id}`;
-                  } else {
-                    alert(res.message || "Barcha savollar to'g'ri yechilgan!");
-                  }
-                } catch (e) {
-                  alert(e instanceof Error ? e.message : "Qayta test yaratishda xatolik yuz berdi.");
-                }
-              }}
-            >
-              {result.is_passed &&
-                result.certificate_status !== 'rules_unverified' &&
-                result.certificate_status !== 'pending_writing' && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: '14px 18px',
-                      borderRadius: 14,
-                      background: 'rgba(16, 185, 129, 0.08)',
-                      border: '1.5px solid rgba(16, 185, 129, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 10,
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: '#059669', fontSize: '0.95rem' }}>
-                        🎉 Tabriklaymiz! Siz o&apos;tish balini muvaffaqiyatli to&apos;pladingiz!
-                      </strong>
-                      <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--muted)' }}>
-                        Rasmiy BMB va Attestatsiya sertifikatingizni kabinetingizda yuklab oling.
-                      </p>
-                    </div>
-                    <button
-                      className="btn primary sm"
-                      onClick={() => navigate('/certificates')}
-                      style={{ background: '#10b981', borderColor: '#10b981', fontWeight: 800, borderRadius: 10 }}
-                    >
-                      {t('my_certificates')} →
-                    </button>
-                  </div>
-                )}
-            </TestAddictiveResults>
+            result.result_id ? (
+              // The full analysis (every question, why it was wrong, explanations) lives on the results page.
+              <Navigate to={`/results/${result.result_id}`} replace />
+            ) : (
+              <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+                <h2>{t('take_submitted_title')}</h2>
+                <div className="toolbar" style={{ marginTop: 16, justifyContent: 'center' }}>
+                  <button className="btn primary" onClick={() => navigate('/results')}>
+                    {t('take_view_results')}
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </div>
       )}

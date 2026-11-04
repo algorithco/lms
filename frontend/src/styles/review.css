@@ -1,0 +1,64 @@
+/* Per-question review (QuestionReview). Tokens only, so both themes work. State is never colour-only: icon + text. */
+.rv { margin-top: 24px; }
+.rv-title { margin: 0 0 12px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.rv-muted { color: var(--muted); font-size: 14px; margin: 0; }
+
+.rv-summary { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; }
+.rv-summary h4 { margin: 0 0 8px; font-size: 13px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.rv-summary ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rv-summary a { display: flex; justify-content: space-between; gap: 12px; color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 600; min-height: 28px; align-items: center; }
+.rv-summary a b { font-variant-numeric: tabular-nums; }
+.rv-bar { display: block; height: 6px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
+.rv-bar i { display: block; height: 100%; background: var(--emerald); border-radius: 99px; }
+
+.rv-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.rv-chip { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--ink); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.rv-chip b { font-variant-numeric: tabular-nums; color: var(--muted); }
+.rv-chip.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rv-chip.is-active b { color: inherit; }
+html.dark .rv-chip.is-active { color: #0A0E17; }
+
+.rv-group { margin-bottom: 14px; scroll-margin-top: 80px; }
+.rv-group__head { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--ink); font: inherit; font-weight: 800; font-size: 15px; text-align: left; cursor: pointer; margin-bottom: 8px; }
+.rv-group__head > span:first-child { flex: 1; min-width: 0; }
+.rv-group__score { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+.rv-group__head svg { transition: transform 0.15s; transform: rotate(-90deg); }
+.rv-group__head svg.is-open { transform: none; }
+
+.rv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rv-card { background: var(--card); border: 1px solid var(--border); border-left-width: 4px; border-radius: 14px; padding: 14px 16px; }
+.rv-card--correct { border-left-color: var(--emerald); }
+.rv-card--wrong { border-left-color: var(--danger); }
+.rv-card--blank { border-left-color: var(--muted); }
+.rv-card__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.rv-num { min-width: 28px; height: 28px; padding: 0 6px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--card-2); color: var(--ink); font-weight: 800; font-size: 13px; }
+.rv-type { font-size: 12px; color: var(--muted); font-weight: 600; }
+.rv-status { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; }
+.rv-status--correct { color: var(--emerald); }
+.rv-status--wrong { color: var(--danger); }
+.rv-status--blank, .rv-status--hidden, .rv-status--written { color: var(--muted); }
+.rv-group-title { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.rv-question { margin: 0 0 10px; font-size: 15px; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; white-space: pre-line; }
+
+.rv-answers { margin: 0; display: grid; gap: 8px; }
+.rv-answer { border-radius: 10px; padding: 8px 12px; background: var(--card-2); }
+.rv-answer dt { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.rv-answer dd { margin: 2px 0 0; font-size: 15px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.rv-answer--given:not(.is-right) dd { text-decoration: line-through; text-decoration-color: var(--danger); }
+.rv-answer--right { border: 1px solid var(--emerald); }
+
+.rv-why { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); display: grid; gap: 8px; }
+.rv-why h4 { margin: 0; font-size: 13px; font-weight: 800; color: var(--accent-dark); }
+.rv-why p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
+.rv-hint { font-weight: 700; color: var(--ink) !important; }
+.rv-draft { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent-dark); white-space: nowrap; }
+.rv-evidence { margin: 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--card-2); border-radius: 0 10px 10px 0; font-size: 14px; line-height: 1.55; color: var(--ink-soft); font-style: italic; }
+.rv-evidence span { display: block; font-style: normal; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.rv-ai { padding: 10px 12px; border-radius: 10px; background: var(--card-2); border: 1px solid var(--border); }
+.rv-ai__label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; color: var(--accent-dark); margin-bottom: 4px; }
+.rv-issue { margin-top: 10px; display: flex; justify-content: flex-end; }
+.rv-why .ui-btn { justify-self: start; }
+@media (max-width: 520px) {
+  .rv-card { padding: 12px; }
+  .rv-status { margin-left: 0; }
+}

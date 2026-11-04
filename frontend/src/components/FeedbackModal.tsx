@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { FeedbackApi, type ApiError, type FeedbackPayload } from '../lib/api';
 import { buildFeedbackContext } from '../lib/feedbackContext';
+import { revealOnFocus, useVisualViewport } from '../lib/useVisualViewport';
 
 type Category = FeedbackPayload['category'];
 
@@ -36,6 +37,8 @@ export default function FeedbackModal({ isOpen, onClose, source }: FeedbackModal
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useVisualViewport(isOpen);
 
   const reset = useCallback(() => {
     setRating(0);
@@ -197,6 +200,7 @@ export default function FeedbackModal({ isOpen, onClose, source }: FeedbackModal
                 rows={5}
                 maxLength={MAX}
                 value={message}
+                onFocus={revealOnFocus}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={t(category === 'bug' ? 'feedback_ph_bug' : 'feedback_ph')}
               />

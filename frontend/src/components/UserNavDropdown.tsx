@@ -1,3 +1,4 @@
+import { initialsOf } from '../lib/displayName';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -15,20 +16,6 @@ import {
   SunIcon,
   UserIcon,
 } from './icons';
-
-function getInitials(name?: string, email?: string): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  if (email && email.trim()) {
-    return email.slice(0, 2).toUpperCase();
-  }
-  return 'U';
-}
 
 function getRoleLabel(role?: string, t?: (k: string) => string): string {
   if (role === 'admin') return 'Administrator';
@@ -74,7 +61,7 @@ export default function UserNavDropdown() {
 
   if (!user) return null;
 
-  const initials = getInitials(user.full_name, user.email);
+  const initials = initialsOf(user.full_name, user.email);
   const isAdmin = isPlatformAdmin(user);
 
   const handleLogout = async () => {
@@ -173,7 +160,7 @@ export default function UserNavDropdown() {
             whiteSpace: 'nowrap',
           }}
         >
-          {formatDisplayName(user.full_name, user.email)}
+          {formatDisplayName(user.full_name, user.email) || t('user_default')}
         </span>
 
         {/* Animated Chevron Down */}
@@ -268,7 +255,7 @@ export default function UserNavDropdown() {
                     color: isLight ? '#0f172a' : 'var(--ink)',
                   }}
                 >
-                  {formatDisplayName(user.full_name, user.email)}
+                  {formatDisplayName(user.full_name, user.email) || t('user_default')}
                 </strong>
                 <span
                   style={{

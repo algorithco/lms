@@ -115,6 +115,11 @@ urlpatterns = [
         name="result-diagnostics",
     ),
     path(
+        "results/<int:result_id>/questions/<int:question_id>/explain/",
+        views.ResultQuestionExplainView.as_view(),
+        name="result-question-explain",
+    ),
+    path(
         "questions/<int:question_id>/explain-mistake/",
         views.QuestionExplainMistakeView.as_view(),
         name="question-explain-mistake",

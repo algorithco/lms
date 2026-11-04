@@ -23,11 +23,11 @@ export interface CefrSummary {
 const OBJECTIVE = new Set(['LISTENING', 'READING']);
 
 /**
- * Estimated CEFR Multi-level result: per-section 0–75 score and level,
+ * CEFR Multi-level result: per-section 0–75 score and level,
  * overall level only when all four sections are scored. Never shows an
  * IELTS band — IELTS is a separate exam type with its own tables.
  */
-export default function CefrResultSummary({ data }: { data: CefrSummary }) {
+export default function CefrResultSummary({ data, showEstimateNotice = false }: { data: CefrSummary; showEstimateNotice?: boolean }) {
   const { t } = useLang();
   const levelLabel = (level: string | null) => (level ? t(`cefr_level_${level}`, level) : '—');
   const missingNames = data.sections
@@ -37,7 +37,7 @@ export default function CefrResultSummary({ data }: { data: CefrSummary }) {
 
   return (
     <div className="card cefr-result">
-      <p className="cefr-result-note">{t('cefr_result_estimate_note')}</p>
+      {showEstimateNotice && <p className="cefr-result-note">{t('cefr_result_estimate_note')}</p>}
 
       <div className="table-wrap">
         <table className="data">

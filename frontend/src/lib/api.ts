@@ -314,15 +314,7 @@ export function canReviewEssays(u: AuthUser | null | undefined): boolean {
   return u.role === 'teacher' || isPlatformAdmin(u);
 }
 
-/** Cleanly format and auto-capitalize user display names (e.g. "komiljon roziyev" -> "Komiljon Roziyev"). */
-export function formatDisplayName(name?: string | null, email?: string | null): string {
-  const raw = (name || email?.split('@')[0] || '').trim();
-  if (!raw) return 'Foydalanuvchi';
-  return raw
-    .split(/\s+/)
-    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
-    .join(' ');
-}
+export { formatDisplayName, initialsOf } from './displayName';
 
 /** Parent portal access (mirrors school parent_overview_view). */
 export function canViewParent(u: AuthUser | null | undefined): boolean {
@@ -699,6 +691,12 @@ export const Tests = {
       method: 'POST',
       body: JSON.stringify({ type }),
     }),
+  /** On-demand AI explanation for one question of a finished attempt (paid tiers, daily cap). */
+  explainResultQuestion: (resultId: number, questionId: number, lang: string) =>
+    api<{ text?: string; code?: string; cached?: boolean; used?: number; limit?: number; remaining?: number }>(
+      `/api/tests/results/${resultId}/questions/${questionId}/explain/`,
+      { method: 'POST', body: JSON.stringify({ lang }) },
+    ),
   explainMistake: (questionId: number, selectedChoiceId?: number, attemptId?: number) =>
     api<Record<string, unknown>>(`/api/tests/questions/${questionId}/explain-mistake/`, {
       method: 'POST',
@@ -1040,6 +1038,8 @@ export interface MyFeedbackItem {
 
 export interface AdminFeedbackItem extends MyFeedbackItem {
   user_id: number | null;
+  reason?: string;
+  question_id?: number | null;
   name: string;
   context: Record<string, string>;
   consent_public: boolean;
@@ -1057,6 +1057,19 @@ export interface AdminFeedbackList {
     by_status: Record<string, number>;
     by_category: Record<string, number>;
   };
+}
+
+export interface QuestionIssueGroup {
+  question_id: number;
+  test_id: number;
+  test: string;
+  text: string;
+  total: number;
+  active: number;
+  needs_review: boolean;
+  reasons: Record<string, number>;
+  latest: string | null;
+  edit_path: string;
 }
 
 export interface PublicFeedbackItem {
@@ -1078,6 +1091,13 @@ export const FeedbackApi = {
     }),
   listPublic: () =>
     api<{ results: PublicFeedbackItem[]; count: number }>('/api/v1/feedback/public/'),
+  questionIssue: (payload: { question_id: number; reason: string; comment?: string; given?: string }) =>
+    api<{ success: boolean; id: number; duplicate?: boolean; needs_review?: boolean }>(
+      '/api/v1/feedback/question-issue/',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  adminQuestionIssues: () =>
+    api<{ results: QuestionIssueGroup[]; threshold: number }>('/api/v1/panel/feedback/questions/'),
   mine: () => api<{ results: MyFeedbackItem[] }>('/api/v1/feedback/mine/'),
   adminList: (params: Record<string, string>) =>
     api<AdminFeedbackList>(`/api/v1/panel/feedback/?${new URLSearchParams(params).toString()}`),
@@ -2800,3 +2820,58 @@ export const ReferralApi = {
 };
 
 export const apiFetch = api;
+
+// -- Student dashboard (GET /api/v1/dashboard/) ------------------------------
+export interface DashboardSection {
+  code: string;
+  name: string;
+  score: number;
+  max: number;
+  level: string | null;
+}
+
+export interface DashboardRecent {
+  result_id: number;
+  test_id: number;
+  title: string;
+  kind: 'cefr' | 'ielts' | 'attestation' | 'bmb' | 'general';
+  trial: boolean;
+  finished_at: string | null;
+  percentage: number;
+  correct: number;
+  total: number;
+  grade: string;
+  sections: DashboardSection[];
+}
+
+export interface DashboardWeakPart {
+  section_code: string;
+  section_name: string;
+  part: string;
+  question_type: string;
+  correct: number;
+  total: number;
+}
+
+export interface DashboardData {
+  subject: 'uzbek' | 'english';
+  tier: string;
+  resume: { attempt_id: number; test_id: number; title: string; route: string; started_at: string } | null;
+  indicators: {
+    tests_taken: number;
+    average_percentage: number | null;
+    best_percentage: number | null;
+    best_grade: string | null;
+    best_sections: Record<string, number>;
+    best_overall: { score: number; level: string } | null;
+    essays: { count: number; last_score: number | null; last_max: number | null };
+    streak: number;
+  };
+  recent: DashboardRecent[];
+  weak_parts: DashboardWeakPart[];
+  goal: { exam_target: string; target: string; months: number; current: string | null; reached: boolean | null } | null;
+}
+
+export const DashboardApi = {
+  get: (subject: string) => api<DashboardData>(`/api/v1/dashboard/?subject=${encodeURIComponent(subject)}`),
+};

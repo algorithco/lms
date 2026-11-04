@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, Headphones, MessageSquare } from 'lucide-react';
+import { Mic, Headphones } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { landingFor, formatDisplayName, FeedbackApi, type PublicFeedbackItem } from '../lib/api';
+import { landingFor, formatDisplayName, initialsOf, FeedbackApi, type PublicFeedbackItem } from '../lib/api';
 import HeroCarousel from '../components/HeroCarousel';
 import HowItWorks from '../components/HowItWorks';
 import SEO from '../components/SEO';
@@ -16,11 +16,11 @@ import MobileNavDrawer from '../components/MobileNavDrawer';
 import MobileProfileDrawer from '../components/MobileProfileDrawer';
 import PwaInstallButton from '../components/PwaInstallButton';
 import PassingScoresModal from '../components/PassingScoresModal';
+import PublicFeedbackList from '../components/PublicFeedbackList';
 import FeedbackModal from '../components/FeedbackModal';
 import {
   CheckIcon,
   FileTextIcon,
-  StarIcon,
   LightbulbIcon,
   MenuIcon,
   MoonIcon,
@@ -225,7 +225,7 @@ export default function Landing() {
 
       {/* NAVBAR */}
       <header
-        className="landing-header backdrop-blur-md"
+        className="landing-header"
         style={{
           position: 'sticky',
           top: 0,
@@ -298,7 +298,7 @@ export default function Landing() {
 
           {/* 2. Desktop Nav Anchors — Strictly hidden on mobile (< 768px) */}
           <nav
-            className="hidden md:flex items-center gap-1"
+            className="hidden md:flex"
             aria-label="Asosiy navigatsiya"
           >
             <Link
@@ -393,7 +393,7 @@ export default function Landing() {
           {/* 3. O'ng tomon: Desktop (PWA, Lang, Theme, Auth) va Mobile (Faqat Avatar + Gamburger) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Desktop-only right controls */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex">
               <PwaInstallButton />
               {user ? (
                 <UserNavDropdown />
@@ -459,7 +459,7 @@ export default function Landing() {
             </div>
 
             {/* Mobile-only right controls: Faqat Profil Avatari (NJ / KR) va Gamburger menyu (☰) */}
-            <div className="flex md:hidden items-center gap-2">
+            <div className="flex md:hidden">
               {user ? (
               <button
                 type="button"
@@ -485,13 +485,7 @@ export default function Landing() {
                   <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: 11, fontWeight: 900 }}>
-                    {(user.full_name || user.email || '?')
-                      .trim()
-                      .split(/\s+/)
-                      .map((p) => p[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase()}
+                    {initialsOf(user.full_name, user.email)}
                   </span>
                 )}
               </button>
@@ -633,7 +627,7 @@ export default function Landing() {
                     textDecoration: 'none',
                   }}
                 >
-                  {formatDisplayName(user.full_name, user.email)} →
+                  {formatDisplayName(user.full_name, user.email) || t('user_default')} →
                 </Link>
               ) : (
                 <button
@@ -689,14 +683,14 @@ export default function Landing() {
               <div>
                 {/* 1 Single Elegant Badge */}
                 <div style={{ marginBottom: 20 }}>
-                  <span className="bg-amber-100/80 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-300 font-semibold px-4 py-1.5 rounded-full inline-block text-xs sm:text-sm shadow-sm">
+                  <span className="inline-block">
                     {t('landing.bmb_badge', '✨ 2026-yilgi Rasmiy BMB Milliy Sertifikat va Attestatsiya Dvigateli')}
                   </span>
                 </div>
 
                 {/* Main Headline (TestMakon Contrast Sarlavha) */}
                 <h1
-                  className="text-slate-900 dark:text-white font-black tracking-tight"
+                 
                   style={{
                     fontSize: 'clamp(2.4rem, 4.8vw, 3.8rem)',
                     lineHeight: 1.15,
@@ -724,7 +718,7 @@ export default function Landing() {
 
                 {/* Subhead */}
                 <p
-                  className="text-slate-600 font-medium"
+                 
                   style={{
                     fontSize: 'clamp(1.05rem, 1.8vw, 1.2rem)',
                     lineHeight: 1.7,
@@ -749,7 +743,7 @@ export default function Landing() {
                   <button
                     type="button"
                     onClick={() => handleAction('/register')}
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold shadow-lg shadow-amber-500/25 px-8 py-3.5 rounded-xl text-base inline-flex items-center gap-2 transition-all cursor-pointer border-none"
+                    className="shadow-lg inline-flex"
                     style={{
                       padding: '14px 32px',
                       borderRadius: 14,
@@ -758,6 +752,8 @@ export default function Landing() {
                       color: '#FFFFFF',
                       background: 'linear-gradient(135deg, #F59E0B, #D97706)',
                       boxShadow: '0 8px 25px -4px rgba(217, 119, 6, 0.4)',
+                      border: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     <span>⚡️ {t('landing.start_free', 'Bepul boshlash')}</span>
@@ -766,7 +762,7 @@ export default function Landing() {
                   <button
                     type="button"
                     onClick={() => navigate('/tests')}
-                    className="bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-400 text-slate-800 dark:text-slate-100 font-bold px-7 py-3.5 rounded-xl shadow-sm text-base inline-flex items-center gap-2 transition-all cursor-pointer"
+                    className="inline-flex"
                     style={{
                       padding: '13px 28px',
                       borderRadius: 14,
@@ -807,7 +803,7 @@ export default function Landing() {
                   </span>
                 </div>
                 {/* Mobile 3D Direction Cards (TestMakon 2x2 Grid) */}
-                <div className="grid grid-cols-2 gap-3 mt-6 md:hidden">
+                <div className="grid md:hidden">
                   <button
                     type="button"
                     onClick={() => handleAction('/essays')}
@@ -949,11 +945,11 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-4">
               {/* 1. BMB Milliy Sertifikat */}
               <div
                 onClick={() => handleAction('/tests')}
-                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                className="flex"
                 style={{
                   boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
                   minHeight: 240,
@@ -998,7 +994,7 @@ export default function Landing() {
               {/* 2. Pedagoglar Attestatsiyasi 2026 */}
               <div
                 onClick={() => handleAction('/tests')}
-                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                className="flex"
                 style={{
                   boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
                   minHeight: 240,
@@ -1043,7 +1039,7 @@ export default function Landing() {
               {/* 3. AI Esse Studiyasi (12 Mezon) */}
               <div
                 onClick={() => handleAction('/essays')}
-                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                className="flex"
                 style={{
                   boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
                   minHeight: 240,
@@ -1088,7 +1084,7 @@ export default function Landing() {
               {/* 4. {t('landing.cefr_title', 'CEFR & IELTS')} (Ingliz tili) */}
               <div
                 onClick={() => handleAction('/tests')}
-                className="rounded-3xl bg-white border border-slate-200/80 hover:shadow-xl hover:-translate-y-1 transition-all p-6 cursor-pointer flex flex-col justify-between"
+                className="flex"
                 style={{
                   boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.05)',
                   minHeight: 240,
@@ -1220,7 +1216,7 @@ export default function Landing() {
                 {/* IELTS 3 Cards */}
                 {selectedTrack === 'ielts' && (
                   <>
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38BDF8' }}>
                           <PenLineIcon size={26} />
@@ -1254,7 +1250,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
                           <Mic size={26} />
@@ -1288,7 +1284,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818CF8' }}>
                           <Headphones size={26} />
@@ -1327,7 +1323,7 @@ export default function Landing() {
                 {/* Multi-level 3 Cards */}
                 {selectedTrack === 'multilevel' && (
                   <>
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818CF8' }}>
                           <PenLineIcon size={26} />
@@ -1361,7 +1357,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38BDF8' }}>
                           <FileTextIcon size={26} />
@@ -1395,7 +1391,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
                           <SwordsIcon size={26} />
@@ -1434,7 +1430,7 @@ export default function Landing() {
                 {/* National Certificate 3 Cards */}
                 {selectedTrack === 'national_certificate' && (
                   <>
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
                           <PenLineIcon size={26} />
@@ -1468,7 +1464,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                           <FileTextIcon size={26} />
@@ -1502,7 +1498,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(139, 92, 246, 0.12)', border: '1px solid rgba(139, 92, 246, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8B5CF6' }}>
                           <SwordsIcon size={26} />
@@ -1541,7 +1537,7 @@ export default function Landing() {
                 {/* Attestation 3 Cards */}
                 {selectedTrack === 'attestation' && (
                   <>
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
                           <FileTextIcon size={26} />
@@ -1575,7 +1571,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                           <LightbulbIcon size={26} />
@@ -1609,7 +1605,7 @@ export default function Landing() {
                       </button>
                     </div>
 
-                    <div className="card lcard-hover bg-white border border-slate-200/80 rounded-2xl shadow-sm" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card lcard-hover" style={{ borderRadius: 24, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
                           <TrophyIcon size={26} />
@@ -2220,136 +2216,26 @@ export default function Landing() {
               >
                 {t('landing.testimonials_sub')}
               </p>
-              <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <button
-                  type="button"
-                  onClick={() => setLandingFeedbackOpen(true)}
-                  className="inline-flex items-center gap-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white px-7 py-3 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  <span>💬</span>
-                  <span>{t('feedback_open_btn')}</span>
-                </button>
-              </div>
             </div>
-
-            {feedbacks.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {feedbacks.map((item, idx) => {
-                  const gradient = [
-                    'from-amber-500 to-orange-600',
-                    'from-emerald-500 to-teal-600',
-                    'from-blue-500 to-indigo-600',
-                    'from-purple-500 to-pink-600',
-                    'from-cyan-500 to-blue-600',
-                    'from-rose-500 to-red-600',
-                  ][idx % 6];
-
-                  const getBadge = () => {
-                    switch (item.category?.toLowerCase()) {
-                      case 'praise':
-                        return {
-                          label: t('feedback_cat_praise'),
-                          color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-                        };
-                      case 'suggestion':
-                        return {
-                          label: t('feedback_cat_suggestion'),
-                          color: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-                        };
-                      case 'bug':
-                        return {
-                          label: t('feedback_cat_bug'),
-                          color: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
-                        };
-                      default:
-                        return {
-                          label: t('feedback_cat_feedback'),
-                          color: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-                        };
-                    }
-                  };
-
-                  const badge = getBadge();
-                  const nameParts = (item.name || "").trim().split(/\s+/);
-                  const initials = nameParts.length >= 2
-                    ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
-                    : (item.name || "GE").substring(0, 2).toUpperCase();
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-3xl p-6 sm:p-7 flex flex-col justify-between transition-all hover:scale-[1.01] hover:shadow-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm"
-                    >
-                      <div className="space-y-4">
-                        {/* Stars + Badge */}
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1 text-amber-400">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <StarIcon
-                                key={s}
-                                size={16}
-                                fill={s <= (item.rating || 5) ? "currentColor" : "none"}
-                                className={s <= (item.rating || 5) ? "text-amber-400" : "text-slate-300 dark:text-slate-700"}
-                              />
-                            ))}
-                          </div>
-                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${badge.color}`}>
-                            {badge.label}
-                          </span>
-                        </div>
-
-                        {/* Quote */}
-                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 italic">
-                          "{item.message}"
-                        </p>
-                      </div>
-
-                      {/* Author */}
-                      <div className="flex items-center gap-3.5 pt-5 mt-4 border-t border-slate-100 dark:border-slate-800/80">
-                        <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${gradient} text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-md`}>
-                          {initials}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                            {item.name}
-                          </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {item.role || "Foydalanuvchi"} • {item.created_at}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : !loadingFeedbacks ? (
-              <div className="max-w-xl mx-auto rounded-3xl p-8 sm:p-10 text-center bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm transition-all">
-                <div className="w-16 h-16 rounded-3xl bg-amber-500/15 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/30">
-                  <MessageSquare className="h-8 w-8" />
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2">
-                  Birinchi bo'lib o'z bahoyingizni qoldiring!
-                </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto leading-relaxed">
-                  Platformamiz haqida fikr yoki taklifingiz bormi? Har bir fikr sinchkovlik bilan ko'rib chiqiladi va eng yaxshi sharhlar shu yerda e'lon qilinadi.
-                </p>
-              </div>
-            ) : null}
-
+            <PublicFeedbackList
+              items={feedbacks}
+              loading={loadingFeedbacks}
+              onOpen={() => setLandingFeedbackOpen(true)}
+            />
           </div>
         </section>
 
         {/* BOTTOM CTA BANNER */}
         <section style={{ padding: '40px 20px 80px' }}>
           <div
-            className="cta-banner-box rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-500/10 dark:bg-slate-900/90 border border-amber-300/70 dark:border-slate-800 shadow-xl"
+            className="cta-banner-box"
             style={{
               maxWidth: 960,
               margin: '0 auto',
             }}
           >
             <h2
-              className="cta-banner-title text-slate-900 dark:text-white font-extrabold"
+              className="cta-banner-title"
               style={{
                 fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
                 fontWeight: 900,
@@ -2368,7 +2254,7 @@ export default function Landing() {
                 : t('landing.cta_banner_title', t('cta_banner_title'))}
             </h2>
             <p
-              className="text-slate-600 dark:text-slate-300 font-medium"
+             
               style={{
                 fontSize: 15,
                 color: isDark ? '#CBD5E1' : '#475569',

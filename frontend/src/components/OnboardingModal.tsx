@@ -320,7 +320,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(5, 7, 15, 0.85)',
+        background: 'rgba(2, 6, 23, 0.72)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -336,25 +336,25 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
         style={{
           width: '100%',
           maxWidth: '680px',
-          background: 'linear-gradient(180deg, #161b26 0%, #0d1117 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
           borderRadius: '20px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '92vh',
+          maxHeight: '92dvh',
         }}
       >
         {/* Header Bar */}
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.02)',
+            background: 'var(--card-2)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -378,7 +378,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 {step === 'quiz' && "5 Daqiqalik Tezkor Diagnostika"}
                 {step === 'result' && "Sizning Shaxsiy AI Rejangiz"}
               </h3>
-              <span style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
                 {step === 'goals' && "1-bosqich: O'quv yo'nalishi va maqsadli daraja"}
                 {step === 'quiz' && `2-bosqich: Savol ${currentIdx + 1} / ${questions.length || 5}`}
                 {step === 'result' && "Diagnostika xulosasi va kunlik jadval"}
@@ -416,9 +416,9 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 gap: 6,
                 padding: '6px 12px',
                 borderRadius: 10,
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                background: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--ink-muted)',
+                border: '1px solid var(--border)',
+                background: 'var(--card-2)',
+                color: 'var(--muted)',
                 fontSize: '0.8rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -485,8 +485,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '16px',
                           borderRadius: 14,
-                          border: `2px solid ${examTarget === 'ielts' ? '#6366F1' : 'rgba(255, 255, 255, 0.08)'}`,
-                          background: examTarget === 'ielts' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          border: `2px solid ${examTarget === 'ielts' ? '#6366F1' : 'var(--bg-card-2)'}`,
+                          background: examTarget === 'ielts' ? 'rgba(99, 102, 241, 0.12)' : 'var(--card-2)',
                           textAlign: 'left',
                           cursor: 'pointer',
                           display: 'flex',
@@ -502,7 +502,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                           <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
                             IELTS Academic & General
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                             Writing Task 1/2 (Band 1.0–9.0) va Listening/Reading CBT simulyatori
                           </div>
                         </div>
@@ -514,8 +514,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '16px',
                           borderRadius: 14,
-                          border: `2px solid ${examTarget === 'multilevel' ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                          background: examTarget === 'multilevel' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          border: `2px solid ${examTarget === 'multilevel' ? '#10B981' : 'var(--bg-card-2)'}`,
+                          background: examTarget === 'multilevel' ? 'rgba(16, 185, 129, 0.12)' : 'var(--card-2)',
                           textAlign: 'left',
                           cursor: 'pointer',
                           display: 'flex',
@@ -531,7 +531,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                           <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
                             🎯 CEFR Multi-level (B2 / C1)
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                             Milliy sertifikat (ingliz tili) darajali test va insho baholash
                           </div>
                         </div>
@@ -545,8 +545,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '16px',
                           borderRadius: 14,
-                          border: `2px solid ${examTarget === 'national_certificate' ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                          background: examTarget === 'national_certificate' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                          border: `2px solid ${examTarget === 'national_certificate' ? '#10B981' : 'var(--bg-card-2)'}`,
+                          background: examTarget === 'national_certificate' ? 'rgba(16, 185, 129, 0.1)' : 'var(--card-2)',
                           textAlign: 'left',
                           cursor: 'pointer',
                           display: 'flex',
@@ -562,7 +562,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                           <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
                             🎓 Milliy sertifikat
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                             Abituriyentlar va o'quvchilar uchun (BMB 12 mezon, Ona tili va Adabiyot)
                           </div>
                         </div>
@@ -574,8 +574,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '16px',
                           borderRadius: 14,
-                          border: `2px solid ${examTarget === 'attestation' ? '#3B82F6' : 'rgba(255, 255, 255, 0.08)'}`,
-                          background: examTarget === 'attestation' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                          border: `2px solid ${examTarget === 'attestation' ? '#3B82F6' : 'var(--bg-card-2)'}`,
+                          background: examTarget === 'attestation' ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-2)',
                           textAlign: 'left',
                           cursor: 'pointer',
                           display: 'flex',
@@ -591,7 +591,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                           <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--ink)', marginBottom: 4 }}>
                             👨‍🏫 Attestatsiya 2026
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                             O'qituvchilar va pedagoglar uchun toifa sinovlari (50 ta savol)
                           </div>
                         </div>
@@ -619,8 +619,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                       style={{
                         padding: '12px 10px',
                         borderRadius: 12,
-                        border: `2px solid ${timelineMonths === item.m ? '#F59E0B' : 'rgba(255, 255, 255, 0.08)'}`,
-                        background: timelineMonths === item.m ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                        border: `2px solid ${timelineMonths === item.m ? '#F59E0B' : 'var(--bg-card-2)'}`,
+                        background: timelineMonths === item.m ? 'rgba(245, 158, 11, 0.12)' : 'var(--card-2)',
                         textAlign: 'center',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
@@ -629,7 +629,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                       <div style={{ fontWeight: 800, fontSize: '1rem', color: timelineMonths === item.m ? '#F59E0B' : 'var(--ink)' }}>
                         {item.label}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--ink-muted)', marginTop: 2 }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 2 }}>
                         {item.sub}
                       </div>
                     </button>
@@ -660,8 +660,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         minWidth: '90px',
                         padding: '12px 16px',
                         borderRadius: 12,
-                        border: `2px solid ${targetGrade === grade ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                        background: targetGrade === grade ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                        border: `2px solid ${targetGrade === grade ? '#10B981' : 'var(--bg-card-2)'}`,
+                        background: targetGrade === grade ? 'rgba(16, 185, 129, 0.15)' : 'var(--card-2)',
                         color: targetGrade === grade ? '#10B981' : 'var(--ink)',
                         fontWeight: 800,
                         fontSize: '0.95rem',
@@ -719,8 +719,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                       minWidth: '150px',
                       padding: '14px 16px',
                       borderRadius: 12,
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      background: 'var(--card-2)',
+                      border: '1px solid var(--border)',
                       color: 'var(--ink)',
                       fontWeight: 700,
                       fontSize: '0.9rem',
@@ -741,7 +741,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--ink-muted)',
+                    color: 'var(--muted)',
                     fontSize: '0.82rem',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -772,7 +772,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         flex: 1,
                         height: 6,
                         borderRadius: 3,
-                        background: isCur ? '#f59e0b' : isAnswered ? '#10B981' : 'rgba(255, 255, 255, 0.1)',
+                        background: isCur ? '#f59e0b' : isAnswered ? '#10B981' : 'var(--border)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                       }}
@@ -793,10 +793,10 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '12px 14px',
                           borderRadius: 10,
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          background: 'var(--card-2)',
+                          border: '1px solid var(--border)',
                           fontSize: '0.85rem',
-                          color: 'var(--ink-muted)',
+                          color: 'var(--muted)',
                           maxHeight: '120px',
                           overflowY: 'auto',
                           lineHeight: 1.5,
@@ -824,8 +824,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                             style={{
                               padding: '12px 16px',
                               borderRadius: 12,
-                              border: `1.5px solid ${isChosen ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                              background: isChosen ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                              border: `1.5px solid ${isChosen ? '#10B981' : 'var(--bg-card-2)'}`,
+                              background: isChosen ? 'rgba(16, 185, 129, 0.15)' : 'var(--card-2)',
                               color: 'var(--ink)',
                               textAlign: 'left',
                               cursor: 'pointer',
@@ -840,7 +840,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                                 width: 28,
                                 height: 28,
                                 borderRadius: 8,
-                                background: isChosen ? '#10B981' : 'rgba(255, 255, 255, 0.08)',
+                                background: isChosen ? '#10B981' : 'var(--bg-card-2)',
                                 color: isChosen ? '#111' : 'var(--ink)',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -868,9 +868,9 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                         style={{
                           padding: '10px 16px',
                           borderRadius: 10,
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          border: '1px solid var(--border)',
                           background: 'transparent',
-                          color: currentIdx === 0 ? 'rgba(255, 255, 255, 0.2)' : 'var(--ink)',
+                          color: currentIdx === 0 ? 'var(--muted)' : 'var(--ink)',
                           cursor: currentIdx === 0 ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -978,8 +978,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 style={{
                   padding: '18px',
                   borderRadius: 14,
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: 'var(--card-2)',
+                  border: '1px solid var(--border)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 12,
@@ -995,20 +995,20 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginTop: 4 }}>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255, 255, 255, 0.04)', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--ink-muted)' }}>Kunlik testlar</span>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-2)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Kunlik testlar</span>
                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10B981', marginTop: 2 }}>
                       {submitResult.daily_plan?.tests_per_day} ta / kun
                     </div>
                   </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255, 255, 255, 0.04)', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--ink-muted)' }}>Haftalik esselar</span>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-2)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Haftalik esselar</span>
                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3B82F6', marginTop: 2 }}>
                       {submitResult.daily_plan?.essays_per_week} ta / hafta
                     </div>
                   </div>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255, 255, 255, 0.04)', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--ink-muted)' }}>Kunlik vaqt</span>
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-2)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Kunlik vaqt</span>
                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#F59E0B', marginTop: 2 }}>
                       ~{submitResult.daily_plan?.daily_minutes} daqiqa
                     </div>
@@ -1017,7 +1017,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
 
                 {submitResult.daily_plan?.focus_areas && submitResult.daily_plan.focus_areas.length > 0 && (
                   <div style={{ marginTop: 4 }}>
-                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--ink-muted)', display: 'block', marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
                       📌 E'tibor qaratiladigan mavzular:
                     </span>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1028,8 +1028,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                             fontSize: '0.78rem',
                             padding: '4px 10px',
                             borderRadius: 8,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            background: 'var(--card-2)',
+                            border: '1px solid var(--border)',
                             color: 'var(--ink)',
                           }}
                         >

@@ -20,6 +20,8 @@ interface QForm {
   points: number;
   position: number;
   explanation: string;
+  evidence: string;
+  explanation_status: string;
   choices: Choice[];
 }
 
@@ -31,6 +33,8 @@ const EMPTY: QForm = {
   points: 1,
   position: 0,
   explanation: '',
+  evidence: '',
+  explanation_status: 'approved',
   choices: [
     { text: '', is_correct: true, position: 0 },
     { text: '', is_correct: false, position: 1 },
@@ -91,6 +95,8 @@ export default function PanelQuestions() {
       points: num(q.points, 1),
       position: num(q.position),
       explanation: str(q.explanation),
+      evidence: str(q.evidence),
+      explanation_status: str(q.explanation_status, 'approved'),
       choices:
         ch.length > 0
           ? ch
@@ -152,6 +158,8 @@ export default function PanelQuestions() {
       points: form.points,
       position: form.position,
       explanation: form.explanation,
+      evidence: form.evidence,
+      explanation_status: form.explanation_status,
       choices: isText ? [] : kept.map(({ text, is_correct, position }) => ({ text, is_correct, position })),
     };
     try {
@@ -323,6 +331,21 @@ export default function PanelQuestions() {
                 onChange={(e) => setF('explanation', e.target.value)}
                 rows={2}
               />
+            </label>
+            <label>
+              {t('panel_evidence')}
+              <textarea
+                value={form.evidence}
+                onChange={(e) => setF('evidence', e.target.value)}
+                rows={2}
+              />
+            </label>
+            <label>
+              {t('panel_explanation_status')}
+              <select value={form.explanation_status} onChange={(e) => setF('explanation_status', e.target.value)}>
+                <option value="approved">{t('panel_expl_approved')}</option>
+                <option value="draft">{t('panel_expl_draft')}</option>
+              </select>
             </label>
             <div className="row">
               <button className="btn primary">

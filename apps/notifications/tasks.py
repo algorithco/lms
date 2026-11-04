@@ -451,6 +451,58 @@ def notify_admin_new_feedback(self: Any, feedback_id: int) -> dict[str, Any]:
 
 @shared_task(
     bind=True,
+    name="notifications.notify_admin_question_needs_review",
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+    time_limit=60,
+)
+def notify_admin_question_needs_review(self: Any, question_id: int) -> dict[str, Any]:
+    """
+    ONE Telegram summary when a question collects enough reports to need review
+    (not one message per report). Contains the reasons breakdown and a link to
+    the question editor; no answer key and no reporter names.
+    """
+    from django.conf import settings
+    from django.db.models import Count
+
+    from apps.notifications.models import UserFeedback
+    from apps.notifications.services.telegram_service import TelegramService
+    from apps.tests.models import Question
+
+    question = Question.objects.filter(pk=question_id).select_related("test").first()
+    admin_id = getattr(settings, "ADMIN_TELEGRAM_ID", None)
+    if question is None or not admin_id:
+        return {"status": "skipped"}
+    active = UserFeedback.objects.filter(
+        question=question,
+        category=UserFeedback.Category.QUESTION_ISSUE,
+        status__in=(UserFeedback.Status.NEW, UserFeedback.Status.SEEN, UserFeedback.Status.IN_PROGRESS),
+    )
+    labels = dict(UserFeedback.IssueReason.choices)
+    breakdown = ", ".join(
+        f"{_html(labels.get(r['reason'], r['reason']))}: {r['n']}"
+        for r in active.values("reason").annotate(n=Count("id")).order_by("-n")
+    )
+    link = f"{str(getattr(settings, 'SITE_URL', '')).rstrip('/')}/panel/tests/{question.test_id}/questions"
+    text = (
+        f"⚠️ <b>Savol ko'rib chiqilsin</b>\n"
+        f"📝 {_html(question.test.title)}\n"
+        f"❓ {_html(question.text[:160])}\n"
+        f"📣 {active.count()} ta faol shikoyat\n"
+        f"🏷 {breakdown}\n"
+        f"🔗 {_html(link)}"
+    )
+    try:
+        TelegramService.send_message(chat_id=int(admin_id), text=text, parse_mode="HTML")
+    except Exception as exc:
+        logger.warning("Question #%s review summary failed: %s", question_id, exc)
+        raise self.retry(exc=exc)
+    return {"status": "sent", "reports": active.count()}
+
+
+@shared_task(
+    bind=True,
     name="notifications.send_feedback_reply",
     max_retries=3,
     default_retry_delay=30,
