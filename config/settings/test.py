@@ -9,7 +9,7 @@ REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],
     # Only the explicitly throttled scopes; cache is cleared per test where it matters.
-    "DEFAULT_THROTTLE_RATES": {"feedback-submit": "5/hour", "question-issue": "30/hour"},
+    "DEFAULT_THROTTLE_RATES": {"feedback-submit": "5/hour", "question-issue": "30/hour", "essay-ocr": "20/hour", "essay-submit": "5/minute"},
 }
 STORAGES = {
     **STORAGES,

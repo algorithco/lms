@@ -111,7 +111,7 @@ def grade_submission_task(
 
             essay_text = (submission.essay_text or "").strip()
             topic_none = submission.topic is None
-            topic_title = submission.topic.title if submission.topic else ""
+            topic_title = submission.topic.title if submission.topic else (submission.custom_title or "")
             ielts_mode = is_ielts_submission(submission)
             if ielts_mode and submission.topic:
                 ielts_task_type = (

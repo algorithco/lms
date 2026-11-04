@@ -264,6 +264,7 @@ REST_FRAMEWORK = {
         "omr-confirm": "10/hour",
         "feedback-submit": "5/hour",  # per user, or per IP for guests
         "question-issue": "30/hour",  # "Problem with this question?" reports, per user
+        "essay-ocr": "20/hour",  # handwritten essay pages -> text (paid OCR calls)
     },
 }
 
