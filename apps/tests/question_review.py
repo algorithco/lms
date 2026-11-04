@@ -200,7 +200,7 @@ def explain_usage(user) -> dict[str, int]:
 
 
 def _answer_fingerprint(given: str) -> str:
-    return hashlib.sha1(_canon(given).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(_canon(given).encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 def explain_cache_key(question_id: int, given: str, lang: str) -> str:
