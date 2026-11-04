@@ -325,7 +325,7 @@ export default function Groups() {
       {ok && <p className="badge green">{ok}</p>}
 
       {/* 2-column header: New Group + Join Group by Code */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 16 }}>
         {/* Create — parity with group_form.html (name + description). */}
         <form onSubmit={create} className="card form" style={{ maxWidth: '100%', margin: 0 }}>
           <h2>{t('gf_new_short')}</h2>

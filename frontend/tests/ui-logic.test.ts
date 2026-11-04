@@ -14,6 +14,7 @@ import {
   wordZone,
 } from '../src/lib/essays.ts';
 import { listState } from '../src/lib/listState.ts';
+import { formatPrice, planLines } from '../src/lib/planFeatures.ts';
 
 // ── Tests page: exactly one of loading / error / empty / no match / list ──────
 test('tests page shows an error, never "(0)", when the request failed', () => {
@@ -145,4 +146,34 @@ test('the three languages have the same top-level keys', () => {
     assert.deepEqual([...uz].filter((k) => !other.has(k)), [], `missing in ${l}`);
     assert.deepEqual([...other].filter((k) => !uz.has(k)), [], `missing in uz (present in ${l})`);
   }
+});
+
+// ── Plan cards: lines come from the plan row only ─────────────────────────────
+test('plan card lines follow the plan row, never invented limits', () => {
+  const pro = planLines({
+    test_limit: 30,
+    text_essay_weekly_limit: 15,
+    image_essay_weekly_limit: 15,
+    text_essay_cooldown_hours: 1,
+    duration_days: 30,
+  });
+  assert.deepEqual(pro, [
+    { key: 'pl_tests_week', n: 30 },
+    { key: 'pl_text_week', n: 15 },
+    { key: 'pl_photo_week', n: 15 },
+    { key: 'pl_cooldown', n: 1 },
+    { key: 'pl_duration', n: 30 },
+  ]);
+  const starter = planLines({ test_limit: 5, text_essay_weekly_limit: 3, image_essay_weekly_limit: 0, text_essay_cooldown_hours: 2 });
+  assert.equal(starter.find((l) => l.key.startsWith('pl_photo'))?.key, 'pl_photo_none');
+  const premium = planLines({ is_unlimited_tests: true, is_unlimited_text_essays: true, is_unlimited_image_essays: true, text_essay_cooldown_hours: 0 });
+  assert.deepEqual(premium.map((l) => l.key), ['pl_tests_unlimited', 'pl_text_unlimited', 'pl_photo_unlimited']);
+  // a limit the admin left empty is not shown at all
+  assert.deepEqual(planLines({}), []);
+});
+
+test('plan price is grouped in threes', () => {
+  assert.equal(formatPrice(15000), '15 000');
+  assert.equal(formatPrice('27000.00'), '27 000');
+  assert.equal(formatPrice(null), '0');
 });

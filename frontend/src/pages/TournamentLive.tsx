@@ -232,7 +232,7 @@ export default function TournamentLive() {
       </div>
 
       {/* Main Grid: Test on Left (60%), Live Leaderboard on Right (40%) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 20 }}>
         {/* Left: Test Questions Panel */}
         <div className="card" style={{ padding: 24, borderRadius: 16 }}>
           {isSubmitted ? (

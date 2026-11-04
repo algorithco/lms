@@ -18,7 +18,7 @@ import {
 } from './icons';
 
 function getRoleLabel(role?: string, t?: (k: string) => string): string {
-  if (role === 'admin') return 'Administrator';
+  if (role === 'admin') return t ? t('und_role_admin') : 'Administrator';
   if (role === 'teacher') return t ? t('role_teacher') : 'Ustoz';
   if (role === 'parent') return t ? t('parent') : 'Ota-ona';
   return t ? t('role_student') : "O'quvchi";
@@ -78,7 +78,8 @@ export default function UserNavDropdown() {
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Foydalanuvchi menyusi"
+        aria-label={t('und_menu_label')}
+        className="und-trigger"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -149,8 +150,9 @@ export default function UserNavDropdown() {
           </span>
         )}
 
-        {/* User Name */}
+        {/* User Name (hidden at tablet widths, where the bar is narrow) */}
         <span
+          className="und-name"
           style={{
             fontSize: 13,
             fontWeight: 700,
@@ -182,7 +184,7 @@ export default function UserNavDropdown() {
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             role="menu"
-            aria-label="Profil parametrlari"
+            aria-label={t('und_menu_title')}
             style={{
               position: 'absolute',
               top: 'calc(100% + 8px)',
@@ -289,7 +291,7 @@ export default function UserNavDropdown() {
                   }}
                 >
                   {isAdmin
-                    ? (user.is_superuser ? '🛡️ SUPERADMIN' : '🛡️ ADMIN')
+                    ? t(user.is_superuser ? 'und_role_superadmin' : 'und_role_admin')
                     : getRoleLabel(user.role, t)}
                 </span>
               </div>
@@ -320,7 +322,7 @@ export default function UserNavDropdown() {
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(245, 158, 11, 0.12)')}
               >
                 <ShieldCheckIcon size={16} style={{ color: '#f59e0b' }} />
-                <span>🛡️ Admin Panel</span>
+                <span>{t('tb_admin_panel')}</span>
               </Link>
             )}
 

@@ -272,7 +272,7 @@ export default function PanelDashboard() {
       {d.cohort_analytics && (
         <section style={{ marginTop: 24, marginBottom: 24 }}>
           <h2>🎯 Auditoriya Segmentatsiyasi va Kogorta Analitikasi</h2>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 16 }}>
             {/* Audience Segmentation Card */}
             <div className="card" style={{ padding: '20px' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -502,7 +502,7 @@ export default function PanelDashboard() {
                       </td>
                       <td>
                         <span className={`badge ${isEng ? 'blue' : 'amber'}`}>
-                          {isEng ? 'English' : 'Ona tili'}
+                          {t(isEng ? 'subject_english' : 'subject_uzbek')}
                         </span>
                       </td>
                       <td>

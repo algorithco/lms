@@ -198,7 +198,7 @@ export default function TeacherDashboard() {
         </div>
 
         <form onSubmit={createQuickMock} style={{ marginTop: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 12 }}>
             <label className="small">
               Mock Test Nomi (ixtiyoriy):
               <input

@@ -476,7 +476,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }: Onboardi
                 <label style={{ display: 'block', fontSize: '0.92rem', fontWeight: 700, marginBottom: 10, color: 'var(--ink)' }}>
                   1. Asosiy maqsadingiz nima?
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: 12 }}>
                   {activeSubject === 'english' ? (
                     <>
                       <button

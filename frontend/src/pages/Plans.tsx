@@ -1,325 +1,163 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AlertTriangle, Check, Crown, Rocket, Sparkles, Zap } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
-import { Billing } from '../lib/api';
+import { Billing, type BillingPlan } from '../lib/api';
+import { formatPrice, planLines } from '../lib/planFeatures';
 import UsageLimits from '../components/UsageLimits';
 
-interface Plan {
-  id: number;
-  name?: string;
-  plan_type: string;
-  price_monthly: number | string;
-  is_public?: boolean;
+interface MySub {
+  plan?: { id?: number; name?: string; plan_type?: string } | null;
+  days_remaining?: number;
+  is_active?: boolean;
+  status?: string;
 }
 
-const PUBLIC_PLANS: {
-  plan_type: 'starter' | 'pro' | 'premium';
-  name: string;
-  defaultPrice: number;
-  emoji: string;
-  badgeUz?: string | null;
-  badgeRu?: string | null;
-  badgeEn?: string | null;
-  featuresUz: string[];
-  featuresRu: string[];
-  featuresEn: string[];
-}[] = [
-  {
-    plan_type: 'starter',
-    name: 'START / STARTER',
-    defaultPrice: 7000,
-    emoji: '⚡',
-    badgeUz: null,
-    badgeRu: null,
-    badgeEn: null,
-    featuresUz: [
-      "5 ta to'liq test",
-      'Haftasiga 3 ta esse tekshirish',
-      'Xatolar tahlili',
-      'Kuniga 10 ta AI repetitor izohi',
-    ],
-    featuresRu: [
-      '5 тестов в день',
-      '8 эссе в неделю',
-      '5 фото эссе / неделю',
-      '3 текстовых эссе / неделю',
-      '5 часов между текстовыми эссе',
-    ],
-    featuresEn: [
-      '5 tests per day',
-      '8 essays per week',
-      '5 photo essays / week',
-      '3 text essays / week',
-      '5 hours cooldown between text essays',
-    ],
-  },
-  {
-    plan_type: 'pro',
-    name: 'PRO',
-    defaultPrice: 15000,
-    emoji: '🚀',
-    badgeUz: '⭐ Eng ommabop / Tavsiya etiladi',
-    badgeRu: '⭐ Самый популярный / Рекомендуется',
-    badgeEn: '⭐ Most Popular / Recommended',
-    featuresUz: [
-      'Haftasiga 15 ta esse',
-      "To'liq mock testlar",
-      'AI repetitor izohlari',
-      'Barcha CBT testlar va tahlil',
-    ],
-    featuresRu: [
-      '1 официальный Mock тест в день',
-      '15 оценок эссе в неделю',
-      'Все CBT и Mock тесты',
-      '50 запросов к AI-репетитору в день & Аналитика',
-      'Короткое время ожидания (без кулдауна)',
-    ],
-    featuresEn: [
-      '1 official Mock test per day',
-      '15 essay assessments per week',
-      'All CBT and Mock tests',
-      '50 AI tutor requests per day & Analytics',
-      'Short waiting time (no cooldown)',
-    ],
-  },
-  {
-    plan_type: 'premium',
-    name: 'PREMIUM',
-    defaultPrice: 27000,
-    emoji: '👑',
-    badgeUz: null,
-    badgeRu: null,
-    badgeEn: null,
-    featuresUz: [
-      'Cheksiz rasmli va matnli esse',
-      'Barcha CBT testlar',
-      '1v1 Arena',
-      'Ustoz tekshiruvi',
-    ],
-    featuresRu: [
-      'Безлимитная оценка фото и текстовых эссе (12 критериев)',
-      'Все CBT, Mock тесты и 1v1 Арена',
-      '24/7 Безлимитный AI репетитор ("Почему эта ошибка?")',
-      'Проверка учителем',
-      'Без каких-либо ограничений и кулдауна',
-    ],
-    featuresEn: [
-      'Unlimited photo and text essay grading (12 criteria)',
-      'All CBT, Mock tests and 1v1 Arena',
-      '24/7 Unlimited AI tutor ("Why is this wrong?")',
-      'Teacher review',
-      'No restrictions and no cooldown',
-    ],
-  },
-];
+const ICONS: Record<string, typeof Zap> = { starter: Zap, start: Zap, pro: Rocket, premium: Crown };
 
+/**
+ * /plans and /subscribe. Every price and limit on the cards is the plan row
+ * from GET /api/v1/billing/plans/; the current plan comes from /billing/my/.
+ */
 export default function Plans() {
-  const { t, lang } = useLang();
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const { t } = useLang();
+  const [plans, setPlans] = useState<BillingPlan[] | null>(null);
   const [myPlanId, setMyPlanId] = useState<number | null>(null);
-  // Current-subscription banner — same data as legacy plans.html
-  // (GET /api/v1/billing/my/ → subscription.plan + days_remaining).
-  const [mySub, setMySub] = useState<Record<string, unknown> | null>(null);
-  const [myActive, setMyActive] = useState(false);
-  // Session bridge status — GET /subscribe/api/status/ (Billing.status()).
-  const [sessionPlan, setSessionPlan] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [mySub, setMySub] = useState<MySub | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const fetchAll = useCallback(() => {
     Billing.plans()
       .then((r) => {
-        setPlans(r.results as unknown as Plan[]);
+        // Cheapest first: the cards read as a ladder whatever order the rows were saved in.
+        const price = (p: BillingPlan) => Number(p.price_uzs ?? p.price_monthly ?? 0);
+        setPlans(r.results.filter((p) => price(p) > 0).sort((a, b) => price(a) - price(b)));
         setMyPlanId(r.my_plan_id);
       })
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Failed.'));
+      .catch(() => setFailed(true));
     Billing.my()
-      .then((r) => {
-        if (r.subscription) {
-          setMySub(r.subscription as Record<string, unknown>);
-          setMyActive(String((r.subscription as Record<string, unknown>).status) === 'active');
-        }
-      })
-      .catch(() => undefined);
-    // Best-effort: session cookie may not exist for JWT-only logins.
-    Billing.status()
-      .then((s) => setSessionPlan(String((s as Record<string, unknown>).plan ?? '')))
-      .catch(() => undefined);
+      .then((r) => setMySub((r.subscription as MySub | null) ?? null))
+      .catch(() => setMySub(null));
   }, []);
 
-  const myPlanName = (mySub?.plan as Record<string, unknown> | undefined)?.name;
-  const myPlanType = (mySub?.plan as Record<string, unknown> | undefined)?.plan_type;
+  useEffect(fetchAll, [fetchAll]);
+
+  const retry = () => {
+    setFailed(false);
+    setPlans(null);
+    fetchAll();
+  };
+
+  const active = Boolean(mySub && (mySub.is_active ?? mySub.status === 'active'));
+  const days = Number(mySub?.days_remaining ?? 0);
 
   return (
-    <div>
-      <h1>{t('pay_plans_title')}</h1>
-      <p className="muted">{t('pay_plans_subtitle')}</p>
-      {err && <p className="error">{err}</p>}
+    <div className="pl">
+      <header className="pl-head">
+        <h1>{t('pay_plans_title')}</h1>
+        <p className="muted">{t('pl_subtitle')}</p>
+      </header>
 
-      <div
-        className="card"
-        style={{
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(16, 185, 129, 0.05))',
-          border: '1px solid rgba(245, 158, 11, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-          padding: '16px 20px',
-          borderRadius: 12,
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div>
-          <strong style={{ fontSize: 16, color: '#fbbf24', display: 'block', marginBottom: 4 }}>
-            💳 Karta orqali tezkor to'lov va chek yuklash
-          </strong>
-          <span className="muted small">
-            Starter (7 000 so'm), Pro (15 000 so'm) yoki Premium (27 000 so'm) tariflari uchun chekni yuklab, 5-15 daqiqada obunani faollashtiring.
+      <UsageLimits showManage={false} />
+
+      {active && mySub?.plan && (
+        <section className="ui-card pl-current" aria-label={t('pay_current_sub')}>
+          <span className="ic-chip">
+            <Crown size={18} aria-hidden="true" />
           </span>
-        </div>
-        <Link to="/checkout" className="btn primary sm btn-glow" style={{ textDecoration: 'none', fontWeight: 700 }}>
-          To'lov qilish & Chek yuklash →
-        </Link>
-      </div>
-
-      {/* Current plan + live remaining usage for this student. */}
-      <UsageLimits />
-
-      {/* Current subscription banner (legacy: user_subscription.is_active). */}
-      {mySub && myActive && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <p className="muted small">{t('pay_current_sub')}</p>
-          <p>
-            <strong>{String(myPlanName ?? '')}</strong>
-          </p>
-          <p className="muted small">
-            {Number(mySub.days_remaining ?? 0) > 0
-              ? `${String(mySub.days_remaining)} ${t('pay_days_left')}`
-              : t('pay_expired')}
-            {sessionPlan ? ` · ${t('billing_session_title')}: ${sessionPlan}` : ''}
-          </p>
-          <Link className="btn sm" to="/my-subscription">
+          <div className="pl-current__text">
+            <small>{t('pay_current_sub')}</small>
+            <strong>{mySub.plan.name}</strong>
+            <span>{days > 0 ? t('pl_days_left').replace('{n}', String(days)) : t('pay_expired')}</span>
+          </div>
+          <Link className="ui-btn ui-btn--sm" to="/my-subscription">
             {t('pay_manage')}
           </Link>
+        </section>
+      )}
+
+      {failed ? (
+        <div className="ui-state ui-state--error" role="alert">
+          <span className="ic-chip ic-chip--danger">
+            <AlertTriangle size={22} aria-hidden="true" />
+          </span>
+          <p>{t('pl_load_error')}</p>
+          <button type="button" className="ui-btn" onClick={retry}>
+            {t('pl_retry')}
+          </button>
+        </div>
+      ) : plans === null ? (
+        <div className="pl-grid" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="ui-card pl-card">
+              <span className="ui-skel" style={{ width: 40, height: 40 }} />
+              <span className="ui-skel ui-skel-line" style={{ width: '50%' }} />
+              <span className="ui-skel ui-skel-line" style={{ width: '70%', height: 28 }} />
+              <span className="ui-skel ui-skel-line" />
+              <span className="ui-skel ui-skel-line" />
+            </div>
+          ))}
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="ui-state">
+          <span className="ic-chip ic-chip--muted">
+            <Sparkles size={22} aria-hidden="true" />
+          </span>
+          <p>{t('pl_empty')}</p>
+        </div>
+      ) : (
+        <div className="pl-grid">
+          {plans.map((p) => {
+            const Icon = ICONS[p.plan_type] ?? Sparkles;
+            const featured = p.plan_type === 'pro';
+            const mine = active && (myPlanId === p.id || mySub?.plan?.id === p.id);
+            return (
+              <article key={p.id} className={`ui-card pl-card${featured ? ' is-featured' : ''}${mine ? ' is-mine' : ''}`}>
+                {featured && <span className="pl-card__badge">{t('pl_recommended')}</span>}
+                <span className="ic-chip">
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+                <h2 className="pl-card__name">{p.name}</h2>
+                <p className="pl-card__price">
+                  <b>{formatPrice(p.price_uzs ?? p.price_monthly)}</b> <span>{t('pay_per_month')}</span>
+                </p>
+                <ul className="pl-card__lines">
+                  {planLines(p).map((l) => (
+                    <li key={l.key}>
+                      <Check size={16} aria-hidden="true" />
+                      <span>{l.n === undefined ? t(l.key) : t(l.key).replace('{n}', String(l.n))}</span>
+                    </li>
+                  ))}
+                </ul>
+                {mine ? (
+                  <span className="pl-card__mine">
+                    <Check size={16} aria-hidden="true" /> {t('pl_your_plan')}
+                  </span>
+                ) : (
+                  <Link
+                    className={`ui-btn ui-btn--block${featured ? ' ui-btn--primary' : ''}`}
+                    to={`/checkout?plan=${encodeURIComponent(p.plan_type)}`}
+                  >
+                    {t(active ? 'pl_switch_cta' : 'pl_pay_cta')}
+                  </Link>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
 
-      <div
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        style={{
-          display: 'grid',
-          gap: 24,
-          marginBottom: 32,
-        }}
-      >
-        {PUBLIC_PLANS.map((p) => {
-          const apiPlan = plans.find((ap) => ap.plan_type === p.plan_type);
-          const priceMonthly = p.plan_type === 'pro' ? 15000 : (p.plan_type === 'starter' ? 7000 : 27000);
-          const mine = myActive && (myPlanType === p.plan_type || (apiPlan && myPlanId === apiPlan.id));
-          const isPro = p.plan_type === 'pro';
-          const isPremium = p.plan_type === 'premium';
-          const features = lang === 'ru' ? p.featuresRu : lang === 'en' ? p.featuresEn : p.featuresUz;
-          const badgeText = isPro
-            ? (lang === 'ru' ? p.badgeRu : lang === 'en' ? p.badgeEn : p.badgeUz)
-            : null;
+      <p className="pl-note muted">{t('pl_pay_note')}</p>
 
-          return (
-            <div
-              key={p.plan_type}
-              className={`card ${isPro ? 'border-amber-500/80 shadow-lg' : ''}`}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                padding: 24,
-                borderRadius: 16,
-                border: isPro
-                  ? '2px solid rgba(245, 158, 11, 0.8)'
-                  : isPremium
-                  ? '1px solid rgba(16, 185, 129, 0.4)'
-                  : '1px solid var(--border)',
-                boxShadow: isPro ? '0 0 20px rgba(245, 158, 11, 0.3)' : undefined,
-                background: isPro
-                  ? 'rgba(245, 158, 11, 0.05)'
-                  : isPremium
-                  ? 'rgba(16, 185, 129, 0.04)'
-                  : 'var(--card-2)',
-              }}
-            >
-              {badgeText && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -12,
-                    right: 16,
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 20,
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
-                  }}
-                >
-                  {badgeText}
-                </span>
-              )}
-              <p style={{ fontSize: 32, margin: '4px 0 8px' }}>{p.emoji}</p>
-              <strong style={{ fontSize: 20 }}>{p.name}</strong>
-
-              <p className="stat-value" style={{ margin: '8px 0 16px', fontSize: 24, color: 'var(--ink)' }}>
-                {priceMonthly.toLocaleString()}{' '}
-                <span style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 500 }}>{t('pay_per_month')}</span>
-              </p>
-
-              <ul className="muted small" style={{ flex: 1, paddingLeft: 18, margin: '0 0 20px', lineHeight: 1.7 }}>
-                {features.map((f, i) => (
-                  <li key={i} style={{ marginBottom: 6 }}>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              {mine ? (
-                <span className="badge green" style={{ textAlign: 'center', padding: '8px 16px', marginTop: 'auto', fontWeight: 700 }}>
-                  {t('btn_active')}
-                </span>
-              ) : (
-                <Link
-                  className={`btn sm ${isPro ? 'primary btn-glow' : ''}`}
-                  style={{
-                    textAlign: 'center',
-                    textDecoration: 'none',
-                    fontWeight: 700,
-                    marginTop: 'auto',
-                    background: isPro ? 'linear-gradient(135deg, #f59e0b, #d97706)' : undefined,
-                    color: isPro ? '#fff' : undefined,
-                  }}
-                  to={`/checkout?plan=${p.plan_type}`}
-                >
-                  {lang === 'ru' ? 'Оплатить и загрузить чек →' : lang === 'en' ? 'Pay & Upload Receipt →' : "To'lov qilish & Chek yuklash →"}
-                </Link>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <h2>{t('faq_title')}</h2>
-      <div className="card">
-        <p>
-          <strong>{t('faq_payment_q')}</strong>
-        </p>
-        <p className="muted small">{t('faq_payment_a')}</p>
-        <p>
-          <strong>{t('faq_cancel_q')}</strong>
-        </p>
-        <p className="muted small">{t('faq_cancel_a')}</p>
-        <p>
-          <strong>{t('faq_premium_q')}</strong>
-        </p>
-        <p className="muted small">{t('faq_premium_a')}</p>
-      </div>
+      <section className="ui-card pl-faq">
+        <h2>{t('faq_title')}</h2>
+        {(['payment', 'cancel', 'premium'] as const).map((k) => (
+          <details key={k}>
+            <summary>{t(`faq_${k}_q`)}</summary>
+            <p>{t(`faq_${k}_a`)}</p>
+          </details>
+        ))}
+      </section>
     </div>
   );
 }

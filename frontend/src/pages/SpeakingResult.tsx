@@ -256,7 +256,7 @@ export default function SpeakingResult() {
               <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', fontWeight: 800, color: '#6EE7B7' }}>
                 💎 Band 8+ Leksik tavsiyalar (So'zlarni boyitish):
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: 10 }}>
                 {sub.feedback.vocabulary_suggestions.map((v, idx) => (
                   <div key={idx} style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                     <div style={{ fontSize: '0.84rem' }}>

@@ -101,7 +101,7 @@ export default function SpeakingTopics() {
           <p className="muted">Boshqa bo'limni tanlang yoki keyinroq qaytib keling.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(330px, 100%), 1fr))', gap: 18 }}>
           {topics.map((t) => (
             <TiltCard key={t.id} glare maxTilt={6} scale={1.02} style={{ borderRadius: 16, height: '100%' }}>
               <div

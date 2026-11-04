@@ -349,7 +349,7 @@ export default function TeacherAiConverter() {
         <div>
           {/* Top Test Settings Card */}
           <div className="card" style={{ padding: '1.5rem', borderRadius: 16, marginBottom: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: 4 }}>
                   Test nomi:
@@ -456,7 +456,7 @@ export default function TeacherAiConverter() {
                 </div>
 
                 {/* Choices Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 10, marginBottom: 12 }}>
                   {q.choices.map((c) => {
                     const isSelected = q.correct_answer === c.code;
                     return (

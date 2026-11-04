@@ -754,7 +754,7 @@ export default function EnterpriseDashboard() {
       </div>
 
       {/* Grid: Filiallararo raqobat & Ustozlar reytingi */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))', gap: 20, marginBottom: 28 }}>
         {/* Filiallararo raqobat */}
         <div className="card" style={{ padding: 24, borderRadius: 16 }}>
           <h2 style={{ fontSize: 18, marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>

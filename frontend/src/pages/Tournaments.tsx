@@ -76,7 +76,7 @@ export default function Tournaments() {
       </div>
 
       {/* Prize Fund Highlights */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 30 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: 16, marginBottom: 30 }}>
         <div className="card" style={{ padding: 20, textAlign: 'center', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🥇</div>
           <strong style={{ fontSize: 16, display: 'block', color: 'var(--accent)' }}>{t('tournaments_prize_1_title')}</strong>
