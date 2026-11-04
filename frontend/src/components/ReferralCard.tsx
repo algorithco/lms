@@ -68,22 +68,22 @@ export default function ReferralCard({ variant = 'full' }: Props) {
 
   const group = (
     <div className="ref-group">
-      <div className="ref-group__field">
-        <input
-          type="text"
-          readOnly
-          value={shareUrl}
-          className="ui-input ui-input--mono"
-          aria-label={t('referral_link_label')}
-          onFocus={(e) => e.currentTarget.select()}
-        />
+      <input
+        type="text"
+        readOnly
+        value={shareUrl}
+        className="ui-input ui-input--mono ref-group__link"
+        aria-label={t('referral_link_label')}
+        onFocus={(e) => e.currentTarget.select()}
+      />
+      <div className="ref-group__btns">
         <button type="button" className="ui-btn ui-btn--primary" onClick={onCopy} aria-live="polite">
           {copied ? t('referral_copied_short') : t('referral_copy_btn')}
         </button>
+        <button type="button" className="ui-btn" onClick={onShare}>
+          {t('referral_share_native')}
+        </button>
       </div>
-      <button type="button" className="ui-btn" onClick={onShare}>
-        {t('referral_share_native')}
-      </button>
     </div>
   );
 
@@ -106,15 +106,18 @@ export default function ReferralCard({ variant = 'full' }: Props) {
         </div>
       </div>
       {group}
-      <div className="ref-stats">
-        <span>
-          {t('referral_invited_count')}: <b>{stats.total_invited}</b>
-        </span>
-        <span className="ref-stats__sep" aria-hidden="true">·</span>
-        <span>
-          {t('referral_earned_bonus')}: <b>+{stats.bonus_tests} {t('referral_unit_test')} / +{stats.bonus_essays} {t('referral_unit_essay')}</b>
-        </span>
-      </div>
+      <dl className="ref-stats">
+        <div>
+          <dt>{t('referral_invited_count')}</dt>
+          <dd>{stats.total_invited}</dd>
+        </div>
+        <div>
+          <dt>{t('referral_earned_bonus')}</dt>
+          <dd>
+            +{stats.bonus_tests} {t('referral_unit_test')} · +{stats.bonus_essays} {t('referral_unit_essay')}
+          </dd>
+        </div>
+      </dl>
     </section>
   );
 }
