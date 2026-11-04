@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowRight, BookOpen, LogIn, UserCheck, Users, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLang } from '../i18n/LangContext';
 import { GroupInviteApi, type GroupJoinPreview } from '../lib/api';
-import { Sparkles, Users, BookOpen, UserCheck, ShieldCheck, ArrowRight, LogIn } from 'lucide-react';
 
+/** Group invite: who the group is, then join (signed in) or sign in / register first. */
 export default function JoinGroup() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useLang();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -19,185 +22,104 @@ export default function JoinGroup() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
+    let alive = true;
     GroupInviteApi.preview(token)
       .then((data) => {
+        if (!alive) return;
         setGroup(data);
-        if (data.is_member) {
-          setJoined(true);
-        }
+        if (data.is_member) setJoined(true);
       })
-      .catch((err) => {
-        setError(err.message || 'Guruh taklif havolasi topilmadi yoki muddati o\'tgan.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [token]);
+      .catch((err: Error) => alive && setError(err.message || t('jg_not_found_text')))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [token, t]);
 
-  const handleJoin = async () => {
+  const next = encodeURIComponent(`/join/${token}`);
+
+  const join = async () => {
     if (!token) return;
-    if (!user) {
-      navigate(`/login?next=${encodeURIComponent(`/join/${token}`)}`);
-      return;
-    }
-
     setSubmitting(true);
     try {
       const res = await GroupInviteApi.join(token);
-      toast.success(res.message || 'Guruhga muvaffaqiyatli qo\'shildingiz!');
+      toast.success(res.message || t('jg_joined'));
       setJoined(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
-    } catch (err: any) {
-      toast.error(err.message || 'Guruhga qo\'shilishda xatolik yuz berdi.');
+      window.setTimeout(() => navigate('/dashboard'), 1200);
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : t('jg_join_failed'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center items-center p-4 selection:bg-amber-500 selection:text-slate-950">
-      <div className="w-full max-w-lg">
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 p-0.5 shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-amber-400" />
-              </div>
-            </div>
-            <div className="text-left">
-              <span className="block text-xl font-black tracking-tight text-white">GRAND EDUCATION</span>
-              <span className="block text-xs font-semibold tracking-widest text-amber-400 uppercase">Academic EdTech</span>
-            </div>
-          </Link>
-        </div>
+    <div className="jg">
+      <Link to="/" className="jg-brand">
+        <img src="/logo-mark.png" alt="" width={36} height={36} />
+        <span>GRAND EDUCATION</span>
+      </Link>
 
-        {/* Main Card */}
-        <div className="bg-slate-950/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-
-          {loading ? (
-            <div className="py-16 text-center">
-              <div className="w-10 h-10 border-4 border-amber-500/30 border-t-amber-400 rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-slate-400 text-sm font-medium">Guruh ma'lumotlari yuklanmoqda...</p>
+      <div className="ui-card jg-card">
+        {loading ? (
+          <div aria-busy="true" aria-label={t('loading')}>
+            <div className="ui-skel ui-skel-line" style={{ width: '40%' }} />
+            <div className="ui-skel ui-skel-line" style={{ width: '80%', height: 22 }} />
+            <div className="ui-skel ui-skel-line" style={{ width: '60%' }} />
+            <div className="ui-skel" style={{ height: 48, borderRadius: 12, marginTop: 16 }} />
+          </div>
+        ) : error || !group ? (
+          <div className="ui-state" style={{ border: 0, padding: '8px 0' }}>
+            <span className="ic-chip ic-chip--danger">
+              <X size={24} aria-hidden="true" />
+            </span>
+            <h3>{t('jg_not_found')}</h3>
+            <p>{error || t('jg_not_found_text')}</p>
+            <Link to="/" className="ui-btn">
+              {t('jg_home')}
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="jg-meta">
+              <span className="jg-chip">
+                <BookOpen size={14} aria-hidden="true" /> {group.subject_display || group.subject}
+              </span>
+              <span className="jg-count">
+                <Users size={14} aria-hidden="true" /> {t('jg_students').replace('{n}', String(group.student_count))}
+              </span>
             </div>
-          ) : error ? (
-            <div className="py-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-4">
-                ✕
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">Guruh topilmadi</h2>
-              <p className="text-slate-400 text-sm mb-6 max-w-sm mx-auto">{error}</p>
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm transition-colors"
-              >
-                Bosh sahifaga qaytish
-              </Link>
-            </div>
-          ) : group ? (
-            <div>
-              <div className="flex items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-800/80">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  {group.subject_display || group.subject}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                  <Users className="w-3.5 h-3.5 text-slate-500" />
-                  {group.student_count} ta o'quvchi
-                </span>
-              </div>
+            <h1 className="jg-title">{group.name}</h1>
+            <p className="jg-teacher">
+              <UserCheck size={16} aria-hidden="true" /> {t('jg_teacher')}: <b>{group.teacher_name}</b>
+            </p>
+            {group.description && <p className="jg-desc">{group.description}</p>}
 
-              <div className="text-center mb-6">
-                <h1 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">
-                  {group.name}
-                </h1>
-                <p className="text-slate-400 text-sm flex items-center justify-center gap-2">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
-                  Ustoz: <strong className="text-slate-200">{group.teacher_name}</strong>
+            {joined ? (
+              <>
+                <p className="jg-done" role="status">
+                  <UserCheck size={16} aria-hidden="true" /> {t('jg_already')}
                 </p>
-                {group.description && (
-                  <p className="mt-3 text-slate-400 text-xs italic bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                    "{group.description}"
-                  </p>
-                )}
-              </div>
-
-              {/* Automatic PRO Privilege Banner */}
-              <div className="bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent border border-amber-500/20 rounded-2xl p-4 mb-6 flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-amber-300 font-bold text-sm">Avtomatik PRO Imtiyozi</h4>
-                  <p className="text-slate-300 text-xs mt-0.5 leading-relaxed">
-                    Ushbu guruhga qo'shilsangiz, profilingizga 365 kunlik <strong>PRO tarifi</strong> (barcha rasmiy BMB testlari va kunlik 50 ta AI repetitor) avtomatik yoqiladi.
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              {joined ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-center text-sm font-semibold flex items-center justify-center gap-2">
-                    <UserCheck className="w-4 h-4" />
-                    Siz allaqachon ushbu guruh a'zosisiz!
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
-                  >
-                    Kabinetga o'tish <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : user ? (
-                <button
-                  type="button"
-                  onClick={handleJoin}
-                  disabled={submitting}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-base shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-                >
-                  {submitting ? (
-                    <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>✅ Guruhga qo'shilish</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                <button type="button" className="ui-btn ui-btn--primary ui-btn--block ui-btn--lg" onClick={() => navigate('/dashboard')}>
+                  {t('jg_to_cabinet')} <ArrowRight size={16} aria-hidden="true" />
                 </button>
-              ) : (
-                <div className="space-y-3">
-                  <Link
-                    to={`/login?next=${encodeURIComponent(`/join/${token}`)}`}
-                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-base shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
-                  >
-                    <LogIn className="w-5 h-5" />
-                    <span>Kirish va Guruhga qo'shilish</span>
-                  </Link>
-
-                  <div className="flex items-center gap-2 text-center text-xs text-slate-400">
-                    <span className="w-full border-t border-slate-800" />
-                    <span className="px-2 shrink-0">yoki</span>
-                    <span className="w-full border-t border-slate-800" />
-                  </div>
-
-                  <Link
-                    to={`/register?next=${encodeURIComponent(`/join/${token}`)}`}
-                    className="w-full py-3 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-sm border border-slate-800 text-center block transition-colors"
-                  >
-                    Yangi hisob yaratish (Ro'yxatdan o'tish)
-                  </Link>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
+              </>
+            ) : user ? (
+              <button type="button" className="ui-btn ui-btn--primary ui-btn--block ui-btn--lg" onClick={() => void join()} disabled={submitting}>
+                {submitting ? t('loading') : t('jg_join')}
+              </button>
+            ) : (
+              <div className="jg-auth">
+                <Link to={`/login?next=${next}`} className="ui-btn ui-btn--primary ui-btn--block ui-btn--lg">
+                  <LogIn size={18} aria-hidden="true" /> {t('jg_login_join')}
+                </Link>
+                <Link to={`/register?next=${next}`} className="ui-btn ui-btn--block">
+                  {t('jg_register')}
+                </Link>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

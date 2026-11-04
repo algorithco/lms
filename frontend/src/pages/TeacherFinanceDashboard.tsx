@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BellRing, CreditCard, Sparkles, Users, Wallet } from 'lucide-react';
 
+import { useToast } from '../context/ToastContext';
+import { useLang } from '../i18n/LangContext';
 import { apiFetch } from '../lib/api';
 
 interface StudentFinanceRow {
@@ -38,406 +41,314 @@ interface GroupFinanceData {
 interface TeacherGroup {
   id: number;
   name: string;
-  monthly_fee: number;
-  students_count?: number;
 }
 
+const STATUS_TONE: Record<StudentFinanceRow['payment_status'], string> = {
+  paid: 'ok',
+  due_soon: 'warn',
+  grace_period: 'warn',
+  overdue: 'bad',
+};
+
+/** Teacher tuition tracking: per group totals, debtors, one-click reminders, manual payments, quota licences. */
 export default function TeacherFinanceDashboard() {
-  const [groups, setGroups] = useState<TeacherGroup[]>([]);
+  const { t, lang } = useLang();
+  const toast = useToast();
+  const [groups, setGroups] = useState<TeacherGroup[] | null>(null);
+  const [groupsFailed, setGroupsFailed] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [financeData, setFinanceData] = useState<GroupFinanceData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [rowBusy, setRowBusy] = useState<number | null>(null);
+  const [reload, setReload] = useState(0);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
+  const money = (n: number) => `${Number(n || 0).toLocaleString(lang)} ${t('tf_sum')}`;
+  const errText = (err: unknown, key: string) => (err instanceof Error && err.message ? err.message : t(key));
+
+  const loadGroups = useCallback(() => {
+    setGroupsFailed(false);
+    setGroups(null);
+    apiFetch<unknown>('/api/v1/school/groups/')
+      .then((res) => {
+        const list = (Array.isArray(res) ? res : []).map((g: { id: number; name: string }) => ({ id: g.id, name: g.name }));
+        setGroups(list);
+        setSelectedGroupId((cur) => cur ?? list[0]?.id ?? null);
+      })
+      .catch(() => setGroupsFailed(true));
   }, []);
 
-  // Load Teacher Groups
   useEffect(() => {
-    async function fetchGroups() {
-      try {
-        const res = await apiFetch<any[]>('/api/v1/school/groups/');
-        const groupsList: TeacherGroup[] = (Array.isArray(res) ? res : []).map((g: any) => ({
-          id: g.id,
-          name: g.name,
-          monthly_fee: Number(g.monthly_fee) || 0,
-        }));
-        setGroups(groupsList);
-        if (groupsList.length > 0) {
-          setSelectedGroupId(groupsList[0].id);
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Error fetching teacher groups:', err);
-        setLoading(false);
-      }
-    }
-    fetchGroups();
+    loadGroups();
+  }, [loadGroups]);
+
+  const loadFinance = useCallback(async (groupId: number) => {
+    const data = await apiFetch<GroupFinanceData>(`/api/v1/courses/groups/${groupId}/finance-summary/`);
+    setFinanceData(data);
   }, []);
 
-  // Load Finance Summary for Selected Group
   useEffect(() => {
     if (!selectedGroupId) return;
-    async function fetchFinance() {
-      setLoading(true);
-      try {
-        const data = await apiFetch<GroupFinanceData>(
-          `/api/v1/courses/groups/${selectedGroupId}/finance-summary/`
-        );
-        setFinanceData(data);
-      } catch (err: any) {
-        showToast(err.message || 'Moliyaviy ma\'lumotlarni yuklashda xatolik.', 'error');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchFinance();
-  }, [selectedGroupId]);
+    let alive = true;
+    setLoading(true);
+    setFailed(false);
+    loadFinance(selectedGroupId)
+      .catch(() => alive && setFailed(true))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [selectedGroupId, loadFinance, reload]);
 
-
-
-  // 1-Click Reminder to all debtors
   const handleSendReminders = async () => {
     if (!selectedGroupId) return;
     setActionBusy(true);
     try {
       const res = await apiFetch<{ status: string; message: string }>(
         `/api/v1/courses/groups/${selectedGroupId}/send-payment-reminders/`,
-        { method: 'POST' }
+        { method: 'POST' },
       );
-      showToast(res.message || 'Eslatmalar muvaffaqiyatli yuborildi!', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Eslatma yuborishda xatolik yuz berdi.', 'error');
+      toast.success(res.message || t('tf_remind_sent'));
+    } catch (err) {
+      toast.error(errText(err, 'tf_remind_failed'));
     } finally {
       setActionBusy(false);
     }
   };
 
-  // Record Manual Payment
   const handleRecordPayment = async (studentId: number) => {
     if (!selectedGroupId) return;
+    setRowBusy(studentId);
     try {
       const res = await apiFetch<{ status: string; message: string }>(
         `/api/v1/courses/groups/${selectedGroupId}/record-payment/`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ student_id: studentId, extend_days: 30 }),
-        }
+        { method: 'POST', body: JSON.stringify({ student_id: studentId, extend_days: 30 }) },
       );
-      showToast(res.message, 'success');
-      // Refresh
-      const data = await apiFetch<GroupFinanceData>(
-        `/api/v1/courses/groups/${selectedGroupId}/finance-summary/`
-      );
-      setFinanceData(data);
-    } catch (err: any) {
-      showToast(err.message || 'To\'lovni qayd qilishda xatolik.', 'error');
+      toast.success(res.message || t('tf_paid_saved'));
+      await loadFinance(selectedGroupId);
+    } catch (err) {
+      toast.error(errText(err, 'tf_paid_failed'));
+    } finally {
+      setRowBusy(null);
     }
   };
 
-  // Activate Quota for student
   const handleActivateQuota = async (studentId: number, planType: 'pro' | 'premium') => {
     if (!selectedGroupId) return;
+    setRowBusy(studentId);
     try {
-      const res = await apiFetch<{ status: string; message: string; pro_quota_balance: number; premium_quota_balance: number }>(
+      const res = await apiFetch<{ status: string; message: string }>(
         `/api/v1/courses/groups/${selectedGroupId}/students/${studentId}/activate-quota/`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ plan_type: planType }),
-        }
+        { method: 'POST', body: JSON.stringify({ plan_type: planType }) },
       );
-      showToast(res.message, 'success');
-      // Refresh
-      const data = await apiFetch<GroupFinanceData>(
-        `/api/v1/courses/groups/${selectedGroupId}/finance-summary/`
-      );
-      setFinanceData(data);
-    } catch (err: any) {
-      showToast(err.message || 'Litsenziya kvotasini faollashtirib bo\'lmadi.', 'error');
+      toast.success(res.message || t('tf_quota_done'));
+      await loadFinance(selectedGroupId);
+    } catch (err) {
+      toast.error(errText(err, 'tf_quota_failed'));
+    } finally {
+      setRowBusy(null);
     }
+  };
+
+  const debtors = financeData ? financeData.overdue_count + financeData.due_soon_count : 0;
+
+  const statusLabel = (st: StudentFinanceRow) => {
+    if (st.payment_status === 'paid') return t('tf_st_paid');
+    if (st.payment_status === 'overdue') return t('tf_st_overdue');
+    return t('tf_st_due').replace('{n}', String(st.days_left));
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        {/* Toast Alert */}
-        {toast && (
-          <div
-            className={`p-4 rounded-xl shadow-lg border flex items-center justify-between transition-all ${
-              toast.type === 'success'
-                ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
-                : 'bg-rose-950/80 border-rose-500/50 text-rose-200'
-            }`}
-          >
-            <span>{toast.message}</span>
-            <button
-              onClick={() => setToast(null)}
-              className="text-xs uppercase px-2 py-1 bg-white/10 rounded hover:bg-white/20"
-            >
-              Yopish
-            </button>
-          </div>
-        )}
-
-        {/* Top Header & Group Selector */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">💰</span>
-              <h1 className="text-2xl font-bold text-white">Ustoz Moliya & Kurs To'lovlari CRM</h1>
-            </div>
-            <p className="text-slate-400 text-sm">
-              O'quvchilar to'lov grafigi, qarzdorlik nazorati va ota-onalarga avtomatik eslatmalar tizimi.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Group Selector */}
-            {groups.length > 0 && (
-              <select
-                value={selectedGroupId || ''}
-                onChange={(e) => setSelectedGroupId(Number(e.target.value))}
-                className="bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-amber-500"
-              >
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    👥 {g.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <Link
-              to="/teacher/vocab-generator"
-              className="px-4 py-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 font-medium text-sm transition-all"
-            >
-              ✨ AI Lug'at Generatori
-            </Link>
-
-            <Link
-              to="/groups"
-              className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 font-medium text-sm transition-all"
-            >
-              Guruhlar ro'yxati
-            </Link>
-          </div>
+    <div className="tf">
+      <header className="tf-head">
+        <div className="tf-head__text">
+          <h1>{t('tf_title')}</h1>
+          <p>{t('tf_sub')}</p>
         </div>
-
-        {/* Quota & Financial KPI Cards */}
-        {financeData && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Total Collected */}
-            <div className="bg-slate-900/80 p-5 rounded-2xl border border-emerald-500/20 shadow-sm relative overflow-hidden">
-              <div className="text-xs uppercase font-semibold text-emerald-400 mb-1">
-                Yig'ilgan To'lov
-              </div>
-              <div className="text-2xl font-black text-white">
-                {financeData.collected_amount.toLocaleString('uz-UZ')} so'm
-              </div>
-              <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>{financeData.paid_count} ta o'quvchi to'lagan</span>
-              </div>
-            </div>
-
-            {/* Overdue Debt */}
-            <div className="bg-slate-900/80 p-5 rounded-2xl border border-rose-500/20 shadow-sm relative overflow-hidden">
-              <div className="text-xs uppercase font-semibold text-rose-400 mb-1">
-                Kutilayotgan Qarzdorlik
-              </div>
-              <div className="text-2xl font-black text-white">
-                {financeData.pending_amount.toLocaleString('uz-UZ')} so'm
-              </div>
-              <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-rose-500"></span>
-                <span>{financeData.overdue_count + financeData.due_soon_count} nafar qarzdor</span>
-              </div>
-            </div>
-
-            {/* Total Students */}
-            <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/60 shadow-sm">
-              <div className="text-xs uppercase font-semibold text-slate-400 mb-1">
-                Guruhdagi O'quvchilar
-              </div>
-              <div className="text-2xl font-black text-white">
-                {financeData.total_students} nafar
-              </div>
-              <div className="text-xs text-slate-400 mt-2">
-                Oylik to'lov: {financeData.students[0]?.monthly_fee?.toLocaleString('uz-UZ') || '400 000'} so'm
-              </div>
-            </div>
-
-            {/* Teacher Quotas */}
-            <div className="bg-gradient-to-br from-amber-950/40 to-slate-900/80 p-5 rounded-2xl border border-amber-500/30 shadow-sm">
-              <div className="text-xs uppercase font-semibold text-amber-400 mb-1">
-                Litsenziya Kvotangiz
-              </div>
-              <div className="flex items-center gap-4 text-xl font-bold text-white mt-1">
-                <span title="PRO kvota">⚡ {financeData.pro_quota_balance} PRO</span>
-                <span className="text-slate-600">|</span>
-                <span title="PREMIUM kvota">👑 {financeData.premium_quota_balance} VIP</span>
-              </div>
-              <div className="text-xs text-slate-400 mt-2">
-                O'quvchilarga 30 kunlik obuna ulashish
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 1-Click Reminder Action Banner */}
-        {financeData && (financeData.overdue_count > 0 || financeData.due_soon_count > 0) && (
-          <div className="bg-gradient-to-r from-amber-950/50 via-slate-900 to-rose-950/50 p-5 rounded-2xl border border-amber-500/30 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
-                📢
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">
-                  {financeData.overdue_count + financeData.due_soon_count} ta o'quvchining to'lov muddati kelgan!
-                </h3>
-                <p className="text-xs text-slate-300">
-                  Bitta klik orqali barcha qarzdor o'quvchilar va ularning ota-onalariga Telegram orqali rasmiy eslatma xabari yuboriladi.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleSendReminders}
-              disabled={actionBusy}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-sm shadow-md transition-all whitespace-nowrap disabled:opacity-50"
+        <div className="tf-head__actions">
+          {groups && groups.length > 0 && (
+            <select
+              className="ui-input tf-select"
+              value={selectedGroupId ?? ''}
+              onChange={(e) => setSelectedGroupId(Number(e.target.value))}
+              aria-label={t('tf_group')}
             >
-              {actionBusy ? 'Yuborilmoqda...' : '📢 Barcha qarzdorlarga eslatma yuborish'}
-            </button>
-          </div>
-        )}
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Link to="/teacher/vocab-generator" className="ui-btn ui-btn--sm">
+            <Sparkles size={16} aria-hidden="true" /> {t('tf_vocab')}
+          </Link>
+          <Link to="/groups" className="ui-btn ui-btn--sm">
+            <Users size={16} aria-hidden="true" /> {t('tf_groups')}
+          </Link>
+        </div>
+      </header>
 
-        {/* Students Tuition Table */}
-        <div className="bg-slate-900/60 rounded-2xl border border-slate-800 overflow-hidden">
-          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>📋</span> O'quvchilar va Ota-onalar Nazorati
-            </h2>
-            <span className="text-xs text-slate-400">
-              Jami: {financeData?.students.length || 0} ta o'quvchi
-            </span>
-          </div>
+      {groupsFailed ? (
+        <div className="ui-state" role="alert">
+          <h3>{t('tf_error')}</h3>
+          <button type="button" className="ui-btn" onClick={loadGroups}>
+            {t('error_retry')}
+          </button>
+        </div>
+      ) : groups === null ? (
+        <div className="tf-kpis" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="ui-skel" style={{ height: 96, borderRadius: 16 }} />
+          ))}
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="ui-state">
+          <span className="ic-chip">
+            <Users size={24} aria-hidden="true" />
+          </span>
+          <h3>{t('tf_no_groups')}</h3>
+          <p>{t('tf_no_groups_text')}</p>
+          <Link to="/groups" className="ui-btn ui-btn--primary">
+            {t('tf_groups')}
+          </Link>
+        </div>
+      ) : (
+        <>
+          {financeData && !failed && (
+            <section className="tf-kpis" aria-label={t('tf_title')}>
+              <div className="ui-card tf-kpi tf-kpi--ok">
+                <span className="tf-kpi__label">{t('tf_collected')}</span>
+                <strong className="tf-kpi__value">{money(financeData.collected_amount)}</strong>
+                <span className="tf-kpi__note">{t('tf_paid_count').replace('{n}', String(financeData.paid_count))}</span>
+              </div>
+              <div className="ui-card tf-kpi tf-kpi--bad">
+                <span className="tf-kpi__label">{t('tf_pending')}</span>
+                <strong className="tf-kpi__value">{money(financeData.pending_amount)}</strong>
+                <span className="tf-kpi__note">{t('tf_debtors').replace('{n}', String(debtors))}</span>
+              </div>
+              <div className="ui-card tf-kpi">
+                <span className="tf-kpi__label">{t('tf_students')}</span>
+                <strong className="tf-kpi__value">{financeData.total_students}</strong>
+              </div>
+              <div className="ui-card tf-kpi">
+                <span className="tf-kpi__label">{t('tf_quota')}</span>
+                <strong className="tf-kpi__value">
+                  {financeData.pro_quota_balance} PRO · {financeData.premium_quota_balance} PREMIUM
+                </strong>
+                <span className="tf-kpi__note">{t('tf_quota_note')}</span>
+              </div>
+            </section>
+          )}
 
-          {loading ? (
-            <div className="p-12 text-center text-slate-400 animate-pulse">
-              Moliyaviy ma'lumotlar yuklanmoqda...
-            </div>
-          ) : financeData && financeData.students.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-800/60 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3.5 px-4">O'quvchi</th>
-                    <th className="py-3.5 px-4">Telefon</th>
-                    <th className="py-3.5 px-4">Ota-ona</th>
-                    <th className="py-3.5 px-4">Oylik To'lov</th>
-                    <th className="py-3.5 px-4">To'lov Sanasi</th>
-                    <th className="py-3.5 px-4">Holat</th>
-                    <th className="py-3.5 px-4 text-right">Litsenziya & Harakat</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {financeData.students.map((st) => (
-                    <tr key={st.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-white">{st.full_name}</div>
-                        <div className="text-xs text-slate-400">{st.email}</div>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs font-mono">
-                        {st.phone || '—'}
-                      </td>
-                      <td className="py-3.5 px-4 text-xs">
-                        {st.parent_phone ? (
-                          <div>
-                            <div className="text-slate-200">{st.parent_phone}</div>
-                            {st.parent_telegram_id && (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-sky-950/60 text-sky-400 border border-sky-800/50 mt-0.5">
-                                Telegram Ulangan
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 italic">Kiritilmagan</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 font-medium text-white">
-                        {st.monthly_fee.toLocaleString('uz-UZ')} so'm
-                      </td>
-                      <td className="py-3.5 px-4 text-xs">
-                        <div className="text-white font-medium">
-                          {st.next_payment_due || '—'}
-                        </div>
-                        {st.last_payment_date && (
-                          <div className="text-[11px] text-slate-400">
-                            Oxirgi: {st.last_payment_date}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {st.payment_status === 'paid' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-300 border border-emerald-800/60">
-                            ✓ To'langan
-                          </span>
-                        )}
-                        {st.payment_status === 'due_soon' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-950 text-amber-300 border border-amber-800/60">
-                            ⚠️ {st.days_left} kun qoldi
-                          </span>
-                        )}
-                        {st.payment_status === 'overdue' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-950 text-rose-300 border border-rose-800/60">
-                            🔴 Muddati o'tgan
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Record Payment Button */}
-                          <button
-                            onClick={() => handleRecordPayment(st.student_id)}
-                            title="30 kunga to'lovni uzaytirish"
-                            className="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-700/60 text-xs font-medium transition-all"
-                          >
-                            💳 To'landi (+30k)
-                          </button>
-
-                          {/* Quota activation buttons */}
-                          <button
-                            onClick={() => handleActivateQuota(st.student_id, 'pro')}
-                            disabled={financeData.pro_quota_balance <= 0}
-                            title="Ustoz kvotasi orqali 30 kunlik PRO litsenziya berish"
-                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-medium transition-all disabled:opacity-40"
-                          >
-                            ⚡ PRO
-                          </button>
-
-                          <button
-                            onClick={() => handleActivateQuota(st.student_id, 'premium')}
-                            disabled={financeData.premium_quota_balance <= 0}
-                            title="Ustoz kvotasi orqali 30 kunlik PREMIUM litsenziya berish"
-                            className="px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-medium transition-all disabled:opacity-40"
-                          >
-                            👑 VIP
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-12 text-center text-slate-500">
-              Bu guruhda hozircha o'quvchilar mavjud emas.
+          {financeData && !failed && debtors > 0 && (
+            <div className="ui-card tf-remind">
+              <span className="ic-chip">
+                <BellRing size={22} aria-hidden="true" />
+              </span>
+              <div className="tf-remind__text">
+                <strong>{t('tf_remind_title').replace('{n}', String(debtors))}</strong>
+                <p>{t('tf_remind_text')}</p>
+              </div>
+              <button type="button" className="ui-btn ui-btn--primary" onClick={() => void handleSendReminders()} disabled={actionBusy}>
+                {actionBusy ? t('tf_sending') : t('tf_remind_btn')}
+              </button>
             </div>
           )}
-        </div>
-      </div>
+
+          <section className="ui-card tf-list">
+            <div className="tf-list__head">
+              <h2>{t('tf_list_title')}</h2>
+              {financeData && <small>{t('tf_total').replace('{n}', String(financeData.students.length))}</small>}
+            </div>
+
+            {loading ? (
+              <div className="tf-rows" aria-busy="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="ui-skel" style={{ height: 88, borderRadius: 12 }} />
+                ))}
+              </div>
+            ) : failed ? (
+              <div className="ui-state" role="alert" style={{ border: 0 }}>
+                <h3>{t('tf_error')}</h3>
+                <button type="button" className="ui-btn" onClick={() => setReload((n) => n + 1)}>
+                  {t('error_retry')}
+                </button>
+              </div>
+            ) : financeData && financeData.students.length > 0 ? (
+              <ul className="tf-rows">
+                {financeData.students.map((st) => (
+                  <li key={st.id} className="tf-row">
+                    <div className="tf-row__who">
+                      <strong className="clamp-1">{st.full_name}</strong>
+                      <span className="clamp-1">{st.email}</span>
+                    </div>
+                    <span className={`tf-status tf-status--${STATUS_TONE[st.payment_status] || 'warn'}`}>{statusLabel(st)}</span>
+                    <dl className="tf-row__facts">
+                      <div>
+                        <dt>{t('tf_phone')}</dt>
+                        <dd>{st.phone || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('tf_parent')}</dt>
+                        <dd>
+                          {st.parent_phone || t('tf_not_set')}
+                          {st.parent_telegram_id && <span className="tf-tg">{t('tf_tg_linked')}</span>}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{t('tf_fee')}</dt>
+                        <dd>{money(st.monthly_fee)}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('tf_due')}</dt>
+                        <dd>
+                          {st.next_payment_due || '—'}
+                          {st.last_payment_date && (
+                            <small>{t('tf_last').replace('{d}', st.last_payment_date)}</small>
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="tf-row__actions">
+                      <button
+                        type="button"
+                        className="ui-btn ui-btn--sm"
+                        onClick={() => void handleRecordPayment(st.student_id)}
+                        disabled={rowBusy === st.student_id}
+                        title={t('tf_mark_paid_hint')}
+                      >
+                        <CreditCard size={14} aria-hidden="true" /> {t('tf_mark_paid')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ui-btn ui-btn--sm"
+                        onClick={() => void handleActivateQuota(st.student_id, 'pro')}
+                        disabled={financeData.pro_quota_balance <= 0 || rowBusy === st.student_id}
+                        title={t('tf_give_hint').replace('{plan}', 'PRO')}
+                      >
+                        <Wallet size={14} aria-hidden="true" /> PRO
+                      </button>
+                      <button
+                        type="button"
+                        className="ui-btn ui-btn--sm"
+                        onClick={() => void handleActivateQuota(st.student_id, 'premium')}
+                        disabled={financeData.premium_quota_balance <= 0 || rowBusy === st.student_id}
+                        title={t('tf_give_hint').replace('{plan}', 'PREMIUM')}
+                      >
+                        <Wallet size={14} aria-hidden="true" /> PREMIUM
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="tf-empty">{t('tf_empty')}</p>
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }
