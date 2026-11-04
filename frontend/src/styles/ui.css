@@ -1,6 +1,75 @@
 /* Shared UI components built on the index.css tokens (--card, --ink, --accent, --border).
    Replaces the Tailwind utility classes that used to be written in JSX without Tailwind installed. */
 
+/* ── Scale tokens (docs/MOBILE_DESIGN_SPEC.md) ──────── */
+:root {
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 18px; --fs-xl: 22px; --fs-2xl: 28px;
+  --tap: 44px;
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.05);
+  --shadow-2: 0 12px 40px rgba(15, 23, 42, 0.18);
+  --nav-h: 56px;
+  --ink-muted: var(--muted);
+}
+html.dark {
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Card, icon chip ────────────────────────────────── */
+.ui-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-4); box-shadow: var(--shadow-1); min-width: 0; }
+.ic-chip { width: 32px; height: 32px; flex: 0 0 auto; border-radius: var(--r-sm); display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.14); color: var(--accent-dark); }
+.ic-chip--success { background: rgba(16, 185, 129, 0.14); color: var(--emerald); }
+.ic-chip--info { background: rgba(2, 132, 199, 0.12); color: #0284c7; }
+html.dark .ic-chip--info { color: #38bdf8; }
+.ic-chip--muted { background: var(--card-2); color: var(--muted); }
+.ic-chip--danger { background: rgba(225, 29, 72, 0.12); color: var(--danger); }
+
+/* ── Chips (filters) ────────────────────────────────── */
+.ui-chip-row { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; padding: 2px 0; -webkit-overflow-scrolling: touch; }
+.ui-chip-row::-webkit-scrollbar { display: none; }
+.ui-chip { flex: 0 0 auto; min-height: var(--tap); padding: 0 var(--sp-4); border-radius: var(--r-pill); border: 1px solid var(--border); background: var(--card); color: var(--ink); font: inherit; font-size: var(--fs-sm); font-weight: 700; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.ui-chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+html.dark .ui-chip.is-on { color: #0A0E17; }
+.ui-chip b { font-weight: 700; opacity: 0.75; }
+
+/* ── Segmented control ──────────────────────────────── */
+.ui-seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-md); background: var(--card-2); border: 1px solid var(--border); min-height: var(--tap); }
+.ui-seg button { flex: 1 1 0; min-width: 0; min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-sm); font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 var(--sp-2); }
+.ui-seg button[aria-pressed="true"], .ui-seg button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow-1); }
+
+/* ── Buttons (extras) ───────────────────────────────── */
+.ui-btn--block { width: 100%; }
+.ui-btn--lg { min-height: 48px; font-size: var(--fs-md); }
+.ui-btn--ghost { border-color: transparent; background: transparent; }
+
+/* ── Search field ───────────────────────────────────── */
+.ui-search { position: relative; flex: 1 1 200px; min-width: 0; }
+.ui-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.ui-search .ui-input { padding-left: 40px; }
+
+/* ── Sticky action bar ──────────────────────────────── */
+.ui-actionbar { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4) calc(var(--sp-2) + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--border); }
+
+/* ── Skeleton ───────────────────────────────────────── */
+.ui-skel { position: relative; overflow: hidden; background: var(--card-2); border-radius: var(--r-sm); }
+.ui-skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent); animation: ui-skel 1.3s infinite; }
+html.dark .ui-skel::after { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent); }
+@keyframes ui-skel { to { transform: translateX(100%); } }
+.ui-skel-line { height: 12px; margin: 8px 0; }
+@media (prefers-reduced-motion: reduce) { .ui-skel::after { animation: none; } }
+
+/* ── Empty / error state ────────────────────────────── */
+.ui-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--sp-3); padding: var(--sp-7) var(--sp-4); background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.ui-state .ic-chip { width: 48px; height: 48px; border-radius: var(--r-md); }
+.ui-state h3 { margin: 0; font-size: var(--fs-lg); color: var(--ink); }
+.ui-state p { margin: 0; max-width: 360px; font-size: var(--fs-sm); line-height: 1.5; color: var(--muted); }
+
+/* ── Line clamp ─────────────────────────────────────── */
+.clamp-1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* ── Toasts ─────────────────────────────────────────── */
 .toast-stack {
   position: fixed;
@@ -185,7 +254,6 @@ html.dark .fb-card__avatar { color: #0A0E17; }
 @keyframes ui-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .exam-state__spinner { animation-duration: 2.4s; } }
 
-:root { --ink-muted: var(--muted); }
 
 /* ── "Join with a code" card ────────────────────────── */
 .code-card { margin: 16px 0 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; box-shadow: var(--card-shadow); display: flex; flex-direction: column; gap: 12px; }
@@ -265,8 +333,6 @@ html.dark .fb-card__avatar { color: #0A0E17; }
 .catalog__sub { font-size: 12px; color: var(--muted); }
 .catalog__tick { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 800; color: var(--accent-dark); }
 
-/* Phone top bar: the streak chip yields room so the menu button is never clipped. */
-@media (max-width: 460px) { .topbar-streak { display: none !important; } }
 
 /* ── Admin inbox: tabs and phone filter sheet ───────── */
 .fbi-tabs { display: flex; gap: 6px; }
@@ -290,3 +356,24 @@ html.dark .fbi-tabs button.on { color: #0A0E17; }
 .exam-state h2 { margin: 0; font-size: 18px; color: var(--ink); }
 .exam-state p { margin: 0; max-width: 420px; font-size: 14px; color: var(--muted); }
 .exam-state__actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+/* ── App top bar (Layout) ───────────────────────────── */
+.tb-brand { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; text-decoration: none; color: var(--ink); }
+.tb-brand img { flex: 0 0 auto; width: 28px; height: 28px; object-fit: contain; }
+.tb-title { font-size: var(--fs-md); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tb-tag { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: var(--r-pill); border: 1px solid var(--border); background: var(--card-2); color: var(--ink-soft); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.tb-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.tb-xp { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: var(--r-pill); border: 1px solid var(--border); background: var(--card-2); color: var(--ink); font-size: 12px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tb-xp svg { color: var(--accent); }
+.tb-xp svg.is-hot { color: #ea580c; }
+.tb-xp__sep { opacity: 0.4; }
+.tb-avatar { width: 40px; height: 40px; flex: 0 0 auto; border-radius: 50%; border: 0; padding: 0; overflow: hidden; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+html.dark .tb-avatar { color: #0A0E17; }
+.tb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tb-subject { padding: 8px 16px 0; max-width: 80rem; margin: 0 auto; width: 100%; }
+@media (max-width: 767.98px) {
+  .app-topbar .topbar-inner { height: 52px; padding: 0 12px 0 16px; gap: 8px; }
+}
+@media (max-width: 359.98px) {
+  .tb-xp > span:not(:first-of-type) { display: none; }
+}

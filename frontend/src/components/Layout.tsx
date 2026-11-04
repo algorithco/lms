@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin, GamificationApi, type StreakInfoResponse } from '../lib/api';
 import UserNavDropdown from './UserNavDropdown';
+import { Flame } from 'lucide-react';
 import PlanBadge from './PlanBadge';
 import { useSubject } from '../lib/useSubject';
 import { formatDisplayName, initialsOf } from '../lib/displayName';
@@ -11,18 +12,15 @@ import MobileBottomBar from './MobileBottomBar';
 import MobileNavDrawer from './MobileNavDrawer';
 import MobileProfileDrawer from './MobileProfileDrawer';
 import SubjectSwitcher from './SubjectSwitcher';
-import LanguageSwitcher from './LanguageSwitcher';
 import {
   BarChartIcon,
   CameraIcon,
   CreditCardIcon,
   FileTextIcon,
-  FlameIcon,
   FolderOpenIcon,
   HomeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  MenuIcon,
   MicIcon,
   PenLineIcon,
   ShieldCheckIcon,
@@ -32,7 +30,6 @@ import {
   UploadIcon,
   UserPlusIcon,
   UsersIcon,
-  ZapIcon,
 } from './icons';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -47,6 +44,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** Phone top bar title per route (first match wins). */
+const PAGE_TITLES: [string, string][] = [
+  ['/dashboard', 'tb_title_home'],
+  ['/tests', 'tests'],
+  ['/take', 'tests'],
+  ['/essays', 'tb_title_essays'],
+  ['/results', 'results_analysis'],
+  ['/arena', 'arena'],
+  ['/profile', 'tb_title_profile'],
+  ['/groups', 'groups'],
+  ['/speaking', 'tb_title_speaking'],
+];
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const { t } = useLang();
@@ -56,6 +66,9 @@ export default function Layout() {
   const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const activeSubject = useSubject();
+  const { pathname } = useLocation();
+  const titleKey = PAGE_TITLES.find(([prefix]) => pathname.startsWith(prefix))?.[1];
+  const pageTitle = titleKey ? t(titleKey) : 'GRANDEC';
 
   useEffect(() => {
     if (!user) return;
@@ -191,158 +204,77 @@ export default function Layout() {
       {open && <div className="overlay" onClick={close} aria-hidden="true" />}
 
       <div className="main">
-        <header className="topbar app-topbar" aria-label="Yuqori panel">
+        <header className="topbar app-topbar" aria-label={t('topbar_label')}>
           <div className="topbar-inner">
-            {/* Mobile-only brand logo (Desktop uses left sidebar brand exclusively) */}
-            <div className="topbar-mobile-brand flex md:hidden">
-              <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-                <img src="/logo-mark.png" alt="GRANDEC" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 900, fontSize: 14, lineHeight: 1.1, color: 'var(--ink)' }}>GRANDEC</span>
-                  <span style={{ fontSize: 8, fontWeight: 800, color: '#D97706', letterSpacing: '0.1em' }}>ACADEMIC EDTECH</span>
-                </div>
-              </Link>
-            </div>
+            {/* Phones: logo + page title on the left (the sidebar carries the brand on desktop). */}
+            <Link to="/dashboard" className="tb-brand md:hidden">
+              <img src="/logo-mark.png" alt="" width={28} height={28} />
+              <span className="tb-title">{pageTitle}</span>
+            </Link>
 
-            {/* Desktop Context Badge */}
             <div className="hidden md:flex">
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 12px',
-                  borderRadius: 16,
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: '#B45309',
-                }}
-              >
-                <span>🏛️</span>
-                <span>{user?.active_subject ? t(activeSubject === 'english' ? 'app_motto_badge_english' : 'app_motto_badge') : ' '}</span>
-              </span>
+              {user?.active_subject && (
+                <span className="tb-tag">{t(activeSubject === 'english' ? 'app_motto_badge_english' : 'app_motto_badge')}</span>
+              )}
             </div>
             <div className="spacer" />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="tb-right">
               {streakData && (
-                <div
-                  className="topbar-streak"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 8px',
-                    borderRadius: '20px',
-                    background: 'rgba(245, 158, 11, 0.12)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    fontSize: '11.5px',
-                    fontWeight: 700,
-                    color: '#f59e0b',
-                  }}
-                  title={`Ketma-ketlik (Streak): ${streakData.current_streak} kun | Jami: ${streakData.xp_points} XP`}
+                <span
+                  className="tb-xp"
+                  title={t('tb_streak_title')
+                    .replace('{days}', String(streakData.current_streak))
+                    .replace('{xp}', String(streakData.xp_points))}
                 >
-                  <FlameIcon size={13} style={{ color: streakData.is_active_today ? '#ea580c' : '#f59e0b' }} />
+                  <Flame size={14} aria-hidden="true" className={streakData.is_active_today ? 'is-hot' : ''} />
                   <span>{streakData.current_streak}</span>
-                  <span style={{ opacity: 0.4 }}>•</span>
-                  <ZapIcon size={11} style={{ color: '#fbbf24' }} />
+                  <span className="tb-xp__sep" aria-hidden="true">·</span>
                   <span>{streakData.xp_points} XP</span>
-                </div>
+                </span>
               )}
-              <SubjectSwitcher size="sm" />
-              <LanguageSwitcher />
               <div className="hidden md:flex">
+                <SubjectSwitcher size="sm" />
+              </div>
+              <div className="hidden md:flex" style={{ alignItems: 'center', gap: 8 }}>
                 {isAdmin && (
-                  <Link
-                    to="/panel"
-                    className="topbar-admin-pill"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '5px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(245, 158, 11, 0.15)',
-                      border: '1px solid rgba(245, 158, 11, 0.35)',
-                      color: '#f59e0b',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease',
-                    }}
-                    title="Admin Boshqaruv Paneli"
-                  >
+                  <Link to="/panel" className="ui-btn ui-btn--sm">
                     <ShieldCheckIcon size={14} />
-                    <span>Admin Panel</span>
+                    <span>{t('tb_admin_panel')}</span>
                   </Link>
                 )}
                 <UserNavDropdown />
               </div>
-
-              {/* Mobile Right Controls: Compact Avatar Icon + Hamburger Menu (☰) */}
-              <div className="flex md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setProfileDrawerOpen(true)}
-                  aria-label="Profilni ochish"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                    color: '#FFFFFF',
-                    border: '2px solid rgba(245, 158, 11, 0.7)',
-                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: 11, fontWeight: 900 }}>
-                      {initialsOf(user?.full_name, user?.email)}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNavDrawerOpen(true)}
-                  aria-label="Menyuni ochish"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    background: 'var(--card-2)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--ink)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <MenuIcon size={18} />
-                </button>
-              </div>
+              <button
+                type="button"
+                className="tb-avatar md:hidden"
+                onClick={() => setProfileDrawerOpen(true)}
+                aria-label={t('tb_open_profile')}
+              >
+                {user?.avatar ? <img src={user.avatar} alt="" /> : <span>{initialsOf(user?.full_name, user?.email)}</span>}
+              </button>
             </div>
           </div>
         </header>
+        {/* Phones: subject switcher as a segmented control under the bar (never inside it). */}
+        <div className="tb-subject md:hidden">
+          <SubjectSwitcher variant="seg" />
+        </div>
         <main className="content">
           <Outlet />
         </main>
       </div>
 
       {/* TESTMAKON-STYLE 3D SOFT BOTTOM NAVIGATION & DRAWERS */}
-      <div className="md:hidden"><MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} /></div>
+      <MobileBottomBar onOpenProfile={() => setProfileDrawerOpen(true)} />
       <MobileNavDrawer isOpen={navDrawerOpen} onClose={() => setNavDrawerOpen(false)} />
-      <MobileProfileDrawer isOpen={profileDrawerOpen} onClose={() => setProfileDrawerOpen(false)} />
+      <MobileProfileDrawer
+        isOpen={profileDrawerOpen}
+        onClose={() => setProfileDrawerOpen(false)}
+        onOpenMenu={() => {
+          setProfileDrawerOpen(false);
+          setNavDrawerOpen(true);
+        }}
+      />
     </div>
   );
 }

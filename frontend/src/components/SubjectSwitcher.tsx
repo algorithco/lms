@@ -8,6 +8,8 @@ type Subject = 'uzbek' | 'english';
 interface SubjectSwitcherProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  /** seg = full-width segmented control (phones, under the top bar). */
+  variant?: 'pill' | 'seg';
   onSwitch?: (subject: Subject) => void;
 }
 
@@ -15,16 +17,18 @@ interface SubjectSwitcherProps {
  * Subject (what you study) — NOT the interface language. The interface
  * language has its own switcher; the two states are stored separately.
  */
-export default function SubjectSwitcher({ className = '', size = 'md', onSwitch }: SubjectSwitcherProps) {
+export default function SubjectSwitcher({ className = '', size = 'md', variant = 'pill', onSwitch }: SubjectSwitcherProps) {
   const { user, updateUserLocal } = useAuth();
   const { t } = useLang();
   const [loading, setLoading] = useState(false);
 
   // Active subject from user profile or local fallback
   const currentSubject: Subject =
-    user?.active_subject === 'english'
-      ? 'english'
-      : (localStorage.getItem('lms_subject') as Subject) || 'uzbek';
+    user?.active_subject === 'english' || user?.active_subject === 'uzbek'
+      ? user.active_subject
+      : localStorage.getItem('lms_subject') === 'english'
+        ? 'english'
+        : 'uzbek';
 
   const handleSelect = async (nextSubject: Subject) => {
     if (nextSubject === currentSubject || loading) return;
@@ -60,6 +64,18 @@ export default function SubjectSwitcher({ className = '', size = 'md', onSwitch 
     onSwitch?.(nextSubject);
     setLoading(false);
   };
+
+  if (variant === 'seg') {
+    return (
+      <div role="group" aria-label={t('subject_label')} className={`ui-seg ${className}`}>
+        {(['uzbek', 'english'] as Subject[]).map((s) => (
+          <button key={s} type="button" disabled={loading} aria-pressed={currentSubject === s} onClick={() => handleSelect(s)}>
+            {t(s === 'uzbek' ? 'subject_uzbek' : 'subject_english')}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   const sizeClass = size === 'sm' ? 'size-sm' : size === 'lg' ? 'size-lg' : '';
   const option = (subject: Subject, label: string) => (
