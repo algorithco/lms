@@ -2545,7 +2545,15 @@
     "tv_tab_spelling": "Imlo",
     "tv_tab_eng_uzb": "Eng → Uzb",
     "tv_tab_uzb_eng": "Uzb → Eng",
-    "tv_empty": "So'zlarni kiriting va mashq yarating — natija shu yerda ko'rinadi."
+    "tv_empty": "So'zlarni kiriting va mashq yarating — natija shu yerda ko'rinadi.",
+    "drawer_role_admin": "Administrator",
+    "drawer_role_teacher": "Ustoz",
+    "drawer_role_parent": "Ota-ona",
+    "drawer_role_student": "O'quvchi",
+    "drawer_profile": "Profil",
+    "drawer_certificates": "Sertifikatlarim",
+    "drawer_plans": "Tariflar va obuna",
+    "drawer_admin_panel": "Admin panel"
   },
   "ru": {
     "main": "Главное",
@@ -5093,7 +5101,15 @@
     "tv_tab_spelling": "Орфография",
     "tv_tab_eng_uzb": "Англ → Узб",
     "tv_tab_uzb_eng": "Узб → Англ",
-    "tv_empty": "Введите слова и создайте упражнения — результат появится здесь."
+    "tv_empty": "Введите слова и создайте упражнения — результат появится здесь.",
+    "drawer_role_admin": "Администратор",
+    "drawer_role_teacher": "Преподаватель",
+    "drawer_role_parent": "Родитель",
+    "drawer_role_student": "Ученик",
+    "drawer_profile": "Профиль",
+    "drawer_certificates": "Мои сертификаты",
+    "drawer_plans": "Тарифы и подписка",
+    "drawer_admin_panel": "Панель администратора"
   },
   "en": {
     "main": "Main",
@@ -7641,6 +7657,14 @@
     "tv_tab_spelling": "Spelling",
     "tv_tab_eng_uzb": "Eng → Uzb",
     "tv_tab_uzb_eng": "Uzb → Eng",
-    "tv_empty": "Enter words and create the exercises; they appear here."
+    "tv_empty": "Enter words and create the exercises; they appear here.",
+    "drawer_role_admin": "Administrator",
+    "drawer_role_teacher": "Teacher",
+    "drawer_role_parent": "Parent",
+    "drawer_role_student": "Student",
+    "drawer_profile": "Profile",
+    "drawer_certificates": "My certificates",
+    "drawer_plans": "Plans and subscription",
+    "drawer_admin_panel": "Admin panel"
   }
 }

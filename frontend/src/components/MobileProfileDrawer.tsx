@@ -28,17 +28,17 @@ interface MobileProfileDrawerProps {
 /** Each language in its own name, so it is findable whatever the current language is. */
 const LANG_NAMES: Record<AppLang, string> = { uz: "O'zbekcha", en: 'English', ru: 'Русский' };
 
-function getRoleBadge(role?: string): { label: string; bg: string; color: string } {
+function getRoleBadge(role?: string): { key: string; bg: string; color: string } {
   if (role === 'admin' || role === 'superadmin') {
-    return { label: '🛡 Administrator', bg: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' };
+    return { key: 'drawer_role_admin', bg: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' };
   }
   if (role === 'teacher') {
-    return { label: "👨‍🏫 O'qituvchi / Ustoz", bg: 'rgba(16, 185, 129, 0.12)', color: '#10B981' };
+    return { key: 'drawer_role_teacher', bg: 'rgba(16, 185, 129, 0.12)', color: '#10B981' };
   }
   if (role === 'parent') {
-    return { label: '👨‍👩‍👧 Ota-ona', bg: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' };
+    return { key: 'drawer_role_parent', bg: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' };
   }
-  return { label: "🎓 O'quvchi", bg: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' };
+  return { key: 'drawer_role_student', bg: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' };
 }
 
 export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: MobileProfileDrawerProps) {
@@ -175,7 +175,7 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                     {user.avatar ? (
                       <img
                         src={user.avatar}
-                        alt={user.full_name || 'Profil'}
+                        alt={user.full_name || t('drawer_profile')}
                         style={{
                           width: 64,
                           height: 64,
@@ -256,7 +256,7 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                         color: roleBadge.color,
                       }}
                     >
-                      {roleBadge.label}
+                      {t(roleBadge.key)}
                     </span>
 
                     <PlanBadge variant="chip" onNavigate={onClose} />
@@ -271,7 +271,7 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                         color: isDark ? '#94A3B8' : '#475569',
                       }}
                     >
-                      #ID-{user.id || '2026'}
+                      ID {user.id}
                     </span>
                   </div>
                 </div>
@@ -296,7 +296,7 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                     }}
                   >
                     <span style={{ color: '#F59E0B' }}><UserIcon size={18} /></span>
-                    <span>Shaxsiy Kabinet va Ma&apos;lumotlar</span>
+                    <span>{t('drawer_profile')}</span>
                   </Link>
 
                   <Link
@@ -316,9 +316,10 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                     }}
                   >
                     <span style={{ color: '#10B981' }}><TrophyIcon size={18} /></span>
-                    <span>Mening Sertifikatlarim</span>
+                    <span>{t('drawer_certificates')}</span>
                   </Link>
 
+                  {!isAdmin && (
                   <Link
                     to="/subscribe"
                     onClick={onClose}
@@ -336,8 +337,9 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                     }}
                   >
                     <span style={{ color: '#D97706' }}><CrownIcon size={18} /></span>
-                    <span>Tariflar va Obuna (PRO)</span>
+                    <span>{t('drawer_plans')}</span>
                   </Link>
+                  )}
 
                   {isAdmin && (
                     <Link
@@ -357,7 +359,7 @@ export default function MobileProfileDrawer({ isOpen, onClose, onOpenMenu }: Mob
                       }}
                     >
                       <ShieldCheckIcon size={18} />
-                      <span>Admin Boshqaruv Paneli</span>
+                      <span>{t('drawer_admin_panel')}</span>
                     </Link>
                   )}
                 </div>
