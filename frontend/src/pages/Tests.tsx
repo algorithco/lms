@@ -8,6 +8,7 @@ import { useLang } from '../i18n/LangContext';
 import { Billing, DashboardApi, MockTests, type ApiError, type BillingEntitlement } from '../lib/api';
 import { listTestsPage, type TestListItem } from '../lib/testing';
 import { paywallSubject, type PaywallSubject } from '../lib/paywall';
+import { listState } from '../lib/listState';
 import { useSubject } from '../lib/useSubject';
 import { useVisualViewport } from '../lib/useVisualViewport';
 
@@ -246,8 +247,10 @@ export default function Tests() {
   const totalPages = count != null ? Math.max(1, Math.ceil(count / PAGE_SIZE)) : 1;
   const filtersOn = (difficulty ? 1 : 0) + (query ? 1 : 0);
 
+  const view = listState({ loading, error: err, total: tests.length, visible: visible.length });
+
   return (
-    <div className="tl">
+    <div className="tl" data-state={view}>
       <div className="tl-head">
         <h1>
           {t('tests')}
@@ -301,7 +304,7 @@ export default function Tests() {
         </button>
       </div>
 
-      {loading && (
+      {view === 'loading' && (
         <div className="tl-grid" aria-busy="true" aria-label={t('loading')}>
           <SkeletonCard />
           <SkeletonCard />
@@ -309,7 +312,7 @@ export default function Tests() {
         </div>
       )}
 
-      {!loading && err && (
+      {view === 'error' && (
         <div className="ui-state ui-state--error" role="alert">
           <span className="ic-chip ic-chip--danger">
             <AlertTriangle size={24} aria-hidden="true" />
@@ -322,7 +325,7 @@ export default function Tests() {
         </div>
       )}
 
-      {!loading && !err && tests.length === 0 && (
+      {view === 'empty' && (
         <div className="ui-state">
           <span className="ic-chip ic-chip--muted">
             <FileText size={24} aria-hidden="true" />
@@ -332,7 +335,7 @@ export default function Tests() {
         </div>
       )}
 
-      {!loading && !err && tests.length > 0 && visible.length === 0 && (
+      {view === 'no_match' && (
         <div className="ui-state">
           <span className="ic-chip ic-chip--muted">
             <Search size={24} aria-hidden="true" />
@@ -352,7 +355,7 @@ export default function Tests() {
         </div>
       )}
 
-      {!loading && !err && visible.length > 0 && (
+      {view === 'list' && (
         <div className="tl-grid">
           {visible.map((i) => (
             <article key={i.id} className="ui-card tl-card">

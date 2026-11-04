@@ -17,23 +17,7 @@ const SESSION_BASE = import.meta.env.VITE_API_URL ?? '';
 // and numbers are ignored), matching the server-side min/max validation.
 // ---------------------------------------------------------------------------
 
-export function countEssayWords(text: string): number {
-  if (!text || !text.trim()) return 0;
-  const normalized = text.trim().replace(/\s+/g, ' ');
-  let n = 0;
-  for (const w of normalized.split(' ')) {
-    if (w && /[a-zA-Z\u0410-\u044F\u0401\u0451]/.test(w)) n += 1;
-  }
-  return n;
-}
-
-export type WordZone = 'under' | 'ok' | 'over';
-
-export function wordZone(count: number, min: number, max: number): WordZone {
-  if (count < min) return 'under';
-  if (max > 0 && count > max) return 'over';
-  return 'ok';
-}
+export { countEssayWords, wordZone, type WordZone } from './essays';
 
 // ---------------------------------------------------------------------------
 // Essay grading statuses (apps.essays.models.EssaySubmission.Status).

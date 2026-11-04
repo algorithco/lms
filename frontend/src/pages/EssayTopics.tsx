@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Camera, Clock, FileText, Lock, PenLine, RotateCcw, Search } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
 import { AuthExpiredError, Essays } from '../lib/api';
-import { essayKind, essayStatus, scoreLabel, type EssayKind } from '../lib/essays';
+import { essayKind, essayStatus, filterMyEssays, filterTopics, scoreLabel, type EssayKind, type MineFilter } from '../lib/essays';
 import { useSubject } from '../lib/useSubject';
 
 interface UserStatus {
@@ -42,7 +42,6 @@ interface Submission {
 }
 
 type Tab = 'topics' | 'mine';
-type MineFilter = 'all' | 'draft' | 'graded';
 
 const TYPE_FILTERS: Record<'uzbek' | 'english', ('all' | EssayKind)[]> = {
   uzbek: ['all', 'ona_tili', 'adabiyot'],
@@ -100,25 +99,9 @@ export default function EssayTopics() {
     };
   }, [subject, reload, navigate, t]);
 
-  const visibleTopics = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return topics.filter((tp) => {
-      const kind = essayKind(tp);
-      if (type !== 'all' && kind !== type) return false;
-      return !q || tp.title.toLowerCase().includes(q) || (tp.description || '').toLowerCase().includes(q);
-    });
-  }, [topics, query, type]);
+  const visibleTopics = useMemo(() => filterTopics(topics, type, query), [topics, query, type]);
 
-  const visibleSubs = useMemo(
-    () =>
-      subs.filter((s) => {
-        const st = essayStatus(s.status);
-        if (mineFilter === 'draft') return st === 'draft';
-        if (mineFilter === 'graded') return st === 'graded';
-        return true;
-      }),
-    [subs, mineFilter],
-  );
+  const visibleSubs = useMemo(() => filterMyEssays(subs, mineFilter), [subs, mineFilter]);
 
   const dateOf = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(lang) : '');
 

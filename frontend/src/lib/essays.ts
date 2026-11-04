@@ -41,3 +41,44 @@ export function scoreLabel(
   if (s.total_score == null) return '';
   return s.max_score ? `${Number(s.total_score)}/${s.max_score}` : String(Number(s.total_score));
 }
+
+/** Word count exactly as the server counts it (apps.essays.services.WordCounter):
+ *  only tokens with a Latin or Cyrillic letter count; numbers and punctuation do not. */
+export function countEssayWords(text: string): number {
+  if (!text || !text.trim()) return 0;
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  let n = 0;
+  for (const w of normalized.split(' ')) {
+    if (w && /[a-zA-Z\u0410-\u044F\u0401\u0451]/.test(w)) n += 1;
+  }
+  return n;
+}
+
+export type WordZone = 'under' | 'ok' | 'over';
+
+export function wordZone(count: number, min: number, max: number): WordZone {
+  if (count < min) return 'under';
+  if (max > 0 && count > max) return 'over';
+  return 'ok';
+}
+
+export type MineFilter = 'all' | 'draft' | 'graded';
+
+/** "My essays" filter chips: drafts, graded, or everything. */
+export function filterMyEssays<T extends { status: string }>(list: T[], filter: MineFilter): T[] {
+  if (filter === 'all') return list;
+  return list.filter((s) => essayStatus(s.status) === filter);
+}
+
+/** Topic list: type chip plus free-text search over title and description. */
+export function filterTopics<T extends { title: string; description?: string; category?: string; rubric_type?: string }>(
+  topics: T[],
+  type: 'all' | EssayKind,
+  query: string,
+): T[] {
+  const q = query.trim().toLowerCase();
+  return topics.filter((tp) => {
+    if (type !== 'all' && essayKind(tp) !== type) return false;
+    return !q || tp.title.toLowerCase().includes(q) || (tp.description || '').toLowerCase().includes(q);
+  });
+}

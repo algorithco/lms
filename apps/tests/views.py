@@ -129,6 +129,8 @@ class TestListView(generics.ListAPIView):
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         queryset = self.filter_queryset(self.get_queryset()).prefetch_related("sections")
+        if not queryset.ordered:
+            queryset = queryset.order_by("-id")  # stable pages: no test repeats or goes missing between pages
         page = self.paginate_queryset(queryset)
         items = list(page if page is not None else queryset)
         context = {**self.get_serializer_context(), "my_status": _my_status_map(request.user, items)}
