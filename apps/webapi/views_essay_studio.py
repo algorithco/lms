@@ -42,6 +42,10 @@ class EssaySubmitThrottle(UserRateThrottle):
     scope = "essay-submit"
 
 
+class AutosaveThrottle(UserRateThrottle):
+    scope = "essay-autosave"
+
+
 def _quota_denied(exc: QuotaDenied) -> Response:
     return Response(
         {
@@ -122,23 +126,75 @@ def submit_new_essay(user, text: str, *, kind: str, topic: EssayTopic | None = N
 @permission_classes([IsAuthenticated])
 @throttle_classes([OcrThrottle])
 def essay_ocr_view(request: Request) -> Response:
-    """Pages (multipart field ``pages``, in order) → recognised text. Never charges, never grades."""
+    """Pages (multipart field ``pages``, in order) → recognised text. Never grades.
+
+    OCR is a paid vision call, so it is limited three ways: the plan must include
+    photo essays (FREE and STARTER are refused), a daily cap per tier applies
+    (PRO: 5), and the request is rate-limited. A failed call gives the cap back.
+    """
+    from django.conf import settings
+
+    from apps.core.ai_health import record_ai_failure, record_ai_success
     from apps.essays.ocr import OCRFailed, OCRUnavailable, OCRValidationError, extract_text
+    from apps.payments.ai_quota import consume_feature_cap, refund_feature_cap
 
     files = request.FILES.getlist("pages")
     if not files:
         return Response({"error": "no_pages", "code": "no_pages"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Cheap checks first, before any allowance is taken or a byte is read.
+    max_pages = int(getattr(settings, "ESSAY_IMAGE_MAX_PAGES", 10))
+    max_bytes = int(getattr(settings, "ESSAY_IMAGE_MAX_BYTES", 10 * 1024 * 1024))
+    if len(files) > max_pages:
+        return Response({"error": "too_many_pages", "code": "too_many_pages", "max": max_pages}, status=status.HTTP_400_BAD_REQUEST)
+    for f in files:
+        if f.size > max_bytes:
+            return Response({"error": "file_too_large", "code": "file_too_large", "max_bytes": max_bytes}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        if not str(getattr(f, "content_type", "") or "").lower().startswith("image/"):
+            return Response({"error": "not_an_image", "code": "not_an_image"}, status=status.HTTP_400_BAD_REQUEST)
+
+    from apps.payments.entitlements import get_effective_entitlement
+
+    ent = get_effective_entitlement(request.user)
+    image_limit = ent.limit_for(SubscriptionUsage.Kind.IMAGE_ESSAY)
+    staff = getattr(request.user, "is_superuser", False) or getattr(request.user, "role", "") in ("teacher", "admin", "center_admin")
+    if not staff and not ent.is_unlimited_image_essays and (image_limit is not None and image_limit <= 0):
+        return Response(
+            {"detail": "PLAN_REQUIRED", "error": "photo_essay_not_in_plan", "code": "plan_required", "upgrade_url": "/pricing"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    allowed, limit = consume_feature_cap(request.user, "ocr")
+    if not allowed:
+        if not limit:
+            return Response(
+                {"detail": "PLAN_REQUIRED", "error": "photo_essay_not_in_plan", "code": "plan_required", "upgrade_url": "/pricing"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(
+            {"detail": "LIMIT_EXCEEDED", "error": "ocr_daily_limit", "code": "ocr_daily_limit", "limit": limit},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     try:
         result = extract_text([f.read() for f in files])
     except OCRValidationError as exc:
+        refund_feature_cap(request.user, "ocr")
         return Response({"error": str(exc), "code": "invalid_image"}, status=status.HTTP_400_BAD_REQUEST)
-    except OCRUnavailable:
+    except OCRUnavailable as exc:
+        refund_feature_cap(request.user, "ocr")
+        record_ai_failure("ocr", exc)
         return Response({"error": "ocr_unavailable", "code": "ocr_unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except OCRFailed as exc:
+        refund_feature_cap(request.user, "ocr")
+        record_ai_failure("ocr", exc)
         return Response({"error": str(exc), "code": "ocr_failed"}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-    except Exception:
+    except Exception as exc:
         logger.exception("Unexpected OCR failure for user=%s", request.user.pk)
+        refund_feature_cap(request.user, "ocr")
+        record_ai_failure("ocr", exc)
         return Response({"error": "ocr_failed", "code": "ocr_failed"}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+    record_ai_success("ocr")
     return Response({"text": result.text, "incomplete": bool(result.is_probably_incomplete), "warnings": list(result.warnings)})
 
 
@@ -184,6 +240,7 @@ def essay_custom_view(request: Request) -> Response:
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AutosaveThrottle])
 def essay_autosave_view(request: Request, submission_id: int) -> Response:
     """{essay_text} — save a draft's text for its owner. Never submits and never charges."""
     from apps.essays.services import WordCounter

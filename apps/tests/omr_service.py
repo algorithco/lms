@@ -298,14 +298,30 @@ def _review_item(nq: NumberedQuestion, status: str, value: str) -> dict[str, Any
 # ---------------------------------------------------------------------------
 
 
-def omr_tests_queryset():
+def omr_tests_queryset(user=None):
+    """Tests a sheet can be checked against.
+
+    With ``user`` the list is limited to tests that user may actually start:
+    "students only" tests need membership of the assigned group (or being the
+    author / staff) and PIN-protected tests are left out, so the scanner never
+    lists or reads a test the student could not open online.
+    """
+    from django.db.models import Q
+
     from apps.tests.models import Test
 
-    return Test.objects.filter(is_active=True).exclude(status=Test.Status.ARCHIVED)
+    qs = Test.objects.filter(is_active=True).exclude(status=Test.Status.ARCHIVED)
+    if user is None or getattr(user, "is_superuser", False) or getattr(user, "role", "") in ("admin", "center_admin"):
+        return qs
+    visible = Q(access_type=Test.AccessType.PUBLIC) | Q(access_type=Test.AccessType.PRO_ONLY)
+    visible |= Q(access_type=Test.AccessType.STUDENTS_ONLY, assigned_group__students=user)
+    visible |= Q(created_by=user)
+    visible |= Q(assigned_group__teacher=user)
+    return qs.filter(visible).filter(Q(access_pin="") | Q(created_by=user)).distinct()
 
 
-def resolve_test(test_id: int | None, mock_code: str | None, detected_code: str = ""):
-    qs = omr_tests_queryset()
+def resolve_test(test_id: int | None, mock_code: str | None, detected_code: str = "", user=None):
+    qs = omr_tests_queryset(user)
     if test_id:
         return qs.filter(pk=test_id).first()
     for code in (mock_code, detected_code):
@@ -322,10 +338,19 @@ def resolve_test(test_id: int | None, mock_code: str | None, detected_code: str 
 # ---------------------------------------------------------------------------
 
 
-def scan_sheet(image_file, test_id: int | None = None, mock_code: str | None = None) -> dict[str, Any]:
+def scan_sheet(
+    image_file,
+    test_id: int | None = None,
+    mock_code: str | None = None,
+    user=None,
+    before_vision=None,
+) -> dict[str, Any]:
+    """``before_vision`` runs once the photo and test are valid, right before the
+    paid vision call: the view takes today's scan allowance there, so an image
+    that is rejected for free never costs the student a scan."""
     image_bytes, mime = validate_image(image_file)
 
-    test = resolve_test(test_id, mock_code)
+    test = resolve_test(test_id, mock_code, user=user)
     if test_id and not test:
         raise OmrError("test_not_found", _("Test topilmadi yoki faol emas."), http_status=404)
     if not test:
@@ -335,6 +360,8 @@ def scan_sheet(image_file, test_id: int | None = None, mock_code: str | None = N
     if not numbered:
         raise OmrError("no_objective_questions", _("Bu testda javoblar varaqasi bilan tekshiriladigan savollar yo'q."))
 
+    if before_vision is not None:
+        before_vision()
     extracted = read_marks(image_bytes, mime, [nq.key for nq in numbered])
     if extracted.get("is_answer_sheet") is not True:
         raise OmrError("not_a_sheet", _("Bu javoblar varaqasi emas, aniq suratga oling."))
@@ -382,7 +409,7 @@ def confirm_sheet(test_id: int, answers: dict[str, Any], user) -> dict[str, Any]
     from apps.tests.models import TestAttempt
     from apps.tests.services import SaveAnswerService, StartAttemptService, SubmitAttemptService
 
-    test = omr_tests_queryset().filter(pk=test_id).first()
+    test = omr_tests_queryset(user).filter(pk=test_id).first()
     if not test:
         raise OmrError("test_not_found", _("Test topilmadi yoki faol emas."), http_status=404)
 
