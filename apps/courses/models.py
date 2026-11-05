@@ -303,6 +303,12 @@ class StudentGroup(models.Model):
         db_index=True,
         help_text=_("Ushbu sinfga ulangan Telegram guruhining unikal chat ID si"),
     )
+    telegram_chat_title = models.CharField(
+        "Telegram guruh nomi",
+        max_length=255,
+        blank=True,
+        default="",
+    )
     created_at = models.DateTimeField(_("yaratilgan"), auto_now_add=True)
     updated_at = models.DateTimeField(_("yangilangan"), auto_now=True)
 
@@ -326,6 +332,14 @@ class StudentGroup(models.Model):
         if not self.invite_token:
             self.invite_token = generate_invite_token()
         super().save(*args, **kwargs)
+
+    @property
+    def group_code(self) -> str:
+        return self.invite_code or ""
+
+    @group_code.setter
+    def group_code(self, value: str) -> None:
+        self.invite_code = value
 
     @property
     def student_count(self) -> int:

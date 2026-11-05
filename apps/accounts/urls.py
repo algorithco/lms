@@ -47,6 +47,11 @@ urlpatterns = [
         views.ProfileView.as_view(),
         name="profile",
     ),
+    path(
+        "onboarding/",
+        views.complete_onboarding_view,
+        name="complete_onboarding",
+    ),
     # -- Password reset (JSON, React SPA) ---------------------------------------
     path(
         "password-reset/",

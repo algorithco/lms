@@ -528,7 +528,36 @@ def _main_menu_keyboard(role: str = "student") -> InlineKeyboardMarkup:
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command — welcome + auto-link + auth token support + RBAC onboarding."""
-    args = context.args if context.args else []
+    args = list(context.args) if getattr(context, "args", None) else []
+    if (
+        not args
+        and getattr(update, "message", None)
+        and isinstance(getattr(update.message, "text", None), str)
+    ):
+        parts = update.message.text.strip().split()
+        if len(parts) > 1 and parts[0].startswith("/"):
+            args = parts[1:]
+
+    chat = getattr(update, "effective_chat", None)
+    chat_type = getattr(chat, "type", None) if chat else None
+    is_group_chat = chat_type in ("group", "supergroup")
+
+    # 1-Click Group Deep-Link: /start link_GR-8492 or /start GR-8492 inside a group/supergroup
+    if is_group_chat or (args and args[0].upper().startswith("LINK_GR-")):
+        from apps.notifications.bot.group_assistant import (
+            bind_telegram_group_by_code,
+            send_group_welcome_message,
+        )
+
+        if args:
+            raw_arg = args[0].strip()
+            if raw_arg.lower().startswith("link_"):
+                raw_arg = raw_arg[5:].strip()
+            await bind_telegram_group_by_code(update, context, raw_arg)
+            return
+        elif is_group_chat and chat:
+            await send_group_welcome_message(chat.id, context)
+            return
 
     if args and args[0].startswith("link_"):
         from apps.accounts.services.telegram_link import confirm_link_challenge
@@ -9583,10 +9612,10 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("cancel_essay", cancel_essay_handler))
     app.add_handler(CommandHandler("leaderboard", unified_leaderboard_handler))
     app.add_handler(CommandHandler("reyting", unified_leaderboard_handler))
-    app.add_handler(CommandHandler("link_group", link_group_command))
+    app.add_handler(CommandHandler(["ulash", "link", "link_group"], link_group_command))
     app.add_handler(CommandHandler("davomat", unified_davomat_handler))
     app.add_handler(CommandHandler("davomat_yakun", group_davomat_yakun_command))
-    app.add_handler(CommandHandler("vedomost", group_vedomost_command))
+    app.add_handler(CommandHandler(["vedomost", "report"], group_vedomost_command))
     app.add_handler(CommandHandler("ustoz", ustoz_menu_command))
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))

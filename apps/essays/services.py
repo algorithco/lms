@@ -3582,6 +3582,18 @@ def notify_student_essay_graded(submission) -> None:
             return
     except Exception:
         pass
+
+    # Broadcast essay result & PDF scorecard to all linked Telegram groups of the student
+    try:
+        from apps.notifications.tasks import broadcast_essay_result_to_groups
+
+        broadcast_essay_result_to_groups(submission)
+    except Exception:
+        logger.exception(
+            "Failed to broadcast essay result to linked groups: submission=%s",
+            getattr(submission, "id", None),
+        )
+
     student = submission.student
     chat_id = getattr(student, "telegram_chat_id", None)
     if not chat_id or not getattr(student, "telegram_identity_verified_at", None):

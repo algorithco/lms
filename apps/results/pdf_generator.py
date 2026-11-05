@@ -689,3 +689,296 @@ def generate_group_vedomost_pdf(group_id: int, test_id: int | None = None) -> st
     doc.build(story)
     logger.info("Group vedomost PDF generated: %s (group_id=%s)", file_path, group_id)
     return file_path
+
+
+# ---------------------------------------------------------------------------
+# 3. Single Student AI Essay Scorecard / Vedomost PDF
+# ---------------------------------------------------------------------------
+def generate_essay_vedomost_pdf(submission_or_id: Any) -> str:
+    """
+    Generates an official A4 portrait essay scorecard PDF and writes it to media/vedomost/.
+    Returns the absolute path to the generated PDF.
+    """
+    from apps.essays.models import EssaySubmission
+    from apps.essays.services import generate_essay_result_pdf
+
+    if isinstance(submission_or_id, int):
+        submission = EssaySubmission.objects.select_related("student", "topic").get(
+            id=submission_or_id
+        )
+    else:
+        submission = submission_or_id
+
+    vedomost_dir = os.path.join(settings.MEDIA_ROOT, "vedomost")
+    os.makedirs(vedomost_dir, exist_ok=True)
+    filename = f"essay_vedomost_{submission.id}.pdf"
+    file_path = os.path.join(vedomost_dir, filename)
+
+    pdf_buffer = generate_essay_result_pdf(submission)
+    pdf_bytes = pdf_buffer.getvalue() if hasattr(pdf_buffer, "getvalue") else bytes(pdf_buffer)
+    with open(file_path, "wb") as f:
+        f.write(pdf_bytes)
+
+    logger.info("Essay vedomost PDF generated: %s (submission_id=%s)", file_path, submission.id)
+    return file_path
+
+
+# ---------------------------------------------------------------------------
+# 4. Single Student AI Speaking Scorecard / Vedomost PDF
+# ---------------------------------------------------------------------------
+def generate_speaking_vedomost_pdf(submission_or_id: Any) -> str:
+    """
+    Generates an official A4 portrait IELTS / CEFR Speaking scorecard PDF.
+    Returns the absolute path to the generated PDF.
+    """
+    from django.utils.html import escape as _esc
+    from apps.speaking.models import SpeakingSubmission
+
+    if isinstance(submission_or_id, int):
+        sub = SpeakingSubmission.objects.select_related("user", "topic").get(
+            id=submission_or_id
+        )
+    else:
+        sub = submission_or_id
+
+    user = sub.user
+    topic = sub.topic
+    group = user.student_groups.first() if hasattr(user, "student_groups") else None
+    group_name = group.name if group else "Mustaqil ta'lim (Individual)"
+    student_name = user.get_full_name() or getattr(user, "username", "") or user.email
+
+    vedomost_dir = os.path.join(settings.MEDIA_ROOT, "vedomost")
+    os.makedirs(vedomost_dir, exist_ok=True)
+    filename = f"speaking_vedomost_{sub.id}.pdf"
+    file_path = os.path.join(vedomost_dir, filename)
+
+    doc = SimpleDocTemplate(
+        file_path,
+        pagesize=A4,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+    )
+
+    styles = _get_styles()
+    story: list[Any] = []
+
+    # -- Header ---------------------------------------------------------------
+    story.append(Paragraph("GRAND EDUCATION LMS", styles["title"]))
+    story.append(Spacer(1, 2 * mm))
+    story.append(
+        Paragraph(
+            "RASMIY AI SPEAKING VEDOMOSTI / OFFICIAL IELTS SPEAKING SCORECARD",
+            styles["subtitle"],
+        )
+    )
+    story.append(Spacer(1, 3 * mm))
+    story.append(
+        HRFlowable(
+            width="100%",
+            thickness=1.5,
+            color=VedomostColors.PRIMARY,
+            spaceAfter=8,
+        )
+    )
+
+    # -- Student & Speaking Task Meta Table -----------------------------------
+    date_str = (
+        sub.created_at.strftime("%d.%m.%Y %H:%M")
+        if getattr(sub, "created_at", None)
+        else timezone.now().strftime("%d.%m.%Y %H:%M")
+    )
+    part_label = topic.get_part_display() if hasattr(topic, "get_part_display") else str(getattr(topic, "part", "Part 2"))
+    topic_title = getattr(topic, "title", "Speaking Prompt")
+
+    meta_data = [
+        [
+            Paragraph("<b>O'quvchi F.I.Sh:</b>", styles["cell"]),
+            Paragraph(_esc(student_name), styles["cell_bold"]),
+            Paragraph("<b>Speaking mavzusi:</b>", styles["cell"]),
+            Paragraph(_esc(topic_title), styles["cell_bold"]),
+        ],
+        [
+            Paragraph("<b>Guruh:</b>", styles["cell"]),
+            Paragraph(_esc(group_name), styles["cell"]),
+            Paragraph("<b>Imtihon qismi:</b>", styles["cell"]),
+            Paragraph(_esc(str(part_label)), styles["cell"]),
+        ],
+        [
+            Paragraph("<b>Hujjat ID:</b>", styles["cell"]),
+            Paragraph(f"SPK-{sub.id:06d}", styles["cell"]),
+            Paragraph("<b>Nutq davomiyligi:</b>", styles["cell"]),
+            Paragraph(f"{getattr(sub, 'duration_seconds', 60)} soniya", styles["cell"]),
+        ],
+        [
+            Paragraph("<b>Topshirilgan sana:</b>", styles["cell"]),
+            Paragraph(date_str, styles["cell"]),
+            Paragraph("<b>Baholash tizimi:</b>", styles["cell"]),
+            Paragraph("AI IELTS Examiner (Band 1.0–9.0)", styles["cell"]),
+        ],
+    ]
+
+    meta_table = Table(meta_data, colWidths=[35 * mm, 55 * mm, 35 * mm, 55 * mm])
+    meta_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), VedomostColors.LIGHT_BG),
+            ("BOX", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ])
+    )
+    story.append(meta_table)
+    story.append(Spacer(1, 5 * mm))
+
+    # -- Key Metrics Cards ----------------------------------------------------
+    overall = float(getattr(sub, "overall_band", 0) or 0)
+    fc = float(getattr(sub, "fluency_score", 0) or 0)
+    lr = float(getattr(sub, "lexical_score", 0) or 0)
+    gra = float(getattr(sub, "grammar_score", 0) or 0)
+    pr = float(getattr(sub, "pronunciation_score", 0) or 0)
+
+    cefr_map = "C2" if overall >= 8.5 else ("C1" if overall >= 7.0 else ("B2" if overall >= 5.5 else ("B1" if overall >= 4.0 else "A2")))
+
+    metrics_data = [
+        [
+            Paragraph(f"Band {overall:.1f}", styles["metric_value"]),
+            Paragraph(cefr_map, styles["metric_value"]),
+            Paragraph(f"{fc:.1f} / {lr:.1f}", styles["metric_value"]),
+            Paragraph(f"{gra:.1f} / {pr:.1f}", styles["metric_value"]),
+        ],
+        [
+            Paragraph("OVERALL BAND", styles["metric_label"]),
+            Paragraph("CEFR DARAJASI", styles["metric_label"]),
+            Paragraph("FLUENCY / LEXICAL", styles["metric_label"]),
+            Paragraph("GRAMMAR / PRONUN.", styles["metric_label"]),
+        ],
+    ]
+
+    metrics_table = Table(metrics_data, colWidths=[45 * mm, 45 * mm, 45 * mm, 45 * mm])
+    metrics_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f1f5f9")),
+            ("BOX", (0, 0), (-1, -1), 1, VedomostColors.SECONDARY),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ])
+    )
+    story.append(metrics_table)
+    story.append(Spacer(1, 6 * mm))
+
+    # -- 4 Criteria Table -----------------------------------------------------
+    story.append(
+        Paragraph(
+            "4 RASMIY IELTS SPEAKING MEZONLARI TAHLILI (CRITERIA BREAKDOWN)",
+            styles["section_heading"],
+        )
+    )
+
+    fb = getattr(sub, "feedback", {}) or {}
+    criteria_rows = [
+        [
+            Paragraph("<b>Mezon (Criterion)</b>", styles["cell_bold"]),
+            Paragraph("<b>Ball (Band)</b>", styles["cell_bold_center"]),
+            Paragraph("<b>Maksimal</b>", styles["cell_bold_center"]),
+            Paragraph("<b>Ekspert izohi</b>", styles["cell_bold"]),
+        ],
+        [
+            Paragraph("1. Fluency and Coherence (FC)", styles["cell"]),
+            Paragraph(f"<b>{fc:.1f}</b>", styles["cell_center"]),
+            Paragraph("9.0", styles["cell_center"]),
+            Paragraph(_esc(str(fb.get("fluency_feedback") or "Nutq ravonligi va mantiqiy izchilligi baholandi.")[:220]), styles["cell"]),
+        ],
+        [
+            Paragraph("2. Lexical Resource (LR)", styles["cell"]),
+            Paragraph(f"<b>{lr:.1f}</b>", styles["cell_center"]),
+            Paragraph("9.0", styles["cell_center"]),
+            Paragraph(_esc(str(fb.get("lexical_feedback") or "So'z boyligi va akademik iboralar qo'llanilishi baholandi.")[:220]), styles["cell"]),
+        ],
+        [
+            Paragraph("3. Grammatical Range & Accuracy (GRA)", styles["cell"]),
+            Paragraph(f"<b>{gra:.1f}</b>", styles["cell_center"]),
+            Paragraph("9.0", styles["cell_center"]),
+            Paragraph(_esc(str(fb.get("grammar_feedback") or "Grammatik qurilmalar xilma-xilligi va aniqligi baholandi.")[:220]), styles["cell"]),
+        ],
+        [
+            Paragraph("4. Pronunciation & Intonation (PR)", styles["cell"]),
+            Paragraph(f"<b>{pr:.1f}</b>", styles["cell_center"]),
+            Paragraph("9.0", styles["cell_center"]),
+            Paragraph(_esc(str(fb.get("pronunciation_feedback") or "Talaffuz va intonatsiya aniqligi baholandi.")[:220]), styles["cell"]),
+        ],
+    ]
+
+    crit_table = Table(criteria_rows, colWidths=[55 * mm, 22 * mm, 22 * mm, 81 * mm])
+    crit_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), VedomostColors.HEADER_BG),
+            ("BOX", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ])
+    )
+    story.append(crit_table)
+    story.append(Spacer(1, 5 * mm))
+
+    # -- Summary & Transcript -------------------------------------------------
+    story.append(Paragraph("EKSPERT XULOSASI VA NUTQ MATNI (SUMMARY & TRANSCRIPT)", styles["section_heading"]))
+    summary_text = _esc(str(fb.get("summary") or "Speaking topshirig'i muvaffaqiyatli yakunlandi.")[:600])
+    transcript_text = _esc(str(getattr(sub, "transcript", "") or "")[:600])
+
+    diag_paragraphs = [
+        Paragraph(f"<b>Umumiy xulosa:</b> {summary_text}", styles["cell"]),
+    ]
+    if transcript_text:
+        diag_paragraphs.append(Spacer(1, 2 * mm))
+        diag_paragraphs.append(Paragraph(f"<b>Transcript (Nutq matni):</b> <i>{transcript_text}</i>", styles["footer_text"]))
+
+    diag_table = Table([[diag_paragraphs]], colWidths=[180 * mm])
+    diag_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), VedomostColors.LIGHT_BG),
+            ("BOX", (0, 0), (-1, -1), 0.5, VedomostColors.BORDER),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ])
+    )
+    story.append(diag_table)
+    story.append(Spacer(1, 6 * mm))
+
+    # -- Verification & QR Code -----------------------------------------------
+    base_url = getattr(settings, "SITE_URL", "https://grandec.uz").rstrip("/")
+    verify_url = f"{base_url}/speaking"
+    qr_img = _generate_qr_code(verify_url, size=2.2 * cm)
+
+    sig_col1 = [
+        Paragraph("<b>Grand Education LMS — AI Speaking Assessment</b>", styles["cell"]),
+        Spacer(1, 2 * mm),
+        Paragraph(f"Hujjat sanasi: {timezone.now().strftime('%d.%m.%Y %H:%M')}", styles["footer_text"]),
+        Paragraph(f"Tekshirish kodi: SPK-{sub.id:06d}-B{overall:.1f}", styles["footer_text"]),
+    ]
+    sig_table = Table([[sig_col1, qr_img if qr_img else Paragraph("", styles["cell"])]], colWidths=[140 * mm, 40 * mm])
+    sig_table.setStyle(
+        TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (1, 0), (1, 0), "CENTER"),
+        ])
+    )
+    story.append(KeepTogether(sig_table))
+
+    doc.build(story)
+    logger.info("Speaking vedomost PDF generated: %s (submission_id=%s)", file_path, sub.id)
+    return file_path
+

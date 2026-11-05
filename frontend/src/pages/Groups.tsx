@@ -4,7 +4,7 @@ import { useLang } from '../i18n/LangContext';
 import { School, WhiteLabelApi, api } from '../lib/api';
 import { FolderOpenIcon, SettingsIcon, UsersIcon, XIcon } from '../components/icons';
 import type { GroupMember, SchoolGroup } from '../lib/school';
-import { errMessage, getGroupDetail } from '../lib/school';
+import { broadcastGroupVedomost, errMessage, getGroupDetail } from '../lib/school';
 
 export default function Groups() {
   const activateQuota = async (groupId: number, studentId: number, planType: 'pro' | 'premium') => {
@@ -60,6 +60,21 @@ export default function Groups() {
   // Student join by invite code
   const [joinCode, setJoinCode] = useState('');
   const [joinBusy, setJoinBusy] = useState(false);
+  const [broadcastingId, setBroadcastingId] = useState<number | null>(null);
+
+  const handleBroadcastVedomost = async (group: SchoolGroup) => {
+    setBroadcastingId(group.id);
+    setErr(null);
+    setOk(null);
+    try {
+      const res = await broadcastGroupVedomost(group.id);
+      flash(res?.message || res?.detail || `✅ "${group.name}" guruhining reytingi va PDF vedomosti Telegram guruhga yuborildi!`);
+    } catch (e2: unknown) {
+      setErr(errMessage(e2));
+    } finally {
+      setBroadcastingId(null);
+    }
+  };
 
   const quickMarkStudent = async (
     groupId: number,
@@ -416,6 +431,35 @@ export default function Groups() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                       <strong>{g.name}</strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {g.telegram_chat_id ? (
+                          <span
+                            style={{
+                              padding: '3px 10px',
+                              borderRadius: 999,
+                              background: 'rgba(16, 185, 129, 0.14)',
+                              color: '#10b981',
+                              fontWeight: 800,
+                              fontSize: '0.76rem',
+                              border: '1px solid rgba(16, 185, 129, 0.35)',
+                            }}
+                          >
+                            ✅ Telegram ulangan: {g.telegram_chat_title || g.telegram_chat_id}
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              padding: '3px 10px',
+                              borderRadius: 999,
+                              background: 'rgba(245, 158, 11, 0.14)',
+                              color: '#f59e0b',
+                              fontWeight: 800,
+                              fontSize: '0.76rem',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                            }}
+                          >
+                            ⚠️ Telegram guruh ulanmagan
+                          </span>
+                        )}
                         {g.invite_code && (
                           <span
                             style={{
@@ -477,6 +521,125 @@ export default function Groups() {
                         </span>
                       ))}
                     </div>
+
+                    {/* Telegram 1-Click Link, Manual Fallback & Broadcast Vedomost Box */}
+                    {(() => {
+                      const code = g.invite_code || g.group_code || String(g.id);
+                      const studentJoinLink = `https://grandec.uz/join/${code}`;
+                      const manualCmd = `/ulash ${code}`;
+                      const isBroadcasting = broadcastingId === g.id;
+                      return (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: '12px 14px',
+                            borderRadius: 12,
+                            background: 'var(--bg-card-2, var(--card-2))',
+                            border: '1px solid var(--border-default, var(--border))',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                            <a
+                              href={`https://t.me/uz_essaygrader_bot?startgroup=link_${encodeURIComponent(code)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '6px 12px',
+                                borderRadius: 10,
+                                fontWeight: 800,
+                                fontSize: '0.8rem',
+                                background: 'linear-gradient(135deg, #229ED9 0%, #0284C7 100%)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              📲 Telegram guruhga 1-klikda ulash
+                            </a>
+
+                            <button
+                              type="button"
+                              className="btn sm"
+                              disabled={isBroadcasting}
+                              onClick={() => void handleBroadcastVedomost(g)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '6px 12px',
+                                borderRadius: 10,
+                                fontWeight: 800,
+                                fontSize: '0.8rem',
+                                background: 'linear-gradient(135deg, #C8922A 0%, #F59E0B 100%)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                cursor: isBroadcasting ? 'not-allowed' : 'pointer',
+                                opacity: isBroadcasting ? 0.7 : 1,
+                              }}
+                            >
+                              {isBroadcasting
+                                ? '⏳ Yuborilmoqda...'
+                                : '📤 Reyting va Vedomostni Telegram guruhga yuborish'}
+                            </button>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '6px 14px',
+                              alignItems: 'center',
+                              fontSize: '0.76rem',
+                              color: 'var(--text-secondary, var(--muted))',
+                            }}
+                          >
+                            <span
+                              style={{ cursor: 'pointer' }}
+                              title="Nusxalash uchun bosing"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(manualCmd);
+                                flash(`Komanda nusxalandi: ${manualCmd}`);
+                              }}
+                            >
+                              Qo&apos;lda ulash: guruhda{' '}
+                              <code
+                                style={{
+                                  padding: '2px 6px',
+                                  borderRadius: 6,
+                                  background: 'var(--bg-card, var(--card))',
+                                  border: '1px solid var(--border-default, var(--border))',
+                                  color: 'var(--text-primary, var(--ink))',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {manualCmd}
+                              </code>{' '}
+                              deb yozing 📋
+                            </span>
+                            <span
+                              style={{ cursor: 'pointer' }}
+                              title="Havolani nusxalash uchun bosing"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(studentJoinLink);
+                                flash(`O'quvchilar havolasi nusxalandi: ${studentJoinLink}`);
+                              }}
+                            >
+                              O&apos;quvchi havolasi:{' '}
+                              <strong style={{ color: '#C8922A', textDecoration: 'underline' }}>
+                                {studentJoinLink}
+                              </strong>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="row" style={{ marginTop: 10 }}>
                       <button
                         className="btn sm ghost"

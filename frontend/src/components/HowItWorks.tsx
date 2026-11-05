@@ -1,17 +1,10 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { useTheme } from '../theme/ThemeContext';
-import { landingFor } from '../lib/api';
 
 export default function HowItWorks() {
   const { t } = useLang();
-  const { user, openAuthModal } = useAuth();
   const { resolvedTheme } = useTheme();
-  const navigate = useNavigate();
   const isDark = resolvedTheme !== 'light';
-
-  const startTo = user ? landingFor(user) : '/register';
 
   const steps = [
     { num: '1', title: t('step1_title'), desc: t('step1_desc') },
@@ -22,7 +15,6 @@ export default function HowItWorks() {
   return (
     <section
       id="how"
-     
       style={{
         padding: '70px 20px',
         background: isDark ? 'rgba(15, 23, 42, 0.7)' : '#f8fafc',
@@ -49,7 +41,6 @@ export default function HowItWorks() {
             {t('how_eyebrow')}
           </span>
           <h2
-           
             style={{
               fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
               fontWeight: 900,
@@ -126,7 +117,6 @@ export default function HowItWorks() {
                 {st.num}
               </div>
               <h3
-               
                 style={{
                   fontSize: 19,
                   fontWeight: 800,
@@ -138,7 +128,6 @@ export default function HowItWorks() {
                 {st.title}
               </h3>
               <p
-               
                 style={{
                   fontSize: 14,
                   color: isDark ? '#CBD5E1' : '#475569',
@@ -150,27 +139,6 @@ export default function HowItWorks() {
               </p>
             </div>
           ))}
-        </div>
-
-        <div style={{ marginTop: 44, textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => (user ? navigate(startTo) : openAuthModal('register'))}
-            className="btn-glow"
-            style={{
-              padding: '14px 36px',
-              fontSize: 15,
-              fontWeight: 800,
-              borderRadius: 14,
-              background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-              color: '#090d16',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
-            }}
-          >
-            {t('cta_free_account')} →
-          </button>
         </div>
       </div>
     </section>

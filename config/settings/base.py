@@ -456,6 +456,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "billing.check_expiring_subscriptions",
         "schedule": crontab(minute=30, hour=10),  # Daily 10:30 AM
     },
+    # Onboarding daily study reminders (Morning 09:00, Afternoon 14:00, Evening 19:00)
+    "onboarding-reminders-morning": {
+        "task": "notifications.send_daily_onboarding_reminders",
+        "schedule": crontab(hour=9, minute=0),
+        "kwargs": {"slot": "morning"},
+    },
+    "onboarding-reminders-afternoon": {
+        "task": "notifications.send_daily_onboarding_reminders",
+        "schedule": crontab(hour=14, minute=0),
+        "kwargs": {"slot": "afternoon"},
+    },
+    "onboarding-reminders-evening": {
+        "task": "notifications.send_daily_onboarding_reminders",
+        "schedule": crontab(hour=19, minute=0),
+        "kwargs": {"slot": "evening"},
+    },
 }
 
 # ---------------------------------------------------------------------------

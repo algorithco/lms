@@ -434,6 +434,7 @@ class StudentGroupSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source="teacher.get_full_name", read_only=True)
     student_count = serializers.IntegerField(read_only=True)
     students = GroupMemberSerializer(many=True, read_only=True)
+    group_code = serializers.CharField(source="invite_code", read_only=True)
 
     class Meta:
         model = StudentGroup
@@ -445,12 +446,15 @@ class StudentGroupSerializer(serializers.ModelSerializer):
             "teacher",
             "teacher_name",
             "invite_code",
+            "group_code",
             "invite_token",
+            "telegram_chat_id",
+            "telegram_chat_title",
             "student_count",
             "students",
             "created_at",
         ]
-        read_only_fields = ["teacher", "invite_code", "invite_token"]
+        read_only_fields = ["teacher", "invite_code", "group_code", "invite_token"]
 
 
 # ---------------------------------------------------------------------------

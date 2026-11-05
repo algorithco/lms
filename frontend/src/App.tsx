@@ -31,6 +31,7 @@ const Imports = lazyPage(() => import('./pages/Imports'));
 const Landing = lazyPage(() => import('./pages/Landing'));
 const Login = lazyPage(() => import('./pages/Login'));
 const MySubscription = lazyPage(() => import('./pages/MySubscription'));
+const Onboarding = lazyPage(() => import('./pages/Onboarding'));
 const PanelDashboard = lazyPage(() => import('./pages/PanelDashboard'));
 const PanelQuestions = lazyPage(() => import('./pages/PanelQuestions'));
 const PanelTestForm = lazyPage(() => import('./pages/PanelTestForm'));
@@ -127,6 +128,7 @@ function AnimatedRoutes() {
               </ErrorBoundary>
             }
           />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route element={<Layout />}>
             {/* Ratings live inside the app shell so the sidebar/topbar
                 (and the way back) never disappear. The API already
@@ -214,6 +216,8 @@ function AnimatedRoutes() {
               {/* Legacy /teacher/analytics/ */}
               <Route path="/teacher/analytics" element={<Navigate to="/analytics" replace />} />
               <Route path="/groups" element={<Groups />} />
+              <Route path="/teacher/groups" element={<Groups />} />
+              <Route path="/panel/groups" element={<Groups />} />
               {/* Legacy group CRUD pages → Groups hub (modal states) */}
               <Route path="/groups/create" element={<Navigate to="/groups" replace />} />
               <Route path="/groups/:groupId" element={<Navigate to="/groups" replace />} />

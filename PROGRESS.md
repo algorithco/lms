@@ -9,6 +9,27 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.83. Rasmiy Versiya v2.0.0: Duolingo-Uslubidagi 6 Qadamli Onboarding, Landing Page Tozalash, Dashboard Zaif Qismlar Mashqi, Boyitilgan Kontent Bazasi va Telegram Guruhga Avto-Natijalar / Vedomost (10.0.0-Bosqich)
+- [x] 1-Vazifa: Duolingo Uslubidagi 6 Qadamli Onboarding va Shaxsiy Reja (`/onboarding`, `Onboarding.tsx`, `OnboardingModal.tsx`, `POST /api/v1/users/onboarding/`):
+  * Yuqorida `<` (Orqaga) tugmasi, `X-SAVOL / 6` ko'rsatkichi, `SO'ROVNOMA` oltin yorlig'i va silliq to'lib boruvchi oltin progress-bar (`#C8922A` / `#F59E0B`).
+  * 6 ta so'rovnoma qadami (Biz haqimizda qayerdan eshitdingiz, Asosiy maqsad, Yo'nalish + Boshqa fanlar ichki pill tanlovi, Tayyorgarlik darajasi, Kunlik vaqt maqsadi, Eslatma vaqti) to'liq joriy etildi.
+  * `Profile` modeliga `referral_source`, `main_goal`, `target_exam`, `sub_subject`, `level`, `daily_goal_minutes`, `reminder_slot` maydonlari qo'shildi (`0020` migratsiyasi) va `POST /api/v1/users/onboarding/` orqali saqlanib `/dashboard` ga yo'naltiriladi.
+  * Celery Beat orqali `notifications.send_daily_onboarding_reminders` taski (`morning` 09:00, `afternoon` 14:00, `evening` 19:00) ulandi.
+- [x] 2-Vazifa: Landing Page (`Landing.tsx`, `HowItWorks.tsx`, `ExamTracks.tsx`) Tozalash va Yuqori Kontrast:
+  * "3 qadamda boshlang" ostidagi va sahifa eng pastidagi takroriy "Boshlash" CTA bloklari olib tashlandi.
+  * Login qilgan foydalanuvchilar uchun Hero `[⚡️ Bepul boshlash]` tugmasi to'g'ridan-to'g'ri `/dashboard` (yoki onboarding o'tilmagan bo'lsa `/onboarding`) ga yo'naltiradigan qilindi.
+  * Hero ostidagi past kontrastli 4 ta mobil pastel kartalar olib tashlanib, "Qaysi imtihonga tayyorlanasiz?" (`ExamTracks.tsx`) yagona yuqori kontrastli kartalar blokiga birlashtirildi.
+- [x] 3-Vazifa: Dashboard Kunlik Reja, Zaif Qismlar Mashqi va Kontent Seeder (`Dashboard.tsx`, `Tests.tsx`, `seed_content.py`):
+  * Dashboardda kunlik reja progressi (`🔥 Bugungi reja: X / Y daqiqa`), "Zaif qismlar" ro'parasida interaktiv `[🎯 Mashq qilish →]` pill-tugmalari (`/tests?skill=...&type=...&mode=practice`) va silliq multi-karta shimmer skeleton o'rnatildi.
+  * `python manage.py seed_content` orqali Ona tili va Adabiyot (BMB Milliy Sertifikat), Pedagoglar Attestatsiyasi 2026, Ingliz tili CBT testlari, 30 ta rasmiy `EssayTopic` (`ielts_task1`, `ielts_task2`, `ona_tili`, `adabiyot`, `multilevel`) va 24 ta `SpeakingTopic` (`part1`, `part2`, `part3`, `multilevel`) bazaga kiritildi.
+- [x] 4-Vazifa: Telegram Botni Guruhga 1-Klikda Ulash va Real-Time Avto-Natijalar (`group_assistant.py`, `handlers.py`, `tasks.py`, `Groups.tsx`):
+  * `StudentGroup` modeliga `telegram_chat_title` va `group_code` qo'shildi (`0011` migratsiyasi).
+  * Ustoz guruhlar sahifasida (`/groups`, `/teacher/groups`, `/panel/groups`) `[📲 Telegram guruhga 1-klikda ulash]` (`?startgroup=link_{group_code}`), `/ulash GR-XXXX` va `/link GR-XXXX` buyruqlari hamda `[📤 Reyting va Vedomostni Telegram guruhga yuborish]` (`POST /api/v1/school/groups/<id>/broadcast-vedomost/`) tugmasi ishga tushirildi.
+  * Guruh a'zosi bo'lgan o'quvchi Test, AI Esse yoki AI Speaking topshirishi bilanoq barcha ulangan Telegram guruhlarga Shaxsiy Natija Kartasi va rasmiy PDF Scorecard / Vedomost avtomatik yuborilishi ta'minlandi.
+- [x] 5-Vazifa: QA Avto-Testlar va Prod Deploy (`tests/test_grandec_v2_master.py`):
+  * `pytest tests/test_grandec_v2_master.py -v` (14/14 PASS) va regressiya testlari bilan jami 41/41 test 100% PASS.
+  * `python manage.py makemigrations --check`, `python manage.py check`, va `npm --prefix frontend run build` 0 xato bilan yakunlandi.
+
 ### 2.82. Rasmiy Versiya v1.91.0: Admin Control Hub, 1-Click Telegram SSO, 100% i18n, Sleek Referal Kartasi va 5 Kunlik PRO Obuna Ogohlantirish Tizimi (9.5.0-Bosqich)
 - [x] 1-Vazifa: Admin (ADMIN_UNLIMITED) Uchun Profil va Obuna Mantiqsizligi Butunlay Yo'qotildi (`frontend/src/pages/Profile.tsx`):
   * `Profile.tsx` sahifasida foydalanuvchi `admin`, `center_admin` yoki `is_superuser` bo'lsa, "Tariflar va Obuna (PRO)" hamda `UsageLimits` bloklari butunlay yashirildi.

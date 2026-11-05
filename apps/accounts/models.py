@@ -397,6 +397,46 @@ class Profile(models.Model):
         default=False,
         db_index=True,
     )
+    referral_source = models.CharField(
+        "Biz haqimizda qayerdan eshitdingiz",
+        max_length=100,
+        blank=True,
+        default="",
+    )
+    main_goal = models.CharField(
+        "Asosiy maqsad",
+        max_length=150,
+        blank=True,
+        default="",
+    )
+    target_exam = models.CharField(
+        "Maqsadli imtihon / yo'nalish",
+        max_length=100,
+        blank=True,
+        default="",
+    )
+    sub_subject = models.CharField(
+        "Qo'shimcha fan (Matematika, Huquq, Tarix, Kimyo/Biologiya)",
+        max_length=100,
+        blank=True,
+        default="",
+    )
+    level = models.CharField(
+        "Tayyorgarlik darajasi",
+        max_length=50,
+        blank=True,
+        default="beginner",
+    )
+    daily_goal_minutes = models.PositiveSmallIntegerField(
+        "Kunlik maqsad (daqiqa)",
+        default=15,
+    )
+    reminder_slot = models.CharField(
+        "Eslatma vaqti (morning/afternoon/evening)",
+        max_length=32,
+        blank=True,
+        default="evening",
+    )
     daily_plan_summary = models.JSONField(
         _("AI kunlik reja xulosasi"),
         default=dict,

@@ -98,6 +98,8 @@ class Command(BaseCommand):
                 "message",
                 "callback_query",
                 "inline_query",
+                "my_chat_member",
+                "chat_member",
             ],
         )
 

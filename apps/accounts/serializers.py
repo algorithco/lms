@@ -274,6 +274,41 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only=True,
         default=False,
     )
+    referral_source = serializers.CharField(
+        source="profile.referral_source",
+        read_only=True,
+        default="",
+    )
+    main_goal = serializers.CharField(
+        source="profile.main_goal",
+        read_only=True,
+        default="",
+    )
+    target_exam = serializers.CharField(
+        source="profile.target_exam",
+        read_only=True,
+        default="",
+    )
+    sub_subject = serializers.CharField(
+        source="profile.sub_subject",
+        read_only=True,
+        default="",
+    )
+    level = serializers.CharField(
+        source="profile.level",
+        read_only=True,
+        default="beginner",
+    )
+    daily_goal_minutes = serializers.IntegerField(
+        source="profile.daily_goal_minutes",
+        read_only=True,
+        default=15,
+    )
+    reminder_slot = serializers.CharField(
+        source="profile.reminder_slot",
+        read_only=True,
+        default="evening",
+    )
     daily_plan_summary = serializers.JSONField(
         source="profile.daily_plan_summary",
         read_only=True,
@@ -308,6 +343,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "target_grade",
             "placement_score",
             "onboarding_completed",
+            "referral_source",
+            "main_goal",
+            "target_exam",
+            "sub_subject",
+            "level",
+            "daily_goal_minutes",
+            "reminder_slot",
             "daily_plan_summary",
             "telegram_chat_id",
             "telegram_identity_verified_at",
@@ -444,6 +486,44 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         source="profile.onboarding_completed",
         required=False,
     )
+    referral_source = serializers.CharField(
+        source="profile.referral_source",
+        required=False,
+        allow_blank=True,
+    )
+    main_goal = serializers.CharField(
+        source="profile.main_goal",
+        required=False,
+        allow_blank=True,
+    )
+    target_exam = serializers.CharField(
+        source="profile.target_exam",
+        required=False,
+        allow_blank=True,
+    )
+    sub_subject = serializers.CharField(
+        source="profile.sub_subject",
+        required=False,
+        allow_blank=True,
+    )
+    level = serializers.CharField(
+        source="profile.level",
+        required=False,
+        allow_blank=True,
+    )
+    daily_goal_minutes = serializers.IntegerField(
+        source="profile.daily_goal_minutes",
+        required=False,
+    )
+    reminder_slot = serializers.CharField(
+        source="profile.reminder_slot",
+        required=False,
+        allow_blank=True,
+    )
+    daily_plan_summary = serializers.JSONField(
+        source="profile.daily_plan_summary",
+        required=False,
+    )
 
     class Meta:
         model = User
@@ -460,6 +540,14 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "target_timeline_months",
             "target_grade",
             "onboarding_completed",
+            "referral_source",
+            "main_goal",
+            "target_exam",
+            "sub_subject",
+            "level",
+            "daily_goal_minutes",
+            "reminder_slot",
+            "daily_plan_summary",
         ]
 
     def update(self, instance: Any, validated_data: dict[str, Any]) -> Any:

@@ -10,6 +10,7 @@ from typing import Any
 
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -831,3 +832,134 @@ class TelegramWidgetAuthView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def complete_onboarding_view(request: Request) -> Response:
+    """
+    POST /api/auth/onboarding/ and POST /api/v1/users/onboarding/
+    6-bosqichli Duolingo uslubidagi onboarding javoblarini saqlaydi va
+    shaxsiy o'quv rejasini (daily_plan_summary) shakllantiradi.
+    """
+    from .models import Profile
+
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    data = request.data or {}
+
+    referral_source = str(
+        data.get("referral_source") or data.get("heard_from") or profile.referral_source or ""
+    ).strip()[:100]
+    main_goal = str(
+        data.get("main_goal") or data.get("goal") or profile.main_goal or ""
+    ).strip()[:150]
+    raw_target_exam = str(
+        data.get("target_exam") or data.get("exam_target") or profile.target_exam or profile.exam_target or ""
+    ).strip()
+    sub_subject = str(
+        data.get("sub_subject") or profile.sub_subject or ""
+    ).strip()[:100]
+    level = str(
+        data.get("level") or profile.level or "beginner"
+    ).strip()[:50]
+
+    try:
+        daily_goal_minutes = int(data.get("daily_goal_minutes") or profile.daily_goal_minutes or 15)
+        if daily_goal_minutes <= 0:
+            daily_goal_minutes = 15
+    except (TypeError, ValueError):
+        daily_goal_minutes = 15
+
+    raw_slot = str(data.get("reminder_slot") or profile.reminder_slot or "evening").strip().lower()
+    if "morning" in raw_slot or "09:00" in raw_slot or "ertalab" in raw_slot:
+        reminder_slot = "morning"
+    elif "afternoon" in raw_slot or "14:00" in raw_slot or "tushlik" in raw_slot:
+        reminder_slot = "afternoon"
+    elif "evening" in raw_slot or "19:00" in raw_slot or "kechqurun" in raw_slot:
+        reminder_slot = "evening"
+    else:
+        reminder_slot = raw_slot[:32] or "evening"
+
+    # Normalize exam_target & auto-derive active_subject
+    norm_exam = raw_target_exam.lower()
+    if norm_exam in ("ona_tili", "milliy_sertifikat", "national_cert", "bmb"):
+        mapped_exam_target = "milliy_sertifikat"
+        derived_subject = "uzbek"
+        track_label = "Ona tili va Adabiyot (Milliy Sertifikat)"
+    elif "attestat" in norm_exam:
+        mapped_exam_target = "attestatsiya"
+        derived_subject = "uzbek"
+        track_label = "Pedagoglar Attestatsiyasi"
+    elif norm_exam in ("cefr", "multilevel", "cefr_multilevel"):
+        mapped_exam_target = "cefr"
+        derived_subject = "english"
+        track_label = "Ingliz tili (CEFR / Multilevel)"
+    elif "ielts" in norm_exam:
+        mapped_exam_target = "ielts"
+        derived_subject = "english"
+        track_label = "IELTS Academic / General"
+    else:
+        mapped_exam_target = "general"
+        derived_subject = "uzbek"
+        track_label = raw_target_exam or "Umumiy tayyorgarlik"
+
+    explicit_subject = str(data.get("active_subject") or "").strip().lower()
+    if explicit_subject in ("uzbek", "english"):
+        active_subject = explicit_subject
+    elif raw_target_exam:
+        active_subject = derived_subject
+    else:
+        active_subject = profile.active_subject or "uzbek"
+
+    # Legacy optional fields
+    if "target_timeline_months" in data:
+        try:
+            profile.target_timeline_months = max(1, int(data["target_timeline_months"]))
+        except (TypeError, ValueError):
+            pass
+    if "target_grade" in data:
+        profile.target_grade = str(data.get("target_grade") or "")[:32]
+
+    level_labels = {
+        "zero": "Noldan boshlovchi",
+        "beginner": "Boshlang'ich bilimga ega",
+        "intermediate": "O'rta daraja (mock yechib юrgan)",
+    }
+    slot_labels = {
+        "morning": "Ertalab (09:00)",
+        "afternoon": "Tushlikdan so'ng (14:00)",
+        "evening": "Kechqurun (19:00)",
+    }
+    level_display = level_labels.get(level.lower(), level)
+    slot_display = slot_labels.get(reminder_slot, reminder_slot)
+
+    sub_part = f" + {sub_subject}" if sub_subject else ""
+    goal_part = f" Maqsad: {main_goal}." if main_goal else ""
+    daily_plan_summary = (
+        f"Yo'nalish: {track_label}{sub_part} | Daraja: {level_display} | "
+        f"Kunlik reja: {daily_goal_minutes} daqiqa ({slot_display}).{goal_part}"
+    )[:500]
+
+    profile.referral_source = referral_source
+    profile.main_goal = main_goal
+    profile.target_exam = raw_target_exam[:100] or mapped_exam_target
+    profile.exam_target = mapped_exam_target
+    profile.active_subject = active_subject
+    profile.sub_subject = sub_subject
+    profile.level = level
+    profile.daily_goal_minutes = daily_goal_minutes
+    profile.reminder_slot = reminder_slot
+    profile.daily_plan_summary = daily_plan_summary
+    profile.onboarding_completed = True
+    profile.save()
+
+    return Response(
+        {
+            "message": "Shaxsiy o'quv rejangiz tayyor!",
+            "daily_plan_summary": profile.daily_plan_summary,
+            "onboarding_completed": True,
+            "user": UserProfileSerializer(request.user, context={"request": request}).data,
+        },
+        status=status.HTTP_200_OK,
+    )
+

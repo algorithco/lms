@@ -2,10 +2,11 @@
 Telegram Group Assistant for Grand Education.
 Integrates Telegram groups with LMS StudentGroup records:
   - Welcome greeting upon joining group / promotion to admin
-  - /link_group <code_or_name> to bind group with StudentGroup
+  - 1-Click Deep-Link (/start link_GR-XXXX) and /ulash, /link, /link_group <code_or_name> to bind group with StudentGroup
   - /davomat and /davomat_yakun for interactive live attendance roster and LMS sync
   - /yangi_test and /test for test announcements with PIN code and Mini App button
   - /leaderboard and /reyting for group leaderboard, average score, and mistake topic analysis
+  - /vedomost and /report for group PDF vedomost report
   - /ustoz for teacher private management menu
 """
 
@@ -39,6 +40,17 @@ async def _run_db(func, *args, **kwargs):
     return await sync_to_async(func)(*args, **kwargs)
 
 
+async def _send_group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, **kwargs):
+    """Send reply via update.message.reply_text or fallback to context.bot.send_message."""
+    msg = getattr(update, "message", None)
+    if msg and hasattr(msg, "reply_text"):
+        return await msg.reply_text(text, **kwargs)
+    chat = getattr(update, "effective_chat", None)
+    if chat and getattr(context, "bot", None):
+        return await context.bot.send_message(chat_id=chat.id, text=text, **kwargs)
+    return None
+
+
 # ---------------------------------------------------------------------------
 # 1. Greeting when Bot joins group or is promoted
 # ---------------------------------------------------------------------------
@@ -49,7 +61,7 @@ async def on_my_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     chat = update.effective_chat
-    if not chat or chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if not chat or chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         return
 
     new_status = result.new_chat_member.status
@@ -70,7 +82,7 @@ async def on_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     chat = update.effective_chat
-    if not chat or chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if not chat or chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         return
 
     bot_user = context.bot
@@ -83,8 +95,8 @@ async def send_group_welcome_message(chat_id: int, context: ContextTypes.DEFAULT
     text = (
         "👋 <b>Salom! Men Grand Education — ta'lim tizimi botiman.</b> Ushbu guruh qaysi ustozga tegishli?\n\n"
         "Ustoz, ushbu guruhni platformadagi sinfingizga ulash uchun guruhda quyidagi buyruqni yuboring:\n"
-        "👉 <code>/link_group Guruh_Kodi</code> (masalan: <code>/link_group GR-11A</code>)\n\n"
-        "<i>Guruh kodingizni LMS kabinetingizdagi 'Guruhlar' bo'limidan olishingiz mumkin.</i>"
+        "👉 <code>/ulash Guruh_Kodi</code> yoki <code>/link_group Guruh_Kodi</code> (masalan: <code>/ulash GR-11A</code>)\n\n"
+        "<i>Guruh kodingizni yoki 1-klik ulash tugmasini LMS kabinetingizdagi 'Guruhlar' bo'limidan olishingiz mumkin.</i>"
     )
     try:
         await context.bot.send_message(
@@ -97,68 +109,102 @@ async def send_group_welcome_message(chat_id: int, context: ContextTypes.DEFAULT
 
 
 # ---------------------------------------------------------------------------
-# 2. Link Group Command (/link_group <code_or_name>)
+# 2. Link Group Helper & Command (/ulash, /link, /link_group, /start link_GR-XXXX)
 # ---------------------------------------------------------------------------
-async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Ustoz o'z Telegram guruhini LMS tizimidagi StudentGroup ga bog'laydi."""
+async def bind_telegram_group_by_code(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    code: str,
+) -> bool:
+    """
+    Bind a Telegram group/supergroup chat to a StudentGroup by its invite_code (or name).
+    Used by both 1-click deep-link (/start link_GR-8492) and manual commands (/ulash, /link, /link_group).
+    """
     chat = update.effective_chat
     user = update.effective_user
-    if not chat or not user:
-        return
+    if not chat:
+        return False
 
-    if chat.type == ChatType.PRIVATE:
-        await update.message.reply_text(
+    if chat.type in (ChatType.PRIVATE, "private"):
+        await _send_group_reply(
+            update,
+            context,
             "Ushbu buyruqni o'quvchilaringizning Telegram guruhida yozishingiz kerak.\n"
             "Guruhga botni admin qilib qo'shing va u yerda yozing:\n"
-            "👉 <code>/link_group Guruh_Kodi</code>",
+            "👉 <code>/ulash Guruh_Kodi</code> yoki <code>/link_group Guruh_Kodi</code>",
             parse_mode=ParseMode.HTML,
         )
-        return
+        return False
 
-    if not context.args:
-        await update.message.reply_text(
+    clean_code = (code or "").strip()
+    if clean_code.lower().startswith("link_"):
+        clean_code = clean_code[5:].strip()
+    code_input = clean_code.upper()
+
+    if not code_input:
+        await _send_group_reply(
+            update,
+            context,
             "⚠️ Iltimos, guruh kodini ko'rsating!\n"
-            "Masalan: <code>/link_group GR-11A</code>",
+            "Masalan: <code>/ulash GR-8492</code> yoki <code>/link_group GR-11A</code>",
             parse_mode=ParseMode.HTML,
         )
-        return
-
-    code_input = " ".join(context.args).strip().upper()
+        return False
 
     from apps.courses.models import StudentGroup
     from apps.accounts.models import User as UserModel
 
+    chat_title = getattr(chat, "title", "") or ""
+    user_id = getattr(user, "id", None) if user else None
+    username = getattr(user, "username", "") if user else ""
+
     def _link_db():
-        # Match by invite_code or name
+        # Match by invite_code (case-insensitive) or name
         group = (
-            StudentGroup.objects.filter(invite_code__iexact=code_input).first()
-            or StudentGroup.objects.filter(name__iexact=code_input).first()
-            or StudentGroup.objects.filter(invite_code__iexact=f"GR-{code_input}").first()
+            StudentGroup.objects.filter(invite_code__iexact=code_input).select_related("teacher").first()
+            or StudentGroup.objects.filter(invite_code__iexact=f"GR-{code_input}").select_related("teacher").first()
+            or StudentGroup.objects.filter(name__iexact=clean_code).select_related("teacher").first()
         )
         if not group:
             return None, "Guruh topilmadi"
 
-        # Check teacher or admin permission
-        current_lms_user = UserModel.objects.filter(telegram_chat_id=user.id).first()
-        if not current_lms_user:
-            # Check by username if available
-            if user.username:
-                current_lms_user = UserModel.objects.filter(telegram_username__iexact=user.username).first()
+        # Check if user is a known LMS user
+        current_lms_user = None
+        if user_id:
+            current_lms_user = UserModel.objects.filter(telegram_chat_id=user_id).first()
+        if not current_lms_user and username and isinstance(username, str):
+            current_lms_user = UserModel.objects.filter(telegram_username__iexact=username).first()
 
-        # Allow if user is group's teacher or admin, or if group has no conflicting binding
-        is_teacher = current_lms_user and (group.teacher_id == current_lms_user.id)
-        is_admin = current_lms_user and (
-            getattr(current_lms_user, "is_superuser", False)
-            or getattr(current_lms_user, "role", "") in ("admin", "superadmin")
+        # If the caller is a known LMS user who is a student (not teacher/admin), block hijacking
+        if current_lms_user is not None:
+            is_teacher = (group.teacher_id == current_lms_user.id) or (
+                getattr(current_lms_user, "role", "") == "teacher"
+            )
+            is_admin = (
+                getattr(current_lms_user, "is_superuser", False)
+                or getattr(current_lms_user, "role", "") in ("admin", "superadmin", "center_admin")
+            )
+            if not (is_teacher or is_admin):
+                return None, "Faqat shu guruh ustozi yoki admin guruhni bog'lay oladi."
+
+        # Clear telegram_chat_id on any other StudentGroup that previously had this chat.id
+        StudentGroup.objects.filter(telegram_chat_id=chat.id).exclude(pk=group.pk).update(
+            telegram_chat_id=None
         )
-
-        if not (is_teacher or is_admin):
-            return None, "Faqat shu guruh ustozi yoki admin guruhni bog'lay oladi."
 
         # Bind group
         group.telegram_chat_id = chat.id
-        group.save(update_fields=["telegram_chat_id"])
-        teacher_name = group.teacher.get_full_name() or group.teacher.email
+        update_fields = ["telegram_chat_id"]
+        if hasattr(group, "telegram_chat_title") and isinstance(chat_title, str):
+            group.telegram_chat_title = chat_title[:255]
+            update_fields.append("telegram_chat_title")
+        group.save(update_fields=update_fields)
+
+        teacher_name = (
+            (group.teacher.get_full_name() or group.teacher.email)
+            if group.teacher
+            else "Ustoz"
+        )
         return {
             "name": group.name,
             "code": group.invite_code,
@@ -168,18 +214,22 @@ async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     res, err = await _run_db(_link_db)
     if err and err != "Guruh topilmadi":
-        await update.message.reply_text(f"⛔️ {err}")
-        return
+        await _send_group_reply(update, context, f"⛔️ {err}")
+        return False
     if err or not res:
-        await update.message.reply_text(
+        await _send_group_reply(
+            update,
+            context,
             f"❌ <b>{code_input}</b> kodi bo'yicha guruh topilmadi!\n"
-            "Iltimos, kod to'g'ri kiritilganini tekshiring (masalan: <code>/link_group GR-11A</code>).",
+            "Iltimos, kod to'g'ri kiritilganini tekshiring (masalan: <code>/ulash GR-8492</code>).",
             parse_mode=ParseMode.HTML,
         )
-        return
+        return False
 
     text = (
-        "✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n\n"
+        "✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n"
+        f"✅ Ushbu Telegram guruh Grand Education platformasidagi «{res['name']}» guruhiga muvaffaqiyatli ulandi! "
+        "Endi o'quvchilarning test va esse natijalari shu yerga avtomatik yuboriladi.\n\n"
         f"👥 <b>Guruh:</b> {res['name']}\n"
         f"👨‍🏫 <b>Ustoz:</b> {res['teacher']}\n"
         f"🔑 <b>Guruh kodi:</b> <code>{res['code']}</code>\n"
@@ -188,9 +238,52 @@ async def link_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "🟢 <code>/davomat</code> — Kunlik davomat olish\n"
         "🏁 <code>/davomat_yakun</code> — Davomatni yakunlash va LMS ga saqlash\n"
         "📝 <code>/yangi_test</code> — Guruhga sinov testi va PIN kodini tashlash\n"
-        "🏆 <code>/leaderboard</code> — Test natijalari reytingi va xatolar tahlili"
+        "🏆 <code>/reyting</code> (<code>/leaderboard</code>) — Test natijalari reytingi va xatolar tahlili\n"
+        "📄 <code>/vedomost</code> — Rasmiy PDF vedomost hisobotini olish"
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    await _send_group_reply(update, context, text, parse_mode=ParseMode.HTML)
+    return True
+
+
+async def cmd_link_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ustoz o'z Telegram guruhini LMS tizimidagi StudentGroup ga bog'laydi (/ulash, /link, /link_group)."""
+    chat = update.effective_chat
+    if not chat:
+        return
+
+    if chat.type in (ChatType.PRIVATE, "private"):
+        await _send_group_reply(
+            update,
+            context,
+            "Ushbu buyruqni o'quvchilaringizning Telegram guruhida yozishingiz kerak.\n"
+            "Guruhga botni admin qilib qo'shing va u yerda yozing:\n"
+            "👉 <code>/link_group Guruh_Kodi</code> yoki <code>/ulash Guruh_Kodi</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    args = list(context.args) if getattr(context, "args", None) else []
+    if not args and getattr(update, "message", None) and isinstance(getattr(update.message, "text", None), str):
+        parts = update.message.text.strip().split()
+        if len(parts) > 1 and parts[0].startswith("/"):
+            args = parts[1:]
+
+    if not args:
+        await _send_group_reply(
+            update,
+            context,
+            "⚠️ Iltimos, guruh kodini ko'rsating!\n"
+            "Masalan: <code>/ulash GR-8492</code> yoki <code>/link_group GR-11A</code>",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    code_input = " ".join(args).strip()
+    await bind_telegram_group_by_code(update, context, code_input)
+
+
+# Backward-compatible alias
+link_group_command = cmd_link_group
 
 
 # ---------------------------------------------------------------------------
@@ -204,8 +297,8 @@ def _get_attendance_state(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> d
 async def group_davomat_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ustoz dars boshida guruhda /davomat buyrug'ini yuboradi."""
     chat = update.effective_chat
-    if not chat or chat.type == ChatType.PRIVATE:
-        await update.message.reply_text("Ushbu buyruq Telegram guruhida ishlatiladi.")
+    if not chat or chat.type in (ChatType.PRIVATE, "private"):
+        await _send_group_reply(update, context, "Ushbu buyruq Telegram guruhida ishlatiladi.")
         return
 
     from apps.courses.models import StudentGroup
@@ -215,9 +308,11 @@ async def group_davomat_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     group = await _run_db(_get_group)
     if not group:
-        await update.message.reply_text(
+        await _send_group_reply(
+            update,
+            context,
             "⚠️ Ushbu guruh hali LMS sinfiga ulanmagan.\n"
-            "Avval bog'lash uchun: <code>/link_group Guruh_Kodi</code>",
+            "Avval bog'lash uchun: <code>/ulash Guruh_Kodi</code>",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -244,8 +339,9 @@ async def group_davomat_command(update: Update, context: ContextTypes.DEFAULT_TY
             [InlineKeyboardButton("🟢 Keldim / Darsdaman", callback_data=f"grp_att_here_{group.id}")],
         ]
     )
-    sent_msg = await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
-    state["message_id"] = sent_msg.message_id
+    sent_msg = await _send_group_reply(update, context, text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    if sent_msg and hasattr(sent_msg, "message_id"):
+        state["message_id"] = sent_msg.message_id
 
 
 async def group_attendance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -319,8 +415,8 @@ async def group_attendance_callback(update: Update, context: ContextTypes.DEFAUL
 async def group_davomat_yakun_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ustoz dars oxirida davomatni yakunlaydi va LMS tizimiga saqlaydi."""
     chat = update.effective_chat
-    if not chat or chat.type == ChatType.PRIVATE:
-        await update.message.reply_text("Ushbu buyruq Telegram guruhida ishlatiladi.")
+    if not chat or chat.type in (ChatType.PRIVATE, "private"):
+        await _send_group_reply(update, context, "Ushbu buyruq Telegram guruhida ishlatiladi.")
         return
 
     from apps.courses.models import StudentGroup
@@ -355,7 +451,6 @@ async def group_davomat_yakun_command(update: Update, context: ContextTypes.DEFA
         absent_names = []
 
         for st in all_students:
-            # Check if student's telegram matches present_ids
             st_tg = getattr(st, "telegram_chat_id", None) or getattr(st, "telegram_id", None)
             is_present = st_tg and (int(st_tg) in present_ids)
 
@@ -385,14 +480,12 @@ async def group_davomat_yakun_command(update: Update, context: ContextTypes.DEFA
 
     data, err = await _run_db(_conclude_db, chat.id, present_ids)
     if err or not data:
-        await update.message.reply_text("⚠️ Guruh ulanmagan yoki xatolik yuz berdi.")
+        await _send_group_reply(update, context, "⚠️ Guruh ulanmagan yoki xatolik yuz berdi.")
         return
 
-    # Present list text
     present_lines = [f"{i}. 🟢 {info['name']}" for i, info in enumerate(present_dict.values(), 1)]
     present_text = "\n".join(present_lines) if present_lines else "<i>Hech kim qatnashmadi</i>"
 
-    # Absent list text
     if data["absent_names"]:
         absent_lines = [f"{i}. 🔴 {name}" for i, name in enumerate(data["absent_names"], 1)]
         absent_text = "\n".join(absent_lines)
@@ -409,9 +502,8 @@ async def group_davomat_yakun_command(update: Update, context: ContextTypes.DEFA
         "💾 <i>Davomat ma'lumotlari LMS kabinetingizga muvaffaqiyatli saqlandi!</i>"
     )
 
-    # Clear state
     context.bot_data.get("live_attendance", {}).pop(chat.id, None)
-    await update.message.reply_text(report_text, parse_mode=ParseMode.HTML)
+    await _send_group_reply(update, context, report_text, parse_mode=ParseMode.HTML)
 
 
 # ---------------------------------------------------------------------------
@@ -420,8 +512,8 @@ async def group_davomat_yakun_command(update: Update, context: ContextTypes.DEFA
 async def group_yangi_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Guruhga yangi test havolasi, PIN kodi va Mini App tugmasini e'lon qiladi."""
     chat = update.effective_chat
-    if not chat or chat.type == ChatType.PRIVATE:
-        await update.message.reply_text("Ushbu buyruq Telegram guruhida test e'lon qilish uchun ishlatiladi.")
+    if not chat or chat.type in (ChatType.PRIVATE, "private"):
+        await _send_group_reply(update, context, "Ushbu buyruq Telegram guruhida test e'lon qilish uchun ishlatiladi.")
         return
 
     from apps.courses.models import StudentGroup
@@ -439,8 +531,7 @@ async def group_yangi_test_command(update: Update, context: ContextTypes.DEFAULT
         if not test:
             return None
 
-        pin_code = getattr(test, "pin_code", None) or f"{random.randint(1000, 9999)}"
-        # Set or save pin code if field exists
+        pin_code = getattr(test, "pin_code", None) or getattr(test, "access_pin", None) or f"{random.randint(1000, 9999)}"
         if hasattr(test, "pin_code") and not test.pin_code:
             test.pin_code = pin_code
             test.save(update_fields=["pin_code"])
@@ -457,7 +548,7 @@ async def group_yangi_test_command(update: Update, context: ContextTypes.DEFAULT
 
     info = await _run_db(_get_test_details, chat.id)
     if not info:
-        await update.message.reply_text("⚠️ Hozircha platformada faol test mavjud emas.")
+        await _send_group_reply(update, context, "⚠️ Hozircha platformada faol test mavjud emas.")
         return
 
     test_url = f"https://grandec.uz/tests/{info['test_id']}?pin={info['pin']}"
@@ -485,7 +576,7 @@ async def group_yangi_test_command(update: Update, context: ContextTypes.DEFAULT
         ]
     )
 
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    await _send_group_reply(update, context, text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +596,6 @@ async def group_results_leaderboard_command(update: Update, context: ContextType
     def _calc_group_stats(chat_id):
         group = StudentGroup.objects.filter(telegram_chat_id=chat_id).first()
         if not group:
-            # Fallback to recent overall results
             recent = Result.objects.select_related("student", "test").order_by("-percentage")[:5]
             board = []
             for r in recent:
@@ -578,11 +668,14 @@ async def group_results_leaderboard_command(update: Update, context: ContextType
         f"⚠️ <b>Eng ko'p xato qilingan mavzu:</b> \"{stats['mistake_topic']}\""
     )
 
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    await _send_group_reply(update, context, text, parse_mode=ParseMode.HTML)
+
+
+cmd_reyting = group_results_leaderboard_command
 
 
 # ---------------------------------------------------------------------------
-# 6. Group Vedomost & Exam PDF Report (/vedomost)
+# 6. Group Vedomost & Exam PDF Report (/vedomost & /report)
 # ---------------------------------------------------------------------------
 async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Guruh imtihon vedomostini PDF formatida generatsiya qilib yuborish."""
@@ -594,29 +687,34 @@ async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_T
     from apps.courses.models import StudentGroup
     from apps.results.pdf_generator import generate_group_vedomost_pdf
 
-    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         def _get_group(c_id):
             return StudentGroup.objects.filter(telegram_chat_id=c_id).first()
 
         group = await _run_db(_get_group, chat.id)
         if not group:
-            await update.message.reply_text(
-                "⚠️ Ushbu guruh tizimda ro'yxatdan o'tmagan. Guruhni ulash uchun <code>/link_group Guruh_Kodi</code> buyrug'idan foydalaning.",
+            await _send_group_reply(
+                update,
+                context,
+                "⚠️ Ushbu guruh tizimda ro'yxatdan o'tmagan. Guruhni ulash uchun <code>/ulash Guruh_Kodi</code> buyrug'idan foydalaning.",
                 parse_mode=ParseMode.HTML,
             )
             return
 
-        loading_msg = await update.message.reply_text(
+        loading_msg = await _send_group_reply(
+            update,
+            context,
             "⏳ <i>Guruh imtihon vedomosti (PDF) tayyorlanmoqda, iltimos kuting...</i>",
             parse_mode=ParseMode.HTML,
         )
 
         try:
             pdf_path = await _run_db(generate_group_vedomost_pdf, group.id)
+            students_cnt = await _run_db(lambda: group.students.count())
             caption = (
                 f"📄 <b>{group.name} Guruhi Imtihon Vedomosti</b>\n\n"
                 f"🏛 Fan: {group.subject or 'Umumiy'}\n"
-                f"👥 O'quvchilar: {await _run_db(lambda: group.students.count())} nafar\n\n"
+                f"👥 O'quvchilar: {students_cnt} nafar\n\n"
                 f"<i>Rasmiy jadval va yakuniy ballar ilovadagi PDF hujjatda keltirilgan.</i>"
             )
             with open(pdf_path, "rb") as f:
@@ -627,10 +725,15 @@ async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_T
                     caption=caption,
                     parse_mode=ParseMode.HTML,
                 )
-            await loading_msg.delete()
+            if loading_msg and hasattr(loading_msg, "delete"):
+                try:
+                    await loading_msg.delete()
+                except Exception:
+                    pass
         except Exception as exc:
             logger.exception("Failed to send group vedomost PDF: %s", exc)
-            await loading_msg.edit_text("❌ Vedomost PDF yaratishda xatolik yuz berdi.")
+            if loading_msg and hasattr(loading_msg, "edit_text"):
+                await loading_msg.edit_text("❌ Vedomost PDF yaratishda xatolik yuz berdi.")
     else:
         # Private chat with teacher
         from apps.accounts.models import User as UserModel
@@ -645,7 +748,9 @@ async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_T
 
         groups = await _run_db(_get_teacher_groups, user.id, user.username) if user else []
         if not groups:
-            await update.message.reply_text(
+            await _send_group_reply(
+                update,
+                context,
                 "Sizga biriktirilgan guruhlar topilmadi. Guruh vedomostini olish uchun uni guruh ichida <code>/vedomost</code> deb yuboring.",
                 parse_mode=ParseMode.HTML,
             )
@@ -655,11 +760,16 @@ async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton(f"📄 {g['name']} vedomosti", callback_data=f"grp_cmd_vedomost_{g['id']}")]
             for g in groups
         ]
-        await update.message.reply_text(
+        await _send_group_reply(
+            update,
+            context,
             "📊 <b>Qaysi guruhning imtihon vedomostini olmoqchisiz?</b>",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode=ParseMode.HTML,
         )
+
+
+cmd_vedomost = group_vedomost_command
 
 
 # ---------------------------------------------------------------------------
@@ -731,7 +841,9 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     data, err = await _run_db(_get_teacher_overview, user.id, user.username)
     if err or not data:
-        await update.message.reply_text(
+        await _send_group_reply(
+            update,
+            context,
             "👨‍🏫 <b>Ustoz Kabineti:</b>\n"
             "Ushbu menyu faqat tasdiqlangan o'qituvchilar uchun mo'ljallangan.\n"
             "Agar siz o'qituvchi bo'lsangiz, avval saytda ro'yxatdan o'tib, Telegramingizni bog'lang.",
@@ -753,7 +865,7 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         keyboard_rows.append([
             InlineKeyboardButton(f"📋 {g['name']} (Davomat)", callback_data=f"dav_grp_{g['id']}"),
-            InlineKeyboardButton(f"📄 Vedomost PDF", callback_data=f"grp_cmd_vedomost_{g['id']}"),
+            InlineKeyboardButton("📄 Vedomost PDF", callback_data=f"grp_cmd_vedomost_{g['id']}"),
         ])
 
     if data.get("recent_attempts"):
@@ -773,7 +885,7 @@ async def ustoz_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         lines.append("<i>Hozircha sizda guruhlar mavjud emas. Saytda yangi guruh yarating.</i>")
 
     keyboard_rows.append([InlineKeyboardButton("🔄 Yangilash", callback_data="grp_cmd_refresh")])
-    
+
     target_msg = update.message if update.message else (update.callback_query.message if update.callback_query else None)
     if target_msg:
         if update.callback_query:
@@ -939,12 +1051,12 @@ async def group_assistant_callback_handler(update: Update, context: ContextTypes
 
 
 # ---------------------------------------------------------------------------
-# 7. Unified Command Routers (Group vs Private)
+# 8. Unified Command Routers (Group vs Private) & Handler Registration
 # ---------------------------------------------------------------------------
 async def unified_davomat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Routes /davomat to group live attendance in groups, or CRM menu in private chat."""
     chat = update.effective_chat
-    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         await group_davomat_command(update, context)
     else:
         from apps.bot.crm import davomat_handler
@@ -954,7 +1066,7 @@ async def unified_davomat_handler(update: Update, context: ContextTypes.DEFAULT_
 async def unified_leaderboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Routes /leaderboard and /reyting to group test results in groups, or platform leaderboard in private chat."""
     chat = update.effective_chat
-    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         await group_results_leaderboard_command(update, context)
     else:
         from apps.notifications.bot.handlers import leaderboard_handler
@@ -964,9 +1076,32 @@ async def unified_leaderboard_handler(update: Update, context: ContextTypes.DEFA
 async def unified_test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Routes /test to group announcement with PIN in groups, or personal tests catalog in private chat."""
     chat = update.effective_chat
-    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+    if chat and chat.type in (ChatType.GROUP, ChatType.SUPERGROUP, "group", "supergroup"):
         await group_yangi_test_command(update, context)
     else:
         from apps.notifications.bot.handlers import tests_handler
         await tests_handler(update, context)
 
+
+def setup_group_handlers(app) -> None:
+    """Register all group assistant commands and handlers on the PTB Application."""
+    from telegram.ext import (
+        CallbackQueryHandler,
+        ChatMemberHandler,
+        CommandHandler,
+        MessageHandler,
+        filters,
+    )
+
+    app.add_handler(ChatMemberHandler(on_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_new_chat_members))
+    app.add_handler(CommandHandler(["ulash", "link", "link_group"], cmd_link_group))
+    app.add_handler(CommandHandler(["reyting", "leaderboard"], unified_leaderboard_handler))
+    app.add_handler(CommandHandler(["vedomost", "report"], group_vedomost_command))
+    app.add_handler(CommandHandler("davomat", unified_davomat_handler))
+    app.add_handler(CommandHandler("davomat_yakun", group_davomat_yakun_command))
+    app.add_handler(CommandHandler("yangi_test", group_yangi_test_command))
+    app.add_handler(CommandHandler("ustoz", ustoz_menu_command))
+    app.add_handler(
+        CallbackQueryHandler(group_assistant_callback_handler, pattern=r"^(grp_att_|grp_cmd_|ustoz_)")
+    )

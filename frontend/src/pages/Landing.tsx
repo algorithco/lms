@@ -103,7 +103,11 @@ export default function Landing() {
     return savedSub === 'english' ? 'ielts' : 'national_certificate';
   });
 
-  const startTo = user ? landingFor(user) : '/register';
+  const startTo = user
+    ? user.role === 'student' && user.onboarding_completed === false
+      ? '/onboarding'
+      : landingFor(user)
+    : '/register';
 
   // Lock scroll on mobile drawer
   useEffect(() => {
@@ -113,19 +117,16 @@ export default function Landing() {
     };
   }, [mobileOpen]);
 
-  // Option click handlers with celebratory confetti
-
-
-
-
-
-
   const handleAction = (destination: string) => {
     localStorage.setItem('grandec_selected_track', selectedTrack);
     localStorage.setItem('landing_subject', landingSubject);
     localStorage.setItem('lms_subject', landingSubject);
     if (user) {
-      navigate(destination);
+      if (destination === '/register' || destination === '/login') {
+        navigate(startTo);
+      } else {
+        navigate(destination);
+      }
     } else {
       openAuthModal('register');
     }
@@ -743,7 +744,7 @@ export default function Landing() {
                 >
                   <button
                     type="button"
-                    onClick={() => handleAction('/register')}
+                    onClick={() => (user ? navigate(startTo) : handleAction('/register'))}
                     className="shadow-lg inline-flex"
                     style={{
                       padding: '14px 32px',
@@ -802,128 +803,6 @@ export default function Landing() {
                     <CheckIcon size={16} style={{ color: '#0284C7' }} />
                     {t('landing.trust_languages', 'Ona tili va Ingliz tili')}
                   </span>
-                </div>
-                {/* Mobile 3D Direction Cards (TestMakon 2x2 Grid) */}
-                <div className="grid md:hidden">
-                  <button
-                    type="button"
-                    onClick={() => handleAction('/essays')}
-                    style={{
-                      padding: '16px 14px',
-                      borderRadius: '18px',
-                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-                      border: '1.5px solid #FDE68A',
-                      boxShadow: '0 6px 16px -3px rgba(217, 119, 6, 0.15)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 26 }}>✍️</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(217, 119, 6, 0.15)', color: '#B45309' }}>
-                        {t('landing.badge_12_criteria', '12 mezon')}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#92400E' }}>{t('landing.card_ai_essay', 'AI Esse')}</h4>
-                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B45309' }}>
-                        {t('landing.card_ai_essay_sub', 'BMB standarti asosida')}
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleAction('/tests')}
-                    style={{
-                      padding: '16px 14px',
-                      borderRadius: '18px',
-                      background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
-                      border: '1.5px solid #A7F3D0',
-                      boxShadow: '0 6px 16px -3px rgba(5, 150, 105, 0.15)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 26 }}>📝</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(5, 150, 105, 0.15)', color: '#047857' }}>
-                        {t('landing.badge_cbt_test', 'CBT Test')}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#065F46' }}>{t('landing.card_tests', 'Testlar')}</h4>
-                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#047857' }}>
-                        {t('landing.card_tests_sub', 'Davlat standarti')}
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleAction('/arena')}
-                    style={{
-                      padding: '16px 14px',
-                      borderRadius: '18px',
-                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
-                      border: '1.5px solid #FECACA',
-                      boxShadow: '0 6px 16px -3px rgba(220, 38, 38, 0.15)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 26 }}>⚔️</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(220, 38, 38, 0.15)', color: '#B91C1C' }}>
-                        {t('landing.badge_live_battle', 'Jonli jang')}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#991B1B' }}>{t('landing.card_arena', '1v1 Arena')}</h4>
-                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#B91C1C' }}>
-                        {t('landing.card_arena_sub', 'Tezkor duel')}
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleAction('/tests/scan-omr')}
-                    style={{
-                      padding: '16px 14px',
-                      borderRadius: '18px',
-                      background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
-                      border: '1.5px solid #DDD6FE',
-                      boxShadow: '0 6px 16px -3px rgba(124, 58, 237, 0.15)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 26 }}>📷</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(124, 58, 237, 0.15)', color: '#6D28D9' }}>
-                        {t('landing.badge_scanner', 'Skaner')}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 900, color: '#5B21B6' }}>{t('landing.card_scanner', 'Titul Skaner')}</h4>
-                      <p style={{ margin: '2px 0 0', fontSize: 10.5, fontWeight: 600, color: '#6D28D9' }}>
-                        {t('landing.card_scanner_sub', 'Kamera orqali')}
-                      </p>
-                    </div>
-                  </button>
                 </div>
               </div>
 
@@ -2029,75 +1908,6 @@ export default function Landing() {
               loading={loadingFeedbacks}
               onOpen={() => setLandingFeedbackOpen(true)}
             />
-          </div>
-        </section>
-
-        {/* BOTTOM CTA BANNER */}
-        <section style={{ padding: '40px 20px 80px' }}>
-          <div
-            className="cta-banner-box"
-            style={{
-              maxWidth: 960,
-              margin: '0 auto',
-            }}
-          >
-            <h2
-              className="cta-banner-title"
-              style={{
-                fontSize: 'clamp(2rem, 3.8vw, 2.8rem)',
-                fontWeight: 900,
-                lineHeight: 1.25,
-                padding: '4px 0',
-                color: isDark ? '#FFFFFF' : '#0F172A',
-                margin: '0 0 16px',
-              }}
-            >
-              {selectedTrack === 'ielts'
-                ? t('landing.cta_ielts_title', 'IELTS Band 7.5+ ga erishishga tayyormisiz?')
-                : selectedTrack === 'multilevel'
-                ? t('landing.cta_multilevel_title', 'Multi-level C1 sertifikatini olishga tayyormisiz?')
-                : selectedTrack === 'attestation'
-                ? t('landing.cta_attestation_title', 'Oliy toifa va 70% ustama sinoviga tayyormisiz?')
-                : t('landing.cta_banner_title', t('cta_banner_title'))}
-            </h2>
-            <p
-             
-              style={{
-                fontSize: 15,
-                color: isDark ? '#CBD5E1' : '#475569',
-                maxWidth: 580,
-                margin: '0 auto 32px',
-                lineHeight: 1.65,
-              }}
-            >
-              {selectedTrack === 'ielts'
-                ? t('landing.cta_ielts_desc', 'Hozir roʻyxatdan oʻting va birinchi Writing hamda Speaking sinovini mutlaqo bepul topshiring!')
-                : selectedTrack === 'multilevel'
-                ? t('landing.cta_multilevel_desc', '35 talik namunaviy test va yozma insho tahlilidan bepul foydalaning.')
-                : selectedTrack === 'attestation'
-                ? t('landing.cta_attestation_desc', '50 talik sinov diagnostikasini ishlab, toifa ehtimolligingizni aniqlang.')
-                : t('landing.cta_banner_subtitle', t('cta_banner_subtitle'))}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => handleAction('/register')}
-                className="btn-glow btn-shimmer"
-                style={{
-                  padding: '14px 32px',
-                  borderRadius: 14,
-                  fontSize: 15,
-                  fontWeight: 800,
-                  color: '#090d16',
-                  background: 'linear-gradient(135deg, #F59E0B, #FBBF24)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
-                }}
-              >
-                ⚡️ {t('cta_banner_btn', 'Bepul boshlash')} →
-              </button>
-            </div>
           </div>
         </section>
       </main>

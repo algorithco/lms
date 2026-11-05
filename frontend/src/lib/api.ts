@@ -269,7 +269,14 @@ export interface AuthUser {
   is_platform_admin?: boolean;
   avatar?: string;
   active_subject?: 'uzbek' | 'english';
-  exam_target?: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'undecided';
+  exam_target?: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'milliy_sertifikat' | 'cefr' | 'attestatsiya' | 'other' | 'undecided' | string;
+  target_exam?: string;
+  sub_subject?: string;
+  level?: string;
+  daily_goal_minutes?: number;
+  reminder_slot?: string;
+  referral_source?: string;
+  main_goal?: string;
   target_timeline_months?: number;
   target_grade?: string;
   placement_score?: number | string | null;
@@ -375,6 +382,13 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     target_grade: typeof raw.target_grade === 'string' ? raw.target_grade : 'A',
     placement_score: raw.placement_score !== undefined ? (raw.placement_score as number) : null,
     onboarding_completed: typeof raw.onboarding_completed === 'boolean' ? raw.onboarding_completed : false,
+    ...(typeof raw.daily_goal_minutes === 'number' ? { daily_goal_minutes: raw.daily_goal_minutes } : {}),
+    ...(typeof raw.target_exam === 'string' ? { target_exam: raw.target_exam } : {}),
+    ...(typeof raw.sub_subject === 'string' ? { sub_subject: raw.sub_subject } : {}),
+    ...(typeof raw.level === 'string' ? { level: raw.level } : {}),
+    ...(typeof raw.reminder_slot === 'string' ? { reminder_slot: raw.reminder_slot } : {}),
+    ...(typeof raw.referral_source === 'string' ? { referral_source: raw.referral_source } : {}),
+    ...(typeof raw.main_goal === 'string' ? { main_goal: raw.main_goal } : {}),
     daily_plan_summary:
       typeof raw.daily_plan_summary === 'object' && raw.daily_plan_summary
         ? (raw.daily_plan_summary as Record<string, unknown>)
@@ -2878,10 +2892,22 @@ export interface DashboardRecent {
 export interface DashboardWeakPart {
   section_code: string;
   section_name: string;
-  part: string;
+  part: string | number;
   question_type: string;
-  correct: number;
-  total: number;
+  correct?: number;
+  total?: number;
+  label?: string;
+  is_recommended?: boolean;
+}
+
+export interface DashboardDailyGoal {
+  goal_minutes: number;
+  completed_minutes: number;
+  progress_pct: number;
+  reminder_slot?: string;
+  level?: string;
+  target_exam?: string;
+  daily_plan_summary?: string;
 }
 
 export interface DashboardData {
@@ -2914,8 +2940,10 @@ export interface DashboardData {
     };
     streak: number;
   };
+  daily_goal?: DashboardDailyGoal;
   recent: DashboardRecent[];
   weak_parts: DashboardWeakPart[];
+  recommended_practice?: DashboardWeakPart[];
   goal: { exam_target: string; target: string; months: number; current: string | null; reached: boolean | null } | null;
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
@@ -19,7 +19,31 @@ import OnboardingModal from '../components/OnboardingModal';
 import PlanBadge from '../components/PlanBadge';
 import ReferralCard from '../components/ReferralCard';
 
-/** Student dashboard: one main action, a few real indicators, recent results, weak parts, goal. */
+function getStoredPlan(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem('grandec_user_plan');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function resolveTrackBadge(userExamTarget?: string, storedPlan?: Record<string, unknown>, subject?: string): string {
+  const target = String(userExamTarget || storedPlan?.target_exam || storedPlan?.exam_target || storedPlan?.target || '');
+  const sub = String(storedPlan?.sub_subject || '');
+  if (target === 'milliy_sertifikat' || target === 'national_certificate') return '🇺🇿 Milliy Sertifikat';
+  if (target === 'cefr' || target === 'multilevel') return '🇬🇧 CEFR Multi-level';
+  if (target === 'ielts') return '🎓 IELTS Academic';
+  if (target === 'attestatsiya' || target === 'attestation') return '📜 Attestatsiya 2026';
+  if (target === 'other') return sub ? `📚 ${sub}` : '📚 Umumiy fanlar';
+  return subject === 'english' ? '🇬🇧 Ingliz tili (CEFR / IELTS)' : '🇺🇿 Ona tili (Milliy sertifikat)';
+}
+
+/** Student dashboard: one main action, daily goal, real indicators, recent results, weak parts, goal. */
 export default function Dashboard() {
   const { user } = useAuth();
   const { t, lang } = useLang();
@@ -44,6 +68,7 @@ export default function Dashboard() {
     const done =
       localStorage.getItem('onboarding_dismissed') === 'true' ||
       localStorage.getItem('grandec_onboarding_done') === 'true' ||
+      localStorage.getItem('grand_ed_onboarding_done') === 'true' ||
       user.onboarding_completed === true;
     setOnboardingOpen(!done && user.onboarding_completed === false);
   }, [user, isStudent]);
@@ -84,16 +109,64 @@ export default function Dashboard() {
   const ind = data?.indicators;
   const hasActivity = Boolean(ind && (ind.tests_taken > 0 || ind.essays.count > 0));
 
+  // Daily Goal calculation
+  const storedPlan = useMemo(() => getStoredPlan(), [user?.onboarding_completed, user?.daily_goal_minutes]);
+  const goalMinutes = useMemo(() => {
+    const fromApi = Number(data?.daily_goal?.goal_minutes);
+    if (Number.isFinite(fromApi) && fromApi > 0) return fromApi;
+    const fromUser = Number(user?.daily_goal_minutes || (user?.daily_plan_summary as Record<string, unknown> | undefined)?.daily_minutes);
+    if (Number.isFinite(fromUser) && fromUser > 0) return fromUser;
+    const fromLocal = Number(storedPlan.daily_goal_minutes || storedPlan.daily_minutes);
+    if (Number.isFinite(fromLocal) && fromLocal > 0) return fromLocal;
+    return 15;
+  }, [data?.daily_goal?.goal_minutes, user?.daily_goal_minutes, user?.daily_plan_summary, storedPlan]);
+
+  const completedMinutes = useMemo(() => {
+    const fromApi = Number(data?.daily_goal?.completed_minutes);
+    const todayStr = new Date().toDateString();
+    let mins = 0;
+    if (data?.recent) {
+      for (const r of data.recent) {
+        if (r.finished_at && new Date(r.finished_at).toDateString() === todayStr) {
+          mins += 15;
+        }
+      }
+    }
+    if (data?.indicators?.essays?.recent) {
+      for (const e of data.indicators.essays.recent) {
+        if (e.updated_at && new Date(e.updated_at).toDateString() === todayStr) {
+          mins += 10;
+        }
+      }
+    }
+    const fromSummary = Number((user?.daily_plan_summary as Record<string, unknown> | undefined)?.completed_minutes || storedPlan.completed_minutes || 0);
+    return Math.max(
+      Number.isFinite(fromApi) ? fromApi : 0,
+      mins,
+      Number.isFinite(fromSummary) ? fromSummary : 0,
+    );
+  }, [data, user?.daily_plan_summary, storedPlan]);
+
+  const dailyProgressPct = Math.min(100, Math.round((completedMinutes / Math.max(1, goalMinutes)) * 100));
+  const trackBadgeLabel = resolveTrackBadge(data?.daily_goal?.target_exam || user?.exam_target || user?.target_exam, storedPlan, subject);
+
   const dateOf = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(lang) : '');
   const sectionName = (code: string, fallback: string) => t(`omr_section_${code}`, fallback || code);
 
-  const partLabel = (w: DashboardWeakPart) =>
-    [
-      w.section_code ? sectionName(w.section_code, w.section_name) : '',
-      w.part ? `${t('rv_part')} ${w.part}` : '',
-    ]
-      .filter(Boolean)
-      .join(', ') + ` (${t(`rv_type_${w.question_type}`, w.question_type)})`;
+  const partLabel = (w: DashboardWeakPart) => {
+    if (w.label) return w.label;
+    return (
+      [
+        w.section_code ? sectionName(w.section_code, w.section_name) : '',
+        w.part ? `${t('rv_part')} ${w.part}` : '',
+      ]
+        .filter(Boolean)
+        .join(', ') + ` (${t(`rv_type_${w.question_type}`, w.question_type)})`
+    );
+  };
+
+  const weakPracticeUrl = (w: DashboardWeakPart) =>
+    `/tests?skill=${encodeURIComponent(w.section_code || '')}&type=${encodeURIComponent(w.question_type || '')}&mode=practice`;
 
   const recentSummary = (r: DashboardRecent): string => {
     if (r.trial) return `${t('dsh_trial_tag')}: ${r.correct}/${r.total}`;
@@ -167,6 +240,32 @@ export default function Dashboard() {
         )}
       </header>
 
+      {/* Daily Personal Goal Banner (Kunlik shaxsiy reja) */}
+      {isStudent && (
+        <section className="dsh-daily" aria-label="Kunlik shaxsiy reja">
+          <div className="dsh-daily__top">
+            <div className="dsh-daily__title-wrap">
+              <p className="dsh-daily__title">
+                🔥 Bugungi reja: {completedMinutes} / {goalMinutes} daqiqa
+              </p>
+              <span className="dsh-daily__badge">{trackBadgeLabel}</span>
+            </div>
+            <Link to="/onboarding" className="dsh-daily__edit">
+              ⚙️ Rejani o&apos;zgartirish
+            </Link>
+          </div>
+          <div
+            className="dsh-daily__bar"
+            role="progressbar"
+            aria-valuenow={dailyProgressPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div className="dsh-daily__fill" style={{ width: `${Math.max(6, dailyProgressPct)}%` }} />
+          </div>
+        </section>
+      )}
+
       {pendingReceipt && (
         <div className="dsh-banner" role="status">
           <span>
@@ -195,7 +294,38 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!data && !failed && <div className="dsh-card dsh-skeleton" aria-busy="true" />}
+      {/* Structured Multi-Card Shimmer Skeleton */}
+      {!data && !failed && (
+        <div className="dsh-skeleton-grid" aria-busy="true" aria-label="Yuklanmoqda">
+          {/* Hero Skeleton */}
+          <div className="dsh-skeleton" style={{ padding: 20, minHeight: 88, display: 'grid', gap: 10 }}>
+            <div className="dsh-skeleton-line" style={{ width: '48%', height: 18 }} />
+            <div className="dsh-skeleton-line" style={{ width: '75%', height: 12 }} />
+          </div>
+
+          {/* 4 Metric Card Skeletons */}
+          <div className="dsh-stats">
+            {[0, 1, 2, 3].map((idx) => (
+              <div key={idx} className="dsh-skeleton" style={{ padding: 16, minHeight: 84, display: 'grid', gap: 8 }}>
+                <div className="dsh-skeleton-line" style={{ width: '55%', height: 12 }} />
+                <div className="dsh-skeleton-line" style={{ width: '40%', height: 26 }} />
+              </div>
+            ))}
+          </div>
+
+          {/* 2 Panel Skeletons */}
+          <div className="dsh-skeleton-panels">
+            {[0, 1].map((idx) => (
+              <div key={idx} className="dsh-skeleton" style={{ padding: 18, minHeight: 150, display: 'grid', gap: 12 }}>
+                <div className="dsh-skeleton-line" style={{ width: '42%', height: 16 }} />
+                <div className="dsh-skeleton-line" style={{ width: '90%', height: 14 }} />
+                <div className="dsh-skeleton-line" style={{ width: '82%', height: 14 }} />
+                <div className="dsh-skeleton-line" style={{ width: '65%', height: 14 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {data && !hasActivity && !failed && (
         <section className="dsh-card dsh-empty">
@@ -246,20 +376,43 @@ export default function Dashboard() {
                 <small>{t('dsh_weak_hint')}</small>
               </div>
               <ul className="dsh-list">
-                {data.weak_parts.map((w) => (
-                  <li key={`${w.section_code}|${w.part}|${w.question_type}`}>
-                    <div className="dsh-list__main">
-                      <strong>{partLabel(w)}</strong>
-                    </div>
-                    <b className="dsh-ratio">
-                      {w.correct}/{w.total}
-                    </b>
-                  </li>
-                ))}
+                {data.weak_parts.map((w) => {
+                  const targetUrl = weakPracticeUrl(w);
+                  return (
+                    <li
+                      key={`${w.section_code}|${w.part}|${w.question_type}`}
+                      className="dsh-weak-item"
+                      onClick={() => navigate(targetUrl)}
+                    >
+                      <div className="dsh-list__main">
+                        <strong>{partLabel(w)}</strong>
+                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          Natija: <b className="dsh-ratio">{w.correct}/{w.total}</b> to&apos;g&apos;ri
+                        </span>
+                      </div>
+                      <Link
+                        to={targetUrl}
+                        className="dsh-weak-pill"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        🎯 Mashq qilish →
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
-              <Link to="/tests" className="ui-btn ui-btn--sm">
-                {t('dsh_weak_practice')}
-              </Link>
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <Link
+                  to={
+                    data.weak_parts[0]
+                      ? weakPracticeUrl(data.weak_parts[0])
+                      : '/tests?mode=practice'
+                  }
+                  className="dsh-weak-pill"
+                >
+                  🎯 {t('dsh_weak_practice', 'Mashq qilish')} →
+                </Link>
+              </div>
             </section>
           )}
 
@@ -281,6 +434,41 @@ export default function Dashboard() {
             </section>
           )}
         </>
+      )}
+
+      {data && isStudent && !hasActivity && (data.recommended_practice || []).length > 0 && (
+        <section className="dsh-card">
+          <div className="dsh-card__head">
+            <h2>{t('dsh_weak_title')}</h2>
+            <small>Yo&apos;nalishingiz bo&apos;yicha tavsiya etilgan mashqlar</small>
+          </div>
+          <ul className="dsh-list">
+            {(data.recommended_practice || []).map((w) => {
+              const targetUrl = weakPracticeUrl(w);
+              return (
+                <li
+                  key={`${w.section_code}|${w.part}|${w.question_type}`}
+                  className="dsh-weak-item"
+                  onClick={() => navigate(targetUrl)}
+                >
+                  <div className="dsh-list__main">
+                    <strong>{partLabel(w)}</strong>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Diagnostik mashq · Bo&apos;lim bo&apos;yicha amaliyot
+                    </span>
+                  </div>
+                  <Link
+                    to={targetUrl}
+                    className="dsh-weak-pill"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    🎯 Mashq qilish →
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {data && isStudent && (

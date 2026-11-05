@@ -293,6 +293,11 @@ urlpatterns = [
         views_accounts.DirectTelegramLinkView.as_view(),
         name="accounts-link-telegram",
     ),
+    path(
+        "users/onboarding/",
+        views_accounts.complete_onboarding_view,
+        name="webapi-users-onboarding",
+    ),
     # -- Billing ---------------------------------------------------------
     path("billing/plans/", views_billing.plans_view, name="billing-plans"),
     path("billing/my/", views_billing.my_view, name="billing-my"),
@@ -377,6 +382,11 @@ urlpatterns = [
         "school/groups/<int:group_id>/export/pdf/",
         views_school.group_export_pdf_view,
         name="school-group-export-pdf",
+    ),
+    path(
+        "school/groups/<int:group_id>/broadcast-vedomost/",
+        views_school.group_broadcast_vedomost_view,
+        name="school-group-broadcast-vedomost",
     ),
     path("school/groups/join/", views_school.group_join_view, name="school-group-join"),
     path(

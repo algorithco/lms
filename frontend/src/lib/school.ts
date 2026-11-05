@@ -27,12 +27,17 @@ export interface SchoolGroup {
   description: string;
   invite_code?: string;
   invite_token?: string;
+  group_code?: string;
+  telegram_chat_id?: number | null;
+  telegram_chat_title?: string;
   teacher: number;
   teacher_name: string;
   student_count: number;
   students: GroupMember[];
   created_at: string;
 }
+
+export type StudentGroup = SchoolGroup;
 
 export interface RecentResult {
   student: string;
@@ -126,6 +131,20 @@ export interface EssayBoard {
 /** GET /api/v1/school/groups/<id>/ — the typed client only has PATCH/DELETE. */
 export function getGroupDetail(id: number | string): Promise<SchoolGroup> {
   return api<SchoolGroup>(`/api/v1/school/groups/${id}/`);
+}
+
+/** POST /api/v1/school/groups/<id>/broadcast-vedomost/ — sends Leaderboard & PDF Vedomost to linked Telegram group. */
+export async function broadcastGroupVedomost(
+  groupId: number,
+): Promise<{ ok?: boolean; status?: string; message?: string; detail?: string }> {
+  try {
+    return await api.post(`/api/v1/school/groups/${groupId}/broadcast-vedomost/`);
+  } catch (err: unknown) {
+    if ((err as { status?: number })?.status === 404) {
+      return await api.post(`/v1/school/groups/${groupId}/broadcast-vedomost/`);
+    }
+    throw err;
+  }
 }
 
 /**

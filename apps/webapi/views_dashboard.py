@@ -31,9 +31,13 @@ BMB_GRADE_ORDER = ["Fail", "C", "C+", "B", "B+", "A", "A+"]
 CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
 GOAL_SUBJECT = {
     "national_certificate": "uzbek",
+    "milliy_sertifikat": "uzbek",
+    "ona_tili": "uzbek",
     "attestation": "uzbek",
+    "attestatsiya": "uzbek",
     "ielts": "english",
     "multilevel": "english",
+    "cefr": "english",
 }
 RECENT = 3
 WEAK_PARTS = 3
@@ -217,11 +221,11 @@ def goal_for(profile, subject: str, results: list[Result]) -> dict[str, Any] | N
     current: str | None = None
     reached: bool | None = None
     wanted = profile.target_grade or ""
-    if target == "national_certificate":
+    if target in ("national_certificate", "milliy_sertifikat", "ona_tili"):
         current = _best_grade(results)
         if current and wanted in BMB_GRADE_ORDER:
             reached = BMB_GRADE_ORDER.index(current) >= BMB_GRADE_ORDER.index(wanted)
-    elif target == "multilevel":
+    elif target in ("multilevel", "cefr"):
         overall = _best_cefr(results)["overall"]
         current = overall["level"] if overall else None
         level = wanted.split()[0] if wanted else ""
@@ -234,6 +238,97 @@ def goal_for(profile, subject: str, results: list[Result]) -> dict[str, Any] | N
         "current": current,
         "reached": reached,
     }
+
+
+def _today_study_minutes(user) -> int:
+    from apps.essays.models import EssaySubmission
+    from apps.speaking.models import SpeakingSubmission
+
+    today = timezone.localdate()
+    minutes = 0
+
+    today_attempts = TestAttempt.objects.filter(
+        student=user, status__in=FINISHED, is_preview=False, completed_at__date=today
+    )
+    for att in today_attempts:
+        sec = getattr(att, "time_taken_seconds", None)
+        if sec and sec > 0:
+            minutes += max(1, int(sec) // 60)
+        elif att.completed_at and att.started_at:
+            diff = int((att.completed_at - att.started_at).total_seconds()) // 60
+            minutes += diff if 1 <= diff <= 240 else 15
+        else:
+            minutes += 15
+
+    essay_count = (
+        EssaySubmission.objects.filter(student=user, updated_at__date=today)
+        .exclude(status=EssaySubmission.Status.DRAFT)
+        .count()
+    )
+    minutes += essay_count * 15
+
+    speaking_subs = SpeakingSubmission.objects.filter(user=user, created_at__date=today)
+    for sp in speaking_subs:
+        dur = getattr(sp, "duration_seconds", 0) or 0
+        minutes += max(5, int(dur) // 60) if dur > 0 else 5
+
+    return minutes
+
+
+def _recommended_practice(subject: str) -> list[dict[str, Any]]:
+    if subject == "english":
+        return [
+            {
+                "section_code": "listening",
+                "section_name": "Listening",
+                "part": 1,
+                "question_type": "gap_fill",
+                "label": "Listening, Qism 1 — Bo'sh joyni to'ldirish",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "reading",
+                "section_name": "Reading",
+                "part": 2,
+                "question_type": "matching",
+                "label": "Reading, Qism 2 — Moslashtirish",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "listening",
+                "section_name": "Listening",
+                "part": 3,
+                "question_type": "single",
+                "label": "Listening, Qism 3 — Variantli savol",
+                "is_recommended": True,
+            },
+        ]
+    return [
+        {
+            "section_code": "grammar",
+            "section_name": "Ona tili (Grammatika)",
+            "part": 1,
+            "question_type": "single",
+            "label": "Imlo, fonetika va leksikologiya",
+            "is_recommended": True,
+        },
+        {
+            "section_code": "reading",
+            "section_name": "O'qish savodxonligi",
+            "part": 2,
+            "question_type": "single",
+            "label": "Ilmiy va badiiy matn tahlili",
+            "is_recommended": True,
+        },
+        {
+            "section_code": "literature",
+            "section_name": "Adabiyot va G'azal tahlili",
+            "part": 3,
+            "question_type": "matching",
+            "label": "Mumtoz adabiyot va vazn tahlili",
+            "is_recommended": True,
+        },
+    ]
 
 
 def _resume(user, subject: str) -> dict[str, Any] | None:
@@ -277,6 +372,9 @@ class StudentDashboardView(APIView):
         percentages = [float(r.percentage) for r in real]
         cefr = _best_cefr(real)
         best_pct = max(percentages) if percentages else None
+        today_minutes = _today_study_minutes(user)
+        goal_minutes = getattr(profile, "daily_goal_minutes", 15) or 15
+        weaks = weak_parts(user, subject)
 
         return Response(
             {
@@ -294,8 +392,18 @@ class StudentDashboardView(APIView):
                     "essays": _essays(user, subject),
                     "streak": getattr(profile, "current_streak", 0) or 0,
                 },
+                "daily_goal": {
+                    "goal_minutes": goal_minutes,
+                    "completed_minutes": today_minutes,
+                    "progress_pct": min(100, int(round((today_minutes / max(1, goal_minutes)) * 100))),
+                    "reminder_slot": getattr(profile, "reminder_slot", "evening") or "evening",
+                    "level": getattr(profile, "level", "beginner") or "beginner",
+                    "target_exam": getattr(profile, "target_exam", "") or getattr(profile, "exam_target", ""),
+                    "daily_plan_summary": getattr(profile, "daily_plan_summary", ""),
+                },
                 "recent": _recent(rows),
-                "weak_parts": weak_parts(user, subject),
+                "weak_parts": weaks,
+                "recommended_practice": _recommended_practice(subject) if not weaks else [],
                 "goal": goal_for(profile, subject, real) if profile else None,
             }
         )

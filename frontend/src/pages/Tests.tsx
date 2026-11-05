@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, BarChart3, Clock, FileText, Lock, PlayCircle, Plus, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
 import LimitExceededModal from '../components/LimitExceededModal';
 import MockCodeCard from '../components/MockCodeCard';
@@ -68,8 +68,14 @@ function SkeletonCard() {
 export default function Tests() {
   const { t } = useLang();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const subject = useSubject();
+
+  const practiceSkill = searchParams.get('skill') || '';
+  const practiceType = searchParams.get('type') || '';
+  const practiceMode = searchParams.get('mode') || '';
+  const isPracticeActive = Boolean(practiceMode === 'practice' || practiceSkill || practiceType);
 
   const [entitlement, setEntitlement] = useState<BillingEntitlement | null>(null);
   const [tests, setTests] = useState<Item[]>([]);
@@ -142,7 +148,7 @@ export default function Tests() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return tests.filter((i) => {
+    const filtered = tests.filter((i) => {
       if (q && !(lower(i.title).includes(q) || lower(i.course_title).includes(q))) return false;
       if (difficulty && String(i.difficulty ?? '') !== difficulty) return false;
       if ((subject === 'english') !== isEnglishTest(i)) return false;
@@ -161,7 +167,25 @@ export default function Tests() {
           return true;
       }
     });
-  }, [tests, query, difficulty, subject, category]);
+
+    if (!isPracticeActive) return filtered;
+
+    const sk = practiceSkill.trim().toLowerCase();
+    const tp = practiceType.trim().toLowerCase();
+    const scoreItem = (i: Item): number => {
+      const hay = `${lower(i.title)} ${lower(i.course_title)} ${(i.section_names || []).map(lower).join(' ')} ${lower(i.category_slug)}`;
+      let pts = 0;
+      if (sk && hay.includes(sk)) pts += 2;
+      if (tp && hay.includes(tp)) pts += 2;
+      if (i.my_status?.state !== 'done') pts += 1;
+      return pts;
+    };
+    const exactMatches = filtered.filter((i) => scoreItem(i) >= 2);
+    if (exactMatches.length > 0) {
+      return [...exactMatches].sort((a, b) => scoreItem(b) - scoreItem(a));
+    }
+    return [...filtered].sort((a, b) => scoreItem(b) - scoreItem(a));
+  }, [tests, query, difficulty, subject, category, isPracticeActive, practiceSkill, practiceType]);
 
   const join = useCallback(
     async (code: string) => {
@@ -262,6 +286,49 @@ export default function Tests() {
           </Link>
         )}
       </div>
+
+      {isPracticeActive && (
+        <div
+          role="status"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '14px 18px',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(200, 146, 42, 0.14), rgba(59, 130, 246, 0.12))',
+            border: '1.5px solid #C8922A',
+            color: 'var(--text-primary, var(--ink))',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <strong style={{ fontSize: 15, fontWeight: 800 }}>
+              🎯 Zaif qism mashqi: {[
+                practiceSkill ? t(`omr_section_${practiceSkill}`, practiceSkill) : '',
+                practiceType ? t(`rv_type_${practiceType}`, practiceType) : '',
+              ]
+                .filter(Boolean)
+                .join(' — ') || 'Shaxsiy mashq rejimi'}
+            </strong>
+            <span style={{ fontSize: 12.5, color: 'var(--text-secondary, var(--muted))' }}>
+              Zaif mavzularingizni mustahkamlash uchun tavsiya etilgan testlar saralandi
+            </span>
+          </div>
+          <button
+            type="button"
+            className="ui-btn ui-btn--sm"
+            onClick={() => setSearchParams({})}
+            style={{
+              borderColor: '#C8922A',
+              fontWeight: 800,
+            }}
+          >
+            Filtrni tozalash ✕
+          </button>
+        </div>
+      )}
 
       {resume && (
         <Link to={resume.route} className="ui-card tl-resume">

@@ -312,4 +312,12 @@ def evaluate_speaking_submission(
     # 5. Award Gamification XP
     record_user_activity(user, xp_amount=30, activity_type="speaking")
 
+    # 6. Broadcast Speaking result & PDF scorecard to linked Telegram groups
+    try:
+        from apps.notifications.tasks import broadcast_speaking_result_to_groups
+
+        broadcast_speaking_result_to_groups(sub)
+    except Exception as exc:
+        logger.warning("Speaking group broadcast skipped/failed: %s", exc)
+
     return sub
