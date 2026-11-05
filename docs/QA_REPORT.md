@@ -1,3 +1,93 @@
+# QA report — branch `hotfix/integrity-audit` (integrity and security, no new features)
+
+Base: `main` at `ae4e93c` (v1.81.0). **#118, #119 (`feat/mobile-pro-ui`) and #120 are all in `main`**; production runs image `sha-e061702` (#120), 0 unapplied migrations, `/healthz/` 200 (read-only checks, 2026-11-05). `grant_subscription` and the plan rules were not touched.
+
+## 1. Production, read only (nothing was changed on the server)
+| Check | Result |
+|---|---|
+| `seed_accounts` accounts (old fixed-password command, git history `ec15c2e`) | **Two exist**: id 49 (`admin`, superuser, staff) and id 50 (`teacher`), both created 2026-10-31 13:51 UTC, **never logged in** (`last_login` empty). Created before the fix `b877c6a` (11-03), so their passwords are the ones once written in git history. 53 users in total, 4 admins/superusers. **Owner changes the passwords.** Email, phone, hashes were not read out |
+| `.env.prod` key names | `PAYMENT_CARD_NUMBER`, `PAYMENT_CARD_HOLDER`, `PAYMENT_CARD_BANK`, `PAYMENT_ADMIN_USERNAME`: **not set**. `OPENROUTER_API_KEY`: set. `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`: not set. `ESSAY_AI_PROVIDER=openrouter`, `ESSAY_AI_MOCK_MODE=False`. `TELEGRAM_BOT_TOKEN`: set. **So production has been showing the card number that was written in the code as a default** (see §5) |
+| `audit_unpaid_subscriptions` | 0 unpaid active paid-plan subscriptions, 0 teacher sponsorships (nothing to break down by day or tier) |
+| "official / guarantee" wording (`rasmiy`, `official`, `British Council`, `Cambridge`, `kafolat`, `guarantee`) | `essays.EssayTopic` id 2 `title` (rasmiy) and `description` (kafolat); `payments.SubscriptionPlan` id 3 `description` (rasmiy). `tests.Test`, `Question`, `Subject`: no matches |
+| Migrations, health | all applied; web/bot/worker/beat healthy; image `sha-e061702` |
+| CEFR writing | 2 essay topics exist, none "multilevel"; Record Mock (test 14) holds the three `written` tasks (1.1, 1.2, Part 2) |
+
+Texts in the database were **not** changed: `manage.py fix_official_claims` (dry run by default) lists them and what it would write.
+
+## 2. Honest grading: no invented score
+Found and removed (all returned a score, band, transcript, questions or an explanation when the AI failed):
+| Where | Was | Now |
+|---|---|---|
+| `grade_ielts_essay` (IELTS, CEFR Multi-level) | any provider error, timeout or broken JSON → `_mock_ielts_response` (an invented band) saved as GRADED | `AIUnavailable`: Celery retries, then the essay is ERROR (not graded), the allowance is refunded, the failure is counted |
+| `DeepSeekGrader` (BMB, IELTS) | fell back to `_mock_12_criteria_response` | raises |
+| `apply_ai_result` | accepted any `_mock_mode` result | refuses a mock grade unless the platform is knowingly in mock mode (no key and the flag) |
+| AI Speaking | fixed fake transcript and a 6.5–7.0 band when audio/AI failed; missing scores defaulted to 6.5/7.0 | `AIUnavailable`: nothing saved, no XP; scores must be present and 0–9 |
+| Vocabulary generator | built-in word list with invented translations and distractors | 503, nothing saved |
+| Test converter | dummy "IELTS Reading" / "Navoiy" template; a guessed correct answer "A"; "Variant A…" choices | no questions → 422; unknown answer stays empty and flagged; saving refuses incomplete questions |
+| Explain mistake (`ai_tutor`) | "your variant contradicts morphological rules" for any wrong answer, cached 7 days | only the answer key and the stored explanation; not cached |
+Every failure path: status ERROR / `not_graded`, the allowance is returned (essays: `refund_usage_for_submission`; speaking, OCR, OMR, vocab, converter: the daily call), and `record_ai_failure` sends **one** Telegram message to the admin after 3 failures in a row per feature (30 min cooldown). Mocked: timeout, provider error, broken JSON, missing/out-of-range scores, missing key.
+
+Not changed: BMB (`grade_essay`) already raised on failure; OMR already refuses unreadable marks. CEFR Writing topics (Record Mock 1.1, 1.2, Part 2) come from `manage.py publish_cefr_writing_topics` (dry run by default, reads the exam's own task text, idempotent); with them present the Essay studio lists them. **Not run on production.**
+
+## 3. Abuse and cost control
+| AI endpoint | Auth | Plan | Daily cap (FREE / STARTER / PRO / PREMIUM) | Rate limit | Size / type |
+|---|---|---|---|---|---|
+| OCR `/essays/ocr/` | yes | plan must include photo essays (FREE, STARTER refused; staff exempt) | **new** 0 / 5 / 5 / 20 | 20/h | 10 MB per page, ≤ 10 pages, `image/*` |
+| Essay submit (text, image, custom) | yes | weekly quota (unchanged) | quota | 5/min | 50k chars |
+| IELTS grade `/essays/ielts/grade/` | yes | **was none: any account, unlimited** → now text-essay quota | quota | **new** 5/min | 50k chars |
+| Speaking submit | yes | – | **new** 1 / 3 / 10 / 30 | **new** 10/h | audio only, 25 MB, 5 s–15 min |
+| OMR scan | yes | visible tests only | **new** 3 / 10 / 20 / 40 | 10/h | 8 MB, sheet checks |
+| OMR confirm | yes | test quota (unchanged) | quota | 10/h | – |
+| Test converter | teacher/admin | – | **new** 0 / 0 / 0 / 20 (teachers) | **new** 30/h | 15 MB, PDF/image |
+| Vocabulary generator | **was any account** → teacher/admin, own groups | – | **new** same as converter | **new** 30/h | – |
+| Essay autosave | owner only | – | – | **new** 60/min | 50k chars |
+Admins are exempt from the caps; teachers count as PREMIUM. All numbers are in `FEATURE_DAILY_CAPS` and can be overridden with `settings.AI_FEATURE_DAILY_CAPS`. The caps use the cache (Redis in production): a Redis flush resets the day.
+Also closed: the vocabulary "assign homework" accepted any pack and group (now pack owner and group teacher only); OMR listed and read tests of other teachers' private groups and PIN tests (now only tests the student can open).
+XP (`apps/tests/xp_rules.py`): none under 30 % answered, none when finished faster than 3 s per question (never under 20 s), at most 40 XP per test per day. Staff previews and trials were already excluded. OMR gives no XP (`xp_earned: 0`, no XP code in the service).
+
+## 4. OMR: what was proved
+| Claim | Evidence |
+|---|---|
+| Non-sheet images rejected | dark screenshot, uniform frame, non-image, oversize, aspect ratio, and a vision answer "not a sheet" each refused (`test_omr_db_integration`), before any AI call for the image checks |
+| Unread / unclear / blank mark never becomes "A" | `test_blank_multiple_and_unread_never_become_a`; a letter the question does not have becomes "unread" |
+| Confidence threshold | per sheet: more than `OMR_MAX_UNREAD_RATIO` (0.2) unread rows → refused (`test_omr_scan_grades_nothing…`). The reader returns no per-mark confidence; "unsure" is its `null`. **Real-photo accuracy was not measured** (no phone photos / no reader key locally) |
+| Student confirms before grading | the scan creates no attempt, result or XP; grading is a separate call with the student's reviewed answers |
+| No XP via OMR | test + source check |
+| Rate limit and file limits | 10/h scan and confirm; **new** daily scan cap; 8 MB; JPG/PNG/WEBP verified by content |
+| Questions shown by sequence number | `number` and `key` per item (`test_cefr_numbering_has_70_objective_questions`) |
+Not verifiable here: confirm can be called without a scan (it grades whatever the student submits, with the test quota and access checks): left as is.
+
+## 5. Payment card
+The card number was a code default in settings, in two bot handlers and in `card_info_view`, and in both `.env*.example` files. Removed everywhere. Without `PAYMENT_CARD_NUMBER` **and** `PAYMENT_CARD_HOLDER` the endpoints answer 503 `payment_unavailable` ("To'lov ma'lumoti hozircha mavjud emas."), the bot says the same, and the admin gets one Telegram message every 6 hours. **Production has none of these variables: set `PAYMENT_CARD_NUMBER`, `PAYMENT_CARD_HOLDER` (and `PAYMENT_CARD_BANK`) in `.env.prod` before merging, or students will see "not available" instead of the card.**
+
+## 6. Plan display with a manual limit
+`display_plan` / `get_display_tier`: with an admin limit override the plan name comes from the student's subscription (FREE when none) and the override is reported apart (`custom_limit`, `/me.has_custom_limit`, a "Custom limit" mark in the plan badge). Limits themselves still come from the override; `get_user_plan_tier` (used for AI daily quotas) is unchanged.
+
+## 7. Backups
+`backup_db.sh`, `backup_offsite.sh`, `restore_test.sh`, `docs/BACKUP.md`. Verified locally on PostgreSQL 17.11 with a freshly migrated database (117 tables): dump + gzip + checks, weekly copy, rotation, refusal of a too-small dump (old backups kept), corrupted gzip rejected, restore into a scratch database (162 migrations, users present), remote host refused, offsite does nothing without a target. **No cron job or service on the server. `backup_offsite.sh` has not run against a real host. A production dump has not been restored.**
+
+## Checks
+| Check | Result |
+|---|---|
+| `pytest` (full) | **1 561 passed, 2 skipped** (both PostgreSQL-only); 67 new tests in `test_integrity_*` (honest grading 21, abuse controls 29, billing/tier/commands/backup scripts 15, plus updated old tests) |
+| `manage.py check` | no issues |
+| `manage.py makemigrations --check` | no changes. **This branch adds no migration** |
+| `ruff check .` | all checks passed |
+| `tsc -b` | clean |
+| `vite build` | built |
+| `oxlint` | 0 errors, 79 warnings (same as `main`) |
+| `npm test` | 13 passed |
+| Backup scripts | run for real on local PostgreSQL 17.11 (see section 7) |
+
+## Not tested / open
+- Real AI answers: nothing was run against the live provider (mocks only). Real OCR, real OMR photos, real phone keyboards: not tested.
+- Production data fixes (`fix_official_claims`, `publish_cefr_writing_topics`) are written and tested but **not run**; they need the owner's approval.
+- `docs/ROADMAP_REMAINING.md` named in the task is not in the repository or on disk, so it was not added.
+- Pre-existing and left: `tma_essay_topics_view` calls `ensure_multi_subject_seed_data()` on every GET (writes data from a read); the spaced-repetition quiz has a built-in sample word list; the bot text still describes plan limits that differ from the plan rows; legacy pages (speaking, converter, vocabulary) have hard-coded Uzbek text and show the server's message.
+- An AI-suggested answer key in the converter (the prompt asks the model to fill a missing key) still goes to the teacher for review; it is not marked as AI-chosen.
+
+---
+
 # QA report — branch `fix/responsive-audit`
 
 Method: live grandec.uz (guest pages) and the local dev servers with the seeded QA accounts (paid student, teacher, admin), in the in-app browser. Each page was loaded in an iframe of the given width and **measured**: document `scrollWidth` vs `clientWidth`, visible elements past the viewport edge (outside scroll containers), interactive elements under 44 px on phones, overlapping controls. Screenshots at 768, 1366 and 390 px; dark mode on the plans page. Bestway was not in scope.
