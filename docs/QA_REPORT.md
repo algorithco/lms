@@ -69,7 +69,7 @@ The card number was a code default in settings, in two bot handlers and in `card
 ## Checks
 | Check | Result |
 |---|---|
-| `pytest` (full) | **1 561 passed, 2 skipped** (both PostgreSQL-only); 67 new tests in `test_integrity_*` (honest grading 21, abuse controls 29, billing/tier/commands/backup scripts 15, plus updated old tests) |
+| `pytest` (full) | **1 561 passed, 2 skipped** (both PostgreSQL-only); 65 new tests in `test_integrity_*` (honest grading 21, abuse controls 29, billing/tier/commands/backup scripts 15, plus updated old tests) |
 | `manage.py check` | no issues |
 | `manage.py makemigrations --check` | no changes. **This branch adds no migration** |
 | `ruff check .` | all checks passed |
