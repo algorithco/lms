@@ -3214,8 +3214,14 @@ async def plans_and_payment_handler(
     """Show Grand Education card details, plans and payment receipt instructions."""
     from django.conf import settings as _settings
 
-    card_number = getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
-    card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
+    from apps.payments.card import UNAVAILABLE_MESSAGE, get_payment_card, notify_admin_card_missing
+
+    card = get_payment_card()
+    if card is None:
+        await _run_db(notify_admin_card_missing)
+        await send_reply(update, UNAVAILABLE_MESSAGE)
+        return
+    card_number, card_holder = card.number, card.holder
     starter_price = getattr(_settings, "PLAN_STARTER_PRICE", 0) or 7000
     pro_price = getattr(_settings, "PLAN_PRO_PRICE", 0) or 15000
     premium_price = getattr(_settings, "PLAN_PREMIUM_PRICE", 0) or 27000
@@ -3232,7 +3238,7 @@ async def plans_and_payment_handler(
 
         f"2️⃣ 🔥 *PRO — {pro_price:,} so'm / oy (Tavsiya etiladi)*\n"
         f"• Haftasiga 15 ta esse (rasmli va matnli)\n"
-        f"• Kunlik rasmiy Mock testlar va CBT testlar\n"
+        f"• Kunlik Mock testlar va CBT testlar\n"
         f"• 24/7 AI repetitor izohlari\n\n"
         f"3️⃣ 👑 *PREMIUM — {premium_price:,} so'm / oy*\n"
         f"• ✍️ Cheksiz esse baholash (12 mezon)\n"
@@ -5452,10 +5458,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             context.user_data["payment_state"] = "awaiting_screenshot"
             from django.conf import settings as _settings
 
-            card_number = (
-                getattr(_settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
-            )
-            card_holder = getattr(_settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
+            from apps.payments.card import UNAVAILABLE_MESSAGE, get_payment_card, notify_admin_card_missing
+
+            card = get_payment_card()
+            if card is None:
+                await _run_db(notify_admin_card_missing)
+                await query.edit_message_text(UNAVAILABLE_MESSAGE)
+                return
+            card_number, card_holder = card.number, card.holder
             defaults = {"starter": 7000, "pro": 15000, "premium": 27000}
             price = (
                 getattr(_settings, f"PLAN_{selected_slug.upper()}_PRICE", 0)
