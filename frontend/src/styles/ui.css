@@ -312,6 +312,7 @@ html.dark .fb-card__avatar { color: #0A0E17; }
 .plan-chip { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .plan-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card-2); color: var(--muted); font-size: 12px; font-weight: 600; }
 .plan-pill b { color: var(--ink); font-weight: 800; }
+.plan-pill--custom { border-style: dashed; color: var(--ink); }
 .plan-pill.is-paid { border-color: var(--accent); background: rgba(245, 158, 11, 0.12); color: var(--accent-dark); }
 .plan-card { margin: 16px 10px 10px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--card-2); display: grid; gap: 6px; justify-items: start; }
 .plan-card p { margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted); }

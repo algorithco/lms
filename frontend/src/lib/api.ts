@@ -172,12 +172,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new AuthExpiredError();
   }
   if (!res.ok) {
+    // Our own JSON answers carry a machine `code` ("not_graded", "ocr_unavailable", ...) the page
+    // can explain; keep them even on 503/429. nginx HTML and DRF throttle text have none.
+    let ownCode = false;
+    if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
+      try {
+        const probe = (await res.clone().json()) as { code?: unknown } | null;
+        ownCode = typeof probe?.code === 'string';
+      } catch {
+        ownCode = false;
+      }
+    }
     // Gateway errors come from nginx as HTML, not a DRF body worth parsing.
-    if (res.status === 502 || res.status === 503 || res.status === 504) {
+    if (!ownCode && (res.status === 502 || res.status === 503 || res.status === 504)) {
       throw networkError(res.status, 'error_server_unavailable');
     }
     // DRF's throttle text is English and says nothing useful to a student.
-    if (res.status === 429) throw networkError(429, 'error_too_many_requests');
+    if (!ownCode && res.status === 429) throw networkError(429, 'error_too_many_requests');
     const fallbackDetail = `Request failed (${res.status})`;
     let detail = fallbackDetail;
     let code: string | undefined;
@@ -1618,6 +1629,8 @@ export interface BillingEntitlement {
   source: 'override' | 'sponsored' | 'subscription' | 'default' | string;
   plan_type: string | null;
   plan_name: string;
+  /** An administrator set a manual limit for this student (shown next to the plan, not instead of it). */
+  custom_limit?: boolean;
   is_sponsored: boolean;
   is_paid: boolean;
   expires_at: string | null;

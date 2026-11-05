@@ -18,6 +18,8 @@ from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+
+from apps.core.ai_health import AIUnavailable
 import httpx
 from openai import OpenAI
 
@@ -95,7 +97,10 @@ class DeepSeekGrader:
         if _is_mock_mode():
             return grade_essay(cleaned, topic_title)
 
-        client = get_deepseek_client(timeout=50.0)
+        try:
+            client = get_deepseek_client(timeout=50.0)
+        except Exception as exc:
+            raise AIUnavailable(str(exc), feature="essay") from exc
         model = cls.get_model()
         user_message = build_grading_message(cleaned, topic_title)
 
@@ -136,17 +141,9 @@ class DeepSeekGrader:
                 "DeepSeek BMB grading failed (%s), falling back to main grading pipeline",
                 exc,
             )
-            try:
-                return grade_essay(cleaned, topic_title)
-            except Exception:
-                from .services import _mock_12_criteria_response
-
-                res = _mock_12_criteria_response(cleaned, topic_title)
-                res.setdefault("topic_match", True)
-                res.setdefault("topic_match_reason", "")
-                res["_from_cache"] = False
-                res["_mock_mode"] = True
-                return res
+            # The main pipeline either returns a real grade or raises; a
+            # mock grade is never substituted for a failed one.
+            return grade_essay(cleaned, topic_title)
 
     @classmethod
     def grade_ielts(
@@ -186,7 +183,10 @@ class DeepSeekGrader:
                 min_words=min_words,
             )
 
-        client = get_deepseek_client(timeout=50.0)
+        try:
+            client = get_deepseek_client(timeout=50.0)
+        except Exception as exc:
+            raise AIUnavailable(str(exc), feature="essay") from exc
         model = cls.get_model()
         wc = WordCounter.count(cleaned)
         task_label = (

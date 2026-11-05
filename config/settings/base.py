@@ -265,6 +265,9 @@ REST_FRAMEWORK = {
         "feedback-submit": "5/hour",  # per user, or per IP for guests
         "question-issue": "30/hour",  # "Problem with this question?" reports, per user
         "essay-ocr": "20/hour",  # handwritten essay pages -> text (paid OCR calls)
+        "essay-autosave": "60/minute",  # draft autosave, owner only
+        "speaking-submit": "10/hour",  # each upload is a transcription + grading call
+        "ai-tools": "30/hour",  # teacher converter / vocabulary generator
     },
 }
 
@@ -501,9 +504,10 @@ ARENA_BOT_EMAIL = env("ARENA_BOT_EMAIL", default="arena.bot@lms.local")
 # ---------------------------------------------------------------------------
 # Manual payments (card transfer + Telegram receipt verification)
 # ---------------------------------------------------------------------------
-PAYMENT_CARD_NUMBER = (env("PAYMENT_CARD_NUMBER", default="") or "4916 9903 6325 9166")
-PAYMENT_CARD_BANK = (env("PAYMENT_CARD_BANK", default="") or "Visa")
-PAYMENT_CARD_HOLDER = (env("PAYMENT_CARD_HOLDER", default="") or "Ro'ziyev K.")
+# No built-in card: unset means "payment details are not available" (apps/payments/card.py).
+PAYMENT_CARD_NUMBER = env("PAYMENT_CARD_NUMBER", default="")
+PAYMENT_CARD_BANK = env("PAYMENT_CARD_BANK", default="")
+PAYMENT_CARD_HOLDER = env("PAYMENT_CARD_HOLDER", default="")
 PAYMENT_ADMIN_USERNAME = env("PAYMENT_ADMIN_USERNAME", default="")
 PLAN_STARTER_PRICE = env.int("PLAN_STARTER_PRICE", default=7000)
 PLAN_PRO_PRICE = env.int("PLAN_PRO_PRICE", default=15000)

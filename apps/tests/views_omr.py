@@ -16,6 +16,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.ai_health import record_ai_failure, record_ai_success
+from apps.payments.ai_quota import consume_feature_cap, refund_feature_cap
+
 from .numbering import number_questions
 from .omr_service import OmrError, confirm_sheet, omr_tests_queryset, scan_sheet
 
@@ -45,7 +48,7 @@ class ScanOMRView(APIView):
         return super().get_throttles()
 
     def get(self, request: Request) -> Response:
-        tests = omr_tests_queryset().prefetch_related("questions__section").order_by("-id")
+        tests = omr_tests_queryset(request.user).prefetch_related("questions__section").order_by("-id")
         data = []
         for t in tests:
             objective = len(number_questions(t, t.questions.all()))
@@ -69,17 +72,36 @@ class ScanOMRView(APIView):
         image_file = request.FILES.get("image")
         if not image_file:
             return _error(OmrError("image_required", "Javoblar varaqasi rasmini yuklang."))
+        taken = {"cap": False}
+
+        def take_daily_scan() -> None:
+            allowed, limit = consume_feature_cap(request.user, "omr")
+            if not allowed:
+                raise OmrError("daily_limit", "Bugungi skaner limiti tugadi. Ertaga qayta urinib ko'ring.", 429)
+            taken["cap"] = True
+
         try:
             result = scan_sheet(
                 image_file=image_file,
                 test_id=_int_or_none(request.data.get("test_id")),
                 mock_code=str(request.data.get("mock_code") or "").strip() or None,
+                user=request.user,
+                before_vision=take_daily_scan,
             )
         except OmrError as exc:
+            if exc.code == "scanner_unavailable":
+                # The reader itself failed: not the student's scan, so give it back.
+                if taken["cap"]:
+                    refund_feature_cap(request.user, "omr")
+                record_ai_failure("omr", exc)
             return _error(exc)
-        except Exception:
+        except Exception as exc:
             logger.exception("OMR scan failed")
+            if taken["cap"]:
+                refund_feature_cap(request.user, "omr")
+            record_ai_failure("omr", exc)
             return _error(OmrError("scan_failed", "Varaqni tahlil qilib bo'lmadi. Qayta urinib ko'ring.", 500))
+        record_ai_success("omr")
         return Response(result, status=status.HTTP_200_OK)
 
 

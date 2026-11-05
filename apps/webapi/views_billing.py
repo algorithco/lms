@@ -168,9 +168,16 @@ def card_info_view(request):
 
     Signed-in users only: guests get 401, so a visitor can never read the card number.
     """
-    card_number = getattr(settings, "PAYMENT_CARD_NUMBER", "") or "4916 9903 6325 9166"
-    card_holder = getattr(settings, "PAYMENT_CARD_HOLDER", "") or "Ro'ziyev K."
-    card_bank = getattr(settings, "PAYMENT_CARD_BANK", "") or "Visa"
+    from apps.payments.card import UNAVAILABLE_MESSAGE, get_payment_card, notify_admin_card_missing
+
+    card = get_payment_card()
+    if card is None:
+        notify_admin_card_missing()
+        return Response(
+            {"code": "payment_unavailable", "detail": UNAVAILABLE_MESSAGE, "error": UNAVAILABLE_MESSAGE},
+            status=503,
+        )
+    card_number, card_holder, card_bank = card.number, card.holder, card.bank
     starter_price = getattr(settings, "PLAN_STARTER_PRICE", 0) or 7000
     pro_price = getattr(settings, "PLAN_PRO_PRICE", 0) or 15000
     premium_price = getattr(settings, "PLAN_PREMIUM_PRICE", 0) or 27000

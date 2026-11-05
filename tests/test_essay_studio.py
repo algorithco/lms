@@ -76,10 +76,10 @@ class _OCR:
 
 
 @pytest.mark.django_db
-def test_ocr_returns_text_and_never_charges_or_grades(student):
+def test_ocr_returns_text_and_never_charges_or_grades(pro_student):
     page = SimpleUploadedFile("p1.jpg", b"fake-bytes", content_type="image/jpeg")
     with patch("apps.essays.ocr.extract_text", return_value=_OCR()) as ocr:
-        res = client(student).post("/api/v1/essays/ocr/", {"pages": [page]}, format="multipart")
+        res = client(pro_student).post("/api/v1/essays/ocr/", {"pages": [page]}, format="multipart")
     assert res.status_code == 200, res.content
     assert res.json() == {"text": "Recognised essay text", "incomplete": False, "warnings": []}
     ocr.assert_called_once()
@@ -87,13 +87,13 @@ def test_ocr_returns_text_and_never_charges_or_grades(student):
 
 
 @pytest.mark.django_db
-def test_ocr_errors_are_reported_not_faked(student):
+def test_ocr_errors_are_reported_not_faked(pro_student):
     from apps.essays.ocr import OCRUnavailable
 
-    assert client(student).post("/api/v1/essays/ocr/", {}, format="multipart").status_code == 400
+    assert client(pro_student).post("/api/v1/essays/ocr/", {}, format="multipart").status_code == 400
     page = SimpleUploadedFile("p1.jpg", b"x", content_type="image/jpeg")
     with patch("apps.essays.ocr.extract_text", side_effect=OCRUnavailable("no provider")):
-        res = client(student).post("/api/v1/essays/ocr/", {"pages": [page]}, format="multipart")
+        res = client(pro_student).post("/api/v1/essays/ocr/", {"pages": [page]}, format="multipart")
     assert res.status_code == 503 and res.json()["code"] == "ocr_unavailable"
     assert client().post("/api/v1/essays/ocr/", {}, format="multipart").status_code in (401, 403)
 

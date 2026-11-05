@@ -36,7 +36,8 @@ function clockTime(iso: string | null): string {
 
 function planLabel(e: BillingEntitlement, t: (k: string) => string): string {
   if (e.is_sponsored || e.source === 'sponsored') return t('usage_sponsored');
-  if (e.source === 'override') return t('usage_admin_override');
+  // A manual limit override keeps the plan the student is on; it is marked apart (see the badge).
+  if (e.source === 'override' && !e.custom_limit) return t('usage_admin_override');
   if (!e.is_paid || e.source === 'default' || e.plan_name === 'Bepul') return t('pay_free_label');
   return e.plan_name || String(e.plan_type ?? '') || t('usage_plan');
 }

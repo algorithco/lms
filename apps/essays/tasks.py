@@ -39,8 +39,28 @@ def _mark_grading_failed(submission_id: int, error: Exception) -> None:
                 sub.status = EssaySubmission.Status.ERROR
                 sub.error_message = f"AI baholashda tizim xatoligi: {error}"
                 sub.save(update_fields=["status", "error_message", "updated_at"])
+                # Not graded means not charged: give the allowance back and
+                # count the failure (the admin is told after a few in a row).
+                from apps.core.ai_health import record_ai_failure
+                from apps.payments.entitlements import refund_usage_for_submission
+
+                refund_usage_for_submission(submission_id)
+                record_ai_failure("essay", error)
     except Exception:
         logger.exception("Failed to mark essay %d as error", submission_id)
+
+
+def _note_provider_failure(submission_id: int, exc: Exception, final_status: str) -> None:
+    """Count a real provider failure (not a student mistake) and refund when the result is ERROR."""
+    from apps.core.ai_health import record_ai_failure
+    from apps.essays.pre_validation import PreValidationError
+    from apps.payments.entitlements import refund_usage_for_submission
+
+    if isinstance(exc, PreValidationError):
+        return
+    record_ai_failure("essay", exc)
+    if final_status == "error":
+        refund_usage_for_submission(submission_id)
 
 
 @shared_task(
@@ -71,6 +91,7 @@ def grade_submission_task(
     """
     from django.db import transaction
 
+    from apps.core.ai_health import record_ai_success
     from apps.essays.models import EssaySubmission
     from apps.essays.services import (
         _GRADEABLE_STATUSES,
@@ -230,6 +251,7 @@ def grade_submission_task(
                         sub2.save(
                             update_fields=["status", "error_message", "updated_at"]
                         )
+                        _note_provider_failure(submission_id, exc, "error")
                 logger.error(
                     "Grade task failed: submission=%d, error=%s",
                     submission_id,
@@ -264,6 +286,7 @@ def grade_submission_task(
                         "current": getattr(sub3, "status", None),
                     }
                 apply_ai_result(sub3, result_llm, cache_key=cache_key)
+                record_ai_success("essay")
                 if sub3.status == EssaySubmission.Status.GRADED:
                     sub3.auto_submitted = True
                     from django.utils import timezone as _tz3
@@ -326,6 +349,7 @@ def grade_submission_task(
                                 "updated_at",
                             ]
                         )
+                        _note_provider_failure(submission_id, ie, str(fail_status))
                 return {"status": "error", "error": str(ie)}
             except Exception as e2:
                 if self.request.retries >= self.max_retries:
@@ -355,6 +379,7 @@ def grade_submission_task(
                             "updated_at",
                         ]
                     )
+                    _note_provider_failure(submission_id, ie, str(fail_status))
             return {"status": "error", "error": str(ie)}
         except Exception as e2:
             if self.request.retries >= self.max_retries:
@@ -385,6 +410,7 @@ def grade_submission_task(
                     "current": getattr(subc, "status", None),
                 }
             apply_ai_result(subc, result_llm2, cache_key=cache_key)
+            record_ai_success("essay")
             subc.auto_submitted = True
             from django.utils import timezone as _tz3
 

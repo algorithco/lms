@@ -16,7 +16,11 @@ from rest_framework import permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
+from apps.core.ai_health import AIUnavailable, record_ai_failure, record_ai_success
+from apps.payments.ai_quota import consume_feature_cap, refund_feature_cap
 
 from .models import SpeakingSubmission, SpeakingTopic
 from .services import evaluate_speaking_submission
@@ -109,6 +113,13 @@ class SpeakingSubmitView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "speaking-submit"
+
+    #: Largest accepted recording and the clip lengths we grade.
+    MAX_AUDIO_BYTES = 25 * 1024 * 1024
+    MIN_SECONDS = 5
+    MAX_SECONDS = 15 * 60
 
     def post(self, request: Request) -> Response:
         audio_file = request.FILES.get("audio")
@@ -116,6 +127,17 @@ class SpeakingSubmitView(APIView):
             return Response(
                 {"ok": False, "error": "Ovoz yozuvi (audio) yuklanmadi."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        content_type = str(getattr(audio_file, "content_type", "") or "").lower()
+        if not (content_type.startswith("audio/") or content_type in ("video/webm", "application/octet-stream")):
+            return Response(
+                {"ok": False, "code": "not_audio", "error": "Faqat audio fayl yuklash mumkin."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if audio_file.size > self.MAX_AUDIO_BYTES:
+            return Response(
+                {"ok": False, "code": "file_too_large", "error": "Audio fayl juda katta (25 MB gacha)."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
 
         topic_id_raw = request.data.get("topic_id")
@@ -128,6 +150,15 @@ class SpeakingSubmitView(APIView):
 
         duration_raw = request.data.get("duration_seconds", "60")
         duration = int(duration_raw) if str(duration_raw).isdigit() else 60
+        duration = max(self.MIN_SECONDS, min(duration, self.MAX_SECONDS))
+
+        allowed, limit = consume_feature_cap(request.user, "speaking")
+        if not allowed:
+            return Response(
+                {"ok": False, "code": "daily_limit", "limit": limit, "upgrade_url": "/pricing",
+                 "error": "Bugungi Speaking limitingiz tugadi."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
         try:
             sub = evaluate_speaking_submission(
@@ -136,14 +167,25 @@ class SpeakingSubmitView(APIView):
                 user=request.user,
                 duration_seconds=duration,
             )
+            record_ai_success("speaking")
             return Response(
                 {"ok": True, "submission": _serialize_submission(sub)},
                 status=status.HTTP_201_CREATED,
             )
+        except AIUnavailable as exc:
+            # Not graded: no band, no transcript, no XP, and today's call is returned.
+            refund_feature_cap(request.user, "speaking")
+            record_ai_failure("speaking", exc)
+            logger.warning("Speaking not graded: %s", exc)
+            return Response(
+                {"ok": False, "code": "not_graded", "error": AIUnavailable.user_message},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception as e:
+            refund_feature_cap(request.user, "speaking")
             logger.exception("Speaking evaluation failed: %s", e)
             return Response(
-                {"ok": False, "error": f"Baholashda xatolik yuz berdi: {str(e)}"},
+                {"ok": False, "code": "not_graded", "error": AIUnavailable.user_message},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

@@ -35,12 +35,15 @@ export default function PlanBadge({ variant = 'chip', onNavigate }: Props) {
   }
 
   const pill = (
-    <span className={`plan-pill${tier.isPaid ? ' is-paid' : ''}`}>
-      {tier.isPaid && <Crown size={14} aria-hidden="true" />}
-      <span>
-        {t('tier_label')}: <b>{label}</b>
+    <>
+      <span className={`plan-pill${tier.isPaid ? ' is-paid' : ''}`}>
+        {tier.isPaid && <Crown size={14} aria-hidden="true" />}
+        <span>
+          {t('tier_label')}: <b>{label}</b>
+        </span>
       </span>
-    </span>
+      {!tier.isAdmin && ent?.custom_limit && <span className="plan-pill plan-pill--custom">{t('tier_custom_limit')}</span>}
+    </>
   );
 
   if (variant === 'chip') {

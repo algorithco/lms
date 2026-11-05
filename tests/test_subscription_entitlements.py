@@ -40,6 +40,7 @@ EXPECTED_LIMIT_KEYS = {
     "source",
     "plan_type",
     "plan_name",
+    "custom_limit",
     "is_sponsored",
     "is_paid",
     "expires_at",

@@ -669,10 +669,16 @@ class SubmitAttemptView(APIView):
         try:
             from apps.accounts.gamification import record_user_activity
 
-            # Staff previews and free trials are not real results: no XP.
-            if not TestAttempt.objects.filter(pk=attempt_id, is_preview=True).exists():
-                xp = 25 if getattr(result, "is_passed", False) else 15
-                record_user_activity(request.user, xp_amount=xp, activity_type="test")
+            # Staff previews and free trials are not real results: no XP. Neither
+            # is a near-blank or implausibly fast paper, nor a test that already
+            # paid out its daily ceiling (apps/tests/xp_rules.py).
+            attempt_row = TestAttempt.objects.filter(pk=attempt_id).first()
+            if attempt_row is not None and not attempt_row.is_preview:
+                from apps.tests.xp_rules import award_test_xp
+
+                xp = award_test_xp(request.user, result, attempt_row)
+                if xp:
+                    record_user_activity(request.user, xp_amount=xp, activity_type="test")
         except Exception:
             pass
 

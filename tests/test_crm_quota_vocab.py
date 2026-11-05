@@ -19,7 +19,6 @@ from apps.payments.receipt_scanner import parse_receipt_text
 from apps.vocabulary.models import VocabularyPack, StudentWordMistake
 from apps.vocabulary.services.vocab_generator import (
     clean_word_list,
-    build_fallback_exercises,
 )
 
 User = get_user_model()
@@ -229,15 +228,16 @@ def test_clean_word_list():
     assert words == ["resilient", "persistent", "ubiquitous", "meticulous"]
 
 
-def test_build_fallback_exercises():
-    words = ["resilient", "persistent", "ubiquitous", "meticulous"]
-    ex = build_fallback_exercises(words)
-    assert "format_1_quiz" in ex
-    assert "format_2_spelling" in ex
-    assert "format_3_eng_uzb" in ex
-    assert "format_4_uzb_eng" in ex
-    assert len(ex["format_1_quiz"]) == 4
-    assert ex["format_1_quiz"][0]["correct_answer"] == "resilient"
+def test_no_ai_key_means_no_exercises_not_made_up_ones(settings, monkeypatch):
+    """Without a provider there are no exercises: translations are never invented."""
+    from apps.core.ai_health import AIUnavailable
+    from apps.vocabulary.services.vocab_generator import generate_exercises_with_ai
+
+    for name in ("OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+        setattr(settings, name, "")
+    with pytest.raises(AIUnavailable):
+        generate_exercises_with_ai(["resilient", "persistent"])
 
 
 @pytest.mark.django_db

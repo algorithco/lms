@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLang } from '../i18n/LangContext';
 import {
   AlertCircle,
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
 import { type ConvertedQuestion, TestsApi } from '../lib/testing';
 
 export default function TeacherAiConverter() {
+  const { t } = useLang();
   // Step 1: Upload state
   const [file, setFile] = useState<File | null>(null);
   const [subject, setSubject] = useState<'uzbek' | 'english'>('uzbek');
@@ -118,15 +120,15 @@ export default function TeacherAiConverter() {
       ...prev,
       {
         order: prev.length + 1,
-        text: 'Yangi savol matni',
+        text: '',
         choices: [
-          { code: 'A', text: 'Variant A' },
-          { code: 'B', text: 'Variant B' },
-          { code: 'C', text: 'Variant C' },
-          { code: 'D', text: 'Variant D' },
+          { code: 'A', text: '' },
+          { code: 'B', text: '' },
+          { code: 'C', text: '' },
+          { code: 'D', text: '' },
         ],
-        correct_answer: 'A',
-        explanation: 'To\'g\'ri javob qoidasi.',
+        correct_answer: '',
+        explanation: '',
         question_type: 'single_choice',
       },
     ]);
@@ -509,6 +511,12 @@ export default function TeacherAiConverter() {
                     );
                   })}
                 </div>
+
+                {!q.correct_answer && (
+                  <p className="small" role="alert" style={{ color: 'var(--danger)', margin: '0 0 8px' }}>
+                    {t('cv_pick_answer')}
+                  </p>
+                )}
 
                 {/* Explanation */}
                 <div>

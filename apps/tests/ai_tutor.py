@@ -583,27 +583,26 @@ def explain_question_mistake(
                 }
     except Exception as e:
         logger.warning("LLM explain question failed: %s", e)
+        from apps.core.ai_health import record_ai_failure
 
-    # Fallback deterministik repetitor javobi
+        record_ai_failure("explain", e)
+
+    # No AI explanation: give only what is actually known (the answer key and the
+    # stored explanation). No reason for the mistake is made up, and this reduced
+    # answer is not cached, so the next request can still get a real one.
     if not explanation_data:
-        explanation_data = {
+        stored = (question.explanation or "").strip()
+        return {
             "question_id": question.id,
             "topic": topic,
             "question_text": question.text,
             "selected_answer": selected_text,
             "correct_answer": correct_text,
-            "why_wrong": (
-                f"Siz tanlagan '{selected_text}' varianti noto'g'ri. "
-                f"Ushbu javob kontekst mazmuniga yoki morfologik/sintaktik qoidalarga zid keladi."
-            ),
-            "correct_rule": (
-                f"To'g'ri javob — '{correct_text}'. "
-                f"{question.explanation if question.explanation else _get_topic_advice(topic)}"
-            ),
-            "memory_tip": (
-                f"💡 Kalit qoida: '{topic}' mavzusida doimo so'z ma'nosi va grammatik bog'lanishlarga e'tibor bering."
-            ),
-            "source": "rule_engine",
+            "why_wrong": "",
+            "correct_rule": f"To'g'ri javob — '{correct_text}'." + (f" {stored}" if stored else ""),
+            "memory_tip": "",
+            "source": "answer_key",
+            "ai_unavailable": True,
         }
 
     cache.set(cache_key, explanation_data, timeout=3600 * 24 * 7)

@@ -9,9 +9,12 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.tests.ai_converter import convert_document_to_test_data, save_converted_test
+from apps.core.ai_health import AIUnavailable, record_ai_failure, record_ai_success
+from apps.payments.ai_quota import consume_feature_cap, refund_feature_cap
+from apps.tests.ai_converter import ConverterError, convert_document_to_test_data, save_converted_test
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,9 @@ class AiConvertDocumentView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ai-tools"
+    MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
     def post(self, request: Request) -> Response:
         if not _is_teacher_or_admin(request.user):
@@ -49,6 +55,23 @@ class AiConvertDocumentView(APIView):
             return Response(
                 {"error": "Iltimos, test rasmi yoki PDF faylni yuklang."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        if upload_file.size > self.MAX_UPLOAD_BYTES:
+            return Response(
+                {"error": "Fayl juda katta (15 MB gacha).", "code": "file_too_large"},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        ctype = str(getattr(upload_file, "content_type", "") or "").lower()
+        if not (ctype == "application/pdf" or ctype.startswith("image/")):
+            return Response(
+                {"error": "Faqat PDF yoki rasm yuklang.", "code": "bad_file_type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        allowed, limit = consume_feature_cap(request.user, "converter")
+        if not allowed:
+            return Response(
+                {"error": "Bugungi konvertatsiya limiti tugadi.", "code": "daily_limit", "limit": limit},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
         subject = request.data.get("subject", "uzbek")
@@ -65,13 +88,30 @@ class AiConvertDocumentView(APIView):
                 content_type=content_type,
                 subject=subject,
             )
+            record_ai_success("converter")
             return Response(
                 {"success": True, "data": parsed_data}, status=status.HTTP_200_OK
             )
+        except ConverterError:
+            # Nothing readable: no template questions are made up.
+            refund_feature_cap(request.user, "converter")
+            record_ai_failure("converter", "nothing recognised")
+            return Response(
+                {"error": ConverterError.user_message, "code": "nothing_recognised"},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except AIUnavailable as exc:
+            refund_feature_cap(request.user, "converter")
+            record_ai_failure("converter", exc)
+            return Response(
+                {"error": AIUnavailable.user_message, "code": "not_converted"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception as e:
+            refund_feature_cap(request.user, "converter")
             logger.exception("AI convert failed: %s", e)
             return Response(
-                {"error": f"Faylni konvertatsiya qilishda xatolik yuz berdi: {str(e)}"},
+                {"error": "Faylni konvertatsiya qilishda xatolik yuz berdi.", "code": "not_converted"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

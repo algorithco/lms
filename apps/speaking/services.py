@@ -16,7 +16,7 @@ Dual-model Architecture:
 from __future__ import annotations
 
 import base64
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 import logging
 import re
@@ -25,6 +25,8 @@ from typing import Any, Dict
 from django.conf import settings
 import httpx
 from openai import OpenAI
+
+from apps.core.ai_health import AIUnavailable
 
 from .models import SpeakingSubmission, SpeakingTopic
 
@@ -240,64 +242,6 @@ def _evaluate_speech_deepseek_r1(
     return None
 
 
-def _fallback_speaking_evaluation(
-    topic: SpeakingTopic, duration_seconds: int = 45
-) -> Dict[str, Any]:
-    """Fallback evaluation engine for local testing and offline modes."""
-    fc = 6.5
-    lr = 7.0
-    gra = 6.5
-    pr = 7.0
-    overall = _round_to_half_band((fc + lr + gra + pr) / 4)
-
-    return {
-        "transcript": (
-            f"Speaking response regarding {topic.title}. "
-            "The candidate clearly addressed the prompt points, maintained consistent natural pace "
-            "with appropriate discourse markers, and utilized a varied range of topic-specific vocabulary."
-        ),
-        "fluency_score": fc,
-        "lexical_score": lr,
-        "grammar_score": gra,
-        "pronunciation_score": pr,
-        "overall_band": float(overall),
-        "feedback": {
-            "summary": (
-                f"Nutq '{topic.title}' mavzusiga to'liq javob berdi. "
-                "Ravonlik va intonatsiya yuqori darajada saqlandi, nutqda pauzalar kam uchradi."
-            ),
-            "fluency_feedback": "Fikrlarni bog'lovchi 'moreover', 'consequently', 'as a matter of fact' kabi iboralar muvaffaqiyatli ishlatildi.",
-            "lexical_feedback": "Mavzuga xos boy leksika qo'llanildi. Ko'proq idiomatik iboralarni qo'shish tavsiya etiladi.",
-            "grammar_feedback": "Murakkab gap qurilmalari (Complex sentences) to'g'ri ishlatildi. Artikllar va zamonlar uyg'unligiga e'tibor qarating.",
-            "pronunciation_feedback": "So'z urg'usi va ohangdorlik tushunarli va ravshan.",
-            "vocabulary_suggestions": [
-                {
-                    "original": "good opportunity",
-                    "improved": "golden opportunity / prime window",
-                    "explanation": "IELTS Band 8+ idiomatik birikmasi.",
-                },
-                {
-                    "original": "important role",
-                    "improved": "pivotal role / instrumental part",
-                    "explanation": "Nutqning leksik boyligini sezilarli oshiradi.",
-                },
-                {
-                    "original": "I like this because",
-                    "improved": "What draws me to this in particular is",
-                    "explanation": "Band 8+ kirish frazasi.",
-                },
-            ],
-            "grammar_corrections": [
-                {
-                    "incorrect": "If I will have time",
-                    "corrected": "If I have time",
-                    "rule": "First conditional da if-bandida Present Simple ishlatiladi.",
-                },
-            ],
-        },
-    }
-
-
 def evaluate_speaking_submission(
     audio_file,
     topic_id: int,
@@ -325,19 +269,28 @@ def evaluate_speaking_submission(
         # 2. Evaluate with deepseek/deepseek-r1-0528
         eval_result = _evaluate_speech_deepseek_r1(transcript, topic, duration_seconds)
 
-    # 3. Fall back to heuristic engine if offline/unconfigured
+    # 3. No transcript or no valid evaluation means "not graded". A band, a
+    #    transcript or feedback is never made up to fill the gap.
+    if not transcript:
+        raise AIUnavailable("Nutqni matnga o'girib bo'lmadi", feature="speaking")
     if not eval_result:
-        eval_result = _fallback_speaking_evaluation(topic, duration_seconds)
+        raise AIUnavailable("Baholash javobi olinmadi", feature="speaking")
 
-    fc = Decimal(str(eval_result.get("fluency_score", 6.5)))
-    lr = Decimal(str(eval_result.get("lexical_score", 7.0)))
-    gra = Decimal(str(eval_result.get("grammar_score", 6.5)))
-    pr = Decimal(str(eval_result.get("pronunciation_score", 7.0)))
+    try:
+        scores = [
+            Decimal(str(eval_result[key]))
+            for key in ("fluency_score", "lexical_score", "grammar_score", "pronunciation_score")
+        ]
+    except (KeyError, InvalidOperation, TypeError, ValueError) as exc:
+        raise AIUnavailable("Baholash javobida ballar yo'q yoki noto'g'ri", feature="speaking") from exc
+    if any(not (Decimal("0") <= v <= Decimal("9")) for v in scores):
+        raise AIUnavailable("Baholash javobida ball chegaradan tashqarida", feature="speaking")
+    fc, lr, gra, pr = scores
 
     mean_val = float(fc + lr + gra + pr) / 4.0
     overall = _round_to_half_band(mean_val)
 
-    final_transcript = eval_result.get("transcript", "") or transcript or ""
+    final_transcript = transcript
     feedback = eval_result.get("feedback", {})
 
     # 4. Create submission record
