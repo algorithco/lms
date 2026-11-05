@@ -498,6 +498,9 @@ def _chat_with_fallback(
     raise last_exc
 
 
+from apps.core.ai_health import AIUnavailable  # noqa: E402
+
+
 def _is_mock_mode() -> bool:
     """Check if we're running in mock mode (no real API key)."""
     has_key = _has_real_key("openrouter") or _has_real_key("groq")
@@ -3016,6 +3019,11 @@ def apply_ai_result(submission, result: dict, *, cache_key: str | None = None) -
 
     from .models import EssayCriterionScore
 
+    # A mock grade is a test fixture, never a real result: refuse it unless the
+    # platform is knowingly in mock mode (no provider key and the flag set).
+    if result.get("_mock_mode") and not _is_mock_mode():
+        raise AIUnavailable("Mock natija ishlab chiqarishda qabul qilinmaydi", feature="essay")
+
     # Strip ephemeral execution metadata — they belong only in the cache /
     # in-memory result, not in the canonical submission row.
     clean_result = {k: v for k, v in result.items() if not k.startswith("_")}
@@ -3153,6 +3161,20 @@ def is_ielts_submission(submission) -> bool:
     )
 
 
+def _count_provider_failure(submission_id: int, exc: Exception, final_status: str) -> None:
+    """Count a real provider failure (not the student's mistake); refund when the result is ERROR."""
+    from apps.core.ai_health import record_ai_failure
+    from apps.payments.entitlements import refund_usage_for_submission
+
+    from .pre_validation import PreValidationError
+
+    if isinstance(exc, PreValidationError):
+        return
+    record_ai_failure("essay", exc)
+    if str(final_status) == "error":
+        refund_usage_for_submission(submission_id)
+
+
 def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
     """
     Avtomatik baholash — vaqt tugaganda yoki brauzer yopilganda.
@@ -3215,7 +3237,7 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
             result = grade_essay(
                 essay_text, topic_title=topic_title, cache_context=cache_context
             )
-    except (ValueError, ImportError, ImproperlyConfigured) as e:
+    except (ValueError, ImportError, ImproperlyConfigured, AIUnavailable) as e:
         submission.auto_submitted = True
         submission.submitted_at = _timezone.now()
         submission.status = fail_status
@@ -3235,6 +3257,7 @@ def auto_submit_essay(submission, fail_status: str = "pending_teacher") -> dict:
             str(e),
             fail_status,
         )
+        _count_provider_failure(submission.id, e, fail_status)
         fallback = fail_status == EssaySubmission.Status.PENDING_TEACHER
         return {"success": False, "error": str(e), "fallback": fallback}
 
@@ -4423,26 +4446,17 @@ def grade_ielts_essay(
         raw_content = response.choices[0].message.content or ""
         parsed = parse_llm_json(raw_content)
         if parsed.get("_parse_failed"):
-            return _mock_ielts_response(
-                cleaned_text,
-                topic_title=topic_title,
-                task_type=task_type,
-                min_words=min_words,
-            )
+            raise AIUnavailable("IELTS javobi JSON emas", feature="essay_ielts")
         return _validate_ielts_result(
             parsed, essay_text=cleaned_text, task_type=task_type, min_words=min_words
         )
+    except AIUnavailable:
+        raise
     except Exception as exc:
-        logger.warning(
-            "IELTS LLM call failed (%s), using deterministic IELTS Band evaluator fallback",
-            exc,
-        )
-        return _mock_ielts_response(
-            cleaned_text,
-            topic_title=topic_title,
-            task_type=task_type,
-            min_words=min_words,
-        )
+        # Never invent a band: the submission is marked not graded, the
+        # allowance is returned and the admin is alerted after repeated failures.
+        logger.warning("IELTS LLM call failed (%s); not graded, no band invented", exc)
+        raise AIUnavailable(str(exc), feature="essay_ielts") from exc
 
 
 # ---------------------------------------------------------------------------

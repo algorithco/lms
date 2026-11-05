@@ -227,7 +227,7 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
     """
     raw_clean = (raw_text or "").strip()
     if not raw_clean:
-        return _fallback_dummy_template(subject)
+        raise ConverterError(ConverterError.user_message)
 
     raw_lines = raw_clean.splitlines()
 
@@ -324,18 +324,10 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
             q["correct_answer"] = global_keys[q["q_num"]]
             q["_has_explicit_answer"] = True
 
-        if not q["choices"]:
-            q["choices"] = [
-                {"code": "A", "text": "A varianti"},
-                {"code": "B", "text": "B varianti"},
-                {"code": "C", "text": "C varianti"},
-                {"code": "D", "text": "D varianti"},
-            ]
-        else:
-            q["choices"].sort(key=lambda c: c.get("code", ""))
+        q["choices"].sort(key=lambda c: c.get("code", ""))
 
     if not questions:
-        return _fallback_dummy_template(subject)
+        raise ConverterError(ConverterError.user_message)
 
     subject_label = "Ona tili va adabiyot"
     if subject == "english":
@@ -352,74 +344,25 @@ def _parse_raw_text_regex(raw_text: str, subject: str = "uzbek") -> dict[str, An
     }
 
 
-def _fallback_dummy_template(subject: str = "uzbek") -> dict[str, Any]:
-    """Hujjatda savollar aniqlanmaganda shablon sifatida tahrirga beriladigan namuna."""
-    if subject == "english":
-        return {
-            "test_title": "IELTS / CEFR Reading Mock Test",
-            "reading_passage": "Scientists have recently discovered that regular reading enhances cognitive flexibility and analytical processing in bilingual learners.",
-            "questions": [
-                {
-                    "order": 1,
-                    "text": "What is the primary benefit of regular reading mentioned in the text?",
-                    "choices": [
-                        {"code": "A", "text": "Enhanced cognitive flexibility"},
-                        {"code": "B", "text": "Physical endurance improvement"},
-                        {"code": "C", "text": "Faster typing speed"},
-                        {"code": "D", "text": "Lower screen time"},
-                    ],
-                    "correct_answer": "A",
-                    "explanation": "The text directly states that regular reading enhances cognitive flexibility.",
-                    "question_type": "single_choice",
-                },
-                {
-                    "order": 2,
-                    "text": "According to the passage, which group of learners was specifically studied?",
-                    "choices": [
-                        {"code": "A", "text": "Bilingual learners"},
-                        {"code": "B", "text": "Preschool children"},
-                        {"code": "C", "text": "Professional athletes"},
-                        {"code": "D", "text": "Musicians"},
-                    ],
-                    "correct_answer": "A",
-                    "explanation": "Bilingual learners are explicitly identified as the subject of the study.",
-                    "question_type": "single_choice",
-                },
-            ],
-        }
+class ConverterError(Exception):
+    """The document could not be turned into real questions. Nothing was invented."""
 
-    return {
-        "test_title": "Ona tili va adabiyot — Milliy sertifikat diagnostika testi",
-        "reading_passage": "Alisher Navoiy o'zbek adabiy tilining asoschisi bo'lib, uning 'Xamsa' asari turkiy tilda yaratilgan ilk beshlik hisoblanadi.",
-        "questions": [
-            {
-                "order": 1,
-                "text": "Quyidagi asarlardan qaysi biri Alisher Navoiy qalamiga mansub 'Xamsa' dostonlari tarkibiga kirmaydi?",
-                "choices": [
-                    {"code": "A", "text": "Hayrat ul-abror"},
-                    {"code": "B", "text": "Farhod va Shirin"},
-                    {"code": "C", "text": "Layli va Majnun"},
-                    {"code": "D", "text": "Zafarnoma"},
-                ],
-                "correct_answer": "D",
-                "explanation": "'Zafarnoma' Sharafiddin Ali Yazdiy tomonidan yozilgan tarixiy asardir, Navoiy 'Xamsa'siga kirmaydi.",
-                "question_type": "single_choice",
-            },
-            {
-                "order": 2,
-                "text": "Turkiy tilda yaratilgan ilk 'Xamsa' qaysi mutafakkir tomonidan yozilgan?",
-                "choices": [
-                    {"code": "A", "text": "Alisher Navoiy"},
-                    {"code": "B", "text": "Nizomiy Ganjaviy"},
-                    {"code": "C", "text": "Xusrav Dehlaviy"},
-                    {"code": "D", "text": "Abdurahmon Jomiy"},
-                ],
-                "correct_answer": "A",
-                "explanation": "Turkiy tilda ilk bor butun 'Xamsa'ni Alisher Navoiy yaratgan (1483-1485 yillar).",
-                "question_type": "single_choice",
-            },
-        ],
+    user_message = (
+        "Hujjatdan savollarni aniqlab bo'lmadi. Aniqroq rasm yoki matnli PDF yuklang "
+        "yoki savollarni matn sifatida joylashtiring."
+    )
+
+
+def _question_is_complete(q: dict[str, Any]) -> bool:
+    """A question can be saved only with text, 2+ choices and an answer that is one of them."""
+    text = str(q.get("text") or "").strip()
+    codes = {
+        str(c.get("code") or "").strip().upper()
+        for c in (q.get("choices") or [])
+        if str(c.get("text") or "").strip()
     }
+    answer = str(q.get("correct_answer") or "").strip().upper()
+    return bool(text) and len(codes) >= 2 and answer in codes
 
 
 def _clean_json_response(raw_resp: str) -> dict[str, Any] | None:
@@ -501,25 +444,21 @@ def convert_document_to_test_data(
             or_out = _call_openrouter_vision(file_bytes, mime, prompt)
             parsed_result = _clean_json_response(or_out)
 
-    # 3. Agar hech qanday LLM yoki Vision muvaffaqiyatli bo'lmasa, deterministik xavfsiz shablon
-    if not parsed_result:
-        parsed_result = _fallback_dummy_template(norm_subject)
+    # 3. Nothing could be read: say so. No template questions are made up.
+    if not parsed_result or not (parsed_result.get("questions") or []):
+        raise ConverterError(ConverterError.user_message)
 
     # Natijani standartlashtirish
     questions = parsed_result.get("questions") or []
     for idx, q in enumerate(questions, start=1):
         q["order"] = idx
-        if "correct_answer" not in q or not q["correct_answer"]:
-            q["correct_answer"] = "A"
-        if "explanation" not in q or not q["explanation"]:
-            q["explanation"] = "Qoida asosida to'g'ri javob."
-        if "choices" not in q or not q["choices"]:
-            q["choices"] = [
-                {"code": "A", "text": "Variant A"},
-                {"code": "B", "text": "Variant B"},
-                {"code": "C", "text": "Variant C"},
-                {"code": "D", "text": "Variant D"},
-            ]
+        # Never guess: an unknown answer stays empty and the teacher must pick it.
+        if q.pop("_has_explicit_answer", True) is False:
+            q["correct_answer"] = ""  # the regex parser's "A" was only a placeholder
+        q["correct_answer"] = str(q.get("correct_answer") or "").strip().upper()
+        q["explanation"] = str(q.get("explanation") or "").strip()
+        q.setdefault("choices", [])
+        q["needs_review"] = not _question_is_complete(q)
 
     return {
         "test_title": parsed_result.get("test_title") or f"{subject_label} — AI Test",
@@ -561,11 +500,25 @@ def save_converted_test(
     if not questions_data and payload.get("raw_text"):
         parsed = _parse_raw_text_regex(str(payload.get("raw_text")), subject=norm_subject)
         questions_data = parsed.get("questions") or []
+        for q in questions_data:
+            if q.pop("_has_explicit_answer", True) is False:
+                q["correct_answer"] = ""
         if not reading_passage_text:
             reading_passage_text = parsed.get("reading_passage") or ""
 
     if not questions_data:
         raise ValueError("Saqlash uchun kamida 1 ta savol bo'lishi kerak.")
+
+    # A test is published to students: a question with no text, fewer than two
+    # choices or no valid correct answer must never be saved with a guessed key.
+    incomplete = [
+        i for i, q in enumerate(questions_data, start=1) if not _question_is_complete(q)
+    ]
+    if incomplete:
+        shown = ", ".join(str(i) for i in incomplete[:10])
+        raise ValueError(
+            f"{len(incomplete)} ta savol to'liq emas (matn, kamida 2 variant va to'g'ri javob kerak): {shown}."
+        )
 
     custom_code = payload.get("custom_code")
     if custom_code and str(custom_code).strip():
@@ -637,8 +590,8 @@ def save_converted_test(
         )
 
     for idx, q_data in enumerate(questions_data, start=1):
-        q_text = str(q_data.get("text") or "").strip() or f"{idx}-savol matni"
-        correct_ans = str(q_data.get("correct_answer") or "A").strip().upper()
+        q_text = str(q_data.get("text") or "").strip()
+        correct_ans = str(q_data.get("correct_answer") or "").strip().upper()
         explanation = str(q_data.get("explanation") or "").strip()
 
         question = Question.objects.create(
@@ -654,7 +607,9 @@ def save_converted_test(
         choices = q_data.get("choices") or []
         for c_idx, c in enumerate(choices, start=1):
             code = str(c.get("code") or chr(64 + c_idx)).strip().upper()
-            c_text = str(c.get("text") or f"{code} varianti").strip()
+            c_text = str(c.get("text") or "").strip()
+            if not c_text:
+                continue
             is_correct = code == correct_ans
 
             Choice.objects.create(

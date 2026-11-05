@@ -9,9 +9,10 @@ import logging
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from apps.accounts.access import is_platform_admin
 from apps.essays.models import EssayCriterionScore, EssaySubmission
@@ -22,6 +23,10 @@ from apps.essays.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _IeltsGradeThrottle(UserRateThrottle):
+    scope = "essay-submit"
 
 
 def _require_teacher(user) -> None:
@@ -326,6 +331,7 @@ def student_request_review_view(request, submission_id: int):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([_IeltsGradeThrottle])
 def ielts_grade_view(request):
     """POST /api/v1/essays/ielts/grade/
     Payload: {
@@ -362,26 +368,65 @@ def ielts_grade_view(request):
         data.get("topic_title") or (topic.title if topic else "IELTS Writing Task")
     ).strip()
 
-    submission = EssaySubmission.objects.create(
-        student=request.user,
-        topic=topic,
-        essay_text=essay_text,
-        word_count=WordCounter.count(essay_text),
-        max_score=9,
-        status=EssaySubmission.Status.PENDING,
-        password_verified_at=timezone.now(),
-        submitted_at=timezone.now(),
-        grading_started_at=timezone.now(),
-        source=EssaySubmission.Source.WEB,
-    )
+    from django.db import transaction
 
-    result = grade_ielts_essay(
-        essay_text=essay_text,
-        topic_title=topic_title,
-        task_type=task_type,
-        min_words=min_words,
-    )
-    apply_ai_result(submission, result)
+    from apps.core.ai_health import AIUnavailable, record_ai_failure, record_ai_success
+    from apps.essays.views import MAX_ESSAY_LENGTH
+    from apps.payments.entitlements import QuotaDenied, commit_usage, enforce_essay_quota, release_usage
+    from apps.payments.models import SubscriptionUsage
+
+    if len(essay_text) > MAX_ESSAY_LENGTH:
+        return Response({"error": "too_long", "max": MAX_ESSAY_LENGTH}, status=400)
+
+    # Same allowance as every other grading channel: this endpoint used to
+    # grade for any signed-in account, FREE included, without limit.
+    with transaction.atomic():
+        submission = EssaySubmission.objects.create(
+            student=request.user,
+            topic=topic,
+            essay_text=essay_text,
+            word_count=WordCounter.count(essay_text),
+            max_score=9,
+            status=EssaySubmission.Status.PENDING,
+            password_verified_at=timezone.now(),
+            submitted_at=timezone.now(),
+            grading_started_at=timezone.now(),
+            source=EssaySubmission.Source.WEB,
+        )
+        try:
+            reservation = enforce_essay_quota(
+                request.user,
+                SubscriptionUsage.Kind.TEXT_ESSAY,
+                idempotency_key=f"essay:{submission.pk}",
+                source="web-ielts",
+            )
+        except QuotaDenied as exc:
+            transaction.set_rollback(True)
+            return Response(
+                {"detail": "LIMIT_EXCEEDED", "error": exc.message, "code": exc.code, "upgrade_url": "/pricing"},
+                status=403,
+            )
+
+    try:
+        result = grade_ielts_essay(
+            essay_text=essay_text,
+            topic_title=topic_title,
+            task_type=task_type,
+            min_words=min_words,
+        )
+        apply_ai_result(submission, result)
+    except AIUnavailable as exc:
+        record_ai_failure("essay_ielts", exc)
+        release_usage(reservation)
+        submission.status = EssaySubmission.Status.ERROR
+        submission.error_message = "AI baholash ishlamadi"
+        submission.save(update_fields=["status", "error_message", "updated_at"])
+        return Response(
+            {"ok": False, "code": "not_graded", "error": AIUnavailable.user_message, "submission_id": submission.id},
+            status=503,
+        )
+    commit_usage(reservation)
+    record_ai_success("essay_ielts")
     submission.refresh_from_db()
 
     return Response(

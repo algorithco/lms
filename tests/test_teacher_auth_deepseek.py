@@ -13,7 +13,6 @@ from apps.essays.deepseek_grader import (
 )
 from apps.speaking.models import SpeakingTopic
 from apps.speaking.services import (
-    _fallback_speaking_evaluation,
     evaluate_speaking_submission,
 )
 
@@ -155,52 +154,47 @@ class TestDeepSeekGraderIntegration:
             == "fish-audio/s2.1-pro-free:free"
         )
 
-    def test_bmb_essay_grading_fallback(self):
-        result = grade_bmb_essay_deepseek(
-            "Ona tili milliy qadriyatimiz va ma'naviyatimiz ko'zgusidir.",
-            topic_title="Ona tili haqida",
-        )
-        assert isinstance(result, dict)
-        assert "criteria" in result
-        assert len(result["criteria"]) == 12
-        assert "total_score" in result
+    def test_bmb_grading_failure_raises_instead_of_inventing_a_grade(self):
+        from unittest.mock import patch
 
-    def test_ielts_essay_grading_fallback(self):
-        result = grade_ielts_essay_deepseek(
-            "Technological advancement has transformed the modern educational landscape significantly. "
-            "Students now have unprecedented access to learning materials online.",
-            topic_title="Impact of Technology on Education",
-            task_type="ielts_task2",
-        )
-        assert isinstance(result, dict)
-        assert "criteria" in result
-        assert len(result["criteria"]) == 4
-        assert "overall_band" in result
+        boom = RuntimeError("provider down")
+        with patch("apps.essays.services._is_mock_mode", return_value=False), \
+             patch("apps.essays.pre_validation.pre_validate_essay"), \
+             patch("apps.essays.deepseek_grader.get_deepseek_client", side_effect=boom):
+            with pytest.raises(Exception):
+                grade_bmb_essay_deepseek(
+                    "Ona tili milliy qadriyatimiz va ma'naviyatimiz ko'zgusidir.",
+                    topic_title="Ona tili haqida",
+                )
+
+    def test_ielts_grading_failure_raises_not_graded_instead_of_a_band(self):
+        from unittest.mock import patch
+
+        from apps.core.ai_health import AIUnavailable
+
+        with patch("apps.essays.services._is_mock_mode", return_value=False), \
+             patch("apps.essays.pre_validation.pre_validate_essay"), \
+             patch("apps.essays.deepseek_grader.get_deepseek_client", side_effect=RuntimeError("provider down")), \
+             patch("apps.essays.services._get_llm_client", side_effect=RuntimeError("provider down")):
+            with pytest.raises(AIUnavailable):
+                grade_ielts_essay_deepseek(
+                    "Technological advancement has transformed the modern educational landscape.",
+                    topic_title="Impact of Technology on Education",
+                    task_type="ielts_task2",
+                )
 
 
 @pytest.mark.django_db
 class TestSpeakingModelIntegration:
     """Ensure speaking evaluation with fish-audio and deepseek-r1 works properly."""
 
-    def test_speaking_fallback_evaluation(self):
-        topic = SpeakingTopic.objects.create(
-            title="Describe an influential teacher",
-            part=SpeakingTopic.PartChoice.PART2,
-            prompt="Talk about a teacher who influenced your life.",
-            bullet_points=[
-                "Who they were",
-                "What subject they taught",
-                "Why they influenced you",
-            ],
-        )
-        eval_res = _fallback_speaking_evaluation(topic, duration_seconds=60)
-        assert "fluency_score" in eval_res
-        assert "lexical_score" in eval_res
-        assert "grammar_score" in eval_res
-        assert "pronunciation_score" in eval_res
-        assert eval_res["overall_band"] >= 1.0
+    def test_no_invented_speaking_evaluation_exists(self):
+        """The old heuristic engine returned a fixed 6.5-7.0 band for any audio."""
+        import apps.speaking.services as speaking_services
 
-    def test_evaluate_speaking_submission(self):
+        assert not hasattr(speaking_services, "_fallback_speaking_evaluation")
+
+    def _topic_and_user(self):
         user = User.objects.create_user(
             email="speaking_student@grandec.uz",
             password="SecurePassword123!",
@@ -211,19 +205,35 @@ class TestSpeakingModelIntegration:
             part=SpeakingTopic.PartChoice.PART1,
             prompt="Tell me about your hometown.",
         )
-        dummy_audio = SimpleUploadedFile(
-            "response.wav", b"RIFF....WAVEfmt ...data...", content_type="audio/wav"
-        )
+        audio = SimpleUploadedFile("response.wav", b"RIFF....WAVEfmt ...data...", content_type="audio/wav")
+        return user, topic, audio
 
-        submission = evaluate_speaking_submission(
-            audio_file=dummy_audio,
-            topic_id=topic.pk,
-            user=user,
-            duration_seconds=45,
-        )
+    def test_evaluate_speaking_submission_with_a_real_evaluation(self):
+        from unittest.mock import patch
+
+        user, topic, audio = self._topic_and_user()
+        real = {
+            "fluency_score": 6.0, "lexical_score": 6.5, "grammar_score": 6.0, "pronunciation_score": 6.5,
+            "overall_band": 6.0, "feedback": {"summary": "ok"},
+        }
+        with patch("apps.speaking.services._process_audio_stream_fish_audio", return_value="I live in a small town."),              patch("apps.speaking.services._evaluate_speech_deepseek_r1", return_value=real):
+            submission = evaluate_speaking_submission(audio_file=audio, topic_id=topic.pk, user=user, duration_seconds=45)
         assert submission.pk is not None
-        assert submission.overall_band >= 1.0
         assert submission.user == user
+        assert submission.transcript == "I live in a small town."
+        assert float(submission.overall_band) == 6.0
+
+    def test_speaking_without_a_result_is_not_graded_and_nothing_is_saved(self):
+        from unittest.mock import patch
+
+        from apps.core.ai_health import AIUnavailable
+        from apps.speaking.models import SpeakingSubmission
+
+        user, topic, audio = self._topic_and_user()
+        with patch("apps.speaking.services._process_audio_stream_fish_audio", return_value=None):
+            with pytest.raises(AIUnavailable):
+                evaluate_speaking_submission(audio_file=audio, topic_id=topic.pk, user=user, duration_seconds=45)
+        assert not SpeakingSubmission.objects.filter(user=user).exists()
 
 
 class TestStrictModelBinding:

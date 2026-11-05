@@ -554,9 +554,33 @@ def format_duration(seconds: int) -> str:
     return "1 daqiqadan kam"
 
 
+_TIER_ALIASES = {"start": "starter", "family": "premium"}
+
+
+def display_plan(user, entitlement: Entitlement | None = None) -> tuple[str | None, str, bool]:
+    """``(plan_type, plan_name, custom_limit)`` for showing the student's plan.
+
+    An administrator's per-student limit override changes the *limits*, not the
+    plan the student is on. The plan name therefore comes from the student's
+    active subscription (FREE when there is none) and the override is reported
+    separately as ``custom_limit`` so the UI can show a "Custom limit" mark.
+    Quotas themselves are untouched: they keep coming from the effective
+    entitlement.
+    """
+    entitlement = entitlement or get_effective_entitlement(user)
+    if entitlement.source != SOURCE_OVERRIDE or entitlement.plan_type == "admin":
+        return entitlement.plan_type, entitlement.plan_name, False
+    sub = _subscription_for(user)
+    if sub is not None and sub.is_active and sub.plan is not None:
+        plan_type = (sub.plan.plan_type or "").lower()
+        return _TIER_ALIASES.get(plan_type, plan_type) or None, sub.plan.name or "PRO", True
+    return None, "Bepul", True
+
+
 def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
     """Server-calculated remaining allowances for the quota widget / bot."""
     entitlement = entitlement or get_effective_entitlement(user)
+    shown_plan_type, shown_plan_name, custom_limit = display_plan(user, entitlement)
     now = timezone.now()
     period_start = quota_period_start(
         now,
@@ -594,10 +618,11 @@ def get_remaining_limits(user, entitlement: Entitlement | None = None) -> dict:
     cooldown = cooldown_seconds_remaining(user, entitlement)
     return {
         "source": entitlement.source,
-        "plan_type": entitlement.plan_type,
-        "plan_name": entitlement.plan_name,
+        "plan_type": shown_plan_type,
+        "plan_name": shown_plan_name,
+        "custom_limit": custom_limit,
         "is_sponsored": entitlement.is_sponsored,
-        "is_paid": entitlement.is_paid,
+        "is_paid": entitlement.is_paid or (custom_limit and shown_plan_type not in (None, "free")),
         "expires_at": entitlement.expires_at.isoformat()
         if entitlement.expires_at
         else None,
@@ -922,6 +947,25 @@ def release_usage(reservation: Reservation | SubscriptionUsage | None) -> bool:
         released_at=timezone.now(),
     )
     return bool(updated)
+
+
+def refund_usage_for_submission(submission_id: int, *, note: str = "AI baholanmadi: limit qaytarildi") -> int:
+    """Give back the allowance of an essay that could not be graded.
+
+    The usage row is committed when grading is queued, so ``release_usage``
+    (reserved rows only) cannot undo it. This is the one place that turns a
+    COMMITTED row of a failed grading back into RELEASED, so the student is
+    not charged for a result that was never produced. Idempotent; the rows
+    stay in the ledger as the audit trail.
+    """
+    return SubscriptionUsage.objects.filter(
+        submission_id=submission_id,
+        status__in=(SubscriptionUsage.Status.COMMITTED, SubscriptionUsage.Status.RESERVED),
+    ).update(
+        status=SubscriptionUsage.Status.RELEASED,
+        released_at=timezone.now(),
+        note=note[:200],
+    )
 
 
 def _as_usage(obj) -> SubscriptionUsage | None:

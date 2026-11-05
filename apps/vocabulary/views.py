@@ -4,11 +4,14 @@ import random
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
+from apps.core.ai_health import AIUnavailable, record_ai_failure, record_ai_success
 from apps.courses.models import StudentGroup, Homework
+from apps.payments.ai_quota import consume_feature_cap, refund_feature_cap
 from .models import VocabularyPack, StudentWordMistake
 from .serializers import VocabularyPackSerializer, StudentWordMistakeSerializer
 from .services.vocab_generator import (
@@ -18,12 +21,29 @@ from .services.vocab_generator import (
 )
 
 
+def _is_teacher_or_admin(user) -> bool:
+    return bool(
+        getattr(user, "is_superuser", False)
+        or getattr(user, "role", "") in ("teacher", "admin", "center_admin")
+    )
+
+
+class _AiToolsThrottle(ScopedRateThrottle):
+    scope = "ai-tools"
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([_AiToolsThrottle])
 def generate_vocabulary_view(request):
     """
     Ustoz tomonidan 50-60 ta so'zdan 4 xil formatli mashq generatsiya qilish.
+
+    Teachers and admins only (it spends a paid AI call), capped per day, and
+    an AI failure returns 503 with nothing saved: no exercises are made up.
     """
+    if not _is_teacher_or_admin(request.user):
+        return Response({"error": "Faqat ustozlar uchun."}, status=status.HTTP_403_FORBIDDEN)
     raw_text = request.data.get("raw_text", "").strip()
     title = request.data.get("title", "Ingliz tili Lug'at Mashqi").strip()
     group_id = request.data.get("group_id")
@@ -39,25 +59,43 @@ def generate_vocabulary_view(request):
     group = None
     if group_id:
         group = get_object_or_404(StudentGroup, id=group_id)
+        if group.teacher_id != request.user.id and not request.user.is_superuser:
+            return Response({"error": "Bu guruh sizniki emas."}, status=status.HTTP_403_FORBIDDEN)
 
-    if save_to_db:
-        pack = create_vocabulary_pack(
-            raw_text=raw_text,
-            title=title,
-            teacher=request.user,
-            group=group,
-        )
+    allowed, limit = consume_feature_cap(request.user, "vocab")
+    if not allowed:
         return Response(
-            VocabularyPackSerializer(pack).data, status=status.HTTP_201_CREATED
+            {"error": "Bugungi limit tugadi.", "code": "daily_limit", "limit": limit},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
-    else:
+
+    try:
+        if save_to_db:
+            pack = create_vocabulary_pack(
+                raw_text=raw_text,
+                title=title,
+                teacher=request.user,
+                group=group,
+            )
+            record_ai_success("vocab")
+            return Response(
+                VocabularyPackSerializer(pack).data, status=status.HTTP_201_CREATED
+            )
         exercises = generate_exercises_with_ai(words)
+        record_ai_success("vocab")
         return Response(
             {
                 "title": title,
                 "word_count": len(words),
                 "exercises_data": exercises,
             }
+        )
+    except AIUnavailable as exc:
+        refund_feature_cap(request.user, "vocab")
+        record_ai_failure("vocab", exc)
+        return Response(
+            {"error": "Mashqlarni yaratib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.", "code": "ai_unavailable"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 
@@ -87,6 +125,8 @@ def assign_vocabulary_homework_view(request):
 
     pack = get_object_or_404(VocabularyPack, id=pack_id)
     group = get_object_or_404(StudentGroup, id=group_id)
+    if pack.teacher_id != request.user.id and not request.user.is_superuser:
+        return Response({"error": "Bu to'plam sizniki emas."}, status=403)
 
     if group.teacher != request.user and not request.user.is_superuser:
         return Response(

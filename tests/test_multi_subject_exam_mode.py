@@ -176,19 +176,23 @@ def test_grade_ielts_essay_unit(student_user):
         status=EssaySubmission.Status.PENDING,
     )
 
-    result = grade_ielts_essay(
-        essay_text=submission.essay_text,
-        topic_title=topic.title,
-        task_type="ielts_task2",
-        min_words=250,
-    )
+    # Explicit mock mode (the documented local-dev switch): the deterministic fixture
+    # exercises the 4-criteria validation and persistence. Outside mock mode a failed
+    # provider call is "not graded" and never produces a band (test_integrity_honest_grading).
+    with patch("apps.essays.services._is_mock_mode", return_value=True):
+        result = grade_ielts_essay(
+            essay_text=submission.essay_text,
+            topic_title=topic.title,
+            task_type="ielts_task2",
+            min_words=250,
+        )
 
-    assert result["overall_band"] >= 5.0
-    assert result["cefr_level"] in ("B1", "B2", "C1", "C2")
-    assert len(result["criteria"]) == 4
+        assert result["overall_band"] >= 5.0
+        assert result["cefr_level"] in ("B1", "B2", "C1", "C2")
+        assert len(result["criteria"]) == 4
 
-    # Apply result to submission
-    apply_ai_result(submission, result)
+        # Apply result to submission
+        apply_ai_result(submission, result)
 
     submission.refresh_from_db()
     assert float(submission.total_score) == result["overall_band"]

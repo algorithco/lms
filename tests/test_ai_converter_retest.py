@@ -6,8 +6,12 @@ Tests for:
 
 from __future__ import annotations
 
+import json
+
 import io
 from django.contrib.auth import get_user_model
+from unittest.mock import patch
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
@@ -91,15 +95,51 @@ class AiConverterAndRetestTests(TestCase):
         dummy_file = SimpleUploadedFile(
             "sample_test.png", b"fake_png_data", content_type="image/png"
         )
-        res = self.client.post(
-            "/api/v1/tests/ai-convert-document/",
-            {"file": dummy_file, "subject": "uzbek"},
+        vision = json.dumps(
+            {
+                "test_title": "Namuna",
+                "questions": [
+                    {
+                        "text": "Birinchi savol?",
+                        "choices": [{"code": "A", "text": "bir"}, {"code": "B", "text": "ikki"}],
+                        "correct_answer": "B",
+                    },
+                    {
+                        "text": "Ikkinchi savol?",
+                        "choices": [{"code": "A", "text": "uch"}, {"code": "B", "text": "to'rt"}],
+                    },
+                ],
+            }
         )
+        with patch("apps.tests.ai_converter._call_gemini_vision", return_value=vision):
+            res = self.client.post(
+                "/api/v1/tests/ai-convert-document/",
+                {"file": dummy_file, "subject": "uzbek"},
+            )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data.get("success"))
-        self.assertIn("questions", data.get("data", {}))
-        self.assertGreaterEqual(len(data["data"]["questions"]), 1)
+        questions = data["data"]["questions"]
+        self.assertEqual(len(questions), 2)
+        # An answer the document did not give stays empty and the question is flagged: never a guessed "A".
+        self.assertEqual(questions[0]["correct_answer"], "B")
+        self.assertFalse(questions[0]["needs_review"])
+        self.assertEqual(questions[1]["correct_answer"], "")
+        self.assertTrue(questions[1]["needs_review"])
+
+    def test_unreadable_document_gives_no_made_up_questions(self) -> None:
+        self.client.login(email="converter_teacher@test.com", password="testpass123")
+        dummy_file = SimpleUploadedFile("blur.png", b"fake_png_data", content_type="image/png")
+        with patch("apps.tests.ai_converter._call_gemini_vision", return_value=""), patch(
+            "apps.tests.ai_converter._call_openrouter_vision", return_value=""
+        ):
+            res = self.client.post(
+                "/api/v1/tests/ai-convert-document/",
+                {"file": dummy_file, "subject": "english"},
+            )
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()["code"], "nothing_recognised")
+        self.assertNotIn("questions", res.json())
 
     def test_teacher_ai_save_converted_test(self) -> None:
         self.client.login(email="converter_teacher@test.com", password="testpass123")
