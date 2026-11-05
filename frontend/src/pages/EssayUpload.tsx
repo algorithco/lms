@@ -25,6 +25,17 @@ const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).le
  * the student checks and corrects it → graded as a photo essay. Recognition is
  * free; only the final submit counts against the plan's photo-essay allowance.
  */
+/** Server error code of POST /essays/ocr/ -> message key (anything else: "no text recognised"). */
+const OCR_ERRORS: Record<string, string> = {
+  ocr_unavailable: 'eu_err_unavailable',
+  invalid_image: 'eu_err_image',
+  not_an_image: 'eu_err_image',
+  file_too_large: 'eu_err_size',
+  too_many_pages: 'eu_err_size',
+  plan_required: 'eu_err_plan',
+  ocr_daily_limit: 'eu_err_daily',
+};
+
 export default function EssayUpload() {
   const { t } = useLang();
   const navigate = useNavigate();
@@ -67,7 +78,7 @@ export default function EssayUpload() {
       setIncomplete(res.incomplete);
     } catch (e) {
       const code = (e as ApiError).code;
-      setErr(t(code === 'ocr_unavailable' ? 'eu_err_unavailable' : code === 'invalid_image' ? 'eu_err_image' : 'eu_err_failed'));
+      setErr(t(OCR_ERRORS[code ?? ''] ?? 'eu_err_failed'));
     } finally {
       setBusy(null);
     }

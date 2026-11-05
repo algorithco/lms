@@ -2607,7 +2607,12 @@
     "pl_pay_cta": "To'lash va chek yuklash",
     "pl_switch_cta": "Shu tarifga o'tish",
     "pl_pay_note": "To'lov kartaga o'tkazma orqali: chekni yuklaysiz, chek tekshirilgach obuna yoqiladi.",
-    "lp_menu_open": "Menyuni ochish"
+    "lp_menu_open": "Menyuni ochish",
+    "tier_custom_limit": "Maxsus limit",
+    "eu_err_plan": "Rasmli esse tarifingizga kirmaydi. Matnni yozib yuboring yoki tarifni yangilang.",
+    "eu_err_daily": "Bugungi rasm tanish limiti tugadi. Ertaga qayta urinib ko'ring yoki matnni yozib yuboring.",
+    "eu_err_size": "Rasm juda katta yoki sahifalar soni ko'p. Kichikroq rasm tanlang.",
+    "cv_pick_answer": "To'g'ri javobni tanlang: hujjatda u aniq ko'rinmadi, taxmin qilinmaydi."
   },
   "ru": {
     "main": "Главное",
@@ -5217,7 +5222,12 @@
     "pl_pay_cta": "Оплатить и загрузить чек",
     "pl_switch_cta": "Перейти на этот тариф",
     "pl_pay_note": "Оплата переводом на карту: вы загружаете чек, подписка включается после его проверки.",
-    "lp_menu_open": "Открыть меню"
+    "lp_menu_open": "Открыть меню",
+    "tier_custom_limit": "Особый лимит",
+    "eu_err_plan": "Фото-эссе не входит в ваш тариф. Введите текст или обновите тариф.",
+    "eu_err_daily": "Дневной лимит распознавания исчерпан. Попробуйте завтра или введите текст.",
+    "eu_err_size": "Фото слишком большое или слишком много страниц. Выберите файл поменьше.",
+    "cv_pick_answer": "Выберите правильный ответ: в документе он не виден, мы не угадываем."
   },
   "en": {
     "main": "Main",
@@ -7827,6 +7837,11 @@
     "pl_pay_cta": "Pay and upload receipt",
     "pl_switch_cta": "Switch to this plan",
     "pl_pay_note": "Payment is a card transfer: you upload the receipt, and the plan is switched on once it has been checked.",
-    "lp_menu_open": "Open menu"
+    "lp_menu_open": "Open menu",
+    "tier_custom_limit": "Custom limit",
+    "eu_err_plan": "Photo essays are not part of your plan. Type the text or upgrade.",
+    "eu_err_daily": "Today's photo recognition limit is used up. Try tomorrow or type the text.",
+    "eu_err_size": "The photo is too large or there are too many pages. Choose a smaller one.",
+    "cv_pick_answer": "Pick the correct answer: it was not clear in the document, and we do not guess."
   }
 }

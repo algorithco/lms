@@ -186,6 +186,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     tariff = serializers.SerializerMethodField()
     is_premium = serializers.SerializerMethodField()
     has_pro_access = serializers.SerializerMethodField()
+    has_custom_limit = serializers.SerializerMethodField()
 
     def get_plan(self, obj) -> str:
         """Plan code from the one canonical tier (no stale receipts/profile)."""
@@ -194,9 +195,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             or getattr(obj, "role", "") in ("admin", "center_admin")
         ):
             return "ADMIN_UNLIMITED"
-        from apps.payments.ai_quota import get_user_plan_tier
+        from apps.payments.ai_quota import get_display_tier
 
-        return get_user_plan_tier(obj).upper()
+        return get_display_tier(obj)[0].upper()
+
+    def get_has_custom_limit(self, obj) -> bool:
+        """An administrator set a manual limit for this student (shown beside the plan, not instead of it)."""
+        from apps.payments.ai_quota import get_display_tier
+
+        try:
+            return get_display_tier(obj)[1]
+        except Exception:
+            return False
 
     def get_is_paid(self, obj) -> bool:
         if obj and (
@@ -291,6 +301,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "tariff",
             "is_premium",
             "has_pro_access",
+            "has_custom_limit",
             "active_subject",
             "exam_target",
             "target_timeline_months",
