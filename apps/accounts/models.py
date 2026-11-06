@@ -599,10 +599,18 @@ class ParentStudentRelation(models.Model):
         related_name="parent_relations",
         verbose_name=_("o'quvchi"),
     )
+    parent_name = models.CharField(
+        _("ota-ona ismi"),
+        max_length=150,
+        blank=True,
+        default="",
+    )
     parent_phone = models.CharField(
         _("ota-ona telefon raqami"),
         max_length=20,
         db_index=True,
+        blank=True,
+        default="",
     )
     parent_telegram_id = models.BigIntegerField(
         _("ota-ona Telegram ID"),
@@ -621,6 +629,10 @@ class ParentStudentRelation(models.Model):
     )
     weekly_report_enabled = models.BooleanField(
         _("haftalik hisobot yoqilgan"),
+        default=True,
+    )
+    notifications_enabled = models.BooleanField(
+        _("xabarnomalar yoqilgan"),
         default=True,
     )
     instant_alerts_enabled = models.BooleanField(

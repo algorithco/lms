@@ -837,3 +837,286 @@ def student_group_detail_view(request, group_id: int):
             "is_admin": is_admin,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Churn Warning Engine & Retention Risk Analysis
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def branch_retention_risk_view(request: Any, branch_id: int) -> Response:
+    """
+    GET /api/v1/panel/branches/<branch_id>/retention-risk/
+    Analyzes branch students and classifies them into:
+      green: active in last 3 days, performance stable or growing
+      yellow: attention needed (inactive 3-5 days or streak lost)
+      red: churn risk (inactive >5 days OR scores dropped >20%)
+    """
+    user: User = request.user
+    branch = get_object_or_404(CenterBranch, pk=branch_id)
+    if not _can_manage_branch(user, branch):
+        return _forbidden()
+
+    from datetime import timedelta
+    from django.db.models import Q
+    from django.utils import timezone
+    from apps.accounts.models import ParentStudentRelation
+    from apps.accounts.gamification import get_user_streak_info
+    from apps.results.models import Result
+    from apps.tests.models import TestAttempt
+
+    now = timezone.now()
+
+    # Find all students associated with this branch directly or via groups
+    students_qs = (
+        User.objects.filter(
+            Q(branch=branch) | Q(student_groups__branch=branch),
+            role=User.Role.STUDENT,
+            is_active=True,
+        )
+        .distinct()
+        .prefetch_related("student_groups", "student_groups__teacher")
+    )
+
+    student_items: list[dict[str, Any]] = []
+
+    for s in students_qs:
+        # Determine last activity from attempts, results, or login
+        last_attempt = (
+            TestAttempt.objects.filter(student=s)
+            .order_by("-started_at")
+            .only("started_at")
+            .first()
+        )
+        last_result = (
+            Result.objects.filter(student=s)
+            .order_by("-calculated_at")
+            .only("calculated_at")
+            .first()
+        )
+
+        last_dt = None
+        if last_attempt and last_attempt.started_at:
+            last_dt = last_attempt.started_at
+        elif last_result and last_result.calculated_at:
+            last_dt = last_result.calculated_at
+        elif s.last_login:
+            last_dt = s.last_login
+        else:
+            last_dt = s.date_joined
+
+        days_inactive = (now - last_dt).days if last_dt else 99
+
+        # Recent test score trend (last 3 results)
+        recent_results = list(
+            Result.objects.filter(student=s)
+            .order_by("-calculated_at")
+            .values_list("percentage", flat=True)[:3]
+        )
+
+        score_drop_pct = 0.0
+        if len(recent_results) >= 2:
+            newest_pct = float(recent_results[0])
+            oldest_pct = float(recent_results[-1])
+            if oldest_pct > 0 and newest_pct < oldest_pct:
+                score_drop_pct = ((oldest_pct - newest_pct) / oldest_pct) * 100.0
+
+        # Streak info
+        streak_data = get_user_streak_info(s)
+        streak_days = streak_data.get("streak_days", 0)
+        is_active_today = streak_data.get("is_active_today", False)
+
+        # Classification into green, yellow, red
+        if days_inactive > 5 or score_drop_pct >= 20.0:
+            tier = "red"
+            if days_inactive > 5:
+                risk_reason = f"{days_inactive} kundan beri kirmagan"
+            else:
+                risk_reason = f"Natijalar {score_drop_pct:.0f}% ga pasayib ketgan"
+        elif days_inactive > 3 or (not is_active_today and days_inactive >= 2):
+            tier = "yellow"
+            risk_reason = f"{days_inactive} kundan beri kirmagan"
+        else:
+            tier = "green"
+            risk_reason = "Faol va barqaror o'zlashtirmoqda"
+
+        # Group and teacher info
+        group = s.student_groups.filter(branch=branch).first() or s.student_groups.first()
+        group_name = group.name if group else "Guruhsiz"
+        teacher_name = (
+            group.teacher.get_full_name() or group.teacher.email
+            if (group and group.teacher)
+            else "Biriktirilmagan"
+        )
+
+        # Parent info
+        parent_rel = (
+            ParentStudentRelation.objects.filter(student=s, is_verified=True)
+            .order_by("-updated_at")
+            .first()
+        )
+        has_parent_telegram = bool(parent_rel and parent_rel.parent_telegram_id)
+
+        last_active_str = (
+            "Bugun"
+            if days_inactive == 0
+            else (
+                "Kecha"
+                if days_inactive == 1
+                else f"{days_inactive} kun oldin"
+            )
+        )
+
+        student_items.append(
+            {
+                "id": s.id,
+                "name": s.get_full_name() or s.email,
+                "phone": getattr(getattr(s, "profile", None), "phone", "") or getattr(s, "phone_number", "") or "—",
+                "email": s.email,
+                "group_id": group.id if group else None,
+                "group_name": group_name,
+                "teacher_name": teacher_name,
+                "last_active": last_active_str,
+                "days_inactive": days_inactive,
+                "tier": tier,
+                "risk_reason": risk_reason,
+                "streak_days": streak_days,
+                "avg_score": round(sum(float(p) for p in recent_results) / len(recent_results), 1) if recent_results else 0.0,
+                "has_parent_telegram": has_parent_telegram,
+                "parent_name": parent_rel.parent_name if parent_rel else "",
+                "parent_phone": parent_rel.parent_phone if parent_rel else "",
+                "parent_telegram_id": parent_rel.parent_telegram_id if parent_rel else None,
+            }
+        )
+
+    # Sort: red first, then yellow, then green; within tier, most inactive first
+    tier_order = {"red": 0, "yellow": 1, "green": 2}
+    student_items.sort(key=lambda x: (tier_order.get(x["tier"], 3), -x["days_inactive"]))
+
+    active_count = sum(1 for s in student_items if s["tier"] == "green")
+    attention_count = sum(1 for s in student_items if s["tier"] == "yellow")
+    risk_count = sum(1 for s in student_items if s["tier"] == "red")
+    total_count = len(student_items)
+
+    return Response(
+        {
+            "branch": {
+                "id": branch.id,
+                "name": branch.name,
+                "branch_code": branch.branch_code,
+            },
+            "summary": {
+                "active_count": active_count,
+                "attention_count": attention_count,
+                "risk_count": risk_count,
+                "total_students": total_count,
+            },
+            "students": student_items,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def branch_send_reminder_view(request: Any, branch_id: int) -> Response:
+    """
+    POST /api/v1/panel/branches/<branch_id>/send-reminder/
+    Sends a friendly reminder to student and/or parent via Telegram bot.
+    Payload:
+      {
+        "student_id": 123,
+        "reminder_type": "student" | "parent" | "both",
+        "message": optional custom text
+      }
+    """
+    user: User = request.user
+    branch = get_object_or_404(CenterBranch, pk=branch_id)
+    if not _can_manage_branch(user, branch):
+        return _forbidden()
+
+    student_id = request.data.get("student_id")
+    if not student_id:
+        return Response(
+            {"error": "student_id majburiy parametr."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    reminder_type = str(request.data.get("reminder_type", "both")).lower()
+    custom_msg = str(request.data.get("message", "")).strip()
+
+    from apps.accounts.models import ParentStudentRelation
+    from apps.notifications.services.telegram_service import TelegramService
+
+    sent_to_student = False
+    sent_to_parent = False
+
+    student_name = student.get_full_name() or student.email
+
+    # 1. Send to Student if requested and chat_id is present
+    if reminder_type in ("student", "both"):
+        chat_id = getattr(student, "telegram_chat_id", None)
+        if chat_id:
+            text = (
+                custom_msg
+                or (
+                    f"👋 <b>Salom, {student_name}!</b>\n\n"
+                    f"Grand Education ({branch.name}) da yangi qiziqarli darslar va amaliy testlar kutilmoqda.\n\n"
+                    f"Bilimingizni sinab ko'ring va natijalaringizni yaxshilang! 🚀"
+                )
+            )
+            try:
+                TelegramService.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    recipient=student,
+                    parse_mode="HTML",
+                )
+                sent_to_student = True
+            except Exception as e:
+                logger.warning("Could not send reminder to student %s: %s", student.id, e)
+
+    # 2. Send to Parent if requested and parent_telegram_id is present
+    if reminder_type in ("parent", "both"):
+        parent_rel = (
+            ParentStudentRelation.objects.filter(
+                student=student,
+                is_verified=True,
+                parent_telegram_id__isnull=False,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+        if parent_rel and parent_rel.parent_telegram_id:
+            parent_msg = (
+                custom_msg
+                or (
+                    f"👨‍👩‍👧 <b>Hurmatli ota-ona!</b>\n\n"
+                    f"Farzandingiz <b>{student_name}</b> ning Grand Education ({branch.name}) kursxonasidagi "
+                    f"o'quv faolligi va darslardagi uzluksizligini saqlab qolish uchun bugun yangi testlarni "
+                    f"ishlashini eslatib o'tamiz.\n\n"
+                    f"Farzandingiz kelajagi biz bilan ishonchli qo'llarda!"
+                )
+            )
+            try:
+                TelegramService.send_message(
+                    chat_id=parent_rel.parent_telegram_id,
+                    text=parent_msg,
+                    recipient=student,
+                    parse_mode="HTML",
+                )
+                sent_to_parent = True
+            except Exception as e:
+                logger.warning("Could not send reminder to parent of %s: %s", student.id, e)
+
+    return Response(
+        {
+            "success": True,
+            "student_id": student.id,
+            "sent_to_student": sent_to_student,
+            "sent_to_parent": sent_to_parent,
+            "message": "Eslatma xabarnomasi muvaffaqiyatli jo'natildi.",
+        }
+    )

@@ -559,6 +559,75 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await send_group_welcome_message(chat.id, context)
             return
 
+    if args and args[0].startswith("parent_"):
+        raw_parent_arg = args[0]
+        tg_user = update.effective_user
+        if tg_user:
+            from apps.accounts.services.parent_link import (
+                verify_parent_deep_link_token,
+                link_parent_to_student,
+            )
+            from apps.accounts.models import ParentStudentRelation, User
+
+            parts = raw_parent_arg.split("_")
+            if len(parts) >= 3 and parts[1].isdigit():
+                student_id = int(parts[1])
+                token = parts[2]
+                if verify_parent_deep_link_token(student_id, token):
+                    def _do_link():
+                        student = User.objects.filter(id=student_id).first()
+                        if not student:
+                            return None
+                        rel, _ = link_parent_to_student(
+                            student=student,
+                            telegram_id=tg_user.id,
+                            parent_name=tg_user.full_name or tg_user.first_name,
+                        )
+                        return student.get_full_name() or student.email
+
+                    student_name = await _run_db(_do_link)
+                    if student_name:
+                        await update.message.reply_text(
+                            f"👨‍👩‍👧 <b>Muvaffaqiyatli bog'landi!</b>\n\n"
+                            f"Assalomu alaykum! Siz farzandingiz <b>{student_name}</b> ning GRAND EDUCATION platformasidagi o'quv natijalari va davomatiga ulandingiz.\n\n"
+                            f"Endi farzandingiz yangi test topshirganda, uning ballari, BMB darajasi, zaif mavzulari va haftalik hisoboti to'g'ridan-to'g'ri sizga yuboriladi.",
+                            parse_mode="HTML",
+                        )
+                        return
+                    else:
+                        await update.message.reply_text(
+                            "❌ O'quvchi topilmadi. Havolani tekshirib qayta urinib ko'ring.",
+                            parse_mode="HTML",
+                        )
+                        return
+                else:
+                    await update.message.reply_text(
+                        "❌ Xavfsizlik kaliti eskirgan yoki yaroqsiz. Farzandingizdan yangi havola olishini so'rang.",
+                        parse_mode="HTML",
+                    )
+                    return
+            elif len(parts) == 2:
+                code_val = parts[1]
+                def _do_link_code():
+                    rel = ParentStudentRelation.objects.filter(verification_code=code_val).select_related("student").first()
+                    if not rel:
+                        return None
+                    rel.parent_telegram_id = tg_user.id
+                    rel.parent_name = tg_user.full_name or tg_user.first_name
+                    rel.is_verified = True
+                    rel.notifications_enabled = True
+                    rel.save(update_fields=["parent_telegram_id", "parent_name", "is_verified", "notifications_enabled", "updated_at"])
+                    return rel.student.get_full_name() or rel.student.email
+
+                student_name = await _run_db(_do_link_code)
+                if student_name:
+                    await update.message.reply_text(
+                        f"👨‍👩‍👧 <b>Muvaffaqiyatli bog'landi!</b>\n\n"
+                        f"Assalomu alaykum! Siz farzandingiz <b>{student_name}</b> ning GRAND EDUCATION platformasidagi o'quv natijalari va davomatiga ulandingiz.",
+                        parse_mode="HTML",
+                    )
+                    return
+
     if args and args[0].startswith("link_"):
         from apps.accounts.services.telegram_link import confirm_link_challenge
 
@@ -9342,19 +9411,43 @@ async def parent_start_handler(
         code = code.removeprefix("parent_")
 
     def _link_by_code(code_val: str, chat_id: int):
-        from apps.accounts.models import ParentStudentRelation
+        import re
+        from django.db.models import Q
+        from apps.accounts.models import ParentStudentRelation, User
+        from apps.accounts.services.parent_link import link_parent_to_student
 
+        # 1. By verification code
         rel = (
             ParentStudentRelation.objects.filter(verification_code=code_val)
             .select_related("student")
             .first()
         )
-        if not rel:
-            return None
-        rel.parent_telegram_id = chat_id
-        rel.is_verified = True
-        rel.save(update_fields=["parent_telegram_id", "is_verified", "updated_at"])
-        return rel.student.get_full_name() or rel.student.email
+        if rel:
+            rel.parent_telegram_id = chat_id
+            rel.is_verified = True
+            rel.notifications_enabled = True
+            rel.save(update_fields=["parent_telegram_id", "is_verified", "notifications_enabled", "updated_at"])
+            return rel.student.get_full_name() or rel.student.email
+
+        # 2. By student ID
+        if code_val.isdigit():
+            student = User.objects.filter(id=int(code_val), role=User.Role.STUDENT).first()
+            if student:
+                link_parent_to_student(student=student, telegram_id=chat_id)
+                return student.get_full_name() or student.email
+
+        # 3. By phone number
+        digits = re.sub(r"\D", "", code_val)
+        if len(digits) >= 9:
+            tail = digits[-9:]
+            student = User.objects.filter(role=User.Role.STUDENT).filter(
+                Q(phone_number__endswith=tail) | Q(email__startswith=tail)
+            ).first()
+            if student:
+                link_parent_to_student(student=student, telegram_id=chat_id, parent_phone=code_val)
+                return student.get_full_name() or student.email
+
+        return None
 
     if code:
         student_name = await _run_db(_link_by_code, code, tg_user.id)
@@ -9620,7 +9713,7 @@ def setup_handlers(app) -> None:
     app.add_handler(CommandHandler("streak", streak_handler))
     app.add_handler(CommandHandler("daily", daily_handler))
     app.add_handler(CommandHandler("premium", premium_handler))
-    app.add_handler(CommandHandler("parent_start", parent_start_handler))
+    app.add_handler(CommandHandler(["parent_start", "otaona", "ota_ona"], parent_start_handler))
     app.add_handler(CommandHandler("parent_link", parent_link_handler))
     app.add_handler(CommandHandler("parent", parent_start_handler))
     app.add_handler(CommandHandler("tournament", tournament_handler))
