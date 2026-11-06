@@ -3112,6 +3112,41 @@ export interface StudentGroupViewData {
   is_admin: boolean;
 }
 
+export interface RetentionStudentItem {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  group_id: number | null;
+  group_name: string;
+  teacher_name: string;
+  last_active: string;
+  days_inactive: number;
+  tier: 'green' | 'yellow' | 'red';
+  risk_reason: string;
+  streak_days: number;
+  avg_score: number;
+  has_parent_telegram: boolean;
+  parent_name: string;
+  parent_phone: string;
+  parent_telegram_id: number | null;
+}
+
+export interface RetentionRiskResponse {
+  branch: {
+    id: number;
+    name: string;
+    branch_code: string;
+  };
+  summary: {
+    active_count: number;
+    attention_count: number;
+    risk_count: number;
+    total_students: number;
+  };
+  students: RetentionStudentItem[];
+}
+
 export const BranchApi = {
   list: () => api<BranchItem[]>('/api/v1/panel/branches/'),
   create: (data: Partial<BranchItem> & { director_id?: number }) =>
@@ -3129,6 +3164,19 @@ export const BranchApi = {
     api<{ success: boolean; message: string }>(`/api/v1/panel/branches/${id}/`, {
       method: 'DELETE',
     }),
+  getRetentionRisk: (branchId: number) =>
+    api<RetentionRiskResponse>(`/api/v1/panel/branches/${branchId}/retention-risk/`),
+  sendReminder: (
+    branchId: number,
+    data: { student_id: number; reminder_type?: 'student' | 'parent' | 'both'; message?: string }
+  ) =>
+    api<{ success: boolean; sent_to_student: boolean; sent_to_parent: boolean; message: string }>(
+      `/api/v1/panel/branches/${branchId}/send-reminder/`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
 };
 
 export const TeacherManagementApi = {

@@ -11,8 +11,14 @@ import {
   CheckCircle2,
   X,
   Search,
+  AlertTriangle,
+  RefreshCw,
+  Flame,
+  ShieldAlert,
+  Bell,
+  CheckCircle,
 } from 'lucide-react';
-import { BranchApi, type BranchItem } from '../lib/api';
+import { BranchApi, type BranchItem, type RetentionRiskResponse } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 
 const SUBJECT_OPTIONS = [
@@ -48,7 +54,49 @@ export default function PanelBranches() {
   const [maxStudents, setMaxStudents] = useState(500);
   const [saving, setSaving] = useState(false);
 
+  // Retention Risk Engine states
+  const [retentionModalOpen, setRetentionModalOpen] = useState(false);
+  const [selectedBranchForRetention, setSelectedBranchForRetention] = useState<BranchItem | null>(null);
+  const [retentionData, setRetentionData] = useState<RetentionRiskResponse | null>(null);
+  const [loadingRetention, setLoadingRetention] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState<number | null>(null);
+
   const toast = useToast();
+
+  const openRetentionModal = async (branch: BranchItem) => {
+    setSelectedBranchForRetention(branch);
+    setRetentionModalOpen(true);
+    setRetentionData(null);
+    try {
+      setLoadingRetention(true);
+      const data = await BranchApi.getRetentionRisk(branch.id);
+      setRetentionData(data);
+    } catch {
+      toast.error('Retentsiya va xavf tahlili ma’lumotlarini yuklab bo‘lmadi');
+    } finally {
+      setLoadingRetention(false);
+    }
+  };
+
+  const handleSendReminder = async (studentId: number) => {
+    if (!selectedBranchForRetention) return;
+    setSendingReminderId(studentId);
+    try {
+      const res = await BranchApi.sendReminder(selectedBranchForRetention.id, {
+        student_id: studentId,
+        reminder_type: 'both',
+      });
+      if (res.sent_to_student || res.sent_to_parent) {
+        toast.success(res.message || 'Eslatma xabarnomasi muvaffaqiyatli jo‘natildi');
+      } else {
+        toast.info('Telegram ulanmaganligi sababli xabar yuborilmadi');
+      }
+    } catch {
+      toast.error('Eslatma yuborishda xatolik yuz berdi');
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
 
   const loadBranches = async () => {
     try {
@@ -581,6 +629,32 @@ export default function PanelBranches() {
                   </div>
                 </div>
               </div>
+
+              {/* Retention Risk Button */}
+              <button
+                type="button"
+                onClick={() => openRetentionModal(b)}
+                style={{
+                  marginTop: 12,
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#EF4444',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <AlertTriangle size={15} />
+                <span>⚠️ Xavf ostidagi o‘quvchilar va Retentsiya</span>
+              </button>
             </div>
           ))}
         </div>
@@ -886,6 +960,279 @@ export default function PanelBranches() {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Modal: Retention Risk & Churn Warning Engine */}
+      {retentionModalOpen && selectedBranchForRetention && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg, #1E293B)',
+              width: '100%',
+              maxWidth: 920,
+              borderRadius: 20,
+              padding: '24px 28px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      color: '#EF4444',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                    }}
+                  >
+                    <ShieldAlert size={20} />
+                  </span>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#F8FAFC' }}>
+                      ⚠️ Xavf ostidagi o‘quvchilar va Retentsiya Tahlili
+                    </h2>
+                    <span style={{ fontSize: 13, color: '#94A3B8' }}>
+                      Filial: <strong>{selectedBranchForRetention.name}</strong> ({selectedBranchForRetention.branch_code})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRetentionModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {loadingRetention ? (
+              <div style={{ padding: '60px 0', textAlign: 'center', color: '#94A3B8' }}>
+                <RefreshCw size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                <div>O‘quvchilar faolligi va xavf darajalari tahlil qilinmoqda...</div>
+              </div>
+            ) : retentionData ? (
+              <div>
+                {/* 4 Summary Stat Cards */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: 12,
+                    marginBottom: 24,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600 }}>🟢 Faol & O‘suvchi</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F8FAFC', marginTop: 4 }}>
+                      {retentionData.summary.active_count} nafar
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>Oxirgi 3 kunda test yechgan</div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>🟡 E’tibor talab</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F8FAFC', marginTop: 4 }}>
+                      {retentionData.summary.attention_count} nafar
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>3–5 kundan beri kirmagan</div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}>🔴 Xavf ostida (Churn Risk)</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F8FAFC', marginTop: 4 }}>
+                      {retentionData.summary.risk_count} nafar
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{'>'}5 kun yoki -20% pasaygan</div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: 'rgba(148, 163, 184, 0.1)',
+                      border: '1px solid rgba(148, 163, 184, 0.25)',
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>👥 Jami O‘quvchilar</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F8FAFC', marginTop: 4 }}>
+                      {retentionData.summary.total_students} nafar
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>Kursxona o‘quvchilari</div>
+                  </div>
+                </div>
+
+                {/* Students Table */}
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#F8FAFC' }}>
+                  Xavf toifasidagi o‘quvchilar ro‘yxati ({retentionData.students.length} ta):
+                </div>
+
+                {retentionData.students.length === 0 ? (
+                  <div style={{ padding: '30px 0', textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>
+                    Ushbu kursxonada hozircha o‘quvchilar mavjud emas.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8', textAlign: 'left' }}>
+                          <th style={{ padding: '10px 8px' }}>O‘quvchi</th>
+                          <th style={{ padding: '10px 8px' }}>Guruh & Ustoz</th>
+                          <th style={{ padding: '10px 8px' }}>Faollik & Streak</th>
+                          <th style={{ padding: '10px 8px' }}>Toifa & Sabab</th>
+                          <th style={{ padding: '10px 8px' }}>Ota-ona</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Harakat</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {retentionData.students.map((st) => {
+                          const badgeColor = st.tier === 'red' ? '#EF4444' : (st.tier === 'yellow' ? '#F59E0B' : '#10B981');
+                          const badgeBg = st.tier === 'red' ? 'rgba(239, 68, 68, 0.15)' : (st.tier === 'yellow' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)');
+                          const tierIcon = st.tier === 'red' ? '🔴' : (st.tier === 'yellow' ? '🟡' : '🟢');
+
+                          return (
+                            <tr
+                              key={st.id}
+                              style={{
+                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                transition: 'background 0.2s',
+                              }}
+                            >
+                              <td style={{ padding: '12px 8px' }}>
+                                <strong style={{ color: '#F8FAFC', display: 'block' }}>{st.name}</strong>
+                                <span style={{ fontSize: 12, color: '#94A3B8' }}>{st.phone}</span>
+                              </td>
+
+                              <td style={{ padding: '12px 8px' }}>
+                                <div style={{ color: '#CBD5E1' }}>{st.group_name}</div>
+                                <span style={{ fontSize: 11, color: '#94A3B8' }}>{st.teacher_name}</span>
+                              </td>
+
+                              <td style={{ padding: '12px 8px' }}>
+                                <div style={{ color: '#CBD5E1' }}>{st.last_active}</div>
+                                {st.streak_days > 0 ? (
+                                  <span style={{ fontSize: 11, color: '#F59E0B', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <Flame size={12} /> {st.streak_days} kun
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: 11, color: '#94A3B8' }}>Streak uzilgan</span>
+                                )}
+                              </td>
+
+                              <td style={{ padding: '12px 8px' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    background: badgeBg,
+                                    color: badgeColor,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {tierIcon} {st.risk_reason}
+                                </span>
+                              </td>
+
+                              <td style={{ padding: '12px 8px' }}>
+                                {st.has_parent_telegram ? (
+                                  <span style={{ color: '#10B981', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <CheckCircle size={13} /> {st.parent_name || 'Ulangan'}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#64748B', fontSize: 12 }}>Ulanmagan</span>
+                                )}
+                              </td>
+
+                              <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendReminder(st.id)}
+                                  disabled={sendingReminderId === st.id}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    padding: '6px 12px',
+                                    borderRadius: 8,
+                                    background: 'rgba(200, 146, 42, 0.15)',
+                                    border: '1px solid rgba(200, 146, 42, 0.35)',
+                                    color: '#C8922A',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {sendingReminderId === st.id ? (
+                                    <RefreshCw size={12} className="animate-spin" />
+                                  ) : (
+                                    <Bell size={12} />
+                                  )}
+                                  <span>{sendingReminderId === st.id ? 'Yuborilmoqda...' : 'Eslatma'}</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+</div>
   );
 }

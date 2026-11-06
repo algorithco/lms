@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useLang } from '../i18n/LangContext';
 import { api } from '../lib/api';
 import { TrashIcon, UserIcon } from './icons';
+import { Send, Copy, Check, Bell, BellOff, ShieldCheck } from 'lucide-react';
 
 interface ParentRelation {
   id: number;
+  parent_name?: string;
   parent_phone: string;
   parent_telegram_id: number | null;
   is_verified: boolean;
+  notifications_enabled?: boolean;
   verification_code: string;
   weekly_report_enabled: boolean;
   instant_alerts_enabled: boolean;
@@ -17,16 +20,22 @@ interface ParentRelation {
 export default function ParentMonitoringCard() {
   const { t } = useLang();
   const [relations, setRelations] = useState<ParentRelation[]>([]);
+  const [deepLink, setDeepLink] = useState('');
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const loadRelations = async () => {
     try {
-      const res = await api.get<{ relations: ParentRelation[] }>('/parents/relation/');
+      const res = await api.get<{ relations: ParentRelation[]; deep_link?: string }>('/parents/relation/');
       setRelations(res.relations || []);
+      if (res.deep_link) {
+        setDeepLink(res.deep_link);
+      }
     } catch {
       // ignore
     } finally {
@@ -38,6 +47,14 @@ export default function ParentMonitoringCard() {
     void loadRelations();
   }, []);
 
+  const handleCopyLink = () => {
+    if (!deepLink) return;
+    navigator.clipboard.writeText(deepLink);
+    setCopied(true);
+    setMessage('Telegram ulanish havolasi nusxalandi! Uni ota-onangizga yuboring.');
+    setTimeout(() => setCopied(false), 3000);
+  };
+
   const handleAddPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneInput.trim()) return;
@@ -48,18 +65,27 @@ export default function ParentMonitoringCard() {
     try {
       const res = await api.post<{ message: string }>('/parents/relation/', {
         parent_phone: phoneInput.trim(),
+        parent_name: nameInput.trim(),
       });
       setMessage(res.message);
       setPhoneInput('');
+      setNameInput('');
       await loadRelations();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || t('parent_error_generic'));
+    } catch (err: unknown) {
+      const respErr = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+        : null;
+      setError(respErr || t('parent_error_generic'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggle = async (relId: number, field: 'instant_alerts_enabled' | 'weekly_report_enabled', currentVal: boolean) => {
+  const handleToggle = async (
+    relId: number,
+    field: 'instant_alerts_enabled' | 'weekly_report_enabled' | 'notifications_enabled',
+    currentVal: boolean
+  ) => {
     try {
       await api.patch(`/parents/relation/${relId}/`, {
         [field]: !currentVal,
@@ -84,6 +110,7 @@ export default function ParentMonitoringCard() {
 
   return (
     <div className="card" style={{ padding: 24, borderRadius: 16 }}>
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div
           style={{
@@ -106,6 +133,79 @@ export default function ParentMonitoringCard() {
           </span>
         </div>
       </div>
+
+      {/* Telegram 1-Click Deep Link Section */}
+      {deepLink && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(200, 146, 42, 0.12) 0%, rgba(200, 146, 42, 0.04) 100%)',
+            border: '1px solid rgba(200, 146, 42, 0.3)',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#F59E0B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ShieldCheck size={18} />
+                <span>👨‍👩‍👧 Ota-onani Telegramga ulash (1-klikda)</span>
+              </div>
+              <div className="muted small" style={{ marginTop: 2 }}>
+                Ota-onangiz ushbu havola orqali botga kirishi bilan natijalaringiz unga avtomatik biriktiriladi.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <a
+                href={deepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #C8922A 0%, #D97706 100%)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(200, 146, 42, 0.3)',
+                }}
+              >
+                <Send size={14} />
+                <span>Telegramda ochish</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: copied ? 'rgba(16, 185, 129, 0.2)' : 'var(--card-2, rgba(255,255,255,0.08))',
+                  border: copied ? '1px solid #10B981' : '1px solid var(--border)',
+                  color: copied ? '#10B981' : 'var(--text-primary)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copied ? 'Nusxalandi' : 'Nusxa olish'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {message && (
         <div
@@ -159,8 +259,15 @@ export default function ParentMonitoringCard() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <div>
-                  <strong style={{ fontSize: 15, display: 'block' }}>{rel.parent_phone}</strong>
-                  <span className="muted small">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <strong style={{ fontSize: 15 }}>
+                      {rel.parent_name || rel.parent_phone}
+                    </strong>
+                    {rel.parent_name && rel.parent_phone && !rel.parent_phone.startsWith('tg:') && (
+                      <span className="muted small">({rel.parent_phone})</span>
+                    )}
+                  </div>
+                  <span className="muted small" style={{ display: 'block', marginTop: 2 }}>
                     {rel.is_verified ? (
                       <span style={{ color: '#10b981', fontWeight: 600 }}>{t('parent_linked')}</span>
                     ) : (
@@ -203,102 +310,93 @@ export default function ParentMonitoringCard() {
                     }}
                   >
                     <TrashIcon size={14} />
-                    {t('parent_delete_btn')}
+                    <span>{t('parent_delete_btn')}</span>
                   </button>
                 </div>
               </div>
 
-              {!rel.is_verified && (
+              {/* Toggles */}
+              {rel.is_verified && (
                 <div
                   style={{
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    fontSize: 12,
-                    color: 'var(--ink)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 16,
+                    paddingTop: 8,
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  💡 <strong>{t('parent_connect_tip_prefix')}</strong> Telegramda <code>@grandec_bot</code> ga kirib,{' '}
-                  <strong>{rel.verification_code}</strong> {t('parent_connect_tip_body')}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rel.notifications_enabled !== false && rel.instant_alerts_enabled}
+                      onChange={() =>
+                        handleToggle(rel.id, 'instant_alerts_enabled', rel.instant_alerts_enabled)
+                      }
+                    />
+                    <span>{rel.instant_alerts_enabled ? <Bell size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> : <BellOff size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />} Tezkor imtihon xabarnomalari</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rel.weekly_report_enabled}
+                      onChange={() =>
+                        handleToggle(rel.id, 'weekly_report_enabled', rel.weekly_report_enabled)
+                      }
+                    />
+                    <span>Haftalik yakshanba hisoboti</span>
+                  </label>
                 </div>
               )}
-
-              {/* Toggles */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  flexWrap: 'wrap',
-                  borderTop: '1px solid var(--border)',
-                  paddingTop: 10,
-                }}
-              >
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={rel.instant_alerts_enabled}
-                    onChange={() => handleToggle(rel.id, 'instant_alerts_enabled', rel.instant_alerts_enabled)}
-                  />
-                  <span>{t('parent_instant_alerts')}</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={rel.weekly_report_enabled}
-                    onChange={() => handleToggle(rel.id, 'weekly_report_enabled', rel.weekly_report_enabled)}
-                  />
-                  <span>{t('parent_weekly_reports')}</span>
-                </label>
-              </div>
             </div>
           ))}
         </div>
-      ) : (
-        <div
-          style={{
-            border: '1px dashed var(--border)',
-            borderRadius: 12,
-            padding: 20,
-            textAlign: 'center',
-            marginBottom: 20,
-          }}
-        >
-          <span className="muted small" style={{ display: 'block', marginBottom: 6 }}>
-            {t('parent_no_relations')}
-          </span>
-          <span className="muted small">
-            {t('parent_no_relations_sub')}
-          </span>
-        </div>
-      )}
+      ) : null}
 
-      {/* Add New Parent Phone Form */}
-      <form onSubmit={handleAddPhone} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <input
-          type="text"
-          placeholder={t('parent_phone_placeholder')}
-          value={phoneInput}
-          onChange={(e) => setPhoneInput(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 240,
-            padding: '10px 14px',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--card)',
-            color: 'var(--ink)',
-            fontSize: 14,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn primary btn-glow"
-          style={{ padding: '10px 18px', fontSize: 13, fontWeight: 700 }}
-        >
-          {saving ? t('parent_saving') : t('parent_add_btn')}
-        </button>
+      {/* Manual Phone / Name Form */}
+      <form onSubmit={handleAddPhone} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>Raqam orqali taklif qilish:</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <input
+            type="text"
+            placeholder="Ota-ona ismi (ixtiyoriy)"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            style={{
+              flex: '1 1 180px',
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              background: 'var(--card-2)',
+              color: 'var(--text-primary)',
+              fontSize: 14,
+            }}
+          />
+          <input
+            type="tel"
+            placeholder="+998 90 123 45 67"
+            value={phoneInput}
+            onChange={(e) => setPhoneInput(e.target.value)}
+            style={{
+              flex: '1 1 200px',
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              background: 'var(--card-2)',
+              color: 'var(--text-primary)',
+              fontSize: 14,
+            }}
+          />
+          <button
+            type="submit"
+            disabled={saving || !phoneInput.trim()}
+            className="btn btn-primary"
+            style={{ padding: '10px 20px', borderRadius: 10, fontWeight: 600 }}
+          >
+            {saving ? '...' : t('save')}
+          </button>
+        </div>
       </form>
     </div>
   );

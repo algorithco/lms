@@ -60,23 +60,7 @@ def send_parent_test_alert_task(self: Any, result_id: int) -> dict[str, Any]:
         pct = float(result.percentage)
         bmb_grade = calculate_bmb_grade(pct)
 
-        # Haftalik dinamika
-        one_week_ago = timezone.now() - timedelta(days=7)
-        past_results = Result.objects.filter(
-            student=student,
-            calculated_at__gte=one_week_ago,
-        ).exclude(id=result.id)
 
-        if past_results.exists():
-            past_avg = (
-                sum(float(r.percentage) for r in past_results) / past_results.count()
-            )
-            if pct >= past_avg:
-                dynamics = "📈 Ijobiy (O'sish kuzatilmoqda)"
-            else:
-                dynamics = "⚠️ Ko'proq takrorlash kerak"
-        else:
-            dynamics = "📊 Birinchi haftalik natija"
 
         total_questions = (
             getattr(result, "total_questions", 0)
@@ -89,12 +73,65 @@ def send_parent_test_alert_task(self: Any, result_id: int) -> dict[str, Any]:
 
         student_name = student.get_full_name() or student.email
 
+        # Fan va emoji
+        subject_key = getattr(result.test, "subject", "") or getattr(result.course, "subject", "") or "uzbek"
+        SUBJECT_MAP = {
+            "uzbek": ("🇺🇿", "Ona tili va Adabiyot"),
+            "english": ("🇬🇧", "Ingliz tili (CEFR & IELTS)"),
+            "biology": ("🧬", "Biologiya (Milliy sertifikat)"),
+            "chemistry": ("🧪", "Kimyo (Milliy sertifikat)"),
+            "law": ("⚖️", "Huquqshunoslik (Yurisprudensiya)"),
+        }
+        subject_icon, subject_name = SUBJECT_MAP.get(subject_key, ("📚", "Umumiy Fan"))
+
+        # Streak info
+        from apps.accounts.gamification import get_user_streak_info
+        streak_data = get_user_streak_info(student)
+        streak_days = streak_data.get("streak_days", 1)
+
+        # Zaif mavzu (xato savollar mavzusi)
+        weak_topics = "Barcha savollar to'g'ri ishlangan!"
+        if getattr(result, "attempt", None):
+            wrong_answers = (
+                result.attempt.answers.filter(is_correct=False)
+                .select_related("question")[:3]
+            )
+            topics = []
+            for wa in wrong_answers:
+                q = wa.question
+                topic = (
+                    getattr(q, "topic", "")
+                    or (q.section.name if getattr(q, "section", None) else "")
+                    or (q.text[:40] if getattr(q, "text", None) else "")
+                )
+                if topic and topic not in topics:
+                    topics.append(topic)
+            if topics:
+                weak_topics = ", ".join(topics)
+            elif wrong_answers.exists():
+                weak_topics = "Asosiy tushunchalar va qonuniyatlarni takrorlash"
+
+        # Guruhdagi o'rni
+        group_rank = "Faol ishtirokchi"
+        group = student.student_groups.first()
+        if group:
+            from apps.results.models import Result as RModel
+            group_students = group.students.all()
+            better_count = RModel.objects.filter(
+                student__in=group_students,
+                percentage__gt=result.percentage,
+                calculated_at__gte=timezone.now() - timedelta(days=30),
+            ).values("student").distinct().count()
+            group_rank = f"{better_count + 1}-o'rin"
+
         message = (
-            f"🔔 <b>Farzandingiz {student_name} yangi test topshirdi!</b>\n\n"
-            f"📝 <b>Test:</b> {result.test.title}\n"
-            f"📊 <b>Natija:</b> {correct_answers}/{total_questions} ({pct:.1f}%)\n"
-            f"🏆 <b>BMB Darajasi:</b> {bmb_grade}\n"
-            f"📈 <b>Haftalik dinamika:</b> {dynamics}\n\n"
+            f"📚 <b>Farzandingiz yangi test topshirdi!</b>\n"
+            f"👤 <b>O'quvchi:</b> {student_name}\n"
+            f"{subject_icon} <b>Fan:</b> {subject_name}\n"
+            f"📊 <b>Natija:</b> {result.score} ball ({pct:.1f}%) — BMB darajasi: <b>{bmb_grade}</b>\n"
+            f"🔥 <b>Streak:</b> {streak_days} kunlik uzluksiz o'qish\n"
+            f"⚠️ <b>Tavsiya (zaif mavzu):</b> {weak_topics}\n"
+            f"🏆 <b>Guruhdagi o'rni:</b> {group_rank}\n\n"
             f"<i>GRAND EDUCATION — Farzandingiz kelajagi biz bilan ishonchli qo'llarda!</i>"
         )
 
@@ -449,4 +486,97 @@ def send_tuition_due_alerts_task(self: Any) -> dict[str, Any]:
         return {"status": "sent", "count": sent_count}
     except Exception as exc:
         logger.exception("Error in send_tuition_due_alerts_task")
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    name="notifications.send_monday_branch_digest",
+    max_retries=2,
+    default_retry_delay=60,
+)
+def send_monday_branch_digest_task(self: Any) -> dict[str, Any]:
+    """
+    Har dushanba soat 08:30 da Filial rahbarining Telegramiga filiali bo'yicha qisqa vedomost jo'natish.
+    '📊 {branch_name} haftalik tahlili: Faol o'quvchilar: {active_count}, Xavf ostidagilar: {risk_count}. Eng yaxshi natija ko'rsatgan ustoz: {top_teacher}.'
+    """
+    try:
+        from apps.organizations.models import CenterBranch
+        from apps.accounts.models import User
+        from apps.tests.models import TestAttempt
+        from apps.notifications.services.telegram_service import TelegramService
+        from django.db.models import Q, Count
+        from django.utils import timezone
+
+        now = timezone.now()
+        three_days_ago = now - timedelta(days=3)
+        five_days_ago = now - timedelta(days=5)
+
+        branches = CenterBranch.objects.filter(is_active=True).select_related("director")
+        dispatched = 0
+
+        for branch in branches:
+            director = branch.director
+            if not director:
+                continue
+
+            director_chat_id = getattr(director, "telegram_chat_id", None)
+            if not director_chat_id:
+                continue
+
+            students = User.objects.filter(
+                Q(branch=branch) | Q(student_groups__branch=branch),
+                role=User.Role.STUDENT,
+                is_active=True,
+            ).distinct()
+
+            total_count = students.count()
+            if total_count == 0:
+                continue
+
+            active_students = TestAttempt.objects.filter(
+                student__in=students,
+                started_at__gte=three_days_ago,
+            ).values("student").distinct().count()
+
+            recently_active_5d = TestAttempt.objects.filter(
+                student__in=students,
+                started_at__gte=five_days_ago,
+            ).values_list("student_id", flat=True).distinct()
+            risk_count = students.exclude(id__in=recently_active_5d).count()
+
+            top_teacher_name = "Ustozlar faol"
+            top_group = (
+                branch.groups.annotate(attempts_count=Count("assigned_tests__attempts"))
+                .order_by("-attempts_count")
+                .select_related("teacher")
+                .first()
+            )
+            if top_group and top_group.teacher:
+                top_teacher_name = top_group.teacher.get_full_name() or top_group.teacher.email
+
+            digest_msg = (
+                f"📊 <b>{branch.name} haftalik tahlili:</b>\n\n"
+                f"👥 <b>Jami o'quvchilar:</b> {total_count} nafar\n"
+                f"🟢 <b>Faol o'quvchilar:</b> {active_students} nafar\n"
+                f"🔴 <b>Xavf ostidagilar:</b> {risk_count} nafar\n"
+                f"⭐ <b>Eng yaxshi natija ko'rsatgan ustoz:</b> {top_teacher_name}\n\n"
+                f"<i>GRAND EDUCATION Kursxona Boshqaruvi</i>"
+            )
+
+            try:
+                TelegramService.send_message(
+                    chat_id=director_chat_id,
+                    text=digest_msg,
+                    recipient=director,
+                    parse_mode="HTML",
+                )
+                dispatched += 1
+            except Exception as e:
+                logger.warning("Could not dispatch Monday digest to director %s: %s", director.id, e)
+
+        return {"status": "completed", "dispatched": dispatched}
+
+    except Exception as exc:
+        logger.exception("Failed sending Monday branch digest")
         raise self.retry(exc=exc)

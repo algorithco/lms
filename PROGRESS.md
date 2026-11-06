@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.88. Rasmiy Versiya v2.5.0: Secret Audit, Parent Retention CRM & Branch Churn Risk Engine
+- [x] 0-Vazifa: Repo Sanitization & Token Leak Prevention (`scripts/check_secrets.py`, `.gitignore`):
+  * Pre-commit & CI Secret Guard: `scripts/check_secrets.py` skaneri OpenAI (`sk-`), Telegram bot tokeni va xususiy kalitlarni avtomatik aniqlaydi (769 ta faylda 0 ta leak).
+  * `.gitignore` himoyasi: `.env.*`, `credentials*.json`, `service-account*.json` qat'iy kiritildi.
+  * Bandit va Ruff xavfsizlik to'siqlari: MD5 xavfsiz SHA-256 ga almashtirildi va barcha F841 xatoliklari tozalangan holda GitHub Actions CI 100% yashil holatga keltirildi.
+- [x] 1-Vazifa: Ota-onalarni O'quvchiga Bog'lash (Parent-Student Link via Telegram) (`apps/accounts/models.py`, `apps/accounts/services/parent_link.py`, `apps/notifications/bot/handlers.py`, `frontend/src/components/ParentMonitoringCard.tsx`):
+  * `ParentStudentRelation`: `parent_name`, `notifications_enabled`, `parent_phone`, `parent_telegram_id`, `is_verified`.
+  * HMAC-SHA256 himoyalangan Deep-link: `https://t.me/grandec_bot?start=parent_{student_id}_{token}` orqali 1 klikda parolsiz bog'lanish.
+  * Bot buyruqlari: `/otaona <OQUVCHI_ID_YOKI_TELEFON>` orqali ota-onani tekshirib darhol bog'lash va xush kelibsiz xabarnomasini yuborish.
+  * Veb-interfeys: `ParentMonitoringCard.tsx` da 1-klikda Telegram havolasi, nusxalash tugmasi va bildirishnomalarni boshqarish switchlari.
+- [x] 2-Vazifa: Avtomatlashgan Ota-onalar Telegram Hisoboti (Post-Exam & Weekly) (`apps/notifications/tasks_parent.py`):
+  * Testdan so'ng darhol boruvchi boyitilgan hisobot: fan nomi va emoji (`🧬 Biologiya`, `🧪 Kimyo`, `⚖️ Huquq`, `🇺🇿 Ona tili`, `🇬🇧 Ingliz tili`), BMB darajasi, ball va foiz, streak (`🔥`), zaif mavzu tahlili va guruhdagi o'rni.
+  * Yakshanba haftalik yig'ma hisoboti: haftada ishlangan testlar soni, o'rtacha foiz va davomat ko'rsatkichi.
+  * Dushanba ertalabki filial rahbari hisoboti: `send_monday_branch_digest_task` orqali faol va xavf ostidagi o'quvchilar soni hamda eng yaxshi ustoz nomi.
+- [x] 3-Vazifa: Kursxona Rahbari Churn Warning Engine & Xavf Guruhlari (`apps/webapi/views_branches.py`, `frontend/src/pages/PanelBranches.tsx`, `frontend/src/lib/api.ts`):
+  * `GET /api/v1/panel/branches/<branch_id>/retention-risk/`: O'quvchilarni 3 toifaga (🟢 Faol va o'suvchi, 🟡 E'tibor talab [3-5 kun], 🔴 Churn xavfi [>5 kun yoki -20% pasayish]) avtomatik ajratuvchi mexanizm.
+  * `POST /api/v1/panel/branches/<branch_id>/send-reminder/`: O'quvchi yoki ota-onaga 1-klikda shaxsiy Telegram eslatma jo'natish.
+  * `PanelBranches.tsx`: Filial kartasida "⚠️ Xavf ostidagi o‘quvchilar va Retentsiya" tugmasi va to'liq interaktiv tahlil modali.
+- [x] 4-Vazifa: QA Avtomatlashtirish va Chiqish Kriteriyalari:
+  * `python scripts/check_secrets.py --all`: 0 leaks found (Exit 0).
+  * `pytest tests/test_parent_retention_crm.py -v`: 8/8 test PASSED (100%).
+  * `python manage.py check` & `makemigrations --check`: 0 issues.
+  * `npm --prefix frontend test`: 13/13 PASSED.
+  * `npm --prefix frontend run build`: 0 errors (4.37s).
+
 ### 2.87. Rasmiy Versiya v2.4.0: Telegram Mini App (TMA), Offline-First PWA Exam Mode, DeepSeek Socratic AI Tutor & Interactive Streak
 - [x] 1-Vazifa: Telegram Mini App (TMA) Finalize & Zero-Friction Auth (`frontend/src/pages/tma/telegram.ts`, `frontend/src/auth/AuthContext.tsx`, `apps/telegram_app/views.py`, `apps/telegram_app/services.py`, `apps/webapi/urls.py`, `apps/accounts/urls.py`):
   * WebApp avtomatik to'liq ekranga yoyilishi (`WebApp.expand()`).

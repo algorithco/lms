@@ -23,7 +23,11 @@ media/
 
 # Environment variables
 .env
+.env.*
 .env.local
+credentials.json
+credentials*.json
+service-account*.json
 .env.production
 .env.prod
 .env.prod.*

@@ -270,6 +270,16 @@ urlpatterns = [
     ),
     path("panel/branches/", views_branches.panel_branches_list_create_view, name="panel-branches-list-create"),
     path("panel/branches/<int:branch_id>/", views_branches.panel_branch_detail_view, name="panel-branches-detail"),
+    path(
+        "panel/branches/<int:branch_id>/retention-risk/",
+        views_branches.branch_retention_risk_view,
+        name="panel-branch-retention-risk",
+    ),
+    path(
+        "panel/branches/<int:branch_id>/send-reminder/",
+        views_branches.branch_send_reminder_view,
+        name="panel-branch-send-reminder",
+    ),
     path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
     path("panel/teachers/", views_branches.panel_teachers_view, name="panel-teachers"),
     path("panel/teachers/assign/", views_branches.panel_teachers_view, name="panel-teachers-assign"),
