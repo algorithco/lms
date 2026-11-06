@@ -141,6 +141,42 @@ def get_user_streak_info(user) -> Dict[str, Any]:
         if profile.streak_freeze_count == 0:
             effective_streak = 0
 
+    week_days = []
+    day_labels = ["Du", "Se", "Chor", "Pay", "Jum", "Shan", "Yak"]
+    monday = today - timedelta(days=today.weekday())
+    for idx, label in enumerate(day_labels):
+        d = monday + timedelta(days=idx)
+        is_day_active = False
+        if is_active_today and (today - timedelta(days=max(0, effective_streak - 1))) <= d <= today:
+            is_day_active = True
+        elif not is_active_today and profile.last_activity_date and (profile.last_activity_date - timedelta(days=max(0, effective_streak - 1))) <= d <= profile.last_activity_date:
+            is_day_active = True
+
+        week_days.append({
+            "day": label,
+            "date": d.isoformat(),
+            "is_today": d == today,
+            "is_past": d < today,
+            "is_active": is_day_active,
+        })
+
+    milestones = [
+        {
+            "target": 7,
+            "title": "7 kunlik Olov",
+            "reward": "PRO bonus & BMB Mock kuponi",
+            "reached": effective_streak >= 7,
+            "progress_percent": min(100, int((effective_streak / 7) * 100)),
+        },
+        {
+            "target": 30,
+            "title": "30 kunlik Afsona",
+            "reward": "VIP Attestatsiya va Sertifikat to'plami",
+            "reached": effective_streak >= 30,
+            "progress_percent": min(100, int((effective_streak / 30) * 100)),
+        },
+    ]
+
     return {
         "current_streak": effective_streak,
         "longest_streak": profile.longest_streak,
@@ -150,6 +186,8 @@ def get_user_streak_info(user) -> Dict[str, Any]:
         "weekly_xp": profile.weekly_xp,
         "weekly_league": profile.weekly_league,
         "daily_goal_completed": is_active_today,
+        "week_days": week_days,
+        "milestones": milestones,
     }
 
 

@@ -2,6 +2,7 @@ from apps.tests import views as views_tests
 from django.urls import include, path
 
 from apps.accounts import google_auth as google_auth_views
+from apps.telegram_app.views import tma_auth_view as telegram_webapp_auth
 from apps.accounts import views as views_accounts
 from apps.accounts import views_gamification
 from . import (
@@ -349,6 +350,7 @@ urlpatterns = [
         name="billing-my-receipts",
     ),
     # -- Google OAuth ----------------------------------------------------
+    path("auth/telegram-webapp/", telegram_webapp_auth, name="auth-telegram-webapp"),
     path("auth/google/", google_auth_views.google_auth_verify, name="auth-google"),
     path(
         "auth/google/config/",

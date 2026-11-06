@@ -722,3 +722,70 @@ def explain_question_mistake(
 
     cache.set(cache_key, explanation_data, timeout=3600 * 24 * 7)
     return explanation_data
+
+def generate_socratic_explanation(
+    question_text: str,
+    correct_answer: str,
+    user_answer: str,
+    subject: str = "uzbek",
+    question_id: int | None = None,
+) -> dict[str, Any]:
+    """
+    DeepSeek Socratic AI Tutor:
+    Explains student's misconception in at most 3 sentences in Uzbek without
+    bluntly revealing the answer, guiding them to self-correct.
+    Cached in Redis for 7 days (604800s).
+    """
+    import hashlib
+    raw_key = f"{question_id or 'none'}:{subject}:{user_answer}:{correct_answer}"
+    cache_key = f"socratic_deepseek_{hashlib.md5(raw_key.encode('utf-8')).hexdigest()}"
+    cached = cache.get(cache_key)
+    if cached:
+        return {"success": True, "explanation": cached, "cached": True}
+
+    system_prompt = (
+        "Sen Grand Education platformasining Sokratik tyutorisan. "
+        "To'g'ridan-to'g'ri javobni aytma. O'quvchining qayerda mantiqiy yoki faktik "
+        "xato qilganini sodda, qisqa (maksimal 3 jumla) o'zbek tilida tushuntir va to'g'ri xulosaga yo'naltir."
+    )
+    user_message = (
+        "Fan: " + str(subject) + "\n"
+        "Savol: " + str(question_text) + "\n"
+        "To'g'ri mezon/tamoyil: " + str(correct_answer) + "\n"
+        "O'quvchi tanlagan noto'g'ri javob: " + str(user_answer) + "\n\n"
+        "Iltimos, Sokratik uslubda maksimal 3 jumladan iborat yo'naltiruvchi tushuntirish ber."
+    )
+
+    explanation = None
+    try:
+        from apps.essays.deepseek_grader import get_deepseek_client
+        client = get_deepseek_client(timeout=15.0)
+        from django.conf import settings
+        model_name = getattr(settings, "DEEPSEEK_MODEL", "deepseek-chat")
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.3,
+            max_tokens=220,
+        )
+        if resp and resp.choices and resp.choices[0].message.content:
+            explanation = resp.choices[0].message.content.strip()
+    except Exception as exc:
+        logger.warning("DeepSeek Socratic Tutor call failed: %s", exc)
+
+    if not explanation:
+        fallbacks = {
+            "biology": "Siz tanlagan javobda biologik jarayon yoki tuzilmaning asosiy vazifasi chalkashtirilgan. Hujayra yoki organizm darajasidagi asosiy mexanizmga e'tibor bering. Bu jarayonda qaysi omil hal qiluvchi rol o'ynashini eslang.",
+            "chemistry": "Bu variantda moddaning valentligi, oksidlanish darajasi yoki reaksiya sharoiti to'liq inobatga olinmagan. Reaksiyadagi reagentlarning xossalari va moddalar nisbatini qayta tekshiring. Qaysi mezon formulaga mos keladi?",
+            "law": "Tanlangan javobda huquqiy norma yoki qonun moddasining qo'llanish doirasi noto'g'ri tushunilgan. Konstitutsiya yoki tegishli kodeksdagi huquqiy kafolatlar va shartlarga qayta nazar tashlang. Qaysi tamoyil ustunlik qiladi?",
+            "english": "You selected an option that confuses the primary context or grammatical structure. Consider how the key clause and vocabulary connect to the main idea of the passage. Which detail directly substantiates the premise?",
+            "uzbek": "Siz tanlagan javobda so'zning asl ma'nosi yoki grammatik qoidasi chalg'ituvchi o'xshashlik bilan adashtirilgan. Qoidaning bosh sharti va gapdagi sintaktik vazifasini eslang. Qaysi tushuncha qoidaga to'liq muvofiq keladi?",
+        }
+        explanation = fallbacks.get(subject.lower(), fallbacks["uzbek"])
+
+    cache.set(cache_key, explanation, timeout=604800)
+    return {"success": True, "explanation": explanation, "cached": False}
+

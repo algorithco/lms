@@ -17,6 +17,8 @@ import { useSubject } from '../lib/useSubject';
 import { daysLeft, useEntitlement, useTier } from '../lib/useTier';
 import OnboardingModal from '../components/OnboardingModal';
 import PlanBadge from '../components/PlanBadge';
+import StreakBadge from '../components/StreakBadge';
+import { GamificationApi, type StreakInfoResponse } from '../lib/api';
 import ReferralCard from '../components/ReferralCard';
 
 function getStoredPlan(): Record<string, unknown> {
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const [failed, setFailed] = useState(false);
   const [pendingReceipt, setPendingReceipt] = useState<PaymentReceiptItem | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [streakData, setStreakData] = useState<StreakInfoResponse | null>(null);
 
   const role = (user?.role || '').toLowerCase();
   const isStudent = !(role === 'teacher' || role === 'admin' || role === 'superadmin' || role === 'center_admin' || user?.is_superuser);
@@ -108,6 +111,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setData(null);
+    GamificationApi.streak().then(setStreakData).catch(() => {});
     return load();
   }, [load]);
 
@@ -253,10 +257,13 @@ export default function Dashboard() {
         <section className="dsh-daily" aria-label="Kunlik shaxsiy reja">
           <div className="dsh-daily__top">
             <div className="dsh-daily__title-wrap">
-              <p className="dsh-daily__title">
-                🔥 Bugungi reja: {completedMinutes} / {goalMinutes} daqiqa
-              </p>
-              <span className="dsh-daily__badge">{trackBadgeLabel}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <p className="dsh-daily__title" style={{ margin: 0 }}>
+                  Bugungi reja: {completedMinutes} / {goalMinutes} daqiqa
+                </p>
+                <span className="dsh-daily__badge">{trackBadgeLabel}</span>
+                {streakData && <StreakBadge streakData={streakData} />}
+              </div>
             </div>
             <Link to="/onboarding" className="dsh-daily__edit">
               ⚙️ Rejani o&apos;zgartirish

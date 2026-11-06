@@ -4,8 +4,9 @@ import { useAuth } from '../auth/AuthContext';
 import { useLang } from '../i18n/LangContext';
 import { canReviewEssays, canTeach, canViewParent, isPlatformAdmin, GamificationApi, type StreakInfoResponse } from '../lib/api';
 import UserNavDropdown from './UserNavDropdown';
-import { Flame } from 'lucide-react';
+
 import PlanBadge from './PlanBadge';
+import StreakBadge from './StreakBadge';
 import { useSubject } from '../lib/useSubject';
 import { formatDisplayName, initialsOf } from '../lib/displayName';
 import MobileBottomBar from './MobileBottomBar';
@@ -234,17 +235,12 @@ export default function Layout() {
             <div className="spacer" />
             <div className="tb-right">
               {streakData && (
-                <span
-                  className="tb-xp"
-                  title={t('tb_streak_title')
-                    .replace('{days}', String(streakData.current_streak))
-                    .replace('{xp}', String(streakData.xp_points))}
-                >
-                  <Flame size={14} aria-hidden="true" className={streakData.is_active_today ? 'is-hot' : ''} />
-                  <span>{streakData.current_streak}</span>
-                  <span className="tb-xp__sep" aria-hidden="true">·</span>
-                  <span>{streakData.xp_points} XP</span>
-                </span>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <StreakBadge streakData={streakData} compact />
+                  <span className="tb-xp" style={{ padding: '4px 10px', fontSize: '12px' }}>
+                    <span>{streakData.xp_points} XP</span>
+                  </span>
+                </div>
               )}
               <div className="hidden md:flex">
                 <SubjectSwitcher size="sm" />

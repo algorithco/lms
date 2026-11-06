@@ -89,6 +89,16 @@ urlpatterns = [
         name="attempt-detail",
     ),
     path(
+        "save-batch/",
+        views.SaveBatchAnswerView.as_view(),
+        name="save-batch-global",
+    ),
+    path(
+        "attempts/<int:attempt_id>/save-batch/",
+        views.SaveBatchAnswerView.as_view(),
+        name="save-batch",
+    ),
+    path(
         "attempts/<int:attempt_id>/save-answer/",
         views.SaveAnswerView.as_view(),
         name="save-answer",
@@ -118,6 +128,11 @@ urlpatterns = [
         "results/<int:result_id>/questions/<int:question_id>/explain/",
         views.ResultQuestionExplainView.as_view(),
         name="result-question-explain",
+    ),
+    path(
+        "socratic-tutor/",
+        views.SocraticTutorExplainView.as_view(),
+        name="socratic-tutor",
     ),
     path(
         "questions/<int:question_id>/explain-mistake/",

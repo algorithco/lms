@@ -184,4 +184,5 @@ class TelegramMiniAppService:
             "language_code": user_data.get("language_code", "uz"),
             "auth_date": int(parsed.get("auth_date", 0)),
             "is_premium": user_data.get("is_premium", False),
+            "start_param": parsed.get("start_param", ""),
         }
