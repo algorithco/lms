@@ -745,8 +745,10 @@ export const Tests = {
 export const Results = {
   mine: () => api<Paginated<Record<string, unknown>>>('/api/results/my-results/'),
   stats: () => api<Record<string, unknown>>('/api/results/stats/'),
-  detail: (id: string) =>
+  detail: (id: string | number) =>
     api<Record<string, unknown>>(`/api/results/${id}/detail/`),
+  pdfUrl: (id: string | number) =>
+    `${API_BASE}/api/results/${id}/pdf/`,
 };
 
 export const Certificates = {

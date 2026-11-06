@@ -644,8 +644,25 @@ async def group_results_leaderboard_command(update: Update, context: ContextType
             ]
             avg_pct = 86.7
 
+        branch = getattr(group, "branch", None)
+        branch_name = branch.name if branch else "Grand Education Bosh Filiali"
+        if branch and getattr(branch, "branch_code", None):
+            branch_name += f" ({branch.branch_code})"
+
+        subj_slug = getattr(group, "subject", "uzbek")
+        subj_map = {
+            "biology": "🧬 Biologiya (Milliy sertifikat)",
+            "chemistry": "🧪 Kimyo (Milliy sertifikat)",
+            "law": "⚖️ Huquqshunoslik (Yurisprudensiya)",
+            "uzbek": "🇺🇿 Ona tili va Adabiyot",
+            "english": "🇬🇧 Ingliz tili (CEFR / IELTS)",
+        }
+        subj_title = subj_map.get(subj_slug, str(subj_slug).title())
+
         return {
             "group_name": group.name,
+            "branch_name": branch_name,
+            "subject_title": subj_title,
             "board": board[:10],
             "avg_score": avg_pct or 82.0,
             "mistake_topic": "Murakkab qo'shma gaplar tahlili",
@@ -661,8 +678,13 @@ async def group_results_leaderboard_command(update: Update, context: ContextType
 
     leaderboard_content = "\n".join(rows) if rows else "<i>Hozircha test topshirganlar yo'q</i>"
 
+    b_name = stats.get('branch_name', 'Grand Education Bosh Filiali')
+    s_title = stats.get('subject_title', 'Fan')
     text = (
-        f"🏆 <b>{stats['group_name']} Guruhi Test Natijalari:</b>\n\n"
+        f"🏆 <b>Guruh Natijalari va Jonli Reyting:</b>\n"
+        f"🏛 <b>Filial (Kursxona):</b> {b_name}\n"
+        f"👥 <b>Guruh:</b> {stats['group_name']}\n"
+        f"📚 <b>Fan yo'nalishi:</b> {s_title}\n\n"
         f"{leaderboard_content}\n\n"
         f"📊 <b>Guruh o'rtacha ko'rsatkichi:</b> {stats['avg_score']}%\n"
         f"⚠️ <b>Eng ko'p xato qilingan mavzu:</b> \"{stats['mistake_topic']}\""
@@ -711,10 +733,25 @@ async def group_vedomost_command(update: Update, context: ContextTypes.DEFAULT_T
         try:
             pdf_path = await _run_db(generate_group_vedomost_pdf, group.id)
             students_cnt = await _run_db(lambda: group.students.count())
+            branch = getattr(group, "branch", None)
+            branch_title = branch.name if branch else "Grand Education Bosh Filiali"
+            if branch and getattr(branch, "branch_code", None):
+                branch_title += f" ({branch.branch_code})"
+
+            subj_map = {
+                "biology": "🧬 Biologiya (Milliy sertifikat)",
+                "chemistry": "🧪 Kimyo (Milliy sertifikat)",
+                "law": "⚖️ Huquqshunoslik (Yurisprudensiya)",
+                "uzbek": "🇺🇿 Ona tili va Adabiyot",
+                "english": "🇬🇧 Ingliz tili (CEFR / IELTS)",
+            }
+            subj_label = subj_map.get(group.subject, group.subject or "Umumiy")
+
             caption = (
                 f"📄 <b>{group.name} Guruhi Imtihon Vedomosti</b>\n\n"
-                f"🏛 Fan: {group.subject or 'Umumiy'}\n"
-                f"👥 O'quvchilar: {students_cnt} nafar\n\n"
+                f"🏛 <b>Filial (Kursxona):</b> {branch_title}\n"
+                f"📚 <b>Fan yo'nalishi:</b> {subj_label}\n"
+                f"👥 <b>O'quvchilar soni:</b> {students_cnt} nafar\n\n"
                 f"<i>Rasmiy jadval va yakuniy ballar ilovadagi PDF hujjatda keltirilgan.</i>"
             )
             with open(pdf_path, "rb") as f:

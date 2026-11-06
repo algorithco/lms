@@ -94,6 +94,9 @@ interface ResultDetailData extends ResultListItem {
   scoring_version?: string;
   rubric_version?: string;
   section_scores?: SectionScoreItem[];
+  subject_analysis?: any;
+  branch_info?: any;
+  share_data?: any;
   certificate_info?: {
     certificate_number: string;
     status: string;
@@ -173,6 +176,50 @@ export default function Results() {
     if (openId !== null) void loadDetail(openId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (idParam && /^\d+$/.test(idParam)) {
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 0' }}>
+        <div style={{ marginBottom: 16 }}>
+          <Link
+            to="/results"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 12,
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#94A3B8',
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            ← Barcha natijalarim
+          </Link>
+        </div>
+
+        {detailLoading && (
+          <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+            Natija yuklanmoqda...
+          </div>
+        )}
+
+        {detailErr && (
+          <div className="error" style={{ padding: 20 }}>
+            {detailErr}{' '}
+            <button className="btn sm ghost" onClick={() => loadDetail(Number(idParam))}>
+              Qayta urinish
+            </button>
+          </div>
+        )}
+
+        {detail && <ResultDetailBody detail={detail} />}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -547,6 +594,9 @@ function ResultDetailBody({ detail }: { detail: ResultDetailData }) {
         testId={detail.test}
         showEstimateNotice={detail.show_estimate_notice}
         onRetest={handleStartRetest}
+        subjectAnalysis={detail.subject_analysis}
+        branchInfo={detail.branch_info}
+        shareData={detail.share_data}
       >
         {/* Certificate info */}
         {detail.certificate_info && (

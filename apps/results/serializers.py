@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from urllib.parse import quote
+
 from rest_framework import serializers
 
 from .models import Certificate, Result
@@ -109,6 +111,9 @@ class ResultDetailSerializer(serializers.ModelSerializer):
     cefr_summary = serializers.SerializerMethodField()
     trial_part = serializers.SerializerMethodField()
     show_estimate_notice = serializers.SerializerMethodField()
+    subject_analysis = serializers.SerializerMethodField()
+    branch_info = serializers.SerializerMethodField()
+    share_data = serializers.SerializerMethodField()
 
     class Meta:
         model = Result
@@ -146,6 +151,9 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             "calculated_at",
             "bmb_grade",
             "bmb_info",
+            "subject_analysis",
+            "branch_info",
+            "share_data",
         ]
 
     def get_student_name(self, obj: Result) -> str:
@@ -393,6 +401,28 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                 section_code=sec_code,
                 section_name=sec_name,
             )
+            earned_points = 0.0
+            qmax = float(q.points or 1.0)
+            if is_correct:
+                earned_points = qmax
+            elif q.question_type == "dual_open_calc" and student_text_answer:
+                corr_parts = [p.strip() for p in (q.correct_text or "").split("|", 1)]
+                stud_parts = [p.strip() for p in student_text_answer.split("|", 1)]
+                a_ok = bool(len(stud_parts) > 0 and len(corr_parts) > 0 and stud_parts[0].replace(",", ".").lower() == corr_parts[0].replace(",", ".").lower())
+                b_ok = bool(len(stud_parts) > 1 and len(corr_parts) > 1 and stud_parts[1].replace(",", ".").lower() == corr_parts[1].replace(",", ".").lower())
+                if a_ok:
+                    earned_points += qmax / 2.0
+                if b_ok:
+                    earned_points += qmax / 2.0
+            elif q.question_type == "matching_matrix" and student_text_answer:
+                corr_items = [it.strip().lower() for it in (q.correct_text or "").replace("|", ",").split(",") if it.strip()]
+                stud_items = [it.strip().lower() for it in student_text_answer.replace("|", ",").split(",") if it.strip()]
+                corr_dict = dict(it.split("-", 1) if "-" in it else (str(idx+1), it) for idx, it in enumerate(corr_items))
+                stud_dict = dict(it.split("-", 1) if "-" in it else (str(idx+1), it) for idx, it in enumerate(stud_items))
+                if corr_dict:
+                    matched = sum(1 for k, v in corr_dict.items() if stud_dict.get(k) == v)
+                    earned_points = (matched / len(corr_dict)) * qmax
+
             result.append(
                 {
                     "question_id": q.id,
@@ -405,6 +435,7 @@ class ResultDetailSerializer(serializers.ModelSerializer):
                     "question_text": q.text,
                     "question_type": q.question_type,
                     "points": q.points,
+                    "earned_points": round(earned_points, 2),
                     "section_id": q.section_id,
                     "current_rasch_weight": float(q.current_rasch_weight or 2.0),
                     "difficulty_logit": float(q.difficulty_logit or 0.0),
@@ -452,6 +483,255 @@ class ResultDetailSerializer(serializers.ModelSerializer):
             }
         except Certificate.DoesNotExist:
             return None
+
+
+
+    def get_branch_info(self, obj: Result) -> dict[str, Any]:
+        student = obj.student
+        branch = getattr(student, "branch", None)
+        group_name = None
+        try:
+            if not branch:
+                group = student.student_groups.filter(branch__isnull=False).first()
+                if group:
+                    branch = group.branch
+                    group_name = group.name
+            else:
+                group = student.student_groups.first()
+                if group:
+                    group_name = group.name
+        except Exception:
+            pass
+
+        return {
+            "branch_id": branch.id if branch else None,
+            "branch_name": branch.name if branch else "Grand Education Bosh Filiali",
+            "branch_code": getattr(branch, "branch_code", "SAM-01") if branch else "SAM-01",
+            "region": getattr(branch, "region", "Samarqand viloyati") if branch else "Samarqand viloyati",
+            "group_name": group_name,
+        }
+
+    def get_share_data(self, obj: Result) -> dict[str, Any]:
+        student = obj.student
+        ref_code = getattr(student, "referral_code", "") or "GRAND"
+        subject = getattr(obj.test, "subject", "uzbek")
+        subj_names = {
+            "biology": "Biologiya",
+            "chemistry": "Kimyo",
+            "law": "Huquqshunoslik",
+            "uzbek": "Ona tili va Adabiyot",
+            "english": "Ingliz tili",
+        }
+        subj_title = subj_names.get(subject, "Fan")
+        score_val = f"{float(obj.score):g}" if obj.score is not None else "0"
+        grade_val = obj.bmb_grade or (f"{round(float(obj.percentage or 0))}%")
+        branch_name = getattr(getattr(student, "branch", None), "name", "Grand Education")
+
+        text = f"Men Grand Education'da {subj_title} fanidan {score_val} ball ({grade_val}) oldim! Sen ham o'z bilimingni sinab ko'r:"
+        ref_url = f"https://grandec.uz/join?ref={ref_code}"
+        tg_url = f"https://t.me/share/url?url={quote(ref_url)}&text={quote(text)}"
+
+        return {
+            "subject": subj_title,
+            "score": score_val,
+            "max_score": f"{float(obj.max_score):g}" if obj.max_score else "100",
+            "percentage": round(float(obj.percentage or 0), 1),
+            "grade": grade_val,
+            "branch_name": branch_name,
+            "referral_code": ref_code,
+            "referral_url": ref_url,
+            "share_text": text,
+            "telegram_share_url": tg_url,
+            "pdf_download_url": f"/api/results/{obj.id}/pdf/",
+        }
+
+    def get_subject_analysis(self, obj: Result) -> dict[str, Any] | None:
+        subject = getattr(obj.test, "subject", "uzbek")
+        attempt = getattr(obj, "attempt", None)
+        if not attempt:
+            return None
+
+        answers_map = {ans.question_id: ans for ans in attempt.answers.all()}
+        questions = list(obj.test.questions.all().order_by("position"))
+
+        pct = float(obj.percentage or 0)
+        from apps.tests.bmb_grading import calculate_bmb_grade
+        bmb_calc = calculate_bmb_grade(pct)
+
+        if subject in ("biology", "chemistry"):
+            closed_earned = 0.0
+            closed_max = 0.0
+            closed_correct = 0
+            closed_total = 0
+
+            matching_earned = 0.0
+            matching_max = 0.0
+            matching_correct = 0
+            matching_total = 0
+
+            open_earned = 0.0
+            open_max = 0.0
+            open_correct = 0
+            open_total = 0
+
+            for idx, q in enumerate(questions, 1):
+                ans = answers_map.get(q.id)
+                qmax = float(q.points or 1.0)
+                qtype = str(q.question_type or "").lower()
+                is_corr = bool(ans and ans.is_correct)
+
+                if qtype in ("matching_matrix", "matching") or (33 <= idx <= 35 and qtype != "dual_open_calc"):
+                    matching_total += 1
+                    matching_max += qmax
+                    if is_corr:
+                        matching_correct += 1
+                        matching_earned += qmax
+                    elif ans and ans.text_answer:
+                        corr_items = [it.strip().lower() for it in (q.correct_text or "").replace("|", ",").split(",") if it.strip()]
+                        stud_items = [it.strip().lower() for it in ans.text_answer.replace("|", ",").split(",") if it.strip()]
+                        corr_dict = dict(it.split("-", 1) if "-" in it else (str(i+1), it) for i, it in enumerate(corr_items))
+                        stud_dict = dict(it.split("-", 1) if "-" in it else (str(i+1), it) for i, it in enumerate(stud_items))
+                        if corr_dict:
+                            matched = sum(1 for k, v in corr_dict.items() if stud_dict.get(k) == v)
+                            part_e = (matched / len(corr_dict)) * qmax
+                            matching_earned += part_e
+                            if matched == len(corr_dict):
+                                matching_correct += 1
+                elif qtype in ("dual_open_calc", "text", "gap_fill") or (idx >= 36 and qtype != "single"):
+                    open_total += 1
+                    open_max += qmax
+                    if is_corr:
+                        open_correct += 1
+                        open_earned += qmax
+                    elif ans and ans.text_answer:
+                        corr_parts = [p.strip() for p in (q.correct_text or "").split("|", 1)]
+                        stud_parts = [p.strip() for p in ans.text_answer.split("|", 1)]
+                        a_ok = bool(len(stud_parts) > 0 and len(corr_parts) > 0 and stud_parts[0].replace(",", ".").lower() == corr_parts[0].replace(",", ".").lower())
+                        b_ok = bool(len(stud_parts) > 1 and len(corr_parts) > 1 and stud_parts[1].replace(",", ".").lower() == corr_parts[1].replace(",", ".").lower())
+                        if a_ok:
+                            open_earned += qmax / 2.0
+                        if b_ok:
+                            open_earned += qmax / 2.0
+                        if a_ok and b_ok:
+                            open_correct += 1
+                else:
+                    closed_total += 1
+                    closed_max += qmax
+                    if is_corr:
+                        closed_correct += 1
+                        closed_earned += qmax
+
+            return {
+                "kind": "science_bmb",
+                "subject": subject,
+                "subject_title": "Biologiya" if subject == "biology" else "Kimyo",
+                "closed_questions": {
+                    "label": "1–32 Yopiq testlar",
+                    "correct_count": closed_correct,
+                    "total_count": closed_total,
+                    "earned_score": round(closed_earned, 1),
+                    "max_score": round(closed_max, 1),
+                    "percentage": round((closed_earned / closed_max * 100), 1) if closed_max else 0.0,
+                },
+                "matching_questions": {
+                    "label": "33–35 Moslashtirish matritsasi",
+                    "correct_count": matching_correct,
+                    "total_count": matching_total,
+                    "earned_score": round(matching_earned, 1),
+                    "max_score": round(matching_max, 1),
+                    "percentage": round((matching_earned / matching_max * 100), 1) if matching_max else 0.0,
+                },
+                "open_calc_questions": {
+                    "label": "36–45 Ikki qismli ochiq masalalar (a/b)",
+                    "correct_count": open_correct,
+                    "total_count": open_total,
+                    "earned_score": round(open_earned, 1),
+                    "max_score": round(open_max, 1),
+                    "percentage": round((open_earned / open_max * 100), 1) if open_max else 0.0,
+                },
+                "bmb_grade": bmb_calc["grade"],
+                "bmb_description": bmb_calc.get("title", ""),
+                "bmb_color": bmb_calc["color"],
+                "is_passed": bmb_calc["is_passed"],
+            }
+
+        elif subject == "law":
+            from apps.tests.ai_tutor import _detect_question_topic
+            theory_correct = 0
+            theory_total = 0
+            theory_earned = 0.0
+            theory_max = 0.0
+
+            case_correct = 0
+            case_total = 0
+            case_earned = 0.0
+            case_max = 0.0
+
+            mistakes_by_topic: dict[str, int] = {}
+
+            for idx, q in enumerate(questions, 1):
+                ans = answers_map.get(q.id)
+                qmax = float(q.points or 1.0)
+                qtype = str(q.question_type or "").lower()
+                is_corr = bool(ans and ans.is_correct)
+
+                is_case = bool(qtype in ("legal_case_study", "case_study") or idx >= 36)
+                if is_case:
+                    case_total += 1
+                    case_max += qmax
+                    if is_corr:
+                        case_correct += 1
+                        case_earned += qmax
+                else:
+                    theory_total += 1
+                    theory_max += qmax
+                    if is_corr:
+                        theory_correct += 1
+                        theory_earned += qmax
+
+                if not is_corr:
+                    t_name = _detect_question_topic(
+                        q.text,
+                        q.explanation or "",
+                        subject="law",
+                        section_code=getattr(q.section, "code", "") if q.section else "",
+                        section_name=getattr(q.section, "name", "") if q.section else "",
+                    )
+                    mistakes_by_topic[t_name] = mistakes_by_topic.get(t_name, 0) + 1
+
+            mistake_list = [
+                {"topic": k, "count": v}
+                for k, v in sorted(mistakes_by_topic.items(), key=lambda x: x[1], reverse=True)
+            ]
+
+            return {
+                "kind": "law_jurisprudence",
+                "subject": "law",
+                "subject_title": "Huquqshunoslik",
+                "theory_questions": {
+                    "label": "Nazariy savollar (1–35)",
+                    "correct_count": theory_correct,
+                    "total_count": theory_total,
+                    "earned_score": round(theory_earned, 1),
+                    "max_score": round(theory_max, 1),
+                    "percentage": round((theory_earned / theory_max * 100), 1) if theory_max else 0.0,
+                },
+                "case_study_questions": {
+                    "label": "Huquqiy kazus va amaliy situatsion tahlil (36–45)",
+                    "correct_count": case_correct,
+                    "total_count": case_total,
+                    "earned_score": round(case_earned, 1),
+                    "max_score": round(case_max, 1),
+                    "percentage": round((case_earned / case_max * 100), 1) if case_max else 0.0,
+                },
+                "mistake_topics": mistake_list,
+                "bmb_grade": bmb_calc["grade"],
+                "bmb_description": bmb_calc.get("title", ""),
+                "bmb_color": bmb_calc["color"],
+                "is_passed": bmb_calc["is_passed"],
+            }
+
+        return None
 
 
 class ResultStatsSerializer(serializers.Serializer):

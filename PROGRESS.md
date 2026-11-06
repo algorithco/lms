@@ -9,6 +9,29 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.86. Rasmiy Versiya v2.3.0: Interactive Result Sharing, Telegram Group Sync & Production Deploy (Stage 3/3)
+- [x] 1-Vazifa: Interaktiv Natijalar va Ulashish Kartasi (Viral Share & Mobile UX) (`apps/results/serializers.py`, `apps/results/views.py`, `apps/results/urls.py`, `Results.tsx`, `TestAddictiveResults.tsx`, `ScoreCardModal.tsx`):
+  * Fan xususiyatiga mos chuqurlashtirilgan tahlil (`subject_analysis`):
+    - Biologiya va Kimyo: 1–32 yopiq testlar (to'g'ri soni, ball va progress-bar), 33–35 moslashtirish matritsasi, 36–45 a/b ikki qismli ochiq masalalar hamda BMB Milliy Sertifikat darajasi (`A+`, `A`, `B+`, `B`, `C+`, `C`, `Fail`).
+    - Huquqshunoslik: Nazariy savollar (1–35) va Huquqiy kazus amaliyoti (36–45) foizlari hamda xato qilingan qonunchilik sohalari/kodekslari tahlili.
+  * 1-Klikda Natijani Ulashish Kartasi (`[📲 Natijani Do'stlar va Guruhga Ulashish]`):
+    - `[✈️ Telegramda ulashish]`: O'quvchining fani, filiali, to'plagan bali, BMB darajasi va referal havolasi bilan to'g'ridan-to'g'ri Telegramga ulashish (`https://t.me/share/url`).
+    - `[🖼 Story Card (PNG)]`: HTML5 Canvas (1080x1920) orqali Instagram va Telegram Story formati uchun yuqori sifatli brendli scorecard yuklab olish.
+    - `[📄 Rasmiy PDF Sertifikat / Tahlil]`: `GET /api/results/<id>/pdf/` orqali rasmiy imtihon vedomosti PDF faylini bir zumda yuklab olish.
+  * `/results/:id` deep-link sahifasi: URL orqali to'g'ridan-to'g'ri kelganda shu natijani to'liq tahlil va ulashish bloki bilan bir zumda aks ettirish.
+- [x] 2-Vazifa: Telegram Guruh Bilan Avtomatik Sinxronizatsiya (`apps/notifications/tasks.py`, `apps/notifications/bot/group_assistant.py`, `apps/results/pdf_generator.py`):
+  * O'quvchi Biologiya, Kimyo, Huquq, Ona tili yoki Ingliz tilidan test topshirishi bilanoq ulangan barcha Telegram guruhlarga avtomatik xabar:
+    - Fan emoji va nomi (`🧬 Biologiya`, `🧪 Kimyo`, `⚖️ Huquq`, `🇺🇿 Ona tili`, `🇬🇧 Ingliz tili`)
+    - Kursxona (Filial) nomi va Guruh nomi
+    - O'quvchi ismi, guruhdagi o'rni (`🥇 Guruhda 1-o'rin!` / `🥈 Guruhda 2-o'rin!`)
+    - Bo'limlar kesimidagi ballar va zaif mavzular
+    - Rasmiy PDF scorecard hujjati ilova qilinishi
+  * Bot ichidagi `/reyting` va `/vedomost` buyruqlarida Filial (Kursxona) va Fan nomi to'liq ko'rsatilishi ta'minlandi.
+- [x] 3-Vazifa: QA Avto-Testlar, Git Merge va Production Deploy:
+  * `pytest tests/test_interactive_results_and_tg_sync.py tests/test_branches_and_group_management.py tests/test_science_and_law_engine.py -v`: 16/16 test 100% PASS (28.63s).
+  * `python manage.py check` & `python manage.py makemigrations --check`: 0 xato bilan yakunlandi.
+  * `npm --prefix frontend run build`: 0 xato bilan 2.35s da build qilindi.
+
 ### 2.85. Rasmiy Versiya v2.2.0: Educational Center (Filial / Kursxona), Teachers & Group Management (Stage 2/3)
 - [x] 1-Vazifa: Filial (Kursxona / O'quv Markazi) Modeli va Boshqaruvi (`apps/organizations/models.py`, `apps/courses/models.py`, `apps/webapi/views_branches.py`, `PanelBranches.tsx`, `PanelTeachers.tsx`):
   * `CenterBranch` (va `Branch` alias) modeli boyitildi:
