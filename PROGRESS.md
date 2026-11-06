@@ -31,6 +31,11 @@
   * `pytest tests/test_interactive_results_and_tg_sync.py tests/test_branches_and_group_management.py tests/test_science_and_law_engine.py -v`: 16/16 test 100% PASS (28.63s).
   * `python manage.py check` & `python manage.py makemigrations --check`: 0 xato bilan yakunlandi.
   * `npm --prefix frontend run build`: 0 xato bilan 2.35s da build qilindi.
+  * Production Deployment (Contabo VPS `169.58.58.229` / `grandec.uz`):
+    - Migratsiyalar to'liq muvaffaqiyatli qo'llandi (`organizations.0003`, `courses.0012`, `courses.0013`, `tests.0021`).
+    - Barcha 5 ta fan bo'yicha namunaviy diagnostik testlar (`seed_science_and_law_tests`) va filiallar/kursxonalar (`seed_branches_and_groups`) VPS bazasiga to'liq yuklandi.
+    - Konteynerlar (`web`, `celery-worker`, `celery-beat`, `bot`, `nginx`) yangilandi va 0 uzilish bilan ishga tushirildi.
+    - Ommaviy ulanishlar tasdiqlandi: `https://grandec.uz/` -> `HTTP 200 OK`, `https://grandec.uz/api/v1/school/branches/catalog/` -> `HTTP 200 OK`.
 
 ### 2.85. Rasmiy Versiya v2.2.0: Educational Center (Filial / Kursxona), Teachers & Group Management (Stage 2/3)
 - [x] 1-Vazifa: Filial (Kursxona / O'quv Markazi) Modeli va Boshqaruvi (`apps/organizations/models.py`, `apps/courses/models.py`, `apps/webapi/views_branches.py`, `PanelBranches.tsx`, `PanelTeachers.tsx`):
