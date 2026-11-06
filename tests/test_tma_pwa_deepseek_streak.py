@@ -122,7 +122,7 @@ class TestOfflineBatchSave:
         )
         q1 = Question.objects.create(test=test, text="Hujayraning energetik stansiyasi?", question_type="single", points=2)
         c1 = Choice.objects.create(question=q1, text="Mitoxondriya", is_correct=True)
-        c2 = Choice.objects.create(question=q1, text="Ribosoma", is_correct=False)
+        Choice.objects.create(question=q1, text="Ribosoma", is_correct=False)
 
         q2 = Question.objects.create(test=test, text="Xloroplast qanday pigmentga ega?", question_type="single", points=2)
         c3 = Choice.objects.create(question=q2, text="Xlorofill", is_correct=True)

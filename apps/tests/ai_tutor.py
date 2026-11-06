@@ -738,7 +738,7 @@ def generate_socratic_explanation(
     """
     import hashlib
     raw_key = f"{question_id or 'none'}:{subject}:{user_answer}:{correct_answer}"
-    cache_key = f"socratic_deepseek_{hashlib.md5(raw_key.encode('utf-8')).hexdigest()}"
+    cache_key = f"socratic_deepseek_{hashlib.sha256(raw_key.encode('utf-8')).hexdigest()}"
     cached = cache.get(cache_key)
     if cached:
         return {"success": True, "explanation": cached, "cached": True}
