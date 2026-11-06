@@ -9,7 +9,9 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from django.db.models import Avg, Count, Max, Q
+from django.db import transaction
+from django.db.models import Avg, Count, Max, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -28,64 +30,83 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
       - Rasmiy BMB darajalari (A+, A, B+, B, C+, C, Fail)
       - Guruh reytingi va taqsimoti
     """
+    # Hammasi DB darajasida agregatsiya qilinadi (bo'yicha 4 ta toza so'rov):
+    # o'quvchilar (+ oxirgi natija subquery), test agregati, esse agregati, to'lovlar.
+    latest_result = Result.objects.filter(student=OuterRef("pk")).order_by(
+        "-calculated_at"
+    )
     students = list(
-        group.students.filter(is_active=True).order_by("first_name", "last_name")
+        group.students.filter(is_active=True)
+        .annotate(
+            latest_score=Subquery(latest_result.values("score")[:1]),
+            latest_max_score=Subquery(latest_result.values("max_score")[:1]),
+            latest_percentage=Subquery(latest_result.values("percentage")[:1]),
+        )
+        .order_by("first_name", "last_name")
     )
     student_ids = [s.id for s in students]
 
-    # Test natijalari
-    test_results = (
-        Result.objects.filter(student_id__in=student_ids)
-        .select_related("test")
-        .order_by("-calculated_at")
-    )
-    results_by_student: dict[int, list[Result]] = {}
-    for r in test_results:
-        results_by_student.setdefault(r.student_id, []).append(r)
+    # Test natijalari: o'quvchi bo'yicha son, o'rtacha foiz, oxirgi sana
+    result_stats: dict[int, dict[str, Any]] = {
+        row["student_id"]: row
+        for row in Result.objects.filter(student_id__in=student_ids)
+        .order_by()
+        .values("student_id")
+        .annotate(
+            tests=Count("id"),
+            avg_pct=Avg("percentage"),
+            last_at=Max("calculated_at"),
+        )
+    }
 
-    # Esse natijalari
-    essay_subs = (
-        EssaySubmission.objects.filter(student_id__in=student_ids)
+    # Esse natijalari: qoralamalar hisobga olinmaydi; ball = final_score yoki total_score
+    essay_stats: dict[int, dict[str, Any]] = {
+        row["student_id"]: row
+        for row in EssaySubmission.objects.filter(student_id__in=student_ids)
         .exclude(status=EssaySubmission.Status.DRAFT)
-        .order_by("-updated_at")
-    )
-    essays_by_student: dict[int, list[EssaySubmission]] = {}
-    for es in essay_subs:
-        essays_by_student.setdefault(es.student_id, []).append(es)
+        .order_by()
+        .values("student_id")
+        .annotate(
+            essays=Count("id"),
+            last_at=Max("updated_at"),
+            avg_score=Avg(
+                Coalesce("final_score", "total_score"),
+                filter=Q(total_score__isnull=False),
+            ),
+        )
+    }
 
-    # Kurs to'lovlari (Tuition Billing)
+    # Kurs to'lovlari (Tuition Billing): har bir o'quvchining eng so'nggi to'lovi
     from apps.tuition.models import StudentTuition
 
-    tuitions = StudentTuition.objects.filter(
-        group=group, student_id__in=student_ids
-    ).order_by("-due_date")
-    tuition_by_student: dict[int, StudentTuition] = {}
-    for tuit in tuitions:
-        if tuit.student_id not in tuition_by_student:
-            tuition_by_student[tuit.student_id] = tuit
+    tuition_status: dict[int, str] = {}
+    for sid, tuit_status in (
+        StudentTuition.objects.filter(group=group, student_id__in=student_ids)
+        .order_by("-due_date")
+        .values_list("student_id", "status")
+    ):
+        tuition_status.setdefault(sid, tuit_status)
 
     roster = []
     bmb_counts = {"A+": 0, "A": 0, "B+": 0, "B": 0, "C+": 0, "C": 0, "Fail": 0}
     all_pcts: list[float] = []
 
     for s in students:
-        s_results = results_by_student.get(s.id, [])
-        s_essays = essays_by_student.get(s.id, [])
+        r_stat = result_stats.get(s.id)
+        e_stat = essay_stats.get(s.id)
 
-        tests_count = len(s_results)
+        tests_count = r_stat["tests"] if r_stat else 0
         avg_test_pct = (
-            round(sum(float(r.percentage) for r in s_results) / tests_count, 1)
-            if tests_count > 0
-            else 0.0
+            round(float(r_stat["avg_pct"]), 1) if r_stat and r_stat["avg_pct"] is not None else 0.0
         )
         if tests_count > 0:
             all_pcts.append(avg_test_pct)
 
-        latest_test = s_results[0] if s_results else None
+        has_latest = s.latest_score is not None
         latest_score_str = (
-            f"{latest_test.score}/{latest_test.max_score}" if latest_test else "—"
+            f"{s.latest_score:.2f}/{s.latest_max_score:.2f}" if has_latest else "—"
         )
-        latest_pct = float(latest_test.percentage) if latest_test else 0.0
+        latest_pct = float(s.latest_percentage) if s.latest_percentage is not None else 0.0
 
         # BMB darajasi
         bmb_info = calculate_bmb_grade(avg_test_pct if tests_count > 0 else 0.0)
@@ -94,29 +115,20 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
             bmb_counts[grade] += 1
 
         # Esse ballari
-        essays_count = len(s_essays)
-        graded_essays = [e for e in s_essays if e.total_score is not None]
+        essays_count = e_stat["essays"] if e_stat else 0
         avg_essay_score = (
-            round(
-                sum(
-                    float(e.final_score if e.final_score is not None else e.total_score)
-                    for e in graded_essays
-                )
-                / len(graded_essays),
-                1,
-            )
-            if graded_essays
+            round(float(e_stat["avg_score"]), 1)
+            if e_stat and e_stat["avg_score"] is not None
             else 0.0
         )
 
-        last_active = None
         dates = []
-        if latest_test:
-            dates.append(latest_test.calculated_at)
-        if s_essays:
-            dates.append(s_essays[0].updated_at)
-        if dates:
-            last_active = max(dates).strftime("%d.%m.%Y %H:%M")
+        if r_stat and r_stat["last_at"]:
+            dates.append(r_stat["last_at"])
+        if e_stat and e_stat["last_at"]:
+            dates.append(e_stat["last_at"])
+        last_active = max(dates).strftime("%d.%m.%Y %H:%M") if dates else None
+        s_tuition = tuition_status.get(s.id)
 
         roster.append(
             {
@@ -141,21 +153,11 @@ def get_group_full_analytics(group: StudentGroup) -> dict[str, Any]:
                 if tests_count > 0
                 else "Test topshirmagan",
                 "badge_class": bmb_info["badge_class"] if tests_count > 0 else "badge",
-                "tuition_status": (
-                    tuition_by_student.get(s.id).status
-                    if tuition_by_student.get(s.id)
-                    else "pending"
-                ),
+                "tuition_status": s_tuition or "pending",
                 "tuition_label": (
                     "To'langan"
-                    if tuition_by_student.get(s.id)
-                    and tuition_by_student.get(s.id).status == "paid"
-                    else (
-                        "Muddati o'tgan"
-                        if tuition_by_student.get(s.id)
-                        and tuition_by_student.get(s.id).status == "overdue"
-                        else "Kutilmoqda"
-                    )
+                    if s_tuition == "paid"
+                    else "Muddati o'tgan" if s_tuition == "overdue" else "Kutilmoqda"
                 ),
                 "last_active": last_active or "Faollik yo'q",
             }
@@ -207,6 +209,36 @@ def find_group_by_token_or_code(token_or_code: str) -> StudentGroup | None:
     )
 
 
+def _attach_student_to_group(student: User, group: StudentGroup) -> bool:
+    """
+    O'quvchini guruhga biriktiradi va bo'sh filial/markaz maydonlarini to'ldiradi.
+
+    XAVFSIZLIK: guruhga qo'shilish HECH QANDAY pullik tarif (PRO/PREMIUM) bermaydi.
+    Taklif kodi/havolasi ommaviy tarqatilishi mumkin, shuning uchun tarif faqat
+    ``apps.payments.subscriptions.grant_subscription`` (admin / tasdiqlangan to'lov /
+    ustoz kvotasi) orqali, audit bilan beriladi (qarang: tests/test_free_pro_leak.py).
+
+    Returns True agar o'quvchi yangi qo'shilgan bo'lsa, False agar allaqachon a'zo edi.
+    """
+    with transaction.atomic():
+        if group.students.filter(id=student.id).exists():
+            return False
+        group.students.add(student)
+
+        update_fields: list[str] = []
+        branch = group.branch
+        if branch is not None:
+            if not student.branch_id:
+                student.branch = branch
+                update_fields.append("branch")
+            if branch.center_id and not student.learning_center_id:
+                student.learning_center_id = branch.center_id
+                update_fields.append("learning_center")
+        if update_fields:
+            student.save(update_fields=update_fields)
+    return True
+
+
 def join_group_by_token(student: User, token_or_code: str) -> tuple[str, StudentGroup]:
     """
     Joins student to group using invite token or code.
@@ -219,51 +251,21 @@ def join_group_by_token(student: User, token_or_code: str) -> tuple[str, Student
     if not group:
         raise ValueError(f"'{token_or_code}' bo'yicha guruh topilmadi.")
 
-    if group.students.filter(id=student.id).exists():
+    if not _attach_student_to_group(student, group):
         return ("ALREADY_MEMBER", group)
 
-    group.students.add(student)
-    if group.branch and not student.branch_id:
-        student.branch = group.branch
-        if group.branch.center and not student.learning_center_id:
-            student.learning_center = group.branch.center
-            student.save(update_fields=["branch", "learning_center"])
-        else:
-            student.save(update_fields=["branch"])
-    if hasattr(student, "profile") and getattr(student.profile, "plan", "free") in ("free", "", None):
-        student.profile.plan = "pro"
-        student.profile.save(update_fields=["plan"])
-    logger.info("Student %s joined group %s via token %s", student.id, group.id, token_or_code)
+    logger.info("Student %s joined group %s via token", student.id, group.id)
     return ("SUCCESS", group)
 
 
 def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
     """O'quvchini taklif kodi orqali guruhga qo'shadi (obuna o'zgarmaydi)."""
-    raw = (invite_code or "").strip().upper()
-    if raw.startswith("#"):
-        raw = raw[1:]
-
-    group = (
-        StudentGroup.objects.filter(invite_code__iexact=raw).first()
-        or StudentGroup.objects.filter(invite_code__iexact=f"#{raw}").first()
-    )
-
+    group = find_group_by_token_or_code(invite_code)
     if not group:
         raise ValueError(f"'{invite_code}' kodi bo'yicha guruh topilmadi.")
 
-    if not group.students.filter(id=student.id).exists():
-        group.students.add(student)
-        if group.branch and not student.branch_id:
-            student.branch = group.branch
-            if group.branch.center and not student.learning_center_id:
-                student.learning_center = group.branch.center
-                student.save(update_fields=["branch", "learning_center"])
-            else:
-                student.save(update_fields=["branch"])
-        if hasattr(student, "profile") and getattr(student.profile, "plan", "free") in ("free", "", None):
-            student.profile.plan = "pro"
-            student.profile.save(update_fields=["plan"])
-        logger.info("Student %s joined group %s via code %s", student.id, group.id, raw)
+    if _attach_student_to_group(student, group):
+        logger.info("Student %s joined group %s via code", student.id, group.id)
 
     return group
 

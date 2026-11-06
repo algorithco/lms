@@ -21,6 +21,7 @@ Covers:
 from __future__ import annotations
 
 import os
+import re
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -209,7 +210,7 @@ class TestTelegramGroupBinding:
 
     def test_auto_generated_invite_code_and_group_code_property(self):
         assert self.group.invite_code is not None
-        assert self.group.invite_code.startswith("GR-")
+        assert re.match(r"^[A-Z]+-[A-Z0-9]+$", self.group.invite_code)
         assert self.group.group_code == self.group.invite_code
         assert self.group.invite_token is not None
 
@@ -490,7 +491,7 @@ class TestRealTimeGroupAutoBroadcastAndVedomost:
 
         caption = call_kwargs["caption"]
         assert "Dilnoza Qodirova" in caption
-        assert "IELTS & BMB Pro Group" in caption
+        assert "IELTS &amp; BMB Pro Group" in caption  # Telegram HTML-escaped
         assert "CEFR Multi-Level Diagnostic Mock #1" in caption
         assert "Listening: 44/50" in caption
         assert "Reading: 42/50" in caption

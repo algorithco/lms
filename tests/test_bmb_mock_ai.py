@@ -98,7 +98,8 @@ class TestGroupManagementAndReports:
             teacher=teacher,
         )
         assert group.invite_code is not None
-        assert "GR-" in group.invite_code
+        # Codes are subject-prefixed since multi-subject groups (e.g. ONA-89C7, GR-101).
+        assert group.invite_code.replace("-", "").isalnum() and "-" in group.invite_code
 
         student = User.objects.create_user(
             email="student_group@example.com",

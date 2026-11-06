@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 interface FormulaTextProps {
   text?: string | null;
@@ -7,7 +7,27 @@ interface FormulaTextProps {
   as?: 'span' | 'div' | 'p';
 }
 
-const SUBSCRIPT_DIGITS: Record<string, string> = {
+/*
+ * SECURITY NOTE
+ * -------------
+ * This component NEVER builds HTML. Every result of `formatFormulaString` is
+ * returned to React as a plain text child, which React escapes, so question /
+ * answer text coming from teachers or AI generation cannot inject markup or
+ * scripts (`<img onerror=…>` is rendered literally). Do not introduce
+ * `dangerouslySetInnerHTML` here; use the Unicode sub/superscript maps below.
+ */
+
+/** Inputs longer than this are rendered verbatim: avoids regex work on abusive payloads. */
+const MAX_FORMATTED_LENGTH = 20_000;
+
+/**
+ * Control characters and bidi overrides (U+202A–202E, U+2066–2069) can be used
+ * to visually spoof text (e.g. flip a formula or an answer). Strip them.
+ */
+// eslint-disable-next-line no-control-regex
+const UNSAFE_CHARS_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/g;
+
+const SUBSCRIPT_DIGITS: Readonly<Record<string, string>> = {
   '0': '₀',
   '1': '₁',
   '2': '₂',
@@ -20,7 +40,7 @@ const SUBSCRIPT_DIGITS: Record<string, string> = {
   '9': '₉',
 };
 
-const SUPERSCRIPT_CHARS: Record<string, string> = {
+const SUPERSCRIPT_CHARS: Readonly<Record<string, string>> = {
   '0': '⁰',
   '1': '¹',
   '2': '²',
@@ -36,8 +56,16 @@ const SUPERSCRIPT_CHARS: Record<string, string> = {
   '=': '⁼',
   '(': '⁽',
   ')': '⁾',
-  'n': 'ⁿ',
+  n: 'ⁿ',
 };
+
+const mapChars = (value: string, table: Readonly<Record<string, string>>): string =>
+  Array.from(value, (ch) => table[ch] ?? ch).join('');
+
+/** Removes control / bidi-override characters from untrusted text. */
+export function sanitizeFormulaInput(input: string): string {
+  return input.replace(UNSAFE_CHARS_RE, '');
+}
 
 /**
  * Converts chemical & math notation into beautiful readable text:
@@ -46,55 +74,58 @@ const SUPERSCRIPT_CHARS: Record<string, string> = {
  * - x_1, v_0 -> x₁, v₀
  * - ->, --> -> →
  * - <=>, <-> -> ⇌
+ *
+ * Pure string -> string; the result must only ever be rendered as a text node.
  */
 export function formatFormulaString(input: string): string {
   if (!input) return '';
 
-  let res = input;
+  const clean = sanitizeFormulaInput(input);
+  if (clean.length > MAX_FORMATTED_LENGTH) return clean;
 
-  // Replace arrows
+  let res = clean;
+
+  // Arrows
   res = res.replace(/<[-=]>|<->/g, '⇌');
   res = res.replace(/-->|->/g, '→');
 
-  // Replace degree celsius
+  // Degree celsius
   res = res.replace(/\^oC|\^o(?=[C\s]|$)/g, '°');
 
-  // Replace explicit superscripts like ^3+, ^2-, ^+, ^-, ^2, ^3
-  res = res.replace(/\^([0-9+\-n()]+)/g, (_, chars) => {
-    return chars
-      .split('')
-      .map((ch: string) => SUPERSCRIPT_CHARS[ch] || ch)
-      .join('');
-  });
+  // Explicit superscripts like ^3+, ^2-, ^+, ^-, ^2, ^3
+  res = res.replace(/\^([0-9+\-n()]+)/g, (_match: string, chars: string) =>
+    mapChars(chars, SUPERSCRIPT_CHARS),
+  );
 
-  // Replace explicit subscripts like x_1, a_i, v_0
-  res = res.replace(/_([0-9]+)/g, (_, digits) => {
-    return digits
-      .split('')
-      .map((d: string) => SUBSCRIPT_DIGITS[d] || d)
-      .join('');
-  });
+  // Explicit subscripts like x_1, a_i, v_0
+  res = res.replace(/_([0-9]+)/g, (_match: string, digits: string) =>
+    mapChars(digits, SUBSCRIPT_DIGITS),
+  );
 
-  // Common chemical formula patterns:
-  // Elements like H, He, Li, Be, B, C, N, O, F, Ne, Na, Mg, Al, Si, P, S, Cl, Ar, K, Ca, Fe, Cu, Zn, Br, Ag, I, Ba, Au, Hg, Pb
-  // Followed by digits e.g. H2SO4, Fe2O3, C6H12O6, Ca(OH)2
+  // Chemical formulas: element symbol (or closing parenthesis) followed by digits,
+  // e.g. H2SO4, Fe2O3, C6H12O6, Ca(OH)2
   const chemFormulaRegex = /\b([A-Z][a-z]?|\))([0-9]+)\b|\b([A-Z][a-z]?[0-9]+[A-Za-z0-9()]+)\b/g;
 
-  res = res.replace(chemFormulaRegex, (match) => {
-    // If it's a known non-formula or simple number, skip
+  res = res.replace(chemFormulaRegex, (match: string) => {
     if (/^[0-9]+$/.test(match)) return match;
-    // Replace digits after uppercase/lowercase element or closing parenthesis with subscripts
-    return match.replace(/([A-Za-z\)])([0-9]+)/g, (_, letter, digits) => {
-      const sub = digits
-        .split('')
-        .map((d: string) => SUBSCRIPT_DIGITS[d] || d)
-        .join('');
-      return letter + sub;
-    });
+    return match.replace(
+      /([A-Za-z)])([0-9]+)/g,
+      (_inner: string, letter: string, digits: string) => letter + mapChars(digits, SUBSCRIPT_DIGITS),
+    );
   });
 
   return res;
 }
+
+const MATH_STYLE: React.CSSProperties = {
+  fontFamily: 'KaTeX_Math, "Times New Roman", serif',
+  fontStyle: 'italic',
+  padding: '0 2px',
+};
+
+/** A segment is a `$…$` math span only if it has content between two dollar signs. */
+const isMathSegment = (part: string): boolean =>
+  part.length >= 3 && part.startsWith('$') && part.endsWith('$');
 
 export default function FormulaText({
   text = '',
@@ -102,38 +133,29 @@ export default function FormulaText({
   style,
   as: Component = 'span',
 }: FormulaTextProps) {
-  if (!text) return null;
+  const content = useMemo<React.ReactNode>(() => {
+    if (!text) return null;
 
-  // Check if string contains LaTeX blocks like $...$
-  if (text.includes('$')) {
-    const parts = text.split(/(\$[^$]+\$)/g);
-    return (
-      <Component className={className} style={style}>
-        {parts.map((part, idx) => {
-          if (part.startsWith('$') && part.endsWith('$')) {
-            const inner = part.slice(1, -1);
-            return (
-              <span
-                key={idx}
-                style={{
-                  fontFamily: 'KaTeX_Math, "Times New Roman", serif',
-                  fontStyle: 'italic',
-                  padding: '0 2px',
-                }}
-              >
-                {formatFormulaString(inner)}
-              </span>
-            );
-          }
-          return <span key={idx}>{formatFormulaString(part)}</span>;
-        })}
-      </Component>
-    );
-  }
+    if (text.includes('$') && text.length <= MAX_FORMATTED_LENGTH) {
+      return text.split(/(\$[^$]+\$)/g).map((part, idx) =>
+        isMathSegment(part) ? (
+          <span key={idx} style={MATH_STYLE}>
+            {formatFormulaString(part.slice(1, -1))}
+          </span>
+        ) : (
+          <span key={idx}>{formatFormulaString(part)}</span>
+        ),
+      );
+    }
+
+    return formatFormulaString(text);
+  }, [text]);
+
+  if (!text) return null;
 
   return (
     <Component className={className} style={style}>
-      {formatFormulaString(text)}
+      {content}
     </Component>
   );
 }

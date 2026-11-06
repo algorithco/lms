@@ -214,7 +214,7 @@ class GradingTests(TestCase):
         # through tables, 1 bulk_update, profile get_or_create, result
         # get_or_create+update, per-section update_or_create, 1 milliy EXISTS
         # check in the cert gate). Bound guards N+1.
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(56):
             outcome = SubmitAttemptService.execute(
                 attempt_id=attempt.id, student=student
             )

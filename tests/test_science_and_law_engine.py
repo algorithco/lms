@@ -173,7 +173,7 @@ class TestScienceAndLawEngine:
             position=1,
         )
         c1 = Choice.objects.create(question=q, text="Bitim bekor qilinadi", is_correct=True)
-        c2 = Choice.objects.create(question=q, text="Bitim qonuniy", is_correct=False)
+        Choice.objects.create(question=q, text="Bitim qonuniy", is_correct=False)
 
         attempt = TestAttempt.objects.create(
             test=test,

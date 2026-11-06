@@ -101,7 +101,7 @@ def setup_branch_and_test(db, auth_users):
         question_type=Question.QuestionType.SINGLE_CHOICE,
         points=Decimal("1.90"),
     )
-    c1 = Choice.objects.create(question=q1, text="Hujayrani", is_correct=True)
+    Choice.objects.create(question=q1, text="Hujayrani", is_correct=True)
     Choice.objects.create(question=q1, text="To'qimani", is_correct=False)
 
     # 2. Matching matrix (33-35)
@@ -326,7 +326,7 @@ def test_send_group_result_telegram_broadcast_with_rank_and_branch(setup_branch_
     branch, group, test, res1, res2, student1, student2 = setup_branch_and_test
 
     with patch("apps.notifications.services.telegram_service.TelegramService.send_document") as mock_send_doc, \
-         patch("apps.notifications.services.telegram_service.TelegramService._call_api") as mock_call_api:
+         patch("apps.notifications.services.telegram_service.TelegramService._call_api"):
 
         mock_send_doc.return_value = {"success": True, "message_id": 12345}
 
