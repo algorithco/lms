@@ -87,6 +87,9 @@ class Test(models.Model):
         choices=[
             ("uzbek", _("Ona tili va adabiyot")),
             ("english", _("Ingliz tili (IELTS & Multi-level)")),
+            ("biology", _("Biologiya (Milliy sertifikat & DTM)")),
+            ("chemistry", _("Kimyo (Milliy sertifikat & DTM)")),
+            ("law", _("Huquqshunoslik (Yurisprudensiya & Konstitutsiya)")),
         ],
         default="uzbek",
         db_index=True,
@@ -525,6 +528,11 @@ class Question(models.Model):
         TRUE_FALSE_NOT_GIVEN = "TRUE_FALSE_NOT_GIVEN", _("True / False / No Information")
         SHORT_ANSWER = "SHORT_ANSWER", _("Short Answer (Qisqa javob)")
         SPEAKING_PROMPT = "SPEAKING_PROMPT", _("Speaking prompt (og'zaki javob)")
+
+        # Science & Law Exam Question Types (BMB & DTM Standards)
+        MATCHING_MATRIX = "matching_matrix", _("Moslashtirish matritsasi (33–35: 1, 2, 3 -> A-F)")
+        DUAL_OPEN_CALC = "dual_open_calc", _("Ikki qismli ochiq masala (36–45: a va b qism)")
+        LEGAL_CASE_STUDY = "legal_case_study", _("Huquqiy kazus / situatsion tahlil")
 
         # Backward compatibility / legacy types
         SINGLE_CHOICE = "single", _("Bitta to'g'ri javob (Legacy)")

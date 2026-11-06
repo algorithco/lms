@@ -10,7 +10,7 @@ export interface OnboardingProps {
   onSuccess?: () => void;
 }
 
-type ActiveSubject = 'uzbek' | 'english';
+type ActiveSubject = 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
 type TargetExam = 'milliy_sertifikat' | 'cefr' | 'ielts' | 'attestatsiya' | 'other';
 type PrepLevel = 'zero' | 'beginner' | 'intermediate';
 type ReminderSlot = 'morning' | 'afternoon' | 'evening';
@@ -243,8 +243,12 @@ export default function Onboarding({ isModal = false, onClose, onSuccess }: Onbo
       /* ignore confetti error */
     }
 
-    const finalSubject: ActiveSubject = activeSubject || 'uzbek';
     const finalExam: TargetExam = (targetExam as TargetExam) || 'milliy_sertifikat';
+    let finalSubject: ActiveSubject = activeSubject || 'uzbek';
+    if (finalExam === 'other') {
+      if (subSubject === 'Huquq') finalSubject = 'law';
+      else if (subSubject === 'Kimyo/Biologiya') finalSubject = 'biology';
+    }
     const finalMinutes = dailyGoalMinutes ?? 15;
     const finalSubSubject = finalExam === 'other' ? subSubject || 'Matematika' : '';
 

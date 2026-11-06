@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.84. Rasmiy Versiya v2.1.0: Multi-Subject Exam Engine (Biologiya, Kimyo, Huquq) & Teacher Builder (Stage 1/3)
+- [x] 1-Vazifa: Biologiya, Kimyo va Huquq Fanlarini Butun Sayt Bo'ylab Faollashtirish (`apps/tests/models.py`, `apps/accounts/models.py`, `apps/courses/models.py`, `SubjectSwitcher.tsx`, `Dashboard.tsx`, `Tests.tsx`):
+  * `Subject.SlugChoices`, `Test.subject`, `Profile.SubjectChoice` modellariga yangi fanlar qo'shildi:
+    - `biology` — 🧬 Biologiya (Milliy sertifikat & DTM)
+    - `chemistry` — 🧪 Kimyo (Milliy sertifikat & DTM)
+    - `law` — ⚖️ Huquqshunoslik (Yurisprudensiya & Konstitutsiya)
+  * Yangi savol turlari (`Question.QuestionType`) kiritildi va baholash mexanizmi integratsiya qilindi:
+    - `SINGLE_CHOICE` (1–32 yopiq testlar)
+    - `MATCHING_MATRIX` (33–35 A–F moslashtirish, mutanosib ball bilan baholash)
+    - `DUAL_OPEN_CALC` (36–45 ikki qismli ochiq hisoblash: a va b qismlar alohida 50/50 ball bilan baholanadi, nuqta/vergul normalizatsiyasi)
+    - `LEGAL_CASE_STUDY` (Huquqiy kazus / situatsion tahlil)
+  * Migratsiyalar yaratildi va qo'llandi: `accounts.0021`, `courses.0012`, `tests.0021`.
+  * AI repetitor tahlili (`apps/tests/ai_tutor.py`): Biologiya (*Sitologiya va hujayra, Genetika va selektsiya, Odam anatomiyasi, Botanika va zoologiya, Ekologiya va evolyutsiya*), Kimyo (*Umumiy va anorganik kimyo, Organik kimyo, Stexiometriya va eritmalar, Oksidlanish-qaytarilish, Elektroliz va kimyoviy kinetika*) va Huquq (*Konstitutsiyaviy huquq, Davlat va huquq nazariyasi, Fuqarolik va oila huquqi, Jinoyat va ma'muriy huquq, Mehnat va xalqaro huquq*) mavzulari bo'yicha diagnostika va zaiflik tahlili joriy etildi.
+  * `SubjectSwitcher.tsx`: 5 ta fan (Ona tili, Ingliz tili, Biologiya, Kimyo, Huquq) gorizontal silliq skroll bo'ladigan oltin gardishli pill-tugmalarga aylantirildi.
+- [x] 2-Vazifa: Maxsus Imtihon Interfeysi (Formula, Davriy Jadval va Kazus) (`FormulaText.tsx`, `PeriodicTableModal.tsx`, `TakeTest.tsx`):
+  * `FormulaText.tsx`: Kimyoviy va matematik formulalar rendereri (`H2SO4`, `Fe^3+`, `CO2`, `->`, `⇌`, LaTeX `$...$`) indeks va darajalarni to'g'ri render qiladi.
+  * `PeriodicTableModal.tsx`: Kimyo imtihonida `[🧪 Davriy jadval]` tugmasi bosilganda Mendeleyev davriy jadvali va kislota/tuz/asoslarning eruvchanlik jadvalini zoom va qidiruv bilan ochib beradi.
+  * `TakeTest.tsx`: 33–35 `MATCHING_MATRIX` moslashtirish matritsasi (1, 2, 3 -> A, B, C, D, E, F), 36–45 `DUAL_OPEN_CALC` ikki qismli ochiq masala (a va b qismlar), va `LEGAL_CASE_STUDY` holatli topshiriqlar uchun to'liq interaktiv UI yaratildi.
+- [x] 3-Vazifa: Ustoz Test Quruvchisi va Namunaviy Testlar (`SmartTestCreate.tsx`, `seed_science_and_law_tests.py`):
+  * `SmartTestCreate.tsx`: Fan tanlanganda (Biologiya, Kimyo, Huquq) mos shablon tugmalari (`+ Oddiy test`, `+ A-F Moslashtirish`, `+ a/b Ochiq masala`, `+ Huquqiy kazus`) va tezkor kimyoviy indekslar paneli (`₂`, `³⁺`, `→`, `⇌`) qo'shildi.
+  * `python manage.py seed_science_and_law_tests`: Biologiya (#MOCK-BIO-01), Kimyo (#MOCK-CHEM-01) va Huquqshunoslik (#MOCK-LAW-01) namunaviy milliy sertifikat diagnostika testlari bazaga kiritildi.
+- [x] 4-Vazifa: QA Test Suite va Build Verifikatsiyasi:
+  * `pytest tests/test_science_and_law_engine.py tests/test_multi_subject_exam_mode.py -v`: 11/11 test 100% PASS (29.66s va 30.59s).
+  * `npm --prefix frontend run build` (tsc -b && vite build): 0 xato bilan 3.11s da muvaffaqiyatli qurildi.
+
 ### 2.83. Rasmiy Versiya v2.0.0: Duolingo-Uslubidagi 6 Qadamli Onboarding, Landing Page Tozalash, Dashboard Zaif Qismlar Mashqi, Boyitilgan Kontent Bazasi va Telegram Guruhga Avto-Natijalar / Vedomost (10.0.0-Bosqich)
 - [x] 1-Vazifa: Duolingo Uslubidagi 6 Qadamli Onboarding va Shaxsiy Reja (`/onboarding`, `Onboarding.tsx`, `OnboardingModal.tsx`, `POST /api/v1/users/onboarding/`):
   * Yuqorida `<` (Orqaga) tugmasi, `X-SAVOL / 6` ko'rsatkichi, `SO'ROVNOMA` oltin yorlig'i va silliq to'lib boruvchi oltin progress-bar (`#C8922A` / `#F59E0B`).

@@ -187,7 +187,7 @@ export default function EssayTopics() {
       {!loading && !err && tab === 'topics' && (
         <>
           <div className="ui-chip-row" role="group" aria-label={t('es_type')}>
-            {TYPE_FILTERS[subject].map((k) => (
+            {TYPE_FILTERS[subject === 'english' ? 'english' : 'uzbek'].map((k: any) => (
               <button key={k} type="button" className={`ui-chip${type === k ? ' is-on' : ''}`} aria-pressed={type === k} onClick={() => setType(k)}>
                 {t(`es_kind_${k}`)}
               </button>

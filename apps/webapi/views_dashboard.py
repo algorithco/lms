@@ -25,7 +25,7 @@ from apps.tests import cefr_multilevel
 from apps.tests.models import Question, StudentAnswer, Test, TestAttempt
 from apps.tests.numbering import NOT_OBJECTIVE
 
-SUBJECTS = ("uzbek", "english")
+SUBJECTS = ("uzbek", "english", "biology", "chemistry", "law")
 FINISHED = (TestAttempt.Status.COMPLETED, TestAttempt.Status.PENDING_GRADING, TestAttempt.Status.TIMEOUT)
 BMB_GRADE_ORDER = ["Fail", "C", "C+", "B", "B+", "A", "A+"]
 CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"]
@@ -38,6 +38,12 @@ GOAL_SUBJECT = {
     "ielts": "english",
     "multilevel": "english",
     "cefr": "english",
+    "biology": "biology",
+    "dtm_biology": "biology",
+    "chemistry": "chemistry",
+    "dtm_chemistry": "chemistry",
+    "law": "law",
+    "yurisprudensiya": "law",
 }
 RECENT = 3
 WEAK_PARTS = 3
@@ -300,6 +306,87 @@ def _recommended_practice(subject: str) -> list[dict[str, Any]]:
                 "part": 3,
                 "question_type": "single",
                 "label": "Listening, Qism 3 — Variantli savol",
+                "is_recommended": True,
+            },
+        ]
+    if subject == "biology":
+        return [
+            {
+                "section_code": "sitologiya",
+                "section_name": "Sitologiya va hujayra",
+                "part": 1,
+                "question_type": "single",
+                "label": "Hujayra tuzilishi va organoidlar",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "genetika",
+                "section_name": "Genetika va seleksiya",
+                "part": 2,
+                "question_type": "matching_matrix",
+                "label": "Mendel qonunlari va duragaylash",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "anatomiya",
+                "section_name": "Odam anatomiyasi",
+                "part": 3,
+                "question_type": "dual_open_calc",
+                "label": "Qon aylanish va asab tizimi masalalari",
+                "is_recommended": True,
+            },
+        ]
+    if subject == "chemistry":
+        return [
+            {
+                "section_code": "umumiy_kimyo",
+                "section_name": "Umumiy va anorganik kimyo",
+                "part": 1,
+                "question_type": "single",
+                "label": "Davriy qonun va kimyoviy bog'lanish",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "eritmalar",
+                "section_name": "Stexiometriya va eritmalar",
+                "part": 2,
+                "question_type": "dual_open_calc",
+                "label": "Massa ulush va konsentratsiya hisoblash",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "organika",
+                "section_name": "Organik kimyo",
+                "part": 3,
+                "question_type": "matching_matrix",
+                "label": "Uglevodorodlar va polimerlar",
+                "is_recommended": True,
+            },
+        ]
+    if subject == "law":
+        return [
+            {
+                "section_code": "konstitutsiya",
+                "section_name": "Konstitutsiyaviy huquq",
+                "part": 1,
+                "question_type": "single",
+                "label": "O'zbekiston Konstitutsiyasi va inson huquqlari",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "nazariya",
+                "section_name": "Davlat va huquq nazariyasi",
+                "part": 2,
+                "question_type": "single",
+                "label": "Huquqiy normalar va yuridik javobgarlik",
+                "is_recommended": True,
+            },
+            {
+                "section_code": "kazus",
+                "section_name": "Fuqarolik va jinoyat huquqi",
+                "part": 3,
+                "question_type": "legal_case_study",
+                "label": "Amaliy huquqiy vaziyatlar (Kazus tahlili)",
                 "is_recommended": True,
             },
         ]

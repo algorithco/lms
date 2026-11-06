@@ -28,6 +28,9 @@ class Subject(models.Model):
     class SlugChoices(models.TextChoices):
         UZBEK = "uzbek", _("Ona tili va adabiyot")
         ENGLISH = "english", _("Ingliz tili (IELTS & Multi-level)")
+        BIOLOGY = "biology", _("Biologiya (Milliy sertifikat & DTM)")
+        CHEMISTRY = "chemistry", _("Kimyo (Milliy sertifikat & DTM)")
+        LAW = "law", _("Huquqshunoslik (Yurisprudensiya & Konstitutsiya)")
 
     name = models.CharField(_("fan nomi"), max_length=120)
     slug = models.SlugField(_("slug"), max_length=50, unique=True, db_index=True)

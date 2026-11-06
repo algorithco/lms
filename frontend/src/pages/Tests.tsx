@@ -42,9 +42,12 @@ const isDiagnostic = (i: Item) =>
   ['#mock-bmb-diagnostic', 'mock-bmb-diagnostic', '#mock-shukurov', 'mock-shukurov'].includes(lower(i.mock_code)) ||
   /shukurov|bmb rasmiy mock|diagnostic/.test(lower(i.title));
 
-const CATEGORIES: Record<'uzbek' | 'english', Category[]> = {
+const CATEGORIES: Record<string, Category[]> = {
   uzbek: ['all', 'milliy', 'adabiyot', 'attestatsiya'],
   english: ['all', 'ielts', 'multilevel'],
+  biology: ['all', 'milliy'],
+  chemistry: ['all', 'milliy'],
+  law: ['all', 'milliy'],
 };
 
 function cleanTitle(raw: string | undefined): string {
@@ -151,7 +154,18 @@ export default function Tests() {
     const filtered = tests.filter((i) => {
       if (q && !(lower(i.title).includes(q) || lower(i.course_title).includes(q))) return false;
       if (difficulty && String(i.difficulty ?? '') !== difficulty) return false;
-      if ((subject === 'english') !== isEnglishTest(i)) return false;
+      if (subject === 'english') {
+        if (!isEnglishTest(i)) return false;
+      } else if (subject === 'biology') {
+        if (lower(i.subject) !== 'biology' && !lower(i.title).includes('biolog') && !lower(i.mock_code).includes('bio')) return false;
+      } else if (subject === 'chemistry') {
+        if (lower(i.subject) !== 'chemistry' && !lower(i.title).includes('kimyo') && !lower(i.mock_code).includes('chem')) return false;
+      } else if (subject === 'law') {
+        if (lower(i.subject) !== 'law' && !lower(i.title).includes('huquq') && !lower(i.mock_code).includes('law')) return false;
+      } else {
+        // uzbek
+        if (isEnglishTest(i) || ['biology', 'chemistry', 'law'].includes(lower(i.subject))) return false;
+      }
       switch (category) {
         case 'ielts':
           return isIelts(i);
@@ -345,7 +359,7 @@ export default function Tests() {
       <MockCodeCard subject={subject} busy={mockBusy} error={mockErr} onJoin={(c) => void join(c)} onEdit={() => mockErr && setMockErr(null)} />
 
       <div className="ui-chip-row" role="group" aria-label={t('catalog_title')}>
-        {CATEGORIES[subject].map((c) => (
+        {(CATEGORIES[subject] || ['all']).map((c) => (
           <button key={c} type="button" className={`ui-chip${category === c ? ' is-on' : ''}`} aria-pressed={category === c} onClick={() => setCategory(c)}>
             {t(`tl_cat_${c}`)}
           </button>

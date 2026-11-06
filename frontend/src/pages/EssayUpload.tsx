@@ -191,7 +191,7 @@ export default function EssayUpload() {
           </div>
         </>
       )}
-      <LimitExceededModal isOpen={limitOpen} onClose={() => setLimitOpen(false)} message={t('paywall_reason_essay')} feature="essay" subject={subject} />
+      <LimitExceededModal isOpen={limitOpen} onClose={() => setLimitOpen(false)} message={t('paywall_reason_essay')} feature="essay" subject={subject === 'english' ? 'english' : 'uzbek'} />
     </div>
   );
 }

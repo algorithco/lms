@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 
-export type Subject = 'uzbek' | 'english';
+export type Subject = 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
+
+export const VALID_SUBJECTS: Subject[] = ['uzbek', 'english', 'biology', 'chemistry', 'law'];
+
+export function isValidSubject(s: unknown): s is Subject {
+  return typeof s === 'string' && VALID_SUBJECTS.includes(s as Subject);
+}
 
 /**
  * The study subject (what is being prepared for) — NOT the interface language.
@@ -11,12 +17,14 @@ export type Subject = 'uzbek' | 'english';
 export function useSubject(): Subject {
   const { user } = useAuth();
   const read = (): Subject => {
-    if (user?.active_subject === 'english' || user?.active_subject === 'uzbek') return user.active_subject;
+    if (isValidSubject(user?.active_subject)) return user.active_subject;
     try {
-      return localStorage.getItem('lms_subject') === 'english' ? 'english' : 'uzbek';
+      const stored = localStorage.getItem('lms_subject');
+      if (isValidSubject(stored)) return stored;
     } catch {
-      return 'uzbek';
+      /* ignore storage access error */
     }
+    return 'uzbek';
   };
   const [subject, setSubject] = useState<Subject>(read);
 
@@ -28,7 +36,7 @@ export function useSubject(): Subject {
   useEffect(() => {
     const onChange = (e: Event) => {
       const next = (e as CustomEvent<Subject>).detail;
-      if (next === 'english' || next === 'uzbek') setSubject(next);
+      if (isValidSubject(next)) setSubject(next);
     };
     window.addEventListener('subject-changed', onChange);
     return () => window.removeEventListener('subject-changed', onChange);

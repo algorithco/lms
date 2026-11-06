@@ -268,7 +268,7 @@ export interface AuthUser {
   is_superuser?: boolean;
   is_platform_admin?: boolean;
   avatar?: string;
-  active_subject?: 'uzbek' | 'english';
+  active_subject?: 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
   exam_target?: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'milliy_sertifikat' | 'cefr' | 'attestatsiya' | 'other' | 'undecided' | string;
   target_exam?: string;
   sub_subject?: string;
@@ -355,9 +355,10 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     (typeof raw.full_name === 'string' && raw.full_name.trim()) ||
     `${first} ${last}`.trim() ||
     (typeof raw.email === 'string' ? raw.email : '');
+  const validSubs = ['uzbek', 'english', 'biology', 'chemistry', 'law'];
   const active_subject =
-    raw.active_subject === 'english' || raw.active_subject === 'uzbek'
-      ? (raw.active_subject as 'uzbek' | 'english')
+    validSubs.includes(String(raw.active_subject))
+      ? (raw.active_subject as SubjectSlug)
       : 'uzbek';
   const isAdmin = adminShape(raw);
   return {
@@ -633,8 +634,10 @@ export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blo
   return res.blob();
 }
 
+export type SubjectSlug = 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
+
 export interface SubjectItem {
-  slug: 'uzbek' | 'english';
+  slug: SubjectSlug;
   name: string;
   description: string;
   icon: string;
@@ -643,11 +646,11 @@ export interface SubjectItem {
 
 export const ProfileApi = {
   subjects: () => api<SubjectItem[]>('/api/v1/subjects/'),
-  switchSubject: (subject: 'uzbek' | 'english', exam_target?: string) =>
+  switchSubject: (subject: SubjectSlug, exam_target?: string) =>
     api<{
       ok: boolean;
-      active_subject: 'uzbek' | 'english';
-      exam_target: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'undecided';
+      active_subject: SubjectSlug;
+      exam_target: string;
       target_grade: string;
       daily_plan_summary: Record<string, unknown>;
     }>('/api/v1/profile/switch-subject/', {
