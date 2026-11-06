@@ -720,6 +720,11 @@ export const Tests = {
       body: JSON.stringify({ type }),
     }),
   /** On-demand AI explanation for one question of a finished attempt (paid tiers, daily cap). */
+  socraticTutor: (payload: { question_id: number; result_id?: number; user_answer?: string; selected_choice_id?: number }) =>
+    api<{ success: boolean; explanation: string; question_id: number; subject?: string; cached?: boolean }>(
+      '/api/tests/socratic-tutor/',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
   explainResultQuestion: (resultId: number, questionId: number, lang: string) =>
     api<{ text?: string; code?: string; cached?: boolean; used?: number; limit?: number; remaining?: number }>(
       `/api/tests/results/${resultId}/questions/${questionId}/explain/`,
@@ -2761,6 +2766,22 @@ export const SpeakingApi = {
 };
 
 // -- Gamification & Streak --------------------------------------------------
+export interface StreakDayItem {
+  day: string;
+  date: string;
+  is_today: boolean;
+  is_past: boolean;
+  is_active: boolean;
+}
+
+export interface StreakMilestone {
+  target: number;
+  title: string;
+  reward: string;
+  reached: boolean;
+  progress_percent: number;
+}
+
 export interface StreakInfoResponse {
   current_streak: number;
   longest_streak: number;
@@ -2770,6 +2791,8 @@ export interface StreakInfoResponse {
   weekly_xp: number;
   weekly_league: 'bronze' | 'silver' | 'gold' | 'diamond';
   daily_goal_completed: boolean;
+  week_days?: StreakDayItem[];
+  milestones?: StreakMilestone[];
 }
 
 export interface LeagueParticipant {

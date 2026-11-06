@@ -35,6 +35,14 @@ import {
 import { ClockIcon } from '../components/icons';
 import TiltCard from '../components/TiltCard';
 import confetti from 'canvas-confetti';
+import { StreakCelebrationModal } from '../components/StreakBadge';
+import { getTokens } from '../lib/api';
+import {
+  cacheExamData,
+  getCachedExamData,
+  saveAnswerOffline,
+  syncOfflineBatch,
+} from '../utils/offlineExam';
 
 interface Choice {
   id: number;
@@ -283,6 +291,7 @@ export default function TakeTest() {
       try {
         const a = (await TestsApi.attempt(attemptId)) as unknown as AttemptDetail;
         setAttempt(a);
+        void cacheExamData(attemptId, a);
         setRemaining(a.remaining_seconds);
         if (typeof a.violation_count === 'number') {
           setViolationCount(a.violation_count);
@@ -341,6 +350,13 @@ export default function TakeTest() {
       }
     }
 
+    const cached = await getCachedExamData<AttemptDetail>(attemptId);
+    if (cached) {
+      setAttempt(cached);
+      setRemaining(cached.remaining_seconds);
+      setLoadError(null);
+      return;
+    }
     setLoadError(lastErr instanceof Error ? lastErr.message : t('err_retry_js'));
   }, [attemptId, t]);
 
@@ -417,6 +433,23 @@ export default function TakeTest() {
         const r: SubmitResult = (out.result ?? out) as SubmitResult;
         setResult(r);
         clearDraft(attemptId);
+        const streakInfo = (r as any)?.streak_info;
+        if (streakInfo?.streak_incremented || streakInfo?.current_streak) {
+          const sc = Number(streakInfo.current_streak || streakInfo.streak || 0);
+          if (sc > 0) {
+            setStreakCelebration(sc);
+            try {
+              confetti({
+                particleCount: 110,
+                spread: 85,
+                origin: { y: 0.5 },
+                colors: ['#F97316', '#EA580C', '#FBBF24', '#10B981'],
+              });
+            } catch {
+              /* ignore */
+            }
+          }
+        }
         if (r.is_passed) {
           try {
             confetti({
@@ -517,6 +550,15 @@ export default function TakeTest() {
         setSaved((s) => ({ ...s, [q.id]: false }));
         return;
       }
+
+      // Persist offline to IndexedDB immediately
+      void saveAnswerOffline(attemptId, q.id, {
+        choice_ids: cur.choices,
+        text_answer: cur.text,
+        gap_answers: cur.gaps,
+        matching: cur.matching,
+        written_text: cur.written,
+      });
 
       let lastErr: unknown = null;
       // 3 martagacha avtomatik qayta urinish (retry)
@@ -707,9 +749,19 @@ export default function TakeTest() {
   const retryRef = useRef(retryFailed);
   retryRef.current = retryFailed;
   const [offline, setOffline] = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+  const [justSynced, setJustSynced] = useState(false);
+  const [streakCelebration, setStreakCelebration] = useState<number | null>(null);
+
   useEffect(() => {
     const goOnline = () => {
       setOffline(false);
+      const token = getTokens().access || undefined;
+      syncOfflineBatch(attemptId, token).then((res) => {
+        if (res.syncedCount > 0) {
+          setJustSynced(true);
+          setTimeout(() => setJustSynced(false), 5000);
+        }
+      });
       void retryRef.current();
     };
     const goOffline = () => setOffline(true);
@@ -719,7 +771,7 @@ export default function TakeTest() {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
     };
-  }, []);
+  }, [attemptId]);
 
   // A reload or an accidental back/close asks first; answers are already saved on the server.
   const inProgress =
@@ -1408,7 +1460,48 @@ export default function TakeTest() {
         </Link>
       </p>
       <h1 className="take-test-title">{attempt.test_title}</h1>
-      {offline && <p className="cd-alert" role="alert">{t('cd_offline_banner')}</p>}
+      {offline && (
+        <div
+          role="alert"
+          style={{
+            padding: '10px 16px',
+            marginBottom: '16px',
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid #F59E0B',
+            borderRadius: '10px',
+            color: '#B45309',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontWeight: 600,
+            fontSize: '14px',
+          }}
+        >
+          <span style={{ fontSize: '18px' }}>⚡</span>
+          <span>Oflayn rejim: Javoblaringiz IndexedDB xotirasida xavfsiz saqlanmoqda.</span>
+        </div>
+      )}
+      {justSynced && (
+        <div
+          role="status"
+          style={{
+            padding: '10px 16px',
+            marginBottom: '16px',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid #10B981',
+            borderRadius: '10px',
+            color: '#047857',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontWeight: 600,
+            fontSize: '14px',
+          }}
+        >
+          <span style={{ fontSize: '18px' }}>✅</span>
+          <span>Sinxronlandi: Barcha oflayn javoblar serverga muvaffaqiyatli yuklandi!</span>
+        </div>
+      )}
       {err && <p className="error">{err}</p>}
 
       {finished && !result && (
@@ -2091,6 +2184,12 @@ export default function TakeTest() {
             </div>
           </div>
         </div>
+      )}
+      {streakCelebration !== null && (
+        <StreakCelebrationModal
+          streakCount={streakCelebration}
+          onClose={() => setStreakCelebration(null)}
+        />
       )}
     </div>
   );

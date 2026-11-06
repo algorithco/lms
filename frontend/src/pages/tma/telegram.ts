@@ -1,4 +1,4 @@
-/** Minimal Telegram WebApp typings + safe helpers (old tma/index.html parity). */
+/** Minimal Telegram WebApp typings + safe helpers (old tma/index.html parity + full SPA integration). */
 
 export interface TelegramBackButton {
   show: () => void;
@@ -12,14 +12,43 @@ export interface TelegramHaptics {
   notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
 }
 
+export interface TelegramThemeParams {
+  bg_color?: string;
+  text_color?: string;
+  hint_color?: string;
+  link_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  secondary_bg_color?: string;
+  header_bg_color?: string;
+}
+
 export interface TelegramWebApp {
   initData: string;
-  initDataUnsafe?: { user?: { language_code?: string; id?: number; first_name?: string } };
+  initDataUnsafe?: {
+    user?: {
+      id?: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+    };
+    start_param?: string;
+    auth_date?: number;
+    hash?: string;
+  };
   colorScheme: 'light' | 'dark';
+  themeParams?: TelegramThemeParams;
+  viewportHeight: number;
+  viewportStableHeight: number;
+  isExpanded: boolean;
   BackButton?: TelegramBackButton;
   HapticFeedback?: TelegramHaptics;
   ready: () => void;
   expand: () => void;
+  close: () => void;
+  enableClosingConfirmation: () => void;
+  disableClosingConfirmation: () => void;
   setHeaderColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
 }
@@ -48,6 +77,34 @@ export function loadTelegramScript(): Promise<void> {
     s.onerror = () => resolve();
     document.head.appendChild(s);
   });
+}
+
+/**
+ * Full Telegram WebApp setup:
+ * 1. Expand viewport to full available height
+ * 2. Block swipe-down-to-close via enableClosingConfirmation
+ * 3. Match theme colors (header & background)
+ */
+export function initTelegramWebApp(): TelegramWebApp | null {
+  const wa = tg();
+  if (!wa) return null;
+  try {
+    wa.ready();
+    wa.expand();
+    if (typeof wa.enableClosingConfirmation === 'function') {
+      wa.enableClosingConfirmation();
+    }
+    const isDark = wa.colorScheme === 'dark';
+    try {
+      wa.setHeaderColor(isDark ? '#0F172A' : '#FFFFFF');
+      wa.setBackgroundColor(isDark ? '#0B0F19' : '#F8FAFC');
+    } catch {
+      /* older clients */
+    }
+  } catch (err) {
+    console.warn('Telegram WebApp setup non-critical notice:', err);
+  }
+  return wa;
 }
 
 export function hapticImpact(style: 'light' | 'heavy' = 'light'): void {

@@ -14,6 +14,7 @@ Endpoints:
 from django.urls import path
 
 from . import views
+from apps.telegram_app.views import tma_auth_view as telegram_webapp_auth
 from . import google_auth as google_auth_views
 
 app_name = "accounts"
@@ -80,6 +81,11 @@ urlpatterns = [
         name="session_logout",
     ),
     # -- Telegram -------------------------------------------------------------
+    path(
+        "telegram/webapp/",
+        telegram_webapp_auth,
+        name="telegram_webapp_auth",
+    ),
     path(
         "telegram/widget/",
         views.TelegramWidgetAuthView.as_view(),

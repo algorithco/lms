@@ -92,7 +92,7 @@ def tma_auth_view(request: Request) -> Response:
         )
     cache.set(tkey, cnt + 1, timeout=60)
 
-    init_data = request.data.get("init_data", "")
+    init_data = request.data.get("init_data") or request.data.get("initData") or ""
     if len(init_data) > 8192:
         return Response(
             {"success": False, "error": "initData juda uzun."},
@@ -158,10 +158,15 @@ def tma_auth_view(request: Request) -> Response:
                 "full_name": user.get_full_name(),
                 "role": user.role,
                 "first_name": user.first_name,
+                "last_name": user.last_name,
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
                 "is_platform_admin": is_platform_admin(user),
+                "plan": getattr(getattr(user, "profile", None), "plan", "free"),
+                "active_subject": getattr(getattr(user, "profile", None), "active_subject", "uzbek"),
+                "telegram_chat_id": user.telegram_chat_id,
             },
+            "start_param": telegram_user.get("start_param", ""),
             "tokens": {
                 "access": access_token,
                 "refresh": refresh_token,

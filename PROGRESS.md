@@ -9,6 +9,32 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.87. Rasmiy Versiya v2.4.0: Telegram Mini App (TMA), Offline-First PWA Exam Mode, DeepSeek Socratic AI Tutor & Interactive Streak
+- [x] 1-Vazifa: Telegram Mini App (TMA) Finalize & Zero-Friction Auth (`frontend/src/pages/tma/telegram.ts`, `frontend/src/auth/AuthContext.tsx`, `apps/telegram_app/views.py`, `apps/telegram_app/services.py`, `apps/webapi/urls.py`, `apps/accounts/urls.py`):
+  * WebApp avtomatik to'liq ekranga yoyilishi (`WebApp.expand()`).
+  * Tasodifiy yopilib ketishni oldini oluvchi himoya (`WebApp.enableClosingConfirmation()`).
+  * Telegram ranglar sxemasiga (`header_color`, `background_color`) silliq moslashuv.
+  * Zero-Friction Auth: Telegram ichidan ochilganda `WebApp.initData` olinadi va `/api/v1/auth/telegram-webapp/` orqali HMAC-SHA256 validatsiya qilinib, parol so'ralmasdan yangi yoki mavjud foydalanuvchiga JWT tokenlar va sessiya beriladi.
+  * Deep Linking: `start_param` (masalan, `test_123`) orqali to'g'ridan-to'g'ri `/take-test/:id` yoki kerakli sahifaga yo'naltirish ta'minlandi.
+- [x] 2-Vazifa: Offline-First va PWA Imtihon Rejimi (`frontend/src/utils/offlineExam.ts`, `frontend/src/pages/TakeTest.tsx`, `apps/tests/views.py`, `apps/tests/urls.py`):
+  * IndexedDB asosidagi mahalliy kesh: imtihon savollari va foydalanuvchi javoblari avtomatik keshlanadi.
+  * Internet uzilganda jonli sezuvchi nishon: sariq `[⚡ Oflayn rejim: Javoblaringiz xavfsiz saqlanmoqda]` ko'rsatiladi, taymer uzluksiz ishlaydi.
+  * Internet qaytganda avtomatik sinxronizatsiya: `POST /api/tests/save-batch/` yoki `/api/tests/attempts/<id>/save-batch/` orqali to'planib qolgan javoblar atomik tranzaksiyada serverga yoziladi va yashil `[✅ Sinxronlandi]` ko'rsatiladi.
+- [x] 3-Vazifa: DeepSeek Socratic AI Repetitor (`apps/tests/ai_tutor.py`, `apps/tests/views.py`, `apps/tests/urls.py`, `frontend/src/components/QuestionReview.tsx`, `frontend/src/lib/api.ts`):
+  * `generate_socratic_explanation`: DeepSeek API orqali sokratona 3 jumlali o'zbek tilidagi pedagogik yo'naltiruvchi tahlil. To'g'ri javobni to'g'ridan-to'g'ri aytmasdan, o'quvchini fikrlashga va qonuniyatni topishga undaydi.
+  * Redis kesh: Savol va xato javob kombinatsiyasi bo'yicha 7 kun (`604800` sek) keshlanadi, server yuklamasi va API xarajatlari kamaytiriladi.
+  * Biologiya, kimyo, huquq, ona tili va ingliz tili uchun o'ziga xos fallback tahlillar integratsiya qilindi.
+  * UI: `QuestionReview.tsx` da `[🧠 Nega xato qildim? (AI)]` tugmasi, glassmorphic oyna va nur taratuvchi skeleton/shimmer loader.
+- [x] 4-Vazifa: Interaktiv Streak (Olovli Zanjir) va Gamifikatsiya (`apps/accounts/gamification.py`, `apps/tests/views.py`, `frontend/src/components/StreakBadge.tsx`, `frontend/src/components/Layout.tsx`, `frontend/src/pages/Dashboard.tsx`):
+  * Backend: `get_user_streak_info` so'nggi 7 kunlik faollik xaritasi (`week_days`) va bosqichlar (`milestones`: 7 kun, 30 kun) bilan boyitildi.
+  * Test topshirilganda `SubmitAttemptView` orqali ball va yangilangan streak qaytariladi, yangi streak rekordi bo'lsa `StreakCelebrationModal` orqali konfeti otiladi.
+  * UI: Olovli qizil-to'q sariq gradient (`🔥 {days} kun`) yoki bugun test ishlanmagan bo'lsa muzdek havorang (`❄️ {days} kun - bugun test yeching!`).
+  * Modal: Bosilganda 7 kunlik kalendar, kunlik nishonlar, bosqichlar va muzlatish qalqonlari soni ko'rsatiladi.
+- [x] 5-Vazifa: QA Avtomatlashtirish va Sinovlar:
+  * `pytest tests/test_tma_pwa_deepseek_streak.py -v`: 7/7 test 100% PASS (23.90s).
+  * Regressiya testlari (`test_interactive_results_and_tg_sync.py`, `test_branches_and_group_management.py`): 10/10 test 100% PASS (21.76s).
+  * `npm --prefix frontend run build`: 0 xato bilan 1.01s da build qilindi.
+
 ### 2.86. Rasmiy Versiya v2.3.0: Interactive Result Sharing, Telegram Group Sync & Production Deploy (Stage 3/3)
 - [x] 1-Vazifa: Interaktiv Natijalar va Ulashish Kartasi (Viral Share & Mobile UX) (`apps/results/serializers.py`, `apps/results/views.py`, `apps/results/urls.py`, `Results.tsx`, `TestAddictiveResults.tsx`, `ScoreCardModal.tsx`):
   * Fan xususiyatiga mos chuqurlashtirilgan tahlil (`subject_analysis`):

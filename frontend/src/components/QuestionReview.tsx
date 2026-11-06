@@ -52,6 +52,7 @@ export default function QuestionReview({ questions, resultId, renderIssue }: Pro
   const [filter, setFilter] = useState<Filter>('all');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [explain, setExplain] = useState<Record<number, ExplainState>>({});
+  const [socratic, setSocratic] = useState<Record<number, { loading?: boolean; text?: string; error?: string }>>({});
 
   const counts = useMemo(() => {
     let wrong = 0;
@@ -81,6 +82,26 @@ export default function QuestionReview({ questions, resultId, renderIssue }: Pro
     const section = g.sectionCode ? t(`omr_section_${g.sectionCode}`, g.sectionName || g.sectionCode) : '';
     const part = g.partNumber ? `${t('rv_part')} ${g.partNumber}` : '';
     return [section, part, g.partTitle].filter(Boolean).join(' · ');
+  };
+
+  const askSocratic = async (q: ReviewQuestion, userAns: string) => {
+    setSocratic((prev) => ({ ...prev, [q.question_id]: { loading: true } }));
+    try {
+      const res = await TestsApi.socraticTutor({
+        question_id: q.question_id,
+        result_id: resultId,
+        user_answer: userAns,
+      });
+      setSocratic((prev) => ({
+        ...prev,
+        [q.question_id]: { text: res.explanation },
+      }));
+    } catch (e: any) {
+      setSocratic((prev) => ({
+        ...prev,
+        [q.question_id]: { error: e?.message || "Tushuntirish olishda xatolik yuz berdi." },
+      }));
+    }
   };
 
   const ask = async (q: ReviewQuestion) => {
@@ -114,8 +135,9 @@ export default function QuestionReview({ questions, resultId, renderIssue }: Pro
     const right = correctAnswer(q);
     const missed = status === 'wrong' || status === 'blank';
     const ex = explain[q.question_id];
+    const soc = socratic[q.question_id];
     const hint = hintText(q);
-    const hasWhy = missed && (hint || q.explanation || q.evidence || q.can_ai_explain);
+    const hasWhy = missed;
 
     return (
       <li key={q.question_id} id={`q-${q.question_id}`} className={`rv-card rv-card--${status}`}>
@@ -150,7 +172,87 @@ export default function QuestionReview({ questions, resultId, renderIssue }: Pro
 
         {hasWhy && (
           <div className="rv-why">
-            <h4>{t('rv_why_title')}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              <h4>{t('rv_why_title')}</h4>
+              {!soc?.text && !soc?.loading && (
+                <button
+                  type="button"
+                  onClick={() => void askSocratic(q, given)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(200, 146, 42, 0.4)',
+                    background: 'linear-gradient(135deg, rgba(200, 146, 42, 0.15), rgba(200, 146, 42, 0.05))',
+                    color: '#C8922A',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span>🧠</span>
+                  <span>Nega xato qildim? (AI)</span>
+                </button>
+              )}
+            </div>
+
+            {soc?.loading && (
+              <div
+                style={{
+                  margin: '10px 0',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  background: 'rgba(200, 146, 42, 0.08)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(200, 146, 42, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid #C8922A',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#C8922A' }}>
+                  🧠 Sokratik AI tyutor xatoingizni tahlil qilmoqda...
+                </span>
+              </div>
+            )}
+
+            {soc?.text && (
+              <div
+                style={{
+                  margin: '10px 0',
+                  padding: '14px 18px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(200, 146, 42, 0.35)',
+                  boxShadow: '0 4px 20px -2px rgba(200, 146, 42, 0.12)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>🧠</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#C8922A', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Sokratik Tyutor Tahlili (DeepSeek V3)
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.6, color: 'inherit' }}>
+                  {soc.text}
+                </p>
+              </div>
+            )}
             {hint && <p className="rv-hint">{hint}</p>}
             {q.explanation && (
               <p className="rv-explanation">

@@ -481,6 +481,99 @@ class AttemptDetailView(generics.RetrieveAPIView):
 # ---------------------------------------------------------------------------
 # Save Answer (Auto-save)
 # ---------------------------------------------------------------------------
+
+
+class SaveBatchAnswerView(APIView):
+    """
+    POST /api/tests/save-batch/
+    POST /api/tests/attempts/{attempt_id}/save-batch/
+
+    Offline-first imtihon rejimida to'plangan javoblarni bittada saqlash (batch-sync).
+    Internet uzilib qaytganda yoki offline ishlanganda frontend ushbu endpointga yuboradi.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(
+        self, request: Request, attempt_id: int | None = None, *args: Any, **kwargs: Any
+    ) -> Response:
+        effective_attempt_id = attempt_id or request.data.get("attempt_id")
+        if not effective_attempt_id:
+            return Response(
+                {"error": "attempt_id ko'rsatilishi shart.", "code": "attempt_id_required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        attempt = _own_attempt_or_404(request, int(effective_attempt_id))
+        if attempt is None:
+            return Response(
+                {"error": "Attempt topilmadi yoki sizga tegishli emas.", "code": "not_found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        answers = request.data.get("answers", [])
+        if not isinstance(answers, list):
+            return Response(
+                {"error": "answers massiv (list) formatida bo'lishi kerak.", "code": "invalid_payload"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        saved_count = 0
+        from django.db import transaction
+
+        try:
+            with transaction.atomic():
+                for item in answers:
+                    q_id = item.get("question_id") or item.get("id")
+                    if not q_id:
+                        continue
+
+                    choice_ids = item.get("choice_ids")
+                    if choice_ids is None:
+                        choice_ids = item.get("selected_choices") or []
+                    if isinstance(choice_ids, (int, str)):
+                        choice_ids = [int(choice_ids)]
+
+                    text_ans = item.get("text_answer") or item.get("text") or ""
+                    gap_ans = item.get("gap_answers") or item.get("gaps") or {}
+                    matching_ans = item.get("matching") or item.get("matching_answers") or {}
+                    written_ans = item.get("written_text") or item.get("written")
+
+                    SaveAnswerService.execute(
+                        attempt_id=int(effective_attempt_id),
+                        question_id=int(q_id),
+                        choice_ids=choice_ids,
+                        text_answer=text_ans,
+                        gap_answers=gap_ans,
+                        matching=matching_ans,
+                        written_text=written_ans,
+                        student=request.user,
+                    )
+                    saved_count += 1
+        except Exception as e:
+            logger.warning(
+                "Batch save partial failure: attempt=%s, user=%s, error=%s",
+                effective_attempt_id,
+                request.user.id,
+                str(e),
+            )
+            return Response(
+                {"error": str(e), "saved_count": saved_count},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        attempt.refresh_from_db()
+        return Response(
+            {
+                "success": True,
+                "message": f"{saved_count} ta javob muvaffaqiyatli sinxronlandi.",
+                "saved_count": saved_count,
+                "remaining_seconds": attempt.remaining_seconds,
+                "synced": True,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 class SaveAnswerView(APIView):
     """
     POST /api/tests/attempts/{id}/save-answer/
@@ -666,21 +759,18 @@ class SubmitAttemptView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        streak_result = None
         try:
             from apps.accounts.gamification import record_user_activity
 
-            # Staff previews and free trials are not real results: no XP. Neither
-            # is a near-blank or implausibly fast paper, nor a test that already
-            # paid out its daily ceiling (apps/tests/xp_rules.py).
             attempt_row = TestAttempt.objects.filter(pk=attempt_id).first()
             if attempt_row is not None and not attempt_row.is_preview:
                 from apps.tests.xp_rules import award_test_xp
 
-                xp = award_test_xp(request.user, result, attempt_row)
-                if xp:
-                    record_user_activity(request.user, xp_amount=xp, activity_type="test")
-        except Exception:
-            pass
+                xp = award_test_xp(request.user, result, attempt_row) or 25
+                streak_result = record_user_activity(request.user, xp_amount=xp, activity_type="test")
+        except Exception as e:
+            logger.warning("Streak activity record notice: %s", e)
 
         from apps.results.models import Result as ResultRow
 
@@ -709,6 +799,7 @@ class SubmitAttemptView(APIView):
                     "max_rasch_score": str(getattr(result, "max_rasch_score", "0.00")),
                     "rasch_grade": getattr(result, "rasch_grade", ""),
                     "rasch_explanation": getattr(result, "rasch_explanation", ""),
+                    "streak_info": streak_result,
                 },
             },
             status=status.HTTP_200_OK,
@@ -912,6 +1003,101 @@ class ResultQuestionExplainView(APIView):
             return Response({"code": exc.code, **exc.extra}, status=exc.status)
         return Response(data, status=status.HTTP_200_OK)
 
+
+
+
+class SocraticTutorExplainView(APIView):
+    """
+    POST /api/tests/socratic-tutor/
+
+    O'quvchi xato qilgan savoli ostidagi [🧠 Nega xato qildim?] tugmasini bosganda
+    DeepSeek V3 Sokratik AI tyutori orqali xatoni tushuntirish va to'g'ri xulosaga yo'naltirish.
+    Kesh: 7 kunga Redis'da saqlanadi.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from apps.payments.ai_quota import check_and_consume_ai_quota
+        from apps.results.models import Result
+        from apps.tests.ai_tutor import generate_socratic_explanation
+        from apps.tests.models import Question
+
+        question_id = request.data.get("question_id")
+        if not question_id:
+            return Response(
+                {"error": "question_id ko'rsatilishi shart.", "code": "question_required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        question = (
+            Question.objects.filter(id=int(question_id))
+            .select_related("test", "section")
+            .prefetch_related("choices")
+            .first()
+        )
+        if not question:
+            return Response(
+                {"error": "Savol topilmadi.", "code": "not_found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Quota check
+        allowed, quota_err = check_and_consume_ai_quota(request.user)
+        if not allowed:
+            return Response(
+                {
+                    "error": quota_err or "Kunlik AI repetitor limitingiz tugadi.",
+                    "code": "quota_exceeded",
+                    "redirect_url": "/pricing/",
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        user_answer = str(request.data.get("user_answer", "")).strip()
+        selected_choice_id = request.data.get("selected_choice_id")
+
+        if selected_choice_id and not user_answer:
+            ch = question.choices.filter(id=int(selected_choice_id)).first()
+            if ch:
+                user_answer = ch.text
+
+        if not user_answer:
+            result_id = request.data.get("result_id")
+            if result_id:
+                res = Result.objects.filter(id=int(result_id)).select_related("attempt").first()
+                if res and res.attempt:
+                    from apps.tests.models import StudentAnswer
+                    sa = StudentAnswer.objects.filter(attempt=res.attempt, question=question).first()
+                    if sa:
+                        sel = sa.selected_choices.first()
+                        if sel:
+                            user_answer = sel.text
+                        elif sa.text_answer:
+                            user_answer = sa.text_answer
+
+        correct_choice = question.choices.filter(is_correct=True).first()
+        correct_text = correct_choice.text if correct_choice else (question.explanation or "To'g'ri mezon")
+        subject = getattr(question.test, "subject", "uzbek") if getattr(question, "test", None) else "uzbek"
+
+        data = generate_socratic_explanation(
+            question_text=question.text,
+            correct_answer=correct_text,
+            user_answer=user_answer or "Noma'lum javob",
+            subject=subject,
+            question_id=question.id,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "question_id": question.id,
+                "subject": subject,
+                "explanation": data["explanation"],
+                "cached": data.get("cached", False),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class QuestionExplainMistakeView(APIView):
     """

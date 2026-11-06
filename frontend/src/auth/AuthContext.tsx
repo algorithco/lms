@@ -20,6 +20,7 @@ import {
 } from '../lib/api';
 import type { AuthUser, TokenPair } from '../lib/api';
 import { storeLang } from '../i18n/LangContext';
+import { initTelegramWebApp } from '../pages/tma/telegram';
 
 interface AuthState {
   user: AuthUser | null;
@@ -97,7 +98,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Also check URL parameters for OAuth redirect tokens (?access=...&refresh=...)
   // and fallback to active Django session.
   useEffect(() => {
+    // 1. Initialize Telegram WebApp viewport and settings if opened inside Telegram
+    const tma = initTelegramWebApp();
+    const tmaInitData = tma?.initData || (typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : '');
     const params = new URLSearchParams(window.location.search);
+    const startParam = tma?.initDataUnsafe?.start_param || params.get('tgWebAppStartParam') || '';
+
+    const handleDeepLink = (sp: string) => {
+      if (!sp) return;
+      if (sp.startsWith('test_')) {
+        const testId = sp.replace('test_', '');
+        if (testId && !window.location.pathname.includes(`/take-test/${testId}`)) {
+          window.location.assign(`/take-test/${testId}`);
+        }
+      } else if (sp.startsWith('group_')) {
+        const groupCode = sp.replace('group_', '');
+        if (groupCode) window.location.assign(`/groups/${groupCode}`);
+      }
+    };
+
+    // 2. Zero-friction Telegram Mini App authentication if within Telegram
+    if (tmaInitData && !getTokens().access) {
+      setLoading(true);
+      fetch('/api/v1/auth/telegram-webapp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ init_data: tmaInitData }),
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error('TMA auth failed');
+          return res.json();
+        })
+        .then((data) => {
+          if (data.success && data.tokens) {
+            setTokens(data.tokens.access, data.tokens.refresh);
+            const resolved = normalizeUser(data.user);
+            setUser(resolved);
+            adoptServerLang(resolved.language);
+            syncFromMe(setUser);
+            const targetParam = data.start_param || startParam;
+            if (targetParam) {
+              handleDeepLink(targetParam);
+            } else if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+              window.location.assign('/dashboard');
+            }
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => setLoading(false));
+      return;
+    }
+
     const oauthAccess = params.get('access');
     const oauthRefresh = params.get('refresh');
 
@@ -143,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((u) => {
         setUser(u);
         adoptServerLang(u.language);
+        if (startParam) handleDeepLink(startParam);
       })
       .catch((e) => {
         setUser(null);
