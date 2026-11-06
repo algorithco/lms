@@ -118,8 +118,9 @@ class CenterBranch(models.Model):
         _("Filial kodi"),
         max_length=30,
         unique=True,
-        db_index=True,
+        null=True,
         blank=True,
+        db_index=True,
         help_text=_("Masalan: SAM-01, REG-01, TAS-02"),
     )
     region = models.CharField(_("Hudud / Viloyat"), max_length=100, blank=True, default="")

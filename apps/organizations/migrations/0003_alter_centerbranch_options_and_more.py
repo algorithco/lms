@@ -5,6 +5,18 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def populate_branch_codes(apps, schema_editor):
+    CenterBranch = apps.get_model('organizations', 'CenterBranch')
+    import secrets
+    for branch in CenterBranch.objects.all():
+        if not branch.branch_code:
+            candidate = f"BR-{secrets.token_hex(2).upper()}"
+            while CenterBranch.objects.filter(branch_code=candidate).exists():
+                candidate = f"BR-{secrets.token_hex(2).upper()}"
+            branch.branch_code = candidate
+            branch.save(update_fields=['branch_code'])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -24,8 +36,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='centerbranch',
             name='branch_code',
-            field=models.CharField(blank=True, db_index=True, help_text='Masalan: SAM-01, REG-01, TAS-02', max_length=30, unique=True, verbose_name='Filial kodi'),
+            field=models.CharField(blank=True, null=True, db_index=True, help_text='Masalan: SAM-01, REG-01, TAS-02', max_length=30, unique=True, verbose_name='Filial kodi'),
         ),
+        migrations.RunPython(populate_branch_codes, migrations.RunPython.noop),
         migrations.AddField(
             model_name='centerbranch',
             name='director',
