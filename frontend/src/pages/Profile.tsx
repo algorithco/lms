@@ -538,6 +538,28 @@ export default function Profile() {
             </Link>
 
             <Link
+              to="/panel/branches"
+              className="btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background: '#c8922a',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(200, 146, 42, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🏛</span>
+              <span>{t('admin_btn_branches', "Kursxonalar va Filiallarni Boshqarish")}</span>
+            </Link>
+
+            <Link
               to="/panel/tuition"
               className="btn"
               style={{

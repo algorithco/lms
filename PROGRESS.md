@@ -9,6 +9,31 @@
    - Ustoz kabinetida har bir o'quvchining PRO holati (`⭐ PRO (Faol)`), ishlagan testlari va esselari aks etishi.
 3. Attestatsiya 2026 yangi diagnostika testini 50 ta savoli bilan bazaga seed qilish, kategoriyalashtirish va VPS ga deploy qilish.
 
+### 2.85. Rasmiy Versiya v2.2.0: Educational Center (Filial / Kursxona), Teachers & Group Management (Stage 2/3)
+- [x] 1-Vazifa: Filial (Kursxona / O'quv Markazi) Modeli va Boshqaruvi (`apps/organizations/models.py`, `apps/courses/models.py`, `apps/webapi/views_branches.py`, `PanelBranches.tsx`, `PanelTeachers.tsx`):
+  * `CenterBranch` (va `Branch` alias) modeli boyitildi:
+    - `name`, `branch_code` (unikal: SAM-01, TAS-01, BUX-01), `region`, `address`, `phone`, `telegram_channel`, `director` (FK User), `subjects_offered`, `max_teachers_limit`, `max_students_limit`, `is_active`
+    - Dinamik hisob-kitob xususiyatlari: `teachers_count`, `students_count`, `groups_count`, `avg_performance`
+  * `StudentGroup` modeliga `branch = ForeignKey(CenterBranch)` qo'shildi va `invite_code` avto-generatori fan bo'yicha maxsus prefikslarga (`BIO-xxx`, `KIM-xxx`, `HUQ-xxx`, `ONA-xxx`, `ENG-xxx`) moslashtirildi.
+  * Migratsiyalar: `organizations.0003`, `courses.0013` muvaffaqiyatli qo'llandi.
+  * Filiallar boshqaruv paneli (`/panel/branches`, `PanelBranches.tsx`):
+    - Filiallar statistik kartalari, hudud va kod bo'yicha qidiruv, fanlar nishonlari, yangi filial ochish va tahrirlash modali.
+  * Ustozlar boshqaruv paneli (`/panel/teachers`, `PanelTeachers.tsx`):
+    - Ustozlarni filial va fanlarga (`biology`, `chemistry`, `law`, `uzbek`, `english`) biriktirish, `can_create_test` va `can_create_essay_topic` ruxsatlarini boshqarish.
+  * `seed_branches_and_groups.py`: Samarqand Markaziy Filiali (`SAM-01`), Toshkent Chilonzor Filiali (`TAS-01`) va Registon Buxoro Filiali (`BUX-01`) hamda guruhlar (`BIO-104`, `KIM-205`, `HUQ-301`) bazaga seed qilindi.
+- [x] 2-Vazifa: O'quvchining Filial, Fan va Guruhga Qo'shilishi hamda Jonli Guruh Muhiti (`JoinGroup.tsx`, `StudentGroupDetail.tsx`, `/groups/:groupId`):
+  * `JoinGroup.tsx` 2 xil qulay mobil usulga moslashtirildi:
+    - 1-usul: 6 xonali Guruh kodi (`BIO-104`, `KIM-205`, `HUQ-301`) kiritilganda guruh, kursxona va ustoz ma'lumotlarini preview qilib, 1 klikda guruhga qo'shish.
+    - 2-usul: Ochiq Kursxonalar katalogi (`/api/v1/school/branches/catalog/`) orqali hudud, filial va fanni tanlab to'g'ridan-to'g'ri kirish.
+    - O'quvchi guruhga qo'shilishi bilanoq `user.branch` avtomatik yangilanadi va uning profiliga PRO tarifi biriktiriladi.
+  * Guruh ichidagi jonli muhit (`/groups/:groupId`, `StudentGroupDetail.tsx`):
+    - Kursxona nomi, kodi, hududi va Ustoz profili (Fani, mutaxassislik toifasi, telefon raqami).
+    - Faol Uy Vazifasi Testlari (`Assigned Tests`): test holati (yakunlangan bo'lsa ball/foiz/daraja, yangi bo'lsa `[Testni Boshlash →]`).
+    - Jonli Guruh Reytingi (**Live Group Leaderboard**): 🥇 1-o'rin, 🥈 2-o'rin, 🥉 3-o'rin medallari, o'quvchilar ballari, BMB darajasi, joriy o'quvchining o'z o'rni ajratib ko'rsatilishi.
+- [x] 3-Vazifa: QA Testlar va Build Verifikatsiyasi:
+  * `pytest tests/test_branches_and_group_management.py tests/test_science_and_law_engine.py -v`: 12/12 test 100% PASS (45.40s).
+  * `npm --prefix frontend run build` (`tsc -b && vite build`): 0 xato bilan 3.17s da muvaffaqiyatli qurildi.
+
 ### 2.84. Rasmiy Versiya v2.1.0: Multi-Subject Exam Engine (Biologiya, Kimyo, Huquq) & Teacher Builder (Stage 1/3)
 - [x] 1-Vazifa: Biologiya, Kimyo va Huquq Fanlarini Butun Sayt Bo'ylab Faollashtirish (`apps/tests/models.py`, `apps/accounts/models.py`, `apps/courses/models.py`, `SubjectSwitcher.tsx`, `Dashboard.tsx`, `Tests.tsx`):
   * `Subject.SlugChoices`, `Test.subject`, `Profile.SubjectChoice` modellariga yangi fanlar qo'shildi:

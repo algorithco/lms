@@ -261,6 +261,14 @@ class StudentGroup(models.Model):
         related_name="managed_groups",
         verbose_name=_("o'qituvchi"),
     )
+    branch = models.ForeignKey(
+        "organizations.CenterBranch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="groups",
+        verbose_name=_("filial / kursxona"),
+    )
     subject = models.CharField(
         _("fan / yo'nalish"),
         max_length=20,
@@ -331,7 +339,15 @@ class StudentGroup(models.Model):
         import secrets
 
         if not self.invite_code:
-            self.invite_code = f"GR-{secrets.token_hex(3).upper()}"
+            prefix_map = {
+                "biology": "BIO",
+                "chemistry": "KIM",
+                "law": "HUQ",
+                "english": "ENG",
+                "uzbek": "ONA",
+            }
+            prefix = prefix_map.get(self.subject, "GR")
+            self.invite_code = f"{prefix}-{secrets.token_hex(2).upper()}"
         if not self.invite_token:
             self.invite_token = generate_invite_token()
         super().save(*args, **kwargs)

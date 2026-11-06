@@ -435,6 +435,8 @@ class StudentGroupSerializer(serializers.ModelSerializer):
     student_count = serializers.IntegerField(read_only=True)
     students = GroupMemberSerializer(many=True, read_only=True)
     group_code = serializers.CharField(source="invite_code", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True, default=None)
+    branch_code = serializers.CharField(source="branch.branch_code", read_only=True, default=None)
 
     class Meta:
         model = StudentGroup
@@ -445,6 +447,9 @@ class StudentGroupSerializer(serializers.ModelSerializer):
             "subject",
             "teacher",
             "teacher_name",
+            "branch",
+            "branch_name",
+            "branch_code",
             "invite_code",
             "group_code",
             "invite_token",
