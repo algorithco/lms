@@ -565,8 +565,6 @@ def generate_group_vedomost_pdf(group_id: int, test_id: int | None = None) -> st
         if participated_count > 0
         else Decimal("0.00")
     )
-    passed_count = sum(1 for att in student_attempt_map.values() if att.is_passed)
-    pass_rate = round((passed_count / participated_count * 100), 1) if participated_count > 0 else 0.0
 
     branch = getattr(group, "branch", None)
     branch_title = branch.name if branch else "Grand Education Bosh Filiali"

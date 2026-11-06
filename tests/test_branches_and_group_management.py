@@ -94,7 +94,6 @@ def test_branch_creation_and_listing(api_client, admin_user, center):
     res = api_client.post("/api/v1/panel/branches/", payload, format="json")
     assert res.status_code == 201
     assert res.data["success"] is True
-    branch_id = res.data["branch"]["id"]
     assert res.data["branch"]["branch_code"] == "SAM-01"
 
     # 2. List Branches
@@ -208,7 +207,7 @@ def test_student_group_detail_view_and_live_leaderboard(api_client, student_user
         teacher=teacher_user,
         subject="law",
     )
-    test = Test.objects.create(
+    Test.objects.create(
         course=course,
         title="Huquq Konstitutsiya 1-Modul",
         subject="law",
