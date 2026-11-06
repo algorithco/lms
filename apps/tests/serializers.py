@@ -900,6 +900,25 @@ class SaveAnswerSerializer(serializers.Serializer):
         default="",
         help_text="WRITTEN qoralama matni (uzun; autosave).",
     )
+    a_answer = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=200,
+        help_text="DUAL_OPEN_CALC a-qism javobi",
+    )
+    b_answer = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=200,
+        help_text="DUAL_OPEN_CALC b-qism javobi",
+    )
+    matrix_answers = serializers.DictField(
+        required=False,
+        default=dict,
+        help_text="MATCHING_MATRIX javoblari {'1': 'A', '2': 'C', '3': 'D'}",
+    )
 
     def validate(self, attrs):
         choice_ids = list(attrs.get("choice_ids") or [])
@@ -907,6 +926,17 @@ class SaveAnswerSerializer(serializers.Serializer):
         if single_opt and single_opt not in choice_ids:
             choice_ids.append(single_opt)
         attrs["choice_ids"] = choice_ids
+
+        # Combine a_answer and b_answer if supplied for DUAL_OPEN_CALC
+        a_ans = str(attrs.get("a_answer") or "").strip()
+        b_ans = str(attrs.get("b_answer") or "").strip()
+        if (a_ans or b_ans) and not attrs.get("text_answer"):
+            attrs["text_answer"] = f"{a_ans}|{b_ans}"
+
+        # Combine matrix_answers if supplied for MATCHING_MATRIX
+        matrix = attrs.get("matrix_answers")
+        if matrix and isinstance(matrix, dict) and not attrs.get("text_answer"):
+            attrs["text_answer"] = ", ".join(f"{k}-{v}" for k, v in sorted(matrix.items()))
         return attrs
 
     def validate_choice_ids(self, value: list[int]) -> list[int]:

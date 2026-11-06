@@ -35,11 +35,19 @@ function getStoredPlan(): Record<string, unknown> {
 function resolveTrackBadge(userExamTarget?: string, storedPlan?: Record<string, unknown>, subject?: string): string {
   const target = String(userExamTarget || storedPlan?.target_exam || storedPlan?.exam_target || storedPlan?.target || '');
   const sub = String(storedPlan?.sub_subject || '');
-  if (target === 'milliy_sertifikat' || target === 'national_certificate') return '🇺🇿 Milliy Sertifikat';
+  if (target === 'milliy_sertifikat' || target === 'national_certificate') {
+    if (subject === 'biology') return '🧬 Biologiya (Milliy sertifikat & DTM)';
+    if (subject === 'chemistry') return '🧪 Kimyo (Milliy sertifikat & DTM)';
+    if (subject === 'law') return '⚖️ Huquqshunoslik (Yurisprudensiya)';
+    return '🇺🇿 Milliy Sertifikat';
+  }
   if (target === 'cefr' || target === 'multilevel') return '🇬🇧 CEFR Multi-level';
   if (target === 'ielts') return '🎓 IELTS Academic';
   if (target === 'attestatsiya' || target === 'attestation') return '📜 Attestatsiya 2026';
   if (target === 'other') return sub ? `📚 ${sub}` : '📚 Umumiy fanlar';
+  if (subject === 'biology') return '🧬 Biologiya (Milliy sertifikat & DTM)';
+  if (subject === 'chemistry') return '🧪 Kimyo (Milliy sertifikat & DTM)';
+  if (subject === 'law') return '⚖️ Huquqshunoslik (Yurisprudensiya)';
   return subject === 'english' ? '🇬🇧 Ingliz tili (CEFR / IELTS)' : '🇺🇿 Ona tili (Milliy sertifikat)';
 }
 
@@ -218,7 +226,7 @@ export default function Dashboard() {
             {t('dsh_hello')} {name}
           </h1>
           <div className="dsh-head__meta">
-            <span className="dsh-subject">{t(subject === 'english' ? 'subject_english' : 'subject_uzbek')}</span>
+            <span className="dsh-subject">{t(`subject_${subject}`) || subject}</span>
             <PlanBadge variant="chip" />
           </div>
         </div>

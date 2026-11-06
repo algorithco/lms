@@ -4,6 +4,7 @@ Results app URL configuration.
 Endpoints:
     GET /api/results/my-results/      — O'quvchining barcha natijalari
     GET /api/results/{id}/detail/     — Natija tafsilotlari
+    GET /api/results/{id}/pdf/        — Natija vedomosti / scorecard PDF
     GET /api/results/stats/           — Umumiy statistika
 """
 
@@ -28,5 +29,10 @@ urlpatterns = [
         "<int:pk>/detail/",
         views.ResultDetailView.as_view(),
         name="result-detail",
+    ),
+    path(
+        "<int:pk>/pdf/",
+        views.ResultVedomostPdfView.as_view(),
+        name="result-pdf",
     ),
 ]

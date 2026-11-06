@@ -1,3 +1,57 @@
+const SAMPLE_BIO = `1. O'simlik hujayrasi qobig'i qaysi moddadan tuzilgan?
+*A) Sellyuloza
+B) Xitin
+C) Murein
+D) Glikogen
+
+2. Odam organizmida qon aylanishining katta doirasi qayerdan boshlanadi?
+A) O'ng qorinchadan
+*B) Chap qorinchadan
+C) O'ng bo'lmadan
+D) Chap bo'lmadan
+
+3. Monogibrid chatishtirishda F2 bo'g'inda fenotip bo'yicha ajralish nisbati qanday bo'ladi?
+*A) 3:1
+B) 1:2:1
+C) 9:3:3:1
+D) 1:1`;
+
+const SAMPLE_CHEM = `1. Sulfat kislota (H2SO4) dagi oltingugurtning oksidlanish darajasini toping.
+A) +4
+*B) +6
+C) -2
+D) +2
+
+2. Quyidagi birikmalardan qaysi biri aldegidlarga mansub?
+A) CH3-COOH
+*B) CH3-CHO
+C) C2H5-OH
+D) CH3-O-CH3
+
+3. 200 g 10% li osh tuzi eritmasida necha gramm tuz erigan?
+A) 10 g
+*B) 20 g
+C) 30 g
+D) 40 g`;
+
+const SAMPLE_LAW = `1. O'zbekiston Respublikasining Konstitutsiyasiga muvofiq, davlat hokimiyatining birdan-bir manbai kim?
+*A) Xalq
+B) Oliy Majlis
+C) Prezident
+D) Vazirlar Mahkamasi
+
+2. Fuqarolik muomala layoqati to'liq hajmda qaysi yoshdan boshlab vujudga keladi?
+A) 14 yoshdan
+B) 16 yoshdan
+*C) 18 yoshdan
+D) 21 yoshdan
+
+3. Mehnat kodeksiga ko'ra, xodim uchun haftalik ish vaqtining normal muddati necha soatdan oshmasligi kerak?
+*A) 40 soatdan
+B) 36 soatdan
+C) 48 soatdan
+D) 35 soatdan`;
+
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -260,6 +314,12 @@ export default function SmartTestCreate() {
         setTitle(`Milliy Sertifikat — ${res.questions.length} talik BMB Diagnostika`);
       } else if (subject === 'english') {
         setTitle(`English CBT Mock — ${res.questions.length} Questions`);
+      } else if (subject === 'biology') {
+        setTitle(`Biologiya — ${res.questions.length} talik test`);
+      } else if (subject === 'chemistry') {
+        setTitle(`Kimyo — ${res.questions.length} talik test`);
+      } else if (subject === 'law') {
+        setTitle(`Huquqshunoslik — ${res.questions.length} talik test`);
       } else {
         setTitle(`Ona tili — ${res.questions.length} talik mavzulashtirilgan test`);
       }
@@ -742,6 +802,9 @@ export default function SmartTestCreate() {
               <option value="adabiyot">📚 Adabiyot (Tarixiy va badiiy asarlar)</option>
               <option value="milliy">🏛️ Milliy sertifikat (BMB Davlat standarti)</option>
               <option value="english">Ingliz tili (IELTS / CEFR Multi-level)</option>
+              <option value="biology">🧬 Biologiya (Milliy sertifikat & DTM)</option>
+              <option value="chemistry">🧪 Kimyo (Milliy sertifikat & DTM)</option>
+              <option value="law">⚖️ Huquqshunoslik (Yurisprudensiya & Konstitutsiya)</option>
             </select>
           </div>
 
@@ -1038,7 +1101,70 @@ export default function SmartTestCreate() {
                   cursor: 'pointer',
                 }}
               >
-                📋 5 talik English
+                📋 English
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubject('biology');
+                  setTitle('Biologiya — 3 talik namunaviy test');
+                  setRawText(SAMPLE_BIO);
+                }}
+                title="Biologiya testini namuna sifatida yuklash"
+                style={{
+                  background: '#F0FDF4',
+                  border: '1px solid #86EFAC',
+                  color: '#166534',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                🧬 Biologiya
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubject('chemistry');
+                  setTitle('Kimyo — 3 talik namunaviy test');
+                  setRawText(SAMPLE_CHEM);
+                }}
+                title="Kimyo testini namuna sifatida yuklash"
+                style={{
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  color: '#92400E',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                🧪 Kimyo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubject('law');
+                  setTitle('Huquqshunoslik — 3 talik namunaviy test');
+                  setRawText(SAMPLE_LAW);
+                }}
+                title="Huquq testini namuna sifatida yuklash"
+                style={{
+                  background: '#F3E8FF',
+                  border: '1px solid #D8B4FE',
+                  color: '#6B21A8',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                ⚖️ Huquq
               </button>
               <button
                 type="button"
@@ -1074,6 +1200,119 @@ export default function SmartTestCreate() {
           >
             <strong>💡 Format yo‘riqnomasi:</strong> Savol raqami (<code>1.</code>, <code>1)</code>), variantlar (<code>A)</code>, <code>B)</code> yoki <code>(A)</code>, <code>A.</code>). To‘g‘ri javobni variant oldiga <code>*</code> yoki <code>+</code> qo‘yib (masalan: <code>*A)</code>), yoki savol tagiga <code>Javob: B</code>, <code>Ans: C</code> deb yozing.
           </div>
+
+
+            {/* Quick Question Type Templates & Science Symbol Toolbar */}
+            <div style={{ marginTop: 12, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Question Templates */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Shablon qo\'shish:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextNum = questions.length + 1;
+                    const tmpl = `\n\n${nextNum}. Savol matni bu yerga yoziladi?\n*A) To\'g\'ri javob\nB) Noto\'g\'ri javob 1\nC) Noto\'g\'ri javob 2\nD) Noto\'g\'ri javob 3`;
+                    setRawText((prev) => (prev ? prev + tmpl : tmpl.trim()));
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #CBD5E1',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Oddiy test
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextNum = questions.length + 1;
+                    const tmpl = `\n\n${nextNum}. Moslashtirish topshirig\'i:\n1. Birinchi tushuncha\n2. Ikkinchi tushuncha\n3. Uchinchi tushuncha\nVariantlar:\nA) Ta\'rif A\nB) Ta\'rif B\nC) Ta\'rif C\nD) Ta\'rif D\nE) Ta\'rif E\nF) Ta\'rif F\nJavob: 1-A, 2-C, 3-D`;
+                    setRawText((prev) => (prev ? prev + tmpl : tmpl.trim()));
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #F59E0B',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    color: '#B45309',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + A-F Moslashtirish
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextNum = questions.length + 1;
+                    const tmpl = `\n\n${nextNum}. Masala matni bu yerga yoziladi:\na) birinchi qiymatni toping?\nb) ikkinchi qiymatni toping?\nJavob: 12.4|5.8`;
+                    setRawText((prev) => (prev ? prev + tmpl : tmpl.trim()));
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #10B981',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#047857',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + a/b Ochiq masala
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextNum = questions.length + 1;
+                    const tmpl = `\n\n${nextNum}. Huquqiy vaziyat (Kazus):\nFuqaro A fuqaro B bilan shartnoma tuzdi...\nSavol: Ushbu vaziyatda qonun bo\'yicha qanday chora ko\'riladi?\n*A) Shartnoma bekor qilinadi\nB) Zarar qoplanadi\nC) Jarima undiriladi\nD) Da\'vo rad etiladi`;
+                    setRawText((prev) => (prev ? prev + tmpl : tmpl.trim()));
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #8B5CF6',
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    color: '#6D28D9',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Huquqiy kazus
+                </button>
+              </div>
+
+              {/* Science & Math Symbol Toolbar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', background: '#F8FAFC', padding: '6px 8px', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', marginRight: 4 }}>Belgilar:</span>
+                {['₂', '₃', '₄', '⁺', '⁻', '²⁺', '³⁺', '²⁻', '→', '⇌', '°C', 'Δ', '≈', '≠'].map((sym) => (
+                  <button
+                    key={sym}
+                    type="button"
+                    onClick={() => setRawText((prev) => (prev || '') + sym)}
+                    style={{
+                      padding: '3px 7px',
+                      borderRadius: 5,
+                      border: '1px solid #CBD5E1',
+                      background: '#FFFFFF',
+                      color: '#0F172A',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
 
           <textarea
             value={rawText}

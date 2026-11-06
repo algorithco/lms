@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { useLang } from '../i18n/LangContext';
 import FeedbackPrompt from '../components/FeedbackPrompt';
+import FormulaText from '../components/FormulaText';
+import PeriodicTableModal from '../components/PeriodicTableModal';
 import { Tests as TestsApi } from '../lib/api';
 import AudioPlayerBar from '../components/AudioPlayerBar';
 import {
@@ -86,7 +88,10 @@ type QuestionType =
   | 'text'
   | 'gap_fill'
   | 'matching'
-  | 'written';
+  | 'written'
+  | 'matching_matrix'
+  | 'dual_open_calc'
+  | 'legal_case_study';
 
 interface Question {
   id: number;
@@ -179,6 +184,9 @@ function qtypeLabel(qtype: string, t: (k: string) => string): string {
   if (qtype === 'gap_fill') return t('take_gap_fill');
   if (qtype === 'matching') return t('take_matching');
   if (qtype === 'written') return t('take_written');
+  if (qtype === 'matching_matrix') return 'Moslashtirish matritsasi (33–35: 1, 2, 3 -> A–F)';
+  if (qtype === 'dual_open_calc') return 'Ikki qismli ochiq masala (36–45: a va b qism)';
+  if (qtype === 'legal_case_study') return 'Huquqiy kazus / situatsion tahlil';
   return t('take_text');
 }
 
@@ -186,7 +194,9 @@ function entryHasContent(q: Question, a: AnswerEntry): boolean {
   if (q.question_type === 'gap_fill') return Object.keys(a.gaps).length > 0;
   if (q.question_type === 'matching') return Object.keys(a.matching).length > 0;
   if (q.question_type === 'written') return a.written.trim().length > 0;
-  if (q.question_type === 'text') return a.text.trim().length > 0;
+  if (q.question_type === 'text' || q.question_type === 'dual_open_calc' || q.question_type === 'matching_matrix') {
+    return a.text.trim().length > 0;
+  }
   return a.choices.length > 0;
 }
 
@@ -243,6 +253,7 @@ export default function TakeTest() {
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [singleMode, setSingleMode] = useState(true);
+  const [showPeriodicModal, setShowPeriodicModal] = useState(false);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [flagged, setFlagged] = useState<Record<number, boolean>>({});
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -888,8 +899,29 @@ export default function TakeTest() {
             </div>
           </div>
 
+          {q.question_type === 'legal_case_study' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: 'rgba(234, 179, 8, 0.15)',
+                border: '1px solid rgba(234, 179, 8, 0.4)',
+                color: '#facc15',
+                fontSize: 12,
+                fontWeight: 800,
+                marginBottom: 8,
+              }}
+            >
+              <span>⚖️</span>
+              <span>HUQUQIY KAZUS TAHLILI</span>
+            </div>
+          )}
+
           <p style={{ fontWeight: 700, fontSize: isSingleView ? '1.12rem' : '1rem', lineHeight: 1.55, whiteSpace: 'pre-line' }}>
-            {q.text}
+            <FormulaText text={q.text} />
           </p>
 
           {q.question_type === 'text' ? (
@@ -974,6 +1006,195 @@ export default function TakeTest() {
                   placeholder={t('take_text_ph')}
                   style={{ width: '100%', marginTop: 8 }}
                 />
+              );
+            })()
+          ) : q.question_type === 'matching_matrix' ? (
+            <div
+              style={{
+                marginTop: 14,
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '14px 16px',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <p style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 700, color: '#f59e0b' }}>
+                Moslashtirish matritsasi (1, 2, 3 qatorlar uchun A–F variantlaridan tanlang):
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {['1', '2', '3'].map((rowNum) => {
+                  const parseMap: Record<string, string> = {};
+                  const parts = (a.text || '').replace(/\|/g, ',').split(',');
+                  for (const pt of parts) {
+                    if (pt.includes('-')) {
+                      const [r, col] = pt.split('-');
+                      if (r && col) parseMap[r.trim()] = col.trim().toUpperCase();
+                    } else if (pt.includes(':')) {
+                      const [r, col] = pt.split(':');
+                      if (r && col) parseMap[r.trim()] = col.trim().toUpperCase();
+                    }
+                  }
+                  const selectedCol = parseMap[rowNum];
+
+                  const onPickCol = (colLetter: string) => {
+                    const nextMap = { ...parseMap };
+                    if (nextMap[rowNum] === colLetter) {
+                      delete nextMap[rowNum];
+                    } else {
+                      nextMap[rowNum] = colLetter;
+                    }
+                    const serialized = Object.entries(nextMap)
+                      .sort(([k1], [k2]) => k1.localeCompare(k2))
+                      .map(([r, c]) => `${r}-${c}`)
+                      .join(', ');
+                    editText(q, serialized);
+                    if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                    timers.current[q.id] = setTimeout(() => {
+                      const updated = { ...(answers[q.id] ?? emptyEntry()), text: serialized };
+                      save(q, updated);
+                    }, 350);
+                  };
+
+                  return (
+                    <div
+                      key={rowNum}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        flexWrap: 'wrap',
+                        background: 'rgba(0, 0, 0, 0.22)',
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                      }}
+                    >
+                      <span style={{ fontWeight: 800, minWidth: 60, fontSize: 13.5, color: '#f59e0b' }}>
+                        {rowNum}-band:
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {['A', 'B', 'C', 'D', 'E', 'F'].map((col) => {
+                          const isSel = selectedCol === col;
+                          return (
+                            <button
+                              key={col}
+                              type="button"
+                              disabled={finished || submitting}
+                              onClick={() => onPickCol(col)}
+                              style={{
+                                minWidth: 38,
+                                height: 34,
+                                borderRadius: 8,
+                                border: isSel ? '2px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.12)',
+                                background: isSel ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                                color: isSel ? '#000' : 'inherit',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                boxShadow: isSel ? '0 0 10px rgba(245, 158, 11, 0.45)' : 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {col}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedCol && (
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#10b981', marginLeft: 6 }}>
+                          ✓ {rowNum} ➔ {selectedCol}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : q.question_type === 'dual_open_calc' ? (
+            (() => {
+              const parts = (a.text || '').split('|');
+              const partA = parts[0] || '';
+              const partB = parts[1] || '';
+
+              const handleDualChange = (newA: string, newB: string) => {
+                const combined = `${newA.trim()}|${newB.trim()}`;
+                editText(q, combined);
+                if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                timers.current[q.id] = setTimeout(() => {
+                  const updated = { ...(answers[q.id] ?? emptyEntry()), text: combined };
+                  save(q, updated);
+                }, 400);
+              };
+
+              return (
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 14,
+                    marginTop: 14,
+                    maxWidth: 580,
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    padding: '16px',
+                    borderRadius: 12,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <p style={{ margin: '0 0 4px 0', fontSize: 13, fontWeight: 700, color: '#f59e0b' }}>
+                    Ikki qismli masala javobi (har bir qism alohida baholanadi):
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f59e0b' }}>
+                      a) qism javobi:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={finished || submitting}
+                      value={partA}
+                      onChange={(e) => handleDualChange(e.target.value, partB)}
+                      onBlur={() => {
+                        if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                        const cur = answers[q.id] ?? emptyEntry();
+                        if (cur.text.trim()) save(q, cur);
+                      }}
+                      placeholder="Masalan: 12.4"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border, rgba(255,255,255,0.15))',
+                        background: 'var(--card, rgba(0,0,0,0.25))',
+                        color: 'var(--ink, #fff)',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f59e0b' }}>
+                      b) qism javobi:
+                    </label>
+                    <input
+                      type="text"
+                      disabled={finished || submitting}
+                      value={partB}
+                      onChange={(e) => handleDualChange(partA, e.target.value)}
+                      onBlur={() => {
+                        if (timers.current[q.id]) clearTimeout(timers.current[q.id]);
+                        const cur = answers[q.id] ?? emptyEntry();
+                        if (cur.text.trim()) save(q, cur);
+                      }}
+                      placeholder="Masalan: 5.8"
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border, rgba(255,255,255,0.15))',
+                        background: 'var(--card, rgba(0,0,0,0.25))',
+                        color: 'var(--ink, #fff)',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+                </div>
               );
             })()
           ) : q.question_type === 'gap_fill' ? (
@@ -1090,7 +1311,7 @@ export default function TakeTest() {
                         {on ? '✓' : letter}
                       </span>
                       <span style={{ fontWeight: on ? 600 : 400, flex: 1, wordBreak: 'break-word' }}>
-                        {c.text}
+                        <FormulaText text={c.text} />
                       </span>
                     </button>
                   );
@@ -1260,8 +1481,38 @@ export default function TakeTest() {
         />
       )}
 
+      {/* Chemistry Periodic Table Modal */}
+      <PeriodicTableModal
+        isOpen={showPeriodicModal}
+        onClose={() => setShowPeriodicModal(false)}
+      />
+
       {/* Mode switch, hotkey hints, quick finish button */}
       <div className="test-top-bar">
+        {(attempt.subject === 'chemistry' || (attempt.test_title || '').toLowerCase().includes('kimyo')) && (
+          <button
+            type="button"
+            onClick={() => setShowPeriodicModal(true)}
+            className="btn sm"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'rgba(245, 158, 11, 0.16)',
+              border: '1.5px solid #f59e0b',
+              color: '#f59e0b',
+              fontWeight: 800,
+              borderRadius: 8,
+              padding: '6px 14px',
+              cursor: 'pointer',
+              boxShadow: '0 0 10px rgba(245, 158, 11, 0.25)',
+              marginRight: 6,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>🧪</span>
+            <span>Davriy jadval</span>
+          </button>
+        )}
         <div className="test-mode-switch" role="tablist">
           <button
             type="button"

@@ -170,6 +170,90 @@ ENGLISH_TOPIC_KEYWORDS = {
 }
 
 
+BIOLOGY_TOPIC_KEYWORDS = {
+    "Sitologiya va hujayra": [
+        "hujayra", "sitologiya", "membrana", "mitoxondriya", "xloroplast", "ribosoma",
+        "dnk", "rnk", "yadro", "sitoplazma", "organoid", "mitoz", "meyoz", "prokariot",
+        "eukariot", "endoplazmatik", "lizosoma", "golji"
+    ],
+    "Genetika va selektsiya": [
+        "genetika", "gen", "allel", "genotip", "fenotip", "dominant", "retsessiv",
+        "monogibrid", "digibrid", "mendel", "xromosoma", "mutatsiya", "duragay",
+        "seleksiya", "irsiyat", "o'zgaruvchanlik", "chatishtirish"
+    ],
+    "Odam anatomiyasi": [
+        "anatomiya", "fiziologiya", "yurak", "qon", "tomir", "o'pka", "buyrak", "jigar",
+        "asab", "nerv", "suyak", "mushak", "gormon", "oshqozon", "hazm", "sezgi",
+        "immun", "refleks", "nafas", "ayirish"
+    ],
+    "Botanika va zoologiya": [
+        "botanika", "zoologiya", "o'simlik", "hayvon", "ildiz", "poya", "barg", "gul",
+        "urug'", "umurtqasiz", "umurtqali", "hasharot", "qush", "sudralib", "baliq",
+        "sutemizuvchi", "sporali", "gulli", "to'qima"
+    ],
+    "Ekologiya va evolyutsiya": [
+        "ekologiya", "evolyutsiya", "populyatsiya", "biotsenoz", "ekotizim", "biosfera",
+        "moslashish", "darvin", "omillar", "abiotik", "biotik", "antropogen", "trofik",
+        "oziq zanjiri", "tabiiy tanlanish", "tur"
+    ],
+}
+
+CHEMISTRY_TOPIC_KEYWORDS = {
+    "Umumiy va anorganik kimyo": [
+        "anorganik", "davriy", "element", "atom", "molekula", "oksid", "asos", "kislota",
+        "tuz", "metall", "metallmas", "bog'", "kristall", "panjara", "valentlik",
+        "massa ulush", "davr", "guruh", "kimyoviy bog'"
+    ],
+    "Organik kimyo": [
+        "organik", "uglevodorod", "alkan", "alken", "alkin", "dien", "aren", "benzol",
+        "spirt", "aldegid", "keton", "karbon", "efir", "amin", "oqsil", "uglevod",
+        "polimer", "izomer", "gomolog", "monomer"
+    ],
+    "Stexiometriya va eritmalar": [
+        "stexiometriya", "eritma", "molyar", "konsentratsiya", "eruvchanlik", "molyallik",
+        "massa", "hajm", "gaz", "normal sharoit", "avogadro", "zichlik", "qotishma",
+        "aralashma", "mol", "litr", "gramm"
+    ],
+    "Oksidlanish-qaytarilish": [
+        "oksidlanish", "qaytarilish", "oksidlovchi", "qaytaruvchi", "elektron balans",
+        "oqr", "oksidlanish darajasi", "yarim reaksiya", "tiklanish"
+    ],
+    "Elektroliz va kimyoviy kinetika": [
+        "elektroliz", "katod", "anod", "kinetika", "tezlik", "muvozanat", "katalizator",
+        "aktivlanish", "faradey", "le shatelye", "dissotsiatsiya", "gidroliz", "ph",
+        "elektrolit", "ion"
+    ],
+}
+
+LAW_TOPIC_KEYWORDS = {
+    "Konstitutsiyaviy huquq": [
+        "konstitutsiya", "konstitutsiyaviy", "modda", "fuqaro", "inson huquqlari",
+        "saylov", "parlament", "oliy majlis", "prezident", "vazirlar mahkamasi",
+        "hokimiyat", "suverenitet", "demokratiya", "qonunchilik"
+    ],
+    "Davlat va huquq nazariyasi": [
+        "davlat nazariyasi", "huquq nazariyasi", "huquqiy norma", "huquq tizimi",
+        "huquqbuzarlik", "yuridik javobgarlik", "huquqiy ong", "manba", "pretsedent",
+        "sanksiya", "gipoteza", "dispozitsiya", "davlat shakli"
+    ],
+    "Fuqarolik va oila huquqi": [
+        "fuqarolik", "bitim", "shartnoma", "mulk", "meros", "majburiyat", "zarar",
+        "oila", "nikoh", "er-xotin", "aliment", "ota-ona", "vasiylik", "homiylik",
+        "mulkiy munosabat", "mulk huquqi"
+    ],
+    "Jinoyat va ma'muriy huquq": [
+        "jinoyat", "jinoyat kodeksi", "jazo", "ayb", "qasddan", "ehtiyotsizlik",
+        "ma'muriy", "jarima", "huquqbuzarlik", "javobgarlik", "tergov", "sud",
+        "prokuror", "advokat", "ish", "jinoiy"
+    ],
+    "Mehnat va xalqaro huquq": [
+        "mehnat", "mehnat shartnomasi", "xodim", "ish beruvchi", "ish vaqti",
+        "dam olish", "ish haqi", "mehnat nizolari", "xalqaro huquq", "konvensiya",
+        "shartnoma", "bmt", "xalqaro sud", "diplomatik"
+    ],
+}
+
+
 def _detect_question_topic(
     question_text: str,
     explanation: str = "",
@@ -178,11 +262,44 @@ def _detect_question_topic(
     section_name: str = "",
 ) -> str:
     """Savol matni, izohi va bo'limiga qarab mavzuni aniqlaydi."""
+    subj_str = str(subject or "uzbek").strip().lower()
+    combined = f"{question_text} {explanation}".lower()
+
+    if subj_str == "biology" or "bio" in subj_str:
+        scores: dict[str, int] = {}
+        for topic, words in BIOLOGY_TOPIC_KEYWORDS.items():
+            score = sum(1 for w in words if w in combined)
+            if score > 0:
+                scores[topic] = score
+        if scores:
+            return max(scores.items(), key=lambda x: x[1])[0]
+        return "Sitologiya va hujayra"
+
+    if subj_str == "chemistry" or "chem" in subj_str or "kimyo" in subj_str:
+        scores: dict[str, int] = {}
+        for topic, words in CHEMISTRY_TOPIC_KEYWORDS.items():
+            score = sum(1 for w in words if w in combined)
+            if score > 0:
+                scores[topic] = score
+        if scores:
+            return max(scores.items(), key=lambda x: x[1])[0]
+        return "Umumiy va anorganik kimyo"
+
+    if subj_str == "law" or "huquq" in subj_str or "yuris" in subj_str:
+        scores: dict[str, int] = {}
+        for topic, words in LAW_TOPIC_KEYWORDS.items():
+            score = sum(1 for w in words if w in combined)
+            if score > 0:
+                scores[topic] = score
+        if scores:
+            return max(scores.items(), key=lambda x: x[1])[0]
+        return "Konstitutsiyaviy huquq"
+
     is_eng = (
-        subject == "english"
-        or "english" in str(subject).lower()
-        or "ielts" in str(subject).lower()
-        or "cefr" in str(subject).lower()
+        subj_str == "english"
+        or "english" in subj_str
+        or "ielts" in subj_str
+        or "cefr" in subj_str
     )
 
     if is_eng:
@@ -198,7 +315,6 @@ def _detect_question_topic(
         if "VOCAB" in sec_str or "LEX" in sec_str:
             return "Vocabulary"
 
-        combined = f"{question_text} {explanation}".lower()
         scores: dict[str, int] = {}
         for topic, words in ENGLISH_TOPIC_KEYWORDS.items():
             score = sum(1 for w in words if w in combined)
@@ -217,7 +333,6 @@ def _detect_question_topic(
         return "Grammar"
 
     # Default: Uzbek Ona tili va adabiyot
-    combined = f"{question_text} {explanation}".lower()
     scores: dict[str, int] = {}
     for topic, words in TOPIC_KEYWORDS.items():
         score = sum(1 for w in words if w in combined)
@@ -226,7 +341,7 @@ def _detect_question_topic(
 
     if scores:
         return max(scores.items(), key=lambda x: x[1])[0]
-    return "Umumiy ona tili va adabiyot qoidalari" 
+    return "Umumiy ona tili va adabiyot qoidalari"
 
 
 def get_result_diagnostics(result_id: int) -> dict[str, Any]:

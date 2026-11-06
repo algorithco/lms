@@ -248,12 +248,33 @@ def generate_student_vedomost_pdf(attempt_id: int) -> str:
         group.teacher.get_full_name() if (group and group.teacher) else "Avtomatik tizim"
     )
 
+    branch = getattr(group, "branch", None) or getattr(student, "branch", None)
+    branch_title = branch.name if branch else "Grand Education Bosh Filiali"
+    if branch and getattr(branch, "branch_code", None):
+        branch_title += f" ({branch.branch_code})"
+
+    subject_slug = getattr(test, "subject", "uzbek")
+    subj_names = {
+        "biology": "Biologiya (Milliy sertifikat)",
+        "chemistry": "Kimyo (Milliy sertifikat)",
+        "law": "Huquqshunoslik (Yurisprudensiya)",
+        "uzbek": "Ona tili va Adabiyot",
+        "english": "Ingliz tili (CEFR / IELTS)",
+    }
+    subj_title = subj_names.get(subject_slug, str(subject_slug).title())
+
     meta_data = [
         [
             Paragraph("<b>O'quvchi F.I.Sh:</b>", styles["cell"]),
             Paragraph(student_name, styles["cell_bold"]),
             Paragraph("<b>Imtihon / Test:</b>", styles["cell"]),
             Paragraph(test.title, styles["cell_bold"]),
+        ],
+        [
+            Paragraph("<b>Filial / Kursxona:</b>", styles["cell"]),
+            Paragraph(branch_title, styles["cell"]),
+            Paragraph("<b>Fan yo'nalishi:</b>", styles["cell"]),
+            Paragraph(subj_title, styles["cell_bold"]),
         ],
         [
             Paragraph("<b>Guruh:</b>", styles["cell"]),
@@ -547,22 +568,37 @@ def generate_group_vedomost_pdf(group_id: int, test_id: int | None = None) -> st
     passed_count = sum(1 for att in student_attempt_map.values() if att.is_passed)
     pass_rate = round((passed_count / participated_count * 100), 1) if participated_count > 0 else 0.0
 
+    branch = getattr(group, "branch", None)
+    branch_title = branch.name if branch else "Grand Education Bosh Filiali"
+    if branch and getattr(branch, "branch_code", None):
+        branch_title += f" ({branch.branch_code})"
+
+    subj_slug = getattr(group, "subject", None) or (getattr(test, "subject", None) if test else "uzbek")
+    subj_names = {
+        "biology": "Biologiya (Milliy sertifikat)",
+        "chemistry": "Kimyo (Milliy sertifikat)",
+        "law": "Huquqshunoslik",
+        "uzbek": "Ona tili va Adabiyot",
+        "english": "Ingliz tili",
+    }
+    subj_title = subj_names.get(subj_slug, str(subj_slug).title())
+
     meta_cols = [
         [
+            Paragraph("<b>Filial:</b>", styles["cell"]),
+            Paragraph(branch_title, styles["cell_bold"]),
             Paragraph("<b>Guruh:</b>", styles["cell"]),
             Paragraph(group.name, styles["cell_bold"]),
+            Paragraph("<b>Fan:</b>", styles["cell"]),
+            Paragraph(subj_title, styles["cell_bold"]),
+        ],
+        [
             Paragraph("<b>Ustoz:</b>", styles["cell"]),
             Paragraph(teacher_name, styles["cell"]),
             Paragraph("<b>Imtihon:</b>", styles["cell"]),
-            Paragraph(test_title, styles["cell_bold"]),
-        ],
-        [
-            Paragraph("<b>O'quvchilar:</b>", styles["cell"]),
-            Paragraph(f"{total_students} nafar", styles["cell"]),
-            Paragraph("<b>Qatnashganlar:</b>", styles["cell"]),
-            Paragraph(f"{participated_count} nafar ({pass_rate}% o'tish)", styles["cell"]),
+            Paragraph(test_title, styles["cell"]),
             Paragraph("<b>O'rtacha ko'rsatkich:</b>", styles["cell"]),
-            Paragraph(f"{avg_pct:.1f}%", styles["cell_bold"]),
+            Paragraph(f"{avg_pct:.1f}% ({participated_count}/{total_students} nafar)", styles["cell_bold"]),
         ],
     ]
     meta_table = Table(meta_cols, colWidths=[25 * mm, 60 * mm, 25 * mm, 60 * mm, 25 * mm, 75 * mm])

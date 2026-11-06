@@ -223,6 +223,16 @@ def join_group_by_token(student: User, token_or_code: str) -> tuple[str, Student
         return ("ALREADY_MEMBER", group)
 
     group.students.add(student)
+    if group.branch and not student.branch_id:
+        student.branch = group.branch
+        if group.branch.center and not student.learning_center_id:
+            student.learning_center = group.branch.center
+            student.save(update_fields=["branch", "learning_center"])
+        else:
+            student.save(update_fields=["branch"])
+    if hasattr(student, "profile") and getattr(student.profile, "plan", "free") in ("free", "", None):
+        student.profile.plan = "pro"
+        student.profile.save(update_fields=["plan"])
     logger.info("Student %s joined group %s via token %s", student.id, group.id, token_or_code)
     return ("SUCCESS", group)
 
@@ -243,6 +253,16 @@ def join_group_by_invite_code(student: User, invite_code: str) -> StudentGroup:
 
     if not group.students.filter(id=student.id).exists():
         group.students.add(student)
+        if group.branch and not student.branch_id:
+            student.branch = group.branch
+            if group.branch.center and not student.learning_center_id:
+                student.learning_center = group.branch.center
+                student.save(update_fields=["branch", "learning_center"])
+            else:
+                student.save(update_fields=["branch"])
+        if hasattr(student, "profile") and getattr(student.profile, "plan", "free") in ("free", "", None):
+            student.profile.plan = "pro"
+            student.profile.save(update_fields=["plan"])
         logger.info("Student %s joined group %s via code %s", student.id, group.id, raw)
 
     return group

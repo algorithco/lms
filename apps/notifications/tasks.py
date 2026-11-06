@@ -509,6 +509,29 @@ def _send_group_result_and_vedomost(result: Any) -> None:
     status_emoji = "✅" if result.is_passed else "⚠️"
     status_str = "O'TDI" if result.is_passed else "O'TMADI"
 
+    # Subject emoji & name mapping
+    subject_slug = getattr(test, "subject", None) or getattr(getattr(test, "course", None), "subject", "uzbek")
+    subj_map = {
+        "biology": "🧬 Biologiya (Milliy sertifikat & DTM)",
+        "chemistry": "🧪 Kimyo (Milliy sertifikat & DTM)",
+        "law": "⚖️ Huquqshunoslik (Yurisprudensiya)",
+        "uzbek": "🇺🇿 Ona tili va Adabiyot",
+        "english": "🇬🇧 Ingliz tili (CEFR & IELTS)",
+    }
+    subj_title = subj_map.get(subject_slug)
+    if not subj_title:
+        t_low = (test.title or "").lower()
+        if "biolog" in t_low:
+            subj_title = "🧬 Biologiya (Milliy sertifikat)"
+        elif "kimyo" in t_low or "chem" in t_low:
+            subj_title = "🧪 Kimyo (Milliy sertifikat)"
+        elif "huquq" in t_low or "law" in t_low or "yuris" in t_low:
+            subj_title = "⚖️ Huquqshunoslik (Yurisprudensiya)"
+        elif "english" in t_low or "cefr" in t_low or "ielts" in t_low:
+            subj_title = "🇬🇧 Ingliz tili (CEFR & IELTS)"
+        else:
+            subj_title = "🇺🇿 Ona tili va Adabiyot"
+
     grade_str = getattr(result, "bmb_grade", "") or getattr(result, "rasch_grade", "") or ""
     attempt = getattr(result, "attempt", None)
     extras = []
@@ -523,18 +546,52 @@ def _send_group_result_and_vedomost(result: Any) -> None:
     sections_str, weak_str = _extract_test_sections_and_weaknesses(result)
     sections_line = f"\n🧩 <b>Bo'limlar kesimida:</b> {sections_str}" if sections_str else ""
 
+    from apps.results.models import Result as ResultModel
+
     for group in groups:
+        # Calculate rank in group
+        rank_badge = ""
+        try:
+            st_ids = list(group.students.values_list("id", flat=True))
+            if st_ids and student.id in st_ids:
+                higher_count = (
+                    ResultModel.objects.filter(test=test, student_id__in=st_ids, score__gt=result.score)
+                    .values("student_id")
+                    .distinct()
+                    .count()
+                )
+                rank = higher_count + 1
+                if rank == 1:
+                    rank_badge = "🥇 Guruhda 1-o'rin!"
+                elif rank == 2:
+                    rank_badge = "🥈 Guruhda 2-o'rin!"
+                elif rank == 3:
+                    rank_badge = "🥉 Guruhda 3-o'rin!"
+                else:
+                    rank_badge = f"🏆 Guruhda {rank}-o'rin"
+        except Exception:
+            pass
+
+        rank_line = f"\n🏅 <b>Guruhdagi o'rni:</b> <b>{rank_badge}</b>" if rank_badge else ""
+
+        branch = getattr(group, "branch", None) or getattr(student, "branch", None)
+        branch_name = branch.name if branch else "Grand Education Bosh Filiali"
+        if branch and getattr(branch, "branch_code", None):
+            branch_name += f" ({branch.branch_code})"
+
         caption = (
             f"📊 <b>YANGI IMTIHON NATIJASI — SHAXSIY NATIJA KARTASI</b>\n\n"
-            f"👤 <b>O'quvchi:</b> {student_name}\n"
-            f"🏛 <b>Guruh:</b> {group.name}\n"
-            f"📝 <b>Imtihon:</b> {test.title}\n"
-            f"🎯 <b>Ball:</b> {result.score:g} / {result.max_score:g} ({result.percentage:.1f}%){extra_info}"
+            f"📚 <b>Fan:</b> {subj_title}\n"
+            f"🏛 <b>Kursxona (Filial):</b> {_html(branch_name)}\n"
+            f"👥 <b>Guruh:</b> {_html(group.name)}\n"
+            f"👤 <b>O'quvchi:</b> {_html(student_name)}{rank_line}\n"
+            f"📝 <b>Imtihon:</b> {_html(test.title)}\n"
+            f"🎯 <b>Ball:</b> <b>{result.score:g} / {result.max_score:g} ({result.percentage:.1f}%)</b>{extra_info}"
             f"{sections_line}\n"
-            f"⚠️ <b>Zaif mavzular:</b> {weak_str}\n"
+            f"⚠️ <b>Zaif mavzular:</b> {_html(weak_str)}\n"
             f"{status_emoji} <b>Holat:</b> {status_str}\n"
             f"🔗 <b>Natija havolasi:</b> https://grandec.uz/results/{result.id}\n\n"
-            f"<i>Ilova: Rasmiy imtihon vedomosti (PDF)</i>"
+            f"<i>Ilova: Rasmiy imtihon vedomosti va scorecard (PDF)</i>"
         )
 
         try:

@@ -4,10 +4,15 @@ Results views — student results and analytics.
 Endpoints:
     GET /api/results/my-results/      — O'quvchining barcha natijalari
     GET /api/results/{id}/detail/     — Natija tafsilotlari
+    GET /api/results/{id}/pdf/        — Natija vedomosti / scorecard PDF
     GET /api/results/stats/           — Umumiy statistika
 """
 
+import logging
+import os
+
 from django.db.models import Avg, Count, Exists, OuterRef, Q, Sum
+from django.http import FileResponse, Http404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -15,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsStudent
+from apps.accounts.access import is_platform_admin
 
 from .models import Result
 from .access import result_queryset_for_user
@@ -23,6 +29,8 @@ from .serializers import (
     ResultListSerializer,
     ResultStatsSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +112,64 @@ class ResultDetailView(generics.RetrieveAPIView):
 
 
 # ---------------------------------------------------------------------------
+# Result Vedomost PDF
+# ---------------------------------------------------------------------------
+
+
+class ResultVedomostPdfView(APIView):
+    """
+    GET /api/results/{id}/pdf/
+
+    O'quvchining rasmiy test natijasi vedomosti / scorecard PDF faylini yuklab olish.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, pk: int, *args, **kwargs) -> Response:
+        from apps.results.pdf_generator import generate_student_vedomost_pdf
+
+        try:
+            result = Result.objects.select_related("student", "test", "course").get(pk=pk)
+        except Result.DoesNotExist:
+            raise Http404("Natija topilmadi.")
+
+        user = request.user
+        if (
+            result.student_id != user.id
+            and not is_platform_admin(user)
+            and not (getattr(user, "role", "") == "teacher" and result.course.teacher_id == user.id)
+        ):
+            return Response({"error": "Ruxsat etilmagan."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not result.attempt_id:
+            return Response(
+                {"error": "Bu natija uchun urinish mavjud emas."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            pdf_path = generate_student_vedomost_pdf(result.attempt_id)
+            if not pdf_path or not os.path.exists(pdf_path):
+                return Response(
+                    {"error": "PDF vedomost generatsiya qilinmadi."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return FileResponse(
+                open(pdf_path, "rb"),
+                content_type="application/pdf",
+                as_attachment=True,
+                filename=f"grandec_natija_{result.id}.pdf",
+            )
+        except Exception as e:
+            logger.exception("Failed to serve vedomost PDF for result_id=%s", pk)
+            return Response(
+                {"error": f"PDF generatsiyasida xatolik: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+# ---------------------------------------------------------------------------
 # Result Stats
 # ---------------------------------------------------------------------------
 
@@ -147,6 +213,7 @@ class ResultStatsView(APIView):
             stats["total_time_spent_seconds"] = stats["total_time_spent_seconds"] or 0
             try:
                 from apps.essays.models import EssaySubmission
+
                 stats["total_essays_submitted"] = EssaySubmission.objects.filter(student=request.user).count()
             except Exception:
                 stats["total_essays_submitted"] = 0

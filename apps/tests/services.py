@@ -510,6 +510,34 @@ class SaveAnswerService:
                 attempt, question, written_text or ""
             )
 
+        # -- DUAL_OPEN_CALC (ikki qismli ochiq masala: a|b) -----------------
+        if qtype == Question.QuestionType.DUAL_OPEN_CALC:
+            student_answer, created = StudentAnswer.objects.update_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={"text_answer": text_answer.strip()},
+            )
+            if not created and student_answer.text_answer != text_answer.strip():
+                student_answer.text_answer = text_answer.strip()
+                student_answer.save(update_fields=["text_answer"])
+            student_answer.selected_choices.clear()
+            return student_answer
+
+        # -- MATCHING_MATRIX (33-35: 1, 2, 3 -> A-F) ------------------------
+        if qtype == Question.QuestionType.MATCHING_MATRIX:
+            if question.matching_prompts.exists() and matching:
+                return SaveAnswerService._save_matching(attempt, question, matching or {})
+            student_answer, created = StudentAnswer.objects.update_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={"text_answer": text_answer.strip()},
+            )
+            if not created and student_answer.text_answer != text_answer.strip():
+                student_answer.text_answer = text_answer.strip()
+                student_answer.save(update_fields=["text_answer"])
+            student_answer.selected_choices.clear()
+            return student_answer
+
         # -- Matnli javob savollari (TEXT_MATCH & SHORT_ANSWER) -------------
         if qtype in (Question.QuestionType.TEXT_MATCH, Question.QuestionType.SHORT_ANSWER):
             student_answer, created = StudentAnswer.objects.update_or_create(
@@ -538,6 +566,7 @@ class SaveAnswerService:
             Question.QuestionType.HEADING_MATCHING,
             Question.QuestionType.TRUE_FALSE_NOT_GIVEN,
             Question.QuestionType.MATCHING,
+            Question.QuestionType.LEGAL_CASE_STUDY,
         ):
             if len(choice_ids) != 1:
                 raise ValueError(
@@ -1155,6 +1184,97 @@ class SubmitAttemptService:
                     to_update.append(student_answer)
                 continue
 
+            # -- DUAL_OPEN_CALC (ikki qismli ochiq masala: 36-45) -------------
+            if qtype == Question.QuestionType.DUAL_OPEN_CALC:
+                student_text = (student_answer.text_answer or "").strip()
+                correct_text = (question.correct_text or "").strip()
+                student_parts = [p.strip() for p in student_text.split("|", 1)]
+                correct_parts = [p.strip() for p in correct_text.split("|", 1)]
+
+                stud_a = student_parts[0] if len(student_parts) > 0 else ""
+                stud_b = student_parts[1] if len(student_parts) > 1 else ""
+                corr_a = correct_parts[0] if len(correct_parts) > 0 else ""
+                corr_b = correct_parts[1] if len(correct_parts) > 1 else ""
+
+                def _eval_subpart(given: str, expected: str) -> bool:
+                    if not given or not expected:
+                        return False
+                    valid_opts = [opt.strip().lower().replace(",", ".") for opt in expected.split(";") if opt.strip()]
+                    g_clean = given.strip().lower().replace(",", ".")
+                    return g_clean in valid_opts or given.strip().lower() == expected.strip().lower()
+
+                a_ok = _eval_subpart(stud_a, corr_a)
+                b_ok = _eval_subpart(stud_b, corr_b)
+
+                half_val = qmax / Decimal("2")
+                earned = Decimal("0")
+                if a_ok:
+                    earned += half_val
+                if b_ok:
+                    earned += half_val
+                is_correct = (a_ok and b_ok)
+
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=earned,
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
+                if student_answer.is_correct != is_correct:
+                    student_answer.is_correct = is_correct
+                    to_update.append(student_answer)
+                continue
+
+            # -- MATCHING_MATRIX (33-35: 1, 2, 3 -> A-F) ------------------------
+            if qtype == Question.QuestionType.MATCHING_MATRIX:
+                student_text = (student_answer.text_answer or "").strip()
+                correct_text = (question.correct_text or "").strip()
+
+                def _parse_matrix_map(s: str) -> dict[str, str]:
+                    pairs = {}
+                    items = [it.strip() for it in s.replace("|", ",").split(",") if it.strip()]
+                    for idx, it in enumerate(items, 1):
+                        if "-" in it:
+                            k, v = it.split("-", 1)
+                            pairs[k.strip().lower()] = v.strip().upper()
+                        elif ":" in it:
+                            k, v = it.split(":", 1)
+                            pairs[k.strip().lower()] = v.strip().upper()
+                        else:
+                            pairs[str(idx)] = it.strip().upper()
+                    return pairs
+
+                stud_pairs = _parse_matrix_map(student_text)
+                corr_pairs = _parse_matrix_map(correct_text)
+
+                if not corr_pairs:
+                    is_correct = _evaluate_text_answer(student_text, [correct_text]) if correct_text else False
+                    earned = qmax if is_correct else Decimal("0")
+                else:
+                    matched = sum(1 for k, v in corr_pairs.items() if stud_pairs.get(k) == v)
+                    total_p = len(corr_pairs)
+                    earned = (Decimal(str(matched)) / Decimal(str(total_p))) * qmax
+                    is_correct = (matched == total_p)
+
+                question_scores.append(
+                    QuestionScore(
+                        question_id=question.id,
+                        earned=earned,
+                        maximum=qmax,
+                        is_correct=is_correct,
+                        section_code=section_code,
+                        section_id=section_id,
+                    )
+                )
+                if student_answer.is_correct != is_correct:
+                    student_answer.is_correct = is_correct
+                    to_update.append(student_answer)
+                continue
+
             # -- WRITTEN (esse ko'prigi; obyektiv ball yo'q) ------------------
             if qtype == Question.QuestionType.WRITTEN:
                 if not (student_answer.written_text or "").strip():
@@ -1256,6 +1376,7 @@ class SubmitAttemptService:
                 Question.QuestionType.HEADING_MATCHING,
                 Question.QuestionType.TRUE_FALSE_NOT_GIVEN,
                 Question.QuestionType.MATCHING,
+                Question.QuestionType.LEGAL_CASE_STUDY,
             ):
                 is_correct = correct_choice_ids == selected_choice_ids
                 question_scores.append(

@@ -268,7 +268,7 @@ export interface AuthUser {
   is_superuser?: boolean;
   is_platform_admin?: boolean;
   avatar?: string;
-  active_subject?: 'uzbek' | 'english';
+  active_subject?: 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
   exam_target?: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'milliy_sertifikat' | 'cefr' | 'attestatsiya' | 'other' | 'undecided' | string;
   target_exam?: string;
   sub_subject?: string;
@@ -355,9 +355,10 @@ export function normalizeUser(raw: Record<string, unknown>): AuthUser {
     (typeof raw.full_name === 'string' && raw.full_name.trim()) ||
     `${first} ${last}`.trim() ||
     (typeof raw.email === 'string' ? raw.email : '');
+  const validSubs = ['uzbek', 'english', 'biology', 'chemistry', 'law'];
   const active_subject =
-    raw.active_subject === 'english' || raw.active_subject === 'uzbek'
-      ? (raw.active_subject as 'uzbek' | 'english')
+    validSubs.includes(String(raw.active_subject))
+      ? (raw.active_subject as SubjectSlug)
       : 'uzbek';
   const isAdmin = adminShape(raw);
   return {
@@ -633,8 +634,10 @@ export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blo
   return res.blob();
 }
 
+export type SubjectSlug = 'uzbek' | 'english' | 'biology' | 'chemistry' | 'law';
+
 export interface SubjectItem {
-  slug: 'uzbek' | 'english';
+  slug: SubjectSlug;
   name: string;
   description: string;
   icon: string;
@@ -643,11 +646,11 @@ export interface SubjectItem {
 
 export const ProfileApi = {
   subjects: () => api<SubjectItem[]>('/api/v1/subjects/'),
-  switchSubject: (subject: 'uzbek' | 'english', exam_target?: string) =>
+  switchSubject: (subject: SubjectSlug, exam_target?: string) =>
     api<{
       ok: boolean;
-      active_subject: 'uzbek' | 'english';
-      exam_target: 'national_certificate' | 'attestation' | 'ielts' | 'multilevel' | 'undecided';
+      active_subject: SubjectSlug;
+      exam_target: string;
       target_grade: string;
       daily_plan_summary: Record<string, unknown>;
     }>('/api/v1/profile/switch-subject/', {
@@ -742,8 +745,10 @@ export const Tests = {
 export const Results = {
   mine: () => api<Paginated<Record<string, unknown>>>('/api/results/my-results/'),
   stats: () => api<Record<string, unknown>>('/api/results/stats/'),
-  detail: (id: string) =>
+  detail: (id: string | number) =>
     api<Record<string, unknown>>(`/api/results/${id}/detail/`),
+  pdfUrl: (id: string | number) =>
+    `${API_BASE}/api/results/${id}/pdf/`,
 };
 
 export const Certificates = {
@@ -2949,4 +2954,192 @@ export interface DashboardData {
 
 export const DashboardApi = {
   get: (subject: string) => api<DashboardData>(`/api/v1/dashboard/?subject=${encodeURIComponent(subject)}`),
+};
+
+
+// -- Educational Center Branches & Teacher Management ------------------------
+export interface BranchItem {
+  id: number;
+  name: string;
+  slug: string;
+  branch_code: string;
+  region: string;
+  address: string;
+  phone: string;
+  telegram_channel: string;
+  director?: { id: number; name: string; email: string; phone?: string } | null;
+  subjects_offered: string[];
+  max_teachers_limit: number;
+  max_students_limit: number;
+  is_active: boolean;
+  teachers_count: number;
+  students_count: number;
+  groups_count: number;
+  avg_performance: number;
+  created_at?: string;
+  teachers?: { id: number; name: string; email: string; phone?: string; subject: string; groups_count: number }[];
+  groups?: { id: number; name: string; subject: string; invite_code: string; teacher_name: string; student_count: number }[];
+}
+
+export interface TeacherManagementItem {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  branch?: { id: number; name: string; branch_code: string; region: string } | null;
+  subject: string;
+  can_create_test: boolean;
+  can_create_essay_topic: boolean;
+  is_active: boolean;
+  groups_count: number;
+  students_count: number;
+  groups: { id: number; name: string; subject: string; invite_code: string; student_count: number }[];
+  date_joined?: string;
+}
+
+export interface CatalogBranchGroup {
+  id: number;
+  name: string;
+  subject: string;
+  subject_display: string;
+  teacher_name: string;
+  teacher_phone?: string;
+  student_count: number;
+  invite_code: string;
+  invite_token: string;
+}
+
+export interface CatalogBranchItem {
+  id: number;
+  name: string;
+  branch_code: string;
+  region: string;
+  address: string;
+  phone: string;
+  telegram_channel: string;
+  subjects_offered: string[];
+  groups: CatalogBranchGroup[];
+}
+
+export interface StudentGroupViewData {
+  group: {
+    id: number;
+    name: string;
+    subject: string;
+    subject_display: string;
+    description: string;
+    invite_code: string;
+    invite_token: string;
+    student_count: number;
+    created_at?: string;
+  };
+  branch?: {
+    id: number;
+    name: string;
+    branch_code: string;
+    region: string;
+    address: string;
+    phone: string;
+    telegram_channel: string;
+  } | null;
+  teacher: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    subject: string;
+    subject_label: string;
+    qualification: string;
+  };
+  assigned_tests: {
+    id: number;
+    title: string;
+    subject: string;
+    total_questions: number;
+    duration_minutes: number;
+    passing_score: number;
+    status: 'completed' | 'in_progress' | 'not_started';
+    result?: {
+      score: number;
+      max_score: number;
+      percentage: number;
+      grade: string;
+      date: string;
+    } | null;
+    attempt_id?: number | null;
+  }[];
+  leaderboard: {
+    rank: number;
+    medal?: '🥇' | '🥈' | '🥉' | null;
+    student_id: number;
+    student_name: string;
+    email: string;
+    avg_test_pct: number;
+    tests_taken: number;
+    bmb_grade: string;
+    essays_written: number;
+    last_active: string;
+    is_me: boolean;
+  }[];
+  my_rank?: number | null;
+  is_teacher: boolean;
+  is_admin: boolean;
+}
+
+export const BranchApi = {
+  list: () => api<BranchItem[]>('/api/v1/panel/branches/'),
+  create: (data: Partial<BranchItem> & { director_id?: number }) =>
+    api<{ success: boolean; message: string; branch: BranchItem }>('/api/v1/panel/branches/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  get: (id: number) => api<BranchItem>(`/api/v1/panel/branches/${id}/`),
+  update: (id: number, data: Partial<BranchItem> & { director_id?: number }) =>
+    api<{ success: boolean; message: string; branch: BranchItem }>(`/api/v1/panel/branches/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) =>
+    api<{ success: boolean; message: string }>(`/api/v1/panel/branches/${id}/`, {
+      method: 'DELETE',
+    }),
+};
+
+export const TeacherManagementApi = {
+  list: () =>
+    api<{
+      results: TeacherManagementItem[];
+      branches: { id: number; name: string; branch_code: string; region: string }[];
+      total: number;
+    }>('/api/v1/panel/teachers/'),
+  assign: (data: {
+    teacher_id?: number;
+    email?: string;
+    name?: string;
+    password?: string;
+    branch_id: number | null | '';
+    subject: string;
+    phone?: string;
+    can_create_test?: boolean;
+    can_create_essay_topic?: boolean;
+    is_active?: boolean;
+  }) =>
+    api<{ success: boolean; message: string; teacher: TeacherManagementItem }>('/api/v1/panel/teachers/assign/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+export const SchoolBranchesCatalogApi = {
+  catalog: () => api<CatalogBranchItem[]>('/api/v1/school/branches/catalog/'),
+};
+
+export const StudentGroupDetailApi = {
+  getStudentView: (id: number) => api<StudentGroupViewData>(`/api/v1/school/groups/${id}/student-view/`),
+  joinByCode: (code: string) =>
+    api<{ success: boolean; message: string; group: Record<string, unknown> }>('/api/v1/school/groups/join/', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
 };

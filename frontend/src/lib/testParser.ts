@@ -30,7 +30,7 @@ export interface SmartParseResult {
   unansweredCount: number;
 }
 
-export type SupportedSubject = 'uzbek' | 'adabiyot' | 'milliy' | 'english';
+export type SupportedSubject = 'uzbek' | 'adabiyot' | 'milliy' | 'english' | 'biology' | 'chemistry' | 'law';
 
 export function parseSmartTestText(rawText: string, defaultSubject: SupportedSubject = 'uzbek'): SmartParseResult {
   const text = (rawText || '').trim();

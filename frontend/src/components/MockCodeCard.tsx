@@ -3,7 +3,7 @@ import { KeyRound } from 'lucide-react';
 import { useTranslation } from '../i18n/useTranslation';
 
 interface Props {
-  subject: 'english' | 'uzbek';
+  subject: 'english' | 'uzbek' | 'biology' | 'chemistry' | 'law' | string;
   busy: boolean;
   error: string | null;
   onJoin: (code: string) => void;

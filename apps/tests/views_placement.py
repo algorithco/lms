@@ -49,6 +49,36 @@ def ensure_multi_subject_seed_data() -> None:
             "position": 2,
         },
     )
+    Subject.objects.update_or_create(
+        slug="biology",
+        defaults={
+            "name": "Biologiya (Milliy sertifikat & DTM)",
+            "description": "Milliy sertifikat, DTM testlari, sitologiya, genetika va anatomiya",
+            "icon": "🧬",
+            "is_active": True,
+            "position": 3,
+        },
+    )
+    Subject.objects.update_or_create(
+        slug="chemistry",
+        defaults={
+            "name": "Kimyo (Milliy sertifikat & DTM)",
+            "description": "Milliy sertifikat, DTM testlari, Mendeleyev davriy jadvali, stexiometriya va organik kimyo",
+            "icon": "🧪",
+            "is_active": True,
+            "position": 4,
+        },
+    )
+    Subject.objects.update_or_create(
+        slug="law",
+        defaults={
+            "name": "Huquqshunoslik (Yurisprudensiya & Konstitutsiya)",
+            "description": "O'zbekiston Respublikasi Konstitutsiyasi, davlat va huquq nazariyasi, sud kazuslari",
+            "icon": "⚖️",
+            "is_active": True,
+            "position": 5,
+        },
+    )
 
     # Subject seeding completed (user/teachers create their own tests and essays)
     return
@@ -459,10 +489,11 @@ def switch_subject_view(request):
         ensure_multi_subject_seed_data()
         data = request.data or {}
         subject = str(data.get("subject") or "").strip().lower()
-        if subject not in ("uzbek", "english"):
+        valid_subjects = ("uzbek", "english", "biology", "chemistry", "law")
+        if subject not in valid_subjects:
             return Response(
                 {
-                    "error": "Fan noto'g'ri tanlandi. Faqat 'uzbek' yoki 'english' bo'lishi mumkin."
+                    "error": f"Fan noto'g'ri tanlandi. Quyidagilardan biri bo'lishi kerak: {', '.join(valid_subjects)}"
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -480,6 +511,19 @@ def switch_subject_view(request):
             else:
                 target = "ielts"
             default_grade = "Band 7.5"
+            msg = "Ingliz tili (IELTS & Multi-level) yo'nalishiga o'tildi!"
+        elif subject == "biology":
+            target = "national_certificate"
+            default_grade = "A+"
+            msg = "Biologiya (Milliy sertifikat & DTM) yo'nalishiga o'tildi!"
+        elif subject == "chemistry":
+            target = "national_certificate"
+            default_grade = "A+"
+            msg = "Kimyo (Milliy sertifikat & DTM) yo'nalishiga o'tildi!"
+        elif subject == "law":
+            target = "national_certificate"
+            default_grade = "A+"
+            msg = "Huquqshunoslik (Yurisprudensiya) yo'nalishiga o'tildi!"
         else:  # uzbek
             if requested_target in ("national_certificate", "attestation"):
                 target = requested_target
@@ -488,6 +532,7 @@ def switch_subject_view(request):
             else:
                 target = "national_certificate"
             default_grade = "Oliy toifa" if target == "attestation" else "A+"
+            msg = "Ona tili va adabiyot yo'nalishiga o'tildi!"
 
         profile.exam_target = target
 
@@ -501,7 +546,7 @@ def switch_subject_view(request):
             "1-toifa",
         ):
             target_grade = "Band 7.5"
-        elif subject == "uzbek" and (
+        elif subject in ("uzbek", "biology", "chemistry", "law") and (
             target_grade.startswith("Band") or "daraja" in target_grade.lower()
         ):
             target_grade = default_grade
@@ -535,11 +580,7 @@ def switch_subject_view(request):
                 "exam_target": profile.exam_target,
                 "target_grade": profile.target_grade,
                 "daily_plan_summary": profile.daily_plan_summary,
-                "message": (
-                    "Ingliz tili (IELTS & Multi-level) yo'nalishiga o'tildi!"
-                    if subject == "english"
-                    else "Ona tili va adabiyot yo'nalishiga o'tildi!"
-                ),
+                "message": msg,
             },
             status=status.HTTP_200_OK,
         )

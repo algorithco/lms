@@ -349,6 +349,9 @@ class Profile(models.Model):
     class SubjectChoice(models.TextChoices):
         UZBEK = "uzbek", _("Ona tili va adabiyot")
         ENGLISH = "english", _("Ingliz tili (IELTS & Multi-level)")
+        BIOLOGY = "biology", _("Biologiya (Milliy sertifikat & DTM)")
+        CHEMISTRY = "chemistry", _("Kimyo (Milliy sertifikat & DTM)")
+        LAW = "law", _("Huquqshunoslik (Yurisprudensiya & Konstitutsiya)")
 
     active_subject = models.CharField(
         _("faol fan"),

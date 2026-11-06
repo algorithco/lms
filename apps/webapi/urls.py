@@ -21,6 +21,7 @@ from . import (
     views_feedback,
     views_question_issues,
     views_referral,
+    views_branches,
 )
 from apps.organizations import views as views_enterprise
 from apps.tests import views_converter, views_mistakes, views_omr, views_placement, views_teacher_inspector
@@ -266,8 +267,11 @@ urlpatterns = [
         views_panel.user_grant_subscription_view,
         name="panel-user-grant-subscription",
     ),
+    path("panel/branches/", views_branches.panel_branches_list_create_view, name="panel-branches-list-create"),
+    path("panel/branches/<int:branch_id>/", views_branches.panel_branch_detail_view, name="panel-branches-detail"),
     path("panel/groups/", views_panel.panel_groups_view, name="panel-groups"),
-    path("panel/teachers/", views_panel.panel_teachers_view, name="panel-teachers"),
+    path("panel/teachers/", views_branches.panel_teachers_view, name="panel-teachers"),
+    path("panel/teachers/assign/", views_branches.panel_teachers_view, name="panel-teachers-assign"),
     path(
         "panel/teachers/create/",
         views_panel.admin_teacher_create_view,
@@ -388,6 +392,9 @@ urlpatterns = [
         views_school.group_broadcast_vedomost_view,
         name="school-group-broadcast-vedomost",
     ),
+    path("school/branches/catalog/", views_branches.school_branches_catalog_view, name="school-branches-catalog"),
+    path("school/groups/<int:group_id>/student-view/", views_branches.student_group_detail_view, name="school-group-student-view"),
+    path("groups/<int:group_id>/student-view/", views_branches.student_group_detail_view, name="group-student-view"),
     path("school/groups/join/", views_school.group_join_view, name="school-group-join"),
     path(
         "school/groups/join/<str:token>/",

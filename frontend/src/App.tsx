@@ -72,6 +72,9 @@ const TeacherVocabGenerator = lazyPage(() => import('./pages/TeacherVocabGenerat
 const EnglishExamInterface = lazyPage(() => import('./pages/tests/EnglishExamInterface'));
 const JoinGroup = lazyPage(() => import('./pages/JoinGroup'));
 const ReferralRedirect = lazyPage(() => import('./pages/ReferralRedirect'));
+const PanelBranches = lazyPage(() => import('./pages/PanelBranches'));
+const PanelTeachers = lazyPage(() => import('./pages/PanelTeachers'));
+const StudentGroupDetail = lazyPage(() => import('./pages/StudentGroupDetail'));
 
 import AuthModal from './components/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -102,6 +105,7 @@ function AnimatedRoutes() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/join" element={<JoinGroup />} />
         <Route path="/join/:token" element={<JoinGroup />} />
         <Route path="/r/:code" element={<ReferralRedirect />} />
         <Route path="/password-reset" element={<PasswordReset />} />
@@ -135,6 +139,7 @@ function AnimatedRoutes() {
                 requires auth, so a shell-less public route only 401'd. */}
             <Route path="/essay-leaderboard" element={<EssayLeaderboard />} />
             <Route path="/dashboard" element={<DashboardRouter />} />
+            <Route path="/groups/:groupId" element={<StudentGroupDetail />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/create" element={<SmartTestCreate />} />
@@ -240,7 +245,7 @@ function AnimatedRoutes() {
             </Route>
             {/* Legacy standalone pages → SPA equivalents */}
             <Route path="/essays/submit" element={<Navigate to="/essays" replace />} />
-            <Route path="/manage-teachers" element={<Navigate to="/panel/users" replace />} />
+            <Route path="/manage-teachers" element={<Navigate to="/panel/teachers" replace />} />
             {/* Panel */}
             <Route element={<AdminRoute />}>
               <Route path="/panel" element={<PanelDashboard />} />
@@ -262,6 +267,10 @@ function AnimatedRoutes() {
               <Route path="/panel/tests/:id/questions" element={<PanelQuestions />} />
               <Route path="/panel/topics" element={<PanelTopics />} />
               <Route path="/panel/feedback" element={<PanelFeedback />} />
+              <Route path="/panel/branches" element={<PanelBranches />} />
+              <Route path="/panel/teachers" element={<PanelTeachers />} />
+              <Route path="/control-panel/branches" element={<Navigate to="/panel/branches" replace />} />
+              <Route path="/control-panel/teachers" element={<Navigate to="/panel/teachers" replace />} />
               <Route path="/panel/tuition" element={<PanelTuition />} />
               <Route path="/panel/users" element={<PanelUsers />} />
             </Route>

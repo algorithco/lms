@@ -2612,7 +2612,10 @@
     "eu_err_plan": "Rasmli esse tarifingizga kirmaydi. Matnni yozib yuboring yoki tarifni yangilang.",
     "eu_err_daily": "Bugungi rasm tanish limiti tugadi. Ertaga qayta urinib ko'ring yoki matnni yozib yuboring.",
     "eu_err_size": "Rasm juda katta yoki sahifalar soni ko'p. Kichikroq rasm tanlang.",
-    "cv_pick_answer": "To'g'ri javobni tanlang: hujjatda u aniq ko'rinmadi, taxmin qilinmaydi."
+    "cv_pick_answer": "To'g'ri javobni tanlang: hujjatda u aniq ko'rinmadi, taxmin qilinmaydi.",
+    "subject_biology": "Biologiya",
+    "subject_chemistry": "Kimyo",
+    "subject_law": "Huquq"
   },
   "ru": {
     "main": "Главное",
@@ -5227,7 +5230,10 @@
     "eu_err_plan": "Фото-эссе не входит в ваш тариф. Введите текст или обновите тариф.",
     "eu_err_daily": "Дневной лимит распознавания исчерпан. Попробуйте завтра или введите текст.",
     "eu_err_size": "Фото слишком большое или слишком много страниц. Выберите файл поменьше.",
-    "cv_pick_answer": "Выберите правильный ответ: в документе он не виден, мы не угадываем."
+    "cv_pick_answer": "Выберите правильный ответ: в документе он не виден, мы не угадываем.",
+    "subject_biology": "Биология",
+    "subject_chemistry": "Химия",
+    "subject_law": "Право"
   },
   "en": {
     "main": "Main",
@@ -7842,6 +7848,9 @@
     "eu_err_plan": "Photo essays are not part of your plan. Type the text or upgrade.",
     "eu_err_daily": "Today's photo recognition limit is used up. Try tomorrow or type the text.",
     "eu_err_size": "The photo is too large or there are too many pages. Choose a smaller one.",
-    "cv_pick_answer": "Pick the correct answer: it was not clear in the document, and we do not guess."
+    "cv_pick_answer": "Pick the correct answer: it was not clear in the document, and we do not guess.",
+    "subject_biology": "Biology",
+    "subject_chemistry": "Chemistry",
+    "subject_law": "Law"
   }
 }
