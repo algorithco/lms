@@ -42,7 +42,10 @@ def test_card_info_is_hidden_from_guests(url_name):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("url_name", CARD_URLS)
-def test_card_info_view(url_name):
+def test_card_info_view(url_name, settings):
+    # The card comes from the environment only; set fake values so CI (no .env) behaves like dev.
+    settings.PAYMENT_CARD_NUMBER = "0000 0000 0000 0000"
+    settings.PAYMENT_CARD_HOLDER = "TEST HOLDER"
     user = User.objects.create_user(email="card_viewer@grandec.uz", password="ValidPassword123!", role="student")
     Profile.objects.get_or_create(user=user)
     client = APIClient()
