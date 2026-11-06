@@ -3007,7 +3007,8 @@ export interface CatalogBranchGroup {
   teacher_phone?: string;
   student_count: number;
   invite_code: string;
-  invite_token: string;
+  /** Never sent by the public catalog (secret link token); kept optional for type reuse. */
+  invite_token?: string;
 }
 
 export interface CatalogBranchItem {
@@ -3030,7 +3031,8 @@ export interface StudentGroupViewData {
     subject_display: string;
     description: string;
     invite_code: string;
-    invite_token: string;
+    /** Only returned to the group's teacher / admins. */
+    invite_token?: string | null;
     student_count: number;
     created_at?: string;
   };

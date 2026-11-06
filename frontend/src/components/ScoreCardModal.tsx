@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Download, Share2, Send, FileText, Copy, Check } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useTranslation } from '../i18n/useTranslation';
@@ -24,6 +24,304 @@ export interface ScoreCardModalProps {
   pdfUrl?: string;
 }
 
+/**
+ * Story Card export size (Instagram / Telegram story spec).
+ *
+ * The bitmap is ALWAYS exactly 1080x1920 CSS-independent pixels and is NOT
+ * multiplied by `devicePixelRatio`: 1080*1920*dpr² would be 18.6M px at dpr=3,
+ * which exceeds iOS Safari's ~16.7M px canvas limit (the canvas silently turns
+ * blank) and costs ~75 MB of RAM. The on-screen preview is a plain <img> of the
+ * encoded PNG, so the browser rescales it with its own high-quality filter and
+ * it stays sharp on Retina screens.
+ */
+const CARD_WIDTH = 1080;
+const CARD_HEIGHT = 1920;
+const FONT_STACK = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+const SUBJECT_MAP: Record<string, { label: string; icon: string }> = {
+  biology: { label: 'BIOLOGIYA (MILLIY SERTIFIKAT & DTM)', icon: '🧬' },
+  chemistry: { label: 'KIMYO (MILLIY SERTIFIKAT & DTM)', icon: '🧪' },
+  law: { label: 'HUQUQSHUNOSLIK (YURISPRUDENSIYA)', icon: '⚖️' },
+  uzbek: { label: 'ONA TILI VA ADABIYOT', icon: '🇺🇿' },
+  english: { label: 'INGLIZ TILI (CEFR / IELTS)', icon: '🇬🇧' },
+};
+
+interface StoryCardData {
+  title: string;
+  studentName: string;
+  scorePercentage: number;
+  gradeBadge: string;
+  correctCount: number;
+  incorrectCount: number;
+  timeSpent: string;
+  date: string;
+  branch: string;
+  subjectLabel: string;
+  subjectIcon: string;
+}
+
+type LetterSpacingContext = CanvasRenderingContext2D & { letterSpacing?: string };
+
+/** Rounded-rect path with a fallback for browsers without ctx.roundRect (Safari < 16). */
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+    return;
+  }
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 2)}...` : value;
+}
+
+function drawStoryCard(ctx: CanvasRenderingContext2D, d: StoryCardData): void {
+  const width = CARD_WIDTH;
+  const height = CARD_HEIGHT;
+  const spacingCtx = ctx as LetterSpacingContext;
+  const supportsLetterSpacing = 'letterSpacing' in ctx;
+
+  // 1. Background deep gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+  bgGrad.addColorStop(0, '#090D16');
+  bgGrad.addColorStop(0.5, '#0F172A');
+  bgGrad.addColorStop(1, '#05070C');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. Radial gold glow behind center
+  const radial = ctx.createRadialGradient(width / 2, 850, 50, width / 2, 850, 500);
+  radial.addColorStop(0, 'rgba(245, 158, 11, 0.18)');
+  radial.addColorStop(0.5, 'rgba(217, 119, 6, 0.06)');
+  radial.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = radial;
+  ctx.fillRect(0, 0, width, height);
+
+  // 3. Ornate double gold borders
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
+  ctx.strokeRect(40, 40, width - 80, height - 80);
+
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.strokeRect(55, 55, width - 110, height - 110);
+
+  const corners: ReadonlyArray<readonly [number, number]> = [
+    [55, 55],
+    [width - 55, 55],
+    [55, height - 55],
+    [width - 55, height - 55],
+  ];
+  ctx.fillStyle = '#F59E0B';
+  corners.forEach(([x, y]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 4. Header: brand & title
+  ctx.textAlign = 'center';
+  ctx.font = `54px ${FONT_STACK}`;
+  ctx.fillText('🦅', width / 2, 170);
+
+  ctx.font = `900 46px ${FONT_STACK}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('GRAND EDUCATION', width / 2, 240);
+
+  ctx.font = `700 22px ${FONT_STACK}`;
+  ctx.fillStyle = '#FBBF24';
+  if (supportsLetterSpacing) spacingCtx.letterSpacing = '2px';
+  ctx.fillText(d.branch.toUpperCase(), width / 2, 285);
+  if (supportsLetterSpacing) spacingCtx.letterSpacing = '0px';
+
+  // Subject pill
+  const subjPillW = 600;
+  const subjPillH = 48;
+  const subjPillX = width / 2 - subjPillW / 2;
+  const subjPillY = 320;
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+  ctx.lineWidth = 1.5;
+  roundedRectPath(ctx, subjPillX, subjPillY, subjPillW, subjPillH, 24);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = `800 20px ${FONT_STACK}`;
+  ctx.fillStyle = '#FDE68A';
+  ctx.fillText(`${d.subjectIcon}  ${d.subjectLabel}`, width / 2, subjPillY + 31);
+
+  // Divider
+  ctx.beginPath();
+  ctx.moveTo(width / 2 - 220, 395);
+  ctx.lineTo(width / 2 + 220, 395);
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 5. Exam title
+  ctx.font = `600 28px ${FONT_STACK}`;
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText(truncate(d.title, 44), width / 2, 455);
+
+  // 6. Student name
+  ctx.font = `900 56px ${FONT_STACK}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(truncate(d.studentName || "O'quvchi", 25), width / 2, 545);
+
+  // 7. Score ring
+  const centerX = width / 2;
+  const centerY = 820;
+  const radius = 210;
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius + 20, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.18)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  const ringGrad = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+  ringGrad.addColorStop(0, '#F59E0B');
+  ringGrad.addColorStop(0.5, '#FDE68A');
+  ringGrad.addColorStop(1, '#D97706');
+  ctx.strokeStyle = ringGrad;
+  ctx.lineWidth = 14;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius - 8, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.fill();
+
+  ctx.font = `900 130px ${FONT_STACK}`;
+  const textGrad = ctx.createLinearGradient(centerX, centerY - 60, centerX, centerY + 50);
+  textGrad.addColorStop(0, '#FFFFFF');
+  textGrad.addColorStop(1, '#FBBF24');
+  ctx.fillStyle = textGrad;
+  ctx.fillText(`${d.scorePercentage}%`, centerX, centerY + 45);
+
+  ctx.font = `700 24px ${FONT_STACK}`;
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('YAKUNIY NATIJA', centerX, centerY + 105);
+
+  // 8. Grade badge
+  if (d.gradeBadge) {
+    const pillY = 1120;
+    const pillW = 500;
+    const pillH = 76;
+    const pillX = centerX - pillW / 2;
+
+    const pillGrad = ctx.createLinearGradient(pillX, pillY, pillX + pillW, pillY);
+    pillGrad.addColorStop(0, '#D97706');
+    pillGrad.addColorStop(0.5, '#F59E0B');
+    pillGrad.addColorStop(1, '#B45309');
+    ctx.fillStyle = pillGrad;
+    roundedRectPath(ctx, pillX, pillY, pillW, pillH, 38);
+    ctx.fill();
+
+    ctx.font = `900 32px ${FONT_STACK}`;
+    ctx.fillStyle = '#0F172A';
+    ctx.fillText(d.gradeBadge.toUpperCase(), centerX, pillY + 48);
+  }
+
+  // 9. Stats grid
+  const statY = 1260;
+  const statW = 280;
+  const statH = 150;
+  const gap = 30;
+  const startX = (width - (statW * 3 + gap * 2)) / 2;
+
+  const stats = [
+    { label: 'TO‘G‘RI', value: String(d.correctCount), color: '#10B981', border: 'rgba(16, 185, 129, 0.35)' },
+    { label: 'NOTO‘G‘RI', value: String(d.incorrectCount), color: '#F43F5E', border: 'rgba(244, 63, 94, 0.35)' },
+    { label: 'VAQT', value: d.timeSpent || '—', color: '#38BDF8', border: 'rgba(56, 189, 248, 0.35)' },
+  ];
+
+  stats.forEach((s, idx) => {
+    const x = startX + idx * (statW + gap);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.strokeStyle = s.border;
+    ctx.lineWidth = 2;
+    roundedRectPath(ctx, x, statY, statW, statH, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = `700 18px ${FONT_STACK}`;
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText(s.label, x + statW / 2, statY + 45);
+
+    ctx.font = `900 34px ${FONT_STACK}`;
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.value, x + statW / 2, statY + 105);
+  });
+
+  // 10. Footer: verification & CTA
+  ctx.beginPath();
+  ctx.moveTo(120, 1490);
+  ctx.lineTo(width - 120, 1490);
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  const qrX = 140;
+  const qrY = 1540;
+
+  ctx.textAlign = 'left';
+  ctx.font = `700 32px ${FONT_STACK}`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText("O'z bilimingizni sinab ko'ring", qrX + 40, qrY + 55);
+  ctx.fillText('va milliy sertifikat darajangizni oling:', qrX + 40, qrY + 98);
+
+  ctx.font = `900 38px ${FONT_STACK}`;
+  ctx.fillStyle = '#F59E0B';
+  ctx.fillText('grandec.uz', qrX + 40, qrY + 155);
+
+  ctx.textAlign = 'center';
+  ctx.font = `500 20px ${FONT_STACK}`;
+  ctx.fillStyle = '#64748B';
+  ctx.fillText(`Topshirilgan sana: ${d.date}`, width / 2, 1820);
+}
+
+/** Renders the card on a throw-away canvas and resolves with the PNG blob. */
+async function renderStoryCardBlob(data: StoryCardData): Promise<Blob | null> {
+  // Make sure web fonts are ready, otherwise the first paint uses a fallback font.
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+  } catch {
+    /* font loading is best-effort */
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = CARD_WIDTH;
+  canvas.height = CARD_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  try {
+    drawStoryCard(ctx, data);
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  } finally {
+    // iOS Safari keeps canvas backing stores alive until they are shrunk: release it now.
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
 export default function ScoreCardModal({
   isOpen,
   onClose,
@@ -33,7 +331,7 @@ export default function ScoreCardModal({
   gradeBadge = '',
   correctCount,
   incorrectCount,
-  totalQuestions,
+  totalQuestions: _totalQuestions,
   timeSpent = '',
   date = new Date().toLocaleDateString(),
   subject = '',
@@ -44,8 +342,8 @@ export default function ScoreCardModal({
   telegramShareUrl = '',
   pdfUrl = '',
 }: ScoreCardModalProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [cardBlob, setCardBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const toast = useToast();
   const { t } = useTranslation();
@@ -53,313 +351,117 @@ export default function ScoreCardModal({
   const refCode = referralCode || 'GRAND';
   const effectiveShareUrl = shareUrl || `https://grandec.uz/join?ref=${refCode}`;
 
-  const subjectMap: Record<string, { label: string; icon: string }> = {
-    biology: { label: 'BIOLOGIYA (MILLIY SERTIFIKAT & DTM)', icon: '🧬' },
-    chemistry: { label: 'KIMYO (MILLIY SERTIFIKAT & DTM)', icon: '🧪' },
-    law: { label: 'HUQUQSHUNOSLIK (YURISPRUDENSIYA)', icon: '⚖️' },
-    uzbek: { label: 'ONA TILI VA ADABIYOT', icon: '🇺🇿' },
-    english: { label: 'INGLIZ TILI (CEFR / IELTS)', icon: '🇬🇧' },
-  };
-
-  const subjInfo = subjectMap[subject.toLowerCase()] || {
-    label: (subject || 'GRAND EDUCATION').toUpperCase(),
-    icon: '🏆',
-  };
+  // Stable primitives only: an object created per render would re-run the canvas effect every render.
+  const subjInfo = useMemo(
+    () =>
+      SUBJECT_MAP[subject.toLowerCase()] || {
+        label: (subject || 'GRAND EDUCATION').toUpperCase(),
+        icon: '🏆',
+      },
+    [subject],
+  );
+  const subjectLabel = subjInfo.label;
+  const subjectIcon = subjInfo.icon;
 
   const effectiveBranch = branchName || 'Grand Education Markaziy Filiali';
 
-  const defaultShareText = `Men Grand Education'da ${subjInfo.icon} ${subjInfo.label} fanidan ${scorePercentage}% ball (${gradeBadge || 'Sertifikat'}) oldim! Sen ham bilimingni sinab ko'r:`;
+  const defaultShareText = `Men Grand Education'da ${subjectIcon} ${subjectLabel} fanidan ${scorePercentage}% ball (${gradeBadge || 'Sertifikat'}) oldim! Sen ham bilimingni sinab ko'r:`;
   const effectiveTgUrl =
     telegramShareUrl ||
     `https://t.me/share/url?url=${encodeURIComponent(effectiveShareUrl)}&text=${encodeURIComponent(defaultShareText)}`;
 
   const effectivePdfUrl = pdfUrl || (resultId ? `/api/results/${resultId}/pdf/` : '');
 
+  // Render the PNG once per distinct input; clean up the object URL on every change/unmount.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = 1080;
-    const height = 1920;
-    canvas.width = width;
-    canvas.height = height;
-
-    // 1. Background deep gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-    bgGrad.addColorStop(0, '#090D16');
-    bgGrad.addColorStop(0.5, '#0F172A');
-    bgGrad.addColorStop(1, '#05070C');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, width, height);
-
-    // 2. Radial gold glow behind center
-    const radial = ctx.createRadialGradient(width / 2, 850, 50, width / 2, 850, 500);
-    radial.addColorStop(0, 'rgba(245, 158, 11, 0.18)');
-    radial.addColorStop(0.5, 'rgba(217, 119, 6, 0.06)');
-    radial.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = radial;
-    ctx.fillRect(0, 0, width, height);
-
-    // 3. Ornate Double Gold Borders
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
-    ctx.strokeRect(40, 40, width - 80, height - 80);
-
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
-    ctx.strokeRect(55, 55, width - 110, height - 110);
-
-    // Corner decorative accents
-    const corners = [
-      [55, 55],
-      [width - 55, 55],
-      [55, height - 55],
-      [width - 55, height - 55],
-    ];
-    corners.forEach(([x, y]) => {
-      ctx.fillStyle = '#F59E0B';
-      ctx.beginPath();
-      ctx.arc(x, y, 6, 0, Math.PI * 2);
-      ctx.fill();
+    void renderStoryCardBlob({
+      title,
+      studentName,
+      scorePercentage,
+      gradeBadge,
+      correctCount,
+      incorrectCount,
+      timeSpent,
+      date,
+      branch: effectiveBranch,
+      subjectLabel,
+      subjectIcon,
+    }).then((blob) => {
+      if (cancelled || !blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setCardBlob(blob);
+      setPreviewUrl(objectUrl);
     });
 
-    // 4. Header: Brand Logo & Title
-    ctx.textAlign = 'center';
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setCardBlob(null);
+      setPreviewUrl(null);
+    };
+  }, [
+    isOpen,
+    title,
+    studentName,
+    scorePercentage,
+    gradeBadge,
+    correctCount,
+    incorrectCount,
+    timeSpent,
+    date,
+    effectiveBranch,
+    subjectLabel,
+    subjectIcon,
+  ]);
 
-    // Humo / Crown icon
-    ctx.font = '54px sans-serif';
-    ctx.fillText('🦅', width / 2, 170);
+  const fileName = `grandec-score-${scorePercentage}ball.png`;
 
-    ctx.font = '900 46px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('GRAND EDUCATION', width / 2, 240);
-
-    // Branch Name Pill
-    ctx.font = '700 22px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#FBBF24';
-    ctx.letterSpacing = '2px';
-    ctx.fillText(effectiveBranch.toUpperCase(), width / 2, 285);
-    ctx.letterSpacing = '0px';
-
-    // Subject Pill Header
-    const subjPillW = 600;
-    const subjPillH = 48;
-    const subjPillX = width / 2 - subjPillW / 2;
-    const subjPillY = 320;
-    ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(subjPillX, subjPillY, subjPillW, subjPillH, 24);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = '800 20px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#FDE68A';
-    ctx.fillText(`${subjInfo.icon}  ${subjInfo.label}`, width / 2, subjPillY + 31);
-
-    // Divider line
-    ctx.beginPath();
-    ctx.moveTo(width / 2 - 220, 395);
-    ctx.lineTo(width / 2 + 220, 395);
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // 5. Exam Title Badge
-    ctx.font = '600 28px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(title.length > 44 ? title.slice(0, 42) + '...' : title, width / 2, 455);
-
-    // 6. Student Name
-    ctx.font = '900 56px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    const sName = studentName || "O'quvchi";
-    ctx.fillText(sName.length > 25 ? sName.slice(0, 24) + '...' : sName, width / 2, 545);
-
-    // 7. Center Massive Score Ring
-    const centerX = width / 2;
-    const centerY = 820;
-    const radius = 210;
-
-    // Outer subtle ring
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 20, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.18)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Gradient main ring
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    const ringGrad = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
-    ringGrad.addColorStop(0, '#F59E0B');
-    ringGrad.addColorStop(0.5, '#FDE68A');
-    ringGrad.addColorStop(1, '#D97706');
-    ctx.strokeStyle = ringGrad;
-    ctx.lineWidth = 14;
-    ctx.stroke();
-
-    // Inner background circle
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius - 8, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.fill();
-
-    // Score inside ring
-    ctx.font = '900 130px Inter, system-ui, sans-serif';
-    const textGrad = ctx.createLinearGradient(centerX, centerY - 60, centerX, centerY + 50);
-    textGrad.addColorStop(0, '#FFFFFF');
-    textGrad.addColorStop(1, '#FBBF24');
-    ctx.fillStyle = textGrad;
-    ctx.fillText(`${scorePercentage}%`, centerX, centerY + 45);
-
-    ctx.font = '700 24px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText('YAKUNIY NATIJA', centerX, centerY + 105);
-
-    // 8. Grade Badge Pill
-    if (gradeBadge) {
-      const pillY = 1120;
-      const pillW = 500;
-      const pillH = 76;
-      const pillX = centerX - pillW / 2;
-
-      const pillGrad = ctx.createLinearGradient(pillX, pillY, pillX + pillW, pillY);
-      pillGrad.addColorStop(0, '#D97706');
-      pillGrad.addColorStop(0.5, '#F59E0B');
-      pillGrad.addColorStop(1, '#B45309');
-
-      ctx.fillStyle = pillGrad;
-      ctx.beginPath();
-      ctx.roundRect(pillX, pillY, pillW, pillH, 38);
-      ctx.fill();
-
-      ctx.font = '900 32px Inter, system-ui, sans-serif';
-      ctx.fillStyle = '#0F172A';
-      ctx.fillText(gradeBadge.toUpperCase(), centerX, pillY + 48);
-    }
-
-    // 9. Stats Grid
-    const statY = 1260;
-    const statW = 280;
-    const statH = 150;
-    const gap = 30;
-    const totalW = statW * 3 + gap * 2;
-    const startX = (width - totalW) / 2;
-
-    const stats = [
-      { label: 'TO‘G‘RI', value: String(correctCount), color: '#10B981', border: 'rgba(16, 185, 129, 0.35)' },
-      { label: 'NOTO‘G‘RI', value: String(incorrectCount), color: '#F43F5E', border: 'rgba(244, 63, 94, 0.35)' },
-      { label: 'VAQT', value: timeSpent || '—', color: '#38BDF8', border: 'rgba(56, 189, 248, 0.35)' },
-    ];
-
-    stats.forEach((s, idx) => {
-      const x = startX + idx * (statW + gap);
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-      ctx.strokeStyle = s.border;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(x, statY, statW, statH, 20);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.font = '700 18px Inter, system-ui, sans-serif';
-      ctx.fillStyle = '#94A3B8';
-      ctx.fillText(s.label, x + statW / 2, statY + 45);
-
-      ctx.font = '900 34px Inter, system-ui, sans-serif';
-      ctx.fillStyle = s.color;
-      ctx.fillText(s.value, x + statW / 2, statY + 105);
-    });
-
-    // 10. Bottom Footer: Verification & CTA
-    ctx.beginPath();
-    ctx.moveTo(120, 1490);
-    ctx.lineTo(width - 120, 1490);
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    const qrX = 140;
-    const qrY = 1540;
-
-    // CTA Text
-    ctx.textAlign = 'left';
-    ctx.font = '700 32px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText("O'z bilimingizni sinab ko'ring", qrX + 40, qrY + 55);
-    ctx.fillText("va milliy sertifikat darajangizni oling:", qrX + 40, qrY + 98);
-
-    ctx.font = '900 38px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#F59E0B';
-    ctx.fillText('grandec.uz', qrX + 40, qrY + 155);
-
-    // Date
-    ctx.textAlign = 'center';
-    ctx.font = '500 20px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#64748B';
-    ctx.fillText(`Topshirilgan sana: ${date}`, width / 2, 1820);
-
-    setDataUrl(canvas.toDataURL('image/png'));
-  }, [isOpen, title, studentName, scorePercentage, gradeBadge, correctCount, incorrectCount, totalQuestions, timeSpent, date, subject, effectiveBranch, subjInfo, t]);
-
-  if (!isOpen) return null;
-
-  const handleDownload = () => {
-    if (!dataUrl) return;
+  const handleDownload = useCallback(() => {
+    if (!previewUrl) return;
     const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = `grandec-score-${subjInfo.label.toLowerCase().slice(0, 8)}-${scorePercentage}ball.png`;
+    a.href = previewUrl;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     toast.success('Natija rasmi muvaffaqiyatli yuklab olindi!');
-  };
+  }, [previewUrl, fileName, toast]);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(effectiveShareUrl);
-    setCopied(true);
-    toast.success("Taklif havolasi nusxalandi! Do'stlaringizga yuborishingiz mumkin.");
-    setTimeout(() => setCopied(false), 2500);
+  if (!isOpen) return null;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(effectiveShareUrl);
+      setCopied(true);
+      toast.success("Taklif havolasi nusxalandi! Do'stlaringizga yuborishingiz mumkin.");
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error("Havolani nusxalab bo'lmadi. Qo'lda nusxalang.");
+    }
   };
 
   const handleShare = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    if (!cardBlob) return;
     try {
-      if (navigator.share && canvas.toBlob) {
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            handleDownload();
-            return;
-          }
-          const file = new File([blob], `grandec-score-${scorePercentage}ball.png`, {
-            type: 'image/png',
-          });
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: `${studentName} — ${title} natijasi`,
-              text: defaultShareText,
-              url: effectiveShareUrl,
-            });
-            toast.success('Natija muvaffaqiyatli ulashildi!');
-            return;
-          }
-          handleDownload();
+      const file = new File([cardBlob], fileName, { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `${studentName} — ${title} natijasi`,
+          text: defaultShareText,
+          url: effectiveShareUrl,
         });
-      } else {
-        handleDownload();
+        toast.success('Natija muvaffaqiyatli ulashildi!');
+        return;
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+      handleDownload();
+    } catch (err: unknown) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
         handleDownload();
       }
     }
@@ -459,15 +561,23 @@ export default function ScoreCardModal({
             marginBottom: 20,
           }}
         >
-          <canvas
-            ref={canvasRef}
-            style={{
-              width: '100%',
-              height: 'auto',
-              maxHeight: 340,
-              objectFit: 'contain',
-            }}
-          />
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt={`${studentName} — ${title}`}
+              width={CARD_WIDTH}
+              height={CARD_HEIGHT}
+              decoding="async"
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: 340,
+                objectFit: 'contain',
+              }}
+            />
+          ) : (
+            <div style={{ height: 340, width: '100%' }} aria-busy="true" />
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -501,6 +611,7 @@ export default function ScoreCardModal({
             <button
               type="button"
               onClick={handleDownload}
+              disabled={!previewUrl}
               style={{
                 display: 'flex',
                 alignItems: 'center',

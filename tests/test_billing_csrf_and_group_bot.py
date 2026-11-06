@@ -274,7 +274,7 @@ class TelegramGroupBotAssistantTests(TestCase):
         async_to_sync(group_results_leaderboard_command)(update_lb, context)
         self.assertTrue(update_lb.message.reply_text.called)
         lb_text = update_lb.message.reply_text.call_args[0][0]
-        self.assertIn("Guruhi Test Natijalari:", lb_text)
+        self.assertIn("Guruh Natijalari va Jonli Reyting:", lb_text)
         self.assertIn("94", lb_text)
         self.assertIn("Guruh o'rtacha ko'rsatkichi:", lb_text)
         self.assertIn("Murakkab qo'shma gaplar tahlili", lb_text)

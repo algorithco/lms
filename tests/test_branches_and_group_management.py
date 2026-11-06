@@ -179,7 +179,9 @@ def test_student_join_group_via_code_and_sync_branch(api_client, student_user, t
     student_user.refresh_from_db()
     assert group.students.filter(id=student_user.id).exists()
     assert student_user.branch_id == branch.id
-    assert student_user.profile.plan == "pro"
+    # Joining a group never grants a paid tier (see tests/test_free_pro_leak.py).
+    assert student_user.profile.plan in ("free", "", None)
+    assert student_user.has_pro_access is False
 
 
 @pytest.mark.django_db

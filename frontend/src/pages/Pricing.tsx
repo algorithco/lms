@@ -6,6 +6,7 @@ import { PaymentsApi } from '../lib/api';
 import { CreditCardIcon, CheckIcon, CopyIcon, ZapIcon } from '../components/icons';
 import CardPaymentModal from '../components/CardPaymentModal';
 import CardGate from '../components/CardGate';
+import SafeBoldText from '../components/SafeBoldText';
 import { useCardInfo } from '../lib/useCardInfo';
 
 export const PLAN_PRICES = {
@@ -340,8 +341,9 @@ export default function Pricing() {
               marginBottom: 16,
               fontSize: 14,
             }}
-            dangerouslySetInnerHTML={{ __html: resultMessage }}
-          />
+          >
+            <SafeBoldText text={resultMessage} />
+          </div>
         )}
 
         {isSuccess === false && resultMessage && (
@@ -355,8 +357,9 @@ export default function Pricing() {
               marginBottom: 16,
               fontSize: 14,
             }}
-            dangerouslySetInnerHTML={{ __html: resultMessage }}
-          />
+          >
+            <SafeBoldText text={resultMessage} />
+          </div>
         )}
 
         <form onSubmit={handleVerifySubmit}>
